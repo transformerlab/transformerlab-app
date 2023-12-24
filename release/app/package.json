@@ -1,0 +1,20 @@
+{
+  "name": "transformerlab",
+  "version": "0.1.0",
+  "description": "A tool to play with and train LLMs",
+  "license": "???",
+  "author": {
+    "name": "Ali Asaria",
+    "email": "ali.asaria@gmail.com",
+    "url": "https://github.com/aliasaria"
+  },
+  "main": "./dist/main/main.js",
+  "scripts": {
+    "rebuild": "node -r ts-node/register ../../.erb/scripts/electron-rebuild.js",
+    "postinstall": "npm run rebuild && npm run link-modules",
+    "link-modules": "node -r ts-node/register ../../.erb/scripts/link-modules.ts"
+  },
+  "dependencies": {
+    "ssh2": "^1.14.0"
+  }
+}

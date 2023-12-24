@@ -1,0 +1,33 @@
+.chatBubble {
+  width: 90%;
+  display: flex;
+  align-items: flex-end;
+  transform-origin: 0 100%;
+  padding-top: 0;
+  max-height: 0;
+  overflow: visible;
+  animation: message 0.15s ease-out 0s forwards;
+}
+
+.chatBubbleL {
+  flex-direction: row;
+  text-align: right;
+  align-self: flex-end;
+  transform-origin: 100% 100%;
+}
+
+@keyframes message {
+  0% {
+    max-height: 100vmax;
+  }
+  80% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1);
+    max-height: 100vmax;
+    overflow: visible;
+    padding-top: 0.5rem;
+    margin-top: 0.5rem;
+  }
+}
