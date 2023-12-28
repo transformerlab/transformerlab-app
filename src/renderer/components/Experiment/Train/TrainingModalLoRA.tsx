@@ -26,6 +26,7 @@ import {
   CircularProgress,
   Sheet,
 } from '@mui/joy';
+import DynamicPluginForm from './DynamicPluginForm';
 
 const DefaultLoraConfig = {
   model_max_length: 2048,
@@ -41,6 +42,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
+  const [selectedPlugin, setSelectedPlugin] = useState(null);
   const [config, setConfig] = useState(DefaultLoraConfig);
 
   // Fetch available datasets from the API
@@ -142,6 +144,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
               <Tab>Training Data</Tab>
               {/* <Tab>Training Settings</Tab> */}
               <Tab>LoRA Settings</Tab>
+              <Tab>Form Test</Tab>
             </TabList>
             <TabPanel value={0} sx={{ p: 2 }} keepMounted>
               <Stack spacing={2}>
@@ -168,7 +171,8 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
                     variant="soft"
                     size="lg"
                     name="plugin_name"
-                    onChange={(e, newValue) => setSelectedDataset(newValue)}
+                    value={selectedPlugin}
+                    onChange={(e, newValue) => setSelectedPlugin(newValue)}
                   >
                     {pluginsData?.map((row) => (
                       <Option value={row?.uniqueId} key={row.uniqueId}>
@@ -444,6 +448,9 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
                   </FormHelperText>
                 </Stack>
               </Sheet>
+            </TabPanel>
+            <TabPanel value={2} sx={{ p: 2 }} keepMounted>
+              <DynamicPluginForm plugin={selectedPlugin} />
             </TabPanel>
           </Tabs>
           <Stack spacing={2} direction="row" justifyContent="flex-end">
