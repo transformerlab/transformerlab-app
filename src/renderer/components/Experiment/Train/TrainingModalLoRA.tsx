@@ -138,7 +138,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
           <Tabs
             aria-label="Training Template Tabs"
             defaultValue={0}
-            sx={{ borderRadius: 'lg' }}
+            sx={{ borderRadius: 'lg', display: 'flex', overflow: 'hidden' }}
           >
             <TabList>
               <Tab>Training Data</Tab>
@@ -146,7 +146,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
               <Tab>LoRA Settings</Tab>
               <Tab>Form Test</Tab>
             </TabList>
-            <TabPanel value={0} sx={{ p: 2 }} keepMounted>
+            <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <Stack spacing={2}>
                 <FormControl>
                   <FormLabel>Training Template Name</FormLabel>
@@ -297,7 +297,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
                 </FormControl>
               </Stack>
             </TabPanel>
-            <TabPanel value={1} sx={{ p: 2 }} keepMounted>
+            <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <Sheet
                 sx={{ maxHeight: '60vh', overflow: 'auto', display: 'flex' }}
               >
@@ -449,7 +449,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
                 </Stack>
               </Sheet>
             </TabPanel>
-            <TabPanel value={2} sx={{ p: 2 }} keepMounted>
+            <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={selectedPlugin}
