@@ -132,7 +132,7 @@ export default function Eval({
         <ResultsModal
           open={resultsModalOpen}
           setOpen={setResultsModalOpen}
-          experimentId={experimentInfo.id}
+          experimentId={experimentInfo?.id}
           evaluator={currentEvaluator}
         ></ResultsModal>
         <Modal open={editModalOpen} onClose={() => setEditModalOpen(false)}>
