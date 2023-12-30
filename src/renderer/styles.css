@@ -170,25 +170,8 @@ so we can ignore the csslint warning.
   border-radius: 4px;
   vertical-align: middle;
   box-sizing: border-box;
-}
-
-/*
-Need to separate out the :not() selector from the rest of the CSS 2.1 selectors
-since IE8 won't execute CSS that contains a CSS3 selector.
-*/
-.pure-form input:not([type]) {
-  padding: 0.5em 0.6em;
-  display: inline-block;
-  border: 1px solid #ccc;
-  box-shadow: inset 0 1px 3px #ddd;
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-/* Chrome (as of v.32/34 on OS X) needs additional room for color to display. */
-/* May be able to remove this tweak as color inputs become more standardized across browsers. */
-.pure-form input[type='color'] {
-  padding: 0.2em 0.5em;
+  width: 100%;
+  font-size: 18px;
 }
 
 .pure-form input[type='text']:focus,
@@ -211,21 +194,6 @@ since IE8 won't execute CSS that contains a CSS3 selector.
   border-color: #129fea;
 }
 
-/*
-Need to separate out the :not() selector from the rest of the CSS 2.1 selectors
-since IE8 won't execute CSS that contains a CSS3 selector.
-*/
-.pure-form input:not([type]):focus {
-  outline: 0;
-  border-color: #129fea;
-}
-
-.pure-form input[type='file']:focus,
-.pure-form input[type='radio']:focus,
-.pure-form input[type='checkbox']:focus {
-  outline: thin solid #129fea;
-  outline: 1px auto #129fea;
-}
 .pure-form .pure-checkbox,
 .pure-form .pure-radio {
   margin: 0.5em 0;
@@ -253,15 +221,6 @@ since IE8 won't execute CSS that contains a CSS3 selector.
   color: #cad2d3;
 }
 
-/*
-Need to separate out the :not() selector from the rest of the CSS 2.1 selectors
-since IE8 won't execute CSS that contains a CSS3 selector.
-*/
-.pure-form input:not([type])[disabled] {
-  cursor: not-allowed;
-  background-color: #eaeded;
-  color: #cad2d3;
-}
 .pure-form input[readonly],
 .pure-form select[readonly],
 .pure-form textarea[readonly] {
@@ -292,6 +251,8 @@ since IE8 won't execute CSS that contains a CSS3 selector.
 }
 .pure-form label {
   margin: 0.5em 0 0.2em;
+  font-size: 14px;
+  font-weight: 500;
 }
 .pure-form fieldset {
   margin: 0;
@@ -442,4 +403,8 @@ since IE8 won't execute CSS that contains a CSS3 selector.
   display: block;
   color: #666;
   font-size: 0.875em;
+}
+
+.form-group {
+  margin-bottom: 20px;
 }

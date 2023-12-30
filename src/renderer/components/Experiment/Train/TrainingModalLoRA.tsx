@@ -450,7 +450,10 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
               </Sheet>
             </TabPanel>
             <TabPanel value={2} sx={{ p: 2 }} keepMounted>
-              <DynamicPluginForm plugin={selectedPlugin} />
+              <DynamicPluginForm
+                experimentInfo={experimentInfo}
+                plugin={selectedPlugin}
+              />
             </TabPanel>
           </Tabs>
           <Stack spacing={2} direction="row" justifyContent="flex-end">
