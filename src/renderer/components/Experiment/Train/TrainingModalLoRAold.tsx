@@ -143,7 +143,8 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
             <TabList>
               <Tab>Training Data</Tab>
               {/* <Tab>Training Settings</Tab> */}
-              <Tab>Plugin Config</Tab>
+              <Tab>LoRA Settings</Tab>
+              <Tab>Form Test</Tab>
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <Stack spacing={2}>
@@ -286,9 +287,169 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
                     </FormControl>
                   </>
                 )}
+                <FormControl>
+                  <FormLabel>Adaptor Name</FormLabel>
+                  <Input
+                    required
+                    placeholder="alpha-beta-gamma"
+                    name="adaptor_name"
+                  />
+                </FormControl>
               </Stack>
             </TabPanel>
             <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <Sheet
+                sx={{ maxHeight: '60vh', overflow: 'auto', display: 'flex' }}
+              >
+                <Stack gap="20px" sx={{ flex: 1, height: 'fit-content' }}>
+                  <Typography level="h4">Training Settings</Typography>
+                  <FormControl>
+                    <FormLabel>
+                      Maximum Sequence Length &nbsp;
+                      <span style={{ color: '#aaa' }}>
+                        {config.model_max_length}
+                      </span>
+                    </FormLabel>
+                    <Slider
+                      sx={{ margin: 'auto', width: '90%' }}
+                      value={config.model_max_length}
+                      min={0}
+                      max={2048 * 2}
+                      step={32}
+                      valueLabelDisplay="off"
+                      name="model_max_length"
+                      onChange={(e, newValue) => {
+                        setConfig({
+                          ...config,
+                          model_max_length: newValue,
+                        });
+                      }}
+                    />
+                    <FormHelperText>
+                      Input longer than this length will be truncated. Keep
+                      lower to save memory.
+                    </FormHelperText>
+                  </FormControl>
+                  <FormLabel>
+                    Epochs &nbsp;
+                    <span style={{ color: '#aaa' }}>
+                      {config.num_train_epochs}
+                    </span>
+                  </FormLabel>
+                  <Slider
+                    sx={{ margin: 'auto', width: '90%' }}
+                    value={config.num_train_epochs}
+                    min={0}
+                    max={24}
+                    valueLabelDisplay="off"
+                    name="num_train_epochs"
+                    onChange={(e, newValue) =>
+                      setConfig({
+                        ...config,
+                        num_train_epochs: newValue,
+                      })
+                    }
+                  />
+                  <FormLabel>
+                    Learning Rate &nbsp;
+                    <span style={{ color: '#aaa' }}>
+                      {config.learning_rate.toExponential(0)}
+                      {/*  in GUI we store only
+                       the exponent so make sure you convert when actually sending to the API */}
+                    </span>
+                  </FormLabel>
+                  <Slider
+                    sx={{ margin: 'auto', width: '90%' }}
+                    defaultValue={1}
+                    min={-6}
+                    max={6}
+                    step={1 / 2}
+                    name="learning_rate"
+                    onChange={(e, newValue) => {
+                      setConfig({
+                        ...config,
+                        learning_rate: 10 ** newValue,
+                      });
+                    }}
+                    valueLabelDisplay="off"
+                  />
+                </Stack>
+                <Stack gap="20px" sx={{ flex: 1, height: 'fit-content' }}>
+                  <Typography level="h4">LoRA Settings</Typography>
+                  <FormControl>
+                    <FormLabel>
+                      LoRA R &nbsp;
+                      <span style={{ color: '#aaa' }}>{config.lora_r}</span>
+                    </FormLabel>
+                    <Slider
+                      sx={{ margin: 'auto', width: '90%' }}
+                      defaultValue={8}
+                      min={4}
+                      max={64}
+                      step={4}
+                      name="lora_r"
+                      valueLabelDisplay="off"
+                      onChange={(e, newValue) => {
+                        setConfig({
+                          ...config,
+                          lora_r: newValue,
+                        });
+                      }}
+                    />
+                    <FormHelperText>
+                      Rank of the update matrices, expressed in int. Lower rank
+                      results in smaller update matrices with fewer trainable
+                      parameters.
+                    </FormHelperText>
+                  </FormControl>
+                  <FormLabel>
+                    LoRA Alpha &nbsp;
+                    <span style={{ color: '#aaa' }}>{config.lora_alpha}</span>
+                  </FormLabel>
+                  <Slider
+                    sx={{ margin: 'auto', width: '90%' }}
+                    defaultValue={16}
+                    min={4}
+                    max={64 * 2}
+                    step={4}
+                    name="lora_alpha"
+                    valueLabelDisplay="off"
+                    onChange={(e, newValue) => {
+                      setConfig({
+                        ...config,
+                        lora_alpha: newValue,
+                      });
+                    }}
+                  />
+                  <FormHelperText>
+                    LoRA scaling factor. Make it a multiple of LoRA R.
+                  </FormHelperText>
+                  <FormLabel>
+                    LoRA Dropout &nbsp;
+                    <span style={{ color: '#aaa' }}>{config.lora_dropout}</span>
+                  </FormLabel>
+                  <Slider
+                    sx={{ margin: 'auto', width: '90%' }}
+                    defaultValue={0.1}
+                    min={0.1}
+                    max={0.9}
+                    step={0.1}
+                    name="lora_dropout"
+                    valueLabelDisplay="off"
+                    onChange={(e, newValue) => {
+                      setConfig({
+                        ...config,
+                        lora_dropout: newValue,
+                      });
+                    }}
+                  />
+                  <FormHelperText>
+                    Dropout probability of the LoRA layers
+                  </FormHelperText>
+                </Stack>
+              </Sheet>
+            </TabPanel>
+            <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={selectedPlugin}
