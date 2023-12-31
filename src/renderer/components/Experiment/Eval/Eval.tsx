@@ -8,7 +8,6 @@ import Sheet from '@mui/joy/Sheet';
 
 import {
   Button,
-  Link,
   Table,
   Typography,
   Modal,
@@ -33,6 +32,8 @@ import {
   XSquareIcon,
 } from 'lucide-react';
 import DownloadButton from '../Train/DownloadButton';
+import { Link } from 'react-router-dom';
+
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import ResultsModal from './ResultsModal';
@@ -92,7 +93,14 @@ export default function Eval({
     data: plugins,
     error: pluginsError,
     isLoading: pluginsIsLoading,
-  } = useSWR(chatAPI.Endpoints.Evals.List(), fetcher);
+  } = useSWR(
+    experimentInfo?.id &&
+      chatAPI.Endpoints.Experiment.ListScriptsOfType(
+        experimentInfo?.id,
+        'evaluation'
+      ),
+    fetcher
+  );
 
   const editorRef = useRef(null);
 
@@ -204,29 +212,36 @@ export default function Eval({
                 setOpen(false);
               }}
             >
-              {/* {JSON.stringify(plugins)} */}
+              {/* Plugins:
+              {JSON.stringify(plugins)} */}
               <Stack spacing={2}>
                 <FormControl>
                   <FormLabel>Evaluation Plugin Template:</FormLabel>
-                  <Select
-                    placeholder={
-                      pluginsIsLoading
-                        ? 'Loading...'
-                        : 'Evaluation Plugin Template'
-                    }
-                    variant="soft"
-                    size="lg"
-                    name="evaluator_plugin"
-                    value={selectedPlugin}
-                    onChange={(e, newValue) => setSelectedPlugin(newValue)}
-                    required
-                  >
-                    {plugins?.map((row) => (
-                      <Option value={row.name} key={row.id}>
-                        {row.name}
-                      </Option>
-                    ))}
-                  </Select>{' '}
+                  {plugins?.length === 0 ? (
+                    <Link to="/projects/plugins">
+                      No eval plugins found. Add one.
+                    </Link>
+                  ) : (
+                    <Select
+                      placeholder={
+                        pluginsIsLoading
+                          ? 'Loading...'
+                          : 'Select an Eval Plugin'
+                      }
+                      variant="soft"
+                      size="lg"
+                      name="evaluator_plugin"
+                      value={selectedPlugin}
+                      onChange={(e, newValue) => setSelectedPlugin(newValue)}
+                      required
+                    >
+                      {plugins?.map((row) => (
+                        <Option value={row.name} key={row.id}>
+                          {row.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  )}
                 </FormControl>
                 <FormControl>
                   <FormLabel>Task:</FormLabel>

@@ -443,10 +443,6 @@ Endpoints.Plugins = {
     API_URL() + 'plugins/preview?pluginId=' + pluginId,
 };
 
-Endpoints.Evals = {
-  List: () => API_URL() + 'evals/list',
-};
-
 Endpoints.Config = {
   Get: (key: string) => API_URL() + 'config/get/' + key,
   Set: (key: string, value: string) =>

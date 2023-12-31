@@ -12,6 +12,7 @@ import {
   Chip,
   IconButton,
   LinearProgress,
+  Stack,
   Table,
   Typography,
 } from '@mui/joy';
@@ -122,17 +123,21 @@ export default function TrainLoRA({ experimentInfo }) {
           overflow: 'hidden',
         }}
       >
-        <Typography level="h1">Train</Typography>
-        <Typography level="h2" mb={2} startDecorator={<GraduationCapIcon />}>
-          Training Templates
-        </Typography>
-        <Button
-          onClick={() => setOpen(true)}
-          startDecorator={<PlusCircleIcon />}
-          sx={{ width: 'fit-content' }}
-        >
-          New Training Template
-        </Button>
+        {/* <Typography level="h1">Train</Typography> */}
+        <Stack direction="row" justifyContent="space-between" gap={2}>
+          <Typography level="title-md" startDecorator={<GraduationCapIcon />}>
+            Training Templates
+          </Typography>
+          <Button
+            onClick={() => setOpen(true)}
+            startDecorator={<PlusCircleIcon />}
+            sx={{ width: 'fit-content' }}
+            size="md"
+          >
+            New
+          </Button>
+        </Stack>
+
         <Sheet
           color="neutral"
           variant="soft"
@@ -206,14 +211,14 @@ export default function TrainLoRA({ experimentInfo }) {
             </tbody>
           </Table>
         </Sheet>
-        <Typography level="h2" startDecorator={<ClockIcon />} mb={2}>
+        <Typography level="title-md" startDecorator={<ClockIcon />}>
           Queued Training Jobs
         </Typography>
         {/* <pre>{JSON.stringify(jobs, '\n', 2)}</pre> */}
         {/* <Typography level="body2">
           Current Foundation: {experimentInfo?.config?.foundation}
         </Typography> */}
-        <ButtonGroup variant="soft">
+        {/* <ButtonGroup variant="soft">
           <Button
             onClick={() => {
               fetch(chatAPI.API_URL() + 'train/job/start_next');
@@ -232,7 +237,7 @@ export default function TrainLoRA({ experimentInfo }) {
           >
             Delete all Jobs
           </Button>
-        </ButtonGroup>
+        </ButtonGroup> */}
         <Sheet
           color="warning"
           variant="soft"
