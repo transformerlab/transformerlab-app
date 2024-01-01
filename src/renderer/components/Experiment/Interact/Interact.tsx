@@ -278,7 +278,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
       undefined,
       undefined,
       undefined,
-      isVLLMInferenceEngine !== null
+      false
     );
     setIsThinking(false);
 

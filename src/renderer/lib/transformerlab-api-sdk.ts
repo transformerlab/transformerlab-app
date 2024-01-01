@@ -225,6 +225,8 @@ export async function sendCompletion(
     model = adaptor;
   }
 
+  console.log('model', model);
+
   const data = {
     model: model,
     stream: false, // For streaming responses
@@ -776,7 +778,7 @@ export async function activateWorker(
 
   let model = modelName;
   if (adaptorName !== '') {
-    model = `workspace/peft/${modelName}/${adaptorName}`;
+    model = `workspace/adaptors/${modelName}/${adaptorName}`;
   }
 
   if (modelFilename !== null) {

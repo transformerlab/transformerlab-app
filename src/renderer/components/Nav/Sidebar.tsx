@@ -68,8 +68,7 @@ export default function Sidebar({
     return (
       models?.[0]?.id !==
         experimentInfo?.config?.foundation?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !==
-        `models/peft/${experimentInfo?.config.adaptor}`?.split('/').slice(-1)[0]
+      models?.[0]?.id !== experimentInfo?.config.adaptor
     );
   }
 
