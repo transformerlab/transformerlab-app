@@ -52,7 +52,7 @@ function EngineSelect({
         });
       }}
     >
-      <Option value={null}>Default</Option>
+      <Option value={null}>FastChat</Option>
       {data?.map((row) => (
         <Option value={row.uniqueId} key={row.uniqueId}>
           {row.name}
