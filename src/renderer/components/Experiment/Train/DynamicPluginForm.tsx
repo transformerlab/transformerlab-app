@@ -6,8 +6,10 @@ import validator from '@rjsf/validator-ajv8';
 import Form from '@rjsf/core';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { Typography } from '@mui/joy';
+import { Input, Typography } from '@mui/joy';
 import { useMemo } from 'react';
+
+import { getInputProps, BaseInputTemplateProps } from '@rjsf/utils';
 
 const schemaTemplate: RJSFSchema = {
   type: 'object',
@@ -18,6 +20,66 @@ const schemaTemplate: RJSFSchema = {
     done: { type: 'boolean', title: 'Done?', default: false },
   },
 };
+
+function BaseInputTemplate(props: BaseInputTemplateProps) {
+  const {
+    schema,
+    id,
+    options,
+    label,
+    value,
+    type,
+    placeholder,
+    required,
+    disabled,
+    readonly,
+    autofocus,
+    onChange,
+    onChangeOverride,
+    onBlur,
+    onFocus,
+    rawErrors,
+    hideError,
+    uiSchema,
+    registry,
+    formContext,
+    ...rest
+  } = props;
+  const onTextChange = ({
+    target: { value: val },
+  }: ChangeEvent<HTMLInputElement>) => {
+    // Use the options.emptyValue if it is specified and newVal is also an empty string
+    onChange(val === '' ? options.emptyValue || '' : val);
+  };
+  const onTextBlur = ({
+    target: { value: val },
+  }: FocusEvent<HTMLInputElement>) => onBlur(id, val);
+  const onTextFocus = ({
+    target: { value: val },
+  }: FocusEvent<HTMLInputElement>) => onFocus(id, val);
+
+  const inputProps = { ...rest, ...getInputProps(schema, type, options) };
+  const hasError = rawErrors?.length > 0 && !hideError;
+
+  const { step, min, max } = inputProps;
+
+  return (
+    <Input
+      id={id}
+      value={value}
+      placeholder={placeholder}
+      disabled={disabled}
+      readOnly={readonly}
+      autoFocus={autofocus}
+      error={hasError}
+      onChange={onChangeOverride || onTextChange}
+      onBlur={onTextBlur}
+      onFocus={onTextFocus}
+      {...inputProps}
+      slotProps={{ input: { step, min, max } }}
+    />
+  );
+}
 
 function getSchema(data) {
   if (data) {
@@ -67,6 +129,7 @@ export default function DynamicPluginForm({ experimentInfo, plugin }) {
           idPrefix=""
           idSeparator=""
           id="plugin_parameters"
+          templates={{ BaseInputTemplate }}
         />
       ) : (
         'No plugin selected...'
