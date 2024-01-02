@@ -1,15 +1,43 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
+
+/* This component renders a dynamic form for a plugin
+ * The plugin has two fields, parameters and parameters_ui
+ * and these fields map to React JSON Schema Form fields.
+ *
+ * Here we also create a few custom widgets and templates
+ * using the tools offered by JSON Schema Form
+ */
+
 import * as React from 'react';
 
-import { RJSFSchema } from '@rjsf/utils';
 import validator from '@rjsf/validator-ajv8';
 import Form from '@rjsf/core';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { Input, Typography } from '@mui/joy';
+import {
+  FormControl,
+  FormHelperText,
+  FormLabel,
+  Input,
+  Slider,
+  Stack,
+  Typography,
+} from '@mui/joy';
 import { useMemo } from 'react';
 
-import { getInputProps, BaseInputTemplateProps } from '@rjsf/utils';
+import {
+  RegistryWidgetsType,
+  getInputProps,
+  BaseInputTemplateProps,
+  ariaDescribedByIds,
+  labelValue,
+  FormContextType,
+  RJSFSchema,
+  StrictRJSFSchema,
+  WidgetProps,
+  rangeSpec,
+  FieldTemplateProps,
+} from '@rjsf/utils';
 
 const schemaTemplate: RJSFSchema = {
   type: 'object',
@@ -84,19 +112,97 @@ function BaseInputTemplate(props: BaseInputTemplateProps) {
 function getSchema(data) {
   if (data) {
     console.log('Getting new schema from plugin');
-    console.log(data);
+    // console.log(data);
     let parsedData = JSON.parse(data);
     let schemaParameters = parsedData.parameters;
     let newSchemaTemplate = { ...schemaTemplate };
     newSchemaTemplate.properties = schemaParameters;
-    console.log('New schema');
-    console.log(newSchemaTemplate);
-    return newSchemaTemplate;
+    const uiSchema = parsedData.parameters_ui;
+    return { JSONSchema: newSchemaTemplate, uiSchema: uiSchema };
   }
-  return schemaTemplate;
+  return { JSONSchema: schemaTemplate, uiSchema: {} };
 }
 
-const log = (type) => console.log.bind(console, type);
+const CustomRange = function (props: WidgetProps) {
+  const {
+    value,
+    readonly,
+    disabled,
+    onBlur,
+    onFocus,
+    options,
+    schema,
+    onChange,
+    required,
+    label,
+    hideLabel,
+    id,
+  } = props;
+  const sliderProps = { value, label, id, name: id, ...rangeSpec<S>(schema) };
+  const _onChange = (_: any, value?: number | number[]) => {
+    onChange(value ?? options.emptyValue);
+  };
+  const _onBlur = ({ target: { value } }: FocusEvent<HTMLInputElement>) =>
+    onBlur(id, value);
+  const _onFocus = ({ target: { value } }: FocusEvent<HTMLInputElement>) =>
+    onFocus(id, value);
+
+  return (
+    <>
+      {/* {labelValue(
+        <FormLabel required={required} htmlFor={id}>
+          {label || undefined}
+        </FormLabel>,
+        hideLabel
+      )} */}
+      &nbsp;({value})
+      <Stack direction="row">
+        <Slider
+          disabled={disabled || readonly}
+          onChange={_onChange}
+          onBlur={_onBlur}
+          onFocus={_onFocus}
+          valueLabelDisplay="auto"
+          {...sliderProps}
+          aria-describedby={ariaDescribedByIds<T>(id)}
+        />
+      </Stack>
+    </>
+  );
+};
+
+function CustomFieldTemplate(props: FieldTemplateProps) {
+  const {
+    id,
+    classNames,
+    style,
+    label,
+    help,
+    required,
+    description,
+    errors,
+    children,
+  } = props;
+  return (
+    <div className={classNames} style={style}>
+      <FormControl>
+        <FormLabel htmlFor={id}>
+          {label}
+          {required ? '*' : null}
+        </FormLabel>
+        <FormHelperText>{help}</FormHelperText>
+        {description}
+        {children}
+        {errors}
+      </FormControl>
+    </div>
+  );
+}
+
+const widgets: RegistryWidgetsType = {
+  RangeWidget: CustomRange,
+};
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function DynamicPluginForm({ experimentInfo, plugin }) {
@@ -118,18 +224,20 @@ export default function DynamicPluginForm({ experimentInfo, plugin }) {
       <Typography level="title-lg">
         Custom Fields from Plugin: {plugin}
       </Typography>
-      {/* <pre>{JSON.stringify(getSchema(data), null, 2)}</pre> */}
+      {/* <pre>{JSON.stringify(schema, null, 2)}</pre> */}
       {plugin && data ? (
         <Form
           tagName="div"
           className="pure-form pure-form-stacked"
-          schema={schema}
+          schema={schema?.JSONSchema}
+          uiSchema={schema?.uiSchema}
           validator={validator}
           children={true} // removes submit button
           idPrefix=""
           idSeparator=""
           id="plugin_parameters"
-          templates={{ BaseInputTemplate }}
+          templates={{ FieldTemplate: CustomFieldTemplate, BaseInputTemplate }}
+          widgets={{ ...widgets }}
         />
       ) : (
         'No plugin selected...'
