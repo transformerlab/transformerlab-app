@@ -282,6 +282,7 @@ export default function TrainLoRA({ experimentInfo }) {
                     >
                       {' '}
                       <Button
+                        size="sm"
                         onClick={() => {
                           setOpenTensorboardModal(true);
                         }}
@@ -290,6 +291,7 @@ export default function TrainLoRA({ experimentInfo }) {
                         Tensorboard
                       </Button>
                       <Button
+                        size="sm"
                         onClick={() => {
                           setViewOutputFromJob(job?.id);
                         }}
