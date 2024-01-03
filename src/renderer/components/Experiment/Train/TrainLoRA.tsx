@@ -76,7 +76,8 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TrainLoRA({ experimentInfo }) {
   const [open, setOpen] = useState(false);
-  const [openTensorboardModal, setOpenTensorboardModal] = useState(false);
+  const [currentTensorboardForModal, setCurrentTensorboardForModal] =
+    useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
 
   const { data, error, isLoading, mutate } = useSWR(
@@ -108,8 +109,8 @@ export default function TrainLoRA({ experimentInfo }) {
         experimentInfo={experimentInfo}
       />
       <TensorboardModal
-        open={openTensorboardModal}
-        setOpen={setOpenTensorboardModal}
+        currentTensorboard={currentTensorboardForModal}
+        setCurrentTensorboard={setCurrentTensorboardForModal}
       />
       <ViewOutputModal
         jobId={viewOutputFromJob}
@@ -284,7 +285,7 @@ export default function TrainLoRA({ experimentInfo }) {
                       <Button
                         size="sm"
                         onClick={() => {
-                          setOpenTensorboardModal(true);
+                          setCurrentTensorboardForModal(job?.id);
                         }}
                         startDecorator={<LineChartIcon />}
                       >

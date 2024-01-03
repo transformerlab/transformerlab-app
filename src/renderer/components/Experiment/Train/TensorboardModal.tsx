@@ -4,13 +4,19 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function TensorboardModal({ open, setOpen }) {
+export default function TensorboardModal({
+  currentTensorboard,
+  setCurrentTensorboard,
+}) {
   const [iframeReady, setIframeReady] = useState(false);
 
   useEffect(() => {
-    if (open) {
+    if (currentTensorboard !== -1) {
       console.log('starting tensorboard');
-      fetcher(chatAPI.API_URL() + 'train/tensorboard/start').then((res) => {
+      var job_id = currentTensorboard;
+      fetcher(
+        chatAPI.API_URL() + 'train/tensorboard/start?job_id=' + job_id
+      ).then((res) => {
         console.log(res);
       });
 
@@ -22,20 +28,23 @@ export default function TensorboardModal({ open, setOpen }) {
       }, 3000);
     }
 
-    if (!open) {
+    if (currentTensorboard == -1) {
       console.log('stopping tensorboard');
       fetcher(chatAPI.API_URL() + 'train/tensorboard/stop').then((res) => {
         console.log(res);
       });
     }
-  }, [open]);
+  }, [currentTensorboard]);
 
   var currentServerURL = window.TransformerLab.API_URL;
   // If there is a port number, remove it:
   currentServerURL = currentServerURL.replace(/:[0-9]+\/$/, '');
 
   return (
-    <Modal open={open} onClose={() => setOpen(false)}>
+    <Modal
+      open={currentTensorboard !== -1}
+      onClose={() => setCurrentTensorboard(-1)}
+    >
       <ModalDialog
         sx={{
           height: '80vh',
