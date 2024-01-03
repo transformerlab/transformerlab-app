@@ -30,6 +30,10 @@ export default function TensorboardModal({ open, setOpen }) {
     }
   }, [open]);
 
+  var currentServerURL = window.TransformerLab.API_URL;
+  // If there is a port number, remove it:
+  currentServerURL = currentServerURL.replace(/:[0-9]+\/$/, '');
+
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
       <ModalDialog
@@ -42,10 +46,11 @@ export default function TensorboardModal({ open, setOpen }) {
         }}
       >
         <ModalClose />
+        {currentServerURL}:6006/
         {iframeReady ? (
           <iframe
             id="tensorboard"
-            src={`http://pop-os:6006/`}
+            src={`${currentServerURL}:6006/`}
             title="api docs"
             style={{
               border: '1px solid black',
