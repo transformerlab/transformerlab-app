@@ -224,14 +224,13 @@ export default function Eval({
                 const formJson = Object.fromEntries(
                   (formData as any).entries()
                 );
-                alert(JSON.stringify(formJson));
-                // chatAPI.saveTrainingTemplate(
-                //   event.currentTarget.elements['template_name'].value,
-                //   'Description',
-                //   'LoRA',
-                //   JSON.stringify(formJson)
-                // );
-                // addEvaluation(plugin, localName, { task: task });
+                // alert(JSON.stringify(formJson));
+
+                /* The way evals are defined right now, they need a unique name. This is a hack
+                  until we have a better solution */
+                const nameOfThisEvaluation =
+                  selectedPlugin + '_' + JSON.stringify(formJson);
+                addEvaluation(selectedPlugin, nameOfThisEvaluation, formJson);
                 setOpen(false);
               }}
             >

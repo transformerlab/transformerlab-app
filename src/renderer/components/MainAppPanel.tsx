@@ -88,13 +88,6 @@ export default function MainAppPanel({
     localName: string,
     script_template_parameters: any = {}
   ) {
-    let currentPlugins = experimentInfo?.config?.plugins;
-    if (!currentPlugins) {
-      currentPlugins = [];
-    } else {
-      currentPlugins = JSON.parse(currentPlugins);
-    }
-
     await chatAPI.EXPERIMENT_ADD_EVALUATION(
       experimentInfo?.id,
       localName,
