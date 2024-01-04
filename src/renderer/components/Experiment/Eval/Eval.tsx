@@ -24,6 +24,10 @@ import {
   Box,
   FormHelperText,
   IconButton,
+  Dropdown,
+  MenuButton,
+  Menu,
+  MenuItem,
 } from '@mui/joy';
 import {
   FileTextIcon,
@@ -134,9 +138,20 @@ export default function Eval({
     }
   }
 
+  function openModalForPLugin(pluginId) {
+    setSelectedPlugin(pluginId);
+    setOpen(true);
+  }
+
+  if (!experimentInfo) {
+    return 'No experiment selected';
+  }
+
   return (
     <>
       <Sheet>
+        {/* Plugins:
+        {JSON.stringify(plugins)} */}
         <ResultsModal
           open={resultsModalOpen}
           setOpen={setResultsModalOpen}
@@ -212,36 +227,10 @@ export default function Eval({
                 setOpen(false);
               }}
             >
-              {/* Plugins:
-              {JSON.stringify(plugins)} */}
               <Stack spacing={2}>
                 <FormControl>
                   <FormLabel>Evaluation Plugin Template:</FormLabel>
-                  {plugins?.length === 0 ? (
-                    <Link to="/projects/plugins">
-                      No eval plugins found. Add one.
-                    </Link>
-                  ) : (
-                    <Select
-                      placeholder={
-                        pluginsIsLoading
-                          ? 'Loading...'
-                          : 'Select an Eval Plugin'
-                      }
-                      variant="soft"
-                      size="lg"
-                      name="evaluator_plugin"
-                      value={selectedPlugin}
-                      onChange={(e, newValue) => setSelectedPlugin(newValue)}
-                      required
-                    >
-                      {plugins?.map((row) => (
-                        <Option value={row.name} key={row.id}>
-                          {row.name}
-                        </Option>
-                      ))}
-                    </Select>
-                  )}
+                  <Input readOnly variant="soft" value={selectedPlugin} />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Task:</FormLabel>
@@ -272,16 +261,30 @@ export default function Eval({
             </form>
           </ModalDialog>
         </Modal>
-        <Typography level="h1">Evaluate</Typography>
-        <br />
-        <Button
-          startDecorator={<PlusCircleIcon />}
-          onClick={() => setOpen(true)}
-        >
-          Add Evaluation
-        </Button>
-        <br />
-        <br />
+        <Typography level="h1" mb={1}>
+          Evaluate
+        </Typography>
+        {plugins.length === 0 ? (
+          <Typography level="title-lg" mb={1} color="warning">
+            No Evaluation Scripts available, please install an evaluator plugin.
+          </Typography>
+        ) : (
+          <Dropdown>
+            <MenuButton startDecorator={<PlusCircleIcon />} variant="solid">
+              Add Evaluation
+            </MenuButton>
+            <Menu>
+              {plugins?.map((row) => (
+                <MenuItem
+                  onClick={() => openModalForPLugin(row.uniqueId)}
+                  key={row.uniqueId}
+                >
+                  {row.name}
+                </MenuItem>
+              ))}
+            </Menu>
+          </Dropdown>
+        )}
         <Table aria-label="basic table">
           <thead>
             <tr>
