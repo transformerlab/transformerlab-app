@@ -220,11 +220,18 @@ export default function Eval({
             <form
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
-                const plugin = event.target[1].value;
-                const task = event.target[3].value;
-                const localName = event.target[4].value;
-
-                addEvaluation(plugin, localName, { task: task });
+                const formData = new FormData(event.currentTarget);
+                const formJson = Object.fromEntries(
+                  (formData as any).entries()
+                );
+                alert(JSON.stringify(formJson));
+                // chatAPI.saveTrainingTemplate(
+                //   event.currentTarget.elements['template_name'].value,
+                //   'Description',
+                //   'LoRA',
+                //   JSON.stringify(formJson)
+                // );
+                // addEvaluation(plugin, localName, { task: task });
                 setOpen(false);
               }}
             >
@@ -246,7 +253,7 @@ export default function Eval({
         <Typography level="h1" mb={1}>
           Evaluate
         </Typography>
-        {plugins.length === 0 ? (
+        {plugins?.length === 0 ? (
           <Typography level="title-lg" mb={1} color="warning">
             No Evaluation Scripts available, please install an evaluator plugin.
           </Typography>

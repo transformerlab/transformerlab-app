@@ -19,9 +19,13 @@ import {
   FormHelperText,
   FormLabel,
   Input,
+  MenuItem,
+  Select,
   Slider,
   Stack,
+  TextField,
   Typography,
+  Option,
 } from '@mui/joy';
 import { useMemo } from 'react';
 
@@ -37,6 +41,8 @@ import {
   WidgetProps,
   rangeSpec,
   FieldTemplateProps,
+  enumOptionsValueForIndex,
+  enumOptionsIndexForValue,
 } from '@rjsf/utils';
 
 const schemaTemplate: RJSFSchema = {
@@ -171,6 +177,112 @@ const CustomRange = function (props: WidgetProps) {
   );
 };
 
+/** Copied from here https://github.com/rjsf-team/react-jsonschema-form/blob/main/packages/mui/src/SelectWidget/SelectWidget.tsx */
+function CustomSelect<
+  T = any,
+  S extends StrictRJSFSchema = RJSFSchema,
+  F extends FormContextType = any
+>({
+  schema,
+  id,
+  name, // remove this from textFieldProps
+  options,
+  label,
+  hideLabel,
+  required,
+  disabled,
+  placeholder,
+  readonly,
+  value,
+  multiple,
+  autofocus,
+  onChange,
+  onBlur,
+  onFocus,
+  rawErrors = [],
+  registry,
+  uiSchema,
+  hideError,
+  formContext,
+  ...textFieldProps
+}: WidgetProps<T, S, F>) {
+  const { enumOptions, enumDisabled, emptyValue: optEmptyVal } = options;
+
+  multiple = typeof multiple === 'undefined' ? false : !!multiple;
+
+  const emptyValue = multiple ? [] : '';
+  const isEmpty =
+    typeof value === 'undefined' ||
+    (multiple && value.length < 1) ||
+    (!multiple && value === emptyValue);
+
+  const _onChange = ({ target: { value } }: ChangeEvent<{ value: string }>) =>
+    onChange(enumOptionsValueForIndex<S>(value, enumOptions, optEmptyVal));
+  const _onBlur = ({ target: { value } }: FocusEvent<HTMLInputElement>) =>
+    onBlur(id, enumOptionsValueForIndex<S>(value, enumOptions, optEmptyVal));
+  const _onFocus = ({ target: { value } }: FocusEvent<HTMLInputElement>) =>
+    onFocus(id, enumOptionsValueForIndex<S>(value, enumOptions, optEmptyVal));
+  const selectedIndexes = enumOptionsIndexForValue<S>(
+    value,
+    enumOptions,
+    multiple
+  );
+
+  return (
+    <>
+      {/* <Input
+        id={id}
+        name={id}
+        label={labelValue(label || undefined, hideLabel, undefined)}
+        value={
+          !isEmpty && typeof selectedIndexes !== 'undefined'
+            ? selectedIndexes
+            : emptyValue
+        }
+        required={required}
+        disabled={disabled || readonly}
+        autoFocus={autofocus}
+        placeholder={placeholder}
+        error={rawErrors.length > 0}
+        onChange={_onChange}
+        onBlur={_onBlur}
+        onFocus={_onFocus}
+        {...(textFieldProps as TextFieldProps)}
+        select // Apply this and the following props after the potential overrides defined in textFieldProps
+        InputLabelProps={{
+          ...textFieldProps.InputLabelProps,
+          shrink: !isEmpty,
+        }}
+        SelectProps={{
+          ...textFieldProps.SelectProps,
+          multiple,
+        }}
+        aria-describedby={ariaDescribedByIds<T>(id)}
+      >
+        {' '}
+      </Input> */}
+      <Select
+        name={id}
+        id={id}
+        required={required}
+        disabled={disabled}
+        placeholder={placeholder}
+      >
+        {Array.isArray(enumOptions) &&
+          enumOptions.map(({ value, label }, i: number) => {
+            const disabled: boolean =
+              Array.isArray(enumDisabled) && enumDisabled.indexOf(value) !== -1;
+            return (
+              <Option key={i} value={String(label)} disabled={disabled}>
+                {label}
+              </Option>
+            );
+          })}
+      </Select>
+    </>
+  );
+}
+
 function CustomFieldTemplate(props: FieldTemplateProps) {
   const {
     id,
@@ -201,6 +313,7 @@ function CustomFieldTemplate(props: FieldTemplateProps) {
 
 const widgets: RegistryWidgetsType = {
   RangeWidget: CustomRange,
+  SelectWidget: CustomSelect,
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
