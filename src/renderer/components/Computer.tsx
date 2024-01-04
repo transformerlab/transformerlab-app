@@ -64,7 +64,7 @@ export default function Computer() {
       <>
         {/* {JSON.stringify(server)} */}
         <Typography level="h2" paddingBottom={3}>
-          Server Information:
+          Server Information
         </Typography>
         <Sheet className="OrderTableContainer">
           <Grid container spacing={2} sx={{}}>
