@@ -41,6 +41,7 @@ import { Link } from 'react-router-dom';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import ResultsModal from './ResultsModal';
+import DynamicPluginForm from '../Train/DynamicPluginForm';
 const parseTmTheme = require('monaco-themes').parseTmTheme;
 
 function listEvals(evalString) {
@@ -232,29 +233,10 @@ export default function Eval({
                   <FormLabel>Evaluation Plugin Template:</FormLabel>
                   <Input readOnly variant="soft" value={selectedPlugin} />
                 </FormControl>
-                <FormControl>
-                  <FormLabel>Task:</FormLabel>
-                  <Select
-                    placeholder="select a field"
-                    onChange={(e, newValue) => {
-                      document.getElementsByName('evaluator_name')[0].value =
-                        newValue;
-                    }}
-                  >
-                    {getTemplateParametersForPlugin(selectedPlugin, plugins)}
-                  </Select>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Short name:</FormLabel>
-                  <Input
-                    placeholder="Rouge Eval for Sample"
-                    name="evaluator_name"
-                    required
-                  />
-                  <FormHelperText>
-                    A name to remember this evaluation by.
-                  </FormHelperText>
-                </FormControl>
+                <DynamicPluginForm
+                  experimentInfo={experimentInfo}
+                  plugin={selectedPlugin}
+                />
 
                 <Button type="submit">Submit</Button>
               </Stack>

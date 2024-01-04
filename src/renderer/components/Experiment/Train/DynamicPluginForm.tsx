@@ -221,9 +221,9 @@ export default function DynamicPluginForm({ experimentInfo, plugin }) {
 
   return (
     <>
-      <Typography level="title-lg">
+      {/* <Typography level="title-sm">
         Custom Fields from Plugin: {plugin}
-      </Typography>
+      </Typography> */}
       {/* <pre>{JSON.stringify(schema, null, 2)}</pre> */}
       {plugin && data ? (
         <Form
