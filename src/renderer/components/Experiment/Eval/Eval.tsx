@@ -280,7 +280,6 @@ export default function Eval({
               <th>&nbsp;</th>
               <th>Tasks</th>
               <th>Template</th>
-              <th>Number of Records</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </tr>
@@ -307,7 +306,6 @@ export default function Eval({
                       <FileTextIcon size={14} />
                     </td>
                     <td>{evaluations.plugin}</td>
-                    <td>30,252</td>
                     <td style={{ textAlign: 'right' }}>
                       {' '}
                       <Button

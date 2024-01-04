@@ -21,9 +21,15 @@ export default function ExperimentSettings({
     return null;
   }
   return (
-    <>
+    <Sheet
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <Typography level="h1">Experiment Settings</Typography>
-      <Sheet>
+      <Sheet sx={{ overflowY: 'auto', overflowX: 'hidden', mb: '2rem' }}>
         <Divider sx={{ mt: 2, mb: 2 }} />
         Show Experiment Details (JSON):&nbsp;
         <Switch checked={showJSON} onChange={() => setShowJSON(!showJSON)} />
@@ -65,6 +71,6 @@ export default function ExperimentSettings({
           Delete Project {experimentInfo?.name}
         </Button>
       </Sheet>
-    </>
+    </Sheet>
   );
 }

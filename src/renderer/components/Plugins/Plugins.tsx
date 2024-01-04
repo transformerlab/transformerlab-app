@@ -27,10 +27,10 @@ export default function Plugins({ experimentInfo }) {
             &nbsp; Plugin Script Store
           </Tab>
         </TabList>
-        <TabPanel value={0} sx={{ p: 2 }}>
+        <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
           <LocalPlugins experimentInfo={experimentInfo} />
         </TabPanel>
-        <TabPanel value={1} sx={{ p: 2 }}>
+        <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }}>
           <PluginGallery experimentInfo={experimentInfo} />
         </TabPanel>
       </Tabs>
