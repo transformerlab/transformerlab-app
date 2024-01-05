@@ -114,7 +114,6 @@ export default function MainAppPanel({
           <FoundationHome
             pickAModelMode
             experimentInfo={experimentInfo}
-            setExperimentId={setExperimentId}
             setFoundation={setFoundation}
             setAdaptor={setAdaptor}
           />
@@ -141,7 +140,7 @@ export default function MainAppPanel({
       />
       <Route
         path="/projects/embeddings"
-        element={<Embeddings model_name={experimentInfo?.config?.foundation} />}
+        element={<Embeddings experimentInfo={experimentInfo} />}
       />
       <Route
         path="/projects/training"

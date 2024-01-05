@@ -20,10 +20,14 @@ import {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Embeddings({ model_name }) {
+export default function Embeddings({ experimentInfo }) {
+  const { models, isError, isLoading } = chatAPI.useModelStatus();
+
   async function getEmbeddings() {
     const text = document.getElementsByName('inputText')[0].value;
     const lines = text.split('\n');
+
+    const model_name = experimentInfo?.config?.foundation;
 
     let embeddings = await chatAPI.getEmbeddings(model_name, lines);
     embeddings = embeddings.data;
@@ -37,6 +41,9 @@ export default function Embeddings({ model_name }) {
 
     document.getElementById('embeddingsResult').innerHTML = embeddings;
   }
+
+  if (!experimentInfo) return 'Select an Experiment';
+  if (!models?.[0]?.id) return 'No Model is Running';
 
   return (
     <>

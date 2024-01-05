@@ -59,8 +59,14 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.setTheme('my-theme');
 }
 
-function evaluationRun(experimentId: string, evaluator: string) {
-  fetch(chatAPI.Endpoints.Experiment.RunEvaluation(experimentId, evaluator));
+function evaluationRun(
+  experimentId: string,
+  plugin: string,
+  evaluator: string
+) {
+  fetch(
+    chatAPI.Endpoints.Experiment.RunEvaluation(experimentId, plugin, evaluator)
+  );
 }
 
 function getTemplateParametersForPlugin(pluginName, plugins) {
@@ -279,7 +285,7 @@ export default function Eval({
               <th>Evaluator</th>
               <th>&nbsp;</th>
               <th>Tasks</th>
-              <th>Template</th>
+              <th>Plugin</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </tr>
@@ -312,7 +318,11 @@ export default function Eval({
                         startDecorator={<PlayIcon />}
                         variant="soft"
                         onClick={() =>
-                          evaluationRun(experimentInfo.id, evaluations.name)
+                          evaluationRun(
+                            experimentInfo.id,
+                            evaluations.plugin,
+                            evaluations.name
+                          )
                         }
                       >
                         Evaluate

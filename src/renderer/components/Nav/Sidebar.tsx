@@ -125,7 +125,7 @@ export default function Sidebar({
           title="Interact"
           path="/projects/chat"
           icon={<MessageCircleIcon />}
-          disabled={!experimentInfo?.name}
+          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
         <SubNavItem
           title="Embeddings"
