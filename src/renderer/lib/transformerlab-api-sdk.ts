@@ -497,13 +497,15 @@ Endpoints.Experiment = {
       evalName
     );
   },
-  RunEvaluation: (id: string, evalName: string) => {
+  RunEvaluation: (id: string, pluginName: string, evalName: string) => {
     return (
       API_URL() +
       'experiment/' +
       id +
       '/run_evaluation_script?eval_name=' +
-      evalName
+      evalName +
+      '&plugin_name=' +
+      pluginName
     );
   },
   DeleteEval: (experimentId: string, evalName: string) =>
