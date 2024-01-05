@@ -488,13 +488,13 @@ Endpoints.Experiment = {
     API_URL() + 'experiment/' + id + '/file_contents?filename=' + filename,
   SaveFile: (id: string, filename: string) =>
     API_URL() + 'experiment/' + id + '/save_file_contents?filename=' + filename,
-  GetPlugin: (id: string, evalName: string) => {
+  GetPlugin: (id: string, plugin_name: string) => {
     return (
       API_URL() +
       'experiment/' +
       id +
-      '/get_evaluation_plugin_file_contents?eval_name=' +
-      evalName
+      '/get_evaluation_plugin_file_contents?plugin_name=' +
+      plugin_name
     );
   },
   RunEvaluation: (id: string, pluginName: string, evalName: string) => {

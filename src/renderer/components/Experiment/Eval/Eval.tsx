@@ -121,7 +121,7 @@ export default function Eval({
       const response = await fetch(
         chatAPI.Endpoints.Experiment.GetPlugin(
           experimentInfo.id,
-          currentEvaluator
+          selectedPlugin
         )
       );
       const text = await response.json();
