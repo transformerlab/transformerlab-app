@@ -26,6 +26,8 @@ import {
   SettingsIcon,
   ScrollTextIcon,
   LibraryIcon,
+  GithubIcon,
+  LinkIcon,
 } from 'lucide-react';
 
 import {
@@ -194,12 +196,12 @@ export default function Sidebar({
           icon={<MonitorIcon />}
           disabled={false}
         />
-        <SubNavItem
+        {/* <SubNavItem
           title="Logs"
           path="/logs"
           icon={<TextIcon />}
           disabled={false}
-        />
+        /> */}
         <ListItem>
           <ListItemButton
             onClick={() => {
@@ -217,12 +219,22 @@ export default function Sidebar({
         <ButtonGroup sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <ColorSchemeToggle />
           <a
-            href="https://github.com/transformerlab/transformerlab-app/issues"
+            href="https://github.com/transformerlab/transformerlab-app/"
             target="_blank"
           >
-            <Tooltip title="Send a bug report">
+            <Tooltip
+              title={
+                <>
+                  Visit Transformer Lab on Github
+                  <br />
+                  to contribute to the project or
+                  <br />
+                  send a bug report.
+                </>
+              }
+            >
               <IconButton variant="plain">
-                <LifeBuoyIcon strokeWidth={1} />
+                <GithubIcon strokeWidth={1} />
               </IconButton>
             </Tooltip>
           </a>
