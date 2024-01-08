@@ -34,7 +34,7 @@ export default function TransformerLabSettings({}) {
   return (
     <>
       <Typography level="h1" marginBottom={3}>
-        Application Settings
+        Transformer Lab Settings
       </Typography>
       <Sheet sx={{ maxWidth: '500px' }}>
         <Typography level="title-lg" marginBottom={2}>
