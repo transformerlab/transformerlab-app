@@ -33,7 +33,7 @@ export default function ModelZoo({ experimentInfo }) {
             &nbsp; Model Store
           </Tab>
         </TabList>
-        <TabPanel value={0} sx={{ p: 2 }}>
+        <TabPanel value={0} sx={{ p: 2, height: '100%', overflow: 'hidden' }}>
           <LocalModels pickAModelMode={false} experimentInfo={experimentInfo} />
         </TabPanel>
         <TabPanel value={1} sx={{ p: 2, height: '100%', overflow: 'hidden' }}>

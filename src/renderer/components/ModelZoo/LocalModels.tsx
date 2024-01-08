@@ -137,10 +137,15 @@ export default function LocalModels({
   }
 
   return (
-    <>
-      <Typography level="h1" mb={2}>
-        Local Models
-      </Typography>
+    <Sheet
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        height: '100%',
+      }}
+    >
+      {/* <Typography level="h1">Local Models</Typography> */}
       <Modal
         aria-labelledby="modal-title"
         aria-describedby="modal-desc"
@@ -182,11 +187,8 @@ export default function LocalModels({
         className="SearchAndFilters-tabletUp"
         sx={{
           borderRadius: 'sm',
-          py: 2,
-          display: {
-            xs: 'flex',
-            sm: 'flex',
-          },
+          pb: 2,
+          display: 'flex',
           flexWrap: 'wrap',
           gap: 1.5,
           '& > *': {
@@ -205,14 +207,14 @@ export default function LocalModels({
         {renderFilters()}
       </Box>
       <Sheet
-        className="OrderTableContainer"
+        className=""
         variant="outlined"
         sx={{
           width: '100%',
           borderRadius: 'md',
-          flex: 1,
-          overflow: 'auto',
           minHeight: 0,
+          display: 'flex',
+          overflow: 'auto',
         }}
       >
         <Table
@@ -225,6 +227,8 @@ export default function LocalModels({
             '--Table-headerUnderlineThickness': '1px',
             '--TableRow-hoverBackground': (theme) =>
               theme.vars.palette.background.level1,
+            height: '100px',
+            overflow: 'auto',
           }}
         >
           <thead>
@@ -350,6 +354,7 @@ export default function LocalModels({
           display: 'flex',
           width: '100%',
           paddingTop: '12px',
+          flex: 1,
         }}
       >
         {pickAModelMode === true ? (
@@ -359,10 +364,14 @@ export default function LocalModels({
             <FormControl>
               <Input
                 placeholder="decapoda-research/llama-30b-hf"
+                name="download-model-name"
                 endDecorator={
                   <Button
-                    onClick={() => {
-                      alert('Not yet implemented.');
+                    onClick={async (e) => {
+                      const model = document.getElementsByName(
+                        'download-model-name'
+                      )[0].value;
+                      await chatAPI.downloadModel(model);
                     }}
                   >
                     Download 🤗 Model
@@ -381,6 +390,6 @@ export default function LocalModels({
           </>
         )}
       </Box>
-    </>
+    </Sheet>
   );
 }
