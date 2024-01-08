@@ -162,7 +162,8 @@ export default function Eval({
         <ResultsModal
           open={resultsModalOpen}
           setOpen={setResultsModalOpen}
-          experimentId={experimentInfo?.id}
+          experimentInfo={experimentInfo}
+          plugin={selectedPlugin}
           evaluator={currentEvaluator}
         ></ResultsModal>
         <Modal open={editModalOpen} onClose={() => setEditModalOpen(false)}>
@@ -334,6 +335,7 @@ export default function Eval({
                           variant="plain"
                           onClick={() => {
                             setCurrentEvaluator(evaluations.name);
+                            setSelectedPlugin(evaluations.plugin);
                             setResultsModalOpen(true);
                           }}
                         >

@@ -5,15 +5,17 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 export default function ResultsModal({
   open,
   setOpen,
-  experimentId,
+  experimentInfo,
+  plugin,
   evaluator,
 }) {
   const [resultText, setResultText] = useState('');
   useEffect(() => {
-    if (open && experimentId && evaluator) {
-      const output_file = 'scripts/evals/' + evaluator + '/output.txt';
+    if (open && experimentInfo && evaluator) {
+      const output_file = `plugins/${plugin}/output.txt`;
+      console.log('Fetching results from', output_file);
       fetch(
-        chatAPI.Endpoints.Experiment.GetFile(experimentId, output_file)
+        chatAPI.Endpoints.Experiment.GetFile(experimentInfo?.id, output_file)
       ).then((res) => {
         res.json().then((text) => {
           setResultText(text);
