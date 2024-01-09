@@ -436,6 +436,7 @@ Endpoints.Models = {
   ModelDetailsFromGallery: (modelId: string) =>
     API_URL() + 'model/gallery/' + convertSlashInUrl(modelId),
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
+  Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
 };
 
 Endpoints.Plugins = {

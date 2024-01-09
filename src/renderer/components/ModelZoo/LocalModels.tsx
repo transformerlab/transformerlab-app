@@ -317,8 +317,19 @@ export default function LocalModels({
                         &nbsp;
                         <Trash2Icon
                           color="var(--joy-palette-danger-600)"
-                          onClick={() => {
-                            mutate();
+                          onClick={async () => {
+                            if (
+                              confirm(
+                                "Are you sure you want to delete model '" +
+                                  row.model_id +
+                                  "'?"
+                              )
+                            ) {
+                              await fetch(
+                                chatAPI.Endpoints.Models.Delete(row.model_id)
+                              );
+                              mutate();
+                            }
                           }}
                         />
                       </>
