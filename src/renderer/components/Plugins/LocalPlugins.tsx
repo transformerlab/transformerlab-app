@@ -56,7 +56,6 @@ export default function LocalPlugins({ experimentInfo }) {
         sx={{
           width: '100%',
           borderRadius: 'md',
-          mt: 1,
           flex: 1,
           overflow: 'auto',
           minHeight: 0,
