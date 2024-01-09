@@ -11,7 +11,7 @@ export default function ModelZoo({ experimentInfo }) {
     <Sheet
       sx={{
         display: 'flex',
-        height: '96%',
+        height: '100%',
       }}
     >
       <Tabs
