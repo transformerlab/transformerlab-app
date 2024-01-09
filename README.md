@@ -2,7 +2,7 @@
 <br />
 <div align="center">
   <a href="https://github.com/transformerlab/transformerlab-app">
-    <img src="https://transformerlab.ai/img/flask.svg" alt="Logo" width="30" height="30">
+    <img src="https://transformerlab.ai/img/flask.svg" alt="Logo" width="80" height="80">
   </a>
 
   <h1 align="center" style="color: rgb(68, 73, 80); letter-spacing: -1px">Transformer Lab</h1>
@@ -10,14 +10,14 @@
   <p align="center">
     Download, interact, and finetune models locally.
     <br />
-    <a href=http://localhost:3000/docs/intro"><strong>Explore the docs »</strong></a>
+    <a href=https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="#">View Demo</a>
     ·
-    <a href="#">Report Bugs</a>
+    <a href="https://github.com/transformerlab/transformerlab-app/issues">Report Bugs</a>
     ·
-    <a href="#">Suggest Features</a>
+    <a href="https://github.com/transformerlab/transformerlab-app/issues/new">Suggest Features</a>
   </p>
 </div>
 
@@ -51,7 +51,7 @@ And you can do the above, all through a simple cross-platform GUI.
 
 The best way to get started is to download the app from the Transformer Lab Homepage.
 
-## Building from Scratch
+## Developers: Building from Scratch
 
 To build the app yourself, pull this repo, and follow the steps below:
 
@@ -79,7 +79,7 @@ npm run package
 
 ## License
 
-Distributed under the ??? License. See `LICENSE.txt` for more information.
+Distributed under the AGPL V3 License. See `LICENSE.txt` for more information.
 
 ## Reference
 
