@@ -316,7 +316,7 @@ export default function LocalModels({
                         />
                         &nbsp;
                         <Trash2Icon
-                          color="red"
+                          color="var(--joy-palette-danger-600)"
                           onClick={() => {
                             mutate();
                           }}

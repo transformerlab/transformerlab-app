@@ -233,7 +233,7 @@ export default function Header({ connection, setConnection, experimentInfo }) {
           <div style={{ width: '60px', textAlign: 'center' }}>
             <div style={{ width: '60px', position: 'absolute', opacity: 0.6 }}>
               <Sparklines height={20} width={60} data={cs.gpu}>
-                <SparklinesLine color="red" />
+                <SparklinesLine color="var(--joy-palette-danger-500)" />
               </Sparklines>
             </div>
             {Math.round(cs.gpu[cs.gpu.length - 1])}%
