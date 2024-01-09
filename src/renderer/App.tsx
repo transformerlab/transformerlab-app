@@ -81,10 +81,11 @@ export default function App() {
         <Box
           sx={{
             px: {
-              xs: 1,
-              md: 6,
+              md: 3,
+              lg: 4,
             },
-            paddingTop: '32px',
+            pt: 2,
+            pb: 0,
             height: '100%',
             gridArea: 'main',
             overflow: 'hidden',
