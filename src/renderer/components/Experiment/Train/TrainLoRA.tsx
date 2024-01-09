@@ -142,7 +142,14 @@ export default function TrainLoRA({ experimentInfo }) {
         <Sheet
           color="neutral"
           variant="soft"
-          sx={{ p: 4, mt: 1, mb: 2, flex: 1, height: '100%', overflow: 'auto' }}
+          sx={{
+            px: 1,
+            mt: 1,
+            mb: 2,
+            flex: 1,
+            height: '100%',
+            overflow: 'auto',
+          }}
         >
           <Table>
             <thead>
@@ -242,7 +249,7 @@ export default function TrainLoRA({ experimentInfo }) {
         <Sheet
           color="warning"
           variant="soft"
-          sx={{ p: 4, mt: 1, mb: 4, flex: 1, overflow: 'auto' }}
+          sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}
         >
           {/* <pre>{JSON.stringify(jobs, '\n', 2)}</pre> */}
           <Table>
