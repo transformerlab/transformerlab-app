@@ -355,12 +355,21 @@ export default function LocalModels({
           width: '100%',
           paddingTop: '12px',
           flex: 1,
+          alignSelf: 'flex-end',
         }}
       >
         {pickAModelMode === true ? (
           ''
         ) : (
-          <>
+          <div
+            style={{
+              width: '100%',
+              alignSelf: 'flex-end',
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+            }}
+          >
             <FormControl>
               <Input
                 placeholder="decapoda-research/llama-30b-hf"
@@ -387,7 +396,7 @@ export default function LocalModels({
             >
               New
             </Button>
-          </>
+          </div>
         )}
       </Box>
     </Sheet>
