@@ -26,7 +26,7 @@ export default function Welcome() {
     <Sheet
       sx={{
         overflow: 'hidden',
-        height: '95%',
+        height: 'calc(100% - 1em)',
         backgroundImage: `url("${labImage}")`,
         backgroundRepeat: 'no-repeat',
         backgroundSize: 'cover',
