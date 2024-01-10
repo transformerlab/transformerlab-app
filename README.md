@@ -10,7 +10,7 @@
   <p align="center">
     Download, interact, and finetune models locally.
     <br />
-    <a href=https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
+    <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="#">View Demo</a>
