@@ -5,10 +5,8 @@ import * as shellCommands from './shell_commands/shellCommands';
 
 const HOME_DIR = app.getPath('home');
 
-const default_private_key = require('fs').readFileSync(
-  HOME_DIR + '/.ssh/id_rsa',
-  'utf8'
-);
+const default_private_key = '';
+const default_private_key_location = HOME_DIR + '/.ssh/id_rsa';
 
 var mainWindow = null;
 
@@ -40,7 +38,10 @@ ipcMain.handle('ssh:connect', (event, key) => {
   if (sshkeylocation) {
     var private_key = require('fs').readFileSync(sshkeylocation, 'utf8');
   } else {
-    var private_key = default_private_key;
+    var private_key = require('fs').readFileSync(
+      default_private_key_location,
+      'utf8'
+    );
   }
 
   var result = '';
