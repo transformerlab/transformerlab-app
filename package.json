@@ -222,6 +222,7 @@
           "x64"
         ]
       },
+      "category": "public.app-category.developer-tools",
       "type": "distribution",
       "hardenedRuntime": true,
       "entitlements": "assets/entitlements.mac.plist",

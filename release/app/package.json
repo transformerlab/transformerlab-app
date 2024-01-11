@@ -1,11 +1,11 @@
 {
   "name": "transformerlab",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "A tool to play with and train LLMs",
   "license": "???",
   "author": {
     "name": "Ali Asaria",
-    "email": "ali.asaria@gmail.com",
+    "email": "aliasaria",
     "url": "https://github.com/aliasaria"
   },
   "main": "./dist/main/main.js",
