@@ -13,12 +13,18 @@
     <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="#">View Demo</a>
+    <a href="https://youtu.be/S-Ea5XAztPA?feature=shared">View Demo</a>
     ·
     <a href="https://github.com/transformerlab/transformerlab-app/issues">Report Bugs</a>
     ·
     <a href="https://github.com/transformerlab/transformerlab-app/issues/new">Suggest Features</a>
+    ·
+    <a href="https://discord.gg/transformerlab">Join Discord</a>
+    ·
+    <a href="https://twitter.com/transformerlab">Follow on Twitter</a>
   </p>
+  <p align="center">
+   ⚠️ Note: Transformer Lab is still early stage software (launched Jan 2024), and being actively worked on. Please join our Discord or follow us on Twitter for updates. Feedback and contributions are highly valued! ⚠️</p>
 </div>
 
 <!-- ABOUT THE PROJECT -->
@@ -39,29 +45,29 @@ With Transformer Lab, you can:
 
 And you can do the above, all through a simple cross-platform GUI.
 
+<!-- GETTING STARTED -->
+
+## Getting Started
+
+<a href="https://transformerlab.ai/docs/download">Click here</a> to download Transformer Lab.
+
+<a href="https://transformerlab.ai/docs/intro">Read this page</a> to learn how to install and use.
+
 ### Built With
 
 - [![Electron][Electron]][Electron-url]
 - [![React][React.js]][React-url]
 - [![HuggingFace][HuggingFace]][HuggingFace-url]
 
-<!-- GETTING STARTED -->
+## Developers
 
-## Getting Started
-
-The best way to get started is to download the app from the Transformer Lab Homepage.
-
-## Developers: Building from Scratch
+###Building from Scratch
 
 To build the app yourself, pull this repo, and follow the steps below:
-
-### Install packages:
 
 ```bash
 npm install
 ```
-
-### Start the app in dev:
 
 ```bash
 npm start
