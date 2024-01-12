@@ -61,7 +61,7 @@ And you can do the above, all through a simple cross-platform GUI.
 
 ## Developers
 
-###Building from Scratch
+### Building from Scratch
 
 To build the app yourself, pull this repo, and follow the steps below:
 
