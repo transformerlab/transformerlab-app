@@ -83,12 +83,13 @@ export default function CurrentFoundationInfo({
               <IconButton
                 variant="plain"
                 onClick={() => {
-                  fetch(
-                    chatAPI.Endpoints.Models.DeletePeft(
-                      experimentInfo?.config?.foundation,
-                      peft
-                    )
-                  );
+                  confirm('Are you sure you want to delete this adaptor?') &&
+                    fetch(
+                      chatAPI.Endpoints.Models.DeletePeft(
+                        experimentInfo?.config?.foundation,
+                        peft
+                      )
+                    );
                 }}
               >
                 <Trash2Icon />
