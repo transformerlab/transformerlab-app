@@ -205,7 +205,7 @@ export default function Eval({
                 flexDirection: { xs: 'column', sm: 'row-reverse' },
               }}
             >
-              {/* <Button sx={{ width: '120px' }}>Save</Button>
+              <Button sx={{ width: '120px' }}>Save</Button>
               <Button
                 sx={{ width: '120px' }}
                 color="danger"
@@ -213,7 +213,7 @@ export default function Eval({
                 onClick={() => setEditModalOpen(false)}
               >
                 Cancel
-              </Button> */}
+              </Button>
             </Box>
           </ModalDialog>
         </Modal>
@@ -301,7 +301,6 @@ export default function Eval({
                       <Button
                         variant="soft"
                         onClick={() => {
-                          setSelectedPlugin(evaluations.plugin);
                           setCurrentEvaluator(evaluations.name);
                           setEditModalOpen(true);
                         }}
