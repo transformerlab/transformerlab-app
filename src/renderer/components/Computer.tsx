@@ -85,6 +85,17 @@ export default function Computer() {
                 description={server.gpu?.length === 0 ? '❌ No GPU' : '✅ GPU'}
               />
             </Grid>{' '}
+            <Grid xs={2}>
+              <ComputerCard icon={<FlameIcon />} title="Device">
+                CUDA: {server?.device === 'cuda' ? '✅ ' : '❌ '}
+                <br />
+                CUDA Version: {server?.cuda_version}
+                <br />
+                Python MPS: {server?.device === 'mps' ? '✅ ' : '❌ '}
+                <br />
+                Apple MLX: WIP
+              </ComputerCard>
+            </Grid>{' '}
             <Grid xs={4}>
               <ComputerCard
                 icon={<CalculatorIcon />}
@@ -108,13 +119,6 @@ export default function Computer() {
                   server.gpu[0]?.used_memory / server.gpu[0]?.total_memory
                 )}
                 %
-              </ComputerCard>
-            </Grid>{' '}
-            <Grid xs={2}>
-              <ComputerCard icon={<FlameIcon />} title="CUDA">
-                {server?.device === 'cuda' ? '✅ Yes' : '❌ No'}
-                <br />
-                Version: {server?.cuda_version}
               </ComputerCard>
             </Grid>{' '}
             <Grid xs={3}>
