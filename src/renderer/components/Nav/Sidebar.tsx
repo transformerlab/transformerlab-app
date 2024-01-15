@@ -28,6 +28,7 @@ import {
   LibraryIcon,
   GithubIcon,
   LinkIcon,
+  MilestoneIcon,
 } from 'lucide-react';
 
 import {
@@ -142,6 +143,12 @@ export default function Sidebar({
           disabled={
             !experimentInfo?.name || !experimentInfo?.config?.foundation
           }
+        />
+        <SubNavItem
+          title="Export"
+          path="/projects/export"
+          icon={<MilestoneIcon />}
+          disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
         />
         <SubNavItem
           title="Evaluate"
