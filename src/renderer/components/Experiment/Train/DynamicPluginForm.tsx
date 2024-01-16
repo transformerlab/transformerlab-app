@@ -48,11 +48,7 @@ import {
 const schemaTemplate: RJSFSchema = {
   type: 'object',
   required: ['title'],
-  properties: {
-    title: { type: 'string', title: 'Title', default: 'A new task' },
-    number: { type: 'integer', title: 'Integer' },
-    done: { type: 'boolean', title: 'Done?', default: false },
-  },
+  properties: {},
 };
 
 function BaseInputTemplate(props: BaseInputTemplateProps) {
@@ -118,7 +114,7 @@ function BaseInputTemplate(props: BaseInputTemplateProps) {
 function getSchema(data) {
   if (data) {
     console.log('Getting new schema from plugin');
-    // console.log(data);
+    console.log(data);
     let parsedData = JSON.parse(data);
     let schemaParameters = parsedData.parameters;
     let newSchemaTemplate = { ...schemaTemplate };
@@ -353,7 +349,7 @@ export default function DynamicPluginForm({ experimentInfo, plugin }) {
           widgets={{ ...widgets }}
         />
       ) : (
-        'No plugin selected...'
+        <div>...</div>
       )}
     </>
   );
