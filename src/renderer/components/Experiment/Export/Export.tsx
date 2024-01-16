@@ -1,15 +1,36 @@
-import { useState } from 'react';
-
-import Sheet from '@mui/joy/Sheet';
-import { Button, Chip, Divider, Switch, Typography } from '@mui/joy';
+import { useRef, useState } from 'react';
+import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
+import Sheet from '@mui/joy/Sheet';
+import { Button, Divider, Table, Typography } from '@mui/joy';
+
+// fetcher used by SWR 
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Export({
     experimentInfo,
   }) {
 
-    let plugins = experimentInfo?.config?.plugins;
+    // fix this to find plugins that are exporters
+    // let plugins = experimentInfo?.config?.plugins;
+    // if (!plugins) plugins = [];
+
+    // call plugins list endpoint and filter based on type="exporter" 
+    const {
+        data: plugins,
+        error: pluginsError,
+        isLoading: pluginsIsLoading,
+      } = useSWR(
+        experimentInfo?.id &&
+          chatAPI.Endpoints.Experiment.ListScriptsOfType(
+            experimentInfo?.id,
+            'exporter'
+          ),
+        fetcher
+      );
+    console.log(plugins);
 
     return (
         <Sheet
@@ -29,10 +50,24 @@ export default function Export({
           <Typography level="title-lg" mb={1} color="warning">
             No Export Formats available, please install an export plugin.
           </Typography>
-        ) : (
-            <Typography level="title-lg" mb={1} color="warning">
-              Coming soon: You will be able to export models to MLX or GGUF!
-            </Typography>
+        ) : ( 
+        <Table aria-label="basic table">
+          <thead>
+            <tr>
+              <th>Exporter</th>
+              <th>Id</th>
+            </tr>
+          </thead>
+          <tbody>
+            {plugins?.map((row) => (
+              <tr key={row.uniqueId}>
+                <td>{row.name}</td>
+                <td>{row.uniqueId}</td>
+              </tr>
+                )
+            )}
+          </tbody>
+        </Table>
         )}
       </Sheet>
     </Sheet>
