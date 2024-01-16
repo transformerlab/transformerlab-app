@@ -166,7 +166,6 @@ export default function ModelDetails({
               startDecorator={<XSquareIcon />}
               onClick={() => {
                 setFoundation(null);
-                console.log(experimentInfo);
                 fetch(
                   chatAPI.Endpoints.Experiment.UpdateConfig(
                     experimentInfo?.id,
