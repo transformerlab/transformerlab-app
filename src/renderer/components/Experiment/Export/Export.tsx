@@ -9,6 +9,18 @@ import {
     ArrowRightFromLineIcon,
   } from 'lucide-react';
 
+// run an exporter plugin on the current experiment's model and adaptor 
+function exportRun(
+    experimentId: string,
+    plugin: string
+  ) {
+    /* Not implemented in API yet
+    fetch(
+      chatAPI.Endpoints.Experiment.RunExport(experimentId, plugin)
+    );
+    */
+  }
+
 // fetcher used by SWR 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -72,12 +84,12 @@ export default function Export({
                       <Button
                         startDecorator={<ArrowRightFromLineIcon />}
                         variant="soft"
-                        onClick={() =>
-                          alert(
-                            experimentInfo.id + " : " +
-                            row.uniqueId
-                          )
-                        }
+                        onClick={() => {
+                            exportRun(
+                                experimentInfo.id,
+                                row.uniqueId
+                              );
+                        }}
                       >
                         Export
                       </Button>
