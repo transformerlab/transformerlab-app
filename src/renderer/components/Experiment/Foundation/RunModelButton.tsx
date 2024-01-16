@@ -22,13 +22,17 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
+const defaultInfernceSettings = {
+  '8-bit': false,
+  'cpu-offload': false,
+  inferenceEngine: null,
+};
+
 function EngineSelect({
   experimentInfo,
   inferenceSettings,
   setInferenceSettings,
 }) {
-  //@TODO: you should filter by type later because we only want to show
-  //gguf loaders to gguf models, etc but I am testing right now
   const { data, error, isLoading } = useSWR(
     chatAPI.Endpoints.Experiment.ListScriptsOfType(
       experimentInfo?.id,
@@ -45,12 +49,6 @@ function EngineSelect({
       size="lg"
       name="inferenceEngine"
       defaultValue={inferenceSettings?.inferenceEngine}
-      onChange={(e, newValue) => {
-        setInferenceSettings({
-          ...inferenceSettings,
-          inferenceEngine: newValue,
-        });
-      }}
     >
       <Option value={null}>FastChat</Option>
       {data?.map((row) => (
@@ -173,12 +171,16 @@ export default function RunModelButton({
           <form
             onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
               event.preventDefault();
+              const formData = new FormData(event.currentTarget);
+
+              const engine = formData.get('inferenceEngine');
               const eightBit = document.getElementById('eightBit')?.checked;
               const cpuOffload = document.getElementById('cpuOffload')?.checked;
               const experimentId = experimentInfo?.id;
 
               setInferenceSettings({
                 ...inferenceSettings,
+                inferenceEngine: engine,
                 '8-bit': eightBit,
                 'cpu-offload': cpuOffload,
               });
@@ -191,7 +193,7 @@ export default function RunModelButton({
                     ...inferenceSettings,
                     '8-bit': eightBit,
                     'cpu-offload': cpuOffload,
-                    inferenceEngine: inferenceSettings?.inferenceEngine,
+                    inferenceEngine: engine,
                   })
                 )
               );

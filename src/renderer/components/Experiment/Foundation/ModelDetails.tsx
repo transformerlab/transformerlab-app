@@ -15,7 +15,7 @@ import {
   XSquareIcon,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import RunModelButton from 'renderer/components/Nav/RunModelButton';
+import RunModelButton from 'renderer/components/Experiment/Foundation/RunModelButton';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import {
   killWorker,
@@ -164,7 +164,21 @@ export default function ModelDetails({
             />
             <Button
               startDecorator={<XSquareIcon />}
-              onClick={() => setFoundation(null)}
+              onClick={() => {
+                setFoundation(null);
+                console.log(experimentInfo);
+                fetch(
+                  chatAPI.Endpoints.Experiment.UpdateConfig(
+                    experimentInfo?.id,
+                    'inferenceParams',
+                    JSON.stringify({
+                      '8-bit': false,
+                      'cpu-offload': false,
+                      inferenceEngine: null,
+                    })
+                  )
+                );
+              }}
               color="danger"
               variant="outlined"
             >
