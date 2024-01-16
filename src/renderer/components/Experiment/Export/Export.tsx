@@ -14,11 +14,9 @@ function exportRun(
     experimentId: string,
     plugin: string
   ) {
-    /* Not implemented in API yet
     fetch(
       chatAPI.Endpoints.Experiment.RunExport(experimentId, plugin)
     );
-    */
   }
 
 // fetcher used by SWR 
