@@ -51,24 +51,24 @@ export default function MainAppPanel({
         model_name
       )
     ).then((res) => {
-      experimentInfoMutate();
+      fetch(
+        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+          experimentInfo?.id,
+          'foundation_model_architecture',
+          model?.json_data?.architecture
+        )
+      ).then((res) => {
+        fetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'foundation_filename',
+            model?.json_data?.huggingface_filename
+          )
+        ).then((res) => {
+          experimentInfoMutate();
+        });
+      });
     });
-
-    fetch(
-      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-        experimentInfo?.id,
-        'foundation_model_architecture',
-        model?.json_data?.architecture
-      )
-    );
-
-    fetch(
-      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-        experimentInfo?.id,
-        'foundation_filename',
-        model?.json_data?.huggingface_filename
-      )
-    );
   }
 
   function setAdaptor(name) {
