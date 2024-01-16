@@ -28,7 +28,7 @@ import {
   LibraryIcon,
   GithubIcon,
   LinkIcon,
-  MilestoneIcon,
+  ArrowRightFromLineIcon,
 } from 'lucide-react';
 
 import {
@@ -147,7 +147,7 @@ export default function Sidebar({
         <SubNavItem
           title="Export"
           path="/projects/export"
-          icon={<MilestoneIcon />}
+          icon={<ArrowRightFromLineIcon />}
           disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
         />
         <SubNavItem
