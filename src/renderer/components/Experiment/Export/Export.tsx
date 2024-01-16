@@ -5,6 +5,9 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import Sheet from '@mui/joy/Sheet';
 import { Button, Divider, Table, Typography } from '@mui/joy';
+import {
+    ArrowRightFromLineIcon,
+  } from 'lucide-react';
 
 // fetcher used by SWR 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -56,6 +59,7 @@ export default function Export({
             <tr>
               <th>Exporter</th>
               <th>Id</th>
+              <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </tr>
           </thead>
           <tbody>
@@ -63,6 +67,21 @@ export default function Export({
               <tr key={row.uniqueId}>
                 <td>{row.name}</td>
                 <td>{row.uniqueId}</td>
+                <td style={{ textAlign: 'right' }}>
+                      {' '}
+                      <Button
+                        startDecorator={<ArrowRightFromLineIcon />}
+                        variant="soft"
+                        onClick={() =>
+                          alert(
+                            experimentInfo.id + " : " +
+                            row.uniqueId
+                          )
+                        }
+                      >
+                        Export
+                      </Button>
+                    </td>
               </tr>
                 )
             )}
