@@ -68,7 +68,7 @@ export default function Export({
           <thead>
             <tr>
               <th>Exporter</th>
-              <th>Id</th>
+              <th>Description</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </tr>
           </thead>
@@ -76,7 +76,7 @@ export default function Export({
             {plugins?.map((row) => (
               <tr key={row.uniqueId}>
                 <td>{row.name}</td>
-                <td>{row.uniqueId}</td>
+                <td>{row.description}</td>
                 <td style={{ textAlign: 'right' }}>
                       {' '}
                       <Button
