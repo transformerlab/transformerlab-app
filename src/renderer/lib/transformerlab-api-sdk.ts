@@ -516,6 +516,15 @@ Endpoints.Experiment = {
     '/delete_eval_from_experiment' +
     '?eval_name=' +
     evalName,
+  RunExport: (id: string, pluginName: string) => {
+    return (
+      API_URL() +
+      'experiment/' +
+      id +
+      '/run_exporter_script?plugin_name=' +
+      pluginName
+    );
+  },
   SaveConversation: (experimentId: String) =>
     API_URL() + 'experiment/' + experimentId + '/save_conversation',
   GetConversations: (experimentId: string) =>

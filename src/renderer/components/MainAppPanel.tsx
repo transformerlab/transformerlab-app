@@ -13,6 +13,7 @@ import PluginDetails from './Plugins/PluginDetails';
 import Computer from './Computer';
 import Train from './Experiment/Train/Train';
 import Eval from './Experiment/Eval/Eval';
+import Export from './Experiment/Export/Export';
 import Api from './Experiment/Api';
 import Settings from './Experiment/Settings';
 import ModelHome from './Experiment/ExperimentNotes';
@@ -156,7 +157,11 @@ export default function MainAppPanel({
           />
         }
       />
-      <Route
+     <Route
+        path="/projects/export"
+        element={<Export experimentInfo={experimentInfo} />}
+      />
+       <Route
         path="/projects/plugins"
         element={<Plugins experimentInfo={experimentInfo} />}
       />
