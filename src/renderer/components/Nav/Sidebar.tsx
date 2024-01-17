@@ -148,7 +148,9 @@ export default function Sidebar({
           title="Export"
           path="/projects/export"
           icon={<ArrowRightFromLineIcon />}
-          disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
+          disabled={
+            !experimentInfo?.name || !experimentInfo?.config?.foundation
+          }
         />
         <SubNavItem
           title="Evaluate"
@@ -173,7 +175,7 @@ export default function Sidebar({
           path="/projects/plugins"
           icon={<ScrollTextIcon />}
           disabled={!experimentInfo?.name}
-          counter={3}
+          counter={null}
         />
         <SubNavItem
           title="Settings"
