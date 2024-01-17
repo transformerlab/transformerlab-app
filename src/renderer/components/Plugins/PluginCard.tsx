@@ -18,9 +18,9 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function getIcon(type: string) {
   switch (type) {
-    case 'evaluation':
+    case 'evaluator':
       return <HelpCircleIcon color="#C21292" />;
-    case 'training':
+    case 'trainer':
       return <GraduationCapIcon color="#EF4040" />;
     case 'loader':
       return <RocketIcon color="#FFA732" />;

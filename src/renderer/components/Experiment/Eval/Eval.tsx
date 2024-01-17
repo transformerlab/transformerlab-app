@@ -108,7 +108,7 @@ export default function Eval({
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
-        'evaluation'
+        'evaluator'
       ),
     fetcher
   );

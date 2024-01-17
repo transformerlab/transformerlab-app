@@ -60,7 +60,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
   } = useSWR(
     chatAPI.Endpoints.Experiment.ListScriptsOfType(
       experimentInfo?.id,
-      'training', // type
+      'trainer', // type
       'model_architectures:' +
         experimentInfo?.config?.foundation_model_architecture //filter
     ),
