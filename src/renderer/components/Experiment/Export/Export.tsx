@@ -43,7 +43,6 @@ export default function Export({
           ),
         fetcher
       );
-    console.log(plugins);
 
     return (
         <Sheet
