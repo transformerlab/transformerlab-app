@@ -21,7 +21,11 @@ export default function CurrentFoundationInfo({
   adaptor,
   setAdaptor,
 }) {
-  const { data: peftData } = useSWR(
+  const {
+    data: peftData,
+    error: peftError,
+    mutate: peftMutate,
+  } = useSWR(
     {
       url: chatAPI.Endpoints.Models.GetPeftsForModel(),
       post: experimentInfo?.config?.foundation,
@@ -89,7 +93,9 @@ export default function CurrentFoundationInfo({
                         experimentInfo?.config?.foundation,
                         peft
                       )
-                    );
+                    ).then(() => {
+                      peftMutate();
+                    });
                 }}
               >
                 <Trash2Icon />
