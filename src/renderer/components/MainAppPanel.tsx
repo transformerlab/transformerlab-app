@@ -40,9 +40,19 @@ export default function MainAppPanel({
 
   function setFoundation(model) {
     let model_name = '';
+    let model_filename = '';
 
     if (model) {
       model_name = model.model_id;
+
+      // model_filename may be defined for GGUF models in the Hugging Face JSON
+      // however we also want to use this for locally generateed models (e.g. MLX Export)
+      if (model.json_data?.huggingface_filename) {
+        model_filename = model.json_data.huggingface_filename;
+      } else if (model.stored_in_filesystem) {
+        model_filename = model.model_filename;
+
+      }
     }
 
     fetch(
@@ -63,7 +73,7 @@ export default function MainAppPanel({
           chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
             experimentInfo?.id,
             'foundation_filename',
-            model?.json_data?.huggingface_filename
+            model_filename
           )
         ).then((res) => {
           experimentInfoMutate();
