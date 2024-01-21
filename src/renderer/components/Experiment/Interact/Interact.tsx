@@ -275,9 +275,9 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
       currentModel,
       adaptor,
       text,
-      undefined,
-      undefined,
-      undefined,
+      temperature,
+      maxTokens,
+      topP,
       false
     );
     setIsThinking(false);
