@@ -44,6 +44,13 @@ export default function Export({
         fetcher
       );
 
+    // returns true if the currently loaded foundation is in the passed array
+    // supported_architectures - a list of all architectures supported by this plugin
+    function isModelValidArchitecture(supported_architectures) {
+      return experimentInfo != null && experimentInfo?.config?.foundation !== ''
+            && supported_architectures.includes(experimentInfo?.config?.foundation_model_architecture);
+    }
+
     return (
         <Sheet
       sx={{
@@ -87,6 +94,7 @@ export default function Export({
                                 row.uniqueId
                               );
                         }}
+                        disabled={!isModelValidArchitecture(row.model_architectures)}
                       >
                         Export
                       </Button>
