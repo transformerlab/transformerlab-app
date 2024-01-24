@@ -74,12 +74,33 @@ function stableSort<T>(
   return stabilizedThis.map((el) => el[0]);
 }
 
+function filterByFilters(data, searchText = '') {
+  return data.filter((row) => {
+    if (row.name.toLowerCase().includes(searchText.toLowerCase())) {
+      return true;
+    }
+    return false;
+  });
+}
+
+const modelTypes = [
+  'All',
+  'MLX',
+  'GGUF',
+  'LlamaForCausalLM',
+  'MistralForCausalLM',
+  'T5ForConditionalGeneration',
+  'PhiForCausalLM',
+  'GPTBigCodeForCausalLM',
+];
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
   const [order, setOrder] = useState<Order>('desc');
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState('');
+  const [searchText, setSearchText] = useState('');
 
   const {
     data: modelGalleryData,
@@ -110,9 +131,11 @@ export default function ModelStore() {
         </Select>
       </FormControl>
       <FormControl size="sm">
-        <FormLabel>Category</FormLabel>
+        <FormLabel>Architecture</FormLabel>
         <Select placeholder="All">
-          <Option value="all">All</Option>
+          {modelTypes.map((type) => (
+            <Option value={type}>{type}</Option>
+          ))}
         </Select>
       </FormControl>
     </>
@@ -140,7 +163,12 @@ export default function ModelStore() {
       >
         <FormControl sx={{ flex: 1 }} size="sm">
           <FormLabel>&nbsp;</FormLabel>
-          <Input placeholder="Search" startDecorator={<SearchIcon />} />
+          <Input
+            placeholder="Search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            startDecorator={<SearchIcon />}
+          />
         </FormControl>
 
         {renderFilters()}
@@ -201,110 +229,109 @@ export default function ModelStore() {
           </thead>
           <tbody>
             {modelGalleryData &&
-              stableSort(modelGalleryData, getComparator(order, 'id')).map(
-                (row) => (
-                  <tr key={row.uniqueID}>
-                    <td>
-                      <Typography level="title-md" marginLeft={2}>
-                        {row.name}&nbsp;
-                        <a href={row?.resources?.canonicalUrl} target="_blank">
-                          <ExternalLinkIcon size="14px" />
-                        </a>
-                      </Typography>
-                    </td>
-                    <td>{row.parameters}</td>
-                    <td>
-                      <Chip
-                        variant="soft"
-                        size="sm"
-                        startDecorator={
-                          {
-                            GPL: <CheckIcon />,
-                            'Apache 2.0': <GraduationCapIcon />,
-                            CC: <CreativeCommonsIcon />,
-                          }[row.license]
-                        }
-                        color={
-                          {
-                            GPL: 'success',
-                            'Apache 2.0': 'neutral',
-                            CC: 'success',
-                          }[row.license]
-                        }
-                      >
-                        {row.license}
-                      </Chip>
-                    </td>
-                    <td
-                      style={{
-                        overflow: 'hidden',
-                        color:
-                          row.architecture == 'GGUF'
-                            ? 'var(--joy-palette-success-800)'
-                            : '',
-                      }}
+              stableSort(
+                filterByFilters(modelGalleryData, searchText),
+                getComparator(order, 'name')
+              ).map((row) => (
+                <tr key={row.uniqueID}>
+                  <td>
+                    <Typography level="title-md" marginLeft={2}>
+                      {row.name}&nbsp;
+                      <a href={row?.resources?.canonicalUrl} target="_blank">
+                        <ExternalLinkIcon size="14px" />
+                      </a>
+                    </Typography>
+                  </td>
+                  <td>{row.parameters}</td>
+                  <td>
+                    <Chip
+                      variant="soft"
+                      size="sm"
+                      startDecorator={
+                        {
+                          GPL: <CheckIcon />,
+                          'Apache 2.0': <GraduationCapIcon />,
+                          CC: <CreativeCommonsIcon />,
+                        }[row.license]
+                      }
+                      color={
+                        {
+                          GPL: 'success',
+                          'Apache 2.0': 'neutral',
+                          CC: 'success',
+                        }[row.license]
+                      }
                     >
-                      {row.architecture == 'MLX' && <TinyMLXLogo />}
-                      {row.architecture}
-                    </td>
-                    <td>
-                      <div style={{ maxHeight: '60px', overflow: 'hidden' }}>
-                        {/* {JSON.stringify(row)} */}
-                        {row.description}
-                      </div>
-                    </td>
+                      {row.license}
+                    </Chip>
+                  </td>
+                  <td
+                    style={{
+                      overflow: 'hidden',
+                      color:
+                        row.architecture == 'GGUF'
+                          ? 'var(--joy-palette-success-800)'
+                          : '',
+                    }}
+                  >
+                    {row.architecture == 'MLX' && <TinyMLXLogo />}
+                    {row.architecture}
+                  </td>
+                  <td>
+                    <div style={{ maxHeight: '60px', overflow: 'hidden' }}>
+                      {/* {JSON.stringify(row)} */}
+                      {row.description}
+                    </div>
+                  </td>
 
-                    <td style={{ textAlign: 'right' }}>
-                      <Button
-                        size="sm"
-                        disabled={row.downloaded || currentlyDownloading !== ''}
-                        onClick={async () => {
-                          setJobId(-1);
-                          setCurrentlyDownloading(row.name);
-                          try {
-                            const response = await downloadModelFromGallery(
-                              row.uniqueID
-                            );
-                            if (
-                              response?.message == 'Failed to download model'
-                            ) {
-                              setCurrentlyDownloading('');
-                              setJobId(null);
-                              return alert(
-                                'Failed to download: this model may require a huggingface access token (in settings).'
-                              );
-                            }
-                            const job_id = response?.job_id;
-                            setCurrentlyDownloading('');
-                            modelGalleryMutate();
-                            setJobId(job_id);
-                          } catch (e) {
+                  <td style={{ textAlign: 'right' }}>
+                    <Button
+                      size="sm"
+                      disabled={row.downloaded || currentlyDownloading !== ''}
+                      onClick={async () => {
+                        setJobId(-1);
+                        setCurrentlyDownloading(row.name);
+                        try {
+                          const response = await downloadModelFromGallery(
+                            row.uniqueID
+                          );
+                          if (response?.message == 'Failed to download model') {
                             setCurrentlyDownloading('');
                             setJobId(null);
-                            return alert('Failed to download');
+                            return alert(
+                              'Failed to download: this model may require a huggingface access token (in settings).'
+                            );
                           }
-                        }}
-                        startDecorator={
-                          jobId && currentlyDownloading == row.name ? (
-                            <CircularProgress />
-                          ) : (
-                            ''
-                          )
+                          const job_id = response?.job_id;
+                          setCurrentlyDownloading('');
+                          modelGalleryMutate();
+                          setJobId(job_id);
+                        } catch (e) {
+                          setCurrentlyDownloading('');
+                          setJobId(null);
+                          return alert('Failed to download');
                         }
-                        endDecorator={
-                          row.downloaded ? (
-                            <CheckIcon size="18px" />
-                          ) : (
-                            <DownloadIcon size="18px" />
-                          )
-                        }
-                      >
-                        Download{row.downloaded ? 'ed' : ''}
-                      </Button>
-                    </td>
-                  </tr>
-                )
-              )}
+                      }}
+                      startDecorator={
+                        jobId && currentlyDownloading == row.name ? (
+                          <CircularProgress />
+                        ) : (
+                          ''
+                        )
+                      }
+                      endDecorator={
+                        row.downloaded ? (
+                          <CheckIcon size="18px" />
+                        ) : (
+                          <DownloadIcon size="18px" />
+                        )
+                      }
+                    >
+                      Download{row.downloaded ? 'ed' : ''}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
           </tbody>
         </Table>
       </Sheet>
