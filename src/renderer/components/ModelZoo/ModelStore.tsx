@@ -29,6 +29,7 @@ import { downloadModelFromGallery } from 'renderer/lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import TinyMLXLogo from '../Shared/TinyMLXLogo';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -243,6 +244,7 @@ export default function ModelStore() {
                             : '',
                       }}
                     >
+                      {row.architecture == 'MLX' && <TinyMLXLogo />}
                       {row.architecture}
                     </td>
                     <td>
