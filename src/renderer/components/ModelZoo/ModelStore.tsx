@@ -74,9 +74,17 @@ function stableSort<T>(
   return stabilizedThis.map((el) => el[0]);
 }
 
-function filterByFilters(data, searchText = '') {
+function filterByFilters(data, searchText = '', filters = {}) {
   return data.filter((row) => {
     if (row.name.toLowerCase().includes(searchText.toLowerCase())) {
+      for (const filterKey in filters) {
+        console.log(filterKey, filters[filterKey]);
+        if (filters[filterKey] !== 'All') {
+          if (row[filterKey] !== filters[filterKey]) {
+            return false;
+          }
+        }
+      }
       return true;
     }
     return false;
@@ -94,6 +102,15 @@ const modelTypes = [
   'GPTBigCodeForCausalLM',
 ];
 
+const licenseTypes = [
+  'All',
+  'MIT',
+  'CC BY-SA-4.0',
+  'Apache 2.0',
+  'Meta Custom',
+  'GPL',
+];
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
@@ -101,6 +118,7 @@ export default function ModelStore() {
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [filters, setFilters] = useState({});
 
   const {
     data: modelGalleryData,
@@ -123,16 +141,25 @@ export default function ModelStore() {
         <Select
           placeholder="Filter by license"
           slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
+          value={filters?.license}
+          onChange={(e, newValue) => {
+            setFilters({ ...filters, license: newValue });
+          }}
         >
-          <Option value="MIT">MIT</Option>
-          <Option value="pending">CC BY-SA-4.0</Option>
-          <Option value="refunded">Refunded</Option>
-          <Option value="Cancelled">Apache 2.0</Option>
+          {licenseTypes.map((type) => (
+            <Option value={type}>{type}</Option>
+          ))}
         </Select>
       </FormControl>
       <FormControl size="sm">
         <FormLabel>Architecture</FormLabel>
-        <Select placeholder="All">
+        <Select
+          placeholder="All"
+          value={filters?.architecture}
+          onChange={(e, newValue) => {
+            setFilters({ ...filters, architecture: newValue });
+          }}
+        >
           {modelTypes.map((type) => (
             <Option value={type}>{type}</Option>
           ))}
@@ -230,7 +257,7 @@ export default function ModelStore() {
           <tbody>
             {modelGalleryData &&
               stableSort(
-                filterByFilters(modelGalleryData, searchText),
+                filterByFilters(modelGalleryData, searchText, filters),
                 getComparator(order, 'name')
               ).map((row) => (
                 <tr key={row.uniqueID}>
