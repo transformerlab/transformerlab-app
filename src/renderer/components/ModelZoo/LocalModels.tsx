@@ -45,24 +45,41 @@ import Welcome from '../Welcome';
 
 type Order = 'asc' | 'desc';
 
-function convertModelObjectToArray(modelObject) {
-  // The model object in the storage is big object,
-  // Here we turn that into an array of objects
+const modelTypes = [
+  'All',
+  'MLX',
+  'GGUF',
+  'LlamaForCausalLM',
+  'MistralForCausalLM',
+  'T5ForConditionalGeneration',
+  'PhiForCausalLM',
+  'GPTBigCodeForCausalLM',
+];
 
-  const arr = [{}];
-  const keys = Object.keys(modelObject);
+const licenseTypes = [
+  'All',
+  'MIT',
+  'CC BY-SA-4.0',
+  'Apache 2.0',
+  'Meta Custom',
+  'GPL',
+];
 
-  for (let i = 0, n = keys.length; i < n; i++) {
-    const key = keys[i];
-    arr[i] = modelObject[key];
-    arr[i].name = key;
-  }
-
-  return arr;
-}
-
-function openModelFolderInFilesystem() {
-  //window.filesys.openModelFolder();
+function filterByFilters(data, searchText = '', filters = {}) {
+  return data.filter((row) => {
+    if (row.name.toLowerCase().includes(searchText.toLowerCase())) {
+      for (const filterKey in filters) {
+        console.log(filterKey, filters[filterKey]);
+        if (filters[filterKey] !== 'All') {
+          if (row[filterKey] !== filters[filterKey]) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+    return false;
+  });
 }
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -76,6 +93,8 @@ export default function LocalModels({
   const [order, setOrder] = useState<Order>('desc');
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [open, setOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [filters, setFilters] = useState({});
 
   const [localModels, setLocalModels] = useState([]);
 
@@ -104,17 +123,30 @@ export default function LocalModels({
         <Select
           placeholder="Filter by license"
           slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
+          value={filters?.license}
+          disabled
+          onChange={(e, newValue) => {
+            setFilters({ ...filters, license: newValue });
+          }}
         >
-          <Option value="MIT">MIT</Option>
-          <Option value="pending">CC BY-SA-4.0</Option>
-          <Option value="refunded">Refunded</Option>
-          <Option value="Cancelled">Apache 2.0</Option>
+          {licenseTypes.map((type) => (
+            <Option value={type}>{type}</Option>
+          ))}
         </Select>
       </FormControl>
       <FormControl size="sm">
-        <FormLabel>Category</FormLabel>
-        <Select placeholder="All">
-          <Option value="all">All</Option>
+        <FormLabel>Architecture</FormLabel>
+        <Select
+          placeholder="All"
+          disabled
+          value={filters?.architecture}
+          onChange={(e, newValue) => {
+            setFilters({ ...filters, architecture: newValue });
+          }}
+        >
+          {modelTypes.map((type) => (
+            <Option value={type}>{type}</Option>
+          ))}
         </Select>
       </FormControl>
     </>
@@ -201,7 +233,12 @@ export default function LocalModels({
       >
         <FormControl sx={{ flex: 1 }} size="sm">
           <FormLabel>&nbsp;</FormLabel>
-          <Input placeholder="Search" startDecorator={<SearchIcon />} />
+          <Input
+            placeholder="Search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            startDecorator={<SearchIcon />}
+          />
         </FormControl>
 
         {renderFilters()}
@@ -261,7 +298,7 @@ export default function LocalModels({
           </thead>
           <tbody>
             {data &&
-              data.map((row) => (
+              filterByFilters(data, searchText, filters).map((row) => (
                 <tr key={row.rowid}>
                   <td>
                     <Typography ml={2} fontWeight="lg">
