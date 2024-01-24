@@ -12,6 +12,8 @@ import {
   Stack,
   Switch,
   Option,
+  Typography,
+  Tooltip,
 } from '@mui/joy';
 import { CogIcon, PlayCircleIcon, StopCircleIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -29,8 +31,6 @@ export default function RunModelButton({
   const [jobId, setJobId] = useState(null);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
-    '8-bit': false,
-    'cpu-offload': false,
     inferenceEngine: null,
   });
 
@@ -68,20 +68,17 @@ export default function RunModelButton({
             color="success"
             size="lg"
             sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
-            onClick={async () => {
+            onClick={async (e) => {
               setJobId(-1);
 
-              const eightBit = inferenceSettings?.['8-bit'];
-              const cpuOffload = inferenceSettings?.['cpu-offload'];
               const inferenceEngine = inferenceSettings?.inferenceEngine;
 
               const response = await activateWorker(
                 experimentInfo?.config?.foundation,
                 experimentInfo?.config?.foundation_filename,
                 experimentInfo?.config?.adaptor,
-                eightBit,
-                cpuOffload,
                 inferenceEngine,
+                inferenceSettings,
                 experimentInfo?.id
               );
               const job_id = response?.job_id;
@@ -120,7 +117,23 @@ export default function RunModelButton({
         disabled={models?.length > 0 || jobId == -1}
         onClick={() => setShowRunSettings(!showRunSettings)}
       >
-        <CogIcon color="var(--joy-palette-neutral-500)" />
+        <Tooltip
+          variant="soft"
+          title={
+            <Stack
+              sx={{ fontSize: '12px', minWidth: '80px' }}
+              justifyContent="space-between"
+            >
+              {Object.entries(inferenceSettings)?.map(([key, value]) => (
+                <Typography key={key}>
+                  {key}: {value}
+                </Typography>
+              ))}
+            </Stack>
+          }
+        >
+          <CogIcon color="var(--joy-palette-neutral-500)" />
+        </Tooltip>
       </IconButton>
       <InferenceEngineModal
         showModal={showRunSettings}
@@ -129,14 +142,6 @@ export default function RunModelButton({
         inferenceSettings={inferenceSettings}
         setInferenceSettings={setInferenceSettings}
       />
-      <Stack
-        sx={{ fontSize: '12px', minWidth: '80px' }}
-        justifyContent="space-between"
-      >
-        {inferenceSettings?.inferenceEngine}
-        {inferenceSettings?.['8-bit'] && <div>8-bit Mode</div>}
-        {inferenceSettings?.['cpu-offload'] && <div>CPU-Offload</div>}
-      </Stack>
     </div>
   );
 }

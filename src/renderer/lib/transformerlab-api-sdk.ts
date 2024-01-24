@@ -781,9 +781,8 @@ export async function activateWorker(
   modelName: string,
   modelFilename: string | null = null,
   adaptorName: string = '',
-  eightBit: boolean = false,
-  cpuOffload: boolean = false,
   engine: string | null = 'default',
+  parameters: object = {},
   experimentId: string = ''
 ) {
   let response;
@@ -797,19 +796,19 @@ export async function activateWorker(
     model = `${model}&model_filename=${modelFilename}`;
   }
 
+  const paramsJSON = JSON.stringify(parameters);
+
   try {
     response = await fetch(
       API_URL() +
         'server/worker_start?model_name=' +
         model +
-        '&eight_bit=' +
-        eightBit +
-        '&cpu_offload=' +
-        cpuOffload +
         '&engine=' +
         engine +
         '&experiment_id=' +
-        experimentId
+        experimentId +
+        '&parameters=' +
+        paramsJSON
     );
     const result = await response.json();
     return result;

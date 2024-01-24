@@ -315,7 +315,7 @@ const widgets: RegistryWidgetsType = {
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function DynamicPluginForm({ experimentInfo, plugin }) {
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
       plugin &&
       chatAPI.Endpoints.Experiment.ScriptGetFile(
@@ -327,6 +327,10 @@ export default function DynamicPluginForm({ experimentInfo, plugin }) {
   );
 
   const schema = useMemo(() => getSchema(data), [data]);
+
+  React.useEffect(() => {
+    mutate();
+  }, [plugin, experimentInfo]);
 
   return (
     <>
@@ -349,7 +353,7 @@ export default function DynamicPluginForm({ experimentInfo, plugin }) {
           widgets={{ ...widgets }}
         />
       ) : (
-        <div>...</div>
+        <div>&nbsp;</div>
       )}
     </>
   );

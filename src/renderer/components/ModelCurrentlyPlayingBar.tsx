@@ -14,6 +14,7 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
     : null;
   const eightBit = inferenceParams?.['8-bit'];
   const cpuOffload = inferenceParams?.['cpu-offload'];
+  const engine = inferenceParams?.inferenceEngine;
 
   return (
     <Box
@@ -101,10 +102,14 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
               display: 'flex',
               flexDirection: 'column',
               fontSize: '10px',
+              height: '30px',
+              justifyContent: 'center',
             }}
           >
-            <span>{eightBit && '8-bit'}</span>
-            <span>{cpuOffload && 'cpu-offload'}</span>
+            {/* {JSON.stringify(experimentInfo?.config?.inferenceParams)} */}
+            {/* <span>{eightBit && '8-bit'}</span>
+            <span>{cpuOffload && 'cpu-offload'}</span> */}
+            <span>{engine}</span>
           </span>
         ) : (
           ''

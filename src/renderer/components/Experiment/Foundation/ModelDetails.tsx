@@ -171,8 +171,6 @@ export default function ModelDetails({
                     experimentInfo?.id,
                     'inferenceParams',
                     JSON.stringify({
-                      '8-bit': false,
-                      'cpu-offload': false,
                       inferenceEngine: null,
                     })
                   )

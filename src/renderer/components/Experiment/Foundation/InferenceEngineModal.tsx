@@ -43,7 +43,6 @@ function EngineSelect({
         setSelectedPlugin(newValue);
       }}
     >
-      <Option value={null}>FastChat</Option>
       {data?.map((row) => (
         <Option value={row.uniqueId} key={row.uniqueId}>
           {row.name}
@@ -73,17 +72,15 @@ export default function InferenceEngineModal({
           onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
+            const formObject = Object.fromEntries(formData.entries());
 
             const engine = formData.get('inferenceEngine');
-            const eightBit = document.getElementById('eightBit')?.checked;
-            const cpuOffload = document.getElementById('cpuOffload')?.checked;
             const experimentId = experimentInfo?.id;
 
             setInferenceSettings({
               ...inferenceSettings,
+              ...formObject,
               inferenceEngine: engine,
-              '8-bit': eightBit,
-              'cpu-offload': cpuOffload,
             });
 
             await fetch(
@@ -92,8 +89,7 @@ export default function InferenceEngineModal({
                 'inferenceParams',
                 JSON.stringify({
                   ...inferenceSettings,
-                  '8-bit': eightBit,
-                  'cpu-offload': cpuOffload,
+                  ...formObject,
                   inferenceEngine: engine,
                 })
               )
@@ -101,7 +97,7 @@ export default function InferenceEngineModal({
             setShowModal(false);
           }}
         >
-          <Stack spacing={2}>
+          <Stack spacing={0}>
             {/* {JSON.stringify(inferenceSettings)} */}
             <FormControl>
               <FormLabel>Engine</FormLabel>
@@ -116,7 +112,9 @@ export default function InferenceEngineModal({
               experimentInfo={experimentInfo}
               plugin={selectedPlugin}
             />
-            <Button type="submit">Submit</Button>
+            <Button type="submit" sx={{ mt: 0, pt: 0 }}>
+              Save
+            </Button>
           </Stack>
         </form>
       </ModalDialog>
