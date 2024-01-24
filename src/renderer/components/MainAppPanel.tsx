@@ -49,9 +49,8 @@ export default function MainAppPanel({
       // however we also want to use this for locally generateed models (e.g. MLX Export)
       if (model.json_data?.huggingface_filename) {
         model_filename = model.json_data.huggingface_filename;
-      } else if (model.stored_in_filesystem) {
+      } else if (model.local_model) {
         model_filename = model.model_filename;
-
       }
     }
 
