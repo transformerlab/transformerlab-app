@@ -22,6 +22,8 @@ import {
   useModelStatus,
 } from 'renderer/lib/transformerlab-api-sdk';
 
+import placeholderLogo from 'renderer/img/attention.png';
+
 const hf_config_translation = {
   architectures: 'Architecture',
   attention_dropout: 'Attention Dropout',
@@ -76,7 +78,7 @@ export default function ModelDetails({
     <>
       <Stack direction="row" sx={{ minHeight: '300px' }}>
         <img
-          src={modelDetailsData?.logo}
+          src={modelDetailsData?.logo || placeholderLogo}
           alt=""
           style={{
             float: 'left',
