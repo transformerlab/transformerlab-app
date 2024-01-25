@@ -4,17 +4,17 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import Sheet from '@mui/joy/Sheet';
-import { Button, Divider, Table, Typography } from '@mui/joy';
+import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
 import {
     ArrowRightFromLineIcon,
   } from 'lucide-react';
 
-// run an exporter plugin on the current experiment's model and adaptor 
+// run an exporter plugin on the current experiment's model 
 function exportRun(
     experimentId: string,
     plugin: string
   ) {
-    fetch(
+    return fetch(
       chatAPI.Endpoints.Experiment.RunExport(experimentId, plugin)
     );
   }
@@ -25,10 +25,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function Export({
     experimentInfo,
   }) {
-
-    // fix this to find plugins that are exporters
-    // let plugins = experimentInfo?.config?.plugins;
-    // if (!plugins) plugins = [];
+    const [jobId, setJobId] = useState(null);
 
     // call plugins list endpoint and filter based on type="exporter" 
     const {
@@ -86,13 +83,28 @@ export default function Export({
                 <td style={{ textAlign: 'right' }}>
                       {' '}
                       <Button
-                        startDecorator={<ArrowRightFromLineIcon />}
+
+                        startDecorator={
+                          (jobId < 0)  ? (
+                            <CircularProgress size="sm" thickness={2} />
+                          ) : (
+                            <ArrowRightFromLineIcon />
+                          )
+                        }
+                        color="success"
                         variant="soft"
-                        onClick={() => {
-                            exportRun(
+                        onClick={async (e) => {
+                            setJobId(-1);
+
+                            // Currently this call blocks until the export is done
+                            const response = await exportRun(
                                 experimentInfo.id,
                                 row.uniqueId
                               );
+ 
+                            // If we want to track job details we can get this from response
+                            // But as long as jobId isn't < 0 the spinner on the export button will stop
+                            setJobId(null);
                         }}
                         disabled={!isModelValidArchitecture(row.model_architectures)}
                       >
