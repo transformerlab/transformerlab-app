@@ -1,9 +1,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import {
-  Button,
-  Checkbox,
   FormControl,
   FormLabel,
   Input,
@@ -26,22 +24,18 @@ import { ColorPaletteProp } from '@mui/joy/styles';
 
 import {
   ArrowDownIcon,
-  BoxesIcon,
   CheckIcon,
   CreativeCommonsIcon,
-  FolderOpenIcon,
   GraduationCapIcon,
-  InfoIcon,
-  PlusIcon,
   SearchIcon,
   StoreIcon,
-  Trash2Icon,
 } from 'lucide-react';
 import SelectButton from '../SelectButton';
 import CurrentFoundationInfo from './CurrentFoundationInfo';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import Welcome from '../../Welcome';
+
+import { modelTypes, licenseTypes, filterByFilters } from '../../../lib/utils';
 
 type Order = 'asc' | 'desc';
 
@@ -74,6 +68,8 @@ export default function SelectAModel({
 }) {
   const [order, setOrder] = useState<Order>('desc');
   const [open, setOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [filters, setFilters] = useState({});
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Models.LocalList(),
@@ -99,17 +95,30 @@ export default function SelectAModel({
         <Select
           placeholder="Filter by license"
           slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
+          value={filters?.license}
+          disabled
+          onChange={(e, newValue) => {
+            setFilters({ ...filters, license: newValue });
+          }}
         >
-          <Option value="MIT">MIT</Option>
-          <Option value="pending">CC BY-SA-4.0</Option>
-          <Option value="refunded">Refunded</Option>
-          <Option value="Cancelled">Apache 2.0</Option>
+          {licenseTypes.map((type) => (
+            <Option value={type}>{type}</Option>
+          ))}
         </Select>
       </FormControl>
       <FormControl size="sm">
-        <FormLabel>Category</FormLabel>
-        <Select placeholder="All">
-          <Option value="all">All</Option>
+        <FormLabel>Architecture</FormLabel>
+        <Select
+          placeholder="All"
+          disabled
+          value={filters?.architecture}
+          onChange={(e, newValue) => {
+            setFilters({ ...filters, architecture: newValue });
+          }}
+        >
+          {modelTypes.map((type) => (
+            <Option value={type}>{type}</Option>
+          ))}
         </Select>
       </FormControl>
     </>
@@ -194,7 +203,12 @@ export default function SelectAModel({
       >
         <FormControl sx={{ flex: 1 }} size="sm">
           <FormLabel>&nbsp;</FormLabel>
-          <Input placeholder="Search" startDecorator={<SearchIcon />} />
+          <Input
+            placeholder="Search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            startDecorator={<SearchIcon />}
+          />
         </FormControl>
 
         {renderFilters()}
@@ -252,7 +266,7 @@ export default function SelectAModel({
           </thead>
           <tbody>
             {data &&
-              data.map((row) => (
+              filterByFilters(data, searchText, filters).map((row) => (
                 <tr key={row.rowid}>
                   <td>
                     <Typography ml={2} fontWeight="lg">

@@ -27,3 +27,40 @@ export function formatBytes(bytes: number, decimals = 2): string {
 
   return `${parseFloat((bytes / k ** i).toFixed(dm))} ${sizes[i]}`;
 }
+
+export const modelTypes = [
+  'All',
+  'MLX',
+  'GGUF',
+  'LlamaForCausalLM',
+  'MistralForCausalLM',
+  'T5ForConditionalGeneration',
+  'PhiForCausalLM',
+  'GPTBigCodeForCausalLM',
+];
+
+export const licenseTypes = [
+  'All',
+  'MIT',
+  'CC BY-SA-4.0',
+  'Apache 2.0',
+  'Meta Custom',
+  'GPL',
+];
+
+export function filterByFilters(data, searchText = '', filters = {}) {
+  return data.filter((row) => {
+    if (row.name.toLowerCase().includes(searchText.toLowerCase())) {
+      for (const filterKey in filters) {
+        console.log(filterKey, filters[filterKey]);
+        if (filters[filterKey] !== 'All') {
+          if (row[filterKey] !== filters[filterKey]) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+    return false;
+  });
+}

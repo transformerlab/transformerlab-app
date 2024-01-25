@@ -31,6 +31,8 @@ import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 
+import { modelTypes, licenseTypes, filterByFilters } from '../../lib/utils';
+
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
     return -1;
@@ -73,43 +75,6 @@ function stableSort<T>(
   });
   return stabilizedThis.map((el) => el[0]);
 }
-
-function filterByFilters(data, searchText = '', filters = {}) {
-  return data.filter((row) => {
-    if (row.name.toLowerCase().includes(searchText.toLowerCase())) {
-      for (const filterKey in filters) {
-        console.log(filterKey, filters[filterKey]);
-        if (filters[filterKey] !== 'All') {
-          if (row[filterKey] !== filters[filterKey]) {
-            return false;
-          }
-        }
-      }
-      return true;
-    }
-    return false;
-  });
-}
-
-const modelTypes = [
-  'All',
-  'MLX',
-  'GGUF',
-  'LlamaForCausalLM',
-  'MistralForCausalLM',
-  'T5ForConditionalGeneration',
-  'PhiForCausalLM',
-  'GPTBigCodeForCausalLM',
-];
-
-const licenseTypes = [
-  'All',
-  'MIT',
-  'CC BY-SA-4.0',
-  'Apache 2.0',
-  'Meta Custom',
-  'GPL',
-];
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 

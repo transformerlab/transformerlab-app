@@ -43,44 +43,9 @@ import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import Welcome from '../Welcome';
 
+import { modelTypes, licenseTypes, filterByFilters } from '../../lib/utils';
+
 type Order = 'asc' | 'desc';
-
-const modelTypes = [
-  'All',
-  'MLX',
-  'GGUF',
-  'LlamaForCausalLM',
-  'MistralForCausalLM',
-  'T5ForConditionalGeneration',
-  'PhiForCausalLM',
-  'GPTBigCodeForCausalLM',
-];
-
-const licenseTypes = [
-  'All',
-  'MIT',
-  'CC BY-SA-4.0',
-  'Apache 2.0',
-  'Meta Custom',
-  'GPL',
-];
-
-function filterByFilters(data, searchText = '', filters = {}) {
-  return data.filter((row) => {
-    if (row.name.toLowerCase().includes(searchText.toLowerCase())) {
-      for (const filterKey in filters) {
-        console.log(filterKey, filters[filterKey]);
-        if (filters[filterKey] !== 'All') {
-          if (row[filterKey] !== filters[filterKey]) {
-            return false;
-          }
-        }
-      }
-      return true;
-    }
-    return false;
-  });
-}
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
