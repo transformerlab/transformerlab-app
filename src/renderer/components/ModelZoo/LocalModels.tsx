@@ -411,13 +411,13 @@ export default function LocalModels({
                 sx={{ width: '500px' }}
               />
             </FormControl>
-            <Button
+            {/* <Button
               size="sm"
               sx={{ height: '30px' }}
               endDecorator={<PlusIcon />}
             >
               New
-            </Button>
+            </Button> */}
           </div>
         )}
       </Box>
