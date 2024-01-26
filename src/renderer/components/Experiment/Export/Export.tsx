@@ -173,6 +173,7 @@ export default function Export({experimentInfo}) {
                       {' '}
                       <Button
                         size="sm"
+                        disabled="true"
                         onClick={() => {
                         }}
                       >
