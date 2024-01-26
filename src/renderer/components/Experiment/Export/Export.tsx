@@ -6,8 +6,9 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import Sheet from '@mui/joy/Sheet';
 import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
 import {
-    ArrowRightFromLineIcon,
-  } from 'lucide-react';
+  ArrowRightFromLineIcon,
+  ClockIcon,
+} from 'lucide-react';
 
 // run an exporter plugin on the current experiment's model 
 function exportRun(
@@ -40,6 +41,20 @@ export default function Export({
           ),
         fetcher
       );
+
+const {
+  data: exportJobs,
+  error: exportJobsError,
+  isLoading: exportJobsIsLoading,
+  mutate: exportJobsMutate,
+} = useSWR(
+  experimentInfo?.id &&
+    chatAPI.Endpoints.Experiment.GetExportJobs(
+      experimentInfo?.id
+    ), fetcher, {
+  refreshInterval: 1000,
+});
+
 
     // returns true if the currently loaded foundation is in the passed array
     // supported_architectures - a list of all architectures supported by this plugin
@@ -118,6 +133,63 @@ export default function Export({
         </Table>
         )}
       </Sheet>
+
+
+
+      <Typography level="title-md" startDecorator={<ClockIcon />}>
+          Previous Exports
+        </Typography>
+        <Sheet
+          color="warning"
+          variant="soft"
+          sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}
+        >
+          <Table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Time</th>
+                <th>Details</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody style={{ overflow: 'auto', height: '100%' }}>
+              {exportJobs?.map((job) => {
+                return (
+                  <tr key={job.id}>
+                    <td>
+                      <b>{job.id}-</b> {job.type}
+                    </td>
+                    <td>
+                      Jan 26 2024 12:00:00
+                    </td>
+                    <td>{job.config}</td>
+                    <td>{job.status}</td>
+                    <td
+                      style={{
+                        display: 'flex',
+                        gap: 2,
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                      }}
+                    >
+                      {' '}
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                        }}
+                      >
+                        Output
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </Sheet>
     </Sheet>
   );
   }
