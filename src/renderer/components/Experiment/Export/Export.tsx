@@ -12,59 +12,58 @@ import {
 
 // run an exporter plugin on the current experiment's model 
 function exportRun(
-    experimentId: string,
-    plugin: string
-  ) {
-    return fetch(
-      chatAPI.Endpoints.Experiment.RunExport(experimentId, plugin)
-    );
-  }
+  experimentId: string,
+  plugin: string
+) {
+  return fetch(
+    chatAPI.Endpoints.Experiment.RunExport(experimentId, plugin)
+  );
+}
 
 // fetcher used by SWR 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Export({
-    experimentInfo,
-  }) {
-    const [jobId, setJobId] = useState(null);
+export default function Export({experimentInfo}) {
 
-    // call plugins list endpoint and filter based on type="exporter" 
-    const {
-        data: plugins,
-        error: pluginsError,
-        isLoading: pluginsIsLoading,
-      } = useSWR(
-        experimentInfo?.id &&
-          chatAPI.Endpoints.Experiment.ListScriptsOfType(
-            experimentInfo?.id,
-            'exporter'
-          ),
-        fetcher
-      );
+  const [jobId, setJobId] = useState(null);
 
-const {
-  data: exportJobs,
-  error: exportJobsError,
-  isLoading: exportJobsIsLoading,
-  mutate: exportJobsMutate,
-} = useSWR(
-  experimentInfo?.id &&
-    chatAPI.Endpoints.Experiment.GetExportJobs(
-      experimentInfo?.id
-    ), fetcher, {
-  refreshInterval: 1000,
-});
+  // call plugins list endpoint and filter based on type="exporter" 
+  const {
+    data: plugins,
+    error: pluginsError,
+    isLoading: pluginsIsLoading,
+  } = useSWR(
+    experimentInfo?.id &&
+      chatAPI.Endpoints.Experiment.ListScriptsOfType(
+        experimentInfo?.id,
+          'exporter'
+    ),
+    fetcher
+  );
+
+  const {
+    data: exportJobs,
+    error: exportJobsError,
+    isLoading: exportJobsIsLoading,
+    mutate: exportJobsMutate,
+  } = useSWR(
+    experimentInfo?.id &&
+      chatAPI.Endpoints.Experiment.GetExportJobs(
+        experimentInfo?.id
+      ), fetcher, {
+    refreshInterval: 1000,
+  });
 
 
-    // returns true if the currently loaded foundation is in the passed array
-    // supported_architectures - a list of all architectures supported by this plugin
-    function isModelValidArchitecture(supported_architectures) {
-      return experimentInfo != null && experimentInfo?.config?.foundation !== ''
-            && supported_architectures.includes(experimentInfo?.config?.foundation_model_architecture);
-    }
+  // returns true if the currently loaded foundation is in the passed array
+  // supported_architectures - a list of all architectures supported by this plugin
+  function isModelValidArchitecture(supported_architectures) {
+    return experimentInfo != null && experimentInfo?.config?.foundation !== ''
+          && supported_architectures.includes(experimentInfo?.config?.foundation_model_architecture);
+  }
 
-    return (
-        <Sheet
+  return (
+    <Sheet
       sx={{
         height: '100%',
         display: 'flex',
@@ -138,8 +137,8 @@ const {
 
       <Typography level="title-md" startDecorator={<ClockIcon />}>
           Previous Exports
-        </Typography>
-        <Sheet
+      </Typography>
+      <Sheet
           color="warning"
           variant="soft"
           sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}
@@ -192,4 +191,4 @@ const {
         </Sheet>
     </Sheet>
   );
-  }
+}
