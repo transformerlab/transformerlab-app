@@ -41,6 +41,8 @@ export default function ModelZoo({ experimentInfo }) {
             sx={{
               overflow: 'hidden',
               height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
             }}
             id="model-store-tab-panel"
           >

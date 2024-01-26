@@ -174,7 +174,7 @@ export default function ModelStore() {
           flex: 1,
           overflow: 'auto',
           minHeight: 0,
-          height: '90%',
+          height: '100%',
         }}
       >
         <Table
