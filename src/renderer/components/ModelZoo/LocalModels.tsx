@@ -298,6 +298,24 @@ export default function LocalModels({
                         &nbsp;
                       </>
                     )}
+                    {row?.json_data?.architecture == 'GGUF' && (
+                      <>
+                        <img
+                          src="https://avatars.githubusercontent.com/ggerganov"
+                          width="24"
+                          valign="middle"
+                          style={{ borderRadius: '50%' }}
+                        />{' '}
+                        &nbsp;
+                      </>
+                    )}
+                    {[
+                      'LlamaForCausalLM',
+                      'T5ForConditionalGeneration',
+                      'FalconForCausalLM',
+                      'MistralForCausalLM',
+                      'GPTBigCodeForCausalLM',
+                    ].includes(row?.json_data?.architecture) && <>🤗 &nbsp;</>}
                     {row?.json_data?.architecture}
                   </td>
                   <td>{row?.json_data?.parameters}</td>
