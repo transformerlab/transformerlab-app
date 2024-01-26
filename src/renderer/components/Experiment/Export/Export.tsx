@@ -6,50 +6,64 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import Sheet from '@mui/joy/Sheet';
 import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
 import {
-    ArrowRightFromLineIcon,
-  } from 'lucide-react';
+  ArrowRightFromLineIcon,
+  ClockIcon,
+} from 'lucide-react';
 
 // run an exporter plugin on the current experiment's model 
 function exportRun(
-    experimentId: string,
-    plugin: string
-  ) {
-    return fetch(
-      chatAPI.Endpoints.Experiment.RunExport(experimentId, plugin)
-    );
-  }
+  experimentId: string,
+  plugin: string
+) {
+  return fetch(
+    chatAPI.Endpoints.Experiment.RunExport(experimentId, plugin)
+  );
+}
 
 // fetcher used by SWR 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Export({
-    experimentInfo,
-  }) {
-    const [jobId, setJobId] = useState(null);
+export default function Export({experimentInfo}) {
 
-    // call plugins list endpoint and filter based on type="exporter" 
-    const {
-        data: plugins,
-        error: pluginsError,
-        isLoading: pluginsIsLoading,
-      } = useSWR(
-        experimentInfo?.id &&
-          chatAPI.Endpoints.Experiment.ListScriptsOfType(
-            experimentInfo?.id,
-            'exporter'
-          ),
-        fetcher
-      );
+  const [jobId, setJobId] = useState(null);
 
-    // returns true if the currently loaded foundation is in the passed array
-    // supported_architectures - a list of all architectures supported by this plugin
-    function isModelValidArchitecture(supported_architectures) {
-      return experimentInfo != null && experimentInfo?.config?.foundation !== ''
-            && supported_architectures.includes(experimentInfo?.config?.foundation_model_architecture);
-    }
+  // call plugins list endpoint and filter based on type="exporter" 
+  const {
+    data: plugins,
+    error: pluginsError,
+    isLoading: pluginsIsLoading,
+  } = useSWR(
+    experimentInfo?.id &&
+      chatAPI.Endpoints.Experiment.ListScriptsOfType(
+        experimentInfo?.id,
+          'exporter'
+    ),
+    fetcher
+  );
 
-    return (
-        <Sheet
+  const {
+    data: exportJobs,
+    error: exportJobsError,
+    isLoading: exportJobsIsLoading,
+    mutate: exportJobsMutate,
+  } = useSWR(
+    experimentInfo?.id &&
+      chatAPI.Endpoints.Experiment.GetExportJobs(
+        experimentInfo?.id
+      ), fetcher, {
+    refreshInterval: 1000,
+  });
+
+
+  // returns true if the currently loaded foundation is in the passed array
+  // supported_architectures - a list of all architectures supported by this plugin
+  function isModelValidArchitecture(supported_architectures) {
+    return experimentInfo != null && experimentInfo?.config?.foundation !== ''
+          && supported_architectures.includes(experimentInfo?.config?.foundation_model_architecture);
+  }
+
+  return (
+    <Sheet
       sx={{
         height: '100%',
         display: 'flex',
@@ -118,6 +132,63 @@ export default function Export({
         </Table>
         )}
       </Sheet>
+
+
+
+      <Typography level="title-md" startDecorator={<ClockIcon />}>
+          Previous Exports
+      </Typography>
+      <Sheet
+          color="warning"
+          variant="soft"
+          sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}
+        >
+          <Table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Time</th>
+                <th>Details</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody style={{ overflow: 'auto', height: '100%' }}>
+              {exportJobs?.map((job) => {
+                return (
+                  <tr key={job.id}>
+                    <td>
+                      <b>{job.id}-</b> {job.type}
+                    </td>
+                    <td>
+                      Jan 26 2024 12:00:00
+                    </td>
+                    <td>{job.config}</td>
+                    <td>{job.status}</td>
+                    <td
+                      style={{
+                        display: 'flex',
+                        gap: 2,
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'flex-end',
+                      }}
+                    >
+                      {' '}
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                        }}
+                      >
+                        Output
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </Sheet>
     </Sheet>
   );
-  }
+}
