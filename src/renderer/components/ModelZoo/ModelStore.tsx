@@ -266,7 +266,12 @@ export default function ModelStore() {
                           : '',
                     }}
                   >
-                    {row.architecture == 'MLX' && <TinyMLXLogo />}
+                    {row.architecture == 'MLX' && (
+                      <>
+                        <TinyMLXLogo />
+                        &nbsp;
+                      </>
+                    )}
                     {row.architecture}
                   </td>
                   <td>

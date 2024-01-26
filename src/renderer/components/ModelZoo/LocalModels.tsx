@@ -22,13 +22,16 @@ import {
 
 import { Link as ReactRouterLink, useLocation } from 'react-router-dom';
 
-import { ColorPaletteProp } from '@mui/joy/styles';
+import TinyMLXLogo from '../Shared/TinyMLXLogo';
 
 import {
   ArrowDownIcon,
   BoxesIcon,
   CheckIcon,
+  CloudIcon,
   CreativeCommonsIcon,
+  DownloadCloudIcon,
+  FlaskRoundIcon,
   FolderOpenIcon,
   GraduationCapIcon,
   InfoIcon,
@@ -254,10 +257,10 @@ export default function LocalModels({
                   Name
                 </Link>
               </th>
+              <th style={{ width: 120, padding: 12 }}>Architecture</th>
               <th style={{ width: 120, padding: 12 }}>Params</th>
-              <th style={{ width: 120, padding: 12 }}>Released</th>
               {/* <th style={{ width: 220, padding: 12 }}>Type</th> */}
-              <th style={{ width: 120, padding: 12 }}>&nbsp;</th>
+              <th style={{ width: 120, padding: 12 }}>Model ID</th>
               <th style={{ width: 160, padding: 12 }}> </th>
             </tr>
           </thead>
@@ -267,32 +270,38 @@ export default function LocalModels({
                 <tr key={row.rowid}>
                   <td>
                     <Typography ml={2} fontWeight="lg">
+                      {row?.local_model === true ? (
+                        <FlaskRoundIcon
+                          color="var(--joy-palette-success-700)"
+                          style={{
+                            verticalAlign: 'middle',
+                            marginRight: '5px',
+                          }}
+                        />
+                      ) : (
+                        <DownloadCloudIcon
+                          color="var(--joy-palette-primary-700)"
+                          style={{
+                            verticalAlign: 'middle',
+                            marginRight: '5px',
+                          }}
+                        />
+                      )}{' '}
                       {row.name}
                     </Typography>
                   </td>
-                  <td>{row?.json_data?.parameters}</td>
                   <td>
-                    <Chip
-                      variant="soft"
-                      size="sm"
-                      startDecorator={
-                        {
-                          MIT: <CheckIcon />,
-                          Apache: <GraduationCapIcon />,
-                          CC: <CreativeCommonsIcon />,
-                        }[row.status]
-                      }
-                      color={
-                        {
-                          MIT: 'success',
-                          Apache: 'neutral',
-                          CC: 'success',
-                        }[row.status] as ColorPaletteProp
-                      }
-                    >
-                      {row?.json_data?.license}
-                    </Chip>
+                    {' '}
+                    {row?.json_data?.architecture == 'MLX' && (
+                      <>
+                        <TinyMLXLogo />
+                        &nbsp;
+                      </>
+                    )}
+                    {row?.json_data?.architecture}
                   </td>
+                  <td>{row?.json_data?.parameters}</td>
+                  {/* <td>{JSON.stringify(row)}</td> */}
                   {/* <td>
         <Box
           sx={{ display: "flex", gap: 2, alignItems: "center" }}
