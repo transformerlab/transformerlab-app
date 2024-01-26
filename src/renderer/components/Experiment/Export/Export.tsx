@@ -146,8 +146,8 @@ export default function Export({experimentInfo}) {
           <Table>
             <thead>
               <tr>
-                <th>Type</th>
                 <th>Time</th>
+                <th>Type</th>
                 <th>Details</th>
                 <th>Status</th>
                 <th></th>
@@ -157,13 +157,9 @@ export default function Export({experimentInfo}) {
               {exportJobs?.map((job) => {
                 return (
                   <tr key={job.id}>
-                    <td>
-                      <b>{job.id}-</b> {job.type}
-                    </td>
-                    <td>
-                      Jan 26 2024 12:00:00
-                    </td>
-                    <td>{job.config}</td>
+                    <td>{job.created_at}</td>
+                    <td>{job.type}</td>
+                    <td>{job.job_data}</td>
                     <td>{job.status}</td>
                     <td
                       style={{
