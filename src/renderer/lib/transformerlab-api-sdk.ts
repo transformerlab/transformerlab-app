@@ -525,6 +525,14 @@ Endpoints.Experiment = {
       pluginName
     );
   },
+  GetExportJobs: (id: string) => {
+    return (
+      API_URL() +
+      'experiment/' +
+      id +
+      '/export/jobs'
+    );
+  },
   SaveConversation: (experimentId: String) =>
     API_URL() + 'experiment/' + experimentId + '/save_conversation',
   GetConversations: (experimentId: string) =>
