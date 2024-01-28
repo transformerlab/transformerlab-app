@@ -177,7 +177,7 @@ export default function Export({experimentInfo}) {
                         onClick={() => {
                         }}
                       >
-                        Output
+                        Details
                       </Button>
                     </td>
                   </tr>
