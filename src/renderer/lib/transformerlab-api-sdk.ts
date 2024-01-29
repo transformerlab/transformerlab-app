@@ -526,12 +526,7 @@ Endpoints.Experiment = {
     );
   },
   GetExportJobs: (id: string) => {
-    return (
-      API_URL() +
-      'experiment/' +
-      id +
-      '/export/jobs'
-    );
+    return API_URL() + 'experiment/' + id + '/export/jobs';
   },
   GetExportJobDetails: (experimentId: string, jobId: string) => {
     return (
@@ -978,4 +973,43 @@ export async function downloadPlugin(pluginId: string) {
   );
   const result = await response.json();
   return result;
+}
+
+async function fetchAndGetErrorStatus(url) {
+  const res = await fetch(url);
+
+  // If the status code is not in the range 200-299,
+  // we still try to parse and throw it.
+  if (!res.ok) {
+    const error = new Error('An error occurred while fetching the data.');
+    // Attach extra info to the error object.
+    // error.info = await res.json(); //uncommenting this line breaks the error handling -- not sure why
+    error.status = res.status;
+    throw error;
+  }
+
+  return res.json();
+}
+
+/**
+ * Check your localhost to see if the server is active
+ */
+export function useCheckLocalConnection() {
+  const url = 'http://localhost:8000/' + 'server/info';
+
+  // Poll every 2 seconds
+  const options = {
+    refreshInterval: 1000,
+    refreshWhenOffline: true,
+    refreshWhenHidden: true,
+  };
+
+  // eslint-disable-next-line prefer-const
+  let { data, error, isLoading } = useSWR(url, fetchAndGetErrorStatus, options);
+
+  return {
+    server: data,
+    isLoading,
+    error,
+  };
 }

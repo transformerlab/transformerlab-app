@@ -22,18 +22,18 @@ fi
 export const installOnlyIfNotInstalledCommand = `
 TFL_FILENAME="main.zip"
 TFL_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/heads/main.zip"
-TFL_DEST_DIR="\${HOME}/.transformerlab/src/"
+TFL_DIR="\${HOME}/.transformerlab"
+TFL_DEST_DIR="\${HOME}/.transformerlab/src"
 echo "Check if \${TFL_DEST_DIR} exists"
-TFL_DEST_DIR="\${HOME}/.transformerlab/src/"
 # Check if the Install directory exists, if so, do nothing
 if [[ ! -d "\${TFL_DEST_DIR}" ]]
 then
   mkdir -p "\${TFL_DEST_DIR}"
-  echo "Downloading \${TFL_URL} to \${TFL_DEST_DIR}"
-  curl -L "\${TFL_URL}" --output "\${TFL_DEST_DIR}\${TFL_FILENAME}"
-  unzip -o "\${TFL_DEST_DIR}\${TFL_FILENAME}" -d "$TFL_DEST_DIR"
+  echo "Downloading \${TFL_URL} to \${TFL_DIR}"
+  curl -L "\${TFL_URL}" --output "\${TFL_DIR}\${TFL_FILENAME}"
+  unzip -o "\${TFL_DIR}\${TFL_FILENAME}" -d "$TFL_DEST_DIR"
   echo "Starting API server"
-  cd "\${TFL_DEST_DIR}\transformerlab-api-main" || exit
+  cd "\${TFL_DEST_DIR}" || exit
 
   if [ -f .DEPENDENCIES_INSTALLED ]; then
       echo "Dependencies already installed. Skipping."

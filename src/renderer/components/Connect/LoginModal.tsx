@@ -26,6 +26,7 @@ import {
 import { apiHealthz } from '../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import { connect } from 'http2';
+import LocalConnection from './LocalConnection';
 
 export default function LoginModal({
   setServer,
@@ -110,11 +111,14 @@ export default function LoginModal({
           onChange={(_event, newValue) => {}}
         >
           <TabList tabFlex={1}>
-            <Tab>Remote Connection</Tab>
             <Tab>Local Connection</Tab>
+            <Tab>Remote Connection</Tab>
             <Tab value="SSH">Connect via SSH</Tab>
           </TabList>
-          <TabPanel value={0} sx={{ p: 2 }}>
+          <TabPanel value={0} sx={{ p: 2, overflowY: 'auto' }}>
+            <LocalConnection setServer={setServer} />
+          </TabPanel>
+          <TabPanel value={1} sx={{ p: 2 }}>
             {/* <Typography id="basic-modal-dialog-title" component="h2">
               Connect to Server
             </Typography> */}
@@ -214,13 +218,7 @@ export default function LoginModal({
               </Stack>
             </form>
           </TabPanel>
-          <TabPanel value={1} sx={{ p: 2 }}>
-            Not yet implemented.
-            <br /> Please run the API on your local machine and use the{' '}
-            <b>Remote Connection</b> to connect to
-            <br />
-            localhost or 127.0.0.1
-          </TabPanel>
+
           <TabPanel value="SSH" sx={{ height: '100%', overflow: 'auto' }}>
             <form
               id="ssh-form"

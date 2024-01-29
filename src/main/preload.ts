@@ -10,16 +10,14 @@ import {
 webFrame.setZoomFactor(0.85);
 
 export type Channels =
-  | 'ipc-example'
   | 'getStoreValue'
   | 'setStoreValue'
   | 'deleteStoreValue'
-  | 'spawn-start-controller'
-  | 'spawn-start-model-worker'
-  | 'spawn-quit-model-worker'
-  | 'spawn-start-transformerlab-api'
-  | 'spawn-start-localai'
-  | 'openURL';
+  | 'openURL'
+  | 'server:checkIfInstalledLocally'
+  | 'server:checkLocalVersion'
+  | 'server:startLocalServer'
+  | 'server:InstallLocally';
 
 const electronHandler = {
   ipcRenderer: {
@@ -37,6 +35,9 @@ const electronHandler = {
     },
     once(channel: Channels, func: (...args: unknown[]) => void) {
       ipcRenderer.once(channel, (_event, ...args) => func(...args));
+    },
+    invoke(channel: Channels, ...args: unknown[]) {
+      return ipcRenderer.invoke(channel, ...args);
     },
     removeAllListeners: (channel: string) =>
       ipcRenderer.removeAllListeners(channel),
