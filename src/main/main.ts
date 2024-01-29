@@ -16,7 +16,12 @@ import log from 'electron-log';
 import Store from 'electron-store';
 
 import MenuBuilder from './menu';
-import { resolveHtmlPath } from './util';
+import {
+  checkLocalServerVersion,
+  resolveHtmlPath,
+  startLocalServer,
+  installLocalServer,
+} from './util';
 
 // ////////////
 // STORAGE
@@ -39,6 +44,22 @@ ipcMain.handle('deleteStoreValue', (event, key) => {
 });
 // ////////////
 // ////////////
+
+ipcMain.handle('server:checkIfInstalledLocally', (event) => {
+  return checkLocalServerVersion() !== false;
+});
+
+ipcMain.handle('server:checkLocalVersion', (event) => {
+  return checkLocalServerVersion();
+});
+
+ipcMain.handle('server:startLocalServer', (event) => {
+  return startLocalServer();
+});
+
+ipcMain.handle('server:InstallLocally', (event) => {
+  return installLocalServer();
+});
 
 class AppUpdater {
   constructor() {
