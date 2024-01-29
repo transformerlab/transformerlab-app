@@ -116,7 +116,7 @@ function CheckCurrentVersion({ activeStep, setActiveStep }) {
       );
       setVersion(ver);
 
-      if (ver === '0.1.3') {
+      if (ver === '0.1.4') {
         setActiveStep(3);
       }
     })();
@@ -128,7 +128,7 @@ function CheckCurrentVersion({ activeStep, setActiveStep }) {
         <Typography level="body-sm">
           Your version of Transformer Lab API is {version}
         </Typography>
-        {version == '0.1.3' && <Chip color="success">Success!</Chip>}
+        {version == '0.1.4' && <Chip color="success">Success!</Chip>}
 
         {activeStep == 2 && (
           <ButtonGroup variant="plain" spacing={1}>
