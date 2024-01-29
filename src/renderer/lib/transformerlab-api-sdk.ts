@@ -533,6 +533,15 @@ Endpoints.Experiment = {
       '/export/jobs'
     );
   },
+  GetExportJobDetails: (experimentId: string, jobId: string) => {
+    return (
+      API_URL() +
+      'experiment/' +
+      experimentId +
+      '/export/job?jobId=' +
+      jobId
+    );
+  },
   SaveConversation: (experimentId: String) =>
     API_URL() + 'experiment/' + experimentId + '/save_conversation',
   GetConversations: (experimentId: string) =>
