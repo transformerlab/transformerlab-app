@@ -51,7 +51,7 @@ export default function Export({experimentInfo}) {
       chatAPI.Endpoints.Experiment.GetExportJobs(
         experimentInfo?.id
       ), fetcher, {
-    refreshInterval: 10000,
+    refreshInterval: 2000,
   });
 
 
