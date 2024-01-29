@@ -85,7 +85,7 @@ export default function Export({experimentInfo}) {
           <thead>
             <tr>
               <th>Exporter</th>
-              <th>Description</th>
+              <th style={{ width: '50%' }}>Description</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </tr>
           </thead>
@@ -146,11 +146,11 @@ export default function Export({experimentInfo}) {
           <Table>
             <thead>
               <tr>
-                <th>Time</th>
+                <th style={{ width: '160px' }}>Time</th>
                 <th>Type</th>
-                <th>Output</th>
-                <th>Status</th>
-                <th></th>
+                <th style={{ width: '35%' }}>Output</th>
+                <th style={{ width: '120px' }}>Status</th>
+                <th style={{ width: '90px' }}></th>
               </tr>
             </thead>
             <tbody style={{ overflow: 'auto', height: '100%' }}>
