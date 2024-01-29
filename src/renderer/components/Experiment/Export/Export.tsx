@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import ExportDetailsModal from './ExportDetailsModal';
 
 import Sheet from '@mui/joy/Sheet';
 import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
@@ -26,6 +27,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function Export({experimentInfo}) {
 
   const [jobId, setJobId] = useState(null);
+  const [viewExportDetails, setViewExportDetails] = useState(-1);
 
   // call plugins list endpoint and filter based on type="exporter" 
   const {
@@ -63,6 +65,13 @@ export default function Export({experimentInfo}) {
   }
 
   return (
+    <>
+
+    <ExportDetailsModal
+      jobId={viewExportDetails}
+      setJobId={setViewExportDetails}
+    />
+
     <Sheet
       sx={{
         height: '100%',
@@ -173,8 +182,9 @@ export default function Export({experimentInfo}) {
                       {' '}
                       <Button
                         size="sm"
-                        disabled="true"
+                        disabled={!(job.status === "COMPLETE" || job.status === "FAILED")}
                         onClick={() => {
+                          setViewExportDetails(job.id)
                         }}
                       >
                         Details
@@ -187,5 +197,6 @@ export default function Export({experimentInfo}) {
           </Table>
         </Sheet>
     </Sheet>
+    </>
   );
 }
