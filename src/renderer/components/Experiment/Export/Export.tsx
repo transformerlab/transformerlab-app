@@ -148,7 +148,7 @@ export default function Export({experimentInfo}) {
               <tr>
                 <th>Time</th>
                 <th>Type</th>
-                <th>Details</th>
+                <th>Output</th>
                 <th>Status</th>
                 <th></th>
               </tr>
@@ -159,7 +159,7 @@ export default function Export({experimentInfo}) {
                   <tr key={job.id}>
                     <td>{job.created_at}</td>
                     <td>{job.job_data.exporter_name}</td>
-                    <td>{JSON.stringify(job.job_data)}</td>
+                    <td>{job.job_data.output_model_name}</td>
                     <td>{job.status}</td>
                     <td
                       style={{
