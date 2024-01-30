@@ -158,13 +158,14 @@ function RunServer({ activeStep, setActiveStep }) {
   useEffect(() => {
     if (activeStep !== 3) return;
 
-    if (server) {
+    if (server && !serverError) {
+      console.log('I think things are good');
       setActiveStep(4);
       return;
     } else {
       setIntervalXTimes(
         async () => {
-          if (!server) return false;
+          if (!server || serverError) return false;
           setActiveStep(4);
           return true;
         },
@@ -178,11 +179,13 @@ function RunServer({ activeStep, setActiveStep }) {
   return (
     <>
       <Stack spacing={1}>
-        {server && <Chip color="success">Success!</Chip>}
-        {activeStep == 3 && !server && <Chip color="danger">Not Running</Chip>}
+        {server && !serverError && <Chip color="success">Success!</Chip>}
+        {activeStep == 3 && (!server || serverError) && (
+          <Chip color="danger">Not Running</Chip>
+        )}
         <ButtonGroup variant="plain" spacing={1}>
           {activeStep == 3 &&
-            (!server ? (
+            (!server || serverError ? (
               thinking ? (
                 <CircularProgress color="primary" />
               ) : (
@@ -197,7 +200,7 @@ function RunServer({ activeStep, setActiveStep }) {
                       //set interval to check if server is running every 2 seconds, 5 times:
                       setIntervalXTimes(
                         async () => {
-                          if (!server) return false;
+                          if (!server || serverError) return false;
                           setThinking(false);
                           setActiveStep(4);
                           return true;
