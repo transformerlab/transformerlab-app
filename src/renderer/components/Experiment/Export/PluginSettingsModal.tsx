@@ -40,7 +40,13 @@ function defaultOutputModelName(input_model_name, plugin_info) {
     return input_model_name + plugin_info;
 }
 
-export default function PluginSettingsModal({ open, onClose, experimentInfo, pluginId }) {
+/**
+ * PluginSettingsModal
+ * open is a boolean stored in state by Export to know if this modal is open
+ * onClose is a function that gets executed anytime this modal gets closed (cancel or submit)
+ * onSubmit is a function that gets executed only when this form is submitted
+ */
+export default function PluginSettingsModal({ open, onClose, onSubmit, experimentInfo, pluginId }) {
 
   const [selectedPlugin, setSelectedPlugin] = useState(null);
   const [config, setConfig] = useState(DefaultPluginConfig);
@@ -74,13 +80,10 @@ export default function PluginSettingsModal({ open, onClose, experimentInfo, plu
           }}
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
-            const formData = new FormData(event.currentTarget);
-            const formJson = Object.fromEntries((formData as any).entries());
-            /**chatAPI.RunExport(
-              experimentInfo?.id,
-              pluginId,
-              JSON.stringify(formJson)
-            );*/
+            const form_data = new FormData(event.currentTarget);
+            const form_json = Object.fromEntries((form_data as any).entries());
+
+            onSubmit(experimentInfo.id, pluginId);
             onClose();
           }}
         >
