@@ -33,13 +33,6 @@ const DefaultPluginConfig = {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-// create a default output model name that can be overridden in the UI
-function defaultOutputModelName(input_model_name, plugin_info) {
-    console.log(input_model_name);
-    console.log(plugin_info)
-    return input_model_name + plugin_info;
-}
-
 /**
  * PluginSettingsModal
  * open is a boolean stored in state by Export to know if this modal is open
@@ -52,6 +45,12 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
+  }
+
+  // create a default output model name that can be overridden in the UI
+  function defaultOutputModelName(input_model_name, plugin_info) {
+    const short_model_name = input_model_name.substring(input_model_name.lastIndexOf('/')+1);
+    return short_model_name + " - " + plugin_info;
   }
 
   return (
@@ -91,7 +90,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                   <Input
                     required
                     autoFocus
-                    placeholder={defaultOutputModelName(currentModelName, pluginId)}
+                    value={defaultOutputModelName(currentModelName, pluginId)}
                     name="template_name"
                     size="lg"
                   />
@@ -108,7 +107,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                 <FormControl sx={{ flex: 1 }}>
                     <FormLabel>Export Architecture:</FormLabel>
                     <Typography variant="soft">
-                      {""}
+                      {pluginId}
                     </Typography>
                 </FormControl>
 
