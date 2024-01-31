@@ -48,8 +48,6 @@ function defaultOutputModelName(input_model_name, plugin_info) {
  */
 export default function PluginSettingsModal({ open, onClose, onSubmit, experimentInfo, pluginId }) {
 
-  const [selectedPlugin, setSelectedPlugin] = useState(null);
-
   const currentModelName = experimentInfo?.config?.foundation;
 
   if (!experimentInfo?.id) {
@@ -159,7 +157,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
             {/** 
             <DynamicPluginForm
                 experimentInfo={experimentInfo}
-                plugin={selectedPlugin}
+                plugin={pluginId}
             />
             */}
           </Stack>
