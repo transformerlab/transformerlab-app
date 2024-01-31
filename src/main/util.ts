@@ -3,9 +3,11 @@ import { URL } from 'url';
 import path from 'path';
 const fs = require('fs');
 const os = require('os');
-const { spawn, exec } = require('child_process');
+const { spawn, exec, ChildProcess } = require('child_process');
 const homeDir = os.homedir();
 const transformerLabDir = path.join(homeDir, '.transformerlab/src/');
+
+var localServer: typeof ChildProcess = null;
 
 export function resolveHtmlPath(htmlFileName: string) {
   if (process.env.NODE_ENV === 'development') {
@@ -38,20 +40,41 @@ export function startLocalServer() {
     // The following two options allow it to keep running after parent is closed
     // detached: true,
     // stdio: 'ignore',
+    //shell: true,
   };
   console.log('Starting local server at', mainFile);
   try {
-    const child = spawn('bash', [mainFile], options);
-    child.stderr.on('data', (data) => {
+    localServer = spawn('bash', [mainFile], options);
+    localServer.stderr.on('data', (data) => {
       console.error(`stderr: ${data}`);
     });
 
-    child.on('close', (code) => {
+    localServer.on('close', (code) => {
       console.log(`child process exited with code ${code}`);
     });
   } catch (err) {
     console.log('Failed to start local server', err);
   }
+}
+
+export function killLocalServer() {
+  return new Promise((resolve) => {
+    console.log('Killing local server if not NULL');
+    if (localServer) {
+      console.log(
+        `Killing local server with pid ${localServer.pid} and all it children`
+      );
+      var kill = require('tree-kill');
+      kill(localServer.pid, 'SIGTERM', function (err) {
+        console.log('Finished killing local server');
+        console.log(err);
+        resolve(err);
+      });
+      // localServer.kill();
+    } else {
+      resolve(null);
+    }
+  });
 }
 
 export function installLocalServer() {

@@ -21,6 +21,7 @@ import {
   resolveHtmlPath,
   startLocalServer,
   installLocalServer,
+  killLocalServer,
 } from './util';
 
 // ////////////
@@ -28,6 +29,10 @@ import {
 // ////////////
 const store = new Store();
 store.set('unicorn', '🦄');
+
+console.log = log.log;
+console.error = log.error;
+log.info('Log from the main process');
 
 ipcMain.handle('getStoreValue', (event, key) => {
   return store.get(key);
@@ -178,10 +183,34 @@ app.setAboutPanelOptions(appAboutOptions);
  * Add event listeners...
  */
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   // Respect the OSX convention of having the application in memory even
   // after all windows have been closed
+  console.log('window-all-closed');
+  await killLocalServer();
+
   if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+// The following solution is from StackOverflow because
+// Electron doesn't have a syncronous before-quit event
+// Which means our kill command never completes before the app quits
+// https://github.com/electron/electron/issues/9433
+let asyncOperationDone = false;
+
+app.on('before-quit', async (e) => {
+  if (!asyncOperationDone) {
+    e.preventDefault();
+
+    try {
+      await killLocalServer();
+    } catch (err) {
+      console.log('Failed to kill local server', err);
+    }
+    asyncOperationDone = true;
+    console.log('async operation done, quitting');
     app.quit();
   }
 });
