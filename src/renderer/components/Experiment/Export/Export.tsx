@@ -8,7 +8,7 @@ import PluginSettingsModal from './PluginSettingsModal';
 import Sheet from '@mui/joy/Sheet';
 import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
 import {
-  ArrowRightFromLineIcon,
+  PlugIcon,
   ClockIcon,
 } from 'lucide-react';
 
@@ -131,7 +131,7 @@ export default function Export({experimentInfo}) {
                           (runningPlugin)  ? (
                             <CircularProgress size="sm" thickness={2} />
                           ) : (
-                            <ArrowRightFromLineIcon />
+                            <PlugIcon />
                           )
                         }
                         color="success"
@@ -140,9 +140,17 @@ export default function Export({experimentInfo}) {
                             // set the selected plugin which will open the PluginSettingsModal
                             setSelectedPlugin(row.uniqueId);
                         }}
-                        disabled={!isModelValidArchitecture(row.model_architectures)}
+                        disabled={
+                          !isModelValidArchitecture(row.model_architectures)
+                          ||
+                          runningPlugin
+                        }
                       >
-                        Export
+                        {(runningPlugin) ? (
+                            "Exporting..."
+                        ) : (
+                            "Select Plugin"
+                        )}
                       </Button>
                     </td>
               </tr>
