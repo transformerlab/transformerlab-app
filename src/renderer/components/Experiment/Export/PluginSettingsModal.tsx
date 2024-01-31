@@ -83,7 +83,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
 
-            onSubmit(experimentInfo.id, pluginId);
+            onSubmit(form_json);
             onClose();
           }}
         >
