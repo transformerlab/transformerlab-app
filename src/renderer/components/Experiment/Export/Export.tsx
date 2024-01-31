@@ -16,7 +16,7 @@ import {
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Export({experimentInfo}) {
-  const [jobId, setJobId] = useState(null);
+  const [runningPlugin, setRunningPlugin] = useState(null);
   const [viewExportDetails, setViewExportDetails] = useState(-1);
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
@@ -62,13 +62,13 @@ export default function Export({experimentInfo}) {
     const plugin_id = params_json.plugin_name;
     if (plugin_id) {
       // sets the running plugin ID, which is used by the UI to set disabled on buttons
-      setJobId(plugin_id);
+      setRunningPlugin(plugin_id);
       console.log(plugin_id);
       console.log(params_json);
       const response = await fetch(
         chatAPI.Endpoints.Experiment.RunExport(experimentInfo?.id, plugin_id)
       );
-      setJobId(null);
+      setRunningPlugin(null);
     }
   }
 
@@ -128,7 +128,7 @@ export default function Export({experimentInfo}) {
                       <Button
 
                         startDecorator={
-                          (jobId)  ? (
+                          (runningPlugin)  ? (
                             <CircularProgress size="sm" thickness={2} />
                           ) : (
                             <ArrowRightFromLineIcon />
