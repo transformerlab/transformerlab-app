@@ -18,8 +18,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function Export({experimentInfo}) {
   const [jobId, setJobId] = useState(null);
   const [viewExportDetails, setViewExportDetails] = useState(-1);
-  const [pluginModalOpen, setPluginModalOpen] = useState(false);
-  const [selectedPlugin, setSelectedPlugin] = useState("");
+  const [selectedPlugin, setSelectedPlugin] = useState(null);
 
   // call plugins list endpoint and filter based on type="exporter" 
   const {
@@ -82,11 +81,10 @@ export default function Export({experimentInfo}) {
     />
 
     <PluginSettingsModal
-      open = {pluginModalOpen}
+      open = {selectedPlugin}
       onClose={() => {
         // unselect active plugin and close modal
-        setSelectedPlugin("");
-        setPluginModalOpen(false);
+        setSelectedPlugin(null);
         //mutate();
       }}
       onSubmit={exportRun}
@@ -141,7 +139,6 @@ export default function Export({experimentInfo}) {
                         onClick={async (e) => {
                             // set the selected plugin which will open the PluginSettingsModal
                             setSelectedPlugin(row.uniqueId);
-                            setPluginModalOpen(true);
                         }}
                         disabled={!isModelValidArchitecture(row.model_architectures)}
                       >
