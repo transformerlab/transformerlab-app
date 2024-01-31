@@ -26,6 +26,9 @@ import {
   CircularProgress,
   Sheet,
 } from '@mui/joy';
+import {
+    ArrowRightFromLineIcon,
+} from 'lucide-react';
 
 const DefaultPluginConfig = {
   model_quant_bits: 4,
@@ -163,7 +166,10 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             <Button color="danger" variant="soft" onClick={() => onClose()}>
               Cancel
             </Button>
-            <Button variant="soft" type="submit">
+            <Button
+                variant="soft"
+                type="submit"
+                startDecorator={<ArrowRightFromLineIcon />}>
               Export
             </Button>
           </Stack>
