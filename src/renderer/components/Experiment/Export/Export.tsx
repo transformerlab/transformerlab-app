@@ -57,17 +57,19 @@ export default function Export({experimentInfo}) {
 
   // This function is passed to PluginSettingsModal
   // It allows it to run an exporter plugin on the current experiment's model
-  async function exportRun(params_json: string) {
+  async function exportRun(plugin_id: string, params_json: string) {
 
-    const plugin_id = params_json.plugin_name;
     if (plugin_id) {
       // sets the running plugin ID, which is used by the UI to set disabled on buttons
       setRunningPlugin(plugin_id);
-      console.log(plugin_id);
+
+      // Call the export job and since this is running async we'll await
       console.log(params_json);
       const response = await fetch(
-        chatAPI.Endpoints.Experiment.RunExport(experimentInfo?.id, plugin_id)
+        chatAPI.Endpoints.Experiment.RunExport(experimentInfo?.id, plugin_id, params_json)
       );
+
+      // Clean up after export by unsetting running plugin (re-enables buttons)
       setRunningPlugin(null);
     }
   }

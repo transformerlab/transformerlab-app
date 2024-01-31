@@ -50,9 +50,9 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
   }
 
   // create a default output model name that can be overridden in the UI
-  function defaultOutputModelName(input_model_name, plugin_info) {
+  function defaultOutputModelName(input_model_name, plugin_id) {
     const short_model_name = input_model_name.substring(input_model_name.lastIndexOf('/')+1);
-    return short_model_name + " - " + plugin_info;
+    return short_model_name + " - " + plugin_id;
   }
 
   return (
@@ -81,7 +81,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
 
-            onSubmit(form_json);
+            onSubmit(pluginId, JSON.stringify(form_json));
             onClose();
           }}
         >
