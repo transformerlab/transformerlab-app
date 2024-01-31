@@ -35,11 +35,10 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 /**
  * PluginSettingsModal
- * open is a boolean stored in state by Export to know if this modal is open
  * onClose is a function that gets executed anytime this modal gets closed (cancel or submit)
  * onSubmit is a function that gets executed only when this form is submitted
  */
-export default function PluginSettingsModal({ open, onClose, onSubmit, experimentInfo, pluginId }) {
+export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo, pluginId }) {
 
   const currentModelName = experimentInfo?.config?.foundation;
 
@@ -54,7 +53,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
   }
 
   return (
-    <Modal open={open}>
+    <Modal open={pluginId}>
       <ModalDialog
         sx={{
           width: '70vw',
@@ -91,7 +90,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                     required
                     autoFocus
                     value={defaultOutputModelName(currentModelName, pluginId)}
-                    name="template_name"
+                    name="output_model_name"
                     size="lg"
                   />
                   <FormHelperText>
@@ -141,7 +140,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                 <input
                     hidden
                     value={currentModelName}
-                    name="model_name"
+                    name="input_model_name"
                     readOnly
                 />
                 <input
@@ -149,7 +148,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                     value={
                       experimentInfo?.config?.foundation_model_architecture
                     }
-                    name="model_architecture"
+                    name="input_model_architecture"
                     readOnly
                 />
             </Stack>
