@@ -12,16 +12,6 @@ import {
   ClockIcon,
 } from 'lucide-react';
 
-// run an exporter plugin on the current experiment's model 
-function exportRun(
-  experimentId: string,
-  plugin: string
-) {
-  return fetch(
-    chatAPI.Endpoints.Experiment.RunExport(experimentId, plugin)
-  );
-}
-
 // fetcher used by SWR 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -66,6 +56,16 @@ export default function Export({experimentInfo}) {
           && supported_architectures.includes(experimentInfo?.config?.foundation_model_architecture);
   }
 
+  // run an exporter plugin on the current experiment's model 
+  async function exportRun(experiment_id: string, plugin_id: string) {
+    setJobId(-1);
+    const response = await fetch(chatAPI.Endpoints.Experiment.RunExport(experiment_id, plugin_id));
+ 
+    // If we want to track job details we can get this from response
+    // But as long as jobId isn't < 0 the spinner on the export button will stop
+    setJobId(null);
+  }
+
   return (
     <>
 
@@ -74,7 +74,6 @@ export default function Export({experimentInfo}) {
       setJobId={setViewExportDetails}
     />
 
-{/** Temporarily disable plugin settings modal until testing complete
     <PluginSettingsModal
       open = {pluginModalOpen}
       onClose={() => {
@@ -83,10 +82,10 @@ export default function Export({experimentInfo}) {
         setPluginModalOpen(false);
         //mutate();
       }}
+      onSubmit={exportRun}
       experimentInfo = {experimentInfo}
       pluginId = {selectedPlugin}
     />
-*/}
 
     <Sheet
       sx={{
@@ -133,19 +132,11 @@ export default function Export({experimentInfo}) {
                         color="success"
                         variant="soft"
                         onClick={async (e) => {
-                            setJobId(-1);
                             setSelectedPlugin(row.uniqueId);
                             setPluginModalOpen(true);
 
                             // Currently this call blocks until the export is done
-                            const response = await exportRun(
-                                experimentInfo.id,
-                                row.uniqueId
-                              );
- 
-                            // If we want to track job details we can get this from response
-                            // But as long as jobId isn't < 0 the spinner on the export button will stop
-                            setJobId(null);
+                            // const response = await exportRun(experimentInfo.id, row.uniqueId);
                         }}
                         disabled={!isModelValidArchitecture(row.model_architectures)}
                       >
