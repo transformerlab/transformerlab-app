@@ -78,6 +78,8 @@ export default function Export({experimentInfo}) {
     <PluginSettingsModal
       open = {pluginModalOpen}
       onClose={() => {
+        // unselect active plugin and close modal
+        setSelectedPlugin("");
         setPluginModalOpen(false);
         //mutate();
       }}
@@ -132,6 +134,7 @@ export default function Export({experimentInfo}) {
                         variant="soft"
                         onClick={async (e) => {
                             setJobId(-1);
+                            setSelectedPlugin(row.uniqueId);
                             setPluginModalOpen(true);
 
                             // Currently this call blocks until the export is done
