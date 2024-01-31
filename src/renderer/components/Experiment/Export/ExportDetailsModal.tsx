@@ -12,9 +12,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 // convert JSON data in to a more readable format
 function formatJobData(data) {
-    console.log("Test data");
     let json_data = JSON.stringify(data, undefined, 4);
-    console.log(json_data);
     return json_data;
 }
 
