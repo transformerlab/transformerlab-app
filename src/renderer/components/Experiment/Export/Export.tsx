@@ -3,6 +3,7 @@ import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExportDetailsModal from './ExportDetailsModal';
+import PluginSettingsModal from './PluginSettingsModal';
 
 import Sheet from '@mui/joy/Sheet';
 import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
@@ -25,9 +26,10 @@ function exportRun(
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Export({experimentInfo}) {
-
   const [jobId, setJobId] = useState(null);
   const [viewExportDetails, setViewExportDetails] = useState(-1);
+  const [pluginModalOpen, setPluginModalOpen] = useState(false);
+  const [selectedPlugin, setSelectedPlugin] = useState("");
 
   // call plugins list endpoint and filter based on type="exporter" 
   const {
@@ -71,6 +73,18 @@ export default function Export({experimentInfo}) {
       jobId={viewExportDetails}
       setJobId={setViewExportDetails}
     />
+
+{/** Temporarily disable plugin settings modal until testing complete
+    <PluginSettingsModal
+      open = {pluginModalOpen}
+      onClose={() => {
+        setPluginModalOpen(false);
+        //mutate();
+      }}
+      experimentInfo = {experimentInfo}
+      pluginId = {selectedPlugin}
+    />
+*/}
 
     <Sheet
       sx={{
@@ -118,6 +132,7 @@ export default function Export({experimentInfo}) {
                         variant="soft"
                         onClick={async (e) => {
                             setJobId(-1);
+                            setPluginModalOpen(true);
 
                             // Currently this call blocks until the export is done
                             const response = await exportRun(
