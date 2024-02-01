@@ -10,9 +10,13 @@ import {
   Stepper,
   Typography,
 } from '@mui/joy';
-import { PlayIcon } from 'lucide-react';
+import { AppleIcon, PlayIcon, Type } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
+
+import * as chatAPI from '../../lib/transformerlab-api-sdk';
+
+import { FaApple } from 'react-icons/fa6';
 
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
@@ -226,6 +230,106 @@ function RunServer({ activeStep, setActiveStep }) {
   );
 }
 
+function CheckForPlugins({ activeStep, setActiveStep }) {
+  const [missingPlugins, setMissingPlugins] = useState([]);
+  const [installing, setInstalling] = useState(false);
+
+  useEffect(() => {
+    if (activeStep !== 4) return;
+
+    (async () => {
+      const p = await fetch(
+        'http://localhost:8000/plugins/list_missing_plugins_for_current_platform'
+      );
+      const json = await p.json();
+      setMissingPlugins(json);
+
+      if (json.length === 0) {
+        setActiveStep(5);
+      }
+    })();
+  }, [activeStep]);
+
+  return (
+    <>
+      <Stack spacing={1}>
+        {missingPlugins.length > 0 ? (
+          <></> // {' '} <Chip color="warning">Missing Plugins</Chip>
+        ) : (
+          <Chip color="success">Plugins Installed!</Chip>
+        )}
+
+        <Typography level="body-sm">
+          {platform.isMac() && platform.arch() == 'arm64' && (
+            <>
+              You are running on a <FaApple /> Mac with <b>Apple Silicon</b>
+              .&nbsp;
+            </>
+          )}
+          {missingPlugins.length > 0 &&
+            'The following plugins are not yet installed:'}
+        </Typography>
+        <Typography level="body-sm" color="warning">
+          {missingPlugins.map((p) => p).join(', ')}
+        </Typography>
+
+        {activeStep == 4 && (
+          <ButtonGroup variant="plain" spacing={1}>
+            <Button
+              variant="solid"
+              color="primary"
+              onClick={async () => {
+                setInstalling(true);
+                await fetch(
+                  'http://localhost:8000/plugins/install_missing_plugins_for_current_platform'
+                );
+                setInstalling(false);
+                setMissingPlugins([]);
+                setActiveStep(5);
+                // setIntervalXTimes(
+                //   async () => {
+                //     const p = await fetch(
+                //       'http://localhost:8000/plugins/list_missing_plugins_for_current_platform'
+                //     );
+                //     const json = await p.json();
+                //     if (json.length === 0) {
+                //       setMissingPlugins([]);
+                //       setActiveStep(5);
+                //       return true;
+                //     }
+                //     return false;
+                //   },
+                //   () => {},
+                //   2000,
+                //   12
+                // );
+              }}
+              size="sm"
+              disabled={installing}
+              startDecorator={
+                installing && <CircularProgress size="sm" color="primary" />
+              }
+            >
+              Install{installing && 'ing'} Plugins
+            </Button>
+            {!installing && (
+              <Button
+                variant="plain"
+                onClick={() => {
+                  setActiveStep(5);
+                }}
+                size="sm"
+              >
+                Skip
+              </Button>
+            )}
+          </ButtonGroup>
+        )}
+      </Stack>
+    </>
+  );
+}
+
 function ConnectToLocalServer({ activeStep, setActiveStep, tryToConnect }) {
   const {
     server,
@@ -237,19 +341,7 @@ function ConnectToLocalServer({ activeStep, setActiveStep, tryToConnect }) {
     <>
       <Stack spacing={1}>
         {server ? <Chip color="warning">Not Connected</Chip> : 'Not running'}
-        <ButtonGroup variant="plain" spacing={1}>
-          {activeStep == 4 && (
-            <Button
-              size="lg"
-              variant="solid"
-              color="success"
-              onClick={tryToConnect}
-              startDecorator={<PlayIcon />}
-            >
-              Connect
-            </Button>
-          )}
-        </ButtonGroup>
+        <ButtonGroup variant="plain" spacing={1}></ButtonGroup>
       </Stack>
     </>
   );
@@ -266,83 +358,107 @@ function InstallStepper({ setServer }) {
     setServer(fullServer);
   }
   return (
-    <Stepper orientation="vertical">
-      {/* Active Step: {activeStep} */}
-      <Step
-        indicator={
-          <StepIndicator
-            variant={activeStep == 1 ? 'solid' : 'soft'}
-            color="primary"
-          >
-            1
-          </StepIndicator>
-        }
-      >
-        <Sheet variant="outlined" sx={{ p: 1 }}>
-          <Typography level="title-sm">Check if Installed</Typography>
+    <>
+      <Stepper orientation="vertical">
+        {/* Active Step: {activeStep} */}
+        <Step
+          indicator={
+            <StepIndicator
+              variant={activeStep == 1 ? 'solid' : 'soft'}
+              color="primary"
+            >
+              1
+            </StepIndicator>
+          }
+        >
+          <Sheet variant="outlined" sx={{ p: 1 }}>
+            <Typography level="title-sm">Check if Installed</Typography>
 
-          <CheckIfInstalled
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          />
-        </Sheet>
-      </Step>
-      <Step
-        indicator={
-          <StepIndicator variant={activeStep == 2 ? 'solid' : 'soft'}>
-            2
-          </StepIndicator>
-        }
-      >
-        <Sheet variant="outlined" sx={{ p: 1 }}>
-          <Typography level="title-sm">Check Current Version</Typography>
-          <CheckCurrentVersion
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          />
-        </Sheet>
-      </Step>
-      <Step
-        indicator={
-          <StepIndicator variant={activeStep == 3 ? 'solid' : 'soft'}>
-            3
-          </StepIndicator>
-        }
-      >
-        <Sheet variant="outlined" sx={{ p: 1 }}>
-          <Typography level="title-sm">
-            Check if Server is Running Locally on Port 8000
-          </Typography>
-          <RunServer activeStep={activeStep} setActiveStep={setActiveStep} />
-        </Sheet>
-      </Step>
-      <Step
-        indicator={
-          <StepIndicator variant={activeStep == 4 ? 'solid' : 'soft'}>
-            4
-          </StepIndicator>
-        }
-      >
-        <Sheet variant="outlined" sx={{ p: 1 }}>
-          <Typography level="title-sm">Check if Connected</Typography>
-          <ConnectToLocalServer
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-            tryToConnect={tryToConnect}
-          />
-        </Sheet>
-      </Step>
-    </Stepper>
+            <CheckIfInstalled
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </Sheet>
+        </Step>
+        <Step
+          indicator={
+            <StepIndicator variant={activeStep == 2 ? 'solid' : 'soft'}>
+              2
+            </StepIndicator>
+          }
+        >
+          <Sheet variant="outlined" sx={{ p: 1 }}>
+            <Typography level="title-sm">Check Current Version</Typography>
+            <CheckCurrentVersion
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </Sheet>
+        </Step>
+        <Step
+          indicator={
+            <StepIndicator variant={activeStep == 3 ? 'solid' : 'soft'}>
+              3
+            </StepIndicator>
+          }
+        >
+          <Sheet variant="outlined" sx={{ p: 1 }}>
+            <Typography level="title-sm">
+              Check if Server is Running Locally on Port 8000
+            </Typography>
+            <RunServer activeStep={activeStep} setActiveStep={setActiveStep} />
+          </Sheet>
+        </Step>
+        <Step
+          indicator={
+            <StepIndicator variant={activeStep == 4 ? 'solid' : 'soft'}>
+              4
+            </StepIndicator>
+          }
+        >
+          <Sheet variant="outlined" sx={{ p: 1 }}>
+            <Typography level="title-sm">Install Important Plugins</Typography>
+            <CheckForPlugins
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </Sheet>
+        </Step>
+        {/* <Step
+          indicator={
+            <StepIndicator variant={activeStep == 5 ? 'solid' : 'soft'}>
+              5
+            </StepIndicator>
+          }
+        >
+          <Sheet variant="outlined" sx={{ p: 1 }}>
+            <Typography level="title-sm">Check if Connected</Typography>
+            <ConnectToLocalServer
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+              tryToConnect={tryToConnect}
+            />
+          </Sheet>
+        </Step> */}
+      </Stepper>
+      {
+        <Button
+          size="lg"
+          variant="solid"
+          color="success"
+          onClick={tryToConnect}
+          startDecorator={<PlayIcon />}
+          sx={{ width: '100%', mt: 2 }}
+          disabled={activeStep !== 5}
+        >
+          Connect
+        </Button>
+      }
+    </>
   );
 }
 
 function LocalConnection({ setServer }) {
-  const {
-    server,
-    isLoading: serverIsLoading,
-    error: serverError,
-  } = useCheckLocalConnection();
-
   return (
     <Sheet sx={{ overflowY: 'auto' }}>
       {/* {serverError

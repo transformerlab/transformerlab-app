@@ -444,6 +444,7 @@ Endpoints.Plugins = {
   Info: (pluginId: string) => API_URL() + 'plugins/info?plugin_id=' + pluginId,
   Preview: (pluginId: string) =>
     API_URL() + 'plugins/preview?pluginId=' + pluginId,
+  List: () => API_URL() + 'plugins/list',
 };
 
 Endpoints.Config = {
@@ -532,11 +533,7 @@ Endpoints.Experiment = {
   },
   GetExportJobDetails: (experimentId: string, jobId: string) => {
     return (
-      API_URL() +
-      'experiment/' +
-      experimentId +
-      '/export/job?jobId=' +
-      jobId
+      API_URL() + 'experiment/' + experimentId + '/export/job?jobId=' + jobId
     );
   },
   SaveConversation: (experimentId: String) =>
