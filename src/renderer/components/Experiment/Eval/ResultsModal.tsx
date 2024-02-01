@@ -14,6 +14,9 @@ export default function ResultsModal({
     if (open && experimentInfo && evaluator) {
       const output_file = `plugins/${plugin}/output.txt`;
       console.log('Fetching results from', output_file);
+      alert(
+        'I have broken this temporarily -- need to open the output.txt file in a different place'
+      );
       fetch(
         chatAPI.Endpoints.Experiment.GetFile(experimentInfo?.id, output_file)
       ).then((res) => {
