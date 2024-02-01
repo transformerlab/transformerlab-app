@@ -8,7 +8,7 @@ import PluginSettingsModal from './PluginSettingsModal';
 import Sheet from '@mui/joy/Sheet';
 import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
 import {
-  ArrowRightFromLineIcon,
+  PlugIcon,
   ClockIcon,
 } from 'lucide-react';
 
@@ -16,10 +16,9 @@ import {
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Export({experimentInfo}) {
-  const [jobId, setJobId] = useState(null);
+  const [runningPlugin, setRunningPlugin] = useState(null);
   const [viewExportDetails, setViewExportDetails] = useState(-1);
-  const [pluginModalOpen, setPluginModalOpen] = useState(false);
-  const [selectedPlugin, setSelectedPlugin] = useState("");
+  const [selectedPlugin, setSelectedPlugin] = useState(null);
 
   // call plugins list endpoint and filter based on type="exporter" 
   const {
@@ -56,14 +55,23 @@ export default function Export({experimentInfo}) {
           && supported_architectures.includes(experimentInfo?.config?.foundation_model_architecture);
   }
 
-  // run an exporter plugin on the current experiment's model 
-  async function exportRun(experiment_id: string, plugin_id: string) {
-    setJobId(-1);
-    const response = await fetch(chatAPI.Endpoints.Experiment.RunExport(experiment_id, plugin_id));
- 
-    // If we want to track job details we can get this from response
-    // But as long as jobId isn't < 0 the spinner on the export button will stop
-    setJobId(null);
+  // This function is passed to PluginSettingsModal
+  // It allows it to run an exporter plugin on the current experiment's model
+  async function exportRun(plugin_id: string, params_json: string) {
+
+    if (plugin_id) {
+      // sets the running plugin ID, which is used by the UI to set disabled on buttons
+      setRunningPlugin(plugin_id);
+
+      // Call the export job and since this is running async we'll await
+      console.log(params_json);
+      const response = await fetch(
+        chatAPI.Endpoints.Experiment.RunExport(experimentInfo?.id, plugin_id, params_json)
+      );
+
+      // Clean up after export by unsetting running plugin (re-enables buttons)
+      setRunningPlugin(null);
+    }
   }
 
   return (
@@ -75,11 +83,10 @@ export default function Export({experimentInfo}) {
     />
 
     <PluginSettingsModal
-      open = {pluginModalOpen}
+      open = {selectedPlugin}
       onClose={() => {
         // unselect active plugin and close modal
-        setSelectedPlugin("");
-        setPluginModalOpen(false);
+        setSelectedPlugin(null);
         //mutate();
       }}
       onSubmit={exportRun}
@@ -123,24 +130,29 @@ export default function Export({experimentInfo}) {
                       <Button
 
                         startDecorator={
-                          (jobId < 0)  ? (
+                          (runningPlugin)  ? (
                             <CircularProgress size="sm" thickness={2} />
                           ) : (
-                            <ArrowRightFromLineIcon />
+                            <PlugIcon />
                           )
                         }
                         color="success"
                         variant="soft"
                         onClick={async (e) => {
+                            // set the selected plugin which will open the PluginSettingsModal
                             setSelectedPlugin(row.uniqueId);
-                            setPluginModalOpen(true);
-
-                            // Currently this call blocks until the export is done
-                            // const response = await exportRun(experimentInfo.id, row.uniqueId);
                         }}
-                        disabled={!isModelValidArchitecture(row.model_architectures)}
+                        disabled={
+                          !isModelValidArchitecture(row.model_architectures)
+                          ||
+                          runningPlugin
+                        }
                       >
-                        Export
+                        {(runningPlugin) ? (
+                            "Exporting..."
+                        ) : (
+                            "Select Plugin"
+                        )}
                       </Button>
                     </td>
               </tr>

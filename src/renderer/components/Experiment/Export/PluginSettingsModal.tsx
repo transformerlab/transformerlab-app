@@ -26,6 +26,9 @@ import {
   CircularProgress,
   Sheet,
 } from '@mui/joy';
+import {
+    ArrowRightFromLineIcon,
+} from 'lucide-react';
 
 const DefaultPluginConfig = {
   model_quant_bits: 4,
@@ -33,23 +36,12 @@ const DefaultPluginConfig = {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-// create a default output model name that can be overridden in the UI
-function defaultOutputModelName(input_model_name, plugin_info) {
-    console.log(input_model_name);
-    console.log(plugin_info)
-    return input_model_name + plugin_info;
-}
-
 /**
  * PluginSettingsModal
- * open is a boolean stored in state by Export to know if this modal is open
  * onClose is a function that gets executed anytime this modal gets closed (cancel or submit)
  * onSubmit is a function that gets executed only when this form is submitted
  */
-export default function PluginSettingsModal({ open, onClose, onSubmit, experimentInfo, pluginId }) {
-
-  const [selectedPlugin, setSelectedPlugin] = useState(null);
-  const [config, setConfig] = useState(DefaultPluginConfig);
+export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo, pluginId }) {
 
   const currentModelName = experimentInfo?.config?.foundation;
 
@@ -57,8 +49,14 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
     return 'Select an Experiment';
   }
 
+  // create a default output model name that can be overridden in the UI
+  function defaultOutputModelName(input_model_name, plugin_id) {
+    const short_model_name = input_model_name.substring(input_model_name.lastIndexOf('/')+1);
+    return short_model_name + " - " + plugin_id;
+  }
+
   return (
-    <Modal open={open}>
+    <Modal open={pluginId}>
       <ModalDialog
         sx={{
           width: '70vw',
@@ -83,7 +81,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
 
-            onSubmit(experimentInfo.id, pluginId);
+            onSubmit(pluginId, JSON.stringify(form_json));
             onClose();
           }}
         >
@@ -94,8 +92,8 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                   <Input
                     required
                     autoFocus
-                    placeholder={defaultOutputModelName(currentModelName, pluginId)}
-                    name="template_name"
+                    value={defaultOutputModelName(currentModelName, pluginId)}
+                    name="output_model_name"
                     size="lg"
                   />
                   <FormHelperText>
@@ -111,7 +109,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                 <FormControl sx={{ flex: 1 }}>
                     <FormLabel>Export Architecture:</FormLabel>
                     <Typography variant="soft">
-                      {""}
+                      {pluginId}
                     </Typography>
                 </FormControl>
 
@@ -145,7 +143,7 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                 <input
                     hidden
                     value={currentModelName}
-                    name="model_name"
+                    name="input_model_name"
                     readOnly
                 />
                 <input
@@ -153,14 +151,14 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
                     value={
                       experimentInfo?.config?.foundation_model_architecture
                     }
-                    name="model_architecture"
+                    name="input_model_architecture"
                     readOnly
                 />
             </Stack>
             {/** 
             <DynamicPluginForm
                 experimentInfo={experimentInfo}
-                plugin={selectedPlugin}
+                plugin={pluginId}
             />
             */}
           </Stack>
@@ -168,7 +166,10 @@ export default function PluginSettingsModal({ open, onClose, onSubmit, experimen
             <Button color="danger" variant="soft" onClick={() => onClose()}>
               Cancel
             </Button>
-            <Button variant="soft" type="submit">
+            <Button
+                variant="soft"
+                type="submit"
+                startDecorator={<ArrowRightFromLineIcon />}>
               Export
             </Button>
           </Stack>
