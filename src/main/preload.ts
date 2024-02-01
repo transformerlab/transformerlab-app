@@ -55,6 +55,8 @@ contextBridge.exposeInMainWorld('platform', {
   isMac: () => process.platform === 'darwin',
   isWindows: () => process.platform === 'win32',
   isLinux: () => process.platform === 'linux',
+  platform: () => process.platform,
+  arch: () => process.arch,
 });
 
 contextBridge.exposeInMainWorld('storage', {

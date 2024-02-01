@@ -21,7 +21,7 @@ import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
 
 function getSystemProperties() {
   const information = document.getElementById('info');
-  information.innerText = `This app is using Chrome (v${window.versions.chrome()}), Node.js (v${window.versions.node()}), and Electron (v${window.versions.electron()})`;
+  information.innerText = `This app is using Chrome (v${window.platform.chrome()}), Node.js (v${window.platform.node()}), and Electron (v${window.platform.electron()})`;
 }
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
