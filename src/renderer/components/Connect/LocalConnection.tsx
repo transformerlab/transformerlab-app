@@ -229,7 +229,7 @@ function RunServer({ activeStep, setActiveStep }) {
 }
 
 function CheckForPlugins({ activeStep, setActiveStep }) {
-  const [missingPlugins, setMissingPlugins] = useState([]);
+  const [missingPlugins, setMissingPlugins] = useState(null);
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
@@ -251,10 +251,10 @@ function CheckForPlugins({ activeStep, setActiveStep }) {
   return (
     <>
       <Stack spacing={1}>
-        {missingPlugins.length > 0 ? (
-          <></> // {' '} <Chip color="warning">Missing Plugins</Chip>
-        ) : (
+        {missingPlugins?.length == 0 ? (
           <Chip color="success">Success!</Chip>
+        ) : (
+          <></>
         )}
 
         <Typography level="body-sm">
@@ -264,11 +264,11 @@ function CheckForPlugins({ activeStep, setActiveStep }) {
               .&nbsp;
             </>
           )}
-          {missingPlugins.length > 0 &&
+          {missingPlugins?.length > 0 &&
             'The following plugins are not yet installed:'}
         </Typography>
         <Typography level="body-sm" color="warning">
-          {missingPlugins.map((p) => p).join(', ')}
+          {missingPlugins?.map((p) => p).join(', ')}
         </Typography>
 
         {activeStep == 4 && (
