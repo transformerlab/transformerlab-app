@@ -48,10 +48,13 @@ export type ElectronHandler = typeof electronHandler;
 
 contextBridge.exposeInMainWorld('electron', electronHandler);
 
-contextBridge.exposeInMainWorld('versions', {
+contextBridge.exposeInMainWorld('platform', {
   node: () => process.versions.node,
   chrome: () => process.versions.chrome,
   electron: () => process.versions.electron,
+  isMac: () => process.platform === 'darwin',
+  isWindows: () => process.platform === 'win32',
+  isLinux: () => process.platform === 'linux',
 });
 
 contextBridge.exposeInMainWorld('storage', {
