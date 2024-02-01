@@ -10,11 +10,9 @@ import {
   Stepper,
   Typography,
 } from '@mui/joy';
-import { AppleIcon, PlayIcon, Type } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { CheckCircle2, PlayIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
-
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 import { FaApple } from 'react-icons/fa6';
 
@@ -256,7 +254,7 @@ function CheckForPlugins({ activeStep, setActiveStep }) {
         {missingPlugins.length > 0 ? (
           <></> // {' '} <Chip color="warning">Missing Plugins</Chip>
         ) : (
-          <Chip color="success">Plugins Installed!</Chip>
+          <Chip color="success">Success!</Chip>
         )}
 
         <Typography level="body-sm">
@@ -347,6 +345,26 @@ function ConnectToLocalServer({ activeStep, setActiveStep, tryToConnect }) {
   );
 }
 
+function InstallStep({ children, thisStep, title, activeStep, setActiveStep }) {
+  return (
+    <Step
+      indicator={
+        <StepIndicator
+          variant={activeStep == thisStep ? 'solid' : 'soft'}
+          color={activeStep > thisStep ? 'success' : 'primary'}
+        >
+          {activeStep > thisStep ? <CheckCircle2 /> : thisStep}
+        </StepIndicator>
+      }
+    >
+      <Sheet variant="outlined" sx={{ p: 1 }}>
+        <Typography level="title-sm">{title}</Typography>
+        {children}
+      </Sheet>
+    </Step>
+  );
+}
+
 function InstallStepper({ setServer }) {
   const [activeStep, setActiveStep] = useState(1); // 0, 1, 2
 
@@ -361,85 +379,47 @@ function InstallStepper({ setServer }) {
     <>
       <Stepper orientation="vertical">
         {/* Active Step: {activeStep} */}
-        <Step
-          indicator={
-            <StepIndicator
-              variant={activeStep == 1 ? 'solid' : 'soft'}
-              color="primary"
-            >
-              1
-            </StepIndicator>
-          }
+        <InstallStep
+          thisStep={1}
+          title="Check if Server is Installed at ~./transformerlab/"
+          activeStep={activeStep}
+          setActiveStep={setActiveStep}
         >
-          <Sheet variant="outlined" sx={{ p: 1 }}>
-            <Typography level="title-sm">Check if Installed</Typography>
-
-            <CheckIfInstalled
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </Sheet>
-        </Step>
-        <Step
-          indicator={
-            <StepIndicator variant={activeStep == 2 ? 'solid' : 'soft'}>
-              2
-            </StepIndicator>
-          }
+          <CheckIfInstalled
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          />
+        </InstallStep>
+        <InstallStep
+          thisStep={2}
+          title="Check Current Version"
+          activeStep={activeStep}
+          setActiveStep={setActiveStep}
         >
-          <Sheet variant="outlined" sx={{ p: 1 }}>
-            <Typography level="title-sm">Check Current Version</Typography>
-            <CheckCurrentVersion
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </Sheet>
-        </Step>
-        <Step
-          indicator={
-            <StepIndicator variant={activeStep == 3 ? 'solid' : 'soft'}>
-              3
-            </StepIndicator>
-          }
+          <CheckCurrentVersion
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          />
+        </InstallStep>
+        <InstallStep
+          thisStep={3}
+          title="Check if Server is Running Locally on Port 8000"
+          activeStep={activeStep}
+          setActiveStep={setActiveStep}
         >
-          <Sheet variant="outlined" sx={{ p: 1 }}>
-            <Typography level="title-sm">
-              Check if Server is Running Locally on Port 8000
-            </Typography>
-            <RunServer activeStep={activeStep} setActiveStep={setActiveStep} />
-          </Sheet>
-        </Step>
-        <Step
-          indicator={
-            <StepIndicator variant={activeStep == 4 ? 'solid' : 'soft'}>
-              4
-            </StepIndicator>
-          }
+          <RunServer activeStep={activeStep} setActiveStep={setActiveStep} />
+        </InstallStep>
+        <InstallStep
+          thisStep={4}
+          title="Check for Important Plugins"
+          activeStep={activeStep}
+          setActiveStep={setActiveStep}
         >
-          <Sheet variant="outlined" sx={{ p: 1 }}>
-            <Typography level="title-sm">Install Important Plugins</Typography>
-            <CheckForPlugins
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </Sheet>
-        </Step>
-        {/* <Step
-          indicator={
-            <StepIndicator variant={activeStep == 5 ? 'solid' : 'soft'}>
-              5
-            </StepIndicator>
-          }
-        >
-          <Sheet variant="outlined" sx={{ p: 1 }}>
-            <Typography level="title-sm">Check if Connected</Typography>
-            <ConnectToLocalServer
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-              tryToConnect={tryToConnect}
-            />
-          </Sheet>
-        </Step> */}
+          <CheckForPlugins
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          />
+        </InstallStep>
       </Stepper>
       {
         <Button
