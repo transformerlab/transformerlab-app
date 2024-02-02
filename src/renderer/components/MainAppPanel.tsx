@@ -192,10 +192,11 @@ export default function MainAppPanel({
             experimentInfoMutate={experimentInfoMutate}
           />
         }
-      />
-
-      <Route
+      /> <Route
         path="/zoo"
+        element={<ModelZoo experimentInfo={experimentInfo} />}
+      /> <Route
+        path="/zoo/:id"
         element={<ModelZoo experimentInfo={experimentInfo} />}
       />
       <Route path="/data" element={<Data />} />

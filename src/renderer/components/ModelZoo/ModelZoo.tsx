@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useState, useCallback } from 'react';
+import { useParams } from "react-router-dom";
 import Sheet from '@mui/joy/Sheet';
 import { StoreIcon } from 'lucide-react';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
@@ -7,6 +8,10 @@ import ModelStore from './ModelStore';
 import LocalModels from './LocalModels';
 
 export default function ModelZoo({ experimentInfo }) {
+  const routeParams = useParams();
+  const startTab = (routeParams?.id == "store") ? 1 : 0;
+  console.log(startTab);
+
   return (
     <Sheet
       sx={{

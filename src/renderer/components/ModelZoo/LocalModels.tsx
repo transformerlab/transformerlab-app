@@ -376,7 +376,7 @@ export default function LocalModels({
                   >
                     You do not have any models on your local machine. You can
                     download a model by going to the{' '}
-                    <ReactRouterLink to="/zoo">
+                    <ReactRouterLink to="/zoo/store">
                       <StoreIcon />
                       Model Store
                     </ReactRouterLink>
