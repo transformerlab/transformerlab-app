@@ -15,6 +15,10 @@ import {
   RouterIcon,
 } from 'lucide-react';
 
+import { BsGpuCard } from 'react-icons/bs';
+import { FaComputer } from 'react-icons/fa6';
+import { PiMathOperationsFill } from 'react-icons/pi';
+
 import { formatBytes } from 'renderer/lib/utils';
 
 import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
@@ -70,7 +74,7 @@ export default function Computer() {
           <Grid container spacing={2} sx={{}}>
             <Grid xs={4}>
               <ComputerCard
-                icon={<RouterIcon />}
+                icon={<FaComputer />}
                 title="Machine"
                 description={`${server.os} - ${server.name}`}
               >
@@ -79,14 +83,9 @@ export default function Computer() {
               </ComputerCard>
             </Grid>{' '}
             <Grid xs={2}>
-              <ComputerCard
-                icon={<GridIcon />}
-                title="GPU"
-                description={server.gpu?.length === 0 ? '❌ No GPU' : '✅ GPU'}
-              />
-            </Grid>{' '}
-            <Grid xs={2}>
-              <ComputerCard icon={<FlameIcon />} title="Device">
+              <ComputerCard icon={<PiMathOperationsFill />} title="Device">
+                GPU: {server.gpu?.length === 0 ? '❌' : '✅'}
+                <br />
                 CUDA: {server?.device === 'cuda' ? '✅ ' : '❌ '}
                 <br />
                 CUDA Version: {server?.cuda_version}
@@ -98,7 +97,7 @@ export default function Computer() {
             </Grid>{' '}
             <Grid xs={4}>
               <ComputerCard
-                icon={<CalculatorIcon />}
+                icon={<BsGpuCard />}
                 title="GPU Specs"
                 image={undefined}
               >
