@@ -20,11 +20,13 @@ export function resolveHtmlPath(htmlFileName: string) {
 }
 
 export function checkLocalServerVersion() {
-  const mainFile = path.join(transformerLabDir, 'VERSION');
+  const mainFile = path.join(transformerLabDir, 'LATEST_VERSION');
 
   console.log('Checking if server is installed locally at', mainFile);
   if (fs.existsSync(mainFile)) {
-    const version = fs.readFileSync(mainFile, 'utf8');
+    let version = fs.readFileSync(mainFile, 'utf8');
+    // remove whitespace:
+    version = version.replace(/\s/g, '');
     console.log('Found version', version);
     return version;
   } else {

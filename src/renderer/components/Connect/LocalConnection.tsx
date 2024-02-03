@@ -10,7 +10,7 @@ import {
   Stepper,
   Typography,
 } from '@mui/joy';
-import { CheckCircle2, PlayIcon } from 'lucide-react';
+import { CheckCircle2, PlayIcon, RotateCcwIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
@@ -108,6 +108,8 @@ function CheckIfInstalled({ activeStep, setActiveStep }) {
 
 function CheckCurrentVersion({ activeStep, setActiveStep }) {
   const [version, setVersion] = useState('pending'); // pending, or #.#.#
+  const [release, setRelease] = useState('');
+  const [installStatus, setInstallStatus] = useState('pending'); // notstarted, pending, success, error
 
   useEffect(() => {
     if (activeStep !== 2) return;
@@ -118,7 +120,15 @@ function CheckCurrentVersion({ activeStep, setActiveStep }) {
       );
       setVersion(ver);
 
-      if (ver === '0.1.4') {
+      const rel = await fetch(
+        'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest'
+      );
+      const json = await rel.json();
+      const tag = json.tag_name;
+
+      setRelease(tag);
+
+      if (ver === tag) {
         setActiveStep(3);
       }
     })();
@@ -130,17 +140,51 @@ function CheckCurrentVersion({ activeStep, setActiveStep }) {
         <Typography level="body-sm">
           Your version of Transformer Lab API is {version}
         </Typography>
+        <Typography level="body-sm">Latest Github SHA is {release}</Typography>
         {version == '0.1.4' && <Chip color="success">Success!</Chip>}
 
         {activeStep == 2 && (
           <ButtonGroup variant="plain" spacing={1}>
             <Button
               variant="solid"
+              size="sm"
+              startDecorator={<RotateCcwIcon size="16px" />}
+              onClick={async () => {
+                await window.electron.ipcRenderer.invoke(
+                  'server:InstallLocally'
+                );
+                setInstallStatus('pending');
+                setIntervalXTimes(
+                  async () => {
+                    const ver = await window.electron.ipcRenderer.invoke(
+                      'server:checkLocalVersion'
+                    );
+                    if (ver === release) {
+                      setInstallStatus('success');
+                      setVersion(ver);
+                      setActiveStep(3);
+                      return true;
+                    }
+                    return false;
+                  },
+                  () => {
+                    setInstallStatus('error');
+                  },
+                  2000,
+                  8
+                );
+              }}
+            >
+              Update Server API
+            </Button>
+            <Button
+              variant="plain"
+              size="sm"
               onClick={() => {
                 setActiveStep(3);
               }}
             >
-              Next
+              Skip
             </Button>
           </ButtonGroup>
         )}
@@ -181,8 +225,10 @@ function RunServer({ activeStep, setActiveStep }) {
   return (
     <>
       <Stack spacing={1}>
-        {server && !serverError && <Chip color="success">Success!</Chip>}
-        {activeStep == 3 && (!server || serverError) && (
+        {activeStep >= 3 && server && !serverError && (
+          <Chip color="success">Success!</Chip>
+        )}
+        {activeStep >= 3 && (!server || serverError) && (
           <Chip color="danger">Not Running</Chip>
         )}
         <ButtonGroup variant="plain" spacing={1}>
