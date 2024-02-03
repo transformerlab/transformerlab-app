@@ -35,7 +35,7 @@ function setIntervalXTimes(callback, notSuccessful, delay, repetitions) {
 }
 
 function CheckIfInstalled({ activeStep, setActiveStep }) {
-  const [installStatus, setInstallStatus] = useState('pending'); // notstarted, pending, success, error
+  const [installStatus, setInstallStatus] = useState('notstarted'); // notstarted, pending, success, error
 
   useEffect(() => {
     if (activeStep !== 1) return;
@@ -109,7 +109,7 @@ function CheckIfInstalled({ activeStep, setActiveStep }) {
 function CheckCurrentVersion({ activeStep, setActiveStep }) {
   const [version, setVersion] = useState('pending'); // pending, or #.#.#
   const [release, setRelease] = useState('');
-  const [installStatus, setInstallStatus] = useState('pending'); // notstarted, pending, success, error
+  const [installStatus, setInstallStatus] = useState('notstarted'); // notstarted, pending, success, error
 
   useEffect(() => {
     if (activeStep !== 2) return;
@@ -140,8 +140,11 @@ function CheckCurrentVersion({ activeStep, setActiveStep }) {
         <Typography level="body-sm">
           Your version of Transformer Lab API is {version}
         </Typography>
-        <Typography level="body-sm">Latest Github SHA is {release}</Typography>
-        {version == '0.1.4' && <Chip color="success">Success!</Chip>}
+        <Typography level="body-sm">
+          Latest Github Version is {release}
+        </Typography>
+        {version == release && <Chip color="success">Success!</Chip>}
+        {installStatus === 'pending' && <CircularProgress color="primary" />}
 
         {activeStep == 2 && (
           <ButtonGroup variant="plain" spacing={1}>
@@ -257,7 +260,7 @@ function RunServer({ activeStep, setActiveStep }) {
                           setThinking(false);
                         },
                         2000,
-                        8
+                        15
                       );
                     }}
                   >
