@@ -55,8 +55,6 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
     return short_model_name + " - " + plugin.uniqueId;
   }
 
-  console.log(plugin);
-
   return (
     <Modal open={!!plugin}>
       <ModalDialog
@@ -83,7 +81,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
 
-            onSubmit(plugin, JSON.stringify(form_json));
+            onSubmit(plugin.uniqueId, JSON.stringify(form_json));
             onClose();
           }}
         >
