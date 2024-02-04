@@ -138,7 +138,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
                 <FormControl sx={{ flex: 1 }}>
                     <FormLabel>Export Architecture:</FormLabel>
                     <Typography variant="soft">
-                      {plugin?.uniqueId}
+                      {plugin?.export_architecture}
                     </Typography>
                 </FormControl>
 
@@ -150,8 +150,8 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
                 />
                 <input
                     hidden
-                    value={plugin?.uniqueId}
-                    name="plugin_other"
+                    value={plugin?.export_architecture}
+                    name="plugin_architecture"
                     readOnly
                 />
             </Stack>

@@ -64,7 +64,6 @@ export default function Export({experimentInfo}) {
       setRunningPlugin(plugin_id);
 
       // Call the export job and since this is running async we'll await
-      console.log(params_json);
       const response = await fetch(
         chatAPI.Endpoints.Experiment.RunExport(experimentInfo?.id, plugin_id, params_json)
       );
@@ -87,7 +86,6 @@ export default function Export({experimentInfo}) {
       onClose={() => {
         // unselect active plugin and close modal
         setSelectedPlugin(null);
-        //mutate();
       }}
       onSubmit={exportRun}
       experimentInfo = {experimentInfo}
