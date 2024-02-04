@@ -21,6 +21,10 @@ import { useEffect, useState } from 'react';
 import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
 
 import InferenceEngineModal from './InferenceEngineModal';
+import useSWR from 'swr';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function RunModelButton({
   experimentInfo,
@@ -34,8 +38,27 @@ export default function RunModelButton({
     inferenceEngine: null,
   });
 
+  const {
+    data: inferenceEngines,
+    error: inferenceEnginesError,
+    isLoading: inferenceEnginesIsLoading,
+  } = useSWR(
+    inferenceSettings?.inferenceEngine == null &&
+      chatAPI.Endpoints.Experiment.ListScriptsOfType(
+        experimentInfo?.id,
+        'loader', // type
+        'model_architectures:' +
+          experimentInfo?.config?.foundation_model_architecture //filter
+      ),
+    fetcher
+  );
+
   function isPossibleToRunAModel() {
-    return experimentInfo != null && experimentInfo?.config?.foundation !== '';
+    return (
+      experimentInfo != null &&
+      experimentInfo?.config?.foundation !== '' &&
+      inferenceSettings?.inferenceEngine !== null
+    );
   }
 
   useEffect(() => {
@@ -43,6 +66,18 @@ export default function RunModelButton({
       setInferenceSettings(JSON.parse(experimentInfo?.config?.inferenceParams));
     }
   }, [experimentInfo]);
+
+  // Set a default inference Engine if there is none
+  useEffect(() => {
+    if (
+      inferenceEngines?.length > 0 &&
+      inferenceSettings?.inferenceEngine == null
+    ) {
+      setInferenceSettings({
+        inferenceEngine: inferenceEngines[0].uniqueId,
+      });
+    }
+  }, [inferenceEngines]);
 
   return (
     <div
@@ -55,6 +90,7 @@ export default function RunModelButton({
       {/* {JSON.stringify(models)} */}
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
+      {/* {JSON.stringify(inferenceEngines)} */}
       {models === null ? (
         <>
           <Button
@@ -69,6 +105,11 @@ export default function RunModelButton({
             size="lg"
             sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
             onClick={async (e) => {
+              if (inferenceSettings?.inferenceEngine === null) {
+                setShowRunSettings(!showRunSettings);
+                return;
+              }
+
               setJobId(-1);
 
               const inferenceEngine = inferenceSettings?.inferenceEngine;
@@ -87,7 +128,7 @@ export default function RunModelButton({
             }}
             disabled={!isPossibleToRunAModel()}
           >
-            Run
+            Run with {inferenceSettings?.inferenceEngine}
           </Button>
         </>
       ) : (
