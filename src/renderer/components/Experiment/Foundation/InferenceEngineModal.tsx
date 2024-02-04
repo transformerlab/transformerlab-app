@@ -112,9 +112,7 @@ export default function InferenceEngineModal({
               experimentInfo={experimentInfo}
               plugin={selectedPlugin}
             />
-            <Button type="submit" sx={{ mt: 0, pt: 0 }}>
-              Save
-            </Button>
+            <Button type="submit">Save</Button>
           </Stack>
         </form>
       </ModalDialog>
