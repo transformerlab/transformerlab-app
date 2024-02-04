@@ -41,7 +41,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
  * onClose is a function that gets executed anytime this modal gets closed (cancel or submit)
  * onSubmit is a function that gets executed only when this form is submitted
  */
-export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo, pluginId }) {
+export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo, plugin}) {
 
   const currentModelName = experimentInfo?.config?.foundation;
 
@@ -50,13 +50,15 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
   }
 
   // create a default output model name that can be overridden in the UI
-  function defaultOutputModelName(input_model_name, plugin_id) {
+  function defaultOutputModelName(input_model_name, plugin) {
     const short_model_name = input_model_name.substring(input_model_name.lastIndexOf('/')+1);
-    return short_model_name + " - " + plugin_id;
+    return short_model_name + " - " + plugin.uniqueId;
   }
 
+  console.log(plugin);
+
   return (
-    <Modal open={pluginId}>
+    <Modal open={!!plugin}>
       <ModalDialog
         sx={{
           width: '70vw',
@@ -81,18 +83,19 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
 
-            onSubmit(pluginId, JSON.stringify(form_json));
+            onSubmit(plugin, JSON.stringify(form_json));
             onClose();
           }}
         >
          
           <Stack spacing={2}>
+            {/**
             <FormControl>
                   <FormLabel>Output Model Name</FormLabel>
                   <Input
                     required
                     autoFocus
-                    value={defaultOutputModelName(currentModelName, pluginId)}
+                    value={defaultOutputModelName(currentModelName, plugin)}
                     name="output_model_name"
                     size="lg"
                   />
@@ -101,33 +104,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
                   </FormHelperText>
                 </FormControl><FormControl>
             </FormControl>
-            <Stack direction="row" justifyContent="space-evenly" gap={2}>
-                <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Exporter plugin:</FormLabel>
-                    <Typography variant="soft">{pluginId}</Typography>
-                </FormControl>
-                <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Export Architecture:</FormLabel>
-                    <Typography variant="soft">
-                      {pluginId}
-                    </Typography>
-                </FormControl>
-
-                <input
-                    hidden
-                    value={pluginId}
-                    name="plugin_name"
-                    readOnly
-                />
-                <input
-                    hidden
-                    value={
-                      ""
-                    }
-                    name="plugin_other"
-                    readOnly
-                />
-            </Stack>
+            */}
             <Stack direction="row" justifyContent="space-evenly" gap={2}>
                 <FormControl sx={{ flex: 1 }}>
                     <FormLabel>Input Model:</FormLabel>
@@ -155,10 +132,35 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
                     readOnly
                 />
             </Stack>
+            <Stack direction="row" justifyContent="space-evenly" gap={2}>
+                <FormControl sx={{ flex: 1 }}>
+                    <FormLabel>Exporter plugin:</FormLabel>
+                    <Typography variant="soft">{plugin?.uniqueId}</Typography>
+                </FormControl>
+                <FormControl sx={{ flex: 1 }}>
+                    <FormLabel>Export Architecture:</FormLabel>
+                    <Typography variant="soft">
+                      {plugin?.uniqueId}
+                    </Typography>
+                </FormControl>
+
+                <input
+                    hidden
+                    value={plugin?.uniqueId}
+                    name="plugin_name"
+                    readOnly
+                />
+                <input
+                    hidden
+                    value={plugin?.uniqueId}
+                    name="plugin_other"
+                    readOnly
+                />
+            </Stack>
             {/** 
             <DynamicPluginForm
                 experimentInfo={experimentInfo}
-                plugin={pluginId}
+                plugin={plugin}
             />
             */}
           </Stack>

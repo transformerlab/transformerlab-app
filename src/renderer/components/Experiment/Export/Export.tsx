@@ -83,7 +83,7 @@ export default function Export({experimentInfo}) {
     />
 
     <PluginSettingsModal
-      open = {selectedPlugin}
+      open = {!!selectedPlugin}
       onClose={() => {
         // unselect active plugin and close modal
         setSelectedPlugin(null);
@@ -91,7 +91,7 @@ export default function Export({experimentInfo}) {
       }}
       onSubmit={exportRun}
       experimentInfo = {experimentInfo}
-      pluginId = {selectedPlugin}
+      plugin = {selectedPlugin}
     />
 
     <Sheet
@@ -140,7 +140,8 @@ export default function Export({experimentInfo}) {
                         variant="soft"
                         onClick={async (e) => {
                             // set the selected plugin which will open the PluginSettingsModal
-                            setSelectedPlugin(row.uniqueId);
+                            setSelectedPlugin(row);
+                            console.log(selectedPlugin);
                         }}
                         disabled={
                           !isModelValidArchitecture(row.model_architectures)
