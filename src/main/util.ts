@@ -45,18 +45,31 @@ export function startLocalServer() {
     //shell: true,
   };
   console.log('Starting local server at', mainFile);
-  try {
-    localServer = spawn('bash', [mainFile], options);
+  localServer = spawn('bash', [mainFile], options);
+  return new Promise((resolve) => {
     localServer.stderr.on('data', (data) => {
       console.error(`stderr: ${data}`);
     });
 
     localServer.on('close', (code) => {
       console.log(`child process exited with code ${code}`);
+      resolve({ status: 'error', code: code });
     });
-  } catch (err) {
-    console.log('Failed to start local server', err);
-  }
+
+    localServer.on('error', (code) => {
+      resolve({ status: 'error', code: code });
+    });
+
+    localServer.on('exit', (code) => {
+      console.log(`child process exited with code ${code}`);
+
+      if (code === 0) {
+        resolve({ status: 'success', code: code });
+      } else {
+        resolve({ status: 'error', code: code });
+      }
+    });
+  });
 }
 
 export function killLocalServer() {

@@ -58,8 +58,8 @@ ipcMain.handle('server:checkLocalVersion', (event) => {
   return checkLocalServerVersion();
 });
 
-ipcMain.handle('server:startLocalServer', (event) => {
-  return startLocalServer();
+ipcMain.handle('server:startLocalServer', async (event) => {
+  return await startLocalServer();
 });
 
 ipcMain.handle('server:InstallLocally', (event) => {

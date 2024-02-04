@@ -245,10 +245,17 @@ function RunServer({ activeStep, setActiveStep }) {
                     variant="solid"
                     onClick={async () => {
                       setThinking(true);
-                      await window.electron.ipcRenderer.invoke(
-                        'server:startLocalServer'
-                      );
-                      //set interval to check if server is running every 2 seconds, 5 times:
+                      const start_process =
+                        await window.electron.ipcRenderer.invoke(
+                          'server:startLocalServer'
+                        );
+                      alert(JSON.stringify(start_process));
+
+                      if (start_process?.status == 'error') {
+                        setThinking(false);
+                        return;
+                      }
+                      //set interval to check if server is running every 2 seconds, 15 times:
                       setIntervalXTimes(
                         async () => {
                           if (!server || serverError) return false;
