@@ -38,46 +38,57 @@ export default function RunModelButton({
     inferenceEngine: null,
   });
 
-  const {
-    data: inferenceEngines,
-    error: inferenceEnginesError,
-    isLoading: inferenceEnginesIsLoading,
-  } = useSWR(
-    inferenceSettings?.inferenceEngine == null &&
-      chatAPI.Endpoints.Experiment.ListScriptsOfType(
-        experimentInfo?.id,
-        'loader', // type
-        'model_architectures:' +
-          experimentInfo?.config?.foundation_model_architecture //filter
-      ),
-    fetcher
-  );
-
   function isPossibleToRunAModel() {
+    console.log('Is Possible?');
+    console.log(experimentInfo);
+    console.log(inferenceSettings);
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
-      inferenceSettings?.inferenceEngine !== null
+      inferenceSettings?.inferenceEngine != null
     );
   }
 
-  useEffect(() => {
-    if (experimentInfo?.config?.inferenceParams) {
-      setInferenceSettings(JSON.parse(experimentInfo?.config?.inferenceParams));
-    }
-  }, [experimentInfo]);
+  // useEffect(() => {
+  //   if (experimentInfo?.config?.inferenceParams) {
+  //     setInferenceSettings(JSON.parse(experimentInfo?.config?.inferenceParams));
+  //   }
+  // }, [experimentInfo]);
 
   // Set a default inference Engine if there is none
   useEffect(() => {
-    if (
-      inferenceEngines?.length > 0 &&
-      inferenceSettings?.inferenceEngine == null
-    ) {
-      setInferenceSettings({
-        inferenceEngine: inferenceEngines[0].uniqueId,
-      });
-    }
-  }, [inferenceEngines]);
+    console.log('Searching for primary inference engine');
+    console.log(inferenceSettings);
+    (async () => {
+      if (inferenceSettings?.inferenceEngine == null) {
+        const inferenceEngines = await fetch(
+          chatAPI.Endpoints.Experiment.ListScriptsOfType(
+            experimentInfo?.id,
+            'loader', // type
+            'model_architectures:' +
+              experimentInfo?.config?.foundation_model_architecture //filter
+          )
+        );
+        const inferenceEnginesJSON = await inferenceEngines.json();
+        const experimentId = experimentInfo?.id;
+        const engine = inferenceEnginesJSON?.[0]?.uniqueId;
+
+        await fetch(
+          chatAPI.Endpoints.Experiment.UpdateConfig(
+            experimentId,
+            'inferenceParams',
+            JSON.stringify({
+              ...inferenceSettings,
+              inferenceEngine: engine,
+            })
+          )
+        );
+        setInferenceSettings({
+          inferenceEngine: inferenceEnginesJSON?.[0]?.uniqueId,
+        });
+      }
+    })();
+  }, [experimentInfo]);
 
   return (
     <div
@@ -90,7 +101,7 @@ export default function RunModelButton({
       {/* {JSON.stringify(models)} */}
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
-      {/* {JSON.stringify(inferenceEngines)} */}
+      {/* {JSON.stringify(inferenceSettings)} */}
       {models === null ? (
         <>
           <Button
@@ -128,7 +139,9 @@ export default function RunModelButton({
             }}
             disabled={!isPossibleToRunAModel()}
           >
-            Run with {inferenceSettings?.inferenceEngine}
+            {isPossibleToRunAModel()
+              ? 'Run with ' + inferenceSettings?.inferenceEngine
+              : 'No Available Engine'}
           </Button>
         </>
       ) : (
