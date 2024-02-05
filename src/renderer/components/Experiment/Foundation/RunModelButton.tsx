@@ -39,9 +39,9 @@ export default function RunModelButton({
   });
 
   function isPossibleToRunAModel() {
-    console.log('Is Possible?');
-    console.log(experimentInfo);
-    console.log(inferenceSettings);
+    // console.log('Is Possible?');
+    // console.log(experimentInfo);
+    // console.log(inferenceSettings);
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
@@ -57,8 +57,8 @@ export default function RunModelButton({
 
   // Set a default inference Engine if there is none
   useEffect(() => {
-    console.log('Searching for primary inference engine');
-    console.log(inferenceSettings);
+    // console.log('Searching for primary inference engine');
+    // console.log(inferenceSettings);
     (async () => {
       if (inferenceSettings?.inferenceEngine == null) {
         const inferenceEngines = await fetch(
