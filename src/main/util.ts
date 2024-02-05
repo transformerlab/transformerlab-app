@@ -40,16 +40,19 @@ export function startLocalServer() {
   const options = {
     cwd: transformerLabDir,
     // The following two options allow it to keep running after parent is closed
-    // detached: true,
-    // stdio: 'ignore',
-    //shell: true,
+    detached: true,
+    stdio: 'ignore',
+    shell: true,
   };
   console.log('Starting local server at', mainFile);
   localServer = spawn('bash', [mainFile], options);
+
+  console.log('Local server started with pid', localServer.pid);
+
   return new Promise((resolve) => {
-    localServer.stderr.on('data', (data) => {
-      console.error(`stderr: ${data}`);
-    });
+    // localServer.stderr.on('data', (data) => {
+    //   console.error(`stderr: ${data}`);
+    // });
 
     localServer.on('close', (code) => {
       console.log(`child process exited with code ${code}`);
