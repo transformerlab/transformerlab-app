@@ -114,21 +114,6 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
                       {experimentInfo?.config?.foundation_model_architecture}
                     </Typography>
                 </FormControl>
-
-                <input
-                    hidden
-                    value={currentModelName}
-                    name="input_model_name"
-                    readOnly
-                />
-                <input
-                    hidden
-                    value={
-                      experimentInfo?.config?.foundation_model_architecture
-                    }
-                    name="input_model_architecture"
-                    readOnly
-                />
             </Stack>
             <Stack direction="row" justifyContent="space-evenly" gap={2}>
                 <FormControl sx={{ flex: 1 }}>
