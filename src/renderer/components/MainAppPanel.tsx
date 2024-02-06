@@ -45,15 +45,9 @@ export default function MainAppPanel({
     if (model) {
       model_name = model.model_id;
 
-      // model_filename can contain two kinds of values:
-      // 1. a specific file from a HuggingFace model for models that contains many files (e.g. GGUF)
-      //    This is to avoid having to download many unneeded large files
-      if (model.json_data?.huggingface_filename) {
-        model_filename = model.json_data.huggingface_filename;
-
-      // 2. a fully qualified local path for locally generateed models (e.g. MLX Export)
-      //    This tells the app to use the workspace/models directory instead of the HuggingFace cache
-      } else if (model.local_model) {
+      // model_filename is a real path to a local model file or directory
+      // For most generated models this will be a path to a directory
+      if (model.stored_in_filesystem) {
         model_filename = model.local_path;
       }
     }
