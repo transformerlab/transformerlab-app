@@ -23,6 +23,7 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import placeholderLogo from 'renderer/img/attention.png';
+import { FaEject } from 'react-icons/fa6';
 
 const hf_config_translation = {
   architectures: 'Architecture',
@@ -169,7 +170,7 @@ export default function ModelDetails({
               mutate={mutate}
             />
             <Button
-              startDecorator={<XSquareIcon />}
+              startDecorator={<FaEject />}
               onClick={() => {
                 setFoundation(null);
                 fetch(
