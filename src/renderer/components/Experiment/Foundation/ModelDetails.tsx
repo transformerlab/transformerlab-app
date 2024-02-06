@@ -45,6 +45,10 @@ function hf_translate(key) {
   return hf_config_translation[key] || null;
 }
 
+function modelNameIsInHuggingfaceFormat(modelName: string) {
+  return modelName.includes('/');
+}
+
 export default function ModelDetails({
   experimentInfo,
   adaptor,
@@ -58,7 +62,7 @@ export default function ModelDetails({
   const huggingfaceId = experimentInfo?.config?.foundation;
 
   useMemo(() => {
-    if (huggingfaceId) {
+    if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
       fetch(`https://huggingface.co/${huggingfaceId}/resolve/main/config.json`)
         .then((res) => res.json())
         .then((data) => setHugggingfaceData(data));
