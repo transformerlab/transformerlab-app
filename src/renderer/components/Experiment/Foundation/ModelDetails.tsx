@@ -81,7 +81,7 @@ export default function ModelDetails({
   return (
     <>
       <Stack direction="row" sx={{ minHeight: '300px' }}>
-        <pre>{JSON.stringify(experimentInfo, null, 2)}</pre>
+        {/* <pre>{JSON.stringify(experimentInfo, null, 2)}</pre> */}
         <img
           src={modelDetailsData?.logo || placeholderLogo}
           alt=""
