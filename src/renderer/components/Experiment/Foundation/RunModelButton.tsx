@@ -139,9 +139,7 @@ export default function RunModelButton({
             }}
             disabled={!isPossibleToRunAModel()}
           >
-            {isPossibleToRunAModel()
-              ? 'Run with ' + inferenceSettings?.inferenceEngine
-              : 'No Available Engine'}
+            {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
           </Button>
         </>
       ) : (
@@ -164,31 +162,13 @@ export default function RunModelButton({
           Stop
         </Button>
       )}
-      <IconButton
+      <Button
         variant="plain"
-        color="neutral"
-        size="md"
-        disabled={models?.length > 0 || jobId == -1}
         onClick={() => setShowRunSettings(!showRunSettings)}
+        disabled={models?.length > 0 || jobId == -1}
       >
-        <Tooltip
-          variant="soft"
-          title={
-            <Stack
-              sx={{ fontSize: '12px', minWidth: '80px' }}
-              justifyContent="space-between"
-            >
-              {Object.entries(inferenceSettings)?.map(([key, value]) => (
-                <Typography key={key}>
-                  {key}: {value}
-                </Typography>
-              ))}
-            </Stack>
-          }
-        >
-          <CogIcon color="var(--joy-palette-neutral-500)" />
-        </Tooltip>
-      </IconButton>
+        using {inferenceSettings?.inferenceEngine}
+      </Button>
       <InferenceEngineModal
         showModal={showRunSettings}
         setShowModal={setShowRunSettings}
