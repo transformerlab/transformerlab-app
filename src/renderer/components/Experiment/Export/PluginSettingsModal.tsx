@@ -30,6 +30,9 @@ import {
     ArrowRightFromLineIcon,
 } from 'lucide-react';
 
+
+import DynamicPluginForm from '../Train/DynamicPluginForm';
+
 const DefaultPluginConfig = {
   model_quant_bits: 4,
 };
@@ -68,6 +71,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
           height: '100%',
         }}
       >
+        <Typography level="h1">Export Settings</Typography>
         <form
           id="training-form"
           style={{
@@ -140,12 +144,6 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
                     readOnly
                 />
             </Stack>
-            {/** 
-            <DynamicPluginForm
-                experimentInfo={experimentInfo}
-                plugin={plugin}
-            />
-            */}
           </Stack>
           <Stack spacing={2} direction="row" justifyContent="flex-end">
             <Button color="danger" variant="soft" onClick={() => onClose()}>
@@ -159,6 +157,13 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             </Button>
           </Stack>
         </form>
+
+        {/**
+        <DynamicPluginForm
+          experimentInfo={experimentInfo}
+          plugin={plugin}
+        />
+          */}
       </ModalDialog>
     </Modal>
   );
