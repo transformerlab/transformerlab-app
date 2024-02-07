@@ -71,7 +71,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
           height: '100%',
         }}
       >
-        <Typography level="h1">Export Settings</Typography>
+        <Typography level="h2">Export Settings</Typography>
         <form
           id="training-form"
           style={{
@@ -144,7 +144,18 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
                     readOnly
                 />
             </Stack>
+
+            <Typography level="h3">Plugin Parameters</Typography>
+            {/**
+            <DynamicPluginForm
+              experimentInfo={experimentInfo}
+              plugin={plugin}
+            />
+            */}
+            <Typography level="h4">None</Typography>
+
           </Stack>
+
           <Stack spacing={2} direction="row" justifyContent="flex-end">
             <Button color="danger" variant="soft" onClick={() => onClose()}>
               Cancel
@@ -157,13 +168,6 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             </Button>
           </Stack>
         </form>
-
-        {/**
-        <DynamicPluginForm
-          experimentInfo={experimentInfo}
-          plugin={plugin}
-        />
-          */}
       </ModalDialog>
     </Modal>
   );
