@@ -113,7 +113,7 @@ export default function LoginModal({
           <TabList tabFlex={1}>
             <Tab>Local Connection</Tab>
             <Tab>Remote Connection</Tab>
-            <Tab value="SSH">Connect via SSH</Tab>
+            {/* <Tab value="SSH">Connect via SSH</Tab> */}
           </TabList>
           <TabPanel value={0} sx={{ p: 2, overflowY: 'auto' }}>
             <LocalConnection setServer={setServer} />

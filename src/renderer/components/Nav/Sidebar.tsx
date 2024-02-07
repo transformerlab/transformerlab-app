@@ -211,7 +211,7 @@ export default function Sidebar({
           icon={<TextIcon />}
           disabled={false}
         /> */}
-        <ListItem>
+        {/* <ListItem>
           <ListItemButton
             onClick={() => {
               setDrawerOpen(true);
@@ -223,7 +223,7 @@ export default function Sidebar({
             </ListItemDecorator>
             <ListItemContent>Terminal</ListItemContent>
           </ListItemButton>
-        </ListItem>
+        </ListItem> */}
         <Divider sx={{ my: 2 }} />
         <ButtonGroup sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <ColorSchemeToggle />
