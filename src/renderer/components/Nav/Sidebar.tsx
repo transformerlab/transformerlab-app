@@ -68,9 +68,12 @@ export default function Sidebar({
       return true;
     }
 
+    // The API may respond with the ID of the model, or the model filename or the adaptor
     return (
       models?.[0]?.id !==
         experimentInfo?.config?.foundation?.split('/').slice(-1)[0] &&
+      models?.[0]?.id !==
+        experimentInfo?.config?.foundation_filename?.split('/').slice(-1)[0] &&
       models?.[0]?.id !== experimentInfo?.config.adaptor
     );
   }
