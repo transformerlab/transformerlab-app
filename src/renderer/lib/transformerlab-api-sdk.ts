@@ -131,8 +131,9 @@ export async function sendAndReceiveStreaming(
   const resultText = document.getElementById('resultText');
   if (resultText) resultText.innerText = '';
 
+  let response;
   try {
-    const response = await fetch(
+    response = await fetch(
       `${INFERENCE_SERVER_URL()}v1/chat/completions`,
       {
         method: 'POST', // or 'PUT'
@@ -143,16 +144,30 @@ export async function sendAndReceiveStreaming(
         body: JSON.stringify(data),
       }
     );
+  } catch (error) {
+    console.log('Exception accessing completions API:', error);
+    alert("Network connection error");
+    return null;
+  }
 
-    // Read the response as a stream of data
-    const reader = response?.body?.getReader();
-    const decoder = new TextDecoder('utf-8');
-    const resultText = document.getElementById('resultText');
+  // if invalid response then return now
+  if (!response.ok) {
+    console.log("Completions API response:", response);
+    const error_text = `Completions API Error
+      HTTP Error Code: ${response?.status}
+      ${response?.statusText}`
+    alert(error_text);
+    return null;
+  }
 
-    let finalResult = '';
+  // Read the response as a stream of data
+  const reader = response?.body?.getReader();
+  const decoder = new TextDecoder('utf-8');
 
-    if (resultText) resultText.innerText = '';
+  let finalResult = '';
 
+  // Reader loop
+  try {
     while (true) {
       // eslint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
@@ -194,7 +209,7 @@ export async function sendAndReceiveStreaming(
 
     result = finalResult;
   } catch (error) {
-    console.log('There was an error', error);
+    console.log('There was an error:', error);
   }
 
   if (result) {
