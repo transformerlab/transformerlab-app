@@ -292,7 +292,7 @@ export default function ModelStore() {
                           const response = await downloadModelFromGallery(
                             row.uniqueID
                           );
-                          if (response?.message == 'Failed to download model') {
+                          if (response?.status == 'error') {
                             setCurrentlyDownloading('');
                             setJobId(null);
                             return alert(
