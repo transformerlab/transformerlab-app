@@ -39,26 +39,6 @@ import { modelTypes, licenseTypes, filterByFilters } from '../../../lib/utils';
 
 type Order = 'asc' | 'desc';
 
-function convertModelObjectToArray(modelObject) {
-  // The model object in the storage is big object,
-  // Here we turn that into an array of objects
-
-  const arr = [{}];
-  const keys = Object.keys(modelObject);
-
-  for (let i = 0, n = keys.length; i < n; i++) {
-    const key = keys[i];
-    arr[i] = modelObject[key];
-    arr[i].name = key;
-  }
-
-  return arr;
-}
-
-function openModelFolderInFilesystem() {
-  //window.filesys.openModelFolder();
-}
-
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function SelectAModel({
