@@ -1,44 +1,15 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState } from 'react';
 
-import {
-  FormControl,
-  FormLabel,
-  Input,
-  Select,
-  Sheet,
-  Table,
-  Typography,
-  Option,
-  Chip,
-  Link,
-  Box,
-  Stack,
-  LinearProgress,
-  Modal,
-} from '@mui/joy';
+import { FormControl, FormLabel, Select, Typography, Option } from '@mui/joy';
 
-import { Link as ReactRouterLink, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
-import { ColorPaletteProp } from '@mui/joy/styles';
-
-import {
-  ArrowDownIcon,
-  CheckIcon,
-  CreativeCommonsIcon,
-  GraduationCapIcon,
-  SearchIcon,
-  StoreIcon,
-} from 'lucide-react';
-import SelectButton from '../SelectButton';
 import CurrentFoundationInfo from './CurrentFoundationInfo';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
-import { modelTypes, licenseTypes, filterByFilters } from '../../../lib/utils';
+import { modelTypes, licenseTypes } from '../../../lib/utils';
 import LocalModelsTable from 'renderer/components/ModelZoo/LocalModelsTable';
-
-type Order = 'asc' | 'desc';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -47,10 +18,6 @@ export default function SelectAModel({
   setFoundation = (model) => {},
   setAdaptor = (name: string) => {},
 }) {
-  const [order, setOrder] = useState<Order>('desc');
-  const [searchText, setSearchText] = useState('');
-  const [filters, setFilters] = useState({});
-
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Models.LocalList(),
     fetcher
@@ -119,155 +86,15 @@ export default function SelectAModel({
   return (
     <>
       <Typography level="h1" mb={2}>
-        Local Models
+        Select a Model
       </Typography>
-
-      <Box
-        className="SearchAndFilters-tabletUp"
-        sx={{
-          borderRadius: 'sm',
-          py: 2,
-          display: {
-            xs: 'flex',
-            sm: 'flex',
-          },
-          flexWrap: 'wrap',
-          gap: 1.5,
-          '& > *': {
-            minWidth: {
-              xs: '120px',
-              md: '160px',
-            },
-          },
-        }}
-      >
-        <FormControl sx={{ flex: 1 }} size="sm">
-          <FormLabel>&nbsp;</FormLabel>
-          <Input
-            placeholder="Search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            startDecorator={<SearchIcon />}
-          />
-        </FormControl>
-
-        {renderFilters()}
-      </Box>
-      <Sheet
-        className="OrderTableContainer"
-        variant="outlined"
-        sx={{
-          width: '100%',
-          borderRadius: 'md',
-          flex: 1,
-          overflow: 'auto',
-          minHeight: 0,
-        }}
-      >
-        <Table
-          aria-labelledby="tableTitle"
-          stickyHeader
-          hoverRow
-          sx={{
-            '--TableCell-headBackground': (theme) =>
-              theme.vars.palette.background.level1,
-            '--Table-headerUnderlineThickness': '1px',
-            '--TableRow-hoverBackground': (theme) =>
-              theme.vars.palette.background.level1,
-          }}
-        >
-          <thead>
-            <tr>
-              <th style={{ width: 140, padding: 12 }}>
-                <Link
-                  underline="none"
-                  color="primary"
-                  component="button"
-                  onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
-                  fontWeight="lg"
-                  endDecorator={<ArrowDownIcon />}
-                  sx={{
-                    '& svg': {
-                      transition: '0.2s',
-                      transform:
-                        order === 'desc' ? 'rotate(0deg)' : 'rotate(180deg)',
-                    },
-                  }}
-                >
-                  Name
-                </Link>
-              </th>
-              <th style={{ width: 120, padding: 12 }}>Params</th>
-              <th style={{ width: 120, padding: 12 }}>License</th>
-              {/* <th style={{ width: 220, padding: 12 }}>Type</th> */}
-              <th style={{ width: 120, padding: 12 }}>&nbsp;</th>
-              <th style={{ width: 160, padding: 12 }}> </th>
-            </tr>
-          </thead>
-          <tbody>
-            {data &&
-              filterByFilters(data, searchText, filters).map((row) => (
-                <tr key={row.rowid}>
-                  <td>
-                    <Typography ml={2} fontWeight="lg">
-                      {row.name}
-                    </Typography>
-                  </td>
-                  <td>{row?.json_data?.parameters}</td>
-                  <td>
-                    <Chip
-                      variant="soft"
-                      size="sm"
-                      startDecorator={
-                        {
-                          MIT: <CheckIcon />,
-                          Apache: <GraduationCapIcon />,
-                          CC: <CreativeCommonsIcon />,
-                        }[row.status]
-                      }
-                      color={
-                        {
-                          MIT: 'success',
-                          Apache: 'neutral',
-                          CC: 'success',
-                        }[row.status] as ColorPaletteProp
-                      }
-                    >
-                      {row?.json_data?.license}
-                    </Chip>
-                  </td>
-                  <td>{row.model_id}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <SelectButton
-                      setFoundation={foundationSetter}
-                      model={row}
-                      setAdaptor={setAdaptor}
-                    />
-                  </td>
-                </tr>
-              ))}
-            {data?.length === 0 && (
-              <tr>
-                <td colSpan={5}>
-                  <Typography
-                    level="body-lg"
-                    justifyContent="center"
-                    margin={5}
-                  >
-                    You do not have any models on your local machine. You can
-                    download a model by going to the{' '}
-                    <ReactRouterLink to="/zoo">
-                      <StoreIcon />
-                      Model Store
-                    </ReactRouterLink>
-                    .
-                  </Typography>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </Sheet>
+      <LocalModelsTable
+        models={data}
+        mutateModels={mutate}
+        setFoundation={setFoundation}
+        setAdaptor={setAdaptor}
+        pickAModelMode
+      />
     </>
   );
 }

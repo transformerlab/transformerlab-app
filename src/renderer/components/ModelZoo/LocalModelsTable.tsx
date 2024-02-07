@@ -175,7 +175,7 @@ const LocalModelsTable = ({
                           }}
                         />
                       ) : (
-                        '🤗'
+                        ''
                       )}{' '}
                       {row.name}
                     </Typography>
@@ -222,9 +222,9 @@ const LocalModelsTable = ({
   </Link> */}
                     {pickAModelMode === true ? (
                       <SelectButton
-                        setFoundation={foundationSetter}
-                        name={row.name}
+                        setFoundation={setFoundation}
                         setAdaptor={setAdaptor}
+                        model={row}
                       />
                     ) : (
                       <>
