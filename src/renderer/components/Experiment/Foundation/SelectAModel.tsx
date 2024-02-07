@@ -36,6 +36,7 @@ import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 import { modelTypes, licenseTypes, filterByFilters } from '../../../lib/utils';
+import LocalModelsTable from 'renderer/components/ModelZoo/LocalModelsTable';
 
 type Order = 'asc' | 'desc';
 
@@ -47,7 +48,6 @@ export default function SelectAModel({
   setAdaptor = (name: string) => {},
 }) {
   const [order, setOrder] = useState<Order>('desc');
-  const [open, setOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
 
@@ -59,13 +59,9 @@ export default function SelectAModel({
   const location = useLocation();
 
   function foundationSetter(model) {
-    setOpen(true);
-
     setFoundation(model);
 
     setAdaptor('');
-
-    setOpen(false);
   }
 
   const renderFilters = () => (
@@ -125,43 +121,7 @@ export default function SelectAModel({
       <Typography level="h1" mb={2}>
         Local Models
       </Typography>
-      <Modal
-        aria-labelledby="modal-title"
-        aria-describedby="modal-desc"
-        open={open}
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <Sheet
-          variant="outlined"
-          sx={{
-            maxWidth: 500,
-            borderRadius: 'md',
-            p: 3,
-            boxShadow: 'lg',
-          }}
-        >
-          <Typography
-            component="h2"
-            id="modal-title"
-            level="h4"
-            textColor="inherit"
-            fontWeight="lg"
-            mb={1}
-          >
-            Preparing Model
-          </Typography>
-          <Typography id="modal-desc" textColor="text.tertiary">
-            <Stack spacing={2} sx={{ flex: 1 }}>
-              Quantizing Parameters:
-              <LinearProgress />
-            </Stack>
-          </Typography>
-        </Sheet>
-      </Modal>
+
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
