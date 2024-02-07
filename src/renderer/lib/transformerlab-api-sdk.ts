@@ -152,10 +152,11 @@ export async function sendAndReceiveStreaming(
 
   // if invalid response then return now
   if (!response.ok) {
-    console.log("Completions API response:", response);
+    const response_json = await response.json();
+    console.log("Completions API response:", response_json);
     const error_text = `Completions API Error
       HTTP Error Code: ${response?.status}
-      ${response?.statusText}`
+      ${response_json?.message}`
     alert(error_text);
     return null;
   }
