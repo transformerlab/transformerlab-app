@@ -175,7 +175,7 @@ export default function Export({experimentInfo}) {
           <Table>
             <thead>
               <tr>
-                <th style={{ width: '160px' }}>Time</th>
+                <th style={{ width: '170px' }}>Time</th>
                 <th>Type</th>
                 <th style={{ width: '35%' }}>Output</th>
                 <th style={{ width: '120px' }}>Status</th>
