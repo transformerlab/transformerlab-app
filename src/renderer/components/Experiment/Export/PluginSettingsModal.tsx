@@ -146,14 +146,10 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             </Stack>
 
             <Typography level="h3">Plugin Parameters</Typography>
-            {/**
             <DynamicPluginForm
               experimentInfo={experimentInfo}
-              plugin={plugin}
+              plugin={plugin?.uniqueId}
             />
-            */}
-            <Typography level="h4">None</Typography>
-
           </Stack>
 
           <Stack spacing={2} direction="row" justifyContent="flex-end">
