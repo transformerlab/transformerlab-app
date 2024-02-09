@@ -73,7 +73,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
 
-            onSubmit(plugin.uniqueId, JSON.stringify(form_json));
+            onSubmit(plugin.uniqueId, plugin.export_architecture, JSON.stringify(form_json));
             onClose();
           }}
         >

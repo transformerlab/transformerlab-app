@@ -533,13 +533,15 @@ Endpoints.Experiment = {
     '/delete_eval_from_experiment' +
     '?eval_name=' +
     evalName,
-  RunExport: (id: string, pluginName: string, pluginParams: string) => {
+  RunExport: (id: string, pluginName: string, pluginArchitecture: string, pluginParams: string) => {
     return (
       API_URL() +
       'experiment/' +
       id +
       '/run_exporter_script?plugin_name=' +
       pluginName +
+      '&plugin_architecture=' +
+      pluginArchitecture +
       '&plugin_params=' +
       pluginParams
     );
