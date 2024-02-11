@@ -26,7 +26,7 @@ import {
   CircularProgress,
   Sheet,
 } from '@mui/joy';
-import DynamicPluginForm from './DynamicPluginForm';
+import DynamicPluginForm from '../DynamicPluginForm';
 
 const DefaultLoraConfig = {
   model_max_length: 2048,

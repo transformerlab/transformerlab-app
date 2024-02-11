@@ -41,7 +41,7 @@ import { Link } from 'react-router-dom';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import ResultsModal from './ResultsModal';
-import DynamicPluginForm from '../Train/DynamicPluginForm';
+import DynamicPluginForm from '../DynamicPluginForm';
 const parseTmTheme = require('monaco-themes').parseTmTheme;
 
 function listEvals(evalString) {
