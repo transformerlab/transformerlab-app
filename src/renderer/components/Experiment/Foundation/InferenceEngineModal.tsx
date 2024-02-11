@@ -77,21 +77,19 @@ export default function InferenceEngineModal({
             const engine = formData.get('inferenceEngine');
             const experimentId = experimentInfo?.id;
 
-            setInferenceSettings({
+            const newInferenceSettings = {
               ...inferenceSettings,
               ...formObject,
               inferenceEngine: engine,
-            });
+            };
+
+            setInferenceSettings(newInferenceSettings);
 
             await fetch(
               chatAPI.Endpoints.Experiment.UpdateConfig(
                 experimentId,
                 'inferenceParams',
-                JSON.stringify({
-                  ...inferenceSettings,
-                  ...formObject,
-                  inferenceEngine: engine,
-                })
+                JSON.stringify(newInferenceSettings)
               )
             );
             setShowModal(false);
