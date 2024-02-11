@@ -59,7 +59,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
           height: '100%',
         }}
       >
-        <Typography level="h2">Export Settings: {plugin.name}</Typography>
+        <Typography level="h2">Export Settings: {plugin?.name}</Typography>
         <form
           id="training-form"
           style={{
