@@ -61,8 +61,15 @@ export default function InferenceEngineModal({
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
+  // Call this on either cancel or save, but only after any changes are saved
+  // It resets the selected plugin to whatever the saved experiment settings are (overwriting whatever the user selected)
+  function closeModal() {
+    setShowModal(false);
+    setSelectedPlugin(inferenceSettings?.inferenceEngine);
+  }
+
   return (
-    <Modal open={showModal} onClose={() => setShowModal(false)}>
+    <Modal open={showModal} onClose={closeModal}>
       <ModalDialog>
         <DialogTitle>Inference Engine Settings</DialogTitle>
         <ModalClose variant="plain" sx={{ m: 1 }} />
@@ -92,7 +99,7 @@ export default function InferenceEngineModal({
                 JSON.stringify(newInferenceSettings)
               )
             );
-            setShowModal(false);
+            closeModal();
           }}
         >
           <Stack spacing={0}>
