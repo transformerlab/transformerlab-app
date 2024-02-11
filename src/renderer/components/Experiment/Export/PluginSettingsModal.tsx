@@ -118,19 +118,6 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
                       {plugin?.export_architecture}
                     </Typography>
                 </FormControl>
-
-                <input
-                    hidden
-                    value={plugin?.uniqueId}
-                    name="plugin_name"
-                    readOnly
-                />
-                <input
-                    hidden
-                    value={plugin?.export_architecture}
-                    name="plugin_architecture"
-                    readOnly
-                />
             </Stack>
 
             <Typography level="h3">Plugin Parameters</Typography>
