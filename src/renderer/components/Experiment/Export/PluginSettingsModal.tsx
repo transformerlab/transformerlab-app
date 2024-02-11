@@ -59,7 +59,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
           height: '100%',
         }}
       >
-        <Typography level="h2">Export Settings</Typography>
+        <Typography level="h2">Export Settings: {plugin.name}</Typography>
         <form
           id="training-form"
           style={{
@@ -109,7 +109,7 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             </Stack>
             <Stack direction="row" justifyContent="space-evenly" gap={2}>
                 <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Exporter plugin:</FormLabel>
+                    <FormLabel>Exporter plugin ID:</FormLabel>
                     <Typography variant="soft">{plugin?.uniqueId}</Typography>
                 </FormControl>
                 <FormControl sx={{ flex: 1 }}>
