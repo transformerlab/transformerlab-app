@@ -32,13 +32,10 @@ function getIcon(type: string) {
 }
 
 export default function PluginCard({
-  name,
-  description,
+  plugin,
   type,
   download,
-  slug,
   parentMutate,
-  plugin,
   experimentInfo = {},
 }) {
   return (
@@ -51,10 +48,10 @@ export default function PluginCard({
             sx={{ mb: 0.5 }}
             startDecorator={getIcon(type)}
           >
-            <b>{name}</b>
+            <b>{plugin.name}</b>
           </Typography>
           <Typography level="body-md" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
-            {slug}
+            {plugin.uniqueId}
           </Typography>
           <Typography level="title-sm" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
             <b>
@@ -70,7 +67,7 @@ export default function PluginCard({
               mb: 2,
             }}
           >
-            {description}
+            {plugin.description}
           </Typography>
         </div>
         <CardContent orientation="horizontal"></CardContent>
@@ -81,14 +78,14 @@ export default function PluginCard({
                 color="neutral"
                 variant="outlined"
                 onClick={async () => {
-                  await fetch(chatAPI.Endpoints.Dataset.Delete(name));
+                  await fetch(chatAPI.Endpoints.Dataset.Delete(plugin.name));
                   parentMutate();
                 }}
               >
                 <Trash2Icon />
               </Button> */}
               <Link
-                to={'/projects/plugins/' + slug}
+                to={'/projects/plugins/' + plugin.uniqueId}
                 style={{ textDecoration: 'none', color: 'white' }}
                 state={plugin}
               >
@@ -127,7 +124,7 @@ export default function PluginCard({
                 fetch(
                   chatAPI.Endpoints.Experiment.InstallPlugin(
                     experimentInfo?.id,
-                    slug
+                    plugin.uniqueId
                   )
                 );
               }}

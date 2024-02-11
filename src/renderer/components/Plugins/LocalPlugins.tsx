@@ -69,13 +69,10 @@ export default function LocalPlugins({ experimentInfo }) {
           {data.map((row) => (
             <Grid xs={4}>
               <PluginCard
-                key={row.id}
-                name={row.name}
-                description={row.description}
-                type={row['type']}
-                slug={row.uniqueId}
-                parentMutate={mutate}
                 plugin={row}
+                key={row.id}
+                type={row['type']}
+                parentMutate={mutate}
                 download={undefined}
                 experimentInfo={experimentInfo}
               />
