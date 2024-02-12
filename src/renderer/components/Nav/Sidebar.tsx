@@ -1,12 +1,9 @@
-import { useEffect } from 'react';
-
 import { useNavigate } from 'react-router-dom';
 
 import List from '@mui/joy/List';
 import Divider from '@mui/joy/Divider';
 
 import {
-  BabyIcon,
   CodeIcon,
   GraduationCapIcon,
   HelpCircleIcon,
@@ -15,32 +12,17 @@ import {
   SlidersIcon,
   TextSelectIcon,
   FileDigitIcon,
-  BlocksIcon,
   BoxesIcon,
   FileTextIcon,
   MonitorIcon,
-  TextIcon,
-  TerminalSquareIcon,
   FlaskConicalIcon,
-  LifeBuoyIcon,
   SettingsIcon,
-  ScrollTextIcon,
-  LibraryIcon,
   GithubIcon,
-  LinkIcon,
   ArrowRightFromLineIcon,
+  PlugIcon,
 } from 'lucide-react';
 
-import {
-  ButtonGroup,
-  IconButton,
-  ListItem,
-  ListItemButton,
-  ListItemContent,
-  ListItemDecorator,
-  Sheet,
-  Tooltip,
-} from '@mui/joy';
+import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
 
 import { useModelStatus } from 'renderer/lib/transformerlab-api-sdk';
 
@@ -48,7 +30,6 @@ import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
-import exp from 'constants';
 
 export default function Sidebar({
   experimentInfo,
@@ -176,7 +157,7 @@ export default function Sidebar({
         <SubNavItem
           title="Plugins"
           path="/projects/plugins"
-          icon={<ScrollTextIcon />}
+          icon={<PlugIcon />}
           disabled={!experimentInfo?.name}
           counter={null}
         />
