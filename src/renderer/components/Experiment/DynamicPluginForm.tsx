@@ -278,7 +278,6 @@ function CustomSelect<
               multiple ?
               (Array.isArray(selectedIndexes) && selectedIndexes.indexOf(i) !== -1) :
               (i == selectedIndexes);
-            console.log("Add " + String(label) + String(selected))
             return (
               <Option key={i} value={String(label)} disabled={disabled} selected={selected}>
                 {label}
