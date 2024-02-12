@@ -133,30 +133,27 @@ export async function sendAndReceiveStreaming(
 
   let response;
   try {
-    response = await fetch(
-      `${INFERENCE_SERVER_URL()}v1/chat/completions`,
-      {
-        method: 'POST', // or 'PUT'
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(data),
-      }
-    );
+    response = await fetch(`${INFERENCE_SERVER_URL()}v1/chat/completions`, {
+      method: 'POST', // or 'PUT'
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
   } catch (error) {
     console.log('Exception accessing completions API:', error);
-    alert("Network connection error");
+    alert('Network connection error');
     return null;
   }
 
   // if invalid response then return now
   if (!response.ok) {
     const response_json = await response.json();
-    console.log("Completions API response:", response_json);
+    console.log('Completions API response:', response_json);
     const error_text = `Completions API Error
       HTTP Error Code: ${response?.status}
-      ${response_json?.message}`
+      ${response_json?.message}`;
     alert(error_text);
     return null;
   }
@@ -292,13 +289,19 @@ export async function downloadModel(modelName: string) {
   return result;
 }
 
-export async function downloadModelFromGallery(galleryID: string) {
+export async function downloadModelFromGallery(
+  galleryID: string,
+  job_id = null
+) {
   console.log(encodeURIComponent(galleryID));
-  const response = await fetch(
-    `${API_URL()}model/download_model_from_gallery?gallery_id=${encodeURIComponent(
-      galleryID
-    )}`
-  );
+
+  let requestString = `${API_URL()}model/download_model_from_gallery?gallery_id=${encodeURIComponent(
+    galleryID
+  )}`;
+  if (job_id) {
+    requestString += `&job_id=${job_id}`;
+  }
+  const response = await fetch(requestString);
   const result = await response.json();
 
   return result;
@@ -533,7 +536,12 @@ Endpoints.Experiment = {
     '/delete_eval_from_experiment' +
     '?eval_name=' +
     evalName,
-  RunExport: (id: string, pluginName: string, pluginArchitecture: string, pluginParams: string) => {
+  RunExport: (
+    id: string,
+    pluginName: string,
+    pluginArchitecture: string,
+    pluginParams: string
+  ) => {
     return (
       API_URL() +
       'experiment/' +
@@ -644,6 +652,13 @@ Endpoints.Experiment = {
     'plugins/delete_plugin?pluginId=' +
     pluginId,
   GetOutputFromJob: (jobId: string) => API_URL() + `train/job/${jobId}/output`,
+};
+
+Endpoints.Jobs = {
+  List: () => API_URL() + 'train/jobs',
+  Get: (jobId: string) => API_URL() + 'train/job/' + jobId,
+  Create: (templateId: string, experimentId: string) =>
+    API_URL() + 'jobs/create',
 };
 
 export function GET_EXPERIMENTS_URL() {

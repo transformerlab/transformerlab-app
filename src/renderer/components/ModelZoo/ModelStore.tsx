@@ -15,6 +15,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  LinearProgress,
 } from '@mui/joy';
 import {
   ArrowDownIcon,
@@ -31,7 +32,12 @@ import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 
-import { modelTypes, licenseTypes, filterByFilters } from '../../lib/utils';
+import {
+  modelTypes,
+  licenseTypes,
+  filterByFilters,
+  clamp,
+} from '../../lib/utils';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -81,7 +87,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function ModelStore() {
   const [order, setOrder] = useState<Order>('desc');
   const [jobId, setJobId] = useState(null);
-  const [currentlyDownloading, setCurrentlyDownloading] = useState('');
+  const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
 
@@ -98,6 +104,14 @@ export default function ModelStore() {
     isLoading: localModelsIsLoading,
     mutate: localModelsMutate,
   } = useSWR(chatAPI.Endpoints.Models.LocalList(), fetcher);
+
+  const { data: modelDownloadProgress } = useSWR(
+    currentlyDownloading && jobId != '-1'
+      ? chatAPI.Endpoints.Jobs.Get(jobId)
+      : null,
+    fetcher,
+    { refreshInterval: 2000 }
+  );
 
   const renderFilters = () => (
     <>
@@ -284,47 +298,83 @@ export default function ModelStore() {
                   <td style={{ textAlign: 'right' }}>
                     <Button
                       size="sm"
-                      disabled={row.downloaded || currentlyDownloading !== ''}
+                      disabled={row.downloaded || currentlyDownloading !== null}
                       onClick={async () => {
                         setJobId(-1);
                         setCurrentlyDownloading(row.name);
                         try {
-                          const response = await downloadModelFromGallery(
-                            row.uniqueID
+                          let response = await fetch(
+                            chatAPI.Endpoints.Jobs.Create()
+                          );
+                          const newJobId = await response.json();
+                          setJobId(newJobId);
+                          response = await downloadModelFromGallery(
+                            row?.uniqueID,
+                            newJobId
                           );
                           if (response?.status == 'error') {
-                            setCurrentlyDownloading('');
+                            setCurrentlyDownloading(null);
                             setJobId(null);
                             return alert(
                               'Failed to download: this model may require a huggingface access token (in settings).'
                             );
                           }
                           const job_id = response?.job_id;
-                          setCurrentlyDownloading('');
+                          setCurrentlyDownloading(null);
                           modelGalleryMutate();
-                          setJobId(job_id);
                         } catch (e) {
-                          setCurrentlyDownloading('');
+                          setCurrentlyDownloading(null);
                           setJobId(null);
+                          console.log(e);
                           return alert('Failed to download');
                         }
                       }}
                       startDecorator={
                         jobId && currentlyDownloading == row.name ? (
-                          <CircularProgress />
+                          <>
+                            <LinearProgress
+                              determinate
+                              value={clamp(
+                                modelDownloadProgress?.progress,
+                                0,
+                                100
+                              )}
+                              sx={{ width: '100px' }}
+                              variant="solid"
+                            />
+                            &nbsp;&nbsp;
+                            {modelDownloadProgress?.progress !== -1 && (
+                              <>
+                                {clamp(
+                                  Number.parseFloat(
+                                    modelDownloadProgress?.progress
+                                  ),
+                                  0,
+                                  100
+                                ).toFixed(0)}
+                                %
+                              </>
+                            )}
+                          </>
                         ) : (
                           ''
                         )
                       }
                       endDecorator={
-                        row.downloaded ? (
+                        jobId && currentlyDownloading == row.name ? (
+                          ''
+                        ) : row.downloaded ? (
                           <CheckIcon size="18px" />
                         ) : (
                           <DownloadIcon size="18px" />
                         )
                       }
                     >
-                      Download{row.downloaded ? 'ed' : ''}
+                      {jobId && currentlyDownloading == row.name ? (
+                        ''
+                      ) : (
+                        <>Download{row.downloaded ? 'ed' : ''}</>
+                      )}
                     </Button>
                   </td>
                 </tr>
