@@ -224,6 +224,9 @@ function CustomSelect<
     multiple
   );
 
+  // set a default value for the field if it's not multi-select and value is set
+  const defaultValue = (!isEmpty && !multiple) ? value : emptyValue
+
   return (
     <>
       {/* <Input
@@ -263,13 +266,21 @@ function CustomSelect<
         required={required}
         disabled={disabled}
         placeholder={placeholder}
+        value={defaultValue}
       >
         {Array.isArray(enumOptions) &&
           enumOptions.map(({ value, label }, i: number) => {
             const disabled: boolean =
               Array.isArray(enumDisabled) && enumDisabled.indexOf(value) !== -1;
+
+            // selectedIndexes is an array if multiple is set, or an integer (or undefined) if not multiple
+            const selected: boolean =
+              multiple ?
+              (Array.isArray(selectedIndexes) && selectedIndexes.indexOf(i) !== -1) :
+              (i == selectedIndexes);
+            console.log("Add " + String(label) + String(selected))
             return (
-              <Option key={i} value={String(label)} disabled={disabled}>
+              <Option key={i} value={String(label)} disabled={disabled} selected={selected}>
                 {label}
               </Option>
             );
