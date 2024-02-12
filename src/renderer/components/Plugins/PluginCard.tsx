@@ -132,7 +132,7 @@ export default function PluginCard({
             >
               {plugin?.installed == true ? (
                 <>
-                  Renstall &nbsp;
+                  Reinstall &nbsp;
                   <RotateCcwIcon size={16} />
                 </>
               ) : (
