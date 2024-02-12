@@ -36,15 +36,12 @@ export default function PluginGallery({ experimentInfo }) {
         {data.map((row) => (
           <Grid xs={4}>
             <PluginCard
-              name={row.name}
+              plugin={row}
               key={row.id}
-              description={row.description}
               type={row.type}
-              slug={row.uniqueId}
               download
               experimentInfo={experimentInfo}
               parentMutate={undefined}
-              plugin={undefined}
             />
           </Grid>
         ))}

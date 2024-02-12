@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 
-import DynamicPluginForm from '../Train/DynamicPluginForm';
+import DynamicPluginForm from '../DynamicPluginForm';
 
 const DefaultPluginConfig = {
   model_quant_bits: 4,

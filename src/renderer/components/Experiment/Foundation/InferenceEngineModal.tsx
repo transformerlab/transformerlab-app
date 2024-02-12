@@ -12,7 +12,7 @@ import {
   Button,
 } from '@mui/joy';
 import React, { useState } from 'react';
-import DynamicPluginForm from '../Train/DynamicPluginForm';
+import DynamicPluginForm from '../DynamicPluginForm';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
