@@ -8,6 +8,7 @@ import {
   GraduationCapIcon,
   HelpCircleIcon,
   RocketIcon,
+  RotateCcwIcon,
 } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -115,7 +116,7 @@ export default function PluginCard({
           )}
           {download && (
             <Button
-              variant="solid"
+              variant={plugin?.installed ? 'soft' : 'solid'}
               size="sm"
               color="primary"
               aria-label="Download"
@@ -129,8 +130,17 @@ export default function PluginCard({
                 );
               }}
             >
-              Install &nbsp;
-              <DownloadIcon size={16} />
+              {plugin?.installed == true ? (
+                <>
+                  Renstall &nbsp;
+                  <RotateCcwIcon size={16} />
+                </>
+              ) : (
+                <>
+                  Install &nbsp;
+                  <DownloadIcon size={16} />
+                </>
+              )}
             </Button>
           )}
         </CardContent>
