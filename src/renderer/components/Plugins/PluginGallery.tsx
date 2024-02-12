@@ -8,7 +8,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function PluginGallery({ experimentInfo }) {
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Plugins.Gallery(),
     fetcher
   );
@@ -41,7 +41,7 @@ export default function PluginGallery({ experimentInfo }) {
               type={row.type}
               download
               experimentInfo={experimentInfo}
-              parentMutate={undefined}
+              parentMutate={mutate}
             />
           </Grid>
         ))}

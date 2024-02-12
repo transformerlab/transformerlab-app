@@ -12,8 +12,9 @@ import {
 } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { Chip } from '@mui/joy';
+import { Chip, CircularProgress } from '@mui/joy';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -39,6 +40,8 @@ export default function PluginCard({
   parentMutate,
   experimentInfo = {},
 }) {
+  const [installing, setInstalling] = useState(null);
+
   return (
     <>
       <Card variant="outlined" sx={{}}>
@@ -121,15 +124,24 @@ export default function PluginCard({
               color="primary"
               aria-label="Download"
               sx={{ ml: 'auto' }}
-              onClick={() => {
-                fetch(
+              onClick={async () => {
+                setInstalling(plugin.uniqueId);
+                await fetch(
                   chatAPI.Endpoints.Experiment.InstallPlugin(
                     experimentInfo?.id,
                     plugin.uniqueId
                   )
                 );
+                setInstalling(null);
+                parentMutate();
               }}
             >
+              {installing == plugin.uniqueId && (
+                <>
+                  <CircularProgress />
+                  &nbsp;
+                </>
+              )}
               {plugin?.installed == true ? (
                 <>
                   Reinstall &nbsp;
