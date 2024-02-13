@@ -308,9 +308,9 @@ function CustomFieldTemplate(props: FieldTemplateProps) {
           {label}
           {required ? '*' : null}
         </FormLabel>
-        <FormHelperText>{help}</FormHelperText>
         {description}
         {children}
+        <small>{help}</small>
         {errors}
       </FormControl>
     </div>
