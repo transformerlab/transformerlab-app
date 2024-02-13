@@ -32,6 +32,7 @@ export default function LocalModels({
 }) {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [open, setOpen] = useState(false);
+  const [downloadingModel, setDownloadingModel] = useState(null);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Models.LocalList(),
@@ -154,22 +155,24 @@ export default function LocalModels({
                       const model = document.getElementsByName(
                         'download-model-name'
                       )[0].value;
-                      await chatAPI.downloadModel(model);
+                      setDownloadingModel(model);
+
+                      // Try downloading the model
+                      const response = await chatAPI.downloadModel(model);
+                      if (response?.status == 'error') {
+                        alert('Download failed:\n' + response.message);
+                      }
+
+                      setDownloadingModel(null);
                     }}
                   >
                     Download 🤗 Model
                   </Button>
                 }
                 sx={{ width: '500px' }}
+                disabled={downloadingModel}
               />
             </FormControl>
-            {/* <Button
-              size="sm"
-              sx={{ height: '30px' }}
-              endDecorator={<PlusIcon />}
-            >
-              New
-            </Button> */}
           </div>
         )}
       </Box>
