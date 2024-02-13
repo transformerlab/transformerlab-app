@@ -279,19 +279,22 @@ export async function getAvailableModels() {
 
 export async function downloadModel(modelName: string) {
   console.log(encodeURIComponent(modelName));
+  let result = {};
   try {
     const response = await fetch(
       `${API_URL()}model/download_from_huggingface?model=${encodeURIComponent(
         modelName
       )}`
     );
+    result = await response.json();
+
+  // Error during fetch
   } catch (error) {
     return {
       status: "error",
       message: "Fetch exception" + error
     }
   }
-  const result = await response.json();
 
   return result;
 }
