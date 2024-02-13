@@ -11,6 +11,7 @@ import {
   Stack,
   LinearProgress,
   Modal,
+  CircularProgress,
 } from '@mui/joy';
 
 import { useLocation } from 'react-router-dom';
@@ -165,8 +166,18 @@ export default function LocalModels({
 
                       setDownloadingModel(null);
                     }}
+                startDecorator={
+                  downloadingModel ? (
+                    <CircularProgress size="sm" thickness={2} />
+                  ) : (
+                    ""
+                  )}
                   >
-                    Download 🤗 Model
+                  {downloadingModel ? (
+                    "Downloading"
+                  ) : (
+                    "Download 🤗 Model"
+                  )}
                   </Button>
                 }
                 sx={{ width: '500px' }}
