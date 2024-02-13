@@ -278,7 +278,6 @@ export async function getAvailableModels() {
 }
 
 export async function downloadModel(modelName: string) {
-  console.log(encodeURIComponent(modelName));
   let result = {};
   try {
     const response = await fetch(
