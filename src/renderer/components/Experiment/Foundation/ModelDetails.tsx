@@ -63,7 +63,15 @@ export default function ModelDetails({
   const huggingfaceId = experimentInfo?.config?.foundation;
 
   useMemo(() => {
-    if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
+    console.log(experimentInfo);
+    // This is a local model
+    if (experimentInfo?.config?.foundation_filename) {
+      // TODO: Load in model details from the filesystem
+      setHugggingfaceData({});
+      setModelDetailsData({});
+
+    // Try to see if this is a HuggingFace model
+    } else if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
       fetch(`https://huggingface.co/${huggingfaceId}/resolve/main/config.json`)
         .then((res) => res.json())
         .then((data) => setHugggingfaceData(data))
