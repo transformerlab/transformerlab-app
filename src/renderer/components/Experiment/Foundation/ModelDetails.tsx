@@ -63,12 +63,16 @@ export default function ModelDetails({
   const huggingfaceId = experimentInfo?.config?.foundation;
 
   useMemo(() => {
-    console.log(experimentInfo);
+
     // This is a local model
     if (experimentInfo?.config?.foundation_filename) {
       // TODO: Load in model details from the filesystem
+      fetch(chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(huggingfaceId))
+        .then((res) => res.json())
+        .then((data) => setModelDetailsData(data))
+        .catch((error) => console.log(error));
+
       setHugggingfaceData({});
-      setModelDetailsData({});
 
     // Try to see if this is a HuggingFace model
     } else if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
@@ -86,7 +90,7 @@ export default function ModelDetails({
       setHugggingfaceData({});
       setModelDetailsData({});
     }
-  }, [huggingfaceId]);
+  }, [experimentInfo]);
 
   return (
     <>
