@@ -66,7 +66,8 @@ export default function ModelDetails({
     if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
       fetch(`https://huggingface.co/${huggingfaceId}/resolve/main/config.json`)
         .then((res) => res.json())
-        .then((data) => setHugggingfaceData(data));
+        .then((data) => setHugggingfaceData(data))
+        .catch((error) => console.log(error));
 
       fetch(chatAPI.Endpoints.Models.ModelDetailsFromGallery(huggingfaceId))
         .then((res) => res.json())
