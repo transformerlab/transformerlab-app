@@ -153,18 +153,22 @@ export default function LocalModels({
                 endDecorator={
                   <Button
                     onClick={async (e) => {
-                      const model = document.getElementsByName(
-                        'download-model-name'
-                      )[0].value;
-                      setDownloadingModel(model);
+                      const model = document.getElementsByName('download-model-name')[0].value;
 
-                      // Try downloading the model
-                      const response = await chatAPI.downloadModel(model);
-                      if (response?.status == 'error') {
-                        alert('Download failed!\n' + response.message);
+                      // only download if valid model is entered
+                      if (model) {
+                        // this triggers UI changes while download is in progress
+                        setDownloadingModel(model);
+
+                        // Try downloading the model
+                        const response = await chatAPI.downloadModel(model);
+                        if (response?.status == 'error') {
+                          alert('Download failed!\n' + response.message);
+                        }
+
+                        // download complete
+                        setDownloadingModel(null);
                       }
-
-                      setDownloadingModel(null);
                     }}
                 startDecorator={
                   downloadingModel ? (
