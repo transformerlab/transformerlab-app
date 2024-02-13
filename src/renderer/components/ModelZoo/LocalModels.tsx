@@ -161,7 +161,7 @@ export default function LocalModels({
                       // Try downloading the model
                       const response = await chatAPI.downloadModel(model);
                       if (response?.status == 'error') {
-                        alert('Download failed:\n' + response.message);
+                        alert('Download failed!\n' + response.message);
                       }
 
                       setDownloadingModel(null);
