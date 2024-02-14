@@ -37,6 +37,7 @@ import {
   licenseTypes,
   filterByFilters,
   clamp,
+  formatBytes,
 } from '../../lib/utils';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -229,7 +230,7 @@ export default function ModelStore() {
               <th style={{ width: 80, padding: 12 }}>License</th>
               <th style={{ width: 50, padding: 12 }}>Engine</th>
               <th style={{ width: 200, padding: 12 }}>Description</th>
-
+              <th style={{ width: 30, padding: 12 }}>Size</th>
               <th style={{ width: 80, padding: 12 }}> </th>
             </tr>
           </thead>
@@ -295,6 +296,11 @@ export default function ModelStore() {
                     </div>
                   </td>
 
+                  <td>
+                    {row?.size_of_model_in_mb &&
+                      formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                  </td>
+
                   <td style={{ textAlign: 'right' }}>
                     <Button
                       size="sm"
@@ -332,16 +338,23 @@ export default function ModelStore() {
                       startDecorator={
                         jobId && currentlyDownloading == row.name ? (
                           <>
-                            <LinearProgress
-                              determinate
-                              value={clamp(
-                                modelDownloadProgress?.progress,
-                                0,
-                                100
-                              )}
-                              sx={{ width: '100px' }}
-                              variant="solid"
-                            />
+                            {row?.size_of_model_in_mb ? (
+                              <LinearProgress
+                                determinate
+                                value={clamp(
+                                  modelDownloadProgress?.progress,
+                                  0,
+                                  100
+                                )}
+                                sx={{ width: '100px' }}
+                                variant="solid"
+                              />
+                            ) : (
+                              <LinearProgress
+                                sx={{ width: '100px' }}
+                                variant="solid"
+                              />
+                            )}
                             &nbsp;&nbsp;
                             {modelDownloadProgress?.progress !== -1 && (
                               <>
