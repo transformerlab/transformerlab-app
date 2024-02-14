@@ -161,7 +161,7 @@ export default function LocalModels({
                         setDownloadingModel(model);
 
                         // Try downloading the model
-                        const response = await chatAPI.downloadModel(model);
+                        const response = await chatAPI.downloadModelFromHuggingFace(model);
                         if (response?.status == 'error') {
                           alert('Download failed!\n' + response.message);
                         }

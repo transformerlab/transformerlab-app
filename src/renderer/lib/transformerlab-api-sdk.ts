@@ -277,7 +277,7 @@ export async function getAvailableModels() {
   return result;
 }
 
-export async function downloadModel(modelName: string) {
+export async function downloadModelFromHuggingFace(modelName: string) {
   let result = {};
   try {
     const response = await fetch(
@@ -291,7 +291,7 @@ export async function downloadModel(modelName: string) {
   } catch (error) {
     return {
       status: "error",
-      message: "Fetch exception" + error
+      message: "Fetch exception: " + error
     }
   }
 
