@@ -40,6 +40,14 @@ import {
   formatBytes,
 } from '../../lib/utils';
 
+function tryJSON(str) {
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    return null;
+  }
+}
+
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
     return -1;
@@ -339,33 +347,46 @@ export default function ModelStore() {
                         jobId && currentlyDownloading == row.name ? (
                           <>
                             {row?.size_of_model_in_mb ? (
-                              <LinearProgress
-                                determinate
-                                value={clamp(
-                                  modelDownloadProgress?.progress,
-                                  0,
-                                  100
-                                )}
-                                sx={{ width: '100px' }}
-                                variant="solid"
-                              />
-                            ) : (
-                              <LinearProgress
-                                sx={{ width: '100px' }}
-                                variant="solid"
-                              />
-                            )}
-                            &nbsp;&nbsp;
-                            {modelDownloadProgress?.progress !== -1 && (
                               <>
-                                {clamp(
-                                  Number.parseFloat(
-                                    modelDownloadProgress?.progress
-                                  ),
-                                  0,
-                                  100
-                                ).toFixed(0)}
-                                %
+                                <LinearProgress
+                                  determinate
+                                  value={clamp(
+                                    modelDownloadProgress?.progress,
+                                    0,
+                                    100
+                                  )}
+                                  sx={{ width: '100px' }}
+                                  variant="solid"
+                                />
+                                &nbsp;&nbsp;
+                                {modelDownloadProgress?.progress !== -1 && (
+                                  <>
+                                    {clamp(
+                                      Number.parseFloat(
+                                        modelDownloadProgress?.progress
+                                      ),
+                                      0,
+                                      100
+                                    ).toFixed(0)}
+                                    %
+                                  </>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <LinearProgress
+                                  sx={{ width: '40px' }}
+                                  variant="solid"
+                                />
+                                &nbsp;&nbsp;
+                                {formatBytes(
+                                  tryJSON(modelDownloadProgress?.job_data)
+                                    ?.downloaded *
+                                    1024 *
+                                    1024
+                                )}
+                                {/* {modelDownloadProgress?.job_data} */}
+                                <ArrowDownIcon size="18px" />
                               </>
                             )}
                           </>
