@@ -133,6 +133,11 @@ export default function RunModelButton({
                 inferenceSettings,
                 experimentInfo?.id
               );
+              if (response?.status == 'error') {
+                alert(response?.message);
+                setJobId(null);
+                return;
+              }
               const job_id = response?.job_id;
               setJobId(job_id);
               mutate();
