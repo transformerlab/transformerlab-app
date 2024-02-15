@@ -36,12 +36,15 @@ export function checkLocalServerVersion() {
 
 export function startLocalServer() {
   const mainFile = path.join(transformerLabDir, 'run.sh');
+  const logFilePath = path.join(transformerLabDir, 'local_server.log');
+  const out = fs.openSync(logFilePath, 'a');
+  const err = fs.openSync(logFilePath, 'a');
 
   const options = {
     cwd: transformerLabDir,
     // The following two options allow it to keep running after parent is closed
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', out, err],
     shell: true,
   };
   console.log('Starting local server at', mainFile);
