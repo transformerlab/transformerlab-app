@@ -141,12 +141,14 @@ function CheckCurrentVersion({ activeStep, setActiveStep }) {
           Your version of Transformer Lab API is {version}
         </Typography>
         <Typography level="body-sm">
-          Latest Github Version is {release}
+          Latest release in Github is {release}
         </Typography>
         {version == release && <Chip color="success">Success!</Chip>}
-        {installStatus === 'pending' && <CircularProgress color="primary" />}
+        {(installStatus === 'pending' || release == '') && (
+          <CircularProgress color="primary" />
+        )}
 
-        {activeStep == 2 && (
+        {activeStep == 2 && release != '' && (
           <ButtonGroup variant="plain" spacing={1}>
             <Button
               variant="solid"
