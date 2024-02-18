@@ -1,4 +1,4 @@
-import { Avatar, LinearProgress } from '@mui/joy';
+import { Avatar, LinearProgress, Typography } from '@mui/joy';
 import {
   BotIcon,
   ClipboardCopyIcon,
@@ -24,6 +24,7 @@ function convertNewLines(text) {
 
 export default function ChatBubble({
   t,
+  chat,
   chatId,
   pos,
   isThinking = false,
@@ -168,6 +169,16 @@ export default function ChatBubble({
           height: '0px',
         }}
       >
+        {chat?.numberOfTokens && (
+          <span className="hoverIcon showOnChatBubbleHover">
+            <Typography level="body-sm">
+              {chat?.numberOfTokens} Tokens: TPS:{' '}
+              {parseFloat(chat?.tokensPerSecond).toFixed(1)} TTFS:{' '}
+              {parseFloat(chat?.timeToFirstToken).toFixed(2)}ms
+            </Typography>
+          </span>
+        )}
+        &nbsp;&nbsp;
         <span>
           <ClipboardCopyIcon
             color={

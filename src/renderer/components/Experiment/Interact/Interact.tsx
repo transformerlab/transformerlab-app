@@ -210,9 +210,28 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
     setIsThinking(false);
     // Add Response to Chat Array:
 
+    let numberOfTokens = await chatAPI.countTokens(currentModel, [
+      result?.text,
+    ]);
+    numberOfTokens = numberOfTokens?.tokenCount;
+    console.log('Number of Tokens: ', numberOfTokens);
+    console.log(result);
+    const timeToFirstToken = result?.timeToFirstToken;
+    const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
+
     newChats = [...newChats, { t: result?.text, user: 'bot', key: result?.id }];
 
-    setChats((c) => [...c, { t: result?.text, user: 'bot', key: result?.id }]);
+    setChats((c) => [
+      ...c,
+      {
+        t: result?.text,
+        user: 'bot',
+        key: result?.id,
+        numberOfTokens: numberOfTokens,
+        timeToFirstToken: timeToFirstToken,
+        tokensPerSecond: tokensPerSecond,
+      },
+    ]);
 
     var cid = conversationId;
     const experimentId = experimentInfo?.id;

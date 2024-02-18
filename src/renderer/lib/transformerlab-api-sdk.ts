@@ -164,11 +164,18 @@ export async function sendAndReceiveStreaming(
 
   let finalResult = '';
 
+  var start = performance.now();
+  var firstTokenTime = null;
+  var end = start;
+
   // Reader loop
   try {
     while (true) {
       // eslint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
+
+      if (firstTokenTime == null) firstTokenTime = performance.now();
+
       if (done) {
         break;
       }
@@ -210,9 +217,19 @@ export async function sendAndReceiveStreaming(
     console.log('There was an error:', error);
   }
 
+  // Stop clock:
+  end = performance.now();
+  var time = end - firstTokenTime;
+  var timeToFirstToken = firstTokenTime - start;
+
   if (result) {
     if (resultText) resultText.innerText = '';
-    return { id: id, text: result };
+    return {
+      id: id,
+      text: result,
+      time: time,
+      timeToFirstToken: timeToFirstToken,
+    };
   }
   return null;
 }
@@ -287,12 +304,12 @@ export async function downloadModelFromHuggingFace(modelName: string) {
     );
     result = await response.json();
 
-  // Error during fetch
+    // Error during fetch
   } catch (error) {
     return {
-      status: "error",
-      message: "Fetch exception: " + error
-    }
+      status: 'error',
+      message: 'Fetch exception: ' + error,
+    };
   }
 
   return result;

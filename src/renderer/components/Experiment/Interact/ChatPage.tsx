@@ -60,7 +60,6 @@ export default function ChatPage({
           <FormLabel sx={{ justifyContent: 'space-between', width: '100%' }}>
             <span>System message</span>
             <span>
-              {' '}
               {templateTextIsEditable ? (
                 <Button
                   variant="soft"
@@ -123,6 +122,7 @@ export default function ChatPage({
           {chats.map((chat) => (
             <ChatBubble
               t={chat.t}
+              chat={chat}
               chatId={chat.key}
               pos={chat.user}
               key={chat.key}
