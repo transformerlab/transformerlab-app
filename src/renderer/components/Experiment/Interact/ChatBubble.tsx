@@ -1,4 +1,4 @@
-import { Avatar, LinearProgress, Typography } from '@mui/joy';
+import { Avatar, LinearProgress, Tooltip, Typography } from '@mui/joy';
 import {
   BotIcon,
   ClipboardCopyIcon,
@@ -20,6 +20,11 @@ function convertNewLines(text) {
       </p>
     );
   });
+}
+
+function displayFloatStringWithPrecision(floatString, precision) {
+  if (floatString === null) return '';
+  return parseFloat(floatString).toFixed(precision);
 }
 
 export default function ChatBubble({
@@ -172,9 +177,15 @@ export default function ChatBubble({
         {chat?.numberOfTokens && (
           <span className="hoverIcon showOnChatBubbleHover">
             <Typography level="body-sm">
-              {chat?.numberOfTokens} Tokens: TPS:{' '}
-              {parseFloat(chat?.tokensPerSecond).toFixed(1)} TTFS:{' '}
-              {parseFloat(chat?.timeToFirstToken).toFixed(2)}ms
+              tokens: {chat?.numberOfTokens} -{' '}
+              <Tooltip title="Tokens per second" variant="solid">
+                <a>tok/s:</a>
+              </Tooltip>{' '}
+              {displayFloatStringWithPrecision(chat?.tokensPerSecond, 1)} -{' '}
+              <Tooltip title="Time to first token" variant="solid">
+                <a>TTFT:</a>
+              </Tooltip>{' '}
+              {displayFloatStringWithPrecision(chat?.timeToFirstToken, 2)}ms
             </Typography>
           </span>
         )}
