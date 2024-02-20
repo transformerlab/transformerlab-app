@@ -37,7 +37,7 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
       <Button
         variant="plain"
         disabled
-        sx={{ display: models?.length > 0 ? 'none' : 'block' }}
+        sx={{ display: models?.length > 0 ? 'none' : 'flex' }}
       >
         <StopCircleIcon style={{ color: 'transparent' }} />
       </Button>
@@ -48,7 +48,7 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
         color="neutral"
         startDecorator={null}
         variant="plain"
-        sx={{ display: models?.length > 0 ? 'block' : 'none' }}
+        sx={{ display: models?.length > 0 ? 'flex' : 'none' }}
       >
         {models?.length == 0 ? (
           <CircularProgress color="warning" />
