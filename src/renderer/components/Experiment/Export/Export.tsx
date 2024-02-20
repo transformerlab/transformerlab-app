@@ -17,7 +17,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Export({experimentInfo}) {
   const [runningPlugin, setRunningPlugin] = useState(null);
-  const [viewExportDetails, setViewExportDetails] = useState(-1);
+  const [exportDetailsJobId, setExportDetailsJobId] = useState(-1);
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
   // call plugins list endpoint and filter based on type="exporter" 
@@ -77,8 +77,8 @@ export default function Export({experimentInfo}) {
     <>
 
     <ExportDetailsModal
-      jobId={viewExportDetails}
-      setJobId={setViewExportDetails}
+      jobId={exportDetailsJobId}
+      setJobId={setExportDetailsJobId}
     />
 
     <PluginSettingsModal
@@ -204,7 +204,7 @@ export default function Export({experimentInfo}) {
                         size="sm"
                         disabled={!(job.status === "COMPLETE" || job.status === "FAILED")}
                         onClick={() => {
-                          setViewExportDetails(job.id)
+                          setExportDetailsJobId(job.id)
                         }}
                       >
                         Details
