@@ -63,7 +63,7 @@ export default function Welcome() {
             alignItems="flex-start"
             spacing={2}
           >
-            <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
+            {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
               Interact 💬 with a model from the gallery
             </Button>
             <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
@@ -74,7 +74,7 @@ export default function Welcome() {
             </Button>
             <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
               Fine tune 🎵 an existing model
-            </Button>
+            </Button> */}
           </Stack>
         </div>
       </div>
