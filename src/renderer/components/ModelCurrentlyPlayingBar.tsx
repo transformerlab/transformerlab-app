@@ -87,10 +87,9 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
             margin: 'auto',
           }}
         >
-          {experimentInfo?.config == null &&
-            models?.length == 0 &&
-            'Select an Experiment'}
-          {models?.[0]?.id
+          {experimentInfo?.config == null
+            ? 'Select an Experiment'
+            : models?.[0]?.id
             ? models?.[0]?.id
             : experimentInfo?.config?.foundation
             ? experimentInfo?.config?.foundation
