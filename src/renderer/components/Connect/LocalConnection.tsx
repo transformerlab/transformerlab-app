@@ -255,9 +255,10 @@ function RunServer({ activeStep, setActiveStep }) {
                         await window.electron.ipcRenderer.invoke(
                           'server:startLocalServer'
                         );
-                      alert(JSON.stringify(start_process));
 
                       if (start_process?.status == 'error') {
+                        const response_text = "Failed to start server: \n" + start_process?.message;
+                        alert(response_text);
                         setThinking(false);
                         return;
                       }
