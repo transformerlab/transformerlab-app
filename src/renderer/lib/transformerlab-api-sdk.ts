@@ -860,9 +860,9 @@ export async function activateWorker(
   let response;
 
   let model = modelName;
-  if (adaptorName !== '') {
-    model = `workspace/adaptors/${modelName}/${adaptorName}`;
-  }
+  // if (adaptorName !== '') {
+  //   model = `workspace/adaptors/${modelName}/${adaptorName}`;
+  // }
 
   if (modelFilename !== null) {
     model = `${model}&model_filename=${modelFilename}`;
@@ -875,6 +875,8 @@ export async function activateWorker(
       API_URL() +
         'server/worker_start?model_name=' +
         model +
+        '&adaptor=' +
+        adaptorName +
         '&engine=' +
         engine +
         '&experiment_id=' +
