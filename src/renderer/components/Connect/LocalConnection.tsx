@@ -444,7 +444,7 @@ function InstallStepper({ setServer }) {
         {/* Active Step: {activeStep} */}
         <InstallStep
           thisStep={1}
-          title="Check if Server is Installed at ~./transformerlab/"
+          title="Check if Server is Installed at ~/.transformerlab/"
           activeStep={activeStep}
           setActiveStep={setActiveStep}
         >
