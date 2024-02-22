@@ -131,7 +131,11 @@ export default function Export({experimentInfo}) {
                           (runningPlugin)  ? (
                             <CircularProgress size="sm" thickness={2} />
                           ) : (
-                            <PlugIcon />
+                            (!isModelValidArchitecture(row.model_architectures)) ? (
+                              " "
+                            ) : (
+                              <PlugIcon />
+                            )
                           )
                         }
                         color="success"
@@ -150,7 +154,14 @@ export default function Export({experimentInfo}) {
                         {(runningPlugin) ? (
                             "Exporting..."
                         ) : (
-                            "Select Plugin"
+                            (!isModelValidArchitecture(row.model_architectures)) ? (
+                              "Not supported for this model architecture"
+
+                            ) : (
+                              "Select Plugin"
+
+                            )
+
                         )}
                       </Button>
                     </td>
