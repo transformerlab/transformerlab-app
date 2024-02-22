@@ -71,15 +71,10 @@ export function startLocalServer() {
 
       if (code === 0) {
         resolve({ status: 'success', code: code });
-      } else if (code === 127) {
-        resolve({
-          status: 'error', code: code ,
-          message: 'Missing dependencies in API.\n \
-          You may be able to fix by running ~/.transformerlab/src/init.sh'});
       } else {
         resolve({
           status: 'error', code: code ,
-          message: 'Possible conflict on port 8000.'
+          message: 'May be fixed by running ~/.transformerlab/src/init.sh'
         });
       }
     });
