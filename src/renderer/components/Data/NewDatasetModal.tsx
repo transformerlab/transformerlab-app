@@ -75,11 +75,14 @@ export default function DatasetDetailsModal({ open, setOpen }) {
                     chatAPI.Endpoints.Dataset.Create(name)
                   );
                   const data = await response.json();
-
-                  // Use the returned dataset_id because it has been sanitized
-                  setNewDatasetName(data.dataset_id);
-                  setShowUploadDialog(true);
-                  setOpen(false);
+                  if (data.status == "error") {
+                    alert(data.message);
+                  } else {
+                    // Use the returned dataset_id because it has been sanitized
+                    setNewDatasetName(data.dataset_id);
+                    setShowUploadDialog(true);
+                    setOpen(false);
+                  }
                 }}
               >
                 <Input placeholder="Dataset Name" name="dataset-name" />
