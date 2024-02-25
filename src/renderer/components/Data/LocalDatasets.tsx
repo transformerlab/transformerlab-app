@@ -10,6 +10,7 @@ import {
   Input,
   LinearProgress,
   Sheet,
+  CircularProgress
 } from '@mui/joy';
 import { PlusIcon } from 'lucide-react';
 import DatasetCard from './DatasetCard';
@@ -21,6 +22,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function LocalDatasets() {
   const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
+  const [downloadingDataset, setDownloadingDataset] = useState(null);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.LocalList(),
@@ -82,27 +84,46 @@ export default function LocalDatasets() {
       >
         <>
           <FormControl>
-            {/* <FormLabel>Load 🤗 Hugging Face Model</FormLabel> */}
             <Input
               placeholder="Open-Orca/OpenOrca"
-              endDecorator={<Button>Download 🤗 Dataset</Button>}
+              name="download-dataset-name"
+              endDecorator={
+                <Button
+                  onClick={async (e) => {
+                    const dataset = document.getElementsByName('download-dataset-name')[0].value;
+                    // only download if valid model is entered
+                    if (dataset) {
+                      // this triggers UI changes while download is in progress
+                      setDownloadingDataset(dataset);
+
+                      // Try downloading the dataset
+                      const response = await chatAPI.downloadData(dataset);
+                      if (response?.status == 'error') {
+                        alert('Download failed!\n' + response.message);
+                      }
+
+                      // download complete
+                      setDownloadingDataset(null);
+                    }
+                  }}
+                  startDecorator={
+                    downloadingDataset ? (
+                      <CircularProgress size="sm" thickness={2} />
+                    ) : (
+                      ""
+                    )}
+                >
+                  {downloadingDataset ? (
+                    "Downloading"
+                  ) : (
+                    "Download 🤗 Dataset"
+                  )}
+                </Button>
+              }
               sx={{ width: '500px' }}
             />
-
-            {/* <FormHelperText>
-Enter full URL of model, for example:
-"decapoda-research/llama-30b-hf"
-</FormHelperText> */}
           </FormControl>
           <>
-            {/* <Button
-              size="sm"
-              sx={{ height: '30px' }}
-              endDecorator={<FolderOpenIcon />}
-              onClick={() => {}}
-            >
-              Open in Filesystem
-            </Button> */}
             <Button
               size="sm"
               sx={{ height: '30px' }}
