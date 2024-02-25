@@ -1,10 +1,13 @@
 import * as React from 'react';
 import { useState } from 'react';
 
-import Button from '@mui/joy/Button';
-import Card from '@mui/joy/Card';
-import CardContent from '@mui/joy/CardContent';
-import Typography from '@mui/joy/Typography';
+import { 
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Typography
+} from '@mui/joy';
 import { DownloadIcon, FileTextIcon, Trash2Icon } from 'lucide-react';
 
 import { formatBytes } from 'renderer/lib/utils';
@@ -118,9 +121,15 @@ export default function DatasetCard({
                   <DownloadIcon size="18px" />
                 )
               }
-              onClick={() => {
+              onClick={async() => {
+                // This is an async call so it returns right away
+                // Need to wait for plugin status to change 
                 setInstalling(true);
-                chatAPI.downloadData(repo);
+                const response = await fetch(chatAPI.Endpoints.Dataset.Download(repo));
+                const result = await response.json();
+                if (result?.status == "error") {
+                  alert("Download failed:\n" + result.message);
+                }
                 setInstalling(null);
                 parentMutate();
               }}
