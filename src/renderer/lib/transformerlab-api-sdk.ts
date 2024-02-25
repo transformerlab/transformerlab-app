@@ -414,7 +414,7 @@ export async function countTokens(model: string, text: string[]) {
     console.log('There was an error', error);
   }
 
-  return result?.prompts[0];
+  return result?.prompts?.[0];
 }
 
 /**
@@ -467,7 +467,8 @@ Endpoints.Dataset = {
   Delete: (datasetId: string) =>
     API_URL() + 'data/delete?dataset_id=' + datasetId,
   Create: (datasetId: string) => API_URL() + 'data/new?dataset_id=' + datasetId,
-  Download: (datasetId: string) => API_URL() + 'data/download?dataset_id=' + datasetId,
+  Download: (datasetId: string) =>
+    API_URL() + 'data/download?dataset_id=' + datasetId,
   LocalList: () => API_URL() + 'data/list',
   FileUpload: (datasetId: string) =>
     API_URL() + 'data/fileupload?dataset_id=' + datasetId,
