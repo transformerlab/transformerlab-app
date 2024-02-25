@@ -8,7 +8,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function DataStore() {
-  const { data, error, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Gallery(),
     fetcher
   );
@@ -40,7 +40,7 @@ export default function DataStore() {
               repo={row.huggingfacerepo}
               download
               location={undefined}
-              parentMutate={undefined}
+              parentMutate={mutate}
             />
           </Grid>
         ))}

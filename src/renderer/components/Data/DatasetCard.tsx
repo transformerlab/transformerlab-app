@@ -1,4 +1,6 @@
 import * as React from 'react';
+import { useState } from 'react';
+
 import Button from '@mui/joy/Button';
 import Card from '@mui/joy/Card';
 import CardContent from '@mui/joy/CardContent';
@@ -20,6 +22,7 @@ export default function DatasetCard({
   location,
   parentMutate,
 }) {
+  const [installing, setInstalling] = useState(null);
   const [previewDatasetModalOpen, setPreviewDatasetModalOpen] =
     React.useState(false);
 
@@ -107,12 +110,27 @@ export default function DatasetCard({
               color="primary"
               aria-label="Download"
               sx={{ ml: 'auto' }}
+              disabled={installing}
+              endDecorator={
+                installing ? (
+                  <CircularProgress />
+                ) : (
+                  <DownloadIcon size="18px" />
+                )
+              }
               onClick={() => {
+                setInstalling(true);
                 chatAPI.downloadData(repo);
+                setInstalling(null);
+                parentMutate();
               }}
+
             >
-              Download &nbsp;
-              <DownloadIcon size={16} />
+              {installing ? (
+                "Downloading"
+              ) : (
+                "Download"
+              )}
             </Button>
           )}
         </CardContent>
