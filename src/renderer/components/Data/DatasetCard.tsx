@@ -121,17 +121,28 @@ export default function DatasetCard({
                   <DownloadIcon size="18px" />
                 )
               }
-              onClick={async() => {
-                // This is an async call so it returns right away
-                // Need to wait for plugin status to change 
+              onClick={() => {
                 setInstalling(true);
-                const response = await fetch(chatAPI.Endpoints.Dataset.Download(repo));
-                const result = await response.json();
-                if (result?.status == "error") {
-                  alert("Download failed:\n" + result.message);
-                }
-                setInstalling(null);
-                parentMutate();
+
+                // Datasets can be very large so do this asynchronously
+                fetch(chatAPI.Endpoints.Dataset.Download(repo))
+                .then(response => {
+                  if (!response.ok) {
+                    console.log(response);
+                    throw new Error(`HTTP Status: ${response.status}`);
+                  }
+                  return response.json()
+                })
+                .then(response_json => {
+                  if (response_json?.status == "error") {
+                    throw new Error(response_json.message);
+                  }
+                  setInstalling(null);
+                })
+                .catch(error => {
+                  setInstalling(null);
+                  alert("Download failed:\n" + error);
+                });
               }}
 
             >
