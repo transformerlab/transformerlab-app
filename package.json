@@ -20,12 +20,12 @@
   },
   "contributors": [
     {
-      "name": "Ghost Person",
-      "email": "ghostpersonk@gmail.com",
-      "url": "https://github.com/ghost"
+      "name": "Tony Salomone",
+      "email": "dadmobile",
+      "url": "https://github.com/dadmobile"
     }
   ],
-  "version": "0.2.0",
+  "version": "0.2.1",
   "main": "./src/main/main.ts",
   "scripts": {
     "build": "concurrently \"npm run build:main\" \"npm run build:renderer\"",
