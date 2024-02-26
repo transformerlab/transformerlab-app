@@ -19,6 +19,7 @@ import {
   ListItemContent,
   ListItemButton,
   IconButton,
+  Input,
 } from '@mui/joy';
 
 import ChatPage from './ChatPage';
@@ -471,16 +472,26 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   Maximum Length &nbsp;
                   <span style={{ color: '#aaa' }}>{maxTokens}</span>
                 </FormLabel>
-                <Slider
+                {/* <Slider
                   sx={{ margin: 'auto', width: '90%' }}
                   defaultValue={64}
                   min={0}
-                  max={256 * 4}
+                  max={256 * 10}
                   value={maxTokens}
                   onChange={(event: Event, newValue: number | number[]) => {
                     setMaxTokens(newValue as number);
                   }}
                   valueLabelDisplay="auto"
+                /> */}
+                {/* Temporarily make the slider a text input until we can deduce the context length as max */}
+                <Input
+                  sx={{ margin: 'auto', width: '90%', mb: 2 }}
+                  variant="plain"
+                  defaultValue={1024}
+                  value={maxTokens}
+                  onChange={(e) => {
+                    setMaxTokens(e.target.value);
+                  }}
                 />
                 <FormLabel>
                   Top P &nbsp;
