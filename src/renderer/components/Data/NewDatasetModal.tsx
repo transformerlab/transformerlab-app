@@ -110,7 +110,7 @@ export default function DatasetDetailsModal({ open, setOpen }) {
         locale={{
           strings: {
             dropPasteFiles:
-              "Drop dataset files here or %{browseFiles}. You must name one file '<something>_train.jsonl' and the second one '<something>_eval.jsonl' Files should be in JSONL format, with one JSON object per line.",
+              "Drop dataset files here or %{browseFiles}. You must name one file '<name>_train.jsonl' and the second one '<name>_eval.jsonl' where <name> is EXACTLY the dataset name. Files should be in JSONL format, with one JSON object per line.",
           },
         }}
         closeAfterFinish
