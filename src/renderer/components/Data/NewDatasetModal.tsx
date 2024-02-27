@@ -75,7 +75,7 @@ export default function DatasetDetailsModal({ open, setOpen }) {
                     chatAPI.Endpoints.Dataset.Create(name)
                   );
                   const data = await response.json();
-                  if (data.status == "error") {
+                  if (data.status == 'error') {
                     alert(data.message);
                   } else {
                     // Use the returned dataset_id because it has been sanitized
@@ -102,7 +102,8 @@ export default function DatasetDetailsModal({ open, setOpen }) {
         }}
         locale={{
           strings: {
-            dropPasteFiles: 'Drop datset files here or %{browseFiles}',
+            dropPasteFiles:
+              "Drop dataset files here or %{browseFiles}. You must name one file '<something>_train.jsonl' and the second one '<something>_eval.jsonl' Files should be in JSONL format, with one JSON object per line.",
           },
         }}
         closeAfterFinish
@@ -111,7 +112,7 @@ export default function DatasetDetailsModal({ open, setOpen }) {
         //   setShowUploadDialog(false);
         // }}
         proudlyDisplayPoweredByUppy={false}
-        note="Name one file '<something>_train.jsonl' and the second one '<something>_eval.jsonl' Files should be in JSONL format, with one JSON object per line."
+        note="Learn more about JSONL here: https://jsonlines.org/ Don't worry we will support more file types soon :)"
       />
     </>
   );
