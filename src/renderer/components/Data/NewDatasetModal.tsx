@@ -44,6 +44,13 @@ export default function DatasetDetailsModal({ open, setOpen }) {
 
   uppy?.getPlugin('XHRUpload')?.setOptions({
     endpoint: chatAPI.Endpoints.Dataset.FileUpload(newDatasetName),
+    getResponseError: function getResponseError(responseText, response) {
+      try {
+        alert(JSON.parse(responseText)?.detail);
+      } catch (e) {
+        return responseText;
+      }
+    },
   });
 
   return (
