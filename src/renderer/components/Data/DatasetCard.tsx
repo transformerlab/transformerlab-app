@@ -1,18 +1,22 @@
 import * as React from 'react';
 import { useState } from 'react';
 
-import { 
+import {
   Button,
   Card,
   CardContent,
   CircularProgress,
-  Typography
+  Modal,
+  ModalClose,
+  ModalDialog,
+  Typography,
 } from '@mui/joy';
 import { DownloadIcon, FileTextIcon, Trash2Icon } from 'lucide-react';
 
 import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import PreviewDatasetModal from './PreviewDatasetModal';
+import DatasetInfoModal from './DatasetInfoModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -28,6 +32,7 @@ export default function DatasetCard({
   const [installing, setInstalling] = useState(null);
   const [previewDatasetModalOpen, setPreviewDatasetModalOpen] =
     React.useState(false);
+  const [datasetInfoModalOpen, setDatasetInfoModalOpen] = React.useState(false);
 
   return (
     <>
@@ -38,6 +43,11 @@ export default function DatasetCard({
           dataset_id={name}
         />
       )}
+      <DatasetInfoModal
+        open={datasetInfoModalOpen}
+        dataset_id={name}
+        setOpen={setDatasetInfoModalOpen}
+      />
       <Card variant="outlined" sx={{}}>
         <div>
           <Typography
@@ -94,12 +104,7 @@ export default function DatasetCard({
               <Button
                 variant="soft"
                 onClick={async () => {
-                  const response = await fetch(
-                    chatAPI.Endpoints.Dataset.Info(name)
-                  );
-                  const info = await response.json();
-
-                  alert(JSON.stringify(info));
+                  setDatasetInfoModalOpen(true);
                 }}
               >
                 Info
@@ -115,42 +120,33 @@ export default function DatasetCard({
               sx={{ ml: 'auto' }}
               disabled={installing}
               endDecorator={
-                installing ? (
-                  <CircularProgress />
-                ) : (
-                  <DownloadIcon size="18px" />
-                )
+                installing ? <CircularProgress /> : <DownloadIcon size="18px" />
               }
               onClick={() => {
                 setInstalling(true);
 
                 // Datasets can be very large so do this asynchronously
                 fetch(chatAPI.Endpoints.Dataset.Download(repo))
-                .then(response => {
-                  if (!response.ok) {
-                    console.log(response);
-                    throw new Error(`HTTP Status: ${response.status}`);
-                  }
-                  return response.json()
-                })
-                .then(response_json => {
-                  if (response_json?.status == "error") {
-                    throw new Error(response_json.message);
-                  }
-                  setInstalling(null);
-                })
-                .catch(error => {
-                  setInstalling(null);
-                  alert("Download failed:\n" + error);
-                });
+                  .then((response) => {
+                    if (!response.ok) {
+                      console.log(response);
+                      throw new Error(`HTTP Status: ${response.status}`);
+                    }
+                    return response.json();
+                  })
+                  .then((response_json) => {
+                    if (response_json?.status == 'error') {
+                      throw new Error(response_json.message);
+                    }
+                    setInstalling(null);
+                  })
+                  .catch((error) => {
+                    setInstalling(null);
+                    alert('Download failed:\n' + error);
+                  });
               }}
-
             >
-              {installing ? (
-                "Downloading"
-              ) : (
-                "Download"
-              )}
+              {installing ? 'Downloading' : 'Download'}
             </Button>
           )}
         </CardContent>
