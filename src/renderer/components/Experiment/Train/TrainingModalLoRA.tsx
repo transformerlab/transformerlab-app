@@ -125,7 +125,6 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             const formJson = Object.fromEntries((formData as any).entries());
-            //alert(JSON.stringify(formJson));
             chatAPI.saveTrainingTemplate(
               event.currentTarget.elements['template_name'].value,
               'Description',

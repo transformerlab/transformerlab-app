@@ -47,7 +47,7 @@ import {
 
 const schemaTemplate: RJSFSchema = {
   type: 'object',
-  required: ['title'],
+  required: [],
   properties: {},
 };
 
@@ -99,6 +99,7 @@ function BaseInputTemplate(props: BaseInputTemplateProps) {
       value={value}
       placeholder={placeholder}
       disabled={disabled}
+      required={required}
       readOnly={readonly}
       autoFocus={autofocus}
       error={hasError}
@@ -117,8 +118,15 @@ function getSchema(data) {
     console.log(data);
     let parsedData = JSON.parse(data);
     let schemaParameters = parsedData.parameters;
+    let requiredParameters = [];
+    for (let key in schemaParameters) {
+      if (schemaParameters[key]?.required) {
+        requiredParameters.push(key);
+      }
+    }
     let newSchemaTemplate = { ...schemaTemplate };
     newSchemaTemplate.properties = schemaParameters;
+    newSchemaTemplate.required = requiredParameters;
     const uiSchema = parsedData.parameters_ui;
     return { JSONSchema: newSchemaTemplate, uiSchema: uiSchema };
   }
@@ -161,6 +169,7 @@ const CustomRange = function (props: WidgetProps) {
       <Stack direction="row">
         <Slider
           disabled={disabled || readonly}
+          required={required}
           onChange={_onChange}
           onBlur={_onBlur}
           onFocus={_onFocus}
@@ -225,7 +234,7 @@ function CustomSelect<
   );
 
   // set a default value for the field if it's not multi-select and value is set
-  const defaultValue = (!isEmpty && !multiple) ? value : emptyValue
+  const defaultValue = !isEmpty && !multiple ? value : emptyValue;
 
   return (
     <>
@@ -274,12 +283,17 @@ function CustomSelect<
               Array.isArray(enumDisabled) && enumDisabled.indexOf(value) !== -1;
 
             // selectedIndexes is an array if multiple is set, or an integer (or undefined) if not multiple
-            const selected: boolean =
-              multiple ?
-              (Array.isArray(selectedIndexes) && selectedIndexes.indexOf(i) !== -1) :
-              (i == selectedIndexes);
+            const selected: boolean = multiple
+              ? Array.isArray(selectedIndexes) &&
+                selectedIndexes.indexOf(i) !== -1
+              : i == selectedIndexes;
             return (
-              <Option key={i} value={String(label)} disabled={disabled} selected={selected}>
+              <Option
+                key={i}
+                value={String(label)}
+                disabled={disabled}
+                selected={selected}
+              >
                 {label}
               </Option>
             );
