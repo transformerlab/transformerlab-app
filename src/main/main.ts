@@ -172,8 +172,8 @@ const createWindow = async () => {
 const appAboutOptions = {
   applicationName: 'Transformer Lab',
   applicationVersion: app.getVersion(),
-  credits: 'Made by @aliasaria',
-  authors: ['Ali Asaria'],
+  credits: 'Made by @aliasaria and @dadmobile',
+  authors: ['Ali Asaria', 'Tony Salomone'],
   website: 'https://transformerlab.ai',
   // iconPath: path.join(__dirname, 'assets/icon.png'),
 };

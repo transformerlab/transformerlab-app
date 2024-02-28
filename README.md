@@ -105,7 +105,8 @@ If you found Transformer Lab useful in your research or applications, please cit
 
 ## Contact
 
-Ali Asaria - [@aliasaria](https://twitter.com/aliasaria)
+- [@aliasaria](https://twitter.com/aliasaria) - Ali Asasria
+- [@dadmobile](https://github.com/dadmobile) - Tony Salomone
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
