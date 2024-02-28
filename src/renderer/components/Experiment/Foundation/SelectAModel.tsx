@@ -1,6 +1,13 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 
-import { FormControl, FormLabel, Select, Typography, Option } from '@mui/joy';
+import {
+  FormControl,
+  FormLabel,
+  Select,
+  Typography,
+  Option,
+  Sheet,
+} from '@mui/joy';
 
 import { useLocation } from 'react-router-dom';
 
@@ -25,48 +32,6 @@ export default function SelectAModel({
 
   const location = useLocation();
 
-  function foundationSetter(model) {
-    setFoundation(model);
-
-    setAdaptor('');
-  }
-
-  const renderFilters = () => (
-    <>
-      <FormControl size="sm">
-        <FormLabel>License</FormLabel>
-        <Select
-          placeholder="Filter by license"
-          slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
-          value={filters?.license}
-          disabled
-          onChange={(e, newValue) => {
-            setFilters({ ...filters, license: newValue });
-          }}
-        >
-          {licenseTypes.map((type) => (
-            <Option value={type}>{type}</Option>
-          ))}
-        </Select>
-      </FormControl>
-      <FormControl size="sm">
-        <FormLabel>Architecture</FormLabel>
-        <Select
-          placeholder="All"
-          disabled
-          value={filters?.architecture}
-          onChange={(e, newValue) => {
-            setFilters({ ...filters, architecture: newValue });
-          }}
-        >
-          {modelTypes.map((type) => (
-            <Option value={type}>{type}</Option>
-          ))}
-        </Select>
-      </FormControl>
-    </>
-  );
-
   if (experimentInfo?.config?.foundation) {
     return (
       <CurrentFoundationInfo
@@ -84,7 +49,9 @@ export default function SelectAModel({
   }
 
   return (
-    <>
+    <Sheet
+      sx={{ display: 'flex', flexDirection: 'column', height: '100%', pb: 2 }}
+    >
       <Typography level="h1" mb={2}>
         Select a Model
       </Typography>
@@ -95,6 +62,6 @@ export default function SelectAModel({
         setAdaptor={setAdaptor}
         pickAModelMode
       />
-    </>
+    </Sheet>
   );
 }
