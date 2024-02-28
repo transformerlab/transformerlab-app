@@ -46,6 +46,7 @@ export default function PluginCard({
     <>
       <Card variant="outlined" sx={{}}>
         <div>
+          {/* {JSON.stringify(plugin)} */}
           <Typography
             level="title-md"
             fontSize="md"
@@ -56,6 +57,7 @@ export default function PluginCard({
           </Typography>
           <Typography level="body-md" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
             {plugin.uniqueId}
+            {plugin?.version && <>&nbsp;-&nbsp;v{plugin.version}</>}
           </Typography>
           <Typography level="title-sm" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
             <b>
