@@ -27,19 +27,32 @@ export default function Plugins({ experimentInfo }) {
             &nbsp; Plugin Script Store
           </Tab>
         </TabList>
-        <TabPanel value={0} sx={{ overflow: 'auto' }}>
-          <LocalPlugins experimentInfo={experimentInfo} />
+        <TabPanel
+          value={0}
+          sx={{
+            height: '100%',
+            flexDirection: 'column',
+          }}
+        >
+          <Sheet
+            sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+          >
+            <LocalPlugins experimentInfo={experimentInfo} />
+          </Sheet>
         </TabPanel>
         <TabPanel
           value={1}
           sx={{
             overflow: 'hidden',
             height: '100%',
-            display: 'flex',
             flexDirection: 'column',
           }}
         >
-          <PluginGallery experimentInfo={experimentInfo} />
+          <Sheet
+            sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+          >
+            <PluginGallery experimentInfo={experimentInfo} />
+          </Sheet>
         </TabPanel>
       </Tabs>
     </Sheet>
