@@ -288,16 +288,18 @@ export default function TrainLoRA({ experimentInfo }) {
                         justifyContent: 'flex-end',
                       }}
                     >
-                      {' '}
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setCurrentTensorboardForModal(job?.id);
-                        }}
-                        startDecorator={<LineChartIcon />}
-                      >
-                        Tensorboard
-                      </Button>
+                      {job?.job_data?.tensorboard_output_dir && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setCurrentTensorboardForModal(job?.id);
+                          }}
+                          startDecorator={<LineChartIcon />}
+                        >
+                          Tensorboard
+                        </Button>
+                      )}
+
                       <Button
                         size="sm"
                         onClick={() => {
