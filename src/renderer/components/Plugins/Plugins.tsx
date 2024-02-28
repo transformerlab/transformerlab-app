@@ -30,7 +30,15 @@ export default function Plugins({ experimentInfo }) {
         <TabPanel value={0} sx={{ overflow: 'auto' }}>
           <LocalPlugins experimentInfo={experimentInfo} />
         </TabPanel>
-        <TabPanel value={1} sx={{ overflow: 'auto' }}>
+        <TabPanel
+          value={1}
+          sx={{
+            overflow: 'hidden',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <PluginGallery experimentInfo={experimentInfo} />
         </TabPanel>
       </Tabs>
