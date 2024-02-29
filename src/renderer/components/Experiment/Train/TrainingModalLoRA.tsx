@@ -78,7 +78,9 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
       return chatAPI.Endpoints.Dataset.Info(selectedDataset);
     }, fetcher);
 
-  const currentModelName = experimentInfo?.config?.foundation;
+  const currentModel = experimentInfo?.config?.foundation_filename ?
+    experimentInfo?.config?.foundation_filename :
+    experimentInfo?.config?.foundation;
 
   function injectIntoTemplate(key) {
     // Add the key to the textbox with id "template"
@@ -182,7 +184,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
                 <Stack direction="row" justifyContent="space-evenly" gap={2}>
                   <FormControl sx={{ flex: 1 }}>
                     <FormLabel>Model:</FormLabel>
-                    <Typography variant="soft">{currentModelName}</Typography>
+                    <Typography variant="soft">{currentModel}</Typography>
                   </FormControl>
                   <FormControl sx={{ flex: 1 }}>
                     <FormLabel>Architecture:</FormLabel>
@@ -193,7 +195,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
 
                   <input
                     hidden
-                    value={currentModelName}
+                    value={currentModel}
                     name="model_name"
                     readOnly
                   />

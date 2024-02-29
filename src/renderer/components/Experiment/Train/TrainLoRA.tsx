@@ -64,9 +64,9 @@ function formatJobConfig(c): ReactElement {
       {/* {JSON.stringify(c)} */}
       <b>Template ID:</b> {c.template_name}
       <br />
-      <b>Model Name:</b> {c.model_name}
+      <b>Model:</b> {c.model_name}
       <br />
-      <b>Dataset Name:</b> {c.dataset_name}
+      <b>Dataset:</b> {c.dataset_name}
     </>
   );
   return r;
