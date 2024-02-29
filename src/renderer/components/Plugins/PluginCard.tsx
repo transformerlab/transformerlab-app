@@ -56,8 +56,15 @@ export default function PluginCard({
             <b>{plugin.name}</b>
           </Typography>
           <Typography level="body-md" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
-            {plugin.uniqueId}
-            {plugin?.version && <>&nbsp;-&nbsp;v{plugin.version}</>}
+            {plugin.uniqueId}&nbsp;
+            {plugin?.gallery_version &&
+              (plugin?.version != plugin?.gallery_version ? (
+                <Chip color="danger">v{plugin.version} Needs Upgrade</Chip>
+              ) : (
+                <>
+                  <Chip color="success">v{plugin.version}</Chip>
+                </>
+              ))}
           </Typography>
           <Typography level="title-sm" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
             <b>
@@ -119,44 +126,42 @@ export default function PluginCard({
               </Button>
             </>
           )}
-          {download && (
-            <Button
-              variant={plugin?.installed ? 'soft' : 'solid'}
-              size="sm"
-              color="primary"
-              aria-label="Download"
-              sx={{ ml: 'auto' }}
-              onClick={async () => {
-                setInstalling(plugin.uniqueId);
-                await fetch(
-                  chatAPI.Endpoints.Experiment.InstallPlugin(
-                    experimentInfo?.id,
-                    plugin.uniqueId
-                  )
-                );
-                setInstalling(null);
-                parentMutate();
-              }}
-            >
-              {installing == plugin.uniqueId && (
-                <>
-                  <CircularProgress />
-                  &nbsp;
-                </>
-              )}
-              {plugin?.installed == true ? (
-                <>
-                  Reinstall &nbsp;
-                  <RotateCcwIcon size={16} />
-                </>
-              ) : (
-                <>
-                  Install &nbsp;
-                  <DownloadIcon size={16} />
-                </>
-              )}
-            </Button>
-          )}
+          <Button
+            variant={plugin?.installed ? 'soft' : 'solid'}
+            size="sm"
+            color="primary"
+            aria-label="Download"
+            sx={{ ml: 'auto' }}
+            onClick={async () => {
+              setInstalling(plugin.uniqueId);
+              await fetch(
+                chatAPI.Endpoints.Experiment.InstallPlugin(
+                  experimentInfo?.id,
+                  plugin.uniqueId
+                )
+              );
+              setInstalling(null);
+              parentMutate();
+            }}
+          >
+            {installing == plugin.uniqueId && (
+              <>
+                <CircularProgress />
+                &nbsp;
+              </>
+            )}
+            {plugin?.installed == true ? (
+              <>
+                Reinstall &nbsp;
+                <RotateCcwIcon size={16} />
+              </>
+            ) : (
+              <>
+                Install &nbsp;
+                <DownloadIcon size={16} />
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
     </>
