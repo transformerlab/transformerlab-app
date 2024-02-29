@@ -273,7 +273,11 @@ export default function TrainLoRA({ experimentInfo }) {
                     <td>
                       <Chip color={jobChipColor(job.status)}>
                         {job.status}
-                        {job.progress == '-1' ? '' : ' - ' + job.progress + '%'}
+                        {job.progress == '-1'
+                          ? ''
+                          : ' - ' +
+                            Number.parseFloat(job.progress).toFixed(1) +
+                            '%'}
                       </Chip>
                       <br />
                       <br />
@@ -288,7 +292,7 @@ export default function TrainLoRA({ experimentInfo }) {
                         justifyContent: 'flex-end',
                       }}
                     >
-                      {job?.job_data?.tensorboard_output_dir && (
+                      {(job?.job_data?.tensorboard_output_dir || true) && (
                         <Button
                           size="sm"
                           onClick={() => {
