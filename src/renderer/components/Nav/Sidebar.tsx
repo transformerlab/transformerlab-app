@@ -24,7 +24,7 @@ import {
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
 
-import { useModelStatus } from 'renderer/lib/transformerlab-api-sdk';
+import { useModelStatus, usePluginStatus } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
@@ -37,6 +37,7 @@ export default function Sidebar({
   setDrawerOpen,
 }) {
   const { models, isError, isLoading } = useModelStatus();
+  const { outdatedPluginsCount } = usePluginStatus(experimentInfo);
 
   const navigate = useNavigate();
 
@@ -159,7 +160,7 @@ export default function Sidebar({
           path="/projects/plugins"
           icon={<PlugIcon />}
           disabled={!experimentInfo?.name}
-          counter={null}
+          counter={outdatedPluginsCount}
         />
         <SubNavItem
           title="Settings"
