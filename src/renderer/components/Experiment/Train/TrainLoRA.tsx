@@ -292,7 +292,7 @@ export default function TrainLoRA({ experimentInfo }) {
                         justifyContent: 'flex-end',
                       }}
                     >
-                      {(job?.job_data?.tensorboard_output_dir || true) && (
+                      {job?.job_data?.tensorboard_output_dir && (
                         <Button
                           size="sm"
                           onClick={() => {
