@@ -57,14 +57,17 @@ export default function PluginCard({
           </Typography>
           <Typography level="body-md" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
             {plugin.uniqueId}&nbsp;
-            {plugin?.gallery_version &&
-              (plugin?.version != plugin?.gallery_version ? (
+            {plugin?.gallery_version ? (
+              plugin?.version != plugin?.gallery_version ? (
                 <Chip color="danger">v{plugin.version} Needs Upgrade</Chip>
               ) : (
                 <>
                   <Chip color="success">v{plugin.version}</Chip>
                 </>
-              ))}
+              )
+            ) : (
+              <Chip color="warning">v{plugin.version}</Chip>
+            )}
           </Typography>
           <Typography level="title-sm" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
             <b>
