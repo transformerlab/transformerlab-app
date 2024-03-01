@@ -1015,6 +1015,20 @@ export function useModelStatus() {
   };
 }
 
+export function usePluginStatus(experimentInfo: any) {
+  let { data } = useSWR(
+    experimentInfo ? Endpoints.Experiment.ListScripts(experimentInfo?.id) : null,
+    fetcher
+  );
+
+  let outdatedPluginsCount = null;
+  if (data) {
+    outdatedPluginsCount = data.filter((plugin: any) => plugin?.gallery_version && plugin?.version != plugin?.gallery_version).length;
+  }
+  
+  return { outdatedPluginsCount };
+}
+
 export function useServerStats() {
   const url = API_URL() + 'server/info';
 
