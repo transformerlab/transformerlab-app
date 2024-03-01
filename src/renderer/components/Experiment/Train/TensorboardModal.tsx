@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Modal, ModalDialog, ModalClose, CircularProgress } from '@mui/joy';
+import {
+  Modal,
+  ModalDialog,
+  ModalClose,
+  CircularProgress,
+  DialogTitle,
+} from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { RotateCcwIcon } from 'lucide-react';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -10,35 +17,51 @@ export default function TensorboardModal({
 }) {
   const [iframeReady, setIframeReady] = useState(false);
 
-  useEffect(() => {
-    if (currentTensorboard !== -1) {
-      console.log('starting tensorboard');
-      var job_id = currentTensorboard;
-      fetcher(
-        chatAPI.API_URL() + 'train/tensorboard/start?job_id=' + job_id
-      ).then((res) => {
-        console.log(res);
-      });
-
-      // Wait three secondes (to give tensorboard time to start) before showing the iframe
-      setIframeReady(false);
-
-      setTimeout(() => {
-        setIframeReady(true);
-      }, 3000);
-    }
-
-    if (currentTensorboard == -1) {
-      console.log('stopping tensorboard');
-      fetcher(chatAPI.API_URL() + 'train/tensorboard/stop').then((res) => {
-        console.log(res);
-      });
-    }
-  }, [currentTensorboard]);
-
   var currentServerURL = window.TransformerLab.API_URL;
   // If there is a port number, remove it:
   currentServerURL = currentServerURL.replace(/:[0-9]+\/$/, '');
+
+  useEffect(() => {
+    const asyncFunction = async () => {
+      if (currentTensorboard !== -1) {
+        console.log('starting tensorboard');
+        var job_id = currentTensorboard;
+        setIframeReady(false);
+
+        await fetch(
+          chatAPI.API_URL() + 'train/tensorboard/start?job_id=' + job_id
+        );
+
+        for (let i = 0; i < 8; i++) {
+          console.log('checking if tensorboard is ready - ' + i);
+          // Wait three seconds (to give tensorboard time to start) before showing the iframe
+          await new Promise((r) => setTimeout(r, 3000));
+
+          try {
+            const tensorboardIsReady = await fetch(`${currentServerURL}:6006/`);
+            if (tensorboardIsReady.status === 200) {
+              setIframeReady(true);
+              break;
+            } else {
+              console.log('tensorboard not ready yet');
+            }
+          } catch (e) {
+            console.error(e);
+            continue;
+          }
+        }
+      }
+
+      if (currentTensorboard == -1) {
+        console.log('stopping tensorboard');
+        fetcher(chatAPI.API_URL() + 'train/tensorboard/stop').then((res) => {
+          console.log(res);
+        });
+      }
+    };
+
+    asyncFunction().catch((e) => console.error(e));
+  }, [currentTensorboard]);
 
   return (
     <Modal
