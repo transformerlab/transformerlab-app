@@ -143,7 +143,6 @@ export default function Export({experimentInfo}) {
                         onClick={async (e) => {
                             // set the selected plugin which will open the PluginSettingsModal
                             setSelectedPlugin(row);
-                            console.log(selectedPlugin);
                         }}
                         disabled={
                           !isModelValidArchitecture(row.model_architectures)
