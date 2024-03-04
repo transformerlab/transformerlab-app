@@ -275,7 +275,7 @@ function CustomSelect<
         required={required}
         disabled={disabled}
         placeholder={placeholder}
-        value={defaultValue}
+        defaultValue={defaultValue}
       >
         {Array.isArray(enumOptions) &&
           enumOptions.map(({ value, label }, i: number) => {
