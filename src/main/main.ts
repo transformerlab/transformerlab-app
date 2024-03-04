@@ -22,6 +22,7 @@ import {
   startLocalServer,
   installLocalServer,
   killLocalServer,
+  executeInstallStep,
 } from './util';
 
 // ////////////
@@ -64,6 +65,22 @@ ipcMain.handle('server:startLocalServer', async (event) => {
 
 ipcMain.handle('server:InstallLocally', (event) => {
   return installLocalServer();
+});
+
+ipcMain.handle('server:install_download', (event) => {
+  return executeInstallStep('download_transformer_lab');
+});
+
+ipcMain.handle('server:install_conda', (event) => {
+  return executeInstallStep('install_conda');
+});
+
+ipcMain.handle('server:install_create-conda-environment', (event) => {
+  return executeInstallStep('create_conda_environment');
+});
+
+ipcMain.handle('server:install_install-dependencies', (event) => {
+  return executeInstallStep('install_dependencies');
 });
 
 class AppUpdater {

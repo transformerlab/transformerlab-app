@@ -17,7 +17,11 @@ export type Channels =
   | 'server:checkIfInstalledLocally'
   | 'server:checkLocalVersion'
   | 'server:startLocalServer'
-  | 'server:InstallLocally';
+  | 'server:InstallLocally'
+  | 'server:install_download'
+  | 'server:install_conda'
+  | 'server:install_create-conda-environment'
+  | 'server:install_install-dependencies';
 
 const electronHandler = {
   ipcRenderer: {

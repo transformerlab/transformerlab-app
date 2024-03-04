@@ -73,12 +73,12 @@ export function startLocalServer() {
         resolve({ status: 'success', code: code });
       } else {
         resolve({
-          status: 'error', code: code ,
-          message: 'May be fixed by running ~/.transformerlab/src/init.sh'
+          status: 'error',
+          code: code,
+          message: 'May be fixed by running ~/.transformerlab/src/init.sh',
         });
       }
     });
-
   });
 }
 
@@ -105,10 +105,10 @@ export function killLocalServer() {
 export function installLocalServer() {
   console.log('Installing local server');
 
-  const options = { shell: '/bin/sh' };
+  const options = { shell: '/bin/bash' };
   try {
     const child = exec(
-      'curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/download_and_install_remote_script.sh | sh',
+      'curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash',
       options,
       (error, stdout, stderr) => {
         if (error) {
@@ -121,5 +121,27 @@ export function installLocalServer() {
     );
   } catch (err) {
     console.log('Failed to install local server', err);
+  }
+}
+
+export function executeInstallStep(argument: string) {
+  console.log('Downloading transformerlab-api to ~/.transformerlab/src');
+
+  const options = { shell: '/bin/bash' };
+  try {
+    const child = exec(
+      `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- ${argument}`,
+      options,
+      (error, stdout, stderr) => {
+        if (error) {
+          console.error(`exec error: ${error}`);
+          return;
+        }
+        console.log(`stdout: ${stdout}`);
+        console.error(`stderr: ${stderr}`);
+      }
+    );
+  } catch (err) {
+    console.log('Failed to download Transformer Lab API', err);
   }
 }
