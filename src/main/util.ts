@@ -187,8 +187,8 @@ export async function checkIfCondaEnvironmentExists() {
       console.log('Error running conda env list', err);
     }
   );
-  console.log('stdout:', stdout);
-  console.error('stderr:', stderr);
+  if (stdout) console.log('stdout:', stdout);
+  if (stderr) console.error('stderr:', stderr);
 
   // search for the string "transformerlab" in the output
   if (stdout.includes('transformerlab')) {
