@@ -202,7 +202,7 @@ export async function executeInstallStep(
   argument: string,
   useLocalInstallSh = false
 ) {
-  const options = { shell: '/bin/bash' };
+  const options = {};
   console.log('Running install.sh ' + argument);
 
   if (useLocalInstallSh) {
@@ -215,8 +215,8 @@ export async function executeInstallStep(
     ).catch((err) => {
       console.log('Error running install.sh', err);
     });
-    console.log('stdout:', stdout);
-    console.error('stderr:', stderr);
+    if (stdout) console.log('stdout:', stdout);
+    if (stderr) console.error('stderr:', stderr);
   } else {
     const { stdout, stderr } = await awaitExec(
       `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- ${argument}`,
@@ -224,7 +224,7 @@ export async function executeInstallStep(
     ).catch((err) => {
       console.log('Error running install.sh', err);
     });
-    console.log('stdout:', stdout);
-    console.error('stderr:', stderr);
+    if (stdout) console.log('stdout:', stdout);
+    if (stderr) console.error('stderr:', stderr);
   }
 }

@@ -452,7 +452,12 @@ function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
     <>
       <Stack spacing={1}>
         {installStatus == 'success' && <Chip color="success">Success!</Chip>}
-        {installStatus == 'pending' && <CircularProgress color="primary" />}
+        {installStatus == 'pending' && (
+          <>
+            <CircularProgress color="primary" /> Installing. This can take a
+            while.
+          </>
+        )}
 
         {activeStep == Steps.indexOf('CHECK_IF_CONDA_INSTALLED') &&
           installStatus == 'notstarted' && (
@@ -530,7 +535,12 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
     <>
       <Stack spacing={1}>
         {installStatus == 'success' && <Chip color="success">Success!</Chip>}
-        {installStatus == 'pending' && <CircularProgress color="primary" />}
+        {installStatus == 'pending' && (
+          <>
+            <CircularProgress color="primary" />
+            Installing. This can take a while.
+          </>
+        )}
 
         {activeStep == Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') &&
           installStatus == 'notstarted' && (
@@ -612,7 +622,12 @@ function CheckDependencies({ activeStep, setActiveStep }) {
     <>
       <Stack spacing={1}>
         {installStatus == 'success' && <Chip color="success">Success!</Chip>}
-        {installStatus == 'pending' && <CircularProgress color="primary" />}
+        {installStatus == 'pending' && (
+          <>
+            <CircularProgress color="primary" />
+            Installing. This can take a <b>long</b> while.
+          </>
+        )}
         {missingDependencies.length > 0 && installStatus == 'notstarted' && (
           <Typography level="body-sm" color="warning">
             Many dependencies are missing including:{' '}
