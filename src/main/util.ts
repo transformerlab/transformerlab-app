@@ -4,8 +4,11 @@ import path from 'path';
 const fs = require('fs');
 const os = require('os');
 const { spawn, exec, ChildProcess } = require('child_process');
+const util = require('node:util');
+const awaitExec = util.promisify(require('node:child_process').exec);
 const homeDir = os.homedir();
 const transformerLabDir = path.join(homeDir, '.transformerlab/src/');
+const commandExistsSync = require('command-exists').sync;
 
 var localServer: typeof ChildProcess = null;
 
@@ -124,24 +127,104 @@ export function installLocalServer() {
   }
 }
 
-export function executeInstallStep(argument: string) {
-  console.log('Downloading transformerlab-api to ~/.transformerlab/src');
+export function checkIfShellCommandExists(command: string) {
+  if (commandExistsSync(command)) {
+    return true;
+  } else {
+    return false;
+  }
+}
 
+export async function checkDependencies() {
+  // First activate the transformerlab environment
+  // Then run pip list
+  // Then compare the output to the list of dependencies
+  // If any are missing, return the missing ones
+  // If all are present, manually check if the uvicorn command is present
+  const uvicornExists = checkIfShellCommandExists('uvicorn');
+
+  const command =
+    'eval "$(conda shell.bash hook)" && conda activate transformerlab && pip list --format json';
   const options = { shell: '/bin/bash' };
-  try {
-    const child = exec(
-      `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- ${argument}`,
-      options,
-      (error, stdout, stderr) => {
-        if (error) {
-          console.error(`exec error: ${error}`);
-          return;
-        }
-        console.log(`stdout: ${stdout}`);
-        console.error(`stderr: ${stderr}`);
-      }
+  const { stdout, stderr } = await awaitExec(command, options).catch((err) => {
+    console.log('Error running pip list', err);
+  });
+  console.log('stdout:', stdout);
+  console.error('stderr:', stderr);
+
+  const pipList = JSON.parse(stdout);
+  const pipListNames = pipList.map((x) => x.name);
+  const keyDependencies = [
+    'fastapi',
+    'pydantic',
+    'transformers',
+    'uvicorn',
+    'sentencepiece',
+    'torch',
+    'transformers',
+    'peft',
+    'packaging',
+    'fschat',
+  ];
+
+  //compare the list of dependencies to the keyDependencies
+  let missingDependencies = [];
+  for (let i = 0; i < keyDependencies.length; i++) {
+    if (!pipListNames.includes(keyDependencies[i])) {
+      missingDependencies.push(keyDependencies[i]);
+    }
+  }
+
+  console.log('missingDependencies', missingDependencies);
+  return missingDependencies;
+}
+
+export async function checkIfCondaEnvironmentExists() {
+  const options = { shell: '/bin/bash' };
+  console.log('Checking if Conda environment "transformerlab" exists');
+  const { stdout, stderr } = await awaitExec(`conda env list`, options).catch(
+    (err) => {
+      console.log('Error running conda env list', err);
+    }
+  );
+  console.log('stdout:', stdout);
+  console.error('stderr:', stderr);
+
+  // search for the string "transformerlab" in the output
+  if (stdout.includes('transformerlab')) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+export async function executeInstallStep(
+  argument: string,
+  useLocalInstallSh = false
+) {
+  const options = { shell: '/bin/bash' };
+  console.log('Running install.sh ' + argument);
+
+  if (useLocalInstallSh) {
+    console.log(
+      `Using local install.sh and running: ~/.transformerlab/src/install.sh ${argument}`
     );
-  } catch (err) {
-    console.log('Failed to download Transformer Lab API', err);
+    const { stdout, stderr } = await awaitExec(
+      `~/.transformerlab/src/install.sh ${argument}`,
+      options
+    ).catch((err) => {
+      console.log('Error running install.sh', err);
+    });
+    console.log('stdout:', stdout);
+    console.error('stderr:', stderr);
+  } else {
+    const { stdout, stderr } = await awaitExec(
+      `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- ${argument}`,
+      options
+    ).catch((err) => {
+      console.log('Error running install.sh', err);
+    });
+    console.log('stdout:', stdout);
+    console.error('stderr:', stderr);
   }
 }

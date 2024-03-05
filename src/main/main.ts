@@ -23,6 +23,9 @@ import {
   installLocalServer,
   killLocalServer,
   executeInstallStep,
+  checkIfShellCommandExists,
+  checkIfCondaEnvironmentExists,
+  checkDependencies,
 } from './util';
 
 // ////////////
@@ -68,19 +71,42 @@ ipcMain.handle('server:InstallLocally', (event) => {
 });
 
 ipcMain.handle('server:install_download', (event) => {
-  return executeInstallStep('download_transformer_lab');
+  return executeInstallStep('download_transformer_lab', false);
 });
 
-ipcMain.handle('server:install_conda', (event) => {
-  return executeInstallStep('install_conda');
+ipcMain.handle('server:install_conda', async (event) => {
+  console.log('** Installing conda');
+  await executeInstallStep('install_conda', true);
+  console.log('Finishing installing conda');
+  return;
 });
 
-ipcMain.handle('server:install_create-conda-environment', (event) => {
-  return executeInstallStep('create_conda_environment');
+ipcMain.handle('server:install_create-conda-environment', async (event) => {
+  return executeInstallStep('create_conda_environment', true);
 });
 
-ipcMain.handle('server:install_install-dependencies', (event) => {
-  return executeInstallStep('install_dependencies');
+ipcMain.handle('server:install_install-dependencies', async (event) => {
+  return executeInstallStep('install_dependencies', true);
+});
+
+ipcMain.handle('server:checkIfCondaExists', async (event) => {
+  const r = checkIfShellCommandExists('conda');
+  console.log('conda exists', r);
+  return r;
+});
+
+ipcMain.handle('server:checkIfCondaEnvironmentExists', async (event) => {
+  const envList = await checkIfCondaEnvironmentExists();
+  console.log('envList', envList);
+  return envList;
+});
+
+ipcMain.handle('server:checkIfUvicornExists', async (event) => {
+  return checkIfShellCommandExists('uvicorn');
+});
+
+ipcMain.handle('server:checkDependencies', async (event) => {
+  return await checkDependencies();
 });
 
 class AppUpdater {

@@ -21,7 +21,11 @@ export type Channels =
   | 'server:install_download'
   | 'server:install_conda'
   | 'server:install_create-conda-environment'
-  | 'server:install_install-dependencies';
+  | 'server:install_install-dependencies'
+  | 'server:checkIfCondaExists'
+  | 'server:checkIfCondaEnvironmentExists'
+  | 'server:checkIfUvicornExists'
+  | 'server:checkDependencies';
 
 const electronHandler = {
   ipcRenderer: {

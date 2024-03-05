@@ -96,12 +96,12 @@ export default function LoginModal({
         aria-labelledby="basic-modal-dialog-title"
         aria-describedby="basic-modal-dialog-description"
         sx={{
-          top: '10vh', // Sit 20% from the top of the screen
+          top: '5vh', // Sit 20% from the top of the screen
           margin: 'auto',
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
           width: '55vw',
           maxWidth: '700px',
-          maxHeight: '70vh',
+          maxHeight: '90vh',
         }}
       >
         <Tabs
@@ -115,7 +115,15 @@ export default function LoginModal({
             <Tab>Remote Connection</Tab>
             {/* <Tab value="SSH">Connect via SSH</Tab> */}
           </TabList>
-          <TabPanel value={0} sx={{ p: 2, overflowY: 'auto' }}>
+          <TabPanel
+            value={0}
+            sx={{
+              p: 2,
+              overflowY: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             <LocalConnection setServer={setServer} />
           </TabPanel>
           <TabPanel value={1} sx={{ p: 2 }}>
