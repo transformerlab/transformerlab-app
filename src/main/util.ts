@@ -7,6 +7,7 @@ const { spawn, exec, ChildProcess } = require('child_process');
 const util = require('node:util');
 const awaitExec = util.promisify(require('node:child_process').exec);
 const homeDir = os.homedir();
+const transformerLabRootDir = path.join(homeDir, '.transformerlab/');
 const transformerLabDir = path.join(homeDir, '.transformerlab/src/');
 const commandExistsSync = require('command-exists').sync;
 
@@ -48,7 +49,7 @@ export function startLocalServer() {
     // The following two options allow it to keep running after parent is closed
     detached: true,
     stdio: ['ignore', out, err],
-    shell: true,
+    shell: '/bin/bash',
   };
   console.log('Starting local server at', mainFile);
   localServer = spawn('bash', [mainFile], options);
@@ -108,7 +109,11 @@ export function killLocalServer() {
 export function installLocalServer() {
   console.log('Installing local server');
 
-  const options = { shell: '/bin/bash' };
+  if (!fs.existsSync(transformerLabRootDir)) {
+    fs.mkdirSync(transformerLabRootDir);
+  }
+
+  const options = { shell: '/bin/bash', cwd: transformerLabRootDir };
   try {
     const child = exec(
       'curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash',
@@ -202,7 +207,10 @@ export async function executeInstallStep(
   argument: string,
   useLocalInstallSh = false
 ) {
-  const options = {};
+  if (!fs.existsSync(transformerLabRootDir)) {
+    fs.mkdirSync(transformerLabRootDir);
+  }
+  const options = { cwd: transformerLabRootDir };
   console.log('Running install.sh ' + argument);
 
   if (useLocalInstallSh) {
