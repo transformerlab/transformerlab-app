@@ -195,13 +195,16 @@ export async function checkIfCondaEnvironmentExists() {
   const command = '~/.transformerlab/src/install.sh list_environments';
 
   const { stdout, stderr } = await awaitExec(command, options).catch((err) => {
-    console.log('Error running conda env list', err);
+    return {
+      stdout: false,
+      stderr: err
+    };
   });
   if (stdout) console.log('stdout:', stdout);
   if (stderr) console.error('stderr:', stderr);
 
   // search for the string "transformerlab" in the output
-  if (stdout.includes('transformerlab')) {
+  if (stdout && stdout.includes('transformerlab')) {
     return true;
   } else {
     return false;
