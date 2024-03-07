@@ -43,13 +43,11 @@ export function startLocalServer() {
 
   const options = {
     cwd: transformerLabDir,
-    // The following two options allow it to keep running after parent is closed
-    detached: true,
     stdio: ['ignore', out, err],
     shell: '/bin/bash',
   };
   console.log('Starting local server at', mainFile);
-  localServer = spawn('bash', [mainFile], options);
+  localServer = spawn(mainFile, [], options);
 
   console.log('Local server started with pid', localServer.pid);
 
