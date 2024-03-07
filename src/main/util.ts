@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const { spawn, exec, ChildProcess } = require('child_process');
 const homeDir = os.homedir();
+const tranformerlabHomeDir = path.join(homeDir, '.transformerlab');
 const transformerLabDir = path.join(homeDir, '.transformerlab/src/');
 
 var localServer: typeof ChildProcess = null;
@@ -45,7 +46,7 @@ export function startLocalServer() {
     // The following two options allow it to keep running after parent is closed
     detached: true,
     stdio: ['ignore', out, err],
-    shell: true,
+    shell: '/bin/bash',
   };
   console.log('Starting local server at', mainFile);
   localServer = spawn('bash', [mainFile], options);
@@ -73,12 +74,12 @@ export function startLocalServer() {
         resolve({ status: 'success', code: code });
       } else {
         resolve({
-          status: 'error', code: code ,
-          message: 'May be fixed by running ~/.transformerlab/src/init.sh'
+          status: 'error',
+          code: code,
+          message: 'May be fixed by running ~/.transformerlab/src/init.sh',
         });
       }
     });
-
   });
 }
 
@@ -105,7 +106,11 @@ export function killLocalServer() {
 export function installLocalServer() {
   console.log('Installing local server');
 
-  const options = { shell: '/bin/sh' };
+  if (!fs.existsSync(tranformerlabHomeDir)) {
+    fs.mkdirSync(tranformerlabHomeDir);
+  }
+
+  const options = { shell: '/bin/sh', cwd: tranformerlabHomeDir };
   try {
     const child = exec(
       'curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/download_and_install_remote_script.sh | sh',
