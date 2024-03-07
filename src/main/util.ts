@@ -46,13 +46,11 @@ export function startLocalServer() {
 
   const options = {
     cwd: transformerLabDir,
-    // The following two options allow it to keep running after parent is closed
-    detached: true,
     stdio: ['ignore', out, err],
     shell: '/bin/bash',
   };
   console.log('Starting local server at', mainFile);
-  localServer = spawn('bash', [mainFile], options);
+  localServer = spawn('bash', ['-l', mainFile], options);
 
   console.log('Local server started with pid', localServer.pid);
 
@@ -140,16 +138,23 @@ export function checkIfShellCommandExists(command: string) {
   }
 }
 
+export function checkIfCondaBinExists() {
+  // Look for the file ~/miniconda3/bin/conda
+  const condaBin = path.join(homeDir, 'miniconda3/bin/conda');
+  if (fs.existsSync(condaBin)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 export async function checkDependencies() {
   // First activate the transformerlab environment
   // Then run pip list
   // Then compare the output to the list of dependencies
   // If any are missing, return the missing ones
   // If all are present, manually check if the uvicorn command is present
-  const uvicornExists = checkIfShellCommandExists('uvicorn');
-
-  const command =
-    'eval "$(conda shell.bash hook)" && conda activate transformerlab && pip list --format json';
+  const command = '~/.transformerlab/src/install.sh list_installed_packages';
   const options = { shell: '/bin/bash' };
   const { stdout, stderr } = await awaitExec(command, options).catch((err) => {
     console.log('Error running pip list', err);
@@ -187,11 +192,11 @@ export async function checkDependencies() {
 export async function checkIfCondaEnvironmentExists() {
   const options = { shell: '/bin/bash' };
   console.log('Checking if Conda environment "transformerlab" exists');
-  const { stdout, stderr } = await awaitExec(`conda env list`, options).catch(
-    (err) => {
-      console.log('Error running conda env list', err);
-    }
-  );
+  const command = '~/.transformerlab/src/install.sh list_environments';
+
+  const { stdout, stderr } = await awaitExec(command, options).catch((err) => {
+    console.log('Error running conda env list', err);
+  });
   if (stdout) console.log('stdout:', stdout);
   if (stderr) console.error('stderr:', stderr);
 

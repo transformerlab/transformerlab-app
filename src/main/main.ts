@@ -26,6 +26,7 @@ import {
   checkIfShellCommandExists,
   checkIfCondaEnvironmentExists,
   checkDependencies,
+  checkIfCondaBinExists,
 } from './util';
 
 // ////////////
@@ -90,7 +91,7 @@ ipcMain.handle('server:install_install-dependencies', async (event) => {
 });
 
 ipcMain.handle('server:checkIfCondaExists', async (event) => {
-  const r = checkIfShellCommandExists('conda');
+  const r = checkIfCondaBinExists();
   console.log('conda exists', r);
   return r;
 });
@@ -99,10 +100,6 @@ ipcMain.handle('server:checkIfCondaEnvironmentExists', async (event) => {
   const envList = await checkIfCondaEnvironmentExists();
   console.log('envList', envList);
   return envList;
-});
-
-ipcMain.handle('server:checkIfUvicornExists', async (event) => {
-  return checkIfShellCommandExists('uvicorn');
 });
 
 ipcMain.handle('server:checkDependencies', async (event) => {
