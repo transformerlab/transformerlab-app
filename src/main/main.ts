@@ -133,8 +133,8 @@ if (isDebug) {
 }
 
 if (isDebug) {
-  autoUpdater.forceDevUpdateConfig = true;
-  console.log('Looking for dev-app-update.yml in', app.getAppPath());
+  // autoUpdater.forceDevUpdateConfig = true;
+  // console.log('Looking for dev-app-update.yml in', app.getAppPath());
   // autoUpdater.updateConfigPath = path.join(__dirname, 'dev-app-update.yml');
   autoUpdater.on('error', (error) => {
     dialog.showErrorBox(
@@ -325,7 +325,8 @@ autoUpdater.on('update-not-available', (info) => {
   // updater = null;
 });
 autoUpdater.on('error', (err) => {
-  sendStatusToWindow('main.js: Error in auto-updater. ' + err);
+  console.log('main.js: Error in auto-updater. ' + err);
+  // sendStatusToWindow('main.js: Error in auto-updater. ' + err);
 });
 autoUpdater.on('download-progress', (progressObj) => {
   let log_message = 'Download speed: ' + progressObj.bytesPerSecond;
