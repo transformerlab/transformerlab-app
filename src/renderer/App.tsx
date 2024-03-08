@@ -15,7 +15,8 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
 import XtermJSDrawer from './components/Connect/XtermJS';
-import OutputTerminal from './components/OutputTerminal';
+// import OutputTerminal from './components/OutputTerminal';
+// import AutoUpdateModal from './components/AutoUpdateModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -66,6 +67,7 @@ export default function App() {
           // backgroundColor: (theme) => theme.vars.palette.background.surface,
         })}
       >
+        {/* <AutoUpdateModal /> */}
         <Header
           connection={connection}
           setConnection={setConnection}
@@ -100,12 +102,12 @@ export default function App() {
           />
         </Box>
         {/* <OutputTerminal /> */}
-        <LoginModal
+        {/* <LoginModal
           setServer={setConnection}
           connection={connection}
           setTerminalDrawerOpen={setDrawerOpen}
           setSSHConnection={setSSHConnection}
-        />
+        /> */}
       </Box>
       <XtermJSDrawer
         sshConnection={sshConnection}

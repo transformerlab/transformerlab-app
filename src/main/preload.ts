@@ -92,3 +92,7 @@ contextBridge.exposeInMainWorld('sshClient', {
     ipcRenderer.removeAllListeners('ssh:connected');
   },
 });
+
+contextBridge.exposeInMainWorld('autoUpdater', {
+  onMessage: (data) => ipcRenderer.on('autoUpdater', data),
+});

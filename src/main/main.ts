@@ -10,7 +10,15 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain, utilityProcess } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  shell,
+  ipcMain,
+  utilityProcess,
+  Menu,
+  dialog,
+} from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import Store from 'electron-store';
@@ -106,14 +114,6 @@ ipcMain.handle('server:checkDependencies', async (event) => {
   return await checkDependencies();
 });
 
-class AppUpdater {
-  constructor() {
-    log.transports.file.level = 'info';
-    autoUpdater.logger = log;
-    autoUpdater.checkForUpdatesAndNotify();
-  }
-}
-
 let mainWindow: BrowserWindow | null = null;
 
 process.on('uncaughtException', function (error) {
@@ -130,6 +130,28 @@ const isDebug =
 
 if (isDebug) {
   require('electron-debug')();
+}
+
+if (isDebug) {
+  autoUpdater.forceDevUpdateConfig = true;
+  console.log('Looking for dev-app-update.yml in', app.getAppPath());
+  // autoUpdater.updateConfigPath = path.join(__dirname, 'dev-app-update.yml');
+  autoUpdater.on('error', (error) => {
+    dialog.showErrorBox(
+      'AutoUpdate Error: ',
+      error == null ? 'unknown' : (error.stack || error).toString()
+    );
+  });
+}
+
+autoUpdater.autoDownload = false;
+
+class AppUpdater {
+  constructor() {
+    log.transports.file.level = 'info';
+    autoUpdater.logger = log;
+    autoUpdater.checkForUpdates();
+  }
 }
 
 const installExtensions = async () => {
@@ -259,10 +281,82 @@ app.on('before-quit', async (e) => {
 import sshClient from './ssh-client';
 // /////////////////////////////
 
+// AUTO UPDATER
+let updater;
+
+function sendStatusToWindow(text) {
+  log.info(text);
+  mainWindow?.webContents.send('autoUpdater', text);
+}
+
+autoUpdater.on('checking-for-update', () => {
+  console.log('main.js: Checking for update...');
+  sendStatusToWindow('Checking for update...');
+});
+autoUpdater.on('update-available', (info) => {
+  console.log('main.js: Update available...');
+  // sendStatusToWindow('Update available.');
+
+  dialog
+    .showMessageBox({
+      type: 'info',
+      title: 'Found Updates',
+      message:
+        'An updated version of Transformer Lab is available, do you want update now?',
+      buttons: ['Yes', 'No'],
+    })
+    .then((buttonIndex) => {
+      if (buttonIndex.response === 0) {
+        autoUpdater.downloadUpdate();
+      } else {
+        updater.enabled = true;
+        updater = null;
+      }
+    });
+});
+autoUpdater.on('update-not-available', (info) => {
+  console.log('main.js: Update not available...');
+  // sendStatusToWindow('Update not available.');
+  // dialog.showMessageBox({
+  //   title: 'No Updates',
+  //   message: 'Current version is up-to-date.',
+  // });
+  // updater.enabled = true;
+  // updater = null;
+});
+autoUpdater.on('error', (err) => {
+  sendStatusToWindow('main.js: Error in auto-updater. ' + err);
+});
+autoUpdater.on('download-progress', (progressObj) => {
+  let log_message = 'Download speed: ' + progressObj.bytesPerSecond;
+  log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+  log_message =
+    log_message +
+    ' (' +
+    progressObj.transferred +
+    '/' +
+    progressObj.total +
+    ')';
+  sendStatusToWindow(log_message);
+});
+autoUpdater.on('update-downloaded', (info) => {
+  console.log('main.js: Update downloaded...');
+  // sendStatusToWindow('Update downloaded');
+  dialog
+    .showMessageBox({
+      title: 'Install Updates',
+      message: 'Updates downloaded. Press ok to update and restart now.',
+    })
+    .then(() => {
+      setImmediate(() => autoUpdater.quitAndInstall());
+    });
+});
+
 app
   .whenReady()
   .then(() => {
     createWindow();
+
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the
       // dock icon is clicked and there are no other windows open.
