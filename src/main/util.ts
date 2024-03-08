@@ -158,16 +158,24 @@ export async function checkDependencies() {
   const options = { shell: '/bin/bash' };
   const { stdout, stderr } = await awaitExec(command, options).catch((err) => {
     console.log('Error running pip list', err);
+    return {
+      stdout: false,
+      stderr: err
+    };
   });
+
+  // if there was an error abort processing 
+  if (!stdout) {
+    if (stderr) console.error('stderr:', stderr);
+    return ["Failed to detect packages"];
+  }
   console.log('stdout:', stdout);
-  console.error('stderr:', stderr);
 
   const pipList = JSON.parse(stdout);
   const pipListNames = pipList.map((x) => x.name);
   const keyDependencies = [
     'fastapi',
     'pydantic',
-    'transformers',
     'uvicorn',
     'sentencepiece',
     'torch',
@@ -230,6 +238,10 @@ export async function executeInstallStep(
       options
     ).catch((err) => {
       console.log('Error running install.sh', err);
+      return {
+        stdout: false,
+        stderr: err
+      };
     });
     if (stdout) console.log('stdout:', stdout);
     if (stderr) console.error('stderr:', stderr);
@@ -239,6 +251,10 @@ export async function executeInstallStep(
       options
     ).catch((err) => {
       console.log('Error running install.sh', err);
+      return {
+        stdout: false,
+        stderr: err
+      };
     });
     if (stdout) console.log('stdout:', stdout);
     if (stderr) console.error('stderr:', stderr);
