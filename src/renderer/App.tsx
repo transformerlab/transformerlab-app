@@ -102,12 +102,12 @@ export default function App() {
           />
         </Box>
         {/* <OutputTerminal /> */}
-        {/* <LoginModal
+        <LoginModal
           setServer={setConnection}
           connection={connection}
           setTerminalDrawerOpen={setDrawerOpen}
           setSSHConnection={setSSHConnection}
-        /> */}
+        />
       </Box>
       <XtermJSDrawer
         sshConnection={sshConnection}
