@@ -55,7 +55,7 @@ function CheckIfInstalled({ activeStep, setActiveStep }) {
       );
       if (serverIsInstalled) {
         setInstallStatus('success');
-        setActiveStep(Steps.indexOf('CHECK_VERSION'));
+        setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
       } else {
         setInstallStatus('notstarted');
       }
