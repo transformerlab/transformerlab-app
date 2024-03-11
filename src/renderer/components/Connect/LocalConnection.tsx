@@ -745,7 +745,7 @@ function InstallStepper({ setServer }) {
         </InstallStep>
         <InstallStep
           thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
-          title="Check if Conda is Installed at ~/miniconda3/"
+          title="Check if Conda is Installed at ~/.transformerlab/miniconda3/"
           activeStep={activeStep}
           setActiveStep={setActiveStep}
         >

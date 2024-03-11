@@ -140,7 +140,7 @@ export function checkIfShellCommandExists(command: string) {
 
 export function checkIfCondaBinExists() {
   // Look for the file ~/miniconda3/bin/conda
-  const condaBin = path.join(homeDir, 'miniconda3/bin/conda');
+  const condaBin = path.join(homeDir, '.transformerlab/miniconda3/bin/conda');
   if (fs.existsSync(condaBin)) {
     return true;
   } else {
@@ -160,14 +160,14 @@ export async function checkDependencies() {
     console.log('Error running pip list', err);
     return {
       stdout: false,
-      stderr: err
+      stderr: err,
     };
   });
 
-  // if there was an error abort processing 
+  // if there was an error abort processing
   if (!stdout) {
     if (stderr) console.error('stderr:', stderr);
-    return ["Failed to detect packages"];
+    return ['Failed to detect packages'];
   }
   console.log('stdout:', stdout);
 
@@ -205,14 +205,17 @@ export async function checkIfCondaEnvironmentExists() {
   const { stdout, stderr } = await awaitExec(command, options).catch((err) => {
     return {
       stdout: false,
-      stderr: err
+      stderr: err,
     };
   });
   if (stdout) console.log('stdout:', stdout);
   if (stderr) console.error('stderr:', stderr);
 
   // search for the string "transformerlab" in the output
-  if (stdout && stdout.includes('transformerlab')) {
+  if (
+    stdout &&
+    stdout.includes(path.join(homeDir, '.transformerlab/envs/transformerlab'))
+  ) {
     return true;
   } else {
     return false;
@@ -240,7 +243,7 @@ export async function executeInstallStep(
       console.log('Error running install.sh', err);
       return {
         stdout: false,
-        stderr: err
+        stderr: err,
       };
     });
     if (stdout) console.log('stdout:', stdout);
@@ -253,7 +256,7 @@ export async function executeInstallStep(
       console.log('Error running install.sh', err);
       return {
         stdout: false,
-        stderr: err
+        stderr: err,
       };
     });
     if (stdout) console.log('stdout:', stdout);
