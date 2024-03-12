@@ -211,10 +211,11 @@ export async function checkIfCondaEnvironmentExists() {
   if (stdout) console.log('stdout:', stdout);
   if (stderr) console.error('stderr:', stderr);
 
-  // search for the string "transformerlab" in the output
+  // search for the string "transformerlab" in the output AND check that the directory exists
   if (
     stdout &&
-    stdout.includes(path.join(homeDir, '.transformerlab/envs/transformerlab'))
+    stdout.includes(path.join(homeDir, '.transformerlab/envs/transformerlab')) &&
+    fs.existsSync(path.join(homeDir, '.transformerlab/envs/transformerlab'))
   ) {
     return true;
   } else {
