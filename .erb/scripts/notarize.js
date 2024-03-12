@@ -12,9 +12,9 @@ exports.default = async function notarizeMacos(context) {
     return;
   }
 
-  if (!('APPLE_ID' in process.env && 'APPLE_ID_PASS' in process.env)) {
+  if (!('APPLE_API_KEY' in process.env && 'APPLE_API_KEY_ID' in process.env)) {
     console.warn(
-      'Skipping notarizing step. APPLE_ID and APPLE_ID_PASS env variables must be set'
+      'Skipping notarizing step. APPLE_API_KEY and APPLE_API_KEY_ID env variables must be set'
     );
     return;
   }
@@ -22,11 +22,10 @@ exports.default = async function notarizeMacos(context) {
   const appName = context.packager.appInfo.productFilename;
 
   await notarize({
-    appBundleId: build.appId,
     appPath: `${appOutDir}/${appName}.app`,
-    appleId: process.env.APPLE_ID,
-    appleIdPassword: process.env.APPLE_ID_PASS,
-    teamId: process.env.APPLE_TEAM_ID,
-    tool: 'legacy',
+    appleApiKey: process.env.APPLE_API_KEY,
+    appleApiKeyId: process.env.APPLE_API_KEY_ID,
+    appleApiIssuer: process.env.APPLE_API_ISSUER,
+    tool: 'notarytool',
   });
 };
