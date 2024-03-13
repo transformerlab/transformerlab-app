@@ -30,6 +30,16 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   useEffect(() => {
+    async function getSavedExperimentId() {
+      const connectionWithoutDots = connection.replace(/\./g, '-');
+      const experimentId = await window.storage.get(
+        `experimentId.${connectionWithoutDots}`
+      );
+      if (experimentId) {
+        setExperimentId(experimentId);
+      }
+    }
+
     if (!window.TransformerLab) {
       window.TransformerLab = {};
     }
@@ -38,8 +48,17 @@ export default function App() {
 
     if (connection == '') {
       setExperimentId('');
+      return;
     }
+
+    getSavedExperimentId();
   }, [connection]);
+
+  useEffect(() => {
+    if (experimentId == '') return;
+    const connectionWithoutDots = connection.replace(/\./g, '-');
+    window.storage.set(`experimentId.${connectionWithoutDots}`, experimentId);
+  }, [experimentId]);
 
   // Fetch the experiment info, if the experimentId changes
   const {
