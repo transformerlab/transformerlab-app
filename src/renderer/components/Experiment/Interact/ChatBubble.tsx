@@ -54,9 +54,10 @@ export default function ChatBubble({
         //     ? 'var(--joy-palette-neutral-100)'
         //     : 'var(--joy-palette-primary-400)',
 
-        borderLeft: pos === 'bot' ? '2px solid var(--joy-palette-neutral-500)' : 'none',
+        borderLeft:
+          pos === 'bot' ? '2px solid var(--joy-palette-neutral-500)' : 'none',
 
-        marginLeft: pos === 'human' ? 'auto' : '0',
+        //marginLeft: pos === 'human' ? 'auto' : '0',
         // borderRadius: '20px',
       }}
       className="chatBubble"
@@ -67,10 +68,13 @@ export default function ChatBubble({
           flexDirection: 'row',
           alignItems: 'center',
 
-          color: pos === 'bot' ? 'var(--joy-palette-text-primary)' : 'var(--joy-palette-text-tertiary)',
+          color:
+            pos === 'bot'
+              ? 'var(--joy-palette-text-primary)'
+              : 'var(--joy-palette-text-tertiary)',
 
-          justifyContent: pos === 'bot' ? 'left' : 'right',
-          textAlign: pos === 'bot' ? 'left' : 'right',
+          justifyContent: pos === 'bot' ? 'left' : 'left',
+          textAlign: pos === 'bot' ? 'left' : 'left',
         }}
         className="chatBubbleContent"
       >
@@ -106,8 +110,8 @@ export default function ChatBubble({
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            marginRight: pos === 'bot' ? '15px' : '0',
-            marginLeft: pos === 'human' ? '15px' : '0',
+            //marginRight: pos === 'bot' ? '15px' : '0',
+            //marginLeft: pos === 'human' ? '15px' : '0',
           }}
         >
           {/* <Avatar
@@ -120,7 +124,7 @@ export default function ChatBubble({
           </Avatar> */}
         </div>
         {pos === 'bot' && !isThinking && (
-          <div style={{ maxWidth: '40vw', overflow: 'hidden' }}>
+          <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
             <Markdown
               children={t}
               components={{
