@@ -24,7 +24,7 @@
     <a href="https://twitter.com/transformerlab">Follow on Twitter</a>
   </p>
   <p align="center">
-   ⚠️ Note: Transformer Lab is still early stage software (launched Jan 2024), and being actively worked on. Please join our Discord or follow us on Twitter for updates. Feedback and contributions are highly valued! ⚠️</p>
+   Note: Transformer Lab is actively being worked on. Please join our Discord or follow us on Twitter for updates. Questions, feedback and contributions are highly valued!</p>
 </div>
 
 <!-- ABOUT THE PROJECT -->
