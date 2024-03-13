@@ -54,7 +54,7 @@ export default function ChatBubble({
         //     ? 'var(--joy-palette-neutral-100)'
         //     : 'var(--joy-palette-primary-400)',
 
-        // borderLeft: pos === 'bot' ? '2px solid var(--joy-palette-neutral-500)' : 'none',
+        borderLeft: pos === 'bot' ? '2px solid var(--joy-palette-neutral-500)' : 'none',
 
         marginLeft: pos === 'human' ? 'auto' : '0',
         // borderRadius: '20px',
@@ -110,14 +110,14 @@ export default function ChatBubble({
             marginLeft: pos === 'human' ? '15px' : '0',
           }}
         >
-          <Avatar
+          {/* <Avatar
             sx={{
               float: 'left',
             }}
             size="sm"
           >
             {pos === 'bot' ? <BotIcon /> : <UserCircleIcon />}
-          </Avatar>
+          </Avatar> */}
         </div>
         {pos === 'bot' && !isThinking && (
           <div style={{ maxWidth: '40vw', overflow: 'hidden' }}>
