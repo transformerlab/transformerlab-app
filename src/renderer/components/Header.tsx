@@ -194,7 +194,7 @@ export default function Header({ connection, setConnection, experimentInfo }) {
                         setConnection('');
                       }}
                     >
-                      Diconnect
+                      Disconnect
                     </Button>
                   </Box>
                 </Box>
