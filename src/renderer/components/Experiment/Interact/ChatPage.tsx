@@ -33,6 +33,12 @@ export default function ChatPage({
     setChats([]);
   };
 
+  const regenerateLastMessage = () => {
+    const lastMessage = chats[chats.length - 2];
+    setChats((c) => c.slice(0, -2));
+    sendNewMessageToLLM(lastMessage.t);
+  };
+
   return (
     <Sheet
       id="chat-window"
@@ -119,15 +125,19 @@ export default function ChatPage({
       >
         {/* {JSON.stringify(chats)} */}
         <Stack spacing={2} sx={{ display: 'flex', flexDirection: 'column' }}>
-          {chats.map((chat) => (
-            <ChatBubble
-              t={chat.t}
-              chat={chat}
-              chatId={chat.key}
-              pos={chat.user}
-              key={chat.key}
-              deleteChat={deleteChat}
-            />
+          {chats.map((chat, i) => (
+            <>
+              <ChatBubble
+                t={chat.t}
+                chat={chat}
+                chatId={chat.key}
+                pos={chat.user}
+                key={chat.key}
+                deleteChat={deleteChat}
+                regenerateLastMessage={regenerateLastMessage}
+                isLastMessage={i === chats.length - 1}
+              />
+            </>
           ))}
         </Stack>
         {/* This is a placeholder for the bot's response. sendMessageToLLM writes directly to this chat bubble */}
@@ -138,6 +148,7 @@ export default function ChatPage({
           t="Thinking..."
           pos="bot"
           key={'thinking'}
+          chat={undefined}
         />
 
         <div id="endofchat" />

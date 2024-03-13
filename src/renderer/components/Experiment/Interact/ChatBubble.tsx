@@ -2,6 +2,7 @@ import { Avatar, LinearProgress, Tooltip, Typography } from '@mui/joy';
 import {
   BotIcon,
   ClipboardCopyIcon,
+  RotateCcwIcon,
   Trash2Icon,
   UserCircleIcon,
 } from 'lucide-react';
@@ -35,14 +36,16 @@ export default function ChatBubble({
   isThinking = false,
   hide = false,
   deleteChat = (key) => {},
+  regenerateLastMessage = () => {},
+  isLastMessage = false,
 }) {
   return (
     <div
       style={{
         display: hide ? 'none' : 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        width: 'fit-content',
+        alignItems: 'flex-start',
+        width: '100%',
 
         padding: '10px',
         paddingLeft: '22px',
@@ -204,7 +207,7 @@ export default function ChatBubble({
                 ? 'var(--joy-palette-neutral-500)'
                 : 'var(--joy-palette-neutral-500)'
             }
-            size="22px"
+            size="20px"
             className="hoverIcon showOnChatBubbleHover"
             onClick={() => {
               navigator.clipboard.writeText(t);
@@ -219,11 +222,28 @@ export default function ChatBubble({
                 ? 'var(--joy-palette-neutral-500)'
                 : 'var(--joy-palette-neutral-500)'
             }
-            size="22px"
+            size="20px"
             className="hoverIcon showOnChatBubbleHover"
             onClick={() => deleteChat(chatId)}
           />
         </span>
+        {isLastMessage && (
+          <>
+            &nbsp;&nbsp;
+            <span>
+              <RotateCcwIcon
+                color={
+                  pos === 'bot'
+                    ? 'var(--joy-palette-neutral-500)'
+                    : 'var(--joy-palette-neutral-500)'
+                }
+                size="20px"
+                className="hoverIcon showOnChatBubbleHover"
+                onClick={() => regenerateLastMessage()}
+              />
+            </span>
+          </>
+        )}
       </div>
     </div>
   );
