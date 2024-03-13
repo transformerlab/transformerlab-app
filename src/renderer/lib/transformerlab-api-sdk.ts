@@ -692,7 +692,7 @@ Endpoints.Jobs = {
 };
 
 export function GET_EXPERIMENTS_URL() {
-  return API_URL() + 'experiment';
+  return API_URL() + 'experiment/';
 }
 
 export function GET_EXPERIMENT_UPDATE_CONFIG_URL(
@@ -1017,15 +1017,20 @@ export function useModelStatus() {
 
 export function usePluginStatus(experimentInfo: any) {
   let { data } = useSWR(
-    experimentInfo ? Endpoints.Experiment.ListScripts(experimentInfo?.id) : null,
+    experimentInfo
+      ? Endpoints.Experiment.ListScripts(experimentInfo?.id)
+      : null,
     fetcher
   );
 
   let outdatedPluginsCount = null;
   if (data) {
-    outdatedPluginsCount = data.filter((plugin: any) => plugin?.gallery_version && plugin?.version != plugin?.gallery_version).length;
+    outdatedPluginsCount = data.filter(
+      (plugin: any) =>
+        plugin?.gallery_version && plugin?.version != plugin?.gallery_version
+    ).length;
   }
-  
+
   return { outdatedPluginsCount };
 }
 
