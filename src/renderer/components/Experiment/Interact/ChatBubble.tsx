@@ -227,7 +227,7 @@ export default function ChatBubble({
             onClick={() => deleteChat(chatId)}
           />
         </span>
-        {isLastMessage && (
+        {isLastMessage && pos == 'bot' && (
           <>
             &nbsp;&nbsp;
             <span>
