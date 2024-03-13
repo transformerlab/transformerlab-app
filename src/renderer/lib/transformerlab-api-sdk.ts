@@ -692,6 +692,9 @@ Endpoints.Jobs = {
 };
 
 export function GET_EXPERIMENTS_URL() {
+  if (API_URL() === null) {
+    return null;
+  }
   return API_URL() + 'experiment/';
 }
 
@@ -995,7 +998,8 @@ export async function getTrainingJobStatus(jobId: string) {
 const fetcher = (...args: any[]) => fetch(...args).then((res) => res.json());
 
 export function useModelStatus() {
-  const url = API_URL() + 'server/worker_healthz';
+  const api_url = API_URL();
+  const url = api_url ? api_url + 'server/worker_healthz' : null;
 
   // Poll every 2 seconds
   const options = { refreshInterval: 2000 };
@@ -1035,7 +1039,8 @@ export function usePluginStatus(experimentInfo: any) {
 }
 
 export function useServerStats() {
-  const url = API_URL() + 'server/info';
+  const api_url = API_URL();
+  const url = api_url ? API_URL() + 'server/info' : null;
 
   // Poll every 1 seconds
   const options = { refreshInterval: 2000 };
