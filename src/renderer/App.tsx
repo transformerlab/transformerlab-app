@@ -35,6 +35,10 @@ export default function App() {
     }
 
     window.TransformerLab.API_URL = connection;
+
+    if (connection == '') {
+      setExperimentId('');
+    }
   }, [connection]);
 
   // Fetch the experiment info, if the experimentId changes
