@@ -108,7 +108,7 @@ export default function ChatPage({
       </Sheet>
 
       <Sheet
-        variant="outlined"
+        variant="plain"
         sx={{
           width: '100%',
           // borderRadius: "md",

@@ -49,12 +49,15 @@ export default function ChatBubble({
         paddingRight: '18px',
         paddingBottom: '8px',
 
-        backgroundColor:
-          pos === 'bot'
-            ? 'var(--joy-palette-neutral-100)'
-            : 'var(--joy-palette-primary-400)',
+        // backgroundColor:
+        //   pos === 'bot'
+        //     ? 'var(--joy-palette-neutral-100)'
+        //     : 'var(--joy-palette-primary-400)',
+
+        // borderLeft: pos === 'bot' ? '2px solid var(--joy-palette-neutral-500)' : 'none',
+
         marginLeft: pos === 'human' ? 'auto' : '0',
-        borderRadius: '20px',
+        // borderRadius: '20px',
       }}
       className="chatBubble"
     >
@@ -64,7 +67,7 @@ export default function ChatBubble({
           flexDirection: 'row',
           alignItems: 'center',
 
-          color: pos === 'bot' ? 'black' : 'white',
+          color: pos === 'bot' ? 'var(--joy-palette-text-primary)' : 'var(--joy-palette-text-tertiary)',
 
           justifyContent: pos === 'bot' ? 'left' : 'right',
           textAlign: pos === 'bot' ? 'left' : 'right',
@@ -169,7 +172,7 @@ export default function ChatBubble({
         style={{
           display: isThinking ? 'none' : 'block',
           position: 'relative',
-          bottom: '20px',
+          bottom: '13px',
           margin: 'auto',
           height: '0px',
         }}
@@ -194,8 +197,8 @@ export default function ChatBubble({
           <ClipboardCopyIcon
             color={
               pos === 'bot'
-                ? 'var(--joy-palette-neutral-600)'
-                : 'var(--joy-palette-neutral-100)'
+                ? 'var(--joy-palette-neutral-500)'
+                : 'var(--joy-palette-neutral-500)'
             }
             size="22px"
             className="hoverIcon showOnChatBubbleHover"
@@ -209,8 +212,8 @@ export default function ChatBubble({
           <Trash2Icon
             color={
               pos === 'bot'
-                ? 'var(--joy-palette-neutral-800)'
-                : 'var(--joy-palette-neutral-100)'
+                ? 'var(--joy-palette-neutral-500)'
+                : 'var(--joy-palette-neutral-500)'
             }
             size="22px"
             className="hoverIcon showOnChatBubbleHover"
