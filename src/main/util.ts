@@ -7,8 +7,8 @@ const { spawn, exec, ChildProcess } = require('child_process');
 const util = require('node:util');
 const awaitExec = util.promisify(require('node:child_process').exec);
 const homeDir = os.homedir();
-const transformerLabRootDir = path.join(homeDir, '.transformerlab/');
-const transformerLabDir = path.join(homeDir, '.transformerlab/src/');
+const transformerLabRootDir = path.join(homeDir, '.transformerlab');
+const transformerLabDir = path.join(transformerLabRootDir, 'src');
 const commandExistsSync = require('command-exists').sync;
 
 var localServer: typeof ChildProcess = null;
