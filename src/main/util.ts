@@ -114,7 +114,7 @@ export function installLocalServer() {
   const options = { shell: '/bin/bash', cwd: transformerLabRootDir };
   try {
     const child = exec(
-      'curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash',
+      `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`,
       options,
       (error, stdout, stderr) => {
         if (error) {
@@ -214,7 +214,9 @@ export async function checkIfCondaEnvironmentExists() {
   // search for the string "transformerlab" in the output AND check that the directory exists
   if (
     stdout &&
-    stdout.includes(path.join(homeDir, '.transformerlab/envs/transformerlab')) &&
+    stdout.includes(
+      path.join(homeDir, '.transformerlab/envs/transformerlab')
+    ) &&
     fs.existsSync(path.join(homeDir, '.transformerlab/envs/transformerlab'))
   ) {
     return true;
