@@ -347,7 +347,7 @@ function CheckForPlugins({ activeStep, setActiveStep }) {
             </>
           )}
           {missingPlugins?.length > 0 &&
-            'The following plugins are not yet installed:'}
+            'The following platform-specific plugins are not yet installed:'}
         </Typography>
         <Typography level="body-sm" color="warning">
           {missingPlugins?.map((p) => p).join(', ')}
@@ -538,7 +538,9 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
         {installStatus == 'pending' && (
           <>
             <CircularProgress color="primary" />
-            Installing. This can take a while.
+            <Typography level="body-sm" color="warning">
+              Installing. This can take a while.
+            </Typography>
           </>
         )}
 
@@ -625,7 +627,9 @@ function CheckDependencies({ activeStep, setActiveStep }) {
         {installStatus == 'pending' && (
           <>
             <CircularProgress color="primary" />
-            Installing. This can take a <b>long</b> while.
+            <Typography level="body-sm" color="warning">
+              Installing. This can take a long while.
+            </Typography>
           </>
         )}
         {missingDependencies.length > 0 && installStatus == 'notstarted' && (
