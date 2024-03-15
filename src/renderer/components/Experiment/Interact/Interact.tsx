@@ -399,7 +399,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
               {currentModel} - {adaptor}
             </Typography>
             <FormControl>
-              <FormLabel>Mode:</FormLabel>
+              <FormLabel sx={{ fontWeight: '600' }}>Mode:</FormLabel>
               <RadioGroup
                 orientation="horizontal"
                 aria-labelledby="segmented-controls-example"
