@@ -54,6 +54,23 @@ function truncate(str, n) {
   return str.length > n ? <>{str.slice(0, n - 1)} &hellip;</> : <>{str}</>;
 }
 
+function ThinSlider(props) {
+  return (
+    <Slider
+      sx={{
+        margin: 'auto',
+        width: '90%',
+        '--Slider-trackSize': '3px',
+        '--Slider-thumbSize': '8px',
+        '--Slider-thumbWidth': '18px',
+        paddingTop: 1,
+        marginBottom: 1,
+      }}
+      {...props}
+    />
+  );
+}
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Chat({ experimentInfo, experimentInfoMutate }) {
@@ -456,8 +473,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   Temperature &nbsp;
                   <span style={{ color: '#aaa' }}>{temperature}</span>
                 </FormLabel>
-                <Slider
-                  sx={{ margin: 'auto', width: '90%' }}
+                <ThinSlider
                   value={temperature}
                   onChange={(event: Event, newValue: number | number[]) => {
                     setTemperature(newValue as number);
@@ -497,8 +513,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   Top P &nbsp;
                   <span style={{ color: '#aaa' }}>{topP}</span>
                 </FormLabel>
-                <Slider
-                  sx={{ margin: 'auto', width: '90%' }}
+                <ThinSlider
                   value={topP}
                   onChange={(event: Event, newValue: number | number[]) => {
                     setTopP(newValue as number);
@@ -512,8 +527,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   Frequency Penalty &nbsp;
                   <span style={{ color: '#aaa' }}>{frequencyPenalty}</span>
                 </FormLabel>
-                <Slider
-                  sx={{ margin: 'auto', width: '90%' }}
+                <ThinSlider
                   value={frequencyPenalty}
                   onChange={(event: Event, newValue: number | number[]) => {
                     setFrequencyPenalty(newValue as number);
