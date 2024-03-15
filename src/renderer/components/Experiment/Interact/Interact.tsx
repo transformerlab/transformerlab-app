@@ -64,7 +64,7 @@ function ThinSlider(props) {
         '--Slider-thumbSize': '8px',
         '--Slider-thumbWidth': '18px',
         paddingTop: 1,
-        marginBottom: 1,
+        marginBottom: 2,
       }}
       {...props}
     />
@@ -488,26 +488,19 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   Maximum Length &nbsp;
                   <span style={{ color: '#aaa' }}>{maxTokens}</span>
                 </FormLabel>
-                {/* <Slider
-                  sx={{ margin: 'auto', width: '90%' }}
-                  defaultValue={64}
-                  min={0}
-                  max={256 * 10}
-                  value={maxTokens}
-                  onChange={(event: Event, newValue: number | number[]) => {
-                    setMaxTokens(newValue as number);
-                  }}
-                  valueLabelDisplay="auto"
-                /> */}
-                {/* Temporarily make the slider a text input until we can deduce the context length as max */}
-                <Input
-                  sx={{ margin: 'auto', width: '90%', mb: 2 }}
-                  variant="plain"
+                <ThinSlider
                   defaultValue={1024}
                   value={maxTokens}
-                  onChange={(e) => {
-                    setMaxTokens(e.target.value);
+                  onChange={(e, newValue) => {
+                    setMaxTokens(newValue as number);
                   }}
+                  max={
+                    tokenCount?.contextLength
+                      ? parseInt(tokenCount.contextLength)
+                      : 1024
+                  }
+                  min={0}
+                  valueLabelDisplay="auto"
                 />
                 <FormLabel>
                   Top P &nbsp;
