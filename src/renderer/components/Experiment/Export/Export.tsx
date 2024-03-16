@@ -7,20 +7,17 @@ import PluginSettingsModal from './PluginSettingsModal';
 
 import Sheet from '@mui/joy/Sheet';
 import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
-import {
-  PlugIcon,
-  ClockIcon,
-} from 'lucide-react';
+import { PlugIcon, ClockIcon, PlayIcon } from 'lucide-react';
 
-// fetcher used by SWR 
+// fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Export({experimentInfo}) {
+export default function Export({ experimentInfo }) {
   const [runningPlugin, setRunningPlugin] = useState(null);
   const [exportDetailsJobId, setExportDetailsJobId] = useState(-1);
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
-  // call plugins list endpoint and filter based on type="exporter" 
+  // call plugins list endpoint and filter based on type="exporter"
   const {
     data: plugins,
     error: pluginsError,
@@ -29,8 +26,8 @@ export default function Export({experimentInfo}) {
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
-          'exporter'
-    ),
+        'exporter'
+      ),
     fetcher
   );
 
@@ -41,31 +38,44 @@ export default function Export({experimentInfo}) {
     mutate: exportJobsMutate,
   } = useSWR(
     experimentInfo?.id &&
-      chatAPI.Endpoints.Experiment.GetExportJobs(
-        experimentInfo?.id
-      ), fetcher, {
-    refreshInterval: 2000,
-  });
-
+      chatAPI.Endpoints.Experiment.GetExportJobs(experimentInfo?.id),
+    fetcher,
+    {
+      refreshInterval: 2000,
+    }
+  );
 
   // returns true if the currently loaded foundation is in the passed array
   // supported_architectures - a list of all architectures supported by this plugin
   function isModelValidArchitecture(supported_architectures) {
-    return experimentInfo != null && experimentInfo?.config?.foundation !== ''
-          && supported_architectures.includes(experimentInfo?.config?.foundation_model_architecture);
+    return (
+      experimentInfo != null &&
+      experimentInfo?.config?.foundation !== '' &&
+      supported_architectures.includes(
+        experimentInfo?.config?.foundation_model_architecture
+      )
+    );
   }
 
   // This function is passed to PluginSettingsModal
   // It allows it to run an exporter plugin on the current experiment's model
-  async function exportRun(plugin_id: string, plugin_architecture: string, params_json: string) {
-
+  async function exportRun(
+    plugin_id: string,
+    plugin_architecture: string,
+    params_json: string
+  ) {
     if (plugin_id) {
       // sets the running plugin ID, which is used by the UI to set disabled on buttons
       setRunningPlugin(plugin_id);
 
       // Call the export job and since this is running async we'll await
       const response = await fetch(
-        chatAPI.Endpoints.Experiment.RunExport(experimentInfo?.id, plugin_id, plugin_architecture, params_json)
+        chatAPI.Endpoints.Experiment.RunExport(
+          experimentInfo?.id,
+          plugin_id,
+          plugin_architecture,
+          params_json
+        )
       );
 
       // Clean up after export by unsetting running plugin (re-enables buttons)
@@ -75,109 +85,96 @@ export default function Export({experimentInfo}) {
 
   return (
     <>
+      <ExportDetailsModal
+        jobId={exportDetailsJobId}
+        setJobId={setExportDetailsJobId}
+      />
 
-    <ExportDetailsModal
-      jobId={exportDetailsJobId}
-      setJobId={setExportDetailsJobId}
-    />
+      <PluginSettingsModal
+        open={!!selectedPlugin}
+        onClose={() => {
+          // unselect active plugin and close modal
+          setSelectedPlugin(null);
+        }}
+        onSubmit={exportRun}
+        experimentInfo={experimentInfo}
+        plugin={selectedPlugin}
+      />
 
-    <PluginSettingsModal
-      open = {!!selectedPlugin}
-      onClose={() => {
-        // unselect active plugin and close modal
-        setSelectedPlugin(null);
-      }}
-      onSubmit={exportRun}
-      experimentInfo = {experimentInfo}
-      plugin = {selectedPlugin}
-    />
-
-    <Sheet
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <Typography level="h1">Export Model</Typography>
-      <Sheet sx={{ overflowY: 'auto', overflowX: 'hidden', mb: '2rem' }}>
-        <Divider sx={{ mt: 2, mb: 2 }} />
-        <Typography level="title-lg" mb={2}>
-          Available Export Formats&nbsp;
-        </Typography>
-        {plugins?.length === 0 ? (
-          <Typography level="title-lg" mb={1} color="warning">
-            No Export Formats available, please install an export plugin.
+      <Sheet
+        sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <Typography level="h1">Export Model</Typography>
+        <Sheet sx={{ overflowY: 'auto', overflowX: 'hidden', mb: '2rem' }}>
+          <Divider sx={{ mt: 2, mb: 2 }} />
+          <Typography level="title-lg" mb={2}>
+            Available Export Formats&nbsp;
           </Typography>
-        ) : ( 
-        <Table aria-label="basic table">
-          <thead>
-            <tr>
-              <th>Exporter</th>
-              <th style={{ width: '50%' }}>Description</th>
-              <th style={{ textAlign: 'right' }}>&nbsp;</th>
-            </tr>
-          </thead>
-          <tbody>
-            {plugins?.map((row) => (
-              <tr key={row.uniqueId}>
-                <td>{row.name}</td>
-                <td>{row.description}</td>
-                <td style={{ textAlign: 'right' }}>
+          {plugins?.length === 0 ? (
+            <Typography level="title-lg" mb={1} color="warning">
+              No Export Formats available, please install an export plugin.
+            </Typography>
+          ) : (
+            <Table aria-label="basic table">
+              <thead>
+                <tr>
+                  <th>Exporter</th>
+                  <th style={{ width: '50%' }}>Description</th>
+                  <th style={{ textAlign: 'right' }}>&nbsp;</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plugins?.map((row) => (
+                  <tr key={row.uniqueId}>
+                    <td>{row.name}</td>
+                    <td>{row.description}</td>
+                    <td style={{ textAlign: 'right' }}>
                       {' '}
                       <Button
-
                         startDecorator={
-                          (runningPlugin)  ? (
+                          runningPlugin ? (
                             <CircularProgress size="sm" thickness={2} />
+                          ) : !isModelValidArchitecture(
+                              row.model_architectures
+                            ) ? (
+                            ' '
                           ) : (
-                            (!isModelValidArchitecture(row.model_architectures)) ? (
-                              " "
-                            ) : (
-                              <PlugIcon />
-                            )
+                            ''
                           )
                         }
                         color="success"
                         variant="soft"
                         onClick={async (e) => {
-                            // set the selected plugin which will open the PluginSettingsModal
-                            setSelectedPlugin(row);
+                          // set the selected plugin which will open the PluginSettingsModal
+                          setSelectedPlugin(row);
                         }}
                         disabled={
-                          !isModelValidArchitecture(row.model_architectures)
-                          ||
+                          !isModelValidArchitecture(row.model_architectures) ||
                           runningPlugin
                         }
                       >
-                        {(runningPlugin) ? (
-                            "Exporting..."
-                        ) : (
-                            (!isModelValidArchitecture(row.model_architectures)) ? (
-                              "Not supported for this model architecture"
-
-                            ) : (
-                              "Select Plugin"
-
-                            )
-
-                        )}
+                        {runningPlugin
+                          ? 'Exporting...'
+                          : !isModelValidArchitecture(row.model_architectures)
+                          ? 'Not supported for this model architecture'
+                          : 'Select'}
                       </Button>
                     </td>
-              </tr>
-                )
-            )}
-          </tbody>
-        </Table>
-        )}
-      </Sheet>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Sheet>
 
-
-
-      <Typography level="title-md" startDecorator={<ClockIcon />}>
+        <Typography level="title-md" startDecorator={<ClockIcon />}>
           Previous Exports
-      </Typography>
-      <Sheet
+        </Typography>
+        <Sheet
           color="warning"
           variant="soft"
           sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}
@@ -212,9 +209,13 @@ export default function Export({experimentInfo}) {
                       {' '}
                       <Button
                         size="sm"
-                        disabled={!(job.status === "COMPLETE" || job.status === "FAILED")}
+                        disabled={
+                          !(
+                            job.status === 'COMPLETE' || job.status === 'FAILED'
+                          )
+                        }
                         onClick={() => {
-                          setExportDetailsJobId(job.id)
+                          setExportDetailsJobId(job.id);
                         }}
                       >
                         Details
@@ -226,7 +227,7 @@ export default function Export({experimentInfo}) {
             </tbody>
           </Table>
         </Sheet>
-    </Sheet>
+      </Sheet>
     </>
   );
 }
