@@ -9,21 +9,53 @@ import {
 import ChatBubble from './ChatBubble';
 import ChatSubmit from './ChatSubmit';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { CheckIcon, PencilIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useDebounce } from 'use-debounce';
 
 export default function ChatPage({
   chats,
   setChats,
-  templateTextIsEditable,
   experimentInfo,
   isThinking,
   sendNewMessageToLLM,
   experimentInfoMutate,
-  setTemplateTextIsEditable,
   tokenCount,
   text,
   debouncedText,
 }) {
+  const [systemMessage, setSystemMessage] = useState(
+    experimentInfo?.config?.prompt_template?.system_message
+  );
+
+  const sendSystemMessageToServer = (message) => {
+    // console.log(`Sending message: ${message} to the server`);
+    const experimentId = experimentInfo?.id;
+    const newSystemPrompt = message;
+
+    var newPrompt = {
+      ...experimentInfo?.config?.prompt_template,
+    };
+    newPrompt.system_message = newSystemPrompt;
+
+    fetch(chatAPI.SAVE_EXPERIMENT_PROMPT_URL(experimentId), {
+      method: 'POST',
+      body: JSON.stringify(newPrompt),
+    }).then((response) => {
+      experimentInfoMutate();
+    });
+  };
+
+  const [debouncedSystemMessage] = useDebounce(systemMessage, 1000);
+
+  useEffect(() => {
+    if (
+      debouncedSystemMessage !==
+      experimentInfo?.config?.prompt_template?.system_message
+    ) {
+      sendSystemMessageToServer(systemMessage);
+    }
+  }, [debouncedSystemMessage]); // useEffect will be called whenever systemMessage changes
+
   // Delete a chat from state array with key provided:
   const deleteChat = (key) => {
     setChats((c) => c.filter((chat) => chat.key !== key));
@@ -51,6 +83,10 @@ export default function ChatPage({
         justifyContent: 'space-evenly',
       }}
     >
+      <FormLabel sx={{ justifyContent: 'space-between', width: '100%' }}>
+        <span>System message</span>
+        <span></span>
+      </FormLabel>
       <Sheet
         variant="outlined"
         id="system-message-box"
@@ -63,56 +99,19 @@ export default function ChatPage({
         }}
       >
         <FormControl>
-          <FormLabel sx={{ justifyContent: 'space-between', width: '100%' }}>
-            <span>System message</span>
-            <span>
-              {templateTextIsEditable ? (
-                <Button
-                  variant="soft"
-                  startDecorator={<CheckIcon />}
-                  onClick={() => {
-                    const experimentId = experimentInfo?.id;
-                    const newSystemPrompt =
-                      document.getElementsByName('system-message')[0]?.value;
-
-                    var newPrompt = {
-                      ...experimentInfo?.config?.prompt_template,
-                    };
-                    newPrompt.system_message = newSystemPrompt;
-
-                    fetch(chatAPI.SAVE_EXPERIMENT_PROMPT_URL(experimentId), {
-                      method: 'POST',
-                      body: JSON.stringify(newPrompt),
-                    }).then((response) => {
-                      experimentInfoMutate();
-                    });
-
-                    setTemplateTextIsEditable(!templateTextIsEditable);
-                  }}
-                  size="sm"
-                >
-                  Save Changes
-                </Button>
-              ) : (
-                <PencilIcon
-                  size={18}
-                  onClick={() =>
-                    setTemplateTextIsEditable(!templateTextIsEditable)
-                  }
-                  color={templateTextIsEditable ? '#aaa' : '#000'}
-                />
-              )}
-            </span>
-          </FormLabel>
           <Textarea
-            placeholder="You are a helpful chatbot"
             variant="plain"
             name="system-message"
-            disabled={!templateTextIsEditable}
+            minRows={2}
+            value={systemMessage}
+            onChange={(e) => setSystemMessage(e.target.value)}
+            sx={{
+              '--Textarea-focusedThickness': '0',
+              '--Textarea-focusedHighlight': 'transparent !important',
+            }}
           />
         </FormControl>
       </Sheet>
-
       <Sheet
         variant="plain"
         sx={{

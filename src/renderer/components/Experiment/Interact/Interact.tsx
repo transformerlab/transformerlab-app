@@ -77,16 +77,12 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
   const { models, isError, isLoading } = chatAPI.useModelStatus();
   const [mode, setMode] = React.useState('chat');
   const [conversationId, setConversationId] = React.useState(null);
-  const [conversationList, setConversationList] = React.useState([]);
   const [chats, setChats] = React.useState([]);
   const [isThinking, setIsThinking] = React.useState(false);
   const [temperature, setTemperature] = React.useState(0.7);
   const [maxTokens, setMaxTokens] = React.useState(256);
   const [topP, setTopP] = React.useState(1);
   const [frequencyPenalty, setFrequencyPenalty] = React.useState(0);
-
-  const [templateTextIsEditable, setTemplateTextIsEditable] =
-    React.useState(false);
 
   const [text, setText] = React.useState('');
 
@@ -366,12 +362,10 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
             key={conversationId}
             chats={chats}
             setChats={setChats}
-            templateTextIsEditable={templateTextIsEditable}
             experimentInfo={experimentInfo}
             isThinking={isThinking}
             sendNewMessageToLLM={sendNewMessageToLLM}
             experimentInfoMutate={experimentInfoMutate}
-            setTemplateTextIsEditable={setTemplateTextIsEditable}
             tokenCount={tokenCount}
             text={textToDebounce}
             debouncedText={debouncedText}
