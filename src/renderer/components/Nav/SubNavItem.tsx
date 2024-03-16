@@ -18,7 +18,7 @@ const SubNavItem = ({
   path: string;
   icon: ReactElement;
   disabled: boolean;
-  counter: number | null;
+  counter?: number | null;
 }) => {
   const navigate = useNavigate();
   const match = useMatch(path);
