@@ -81,6 +81,7 @@ export default function ChatPage({
         gap: 1,
         flex: 'auto',
         justifyContent: 'space-evenly',
+        overflow: 'hidden',
       }}
     >
       <FormLabel sx={{ justifyContent: 'space-between', width: '100%' }}>
