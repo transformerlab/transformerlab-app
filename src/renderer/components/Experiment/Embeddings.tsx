@@ -30,14 +30,14 @@ export default function Embeddings({ experimentInfo }) {
     const model_name = experimentInfo?.config?.foundation;
 
     let embeddings = await chatAPI.getEmbeddings(model_name, lines);
-    embeddings = embeddings.data;
+    embeddings = embeddings?.data;
 
     //expand embeddings subproperty embedding array to string:
-    embeddings = embeddings.map((item) => {
+    embeddings = embeddings?.map((item) => {
       return item.embedding;
     });
 
-    embeddings = embeddings.join('\n\n\n');
+    embeddings = embeddings?.join('\n\n\n');
 
     document.getElementById('embeddingsResult').innerHTML = embeddings;
   }
