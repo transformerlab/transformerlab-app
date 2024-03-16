@@ -19,7 +19,7 @@ import {
   ListItemContent,
   ListItemButton,
   IconButton,
-  Input,
+  Alert,
 } from '@mui/joy';
 
 import ChatPage from './ChatPage';
@@ -31,7 +31,6 @@ import './styles.css';
 import { useDebounce } from 'use-debounce';
 import CompletionsPage from './CompletionsPage';
 import { MessagesSquareIcon, XIcon } from 'lucide-react';
-import e from 'express';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
@@ -342,7 +341,6 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
   }
 
   if (!experimentInfo) return 'Select an Experiment';
-  if (!models?.[0]?.id) return 'No Model is Running';
 
   return (
     <>
@@ -356,6 +354,27 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
           gap: 3,
         }}
       >
+        <Sheet
+          sx={{
+            position: 'absolute',
+            top: '0%',
+            left: '0%',
+            height: '90dvh',
+            width: '80dvw',
+            zIndex: 10000,
+            backgroundColor: 'var(--joy-palette-neutral-softBg)',
+            opacity: 0.9,
+            borderRadius: 'md',
+            padding: 2,
+            visibility: !models?.[0]?.id ? 'visible' : 'hidden',
+          }}
+        >
+          <Alert
+            sx={{ position: 'relative', top: '50%', justifyContent: 'center' }}
+          >
+            No Model is Running
+          </Alert>
+        </Sheet>
         {/* <pre>{JSON.stringify(chats, null, 2)}</pre> */}
         {mode === 'chat' && (
           <ChatPage
