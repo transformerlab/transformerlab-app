@@ -19,7 +19,7 @@ import {
   ListItemContent,
   ListItemButton,
   IconButton,
-  Input,
+  Alert,
 } from '@mui/joy';
 
 import ChatPage from './ChatPage';
@@ -31,7 +31,6 @@ import './styles.css';
 import { useDebounce } from 'use-debounce';
 import CompletionsPage from './CompletionsPage';
 import { MessagesSquareIcon, XIcon } from 'lucide-react';
-import e from 'express';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
@@ -54,22 +53,35 @@ function truncate(str, n) {
   return str.length > n ? <>{str.slice(0, n - 1)} &hellip;</> : <>{str}</>;
 }
 
+function ThinSlider(props) {
+  return (
+    <Slider
+      sx={{
+        margin: 'auto',
+        width: '90%',
+        '--Slider-trackSize': '3px',
+        '--Slider-thumbSize': '8px',
+        '--Slider-thumbWidth': '18px',
+        paddingTop: 1,
+        marginBottom: 2,
+      }}
+      {...props}
+    />
+  );
+}
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Chat({ experimentInfo, experimentInfoMutate }) {
   const { models, isError, isLoading } = chatAPI.useModelStatus();
   const [mode, setMode] = React.useState('chat');
   const [conversationId, setConversationId] = React.useState(null);
-  const [conversationList, setConversationList] = React.useState([]);
   const [chats, setChats] = React.useState([]);
   const [isThinking, setIsThinking] = React.useState(false);
   const [temperature, setTemperature] = React.useState(0.7);
   const [maxTokens, setMaxTokens] = React.useState(256);
   const [topP, setTopP] = React.useState(1);
   const [frequencyPenalty, setFrequencyPenalty] = React.useState(0);
-
-  const [templateTextIsEditable, setTemplateTextIsEditable] =
-    React.useState(false);
 
   const [text, setText] = React.useState('');
 
@@ -329,7 +341,6 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
   }
 
   if (!experimentInfo) return 'Select an Experiment';
-  if (!models?.[0]?.id) return 'No Model is Running';
 
   return (
     <>
@@ -343,18 +354,37 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
           gap: 3,
         }}
       >
+        <Sheet
+          sx={{
+            position: 'absolute',
+            top: '0%',
+            left: '0%',
+            height: '90dvh',
+            width: '80dvw',
+            zIndex: 10000,
+            backgroundColor: 'var(--joy-palette-neutral-softBg)',
+            opacity: 0.9,
+            borderRadius: 'md',
+            padding: 2,
+            visibility: !models?.[0]?.id ? 'visible' : 'hidden',
+          }}
+        >
+          <Alert
+            sx={{ position: 'relative', top: '50%', justifyContent: 'center' }}
+          >
+            No Model is Running
+          </Alert>
+        </Sheet>
         {/* <pre>{JSON.stringify(chats, null, 2)}</pre> */}
         {mode === 'chat' && (
           <ChatPage
             key={conversationId}
             chats={chats}
             setChats={setChats}
-            templateTextIsEditable={templateTextIsEditable}
             experimentInfo={experimentInfo}
             isThinking={isThinking}
             sendNewMessageToLLM={sendNewMessageToLLM}
             experimentInfoMutate={experimentInfoMutate}
-            setTemplateTextIsEditable={setTemplateTextIsEditable}
             tokenCount={tokenCount}
             text={textToDebounce}
             debouncedText={debouncedText}
@@ -399,7 +429,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
               {currentModel} - {adaptor}
             </Typography>
             <FormControl>
-              <FormLabel>Mode:</FormLabel>
+              <FormLabel sx={{ fontWeight: '600' }}>Mode:</FormLabel>
               <RadioGroup
                 orientation="horizontal"
                 aria-labelledby="segmented-controls-example"
@@ -456,8 +486,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   Temperature &nbsp;
                   <span style={{ color: '#aaa' }}>{temperature}</span>
                 </FormLabel>
-                <Slider
-                  sx={{ margin: 'auto', width: '90%' }}
+                <ThinSlider
                   value={temperature}
                   onChange={(event: Event, newValue: number | number[]) => {
                     setTemperature(newValue as number);
@@ -472,33 +501,25 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   Maximum Length &nbsp;
                   <span style={{ color: '#aaa' }}>{maxTokens}</span>
                 </FormLabel>
-                {/* <Slider
-                  sx={{ margin: 'auto', width: '90%' }}
-                  defaultValue={64}
-                  min={0}
-                  max={256 * 10}
-                  value={maxTokens}
-                  onChange={(event: Event, newValue: number | number[]) => {
-                    setMaxTokens(newValue as number);
-                  }}
-                  valueLabelDisplay="auto"
-                /> */}
-                {/* Temporarily make the slider a text input until we can deduce the context length as max */}
-                <Input
-                  sx={{ margin: 'auto', width: '90%', mb: 2 }}
-                  variant="plain"
+                <ThinSlider
                   defaultValue={1024}
                   value={maxTokens}
-                  onChange={(e) => {
-                    setMaxTokens(e.target.value);
+                  onChange={(e, newValue) => {
+                    setMaxTokens(newValue as number);
                   }}
+                  max={
+                    tokenCount?.contextLength
+                      ? parseInt(tokenCount.contextLength)
+                      : 1024
+                  }
+                  min={0}
+                  valueLabelDisplay="auto"
                 />
                 <FormLabel>
                   Top P &nbsp;
                   <span style={{ color: '#aaa' }}>{topP}</span>
                 </FormLabel>
-                <Slider
-                  sx={{ margin: 'auto', width: '90%' }}
+                <ThinSlider
                   value={topP}
                   onChange={(event: Event, newValue: number | number[]) => {
                     setTopP(newValue as number);
@@ -512,8 +533,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   Frequency Penalty &nbsp;
                   <span style={{ color: '#aaa' }}>{frequencyPenalty}</span>
                 </FormLabel>
-                <Slider
-                  sx={{ margin: 'auto', width: '90%' }}
+                <ThinSlider
                   value={frequencyPenalty}
                   onChange={(event: Event, newValue: number | number[]) => {
                     setFrequencyPenalty(newValue as number);
