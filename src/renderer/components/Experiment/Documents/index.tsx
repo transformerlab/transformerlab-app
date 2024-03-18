@@ -25,150 +25,17 @@ import MenuButton from '@mui/joy/MenuButton';
 import MenuItem from '@mui/joy/MenuItem';
 import Dropdown from '@mui/joy/Dropdown';
 
-import { PlusCircleIcon, SearchIcon } from 'lucide-react';
+import { FileTextIcon, PlusCircleIcon, SearchIcon } from 'lucide-react';
 import {
   FilterIcon as FilterAltIcon,
-  ArrowBigDownIcon as ArrowDropDownIcon,
-  CheckCircle as CheckRoundedIcon,
+  ChevronDownIcon as ArrowDropDownIcon,
   BlocksIcon as BlockIcon,
   RefreshCcw as AutorenewRoundedIcon,
-  ArrowBigLeftIcon as KeyboardArrowRightIcon,
-  ArrowBigRightIcon as KeyboardArrowLeftIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
 } from 'lucide-react';
+import useSWR from 'swr';
 
-const rows = [
-  {
-    id: 'Hello',
-    date: 'Feb 3, 2023',
-    status: 'PDF',
-    customer: {
-      initial: 'O',
-      name: 'Olivia Ryhe',
-      email: 'olivia@email.com',
-    },
-  },
-  {
-    id: 'INV-1233',
-    date: 'Feb 3, 2023',
-    status: 'Text',
-    customer: {
-      initial: 'S',
-      name: 'Steve Hampton',
-      email: 'steve.hamp@email.com',
-    },
-  },
-  {
-    id: 'INV-1232',
-    date: 'Feb 3, 2023',
-    status: 'PDF',
-    customer: {
-      initial: 'C',
-      name: 'Ciaran Murray',
-      email: 'ciaran.murray@email.com',
-    },
-  },
-  {
-    id: 'INV-1231',
-    date: 'Feb 3, 2023',
-    status: 'PDF',
-    customer: {
-      initial: 'M',
-      name: 'Maria Macdonald',
-      email: 'maria.mc@email.com',
-    },
-  },
-  {
-    id: 'INV-1230',
-    date: 'Feb 3, 2023',
-    status: 'JSONL',
-    customer: {
-      initial: 'C',
-      name: 'Charles Fulton',
-      email: 'fulton@email.com',
-    },
-  },
-  {
-    id: 'INV-1229',
-    date: 'Feb 3, 2023',
-    status: 'JSONL',
-    customer: {
-      initial: 'J',
-      name: 'Jay Hooper',
-      email: 'hooper@email.com',
-    },
-  },
-  {
-    id: 'INV-1228',
-    date: 'Feb 3, 2023',
-    status: 'PDF',
-    customer: {
-      initial: 'K',
-      name: 'Krystal Stevens',
-      email: 'k.stevens@email.com',
-    },
-  },
-  {
-    id: 'INV-1227',
-    date: 'Feb 3, 2023',
-    status: 'Text',
-    customer: {
-      initial: 'S',
-      name: 'Sachin Flynn',
-      email: 's.flyn@email.com',
-    },
-  },
-  {
-    id: 'INV-1226',
-    date: 'Feb 3, 2023',
-    status: 'JSONL',
-    customer: {
-      initial: 'B',
-      name: 'Bradley Rosales',
-      email: 'brad123@email.com',
-    },
-  },
-  {
-    id: 'INV-1225',
-    date: 'Feb 3, 2023',
-    status: 'Text',
-    customer: {
-      initial: 'O',
-      name: 'Olivia Ryhe',
-      email: 'olivia@email.com',
-    },
-  },
-  {
-    id: 'INV-1225',
-    date: 'Feb 3, 2023',
-    status: 'Text',
-    customer: {
-      initial: 'O',
-      name: 'Olivia Ryhe',
-      email: 'olivia@email.com',
-    },
-  },
-  {
-    id: 'INV-1225',
-    date: 'Feb 3, 2023',
-    status: 'Text',
-    customer: {
-      initial: 'O',
-      name: 'Olivia Ryhe',
-      email: 'olivia@email.com',
-    },
-  },
-  {
-    id: 'INV-1225',
-    date: 'Feb 3, 2023',
-    status: 'Text',
-    customer: {
-      initial: 'O',
-      name: 'Olivia Ryhe',
-      email: 'olivia@email.com',
-    },
-  },
-];
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -202,15 +69,15 @@ function stableSort<T>(
   array: readonly T[],
   comparator: (a: T, b: T) => number
 ) {
-  const stabilizedThis = array.map((el, index) => [el, index] as [T, number]);
-  stabilizedThis.sort((a, b) => {
+  const stabilizedThis = array?.map((el, index) => [el, index] as [T, number]);
+  stabilizedThis?.sort((a, b) => {
     const order = comparator(a[0], b[0]);
     if (order !== 0) {
       return order;
     }
     return a[1] - b[1];
   });
-  return stabilizedThis.map((el) => el[0]);
+  return stabilizedThis?.map((el) => el[0]);
 }
 
 function RowMenu() {
@@ -233,10 +100,18 @@ function RowMenu() {
   );
 }
 
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function OrderTable() {
   const [order, setOrder] = React.useState<Order>('desc');
   const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
+
+  const { data: rows, isLoading } = useSWR(
+    chatAPI.Endpoints.Documents.List(),
+    fetcher
+  );
+
   const renderFilters = () => (
     <React.Fragment>
       <FormControl size="sm">
@@ -392,16 +267,16 @@ export default function OrderTable() {
                 <Checkbox
                   size="sm"
                   indeterminate={
-                    selected.length > 0 && selected.length !== rows.length
+                    selected.length > 0 && selected.length !== rows?.length
                   }
-                  checked={selected.length === rows.length}
+                  checked={selected.length === rows?.length}
                   onChange={(event) => {
                     setSelected(
-                      event.target.checked ? rows.map((row) => row.id) : []
+                      event.target.checked ? rows?.map((row) => row?.name) : []
                     );
                   }}
                   color={
-                    selected.length > 0 || selected.length === rows.length
+                    selected.length > 0 || selected.length === rows?.length
                       ? 'primary'
                       : undefined
                   }
@@ -433,18 +308,18 @@ export default function OrderTable() {
             </tr>
           </thead>
           <tbody>
-            {stableSort(rows, getComparator(order, 'id')).map((row) => (
-              <tr key={row.id}>
+            {stableSort(rows, getComparator(order, 'id'))?.map((row) => (
+              <tr key={row?.name}>
                 <td style={{ textAlign: 'center', width: 120 }}>
                   <Checkbox
                     size="sm"
-                    checked={selected.includes(row.id)}
-                    color={selected.includes(row.id) ? 'primary' : undefined}
+                    checked={selected.includes(row?.name)}
+                    color={selected.includes(row?.name) ? 'primary' : undefined}
                     onChange={(event) => {
                       setSelected((ids) =>
                         event.target.checked
-                          ? ids.concat(row.id)
-                          : ids.filter((itemId) => itemId !== row.id)
+                          ? ids.concat(row?.name)
+                          : ids.filter((itemId) => itemId !== row?.name)
                       );
                     }}
                     slotProps={{ checkbox: { sx: { textAlign: 'left' } } }}
@@ -452,10 +327,10 @@ export default function OrderTable() {
                   />
                 </td>
                 <td>
-                  <Typography level="body-xs">{row.id}</Typography>
+                  <Typography level="body-xs">{row?.name}</Typography>
                 </td>
                 <td>
-                  <Typography level="body-xs">{row.date}</Typography>
+                  <Typography level="body-xs">{row?.date}</Typography>
                 </td>
                 <td>
                   <Chip
@@ -463,7 +338,7 @@ export default function OrderTable() {
                     size="sm"
                     startDecorator={
                       {
-                        Text: <CheckRoundedIcon />,
+                        Text: <FileTextIcon />,
                         PDF: <AutorenewRoundedIcon />,
                         JSONL: <BlockIcon />,
                       }[row.status]
@@ -476,13 +351,20 @@ export default function OrderTable() {
                       }[row.status] as ColorPaletteProp
                     }
                   >
-                    {row.status}
+                    {row?.type}
                   </Chip>
                 </td>
                 <td>
-                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      gap: 2,
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
                     <Link level="body-xs" component="button">
-                      Download
+                      Preview
                     </Link>
                     <RowMenu />
                   </Box>

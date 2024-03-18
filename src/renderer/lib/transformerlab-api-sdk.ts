@@ -502,6 +502,12 @@ Endpoints.Config = {
     API_URL() + 'config/set?k=' + key + '&v=' + value,
 };
 
+Endpoints.Documents = {
+  List: () => API_URL() + 'documents/list',
+  Get: (document_name: string) =>
+    API_URL() + 'documents/get?document_name=' + document_name,
+};
+
 export function GET_TRAINING_TEMPLATE_URL() {
   return API_URL() + 'train/templates';
 }
