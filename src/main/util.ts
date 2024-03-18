@@ -111,10 +111,18 @@ export function installLocalServer() {
     fs.mkdirSync(transformerLabRootDir);
   }
 
-  const options = { shell: '/bin/bash', cwd: transformerLabRootDir };
+  // Windows has its own install script so need to detect platform
+  console.log("Platform:" + process.platform);
+  const installScriptCommand = (process.platform == "win32")
+      ? `download_windows_api.bat`
+      : `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
+  const options = (process.platform == "win32")
+  ? {}
+  : { shell: '/bin/bash', cwd: transformerLabRootDir };
+  ;
   try {
     const child = exec(
-      `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`,
+      installScriptCommand,
       options,
       (error, stdout, stderr) => {
         if (error) {
