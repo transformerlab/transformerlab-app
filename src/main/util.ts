@@ -170,7 +170,7 @@ export async function checkDependencies() {
   // Then compare the output to the list of dependencies
   // If any are missing, return the missing ones
   // If all are present, manually check if the uvicorn command is present
-  const stdout = await executeInstallStep("list_installed_packages", true);
+  const stdout = await executeInstallStep("list_installed_packages");
 
   // if there was an error abort processing
   if (!stdout) {
@@ -214,7 +214,7 @@ export async function checkDependencies() {
 export async function checkIfCondaEnvironmentExists() {
   console.log('Checking if Conda environment "transformerlab" exists');
 
-  const stdout = await executeInstallStep("list_environments", true);
+  const stdout = await executeInstallStep("list_environments");
 
   if (!stdout) {
     console.log("Conda environment check failed.");
@@ -240,10 +240,7 @@ export async function checkIfCondaEnvironmentExists() {
  * @param argument parameter to pass to install.sh 
  * @returns the stdout of the process or false on failure.
  */
-export async function executeInstallStep(
-  argument: string,
-  useLocalInstallSh = false
-) {
+export async function executeInstallStep(argument: string) {
   if (!fs.existsSync(transformerLabRootDir)) {
     fs.mkdirSync(transformerLabRootDir);
   }
@@ -258,37 +255,24 @@ export async function executeInstallStep(
   ;
   console.log(`Running ${installScriptFilename} ${argument}`);
 
-  if (useLocalInstallSh) {
-    const fullInstallScriptPath = path.join(transformerLabDir, installScriptFilename);
-    console.log(
-      `Using local install.sh and running: ${fullInstallScriptPath} ${argument}`
-    );
-    const { stdout, stderr } = await awaitExec(
-      `${fullInstallScriptPath} ${argument}`,
-      options
-    ).catch((err) => {
-      console.log(`Error running local ${installScriptFilename}`, err);
-      return {
-        stdout: false,
-        stderr: err,
-      };
-    });
-    if (stdout) console.log(`${installScriptFilename} stdout:`, stdout);
-    if (stderr) console.error(`${installScriptFilename} stderr:`, stderr);
-    return stdout;
 
-  } else {
-    const { stdout, stderr } = await awaitExec(
-      `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- ${argument}`,
-      options
-    ).catch((err) => {
-      console.log('Error running remote install.sh', err);
-      return {
-        stdout: false,
-        stderr: err,
-      };
-    });
-    if (stdout) console.log('stdout:', stdout);
-    if (stderr) console.error('stderr:', stderr);
-  }
+  const fullInstallScriptPath = path.join(transformerLabDir, installScriptFilename);
+  console.log(
+    `Using local install.sh and running: ${fullInstallScriptPath} ${argument}`
+  );
+
+  // Call installer script and return stdout if it succeeds
+  const { stdout, stderr } = await awaitExec(
+    `${fullInstallScriptPath} ${argument}`,
+    options
+  ).catch((err) => {
+    console.log(`Error running local ${installScriptFilename}`, err);
+    return {
+      stdout: false,
+      stderr: err,
+    };
+  });
+  if (stdout) console.log(`${installScriptFilename} stdout:`, stdout);
+  if (stderr) console.error(`${installScriptFilename} stderr:`, stderr);
+  return stdout;
 }

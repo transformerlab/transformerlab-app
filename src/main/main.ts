@@ -79,23 +79,19 @@ ipcMain.handle('server:InstallLocally', (event) => {
   return installLocalServer();
 });
 
-ipcMain.handle('server:install_download', (event) => {
-  return executeInstallStep('download_transformer_lab', false);
-});
-
 ipcMain.handle('server:install_conda', async (event) => {
   console.log('** Installing conda');
-  await executeInstallStep('install_conda', true);
+  await executeInstallStep('install_conda');
   console.log('Finishing installing conda');
   return;
 });
 
 ipcMain.handle('server:install_create-conda-environment', async (event) => {
-  return executeInstallStep('create_conda_environment', true);
+  return executeInstallStep('create_conda_environment');
 });
 
 ipcMain.handle('server:install_install-dependencies', async (event) => {
-  return executeInstallStep('install_dependencies', true);
+  return executeInstallStep('install_dependencies');
 });
 
 ipcMain.handle('server:checkIfCondaExists', async (event) => {

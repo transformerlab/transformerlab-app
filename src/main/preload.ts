@@ -18,7 +18,6 @@ export type Channels =
   | 'server:checkLocalVersion'
   | 'server:startLocalServer'
   | 'server:InstallLocally'
-  | 'server:install_download'
   | 'server:install_conda'
   | 'server:install_create-conda-environment'
   | 'server:install_install-dependencies'
