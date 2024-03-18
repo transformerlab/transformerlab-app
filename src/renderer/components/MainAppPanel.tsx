@@ -11,13 +11,11 @@ import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
 
 import Computer from './Computer';
-import Train from './Experiment/Train/Train';
 import Eval from './Experiment/Eval/Eval';
 import Export from './Experiment/Export/Export';
 import Api from './Experiment/Api';
 import Settings from './Experiment/Settings';
 import ModelHome from './Experiment/ExperimentNotes';
-import LocalModels from './ModelZoo/LocalModels';
 import TrainLoRA from './Experiment/Train/TrainLoRA';
 import Prompt from './Experiment/Prompt';
 
@@ -26,7 +24,6 @@ import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
-import LocalPlugins from './Plugins/LocalPlugins';
 
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
@@ -164,11 +161,11 @@ export default function MainAppPanel({
           />
         }
       />
-     <Route
+      <Route
         path="/projects/export"
         element={<Export experimentInfo={experimentInfo} />}
       />
-       <Route
+      <Route
         path="/projects/plugins"
         element={<Plugins experimentInfo={experimentInfo} />}
       />
