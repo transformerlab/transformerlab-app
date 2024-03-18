@@ -121,7 +121,7 @@ export function installLocalServer() {
   const installScriptCommand = isPlatformWindows()
       ? `download_windows_api.bat`
       : `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
-  const options = (process.platform == "win32")
+  const options = isPlatformWindows()
   ? {}
   : { shell: '/bin/bash', cwd: transformerLabRootDir };
   ;
