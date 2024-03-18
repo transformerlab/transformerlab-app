@@ -251,25 +251,34 @@ export async function executeInstallStep(
   if (!fs.existsSync(transformerLabRootDir)) {
     fs.mkdirSync(transformerLabRootDir);
   }
-  const options = { cwd: transformerLabRootDir };
-  console.log('Running install.sh ' + argument);
+
+  // Set installer script filename and options based on platform
+  const installScriptFilename = isPlatformWindows()
+      ? `install_windows.bat`
+      : `install.sh`;
+  const options = isPlatformWindows()
+  ? {}
+  : { cwd: transformerLabRootDir };
+  ;
+  console.log(`Running ${installScriptFilename} ${argument}`);
 
   if (useLocalInstallSh) {
+    const fullInstallScriptPath = path.join(transformerLabDir, installScriptFilename);
     console.log(
-      `Using local install.sh and running: ~/.transformerlab/src/install.sh ${argument}`
+      `Using local install.sh and running: ${fullInstallScriptPath} ${argument}`
     );
     const { stdout, stderr } = await awaitExec(
-      `~/.transformerlab/src/install.sh ${argument}`,
+      `${fullInstallScriptPath} ${argument}`,
       options
     ).catch((err) => {
-      console.log('Error running local install.sh', err);
+      console.log(`Error running local ${installScriptFilename}`, err);
       return {
         stdout: false,
         stderr: err,
       };
     });
-    if (stdout) console.log('install.sh stdout:', stdout);
-    if (stderr) console.error('install.sh stderr:', stderr);
+    if (stdout) console.log(`${installScriptFilename} stdout:`, stdout);
+    if (stderr) console.error(`${installScriptFilename} stderr:`, stderr);
     return stdout;
 
   } else {
