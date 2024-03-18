@@ -241,8 +241,9 @@ export async function checkIfCondaEnvironmentExists() {
  * @returns the stdout of the process or false on failure.
  */
 export async function executeInstallStep(argument: string) {
-  if (!fs.existsSync(transformerLabRootDir)) {
-    fs.mkdirSync(transformerLabRootDir);
+  if (!fs.existsSync(transformerLabDir)) {
+    console.log("Install step failed. TransformerLab directory has not been setup.")
+    return false;
   }
 
   // Set installer script filename and options based on platform
@@ -258,7 +259,7 @@ export async function executeInstallStep(argument: string) {
 
   const fullInstallScriptPath = path.join(transformerLabDir, installScriptFilename);
   console.log(
-    `Using local install.sh and running: ${fullInstallScriptPath} ${argument}`
+    `Running: ${fullInstallScriptPath} ${argument}`
   );
 
   // Call installer script and return stdout if it succeeds
@@ -266,7 +267,7 @@ export async function executeInstallStep(argument: string) {
     `${fullInstallScriptPath} ${argument}`,
     options
   ).catch((err) => {
-    console.log(`Error running local ${installScriptFilename}`, err);
+    console.log(`Error running ${installScriptFilename}`, err);
     return {
       stdout: false,
       stderr: err,
