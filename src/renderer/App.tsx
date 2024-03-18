@@ -115,6 +115,8 @@ export default function App() {
             gridArea: 'main',
             overflow: 'hidden',
             backgroundColor: 'var(--joy-palette-background-surface)',
+            display: 'flex',
+            flexDirection: 'column',
           }}
           id="main-app-panel"
         >

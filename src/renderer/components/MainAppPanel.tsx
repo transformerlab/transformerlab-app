@@ -18,6 +18,7 @@ import Settings from './Experiment/Settings';
 import ModelHome from './Experiment/ExperimentNotes';
 import TrainLoRA from './Experiment/Train/TrainLoRA';
 import Prompt from './Experiment/Prompt';
+import Documents from './Experiment/Documents';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExperimentNotes from './Experiment/ExperimentNotes';
@@ -160,6 +161,10 @@ export default function MainAppPanel({
             experimentInfoMutate={experimentInfoMutate}
           />
         }
+      />
+      <Route
+        path="/projects/documents"
+        element={<Documents experimentInfo={experimentInfo} />}
       />
       <Route
         path="/projects/export"
