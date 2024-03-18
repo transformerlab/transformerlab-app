@@ -214,22 +214,20 @@ export async function checkDependencies() {
 }
 
 export async function checkIfCondaEnvironmentExists() {
-  const options = { shell: '/bin/bash' };
   console.log('Checking if Conda environment "transformerlab" exists');
-  const command = '~/.transformerlab/src/install.sh list_environments';
 
-  const { stdout, stderr } = await awaitExec(command, options).catch((err) => {
-    return {
-      stdout: false,
-      stderr: err,
-    };
-  });
-  if (stdout) console.log('stdout:', stdout);
-  if (stderr) console.error('stderr:', stderr);
+  const stdout = await executeInstallStep("list_environments", true);
+  console.log("checkIfCondaEnvironmentExists stdout");
+  console.log(stdout);
+
+  if (!stdout) {
+    console.log("Conda environment check failed.");
+    return false;
+  }
 
   // search for the string "transformerlab" in the output AND check that the directory exists
   if (
-    stdout &&
+    typeof stdout === 'string' &&
     stdout.includes(
       path.join(homeDir, '.transformerlab/envs/transformerlab')
     ) &&
@@ -241,6 +239,11 @@ export async function checkIfCondaEnvironmentExists() {
   }
 }
 
+/**
+ * 
+ * @param argument parameter to pass to install.sh 
+ * @returns the stdout of the process or false on failure.
+ */
 export async function executeInstallStep(
   argument: string,
   useLocalInstallSh = false
@@ -259,20 +262,22 @@ export async function executeInstallStep(
       `~/.transformerlab/src/install.sh ${argument}`,
       options
     ).catch((err) => {
-      console.log('Error running install.sh', err);
+      console.log('Error running local install.sh', err);
       return {
         stdout: false,
         stderr: err,
       };
     });
-    if (stdout) console.log('stdout:', stdout);
-    if (stderr) console.error('stderr:', stderr);
+    if (stdout) console.log('install.sh stdout:', stdout);
+    if (stderr) console.error('install.sh stderr:', stderr);
+    return stdout;
+
   } else {
     const { stdout, stderr } = await awaitExec(
       `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- ${argument}`,
       options
     ).catch((err) => {
-      console.log('Error running install.sh', err);
+      console.log('Error running remote install.sh', err);
       return {
         stdout: false,
         stderr: err,
