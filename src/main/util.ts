@@ -23,6 +23,11 @@ export function resolveHtmlPath(htmlFileName: string) {
   return `file://${path.resolve(__dirname, '../renderer/', htmlFileName)}`;
 }
 
+// Standardize how we decide if app is running on windows
+export function isPlatformWindows() {
+  return (process.platform == "win32");
+}
+
 export function checkLocalServerVersion() {
   const mainFile = path.join(transformerLabDir, 'LATEST_VERSION');
 
@@ -113,7 +118,7 @@ export function installLocalServer() {
 
   // Windows has its own install script so need to detect platform
   console.log("Platform:" + process.platform);
-  const installScriptCommand = (process.platform == "win32")
+  const installScriptCommand = isPlatformWindows()
       ? `download_windows_api.bat`
       : `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
   const options = (process.platform == "win32")
@@ -147,11 +152,14 @@ export function checkIfShellCommandExists(command: string) {
 }
 
 export function checkIfCondaBinExists() {
-  // Look for the file ~/miniconda3/bin/conda
-  const condaBin = path.join(homeDir, '.transformerlab/miniconda3/bin/conda');
+  // Look for the conda directory inside .transformerlab
+  const condaBin = isPlatformWindows()
+      ? path.join(homeDir, '.transformerlab/miniconda3/Scripts')
+      : path.join(homeDir, '.transformerlab/miniconda3/bin/conda');
   if (fs.existsSync(condaBin)) {
     return true;
   } else {
+    console.log("Conda not found at " + condaBin)
     return false;
   }
 }
