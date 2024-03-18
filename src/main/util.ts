@@ -170,24 +170,22 @@ export async function checkDependencies() {
   // Then compare the output to the list of dependencies
   // If any are missing, return the missing ones
   // If all are present, manually check if the uvicorn command is present
-  const command = '~/.transformerlab/src/install.sh list_installed_packages';
-  const options = { shell: '/bin/bash' };
-  const { stdout, stderr } = await awaitExec(command, options).catch((err) => {
-    console.log('Error running pip list', err);
-    return {
-      stdout: false,
-      stderr: err,
-    };
-  });
+  const stdout = await executeInstallStep("list_installed_packages", true);
 
   // if there was an error abort processing
   if (!stdout) {
-    if (stderr) console.error('stderr:', stderr);
     return ['Failed to detect packages'];
   }
-  console.log('stdout:', stdout);
 
-  const pipList = JSON.parse(stdout);
+  // parse returned JSON in to pipList
+  let pipList = [];
+  try {
+    pipList = JSON.parse(stdout);
+  } catch (e) {
+    console.log(e);
+    return ['Invalid package list returned'];
+  }
+
   const pipListNames = pipList.map((x) => x.name);
   const keyDependencies = [
     'fastapi',
@@ -217,8 +215,6 @@ export async function checkIfCondaEnvironmentExists() {
   console.log('Checking if Conda environment "transformerlab" exists');
 
   const stdout = await executeInstallStep("list_environments", true);
-  console.log("checkIfCondaEnvironmentExists stdout");
-  console.log(stdout);
 
   if (!stdout) {
     console.log("Conda environment check failed.");
