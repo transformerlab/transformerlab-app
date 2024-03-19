@@ -995,7 +995,16 @@ export async function getTrainingJobStatus(jobId: string) {
  * SWR hooks
  */
 
-const fetcher = (...args: any[]) => fetch(...args).then((res) => res.json());
+const fetcher = (...args: any[]) => fetch(...args).then((res) => {
+   if (!res.ok) {
+    const error = new Error('An error occurred fetching ' + res.url);
+    error.response = res.json();
+    error.status = res.status;
+    console.log(res);
+    throw error
+  }
+  return res.json();
+});
 
 export function useModelStatus() {
   const api_url = API_URL();
@@ -1007,7 +1016,7 @@ export function useModelStatus() {
   // eslint-disable-next-line prefer-const
   let { data, error, isLoading, mutate } = useSWR(url, fetcher, options);
 
-  if (data?.length === 0) {
+  if (error || data?.length === 0) {
     data = null;
   }
 
