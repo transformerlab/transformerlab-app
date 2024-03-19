@@ -44,25 +44,37 @@ export function checkLocalServerVersion() {
 }
 
 export function startLocalServer() {
-  const mainFile = path.join(transformerLabDir, 'run.sh');
   const logFilePath = path.join(transformerLabDir, 'local_server.log');
   const out = fs.openSync(logFilePath, 'a');
   const err = fs.openSync(logFilePath, 'a');
 
-  const options = {
-    cwd: transformerLabDir,
-    stdio: ['ignore', out, err],
-    shell: '/bin/bash',
-  };
+
+  // works slightly differently on Windows
+  const mainFile = isPlatformWindows()
+      ? path.join(transformerLabDir, 'run_windows.bat')
+      : path.join(transformerLabDir, 'run.sh');
+  const options = isPlatformWindows()
+      ? {
+        cwd: transformerLabDir,
+      }
+      : {
+        cwd: transformerLabDir,
+        stdio: ['ignore', out, err],
+        shell: '/bin/bash',
+      };
   console.log('Starting local server at', mainFile);
-  localServer = spawn('bash', ['-l', mainFile], options);
+  if (isPlatformWindows()) {
+    localServer = spawn('cmd.exe', ['/c', mainFile], options);
+  } else {
+    localServer = spawn('bash', ['-l', mainFile], options);
+  }
 
   console.log('Local server started with pid', localServer.pid);
 
   return new Promise((resolve) => {
-    // localServer.stderr.on('data', (data) => {
-    //   console.error(`stderr: ${data}`);
-    // });
+    localServer.stderr.on('data', (data) => {
+      console.error(`stderr: ${data}`);
+    });
 
     localServer.on('close', (code) => {
       console.log(`child process exited with code ${code}`);
@@ -82,7 +94,7 @@ export function startLocalServer() {
         resolve({
           status: 'error',
           code: code,
-          message: 'May be fixed by running ~/.transformerlab/src/init.sh',
+          message: 'May be fixed by running install file in ~/.transformerlab/src/',
         });
       }
     });
