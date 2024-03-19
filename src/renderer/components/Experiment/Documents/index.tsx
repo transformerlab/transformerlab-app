@@ -38,6 +38,7 @@ import useSWR from 'swr';
 import { formatBytes } from 'renderer/lib/utils';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import Dropzone from 'react-dropzone';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -108,6 +109,8 @@ export default function OrderTable({ experimentInfo }) {
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
+
+  const [dropzoneActive, setDropzoneActive] = React.useState(false);
 
   const { data: rows, isLoading } = useSWR(
     chatAPI.Endpoints.Documents.List(experimentInfo?.id),
@@ -212,157 +215,202 @@ export default function OrderTable({ experimentInfo }) {
         </FormControl>
         {renderFilters()}
       </Box>
-      <Sheet
-        className="DocTableContainer"
-        variant="outlined"
-        sx={{
-          display: { xs: 'none', sm: 'initial' },
-          width: '100%',
-          borderRadius: 'sm',
-          flexShrink: 1,
-          overflow: 'auto',
-          minHeight: 0,
-          height: '100%',
-          marginBottom: 3,
+      <Dropzone
+        onDrop={(acceptedFiles) => {
+          console.log(acceptedFiles);
+          setDropzoneActive(false);
         }}
+        onDragEnter={() => {
+          setDropzoneActive(true);
+        }}
+        onDragLeave={() => {
+          setDropzoneActive(false);
+        }}
+        noClick
       >
-        <Table
-          aria-labelledby="tableTitle"
-          stickyHeader
-          hoverRow
-          sx={{
-            '--TableCell-headBackground':
-              'var(--joy-palette-background-level1)',
-            '--Table-headerUnderlineThickness': '1px',
-            '--TableRow-hoverBackground':
-              'var(--joy-palette-background-level1)',
-            '--TableCell-paddingY': '4px',
-            '--TableCell-paddingX': '8px',
-          }}
-        >
-          <thead>
-            <tr>
-              <th
-                style={{ width: 48, textAlign: 'center', padding: '12px 6px' }}
+        {({ getRootProps, getInputProps }) => (
+          <div
+            {...getRootProps()}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              marginBottom: '2rem',
+              overflow: 'hidden',
+              height: '100%',
+              border: dropzoneActive
+                ? '2px solid red'
+                : '2px solid transparent',
+            }}
+          >
+            <Sheet
+              className="DocTableContainer"
+              variant="outlined"
+              sx={{
+                display: { xs: 'none', sm: 'initial' },
+                width: '100%',
+                borderRadius: 'sm',
+                flexShrink: 1,
+                overflow: 'auto',
+                minHeight: 0,
+                height: '100%',
+              }}
+            >
+              <Table
+                aria-labelledby="tableTitle"
+                stickyHeader
+                hoverRow
+                sx={{
+                  '--TableCell-headBackground':
+                    'var(--joy-palette-background-level1)',
+                  '--Table-headerUnderlineThickness': '1px',
+                  '--TableRow-hoverBackground':
+                    'var(--joy-palette-background-level1)',
+                  '--TableCell-paddingY': '4px',
+                  '--TableCell-paddingX': '8px',
+                }}
               >
-                <Checkbox
-                  size="sm"
-                  indeterminate={
-                    selected.length > 0 && selected.length !== rows?.length
-                  }
-                  checked={selected.length === rows?.length}
-                  onChange={(event) => {
-                    setSelected(
-                      event.target.checked ? rows?.map((row) => row?.name) : []
-                    );
-                  }}
-                  color={
-                    selected.length > 0 || selected.length === rows?.length
-                      ? 'primary'
-                      : undefined
-                  }
-                  sx={{ verticalAlign: 'text-bottom' }}
-                />
-              </th>
-              <th style={{ width: 120, padding: '12px 6px' }}>
-                <Link
-                  underline="none"
-                  color="primary"
-                  component="button"
-                  onClick={() => setDoc(doc === 'asc' ? 'desc' : 'asc')}
-                  fontWeight="lg"
-                  endDecorator={<ArrowDropDownIcon />}
-                  sx={{
-                    '& svg': {
-                      transition: '0.2s',
-                      transform:
-                        doc === 'desc' ? 'rotate(0deg)' : 'rotate(180deg)',
-                    },
-                  }}
-                >
-                  File Name
-                </Link>
-              </th>
-              <th style={{ width: 140, padding: '12px 6px' }}>Date</th>
-              <th style={{ width: 140, padding: '12px 6px' }}>Type</th>{' '}
-              <th style={{ width: 140, padding: '12px 6px' }}>Size</th>
-              <th style={{ width: 100, padding: '12px 6px' }}> </th>
-            </tr>
-          </thead>
-          <tbody>
-            {stableSort(rows, getComparator(doc, 'id'))?.map((row) => (
-              <tr key={row?.name}>
-                <td style={{ textAlign: 'center', width: 120 }}>
-                  <Checkbox
-                    size="sm"
-                    checked={selected.includes(row?.name)}
-                    color={selected.includes(row?.name) ? 'primary' : undefined}
-                    onChange={(event) => {
-                      setSelected((ids) =>
-                        event.target.checked
-                          ? ids.concat(row?.name)
-                          : ids.filter((itemId) => itemId !== row?.name)
-                      );
-                    }}
-                    slotProps={{ checkbox: { sx: { textAlign: 'left' } } }}
-                    sx={{ verticalAlign: 'text-bottom' }}
-                  />
-                </td>
-                <td>
-                  <Typography level="body-xs">{row?.name}</Typography>
-                </td>
-                <td>
-                  <Typography level="body-xs">{row?.date}</Typography>
-                </td>
-                <td>
-                  <Chip
-                    variant="soft"
-                    size="sm"
-                    startDecorator={
-                      {
-                        '.txt': <FileTextIcon />,
-                        '.pdf': <AutorenewRoundedIcon />,
-                        '.jsonl': <BlockIcon />,
-                      }[row?.type]
-                    }
-                    color={
-                      {
-                        '.txt': 'success',
-                        '.pdf': 'neutral',
-                        '.jsonl': 'danger',
-                      }[row?.type] as ColorPaletteProp
-                    }
-                  >
-                    {row?.type}
-                  </Chip>
-                </td>
-                <td>
-                  {row?.size && (
-                    <Typography level="body-xs" color="neutral">
-                      {formatBytes(row?.size)}
-                    </Typography>
-                  )}
-                </td>
-                <td>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      gap: 2,
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                    }}
-                  >
-                    <Link level="body-xs" component="button">
-                      Preview
-                    </Link>
-                    <RowMenu />
-                  </Box>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </Sheet>
+                <thead>
+                  <tr>
+                    <th
+                      style={{
+                        width: 48,
+                        textAlign: 'center',
+                        padding: '12px 6px',
+                      }}
+                    >
+                      <Checkbox
+                        size="sm"
+                        indeterminate={
+                          selected.length > 0 &&
+                          selected.length !== rows?.length
+                        }
+                        checked={selected.length === rows?.length}
+                        onChange={(event) => {
+                          setSelected(
+                            event.target.checked
+                              ? rows?.map((row) => row?.name)
+                              : []
+                          );
+                        }}
+                        color={
+                          selected.length > 0 ||
+                          selected.length === rows?.length
+                            ? 'primary'
+                            : undefined
+                        }
+                        sx={{ verticalAlign: 'text-bottom' }}
+                      />
+                    </th>
+                    <th style={{ width: 120, padding: '12px 6px' }}>
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => setDoc(doc === 'asc' ? 'desc' : 'asc')}
+                        fontWeight="lg"
+                        endDecorator={<ArrowDropDownIcon />}
+                        sx={{
+                          '& svg': {
+                            transition: '0.2s',
+                            transform:
+                              doc === 'desc'
+                                ? 'rotate(0deg)'
+                                : 'rotate(180deg)',
+                          },
+                        }}
+                      >
+                        File Name
+                      </Link>
+                    </th>
+                    <th style={{ width: 140, padding: '12px 6px' }}>Date</th>
+                    <th style={{ width: 140, padding: '12px 6px' }}>
+                      Type
+                    </th>{' '}
+                    <th style={{ width: 140, padding: '12px 6px' }}>Size</th>
+                    <th style={{ width: 100, padding: '12px 6px' }}> </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stableSort(rows, getComparator(doc, 'id'))?.map((row) => (
+                    <tr key={row?.name}>
+                      <td style={{ textAlign: 'center', width: 120 }}>
+                        <Checkbox
+                          size="sm"
+                          checked={selected.includes(row?.name)}
+                          color={
+                            selected.includes(row?.name) ? 'primary' : undefined
+                          }
+                          onChange={(event) => {
+                            setSelected((ids) =>
+                              event.target.checked
+                                ? ids.concat(row?.name)
+                                : ids.filter((itemId) => itemId !== row?.name)
+                            );
+                          }}
+                          slotProps={{
+                            checkbox: { sx: { textAlign: 'left' } },
+                          }}
+                          sx={{ verticalAlign: 'text-bottom' }}
+                        />
+                      </td>
+                      <td>
+                        <Typography level="body-xs">{row?.name}</Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-xs">{row?.date}</Typography>
+                      </td>
+                      <td>
+                        <Chip
+                          variant="soft"
+                          size="sm"
+                          startDecorator={
+                            {
+                              '.txt': <FileTextIcon />,
+                              '.pdf': <AutorenewRoundedIcon />,
+                              '.jsonl': <BlockIcon />,
+                            }[row?.type]
+                          }
+                          color={
+                            {
+                              '.txt': 'success',
+                              '.pdf': 'neutral',
+                              '.jsonl': 'danger',
+                            }[row?.type] as ColorPaletteProp
+                          }
+                        >
+                          {row?.type}
+                        </Chip>
+                      </td>
+                      <td>
+                        {row?.size && (
+                          <Typography level="body-xs" color="neutral">
+                            {formatBytes(row?.size)}
+                          </Typography>
+                        )}
+                      </td>
+                      <td>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            gap: 2,
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                          }}
+                        >
+                          <Link level="body-xs" component="button">
+                            Preview
+                          </Link>
+                          <RowMenu />
+                        </Box>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Sheet>
+          </div>
+        )}
+      </Dropzone>
     </React.Fragment>
   );
 }
