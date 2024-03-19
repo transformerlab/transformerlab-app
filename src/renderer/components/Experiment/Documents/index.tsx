@@ -49,10 +49,10 @@ function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   return 0;
 }
 
-type Order = 'asc' | 'desc';
+type Doc = 'asc' | 'desc';
 
 function getComparator<Key extends keyof any>(
-  order: Order,
+  order: Doc,
   orderBy: Key
 ): (
   a: { [key in Key]: number | string },
@@ -105,7 +105,7 @@ function RowMenu() {
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function OrderTable({ experimentInfo }) {
-  const [order, setOrder] = React.useState<Order>('desc');
+  const [doc, setDoc] = React.useState<Doc>('desc');
   const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
 
@@ -213,7 +213,7 @@ export default function OrderTable({ experimentInfo }) {
         {renderFilters()}
       </Box>
       <Sheet
-        className="OrderTableContainer"
+        className="DocTableContainer"
         variant="outlined"
         sx={{
           display: { xs: 'none', sm: 'initial' },
@@ -269,14 +269,14 @@ export default function OrderTable({ experimentInfo }) {
                   underline="none"
                   color="primary"
                   component="button"
-                  onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
+                  onClick={() => setDoc(doc === 'asc' ? 'desc' : 'asc')}
                   fontWeight="lg"
                   endDecorator={<ArrowDropDownIcon />}
                   sx={{
                     '& svg': {
                       transition: '0.2s',
                       transform:
-                        order === 'desc' ? 'rotate(0deg)' : 'rotate(180deg)',
+                        doc === 'desc' ? 'rotate(0deg)' : 'rotate(180deg)',
                     },
                   }}
                 >
@@ -290,7 +290,7 @@ export default function OrderTable({ experimentInfo }) {
             </tr>
           </thead>
           <tbody>
-            {stableSort(rows, getComparator(order, 'id'))?.map((row) => (
+            {stableSort(rows, getComparator(doc, 'id'))?.map((row) => (
               <tr key={row?.name}>
                 <td style={{ textAlign: 'center', width: 120 }}>
                   <Checkbox
