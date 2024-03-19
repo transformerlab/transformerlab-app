@@ -87,7 +87,7 @@ function stableSort<T>(
   return stabilizedThis?.map((el) => el[0]);
 }
 
-function RowMenu() {
+function RowMenu({ experimentInfo, filename, mutate }) {
   return (
     <Dropdown>
       <MenuButton
@@ -98,10 +98,25 @@ function RowMenu() {
       </MenuButton>
       <Menu size="sm" sx={{ minWidth: 140 }}>
         <MenuItem>Edit</MenuItem>
-        <MenuItem>Rename</MenuItem>
-        <MenuItem>Move</MenuItem>
+        <MenuItem disabled>Rename</MenuItem>
         <Divider />
-        <MenuItem color="danger">Delete</MenuItem>
+        <MenuItem
+          color="danger"
+          onClick={() => {
+            fetch(
+              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename)
+            ).then((response) => {
+              if (response.ok) {
+                console.log(response);
+                mutate();
+              } else {
+                console.log('Error deleting file');
+              }
+            });
+          }}
+        >
+          Delete
+        </MenuItem>
       </Menu>
     </Dropdown>
   );
@@ -116,10 +131,11 @@ export default function OrderTable({ experimentInfo }) {
 
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
 
-  const { data: rows, isLoading } = useSWR(
-    chatAPI.Endpoints.Documents.List(experimentInfo?.id),
-    fetcher
-  );
+  const {
+    data: rows,
+    isLoading,
+    mutate,
+  } = useSWR(chatAPI.Endpoints.Documents.List(experimentInfo?.id), fetcher);
 
   const renderFilters = () => (
     <React.Fragment>
@@ -154,7 +170,16 @@ export default function OrderTable({ experimentInfo }) {
         <Typography level="h1" component="h1">
           Documents
         </Typography>
-        <Button color="primary" startDecorator={<PlusCircleIcon />} size="sm">
+        <Button
+          color="primary"
+          startDecorator={<PlusCircleIcon />}
+          size="sm"
+          onClick={() => {
+            alert(
+              'button not implemented yet, drag files on top of the table to upload'
+            );
+          }}
+        >
           Upload New
         </Button>
       </Box>
@@ -221,8 +246,30 @@ export default function OrderTable({ experimentInfo }) {
       </Box>
       <Dropzone
         onDrop={(acceptedFiles) => {
-          console.log(acceptedFiles);
           setDropzoneActive(false);
+
+          const formData = new FormData();
+          for (const file of acceptedFiles) {
+            formData.append('file', file);
+          }
+          fetch(chatAPI.Endpoints.Documents.Upload(experimentInfo?.id), {
+            method: 'POST',
+            body: formData,
+          })
+            .then((response) => {
+              if (response.ok) {
+                mutate();
+                return response.json();
+              } else {
+                throw new Error('File upload failed');
+              }
+            })
+            .then((data) => {
+              console.log('Server response:', data);
+            })
+            .catch((error) => {
+              console.error('Error uploading file:', error);
+            });
         }}
         onDragEnter={() => {
           setDropzoneActive(true);
@@ -405,10 +452,39 @@ export default function OrderTable({ experimentInfo }) {
                             justifyContent: 'flex-end',
                           }}
                         >
-                          <Link level="body-xs" component="button">
+                          <Button
+                            variant="plain"
+                            size="sm"
+                            style={{ fontSize: '11px' }}
+                            onClick={() => {
+                              // fetch(
+                              //   chatAPI.Endpoints.Documents.Open(
+                              //     experimentInfo?.id,
+                              //     row?.name
+                              //   )
+                              // ).then((response) => {
+                              //   if (response.ok) {
+                              //     console.log(response);
+                              //     return true;
+                              //   } else {
+                              //     console.log('Error opening file');
+                              //   }
+                              // });
+                              window.open(
+                                chatAPI.Endpoints.Documents.Open(
+                                  experimentInfo?.id,
+                                  row?.name
+                                )
+                              );
+                            }}
+                          >
                             Preview
-                          </Link>
-                          <RowMenu />
+                          </Button>
+                          <RowMenu
+                            experimentInfo={experimentInfo}
+                            filename={row?.name}
+                            mutate={mutate}
+                          />
                         </Box>
                       </td>
                     </tr>
