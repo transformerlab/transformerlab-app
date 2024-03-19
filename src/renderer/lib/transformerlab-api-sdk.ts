@@ -503,7 +503,8 @@ Endpoints.Config = {
 };
 
 Endpoints.Documents = {
-  List: () => API_URL() + 'documents/list',
+  List: (experimentId: string) =>
+    API_URL() + 'experiment/' + experimentId + '/documents/list',
   Get: (document_name: string) =>
     API_URL() + 'documents/get?document_name=' + document_name,
 };

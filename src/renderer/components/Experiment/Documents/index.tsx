@@ -35,6 +35,8 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 
+import { formatBytes } from 'renderer/lib/utils';
+
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -102,50 +104,29 @@ function RowMenu() {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function OrderTable() {
+export default function OrderTable({ experimentInfo }) {
   const [order, setOrder] = React.useState<Order>('desc');
   const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
 
   const { data: rows, isLoading } = useSWR(
-    chatAPI.Endpoints.Documents.List(),
+    chatAPI.Endpoints.Documents.List(experimentInfo?.id),
     fetcher
   );
 
   const renderFilters = () => (
     <React.Fragment>
       <FormControl size="sm">
-        <FormLabel>Status</FormLabel>
+        <FormLabel>Type</FormLabel>
         <Select
           size="sm"
-          placeholder="Filter by status"
+          placeholder="Filter by type"
           slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
         >
+          <Option value="All">All</Option>
           <Option value="Text">Text</Option>
-          <Option value="pending">Pending</Option>
           <Option value="PDF">PDF</Option>
           <Option value="JSONL">JSONL</Option>
-        </Select>
-      </FormControl>
-      <FormControl size="sm">
-        <FormLabel>Category</FormLabel>
-        <Select size="sm" placeholder="All">
-          <Option value="all">All</Option>
-          <Option value="refund">Refund</Option>
-          <Option value="purchase">Purchase</Option>
-          <Option value="debit">Debit</Option>
-        </Select>
-      </FormControl>
-      <FormControl size="sm">
-        <FormLabel>Customer</FormLabel>
-        <Select size="sm" placeholder="All">
-          <Option value="all">All</Option>
-          <Option value="olivia">Olivia Rhye</Option>
-          <Option value="steve">Steve Hampton</Option>
-          <Option value="ciaran">Ciaran Murray</Option>
-          <Option value="marina">Marina Macdonald</Option>
-          <Option value="charles">Charles Fulton</Option>
-          <Option value="jay">Jay Hoper</Option>
         </Select>
       </FormControl>
     </React.Fragment>
@@ -222,7 +203,7 @@ export default function OrderTable() {
         }}
       >
         <FormControl sx={{ flex: 1 }} size="sm">
-          <FormLabel>Search for order</FormLabel>
+          <FormLabel>Search for document</FormLabel>
           <Input
             size="sm"
             placeholder="Search"
@@ -242,7 +223,7 @@ export default function OrderTable() {
           overflow: 'auto',
           minHeight: 0,
           height: '100%',
-          marginBottom: 2,
+          marginBottom: 3,
         }}
       >
         <Table
@@ -303,7 +284,8 @@ export default function OrderTable() {
                 </Link>
               </th>
               <th style={{ width: 140, padding: '12px 6px' }}>Date</th>
-              <th style={{ width: 140, padding: '12px 6px' }}>Type</th>
+              <th style={{ width: 140, padding: '12px 6px' }}>Type</th>{' '}
+              <th style={{ width: 140, padding: '12px 6px' }}>Size</th>
               <th style={{ width: 100, padding: '12px 6px' }}> </th>
             </tr>
           </thead>
@@ -338,21 +320,28 @@ export default function OrderTable() {
                     size="sm"
                     startDecorator={
                       {
-                        Text: <FileTextIcon />,
-                        PDF: <AutorenewRoundedIcon />,
-                        JSONL: <BlockIcon />,
-                      }[row.status]
+                        '.txt': <FileTextIcon />,
+                        '.pdf': <AutorenewRoundedIcon />,
+                        '.jsonl': <BlockIcon />,
+                      }[row?.type]
                     }
                     color={
                       {
-                        Text: 'success',
-                        PDF: 'neutral',
-                        JSONL: 'danger',
-                      }[row.status] as ColorPaletteProp
+                        '.txt': 'success',
+                        '.pdf': 'neutral',
+                        '.jsonl': 'danger',
+                      }[row?.type] as ColorPaletteProp
                     }
                   >
                     {row?.type}
                   </Chip>
+                </td>
+                <td>
+                  {row?.size && (
+                    <Typography level="body-xs" color="neutral">
+                      {formatBytes(row?.size)}
+                    </Typography>
+                  )}
                 </td>
                 <td>
                   <Box
