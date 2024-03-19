@@ -39,6 +39,10 @@ import { formatBytes } from 'renderer/lib/utils';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import Dropzone from 'react-dropzone';
+import { FaRegFileAlt } from 'react-icons/fa';
+
+import { FaRegFilePdf } from 'react-icons/fa6';
+import { LuFileJson } from 'react-icons/lu';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -365,9 +369,9 @@ export default function OrderTable({ experimentInfo }) {
                           size="sm"
                           startDecorator={
                             {
-                              '.txt': <FileTextIcon />,
-                              '.pdf': <AutorenewRoundedIcon />,
-                              '.jsonl': <BlockIcon />,
+                              '.txt': <FaRegFileAlt />,
+                              '.pdf': <FaRegFilePdf />,
+                              '.jsonl': <LuFileJson />,
                             }[row?.type]
                           }
                           color={
