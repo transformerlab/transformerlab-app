@@ -242,8 +242,9 @@ export default function OrderTable({ experimentInfo }) {
               overflow: 'hidden',
               height: '100%',
               border: dropzoneActive
-                ? '2px solid red'
+                ? '2px solid var(--joy-palette-warning-400)'
                 : '2px solid transparent',
+              borderRadius: '8px',
             }}
           >
             <Sheet
@@ -257,6 +258,9 @@ export default function OrderTable({ experimentInfo }) {
                 overflow: 'auto',
                 minHeight: 0,
                 height: '100%',
+                backgroundColor: dropzoneActive
+                  ? 'var(--joy-palette-warning-100)'
+                  : '',
               }}
             >
               <Table
