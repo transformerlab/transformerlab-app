@@ -31,7 +31,6 @@ import {
   installLocalServer,
   killLocalServer,
   executeInstallStep,
-  checkIfShellCommandExists,
   checkIfCondaEnvironmentExists,
   checkDependencies,
   checkIfCondaBinExists,

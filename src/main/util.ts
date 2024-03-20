@@ -155,14 +155,6 @@ export function installLocalServer() {
   }
 }
 
-export function checkIfShellCommandExists(command: string) {
-  if (commandExistsSync(command)) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 export function checkIfCondaBinExists() {
   // Look for the conda directory inside .transformerlab
   const condaBin = isPlatformWindows()
