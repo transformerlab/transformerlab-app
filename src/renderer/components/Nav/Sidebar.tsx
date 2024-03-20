@@ -20,11 +20,15 @@ import {
   GithubIcon,
   ArrowRightFromLineIcon,
   PlugIcon,
+  FileIcon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
 
-import { useModelStatus, usePluginStatus } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  useModelStatus,
+  usePluginStatus,
+} from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
@@ -143,6 +147,15 @@ export default function Sidebar({
           icon={<HelpCircleIcon />}
           disabled={!experimentInfo?.name}
         />
+        {experimentInfo?.name == 'dev' && (
+          <SubNavItem
+            title="Documents"
+            path="/projects/documents"
+            icon={<FileIcon />}
+            disabled={!experimentInfo?.name}
+            counter={outdatedPluginsCount}
+          />
+        )}
         <SubNavItem
           title="Notes"
           path="/projects/notes"

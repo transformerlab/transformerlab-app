@@ -502,6 +502,25 @@ Endpoints.Config = {
     API_URL() + 'config/set?k=' + key + '&v=' + value,
 };
 
+Endpoints.Documents = {
+  List: (experimentId: string) =>
+    API_URL() + 'experiment/' + experimentId + '/documents/list',
+  Open: (experimentId: string, document_name: string) =>
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/documents/open/' +
+    document_name,
+  Upload: (experimentId: string) =>
+    API_URL() + 'experiment/' + experimentId + '/documents/upload',
+  Delete: (experimentId: string, document_name: string) =>
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/documents/delete/' +
+    document_name,
+};
+
 export function GET_TRAINING_TEMPLATE_URL() {
   return API_URL() + 'train/templates';
 }
