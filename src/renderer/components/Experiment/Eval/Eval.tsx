@@ -28,6 +28,7 @@ import {
   MenuButton,
   Menu,
   MenuItem,
+  Alert,
 } from '@mui/joy';
 import {
   FileTextIcon,
@@ -260,9 +261,9 @@ export default function Eval({
           Evaluate
         </Typography>
         {plugins?.length === 0 ? (
-          <Typography level="title-lg" mb={1} color="warning">
+          <Alert color="danger">
             No Evaluation Scripts available, please install an evaluator plugin.
-          </Typography>
+          </Alert>
         ) : (
           <Dropdown>
             <MenuButton startDecorator={<PlusCircleIcon />} variant="solid">
