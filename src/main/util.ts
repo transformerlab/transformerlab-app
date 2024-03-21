@@ -157,9 +157,7 @@ export function installLocalServer() {
 
 export function checkIfCondaBinExists() {
   // Look for the conda directory inside .transformerlab
-  const condaBin = isPlatformWindows()
-      ? path.join(homeDir, '.transformerlab/miniconda3/Scripts')
-      : path.join(homeDir, '.transformerlab/miniconda3/bin/conda');
+  const condaBin = path.join(transformerLabRootDir, 'miniconda3', 'bin', 'conda');
   if (fs.existsSync(condaBin)) {
     return true;
   } else {
@@ -251,24 +249,19 @@ export async function executeInstallStep(argument: string) {
   }
 
   // Set installer script filename and options based on platform
-  const installScriptFilename = isPlatformWindows()
-      ? `install_windows.bat`
-      : `install.sh`;
-  const options = isPlatformWindows()
-  ? {}
-  : { cwd: transformerLabRootDir };
-  ;
+  const installScriptFilename = `install.sh`;
+  const options = { cwd: transformerLabDir };
   console.log(`Running ${installScriptFilename} ${argument}`);
 
-
   const fullInstallScriptPath = path.join(transformerLabDir, installScriptFilename);
-  console.log(
-    `Running: ${fullInstallScriptPath} ${argument}`
-  );
+  const exec_cmd = isPlatformWindows()
+  ? `wsl ./${installScriptFilename} ${argument}`
+  : `${fullInstallScriptPath} ${argument}`;
+  console.log(`Running: ${exec_cmd}`);
 
   // Call installer script and return stdout if it succeeds
   const { stdout, stderr } = await awaitExec(
-    `${fullInstallScriptPath} ${argument}`,
+    exec_cmd,
     options
   ).catch((err) => {
     console.log(`Error running ${installScriptFilename}`, err);
