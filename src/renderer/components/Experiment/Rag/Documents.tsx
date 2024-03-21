@@ -168,7 +168,7 @@ export default function Documents({ experimentInfo }) {
           justifyContent: 'space-between',
         }}
       >
-        <Typography level="title-lg">Documents</Typography>
+        <Typography level="title-lg">Documents to Search</Typography>
         <Button
           color="neutral"
           variant="plain"
@@ -304,7 +304,7 @@ export default function Documents({ experimentInfo }) {
                 flexShrink: 1,
                 overflow: 'auto',
                 minHeight: 0,
-                height: '100%',
+                height: '90%',
                 backgroundColor: dropzoneActive
                   ? 'var(--joy-palette-warning-100)'
                   : '',
@@ -355,7 +355,7 @@ export default function Documents({ experimentInfo }) {
                         sx={{ verticalAlign: 'text-bottom' }}
                       />
                     </th> */}
-                    <th style={{ padding: '12px 6px 10px 18px' }}>
+                    <th style={{ height: '10px' }}>
                       <Link
                         underline="none"
                         color="primary"
@@ -378,8 +378,10 @@ export default function Documents({ experimentInfo }) {
                     </th>
                     {/* <th style={{ padding: '12px 6px' }}>Date</th> */}
                     {/* <th style={{ padding: '12px 6px' }}>Type</th>{' '} */}
-                    <th style={{ padding: '12px 6px' }}>Size</th>
-                    <th style={{ padding: '12px 6px' }}> </th>
+                    <th style={{ height: '10px' }}>
+                      <Typography color="neutral">Size</Typography>
+                    </th>
+                    <th style={{ height: '10px' }}> </th>
                   </tr>
                 </thead>
                 <tbody>

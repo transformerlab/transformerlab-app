@@ -3,6 +3,8 @@ import * as React from 'react';
 
 import Sheet from '@mui/joy/Sheet';
 
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
 import {
   Box,
   Button,
@@ -10,6 +12,7 @@ import {
   FormHelperText,
   FormLabel,
   Input,
+  LinearProgress,
   Typography,
 } from '@mui/joy';
 import {
@@ -21,10 +24,23 @@ import {
 import Documents from './Documents';
 
 export default function Query({ experimentInfo }) {
-  const [response, setResponse] = React.useState('Response');
+  const [response, setResponse] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  const getResponse = () => {
-    setResponse('Response from the server');
+  const getResponse = async (query: string) => {
+    setIsLoading(true);
+    setResponse('');
+    const response = await fetch(
+      chatAPI.Endpoints.Rag.Query(
+        experimentInfo.id,
+        experimentInfo?.config?.foundation,
+        query
+      )
+    );
+    const data = await response.json();
+    console.log(data);
+    setIsLoading(false);
+    setResponse(data);
   };
 
   return (
@@ -44,19 +60,34 @@ export default function Query({ experimentInfo }) {
             <FormLabel>Your question:</FormLabel>
             <Input
               placeholder="What are the top six reasons for suffering?"
+              name="query"
               endDecorator={
                 <SendHorizonalIcon
                   onClick={() => {
-                    getResponse();
+                    const query = document.getElementsByName('query')[0].value;
+                    getResponse(query);
                   }}
                 />
               }
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  const query = document.getElementsByName('query')[0].value;
+                  getResponse(query);
+                }
+              }}
             />
             {/* <FormHelperText>This is a helper text.</FormHelperText> */}
           </FormControl>
-          <Box my={2} sx={{ border: '2px solid pink' }} p={2}>
-            {response}
-          </Box>
+          {isLoading && <LinearProgress />}
+          {response != '' && (
+            <Box
+              mt={6}
+              sx={{ borderLeft: '2px solid var(--joy-palette-neutral-500)' }}
+              p={2}
+            >
+              {response}
+            </Box>
+          )}
         </Box>
       </Box>
     </Sheet>

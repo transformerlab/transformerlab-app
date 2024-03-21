@@ -21,6 +21,7 @@ export default function DocumentSearch({ experimentInfo }) {
           width: '100%',
           justifyContent: 'space-between',
           marginBottom: '2rem',
+          overflow: 'hidden',
         }}
       >
         <Box sx={{ flex: 3 }}>
