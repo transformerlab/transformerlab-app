@@ -24,11 +24,12 @@ function isPlatformWindows() {
 // This outputs how to access the WSL file system homedir from Windows.
 async function getWSLHomeDir() {
   const { stdout, stderr } = await awaitExec("wsl wslpath -w ~");
+  if (stderr) console.error(`stderr: ${stderr}`);
   const homedir = stdout.trim();
-  console.log(`WSL home directory is ${homedir}`)
   return homedir;
 }
 
+// Need to wrap directories in functions to cover the windows-specific case
 async function getTransformerLabRootDir() {
   return isPlatformWindows()
       ? path.join(await getWSLHomeDir(), '.transformerlab')
@@ -150,7 +151,6 @@ export function killLocalServer() {
 export async function installLocalServer() {
   console.log('Installing local server');
 
-  // TODO: Does this work on windows?
   root_dir = await getTransformerLabRootDir();
   if (!fs.existsSync(root_dir)) {
     fs.mkdirSync(root_dir);
