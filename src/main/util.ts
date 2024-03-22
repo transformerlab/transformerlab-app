@@ -151,7 +151,7 @@ export function killLocalServer() {
 export async function installLocalServer() {
   console.log('Installing local server');
 
-  root_dir = await getTransformerLabRootDir();
+  const root_dir = await getTransformerLabRootDir();
   if (!fs.existsSync(root_dir)) {
     fs.mkdirSync(root_dir);
   }
