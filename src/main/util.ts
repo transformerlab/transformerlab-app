@@ -252,12 +252,15 @@ export async function checkIfCondaEnvironmentExists() {
   }
 
   // search for the string "transformerlab" in the output AND check that the directory exists
+  // On windows we don't have the full WSL homedir path so just check the end of the string
+  const root_dir = await getTransformerLabRootDir();
+  const env_path = isPlatformWindows()
+      ? ".transformerlab/envs/transformerlab"
+      : path.join(root_dir, 'envs', 'transformerlab');
   if (
     typeof stdout === 'string' &&
-    stdout.includes(
-      path.join(homeDir, '.transformerlab/envs/transformerlab')
-    ) &&
-    fs.existsSync(path.join(homeDir, '.transformerlab/envs/transformerlab'))
+    stdout.includes(env_path) &&
+    fs.existsSync(path.join(root_dir, 'envs', 'transformerlab'))
   ) {
     return true;
   } else {
