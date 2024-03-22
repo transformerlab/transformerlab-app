@@ -277,17 +277,20 @@ export async function executeInstallStep(argument: string) {
     return false;
   }
 
-  // Set installer script filename and options based on platform
-  const installScriptFilename = `install.sh`;
-  const options = { cwd: server_dir };
-  console.log(`Running ${installScriptFilename} ${argument}`);
-
+  const installScriptFilename = "install.sh";
   const fullInstallScriptPath = path.join(server_dir, installScriptFilename);
-  const exec_cmd = isPlatformWindows()
-  ? `wsl ./${installScriptFilename} ${argument}`
-  : `${fullInstallScriptPath} ${argument}`;
-  console.log(`Running: ${exec_cmd}`);
 
+  // Set installer script filename and options based on platform
+  // For windows this is a bit hacky...we need to pass a unix-style path to WSL 
+  const exec_cmd =  isPlatformWindows()
+  ? `wsl ~/.transformerlab/src/${installScriptFilename} ${argument}`
+  : `${fullInstallScriptPath} ${argument}`;
+  `install.sh`;
+  const options = isPlatformWindows()
+      ? {}
+      : { cwd: server_dir };
+
+  console.log(`Running: ${exec_cmd}`);
   // Call installer script and return stdout if it succeeds
   const { stdout, stderr } = await awaitExec(
     exec_cmd,
