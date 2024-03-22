@@ -6,12 +6,41 @@ const os = require('os');
 const { spawn, exec, ChildProcess } = require('child_process');
 const util = require('node:util');
 const awaitExec = util.promisify(require('node:child_process').exec);
+
 const homeDir = os.homedir();
 const transformerLabRootDir = path.join(homeDir, '.transformerlab');
 const transformerLabDir = path.join(transformerLabRootDir, 'src');
-const commandExistsSync = require('command-exists').sync;
 
 var localServer: typeof ChildProcess = null;
+
+// Standardize how we decide if app is running on windows
+function isPlatformWindows() {
+  return (process.platform == "win32");
+}
+
+// WINDOWS SPECIFIC FUNCTION for figuring out how to access WSL file system
+// API and workspace are installed in .transformerlab/ under the user's homedir
+// On Windows, we use the home directory on WSL file system.
+// This outputs how to access the WSL file system homedir from Windows.
+async function getWSLHomeDir() {
+  const { stdout, stderr } = await awaitExec("wsl wslpath -w ~");
+  const homedir = stdout.trim();
+  console.log(`WSL home directory is ${homedir}`)
+  return homedir;
+}
+
+async function getTransformerLabRootDir() {
+  return isPlatformWindows()
+      ? path.join(await getWSLHomeDir(), '.transformerlab')
+      : transformerLabRootDir;
+}
+
+async function getTransformerLabCodeDir() {
+  return isPlatformWindows()
+      ? path.join(await getTransformerLabRootDir(), 'src')
+      : transformerLabDir;
+}
+
 
 export function resolveHtmlPath(htmlFileName: string) {
   if (process.env.NODE_ENV === 'development') {
@@ -23,13 +52,9 @@ export function resolveHtmlPath(htmlFileName: string) {
   return `file://${path.resolve(__dirname, '../renderer/', htmlFileName)}`;
 }
 
-// Standardize how we decide if app is running on windows
-export function isPlatformWindows() {
-  return (process.platform == "win32");
-}
 
-export function checkLocalServerVersion() {
-  const mainFile = path.join(transformerLabDir, 'LATEST_VERSION');
+export async function checkLocalServerVersion() {
+  const mainFile = path.join(await getTransformerLabCodeDir(), 'LATEST_VERSION');
 
   console.log('Checking if server is installed locally at', mainFile);
   if (fs.existsSync(mainFile)) {
@@ -43,22 +68,23 @@ export function checkLocalServerVersion() {
   }
 }
 
-export function startLocalServer() {
-  const logFilePath = path.join(transformerLabDir, 'local_server.log');
+export async function startLocalServer() {
+  const server_dir = await getTransformerLabCodeDir();
+  const logFilePath = path.join(server_dir, 'local_server.log');
   const out = fs.openSync(logFilePath, 'a');
   const err = fs.openSync(logFilePath, 'a');
 
 
   // works slightly differently on Windows
   const mainFile = isPlatformWindows()
-      ? path.join(transformerLabDir, 'run_windows.bat')
-      : path.join(transformerLabDir, 'run.sh');
+      ? path.join(server_dir, 'run_windows.bat')
+      : path.join(server_dir, 'run.sh');
   const options = isPlatformWindows()
       ? {
-        cwd: transformerLabDir,
+        cwd: server_dir,
       }
       : {
-        cwd: transformerLabDir,
+        cwd: server_dir,
         stdio: ['ignore', out, err],
         shell: '/bin/bash',
       };
@@ -121,11 +147,13 @@ export function killLocalServer() {
   });
 }
 
-export function installLocalServer() {
+export async function installLocalServer() {
   console.log('Installing local server');
 
-  if (!fs.existsSync(transformerLabRootDir)) {
-    fs.mkdirSync(transformerLabRootDir);
+  // TODO: Does this work on windows?
+  root_dir = await getTransformerLabRootDir();
+  if (!fs.existsSync(root_dir)) {
+    fs.mkdirSync(root_dir);
   }
 
   // Windows has its own install script so need to detect platform
@@ -134,9 +162,8 @@ export function installLocalServer() {
       ? `download_windows_api.bat`
       : `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
   const options = isPlatformWindows()
-  ? {}
-  : { shell: '/bin/bash', cwd: transformerLabRootDir };
-  ;
+      ? {}
+      : { shell: '/bin/bash', cwd: root_dir };
   try {
     const child = exec(
       installScriptCommand,
@@ -155,9 +182,10 @@ export function installLocalServer() {
   }
 }
 
-export function checkIfCondaBinExists() {
+export async function checkIfCondaBinExists() {
   // Look for the conda directory inside .transformerlab
-  const condaBin = path.join(transformerLabRootDir, 'miniconda3', 'bin', 'conda');
+  const root_dir = await getTransformerLabRootDir();
+  const condaBin = path.join(root_dir, 'miniconda3', 'bin', 'conda');
   if (fs.existsSync(condaBin)) {
     return true;
   } else {
@@ -243,17 +271,18 @@ export async function checkIfCondaEnvironmentExists() {
  * @returns the stdout of the process or false on failure.
  */
 export async function executeInstallStep(argument: string) {
-  if (!fs.existsSync(transformerLabDir)) {
+  const server_dir = await getTransformerLabCodeDir();
+  if (!fs.existsSync(server_dir)) {
     console.log("Install step failed. TransformerLab directory has not been setup.")
     return false;
   }
 
   // Set installer script filename and options based on platform
   const installScriptFilename = `install.sh`;
-  const options = { cwd: transformerLabDir };
+  const options = { cwd: server_dir };
   console.log(`Running ${installScriptFilename} ${argument}`);
 
-  const fullInstallScriptPath = path.join(transformerLabDir, installScriptFilename);
+  const fullInstallScriptPath = path.join(server_dir, installScriptFilename);
   const exec_cmd = isPlatformWindows()
   ? `wsl ./${installScriptFilename} ${argument}`
   : `${fullInstallScriptPath} ${argument}`;

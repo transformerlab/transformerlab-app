@@ -62,20 +62,20 @@ ipcMain.handle('deleteStoreValue', (event, key) => {
 // ////////////
 // ////////////
 
-ipcMain.handle('server:checkIfInstalledLocally', (event) => {
-  return checkLocalServerVersion() !== false;
+ipcMain.handle('server:checkIfInstalledLocally', async (event) => {
+  return await checkLocalServerVersion() !== false;
 });
 
-ipcMain.handle('server:checkLocalVersion', (event) => {
-  return checkLocalServerVersion();
+ipcMain.handle('server:checkLocalVersion', async (event) => {
+  return await checkLocalServerVersion();
 });
 
 ipcMain.handle('server:startLocalServer', async (event) => {
   return await startLocalServer();
 });
 
-ipcMain.handle('server:InstallLocally', (event) => {
-  return installLocalServer();
+ipcMain.handle('server:InstallLocally', async (event) => {
+  return await installLocalServer();
 });
 
 ipcMain.handle('server:install_conda', async (event) => {
@@ -94,7 +94,7 @@ ipcMain.handle('server:install_install-dependencies', async (event) => {
 });
 
 ipcMain.handle('server:checkIfCondaExists', async (event) => {
-  const r = checkIfCondaBinExists();
+  const r = await checkIfCondaBinExists();
   console.log('conda exists', r);
   return r;
 });
