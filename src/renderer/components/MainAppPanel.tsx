@@ -104,6 +104,21 @@ export default function MainAppPanel({
     experimentInfoMutate();
   }
 
+  async function setRagEngine(
+    name: string,
+    script_template_parameters: any = {}
+  ) {
+    fetch(
+      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+        experimentInfo?.id,
+        'rag_engine',
+        name
+      )
+    ).then((res) => {
+      experimentInfoMutate();
+    });
+  }
+
   if (!experimentInfo) {
     redirect('/');
   }
@@ -169,7 +184,9 @@ export default function MainAppPanel({
       />
       <Route
         path="/projects/rag"
-        element={<Rag experimentInfo={experimentInfo} />}
+        element={
+          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
+        }
       />
       <Route
         path="/projects/export"
