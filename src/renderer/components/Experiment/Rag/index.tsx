@@ -27,7 +27,14 @@ export default function DocumentSearch({ experimentInfo }) {
         <Box sx={{ flex: 3 }}>
           <Query experimentInfo={experimentInfo} />
         </Box>
-        <Box sx={{ flex: 2, height: '100%', marginBottom: '2rem' }}>
+        <Box
+          sx={{
+            flex: 2,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <Documents experimentInfo={experimentInfo} />
         </Box>
       </Sheet>

@@ -156,11 +156,11 @@ export default function Documents({ experimentInfo }) {
     </React.Fragment>
   );
   return (
-    <React.Fragment>
+    <>
       <Box
         sx={{
           display: 'flex',
-          mb: 1,
+          mb: 0,
           gap: 1,
           flexDirection: { xs: 'column', sm: 'row' },
           alignItems: { xs: 'start', sm: 'center' },
@@ -285,13 +285,13 @@ export default function Documents({ experimentInfo }) {
             style={{
               display: 'flex',
               flexDirection: 'column',
-              marginBottom: '2rem',
+              marginBottom: '0rem',
               overflow: 'hidden',
-              height: '100%',
               border: dropzoneActive
                 ? '2px solid var(--joy-palette-warning-400)'
                 : '2px solid transparent',
               borderRadius: '8px',
+              flex: 1,
             }}
           >
             <Sheet
@@ -304,7 +304,8 @@ export default function Documents({ experimentInfo }) {
                 flexShrink: 1,
                 overflow: 'auto',
                 minHeight: 0,
-                height: '90%',
+                height: '100%',
+                paddingBottom: '1rem',
                 backgroundColor: dropzoneActive
                   ? 'var(--joy-palette-warning-100)'
                   : '',
@@ -499,6 +500,9 @@ export default function Documents({ experimentInfo }) {
           </div>
         )}
       </Dropzone>
-    </React.Fragment>
+      <Typography level="body-xs" color="neutral">
+        Allowed filetypes: .txt, .pdf, .jsonl
+      </Typography>
+    </>
   );
 }
