@@ -138,6 +138,27 @@ export default function Documents({ experimentInfo }) {
     mutate,
   } = useSWR(chatAPI.Endpoints.Documents.List(experimentInfo?.id), fetcher);
 
+  const uploadFiles = async (formData) => {
+    fetch(chatAPI.Endpoints.Documents.Upload(experimentInfo?.id), {
+      method: 'POST',
+      body: formData,
+    })
+      .then((response) => {
+        if (response.ok) {
+          mutate();
+          return response.json();
+        } else {
+          throw new Error('File upload failed');
+        }
+      })
+      .then((data) => {
+        console.log('Server response:', data);
+      })
+      .catch((error) => {
+        console.error('Error uploading file:', error);
+      });
+  };
+
   const renderFilters = () => (
     <React.Fragment>
       <FormControl size="sm">
@@ -175,12 +196,21 @@ export default function Documents({ experimentInfo }) {
           startDecorator={<PlusCircleIcon />}
           size="sm"
           onClick={() => {
-            alert(
-              'button not implemented yet, drag files on top of the table to upload'
-            );
+            var input = document.createElement('input');
+            input.type = 'file';
+            input.onchange = async (e) => {
+              let files = Array.from(input.files);
+              console.log(files);
+              const formData = new FormData();
+              for (const file of files) {
+                formData.append('file', file);
+              }
+              await uploadFiles(formData);
+            };
+            input.click();
           }}
         >
-          Add
+          Add File
         </Button>
       </Box>
       <Sheet
@@ -245,31 +275,14 @@ export default function Documents({ experimentInfo }) {
         { {renderFilters()} }
       </Box> */}
       <Dropzone
-        onDrop={(acceptedFiles) => {
+        onDrop={async (acceptedFiles) => {
           setDropzoneActive(false);
 
           const formData = new FormData();
           for (const file of acceptedFiles) {
             formData.append('file', file);
           }
-          fetch(chatAPI.Endpoints.Documents.Upload(experimentInfo?.id), {
-            method: 'POST',
-            body: formData,
-          })
-            .then((response) => {
-              if (response.ok) {
-                mutate();
-                return response.json();
-              } else {
-                throw new Error('File upload failed');
-              }
-            })
-            .then((data) => {
-              console.log('Server response:', data);
-            })
-            .catch((error) => {
-              console.error('Error uploading file:', error);
-            });
+          await uploadFiles(formData);
         }}
         onDragEnter={() => {
           setDropzoneActive(true);
@@ -281,6 +294,7 @@ export default function Documents({ experimentInfo }) {
       >
         {({ getRootProps, getInputProps }) => (
           <div
+            id="dropzone_baby"
             {...getRootProps()}
             style={{
               display: 'flex',
@@ -382,7 +396,7 @@ export default function Documents({ experimentInfo }) {
                     <th style={{ height: '10px' }}>
                       <Typography color="neutral">Size</Typography>
                     </th>
-                    <th style={{ height: '10px' }}> </th>
+                    <th style={{ height: '10px', width: '20px' }}> </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -452,7 +466,6 @@ export default function Documents({ experimentInfo }) {
                         <Box
                           sx={{
                             display: 'flex',
-                            gap: 2,
                             alignItems: 'center',
                             justifyContent: 'flex-end',
                           }}
