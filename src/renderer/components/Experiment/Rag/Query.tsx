@@ -5,23 +5,11 @@ import Sheet from '@mui/joy/Sheet';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-import {
-  Box,
-  Button,
-  FormControl,
-  FormHelperText,
-  FormLabel,
-  Input,
-  LinearProgress,
-  Typography,
-} from '@mui/joy';
-import {
-  ArrowBigRight,
-  ArrowBigRightIcon,
-  ExternalLinkIcon,
-  SendHorizonalIcon,
-} from 'lucide-react';
-import Documents from './Documents';
+import { Box, FormControl, FormLabel, Input, LinearProgress } from '@mui/joy';
+import { SendHorizonalIcon } from 'lucide-react';
+
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function Query({ experimentInfo }) {
   const [response, setResponse] = React.useState('');
@@ -85,7 +73,12 @@ export default function Query({ experimentInfo }) {
               sx={{ borderLeft: '2px solid var(--joy-palette-neutral-500)' }}
               p={2}
             >
-              {response}
+              <Markdown
+                remarkPlugins={[remarkGfm]}
+                className="editableSheetContent"
+              >
+                {response}
+              </Markdown>
             </Box>
           )}
         </Box>
