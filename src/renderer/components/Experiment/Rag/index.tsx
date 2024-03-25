@@ -1,10 +1,8 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import * as React from 'react';
 
 import Sheet from '@mui/joy/Sheet';
 
-import { Box, Button, Typography } from '@mui/joy';
-import { ExternalLinkIcon } from 'lucide-react';
+import { Box, Typography } from '@mui/joy';
 import Documents from './Documents';
 import Query from './Query';
 

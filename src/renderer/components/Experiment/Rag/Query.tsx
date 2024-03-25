@@ -78,7 +78,7 @@ export default function Query({ experimentInfo }) {
             />
             {/* <FormHelperText>This is a helper text.</FormHelperText> */}
           </FormControl>
-          {isLoading && <LinearProgress />}
+          {isLoading && <LinearProgress size="sm" />}
           {response != '' && (
             <Box
               mt={6}
