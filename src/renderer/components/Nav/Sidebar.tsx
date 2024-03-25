@@ -124,7 +124,6 @@ export default function Sidebar({
           title="Query Docs"
           path="/projects/rag"
           icon={<FolderSearch2Icon />}
-          counter={outdatedPluginsCount}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
         <SubNavItem
