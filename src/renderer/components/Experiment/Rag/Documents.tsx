@@ -132,6 +132,8 @@ export default function Documents({ experimentInfo }) {
 
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
 
+  const [previewFile, setPreviewFile] = React.useState<string | null>(null);
+
   const {
     data: rows,
     isLoading,
@@ -178,6 +180,25 @@ export default function Documents({ experimentInfo }) {
   );
   return (
     <>
+      <Modal
+        open={previewFile != null}
+        onClose={() => {
+          setPreviewFile(null);
+        }}
+      >
+        <ModalDialog sx={{ width: '60vw', height: '80vh' }}>
+          <ModalClose />
+          <Typography level="title-lg">Document: {previewFile}</Typography>
+
+          <iframe
+            src={chatAPI.Endpoints.Documents.Open(
+              experimentInfo?.id,
+              previewFile
+            )}
+            style={{ width: '100%', height: '100%' }}
+          ></iframe>
+        </ModalDialog>
+      </Modal>
       <Box
         sx={{
           display: 'flex',
@@ -475,25 +496,7 @@ export default function Documents({ experimentInfo }) {
                             size="sm"
                             style={{ fontSize: '11px' }}
                             onClick={() => {
-                              // fetch(
-                              //   chatAPI.Endpoints.Documents.Open(
-                              //     experimentInfo?.id,
-                              //     row?.name
-                              //   )
-                              // ).then((response) => {
-                              //   if (response.ok) {
-                              //     console.log(response);
-                              //     return true;
-                              //   } else {
-                              //     console.log('Error opening file');
-                              //   }
-                              // });
-                              window.open(
-                                chatAPI.Endpoints.Documents.Open(
-                                  experimentInfo?.id,
-                                  row?.name
-                                )
-                              );
+                              setPreviewFile(row?.name);
                             }}
                           >
                             Preview
