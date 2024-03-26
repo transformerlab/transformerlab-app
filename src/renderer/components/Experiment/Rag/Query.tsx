@@ -44,7 +44,15 @@ export default function Query({ experimentInfo }) {
       }}
     >
       <Box sx={{ flex: 3, maxWidth: '800px', overflow: 'hidden' }}>
-        <Box sx={{ padding: '1rem', overflow: 'hidden', height: '100%' }}>
+        <Box
+          sx={{
+            padding: '1rem',
+            overflow: 'hidden',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <FormControl>
             <FormLabel>Your question:</FormLabel>
             <Input
