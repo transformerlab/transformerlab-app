@@ -5,19 +5,36 @@ import Sheet from '@mui/joy/Sheet';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-import { Box, FormControl, FormLabel, Input, LinearProgress } from '@mui/joy';
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionGroup,
+  AccordionSummary,
+  Box,
+  FormControl,
+  FormLabel,
+  Input,
+  LinearProgress,
+  Typography,
+} from '@mui/joy';
 import { SendHorizonalIcon } from 'lucide-react';
 
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 export default function Query({ experimentInfo }) {
-  const [response, setResponse] = React.useState('');
+  const { models } = chatAPI.useModelStatus();
+
+  const [response, setResponse] = React.useState({ response: '' });
   const [isLoading, setIsLoading] = React.useState(false);
 
   const getResponse = async (query: string) => {
+    if (!models?.[0]?.id) {
+      alert('No running model found. Please start a model first.');
+      return;
+    }
     setIsLoading(true);
-    setResponse('');
+    setResponse({ response: '' });
     const response = await fetch(
       chatAPI.Endpoints.Rag.Query(
         experimentInfo.id,
@@ -40,7 +57,7 @@ export default function Query({ experimentInfo }) {
         overflow: 'hidden',
         width: '100%',
         justifyContent: 'space-between',
-        marginBottom: '2rem',
+        marginBottom: '0rem',
       }}
     >
       <Box sx={{ flex: 3, maxWidth: '800px', overflow: 'hidden' }}>
@@ -76,27 +93,52 @@ export default function Query({ experimentInfo }) {
             {/* <FormHelperText>This is a helper text.</FormHelperText> */}
           </FormControl>
           {isLoading && <LinearProgress size="sm" />}
-          {true && (
-            <Box
-              mt={1}
-              sx={{
-                overflow: 'auto',
-                height: '100%',
-                '& .editableSheetContent': {
-                  borderLeft: '2px solid var(--joy-palette-neutral-500)',
-                  paddingLeft: '1rem',
-                },
-              }}
-              p={1}
+          <Box
+            mt={1}
+            sx={{
+              overflow: 'auto',
+              height: '100%',
+              '& .editableSheetContent': {
+                borderLeft: '2px solid var(--joy-palette-neutral-500)',
+                paddingLeft: '1rem',
+              },
+            }}
+            p={0}
+          >
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              className="editableSheetContent"
             >
-              <Markdown
-                remarkPlugins={[remarkGfm]}
-                className="editableSheetContent"
-              >
-                {response}
-              </Markdown>
-            </Box>
-          )}
+              {response?.response}
+            </Markdown>
+            <AccordionGroup
+              size="sm"
+              color="neutral"
+              variant="soft"
+              disableDivider
+            >
+              {response?.template && (
+                <Accordion>
+                  <AccordionSummary>Template</AccordionSummary>
+                  <AccordionDetails>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>
+                      {response?.template}
+                    </pre>
+                  </AccordionDetails>
+                </Accordion>
+              )}
+              {response?.context && (
+                <Accordion>
+                  <AccordionSummary>Context</AccordionSummary>
+                  <AccordionDetails>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>
+                      {response?.context}
+                    </pre>
+                  </AccordionDetails>
+                </Accordion>
+              )}
+            </AccordionGroup>
+          </Box>
         </Box>
       </Box>
     </Sheet>
