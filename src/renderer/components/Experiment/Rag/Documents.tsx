@@ -517,7 +517,7 @@ export default function Documents({ experimentInfo }) {
         )}
       </Dropzone>
       <Typography level="body-xs" color="neutral">
-        Allowed filetypes: .txt, .pdf, .jsonl
+        Allowed filetypes: .txt, .pdf, .csv, .epub, .ipynb, .mbox, .md, .ppt
       </Typography>
     </>
   );
