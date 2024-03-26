@@ -6,7 +6,14 @@ import ExportDetailsModal from './ExportDetailsModal';
 import PluginSettingsModal from './PluginSettingsModal';
 
 import Sheet from '@mui/joy/Sheet';
-import { Button, CircularProgress, Divider, Table, Typography } from '@mui/joy';
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  Divider,
+  Table,
+  Typography,
+} from '@mui/joy';
 import { PlugIcon, ClockIcon, PlayIcon } from 'lucide-react';
 
 // fetcher used by SWR
@@ -115,9 +122,9 @@ export default function Export({ experimentInfo }) {
             Available Export Formats&nbsp;
           </Typography>
           {plugins?.length === 0 ? (
-            <Typography level="title-lg" mb={1} color="warning">
+            <Alert color="danger">
               No Export Formats available, please install an export plugin.
-            </Typography>
+            </Alert>
           ) : (
             <Table aria-label="basic table">
               <thead>

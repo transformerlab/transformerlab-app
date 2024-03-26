@@ -19,6 +19,7 @@ import ModelHome from './Experiment/ExperimentNotes';
 import TrainLoRA from './Experiment/Train/TrainLoRA';
 import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
+import Rag from './Experiment/Rag';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExperimentNotes from './Experiment/ExperimentNotes';
@@ -103,6 +104,21 @@ export default function MainAppPanel({
     experimentInfoMutate();
   }
 
+  async function setRagEngine(
+    name: string,
+    script_template_parameters: any = {}
+  ) {
+    fetch(
+      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+        experimentInfo?.id,
+        'rag_engine',
+        name
+      )
+    ).then((res) => {
+      experimentInfoMutate();
+    });
+  }
+
   if (!experimentInfo) {
     redirect('/');
   }
@@ -165,6 +181,12 @@ export default function MainAppPanel({
       <Route
         path="/projects/documents"
         element={<Documents experimentInfo={experimentInfo} />}
+      />
+      <Route
+        path="/projects/rag"
+        element={
+          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
+        }
       />
       <Route
         path="/projects/export"

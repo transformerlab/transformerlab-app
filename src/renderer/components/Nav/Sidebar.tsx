@@ -21,6 +21,7 @@ import {
   ArrowRightFromLineIcon,
   PlugIcon,
   FileIcon,
+  FolderSearch2Icon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
@@ -120,6 +121,12 @@ export default function Sidebar({
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
         <SubNavItem
+          title="Query Docs"
+          path="/projects/rag"
+          icon={<FolderSearch2Icon />}
+          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
+        />
+        <SubNavItem
           title="Embeddings"
           path="/projects/embeddings"
           icon={<FileDigitIcon />}
@@ -147,15 +154,13 @@ export default function Sidebar({
           icon={<HelpCircleIcon />}
           disabled={!experimentInfo?.name}
         />
-        {experimentInfo?.name == 'dev' && (
-          <SubNavItem
-            title="Documents"
-            path="/projects/documents"
-            icon={<FileIcon />}
-            disabled={!experimentInfo?.name}
-            counter={outdatedPluginsCount}
-          />
-        )}
+        {/* <SubNavItem
+          title="Documents"
+          path="/projects/documents"
+          icon={<FileIcon />}
+          disabled={!experimentInfo?.name}
+          counter={outdatedPluginsCount}
+        /> */}
         <SubNavItem
           title="Notes"
           path="/projects/notes"
