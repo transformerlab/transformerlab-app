@@ -26,7 +26,7 @@ export default function Query({ experimentInfo }) {
       )
     );
     const data = await response.json();
-    console.log(data);
+    // console.log(data);
     setIsLoading(false);
     setResponse(data);
   };
@@ -37,13 +37,14 @@ export default function Query({ experimentInfo }) {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        overflow: 'hidden',
         width: '100%',
         justifyContent: 'space-between',
         marginBottom: '2rem',
       }}
     >
-      <Box sx={{ flex: 3 }}>
-        <Box sx={{ padding: '1rem' }}>
+      <Box sx={{ flex: 3, maxWidth: '800px', overflow: 'hidden' }}>
+        <Box sx={{ padding: '1rem', overflow: 'hidden', height: '100%' }}>
           <FormControl>
             <FormLabel>Your question:</FormLabel>
             <Input
@@ -70,7 +71,11 @@ export default function Query({ experimentInfo }) {
           {response != '' && (
             <Box
               mt={6}
-              sx={{ borderLeft: '2px solid var(--joy-palette-neutral-500)' }}
+              sx={{
+                borderLeft: '2px solid var(--joy-palette-neutral-500)',
+                overflow: 'auto',
+                height: '100%',
+              }}
               p={2}
             >
               <Markdown
