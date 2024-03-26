@@ -76,15 +76,18 @@ export default function Query({ experimentInfo }) {
             {/* <FormHelperText>This is a helper text.</FormHelperText> */}
           </FormControl>
           {isLoading && <LinearProgress size="sm" />}
-          {response != '' && (
+          {true && (
             <Box
-              mt={6}
+              mt={1}
               sx={{
-                borderLeft: '2px solid var(--joy-palette-neutral-500)',
                 overflow: 'auto',
                 height: '100%',
+                '& .editableSheetContent': {
+                  borderLeft: '2px solid var(--joy-palette-neutral-500)',
+                  paddingLeft: '1rem',
+                },
               }}
-              p={2}
+              p={1}
             >
               <Markdown
                 remarkPlugins={[remarkGfm]}
