@@ -75,44 +75,46 @@ export async function startLocalServer() {
   const out = fs.openSync(logFilePath, 'a');
   const err = fs.openSync(logFilePath, 'a');
 
-
-  // works slightly differently on Windows
-  const mainFile = isPlatformWindows()
-      ? path.join(server_dir, 'run_windows.bat')
-      : path.join(server_dir, 'run.sh');
+  // Need to call bash script through WSL on Windows
+  // Windows will not let you set a UNC directory to cwd
+  // Consequently, we have to make a cd call first
+  const exec_cmd = isPlatformWindows()
+      ? 'wsl'
+      : 'bash';
+  const exec_args = isPlatformWindows()
+      ? ['cd', '~/.transformerlab/src/', '&&', './run.sh']
+      : ['l', path.join(server_dir, 'run.sh')];
   const options = isPlatformWindows()
       ? {
-        cwd: server_dir,
+        stdio: ['ignore', out, err],
       }
       : {
         cwd: server_dir,
         stdio: ['ignore', out, err],
         shell: '/bin/bash',
       };
-  console.log('Starting local server at', mainFile);
-  if (isPlatformWindows()) {
-    localServer = spawn('cmd.exe', ['/c', mainFile], options);
-  } else {
-    localServer = spawn('bash', ['-l', mainFile], options);
-  }
+
+  localServer = spawn(exec_cmd, exec_args, options);
 
   console.log('Local server started with pid', localServer.pid);
 
   return new Promise((resolve) => {
-    localServer.stderr.on('data', (data) => {
-      console.error(`stderr: ${data}`);
+
+    let err_msg;
+
+    // if there was an error spawning then stderr will be null
+    if (localServer.stderr) {
+      localServer.stderr.on('data', (data) => {
+        console.error(`stderr: ${data}`);
+      });
+    }
+
+    localServer.on('error', (error_msg) => {
+      console.log(`child process failed: ${error_msg}`)
+      err_msg = error_msg;
     });
 
     localServer.on('close', (code) => {
-      console.log(`child process exited with code ${code}`);
-      resolve({ status: 'error', code: code });
-    });
-
-    localServer.on('error', (code) => {
-      resolve({ status: 'error', code: code });
-    });
-
-    localServer.on('exit', (code) => {
       console.log(`child process exited with code ${code}`);
 
       if (code === 0) {
@@ -121,7 +123,7 @@ export async function startLocalServer() {
         resolve({
           status: 'error',
           code: code,
-          message: 'May be fixed by running install file in ~/.transformerlab/src/',
+          message: `${err_msg} (code ${code}). Check log for details: ${logFilePath}`,
         });
       }
     });
@@ -288,7 +290,6 @@ export async function executeInstallStep(argument: string) {
   const exec_cmd =  isPlatformWindows()
   ? `wsl ~/.transformerlab/src/${installScriptFilename} ${argument}`
   : `${fullInstallScriptPath} ${argument}`;
-  `install.sh`;
   const options = isPlatformWindows()
       ? {}
       : { cwd: server_dir };
