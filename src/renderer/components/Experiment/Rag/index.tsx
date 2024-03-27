@@ -10,16 +10,21 @@ import {
   Stack,
   Typography,
   Option,
+  Chip,
 } from '@mui/joy';
 import Documents from './Documents';
 import Query from './Query';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { CogIcon, XCircleIcon } from 'lucide-react';
+import ConfigurePlugin from './ConfigurePlugin';
+import { useState } from 'react';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function DocumentSearch({ experimentInfo, setRagEngine }) {
+  const [openConfigureModal, setOpenConfigureModal] = useState(false);
   const {
     data: plugins,
     error: pluginsError,
@@ -99,18 +104,43 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
       >
         <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column' }}>
           <Query experimentInfo={experimentInfo} />
-          <Typography level="title-md">
-            Rag Engine: {experimentInfo?.config?.rag_engine}{' '}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
+              alignItems: 'center',
+            }}
+          >
+            <Typography level="title-sm">
+              Rag Engine: <Chip> {experimentInfo?.config?.rag_engine}</Chip>{' '}
+            </Typography>
+
             <Button
               size="sm"
               variant="plain"
               onClick={async (e) => {
                 await setRagEngine('');
               }}
+              startDecorator={<XCircleIcon size="18px" />}
             >
-              Change
+              Change Engine
             </Button>
-          </Typography>
+            <Button
+              variant="plain"
+              size="sm"
+              startDecorator={<CogIcon size="18px" />}
+              onClick={() => setOpenConfigureModal(true)}
+            >
+              Configure
+            </Button>
+            <ConfigurePlugin
+              open={openConfigureModal}
+              onClose={() => setOpenConfigureModal(false)}
+              experimentInfo={experimentInfo}
+              plugin={experimentInfo?.config?.rag_engine}
+            />
+          </Box>
         </Box>
         <Box
           sx={{
