@@ -104,19 +104,22 @@ export default function MainAppPanel({
     experimentInfoMutate();
   }
 
-  async function setRagEngine(
-    name: string,
-    script_template_parameters: any = {}
-  ) {
-    fetch(
+  async function setRagEngine(name: string, rag_settings: any = {}) {
+    await fetch(
       chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
         experimentInfo?.id,
         'rag_engine',
         name
       )
-    ).then((res) => {
-      experimentInfoMutate();
-    });
+    );
+    await fetch(
+      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+        experimentInfo?.id,
+        'rag_engine_settings',
+        rag_settings
+      )
+    );
+    experimentInfoMutate();
   }
 
   if (!experimentInfo) {

@@ -139,6 +139,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
               onClose={() => setOpenConfigureModal(false)}
               experimentInfo={experimentInfo}
               plugin={experimentInfo?.config?.rag_engine}
+              setRagEngine={setRagEngine}
             />
           </Box>
         </Box>

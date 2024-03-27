@@ -17,6 +17,7 @@ export default function PluginSettingsModal({
   onClose,
   experimentInfo,
   plugin,
+  setRagEngine,
 }) {
   const currentModelName = experimentInfo?.config?.foundation;
 
@@ -53,11 +54,7 @@ export default function PluginSettingsModal({
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
 
-            // onSubmit(
-            //   plugin.uniqueId,
-            //   plugin.export_architecture,
-            //   JSON.stringify(form_json)
-            // );
+            setRagEngine(plugin, JSON.stringify(form_json));
             onClose();
           }}
         >
@@ -78,11 +75,7 @@ export default function PluginSettingsModal({
             >
               Cancel
             </Button>
-            <Button
-              variant="soft"
-              type="submit"
-              startDecorator={<ArrowRightFromLineIcon />}
-            >
+            <Button variant="solid" color="success" type="submit">
               Save
             </Button>
           </Stack>
