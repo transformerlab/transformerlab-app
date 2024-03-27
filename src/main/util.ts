@@ -158,7 +158,8 @@ export async function installLocalServer() {
     fs.mkdirSync(root_dir);
   }
 
-  // Windows has its own install script so need to detect platform
+  // We can download the API in one line for linux/mac
+  // but it's a little more complicated for windows, so call a bat file
   console.log("Platform:" + process.platform);
   const installScriptCommand = isPlatformWindows()
       ? `download_windows_api.bat`
@@ -271,8 +272,8 @@ export async function checkIfCondaEnvironmentExists() {
 }
 
 /**
- * 
- * @param argument parameter to pass to install.sh 
+ *
+ * @param argument parameter to pass to install.sh
  * @returns the stdout of the process or false on failure.
  */
 export async function executeInstallStep(argument: string) {
