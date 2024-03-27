@@ -83,7 +83,7 @@ export async function startLocalServer() {
       : 'bash';
   const exec_args = isPlatformWindows()
       ? ['cd', '~/.transformerlab/src/', '&&', './run.sh']
-      : ['l', path.join(server_dir, 'run.sh')];
+      : ['-l', path.join(server_dir, 'run.sh')];
   const options = isPlatformWindows()
       ? {
         stdio: ['ignore', out, err],
