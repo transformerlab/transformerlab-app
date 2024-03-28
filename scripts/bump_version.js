@@ -1,6 +1,12 @@
 const fs = require('fs');
 const { execSync } = require('child_process');
 const { version } = require('os');
+const readline = require('node:readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
 
 const files = [
   'package.json',
@@ -47,15 +53,23 @@ if (versionPart === 'patch') versionParts[2] = parseInt(versionParts[2]) + 1; //
 const newVersion = versionParts.join('.');
 console.log(`Bumping version from ${currentVersion} to ${newVersion}`);
 
-files.forEach((file) => {
-  bumpVersion(file, newVersion);
+rl.question(`Do you want to continue? (y/n) `, (answer) => {
+  rl.close();
+  if (answer.toLowerCase() !== 'y' && answer.toLowerCase() !== 'yes') {
+    console.log('Exiting process...');
+    process.exit(1);
+  } else {
+    files.forEach((file) => {
+      bumpVersion(file, newVersion);
+    });
+
+    // Add the updated files to git, commit the changes, and tag the new commit
+    execSync(`git add ${files.join(' ')}`);
+    execSync(`git commit -m "Bump version to ${newVersion}"`);
+    execSync(`git tag v${newVersion}`);
+
+    console.log(
+      'A new commit and tag have been created. Please push the changes to the remote repository to trigger a new build.'
+    );
+  }
 });
-
-// Add the updated files to git, commit the changes, and tag the new commit
-execSync(`git add ${files.join(' ')}`);
-execSync(`git commit -m "Bump version to ${newVersion}"`);
-execSync(`git tag v${newVersion}`);
-
-console.log(
-  'A new commit and tag have been created. Please push the changes to the remote repository to trigger a new build.'
-);
