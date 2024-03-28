@@ -522,9 +522,14 @@ Endpoints.Documents = {
 };
 
 Endpoints.Rag = {
-  Query: (experimentId: string, model_name: string, query: string) =>
+  Query: (
+    experimentId: string,
+    model_name: string,
+    query: string,
+    settings: string
+  ) =>
     API_URL() +
-    `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}`,
+    `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}`,
 };
 
 export function GET_TRAINING_TEMPLATE_URL() {

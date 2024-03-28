@@ -28,7 +28,7 @@ export default function Query({ experimentInfo }) {
   const [response, setResponse] = React.useState({ response: '' });
   const [isLoading, setIsLoading] = React.useState(false);
 
-  const getResponse = async (query: string) => {
+  const getResponse = async (query: string, settings: string) => {
     if (!models?.[0]?.id) {
       alert('No running model found. Please start a model first.');
       return;
@@ -39,7 +39,8 @@ export default function Query({ experimentInfo }) {
       chatAPI.Endpoints.Rag.Query(
         experimentInfo.id,
         experimentInfo?.config?.foundation,
-        query
+        query,
+        settings
       )
     );
     const data = await response.json();
@@ -79,14 +80,20 @@ export default function Query({ experimentInfo }) {
                 <SendHorizonalIcon
                   onClick={() => {
                     const query = document.getElementsByName('query')[0].value;
-                    getResponse(query);
+                    getResponse(
+                      query,
+                      experimentInfo?.config?.rag_engine_settings
+                    );
                   }}
                 />
               }
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   const query = document.getElementsByName('query')[0].value;
-                  getResponse(query);
+                  getResponse(
+                    query,
+                    experimentInfo?.config?.rag_engine_settings
+                  );
                 }
               }}
             />
