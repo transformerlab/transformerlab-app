@@ -10,6 +10,7 @@ import {
   AccordionDetails,
   AccordionGroup,
   AccordionSummary,
+  Alert,
   Box,
   FormControl,
   FormLabel,
@@ -21,6 +22,14 @@ import { SendHorizonalIcon } from 'lucide-react';
 
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+/* Pass this function an error from the RAG query and it will attempt to diagnose the error and return a helpful message */
+const tryToDiagnoseRAGError = (error: string) => {
+  if (error.includes('_get_available_context_size')) {
+    return ': The model has too small of a context length. Adjust the context length using the Configure button below, or use a model with larger context window.';
+  }
+  return '';
+};
 
 export default function Query({ experimentInfo }) {
   const { models } = chatAPI.useModelStatus();
@@ -110,7 +119,7 @@ export default function Query({ experimentInfo }) {
                 paddingLeft: '1rem',
               },
             }}
-            p={0}
+            p={1}
           >
             <Markdown
               remarkPlugins={[remarkGfm]}
@@ -118,6 +127,14 @@ export default function Query({ experimentInfo }) {
             >
               {response?.response}
             </Markdown>
+            {response?.error && (
+              <>
+                <Alert color="danger" sx={{ marginBottom: '1rem' }}>
+                  Error{tryToDiagnoseRAGError(response?.error)}
+                </Alert>
+              </>
+            )}
+
             <AccordionGroup
               size="sm"
               color="neutral"
@@ -140,6 +157,16 @@ export default function Query({ experimentInfo }) {
                   <AccordionDetails>
                     <pre style={{ whiteSpace: 'pre-wrap' }}>
                       {response?.context}
+                    </pre>
+                  </AccordionDetails>
+                </Accordion>
+              )}
+              {response?.error && (
+                <Accordion>
+                  <AccordionSummary>Error Details</AccordionSummary>
+                  <AccordionDetails>
+                    <pre style={{ whiteSpace: 'pre-wrap' }}>
+                      {response?.error}
                     </pre>
                   </AccordionDetails>
                 </Accordion>
