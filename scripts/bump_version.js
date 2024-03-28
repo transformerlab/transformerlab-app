@@ -47,9 +47,21 @@ if (versionPart && !['major', 'minor', 'patch'].includes(versionPart)) {
 
 const currentVersion = getVersion();
 const versionParts = currentVersion.split('.');
-if (versionPart === 'major') versionParts[0] = parseInt(versionParts[0]) + 1; // Bump the major version
-if (versionPart === 'minor') versionParts[1] = parseInt(versionParts[1]) + 1; // Bump the minor version
-if (versionPart === 'patch') versionParts[2] = parseInt(versionParts[2]) + 1; // Bump the patch version
+// Bump the major version
+if (versionPart === 'major') {
+  versionParts[0] = parseInt(versionParts[0]) + 1;
+  versionParts[1] = 0;
+  versionParts[2] = 0;
+}
+// Bump the minor version
+if (versionPart === 'minor') {
+  versionParts[1] = parseInt(versionParts[1]) + 1;
+  versionParts[2] = 0;
+}
+// Bump the patch version
+if (versionPart === 'patch') {
+  versionParts[2] = parseInt(versionParts[2]) + 1;
+}
 const newVersion = versionParts.join('.');
 console.log(`Bumping version from ${currentVersion} to ${newVersion}`);
 
