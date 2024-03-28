@@ -91,8 +91,6 @@ export default function Computer() {
                 CUDA Version: {server?.cuda_version}
                 <br />
                 Python MPS: {server?.device === 'mps' ? '✅ ' : '❌ '}
-                <br />
-                Apple MLX: WIP
               </ComputerCard>
             </Grid>{' '}
             <Grid xs={4}>
