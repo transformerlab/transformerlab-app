@@ -5,6 +5,7 @@ import Typography from '@mui/joy/Typography';
 import {
   ArrowRightFromLineIcon,
   DownloadIcon,
+  FolderSearch2Icon,
   GraduationCapIcon,
   HelpCircleIcon,
   RocketIcon,
@@ -28,6 +29,8 @@ function getIcon(type: string) {
       return <RocketIcon color="#FFA732" />;
     case 'exporter':
       return <ArrowRightFromLineIcon color="#711DB0" />;
+    case 'rag':
+      return <FolderSearch2Icon color="skyblue" />;
     default:
       return null;
   }
