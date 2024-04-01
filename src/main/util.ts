@@ -81,7 +81,7 @@ export async function checkForMissingSystemRequirements() {
       // Everything checks out OK!
       return false;
 
-    // Currently nothing to check for on other platforms  
+    // Currently nothing to check for on other platforms
     default:
       return false;
   }
@@ -194,9 +194,10 @@ export async function installLocalServer() {
   // We can download the API in one line for linux/mac
   // but it's a little more complicated for windows, so call a bat file
   console.log("Platform:" + process.platform);
+  const download_cmd = `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
   const installScriptCommand = isPlatformWindows()
-      ? `download_windows_api.bat`
-      : `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
+      ? `wsl ` + download_cmd
+      : download_cmd;
   const options = isPlatformWindows()
       ? {}
       : { shell: '/bin/bash', cwd: root_dir };
