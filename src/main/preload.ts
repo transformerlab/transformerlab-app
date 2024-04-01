@@ -14,6 +14,7 @@ export type Channels =
   | 'setStoreValue'
   | 'deleteStoreValue'
   | 'openURL'
+  | 'server:checkSystemRequirements'
   | 'server:checkIfInstalledLocally'
   | 'server:checkLocalVersion'
   | 'server:startLocalServer'

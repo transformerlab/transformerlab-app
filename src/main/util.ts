@@ -53,6 +53,39 @@ export function resolveHtmlPath(htmlFileName: string) {
   return `file://${path.resolve(__dirname, '../renderer/', htmlFileName)}`;
 }
 
+// returns a string with the first encountered missing system requirement
+// otherwise returns false
+export async function checkForMissingSystemRequirements() {
+  const platform = process.platform;
+  switch (platform) {
+    case "win32":
+      try {
+        // Try running WSL to check for version
+        // This may throw an exception if the WSL command is not availabile
+        // Otherwise, return any errors
+        const { stdout, stderr }  = await awaitExec("wsl -l -v");
+        if (stderr) return stderr;
+      } catch(error) {
+        return "TransformerLab API requires WSL to run on Windows."
+      }
+
+      try {
+        // We will need to be able to use the wslpath utility
+        // This may not be available if the user has not installed WSL
+        const { stdout, stderr }  = await getWSLHomeDir();
+        if (stderr) return stderr;
+      } catch(error) {
+        return "WSL file system unavailable: Is WSL installed (try 'wsl --install')?"
+      }
+
+      // Everything checks out OK!
+      return false;
+
+    // Currently nothing to check for on other platforms  
+    default:
+      return false;
+  }
+}
 
 export async function checkLocalServerVersion() {
   const mainFile = path.join(await getTransformerLabCodeDir(), 'LATEST_VERSION');

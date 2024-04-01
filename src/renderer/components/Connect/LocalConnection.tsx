@@ -46,19 +46,34 @@ const Steps = [
 
 function CheckIfInstalled({ activeStep, setActiveStep }) {
   const [installStatus, setInstallStatus] = useState('notstarted'); // notstarted, pending, success, error
+  const [installErrorMessage, setInstallErrorMessage] = useState(null);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_INSTALLED')) return;
     (async () => {
-      const serverIsInstalled = await window.electron.ipcRenderer.invoke(
-        'server:checkIfInstalledLocally'
-      );
-      if (serverIsInstalled) {
-        setInstallStatus('success');
-        setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
-      } else {
-        setInstallStatus('notstarted');
-      }
+      // First check if there are any system requirement issues
+      // If not, then check if installed locally
+      // Report on any errors along the way
+      window.electron.ipcRenderer.invoke('server:checkSystemRequirements')
+        .then((setupMessage)=> {
+          if (setupMessage) {
+            throw new Error(setupMessage);
+          }
+          return window.electron.ipcRenderer.invoke('server:checkIfInstalledLocally');
+        })
+        .then((serverIsInstalled) => {
+          if (serverIsInstalled) {
+            setInstallStatus('success');
+            setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
+          } else {
+            setInstallStatus('notstarted');
+          }
+          return;
+        })
+        .catch((error) => {
+          setInstallStatus('error');
+          setInstallErrorMessage(error.message);
+        });
     })();
   }, [activeStep]);
 
@@ -75,7 +90,14 @@ function CheckIfInstalled({ activeStep, setActiveStep }) {
           </Chip>
         )}
         {installStatus === 'success' && <Chip color="success">Success!</Chip>}
-        {installStatus === 'error' && <Chip color="danger">Error </Chip>}
+        {installStatus === 'error' && (
+          <>
+            <Chip color="danger">Error </Chip>
+            <Typography level="body-sm" color="danger">
+              {installErrorMessage}
+            </Typography>
+          </>
+        )}
 
         <ButtonGroup variant="plain" spacing={1}>
           {activeStep == Steps.indexOf('CHECK_IF_INSTALLED') &&

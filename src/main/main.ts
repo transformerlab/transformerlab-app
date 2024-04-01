@@ -25,6 +25,7 @@ import Store from 'electron-store';
 
 import MenuBuilder from './menu';
 import {
+  checkForMissingSystemRequirements,
   checkLocalServerVersion,
   resolveHtmlPath,
   startLocalServer,
@@ -61,6 +62,10 @@ ipcMain.handle('deleteStoreValue', (event, key) => {
 });
 // ////////////
 // ////////////
+
+ipcMain.handle('server:checkSystemRequirements', async (event) => {
+  return checkForMissingSystemRequirements();
+});
 
 ipcMain.handle('server:checkIfInstalledLocally', async (event) => {
   return await checkLocalServerVersion() !== false;
@@ -297,7 +302,7 @@ autoUpdater.on('update-available', (info) => {
       type: 'info',
       title: 'Found Updates',
       message:
-        'An updated version of Transformer Lab is available, do you want update now?',
+        'An updated version of Transformer Lab is available, do you want to update now?',
       buttons: ['Yes', 'No'],
     })
     .then((buttonIndex) => {
