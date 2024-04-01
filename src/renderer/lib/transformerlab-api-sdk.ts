@@ -206,7 +206,10 @@ export async function sendAndReceiveStreaming(
           finalResult += content;
           if (resultText) {
             resultText.innerText = finalResult;
-            resultText.scrollIntoView();
+            setTimeout(
+              () => document.getElementById('endofchat')?.scrollIntoView(),
+              100
+            );
           }
         }
       }
@@ -1025,16 +1028,17 @@ export async function getTrainingJobStatus(jobId: string) {
  * SWR hooks
  */
 
-const fetcher = (...args: any[]) => fetch(...args).then((res) => {
-   if (!res.ok) {
-    const error = new Error('An error occurred fetching ' + res.url);
-    error.response = res.json();
-    error.status = res.status;
-    console.log(res);
-    throw error
-  }
-  return res.json();
-});
+const fetcher = (...args: any[]) =>
+  fetch(...args).then((res) => {
+    if (!res.ok) {
+      const error = new Error('An error occurred fetching ' + res.url);
+      error.response = res.json();
+      error.status = res.status;
+      console.log(res);
+      throw error;
+    }
+    return res.json();
+  });
 
 export function useModelStatus() {
   const api_url = API_URL();
