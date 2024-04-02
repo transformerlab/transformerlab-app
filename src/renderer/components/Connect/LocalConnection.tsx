@@ -54,12 +54,15 @@ function CheckIfInstalled({ activeStep, setActiveStep }) {
       // First check if there are any system requirement issues
       // If not, then check if installed locally
       // Report on any errors along the way
-      window.electron.ipcRenderer.invoke('server:checkSystemRequirements')
-        .then((setupMessage)=> {
+      window.electron.ipcRenderer
+        .invoke('server:checkSystemRequirements')
+        .then((setupMessage) => {
           if (setupMessage) {
             throw new Error(setupMessage);
           }
-          return window.electron.ipcRenderer.invoke('server:checkIfInstalledLocally');
+          return window.electron.ipcRenderer.invoke(
+            'server:checkIfInstalledLocally'
+          );
         })
         .then((serverIsInstalled) => {
           if (serverIsInstalled) {
