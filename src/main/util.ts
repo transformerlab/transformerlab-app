@@ -236,7 +236,7 @@ export async function checkDependencies() {
   // Then compare the output to the list of dependencies
   // If any are missing, return the missing ones
   // If all are present, manually check if the uvicorn command is present
-  const { stdout, stderr } = await executeInstallStep(
+  const { error, stdout, stderr } = await executeInstallStep(
     'list_installed_packages'
   );
 
@@ -247,7 +247,7 @@ export async function checkDependencies() {
   };
 
   // if there was an error abort processing
-  if (!stdout) {
+  if (error) {
     response.status = 'error';
     response.message = 'Failed to detect packages';
     response.data = { stdout: '', stderr: stderr.toString() };
@@ -299,11 +299,24 @@ export async function checkDependencies() {
 export async function checkIfCondaEnvironmentExists() {
   console.log('Checking if Conda environment "transformerlab" exists');
 
-  const { stdout, stderr } = await executeInstallStep('list_environments');
+  const { error, stdout, stderr } = await executeInstallStep(
+    'list_environments'
+  );
 
-  if (!stdout) {
+  let response = {
+    status: '',
+    message: '',
+    data: [],
+  };
+
+  console.log(JSON.stringify({ error, stdout, stderr }));
+
+  if (error) {
+    response.status = 'error';
+    response.message = 'Conda environment check failed.';
+    response.data = { stdout: '', stderr: stderr.toString() };
     console.log('Conda environment check failed.');
-    return false;
+    return response;
   }
 
   // search for the string "transformerlab" in the output AND check that the directory exists
@@ -349,14 +362,20 @@ export async function executeInstallStep(argument: string) {
 
   console.log(`Running: ${exec_cmd}`);
   // Call installer script and return stdout if it succeeds
-  const { stdout, stderr } = await awaitExec(exec_cmd, options).catch((err) => {
-    console.log(`Error running ${installScriptFilename}`, err);
+  let error, stdout, stderr;
+
+  try {
+    ({ error, stdout, stderr } = await awaitExec(exec_cmd, options));
+  } catch (err) {
+    console.log('Failed to execute install step', err);
+    console.log(JSON.stringify(err));
     return {
-      stdout: false,
-      stderr: err,
+      error: err?.code,
+      stdout: err?.stdout?.toString(),
+      stderr: err?.stderr?.toString(),
     };
-  });
+  }
   if (stdout) console.log(`${installScriptFilename} stdout:`, stdout);
   if (stderr) console.error(`${installScriptFilename} stderr:`, stderr);
-  return { stdout, stderr };
+  return { error, stdout, stderr };
 }

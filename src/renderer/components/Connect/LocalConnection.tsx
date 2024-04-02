@@ -695,6 +695,15 @@ function CheckDependencies({ activeStep, setActiveStep }) {
                     );
                     return;
                   }
+
+                  if (missingDependencies?.status == 'error') {
+                    setErrorMessage({
+                      message: missingDependencies?.message,
+                      data: missingDependencies?.data,
+                    });
+                  } else {
+                    setErrorMessage(null);
+                  }
                 }}
               >
                 Install Dependencies
