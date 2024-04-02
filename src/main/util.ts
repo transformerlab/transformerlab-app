@@ -15,7 +15,7 @@ var localServer: typeof ChildProcess = null;
 
 // Standardize how we decide if app is running on windows
 function isPlatformWindows() {
-  return (process.platform == "win32");
+  return process.platform == 'win32';
 }
 
 // WINDOWS SPECIFIC FUNCTION for figuring out how to access WSL file system
@@ -23,7 +23,7 @@ function isPlatformWindows() {
 // On Windows, we use the home directory on WSL file system.
 // This outputs how to access the WSL file system homedir from Windows.
 async function getWSLHomeDir() {
-  const { stdout, stderr } = await awaitExec("wsl wslpath -w ~");
+  const { stdout, stderr } = await awaitExec('wsl wslpath -w ~');
   if (stderr) console.error(`stderr: ${stderr}`);
   const homedir = stdout.trim();
   return homedir;
@@ -32,16 +32,15 @@ async function getWSLHomeDir() {
 // Need to wrap directories in functions to cover the windows-specific case
 async function getTransformerLabRootDir() {
   return isPlatformWindows()
-      ? path.join(await getWSLHomeDir(), '.transformerlab')
-      : transformerLabRootDir;
+    ? path.join(await getWSLHomeDir(), '.transformerlab')
+    : transformerLabRootDir;
 }
 
 async function getTransformerLabCodeDir() {
   return isPlatformWindows()
-      ? path.join(await getTransformerLabRootDir(), 'src')
-      : transformerLabDir;
+    ? path.join(await getTransformerLabRootDir(), 'src')
+    : transformerLabDir;
 }
-
 
 export function resolveHtmlPath(htmlFileName: string) {
   if (process.env.NODE_ENV === 'development') {
@@ -58,24 +57,24 @@ export function resolveHtmlPath(htmlFileName: string) {
 export async function checkForMissingSystemRequirements() {
   const platform = process.platform;
   switch (platform) {
-    case "win32":
+    case 'win32':
       try {
         // Try running WSL to check for version
         // This may throw an exception if the WSL command is not availabile
         // Otherwise, return any errors
-        const { stdout, stderr }  = await awaitExec("wsl -l -v");
+        const { stdout, stderr } = await awaitExec('wsl -l -v');
         if (stderr) return stderr;
-      } catch(error) {
-        return "TransformerLab API requires WSL to run on Windows."
+      } catch (error) {
+        return 'TransformerLab API requires WSL to run on Windows.';
       }
 
       try {
         // We will need to be able to use the wslpath utility
         // This may not be available if the user has not installed WSL
-        const { stdout, stderr }  = await getWSLHomeDir();
+        const { stdout, stderr } = await getWSLHomeDir();
         if (stderr) return stderr;
-      } catch(error) {
-        return "WSL file system unavailable: Is WSL installed (try 'wsl --install')?"
+      } catch (error) {
+        return "WSL file system unavailable: Is WSL installed (try 'wsl --install')?";
       }
 
       // Everything checks out OK!
@@ -88,7 +87,10 @@ export async function checkForMissingSystemRequirements() {
 }
 
 export async function checkLocalServerVersion() {
-  const mainFile = path.join(await getTransformerLabCodeDir(), 'LATEST_VERSION');
+  const mainFile = path.join(
+    await getTransformerLabCodeDir(),
+    'LATEST_VERSION'
+  );
 
   console.log('Checking if server is installed locally at', mainFile);
   if (fs.existsSync(mainFile)) {
@@ -111,17 +113,15 @@ export async function startLocalServer() {
   // Need to call bash script through WSL on Windows
   // Windows will not let you set a UNC directory to cwd
   // Consequently, we have to make a cd call first
-  const exec_cmd = isPlatformWindows()
-      ? 'wsl'
-      : 'bash';
+  const exec_cmd = isPlatformWindows() ? 'wsl' : 'bash';
   const exec_args = isPlatformWindows()
-      ? ['cd', '~/.transformerlab/src/', '&&', './run.sh']
-      : ['-l', path.join(server_dir, 'run.sh')];
+    ? ['cd', '~/.transformerlab/src/', '&&', './run.sh']
+    : ['-l', path.join(server_dir, 'run.sh')];
   const options = isPlatformWindows()
-      ? {
+    ? {
         stdio: ['ignore', out, err],
       }
-      : {
+    : {
         cwd: server_dir,
         stdio: ['ignore', out, err],
         shell: '/bin/bash',
@@ -132,7 +132,6 @@ export async function startLocalServer() {
   console.log('Local server started with pid', localServer.pid);
 
   return new Promise((resolve) => {
-
     let err_msg;
 
     // if there was an error spawning then stderr will be null
@@ -143,7 +142,7 @@ export async function startLocalServer() {
     }
 
     localServer.on('error', (error_msg) => {
-      console.log(`child process failed: ${error_msg}`)
+      console.log(`child process failed: ${error_msg}`);
       err_msg = error_msg;
     });
 
@@ -193,14 +192,14 @@ export async function installLocalServer() {
 
   // We can download the API in one line for linux/mac
   // but it's a little more complicated for windows, so call a bat file
-  console.log("Platform:" + process.platform);
+  console.log('Platform:' + process.platform);
   const download_cmd = `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
   const installScriptCommand = isPlatformWindows()
-      ? `wsl ` + download_cmd
-      : download_cmd;
+    ? `wsl ` + download_cmd
+    : download_cmd;
   const options = isPlatformWindows()
-      ? {}
-      : { shell: '/bin/bash', cwd: root_dir };
+    ? {}
+    : { shell: '/bin/bash', cwd: root_dir };
   try {
     const child = exec(
       installScriptCommand,
@@ -226,7 +225,7 @@ export async function checkIfCondaBinExists() {
   if (fs.existsSync(condaBin)) {
     return true;
   } else {
-    console.log("Conda not found at " + condaBin)
+    console.log('Conda not found at ' + condaBin);
     return false;
   }
 }
@@ -237,11 +236,24 @@ export async function checkDependencies() {
   // Then compare the output to the list of dependencies
   // If any are missing, return the missing ones
   // If all are present, manually check if the uvicorn command is present
-  const stdout = await executeInstallStep("list_installed_packages");
+  const { stdout, stderr } = await executeInstallStep(
+    'list_installed_packages'
+  );
+
+  let response = {
+    status: '',
+    message: '',
+    data: [],
+  };
 
   // if there was an error abort processing
   if (!stdout) {
-    return ['Failed to detect packages'];
+    response.status = 'error';
+    response.message = 'Failed to detect packages';
+    response.data = { stdout: '', stderr: stderr.toString() };
+    console.log('Failed to detect packages');
+    console.log(JSON.stringify(response));
+    return response;
   }
 
   // parse returned JSON in to pipList
@@ -250,7 +262,10 @@ export async function checkDependencies() {
     pipList = JSON.parse(stdout);
   } catch (e) {
     console.log(e);
-    return ['Invalid package list returned'];
+    response.status = 'error';
+    response.message = 'Failed to parse package list';
+    response.data = { stdout, stderr };
+    return response;
   }
 
   const pipListNames = pipList.map((x) => x.name);
@@ -275,16 +290,19 @@ export async function checkDependencies() {
   }
 
   console.log('missingDependencies', missingDependencies);
-  return missingDependencies;
+
+  response.status = 'success';
+  response.data = missingDependencies;
+  return response;
 }
 
 export async function checkIfCondaEnvironmentExists() {
   console.log('Checking if Conda environment "transformerlab" exists');
 
-  const stdout = await executeInstallStep("list_environments");
+  const { stdout, stderr } = await executeInstallStep('list_environments');
 
   if (!stdout) {
-    console.log("Conda environment check failed.");
+    console.log('Conda environment check failed.');
     return false;
   }
 
@@ -292,8 +310,8 @@ export async function checkIfCondaEnvironmentExists() {
   // On windows we don't have the full WSL homedir path so just check the end of the string
   const root_dir = await getTransformerLabRootDir();
   const env_path = isPlatformWindows()
-      ? ".transformerlab/envs/transformerlab"
-      : path.join(root_dir, 'envs', 'transformerlab');
+    ? '.transformerlab/envs/transformerlab'
+    : path.join(root_dir, 'envs', 'transformerlab');
   if (
     typeof stdout === 'string' &&
     stdout.includes(env_path) &&
@@ -313,28 +331,25 @@ export async function checkIfCondaEnvironmentExists() {
 export async function executeInstallStep(argument: string) {
   const server_dir = await getTransformerLabCodeDir();
   if (!fs.existsSync(server_dir)) {
-    console.log("Install step failed. TransformerLab directory has not been setup.")
+    console.log(
+      'Install step failed. TransformerLab directory has not been setup.'
+    );
     return false;
   }
 
-  const installScriptFilename = "install.sh";
+  const installScriptFilename = 'install.sh';
   const fullInstallScriptPath = path.join(server_dir, installScriptFilename);
 
   // Set installer script filename and options based on platform
-  // For windows this is a bit hacky...we need to pass a unix-style path to WSL 
-  const exec_cmd =  isPlatformWindows()
-  ? `wsl ~/.transformerlab/src/${installScriptFilename} ${argument}`
-  : `${fullInstallScriptPath} ${argument}`;
-  const options = isPlatformWindows()
-      ? {}
-      : { cwd: server_dir };
+  // For windows this is a bit hacky...we need to pass a unix-style path to WSL
+  const exec_cmd = isPlatformWindows()
+    ? `wsl ~/.transformerlab/src/${installScriptFilename} ${argument}`
+    : `${fullInstallScriptPath} ${argument}`;
+  const options = isPlatformWindows() ? {} : { cwd: server_dir };
 
   console.log(`Running: ${exec_cmd}`);
   // Call installer script and return stdout if it succeeds
-  const { stdout, stderr } = await awaitExec(
-    exec_cmd,
-    options
-  ).catch((err) => {
+  const { stdout, stderr } = await awaitExec(exec_cmd, options).catch((err) => {
     console.log(`Error running ${installScriptFilename}`, err);
     return {
       stdout: false,
@@ -343,5 +358,5 @@ export async function executeInstallStep(argument: string) {
   });
   if (stdout) console.log(`${installScriptFilename} stdout:`, stdout);
   if (stderr) console.error(`${installScriptFilename} stderr:`, stderr);
-  return stdout;
+  return { stdout, stderr };
 }

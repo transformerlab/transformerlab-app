@@ -251,7 +251,7 @@ function RunServer({ activeStep, setActiveStep }) {
       return;
 
     if (server && !serverError) {
-      console.log('I think things are good');
+      console.log('The server is up; I think things are good');
       setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1);
       return;
     } else {
@@ -607,6 +607,7 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
 function CheckDependencies({ activeStep, setActiveStep }) {
   const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
   const [missingDependencies, setMissingDependencies] = useState([]);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED'))
@@ -616,7 +617,11 @@ function CheckDependencies({ activeStep, setActiveStep }) {
       const missingDependencies = await window.electron.ipcRenderer.invoke(
         'server:checkDependencies'
       );
-      if (missingDependencies.length == 0) {
+
+      if (
+        missingDependencies?.status == 'success' &&
+        missingDependencies?.data?.length == 0
+      ) {
         setInstallStatus('success');
         setActiveStep(
           Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1
@@ -624,6 +629,15 @@ function CheckDependencies({ activeStep, setActiveStep }) {
       } else {
         setMissingDependencies(missingDependencies);
         setInstallStatus('notstarted');
+      }
+
+      if (missingDependencies?.status == 'error') {
+        setErrorMessage({
+          message: missingDependencies?.message,
+          data: missingDependencies?.data,
+        });
+      } else {
+        setErrorMessage(null);
       }
     })();
   }, [activeStep]);
@@ -668,8 +682,13 @@ function CheckDependencies({ activeStep, setActiveStep }) {
                     await window.electron.ipcRenderer.invoke(
                       'server:checkDependencies'
                     );
-                  if (missingDependencies.length == 0) {
+
+                  if (
+                    missingDependencies?.status == 'success' &&
+                    missingDependencies?.data?.length == 0
+                  ) {
                     setInstallStatus('success');
+                    setErrorMessage(null);
                     setActiveStep(
                       Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') +
                         1
@@ -682,6 +701,13 @@ function CheckDependencies({ activeStep, setActiveStep }) {
               </Button>
             </ButtonGroup>
           )}
+
+        <Typography level="body-sm" color="warning">
+          {errorMessage?.message}
+        </Typography>
+        <Typography level="body-sm" color="neutral">
+          {errorMessage?.data?.stdout} {errorMessage?.data?.stderr}
+        </Typography>
       </Stack>
     </>
   );
