@@ -437,23 +437,6 @@ function CheckForPlugins({ activeStep, setActiveStep }) {
   );
 }
 
-function ConnectToLocalServer({ activeStep, setActiveStep, tryToConnect }) {
-  const {
-    server,
-    isLoading: serverIsLoading,
-    error: serverError,
-  } = useCheckLocalConnection();
-
-  return (
-    <>
-      <Stack spacing={1}>
-        {server ? <Chip color="warning">Not Connected</Chip> : 'Not running'}
-        <ButtonGroup variant="plain" spacing={1}></ButtonGroup>
-      </Stack>
-    </>
-  );
-}
-
 function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
   const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
 
