@@ -521,6 +521,7 @@ function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
 
 function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
   const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
+  const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS'))
@@ -530,11 +531,16 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
       const condaExists = await window.electron.ipcRenderer.invoke(
         'server:checkIfCondaEnvironmentExists'
       );
-      if (condaExists) {
+      console.log(JSON.stringify(condaExists));
+      if (condaExists?.status == 'success') {
         setInstallStatus('success');
         setActiveStep(Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1);
       } else {
         setInstallStatus('notstarted');
+        setErrorMessage({
+          message: condaExists?.message,
+          data: condaExists?.data,
+        });
       }
     })();
   }, [activeStep]);
@@ -567,12 +573,18 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
                   const condaExists = await window.electron.ipcRenderer.invoke(
                     'server:checkIfCondaEnvironmentExists'
                   );
-                  if (condaExists) {
+                  if (condaExists?.status == 'success') {
                     setInstallStatus('success');
                     setActiveStep(
                       Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1
                     );
                     return;
+                  } else {
+                    setInstallStatus('error');
+                    setErrorMessage({
+                      message: condaExists?.message,
+                      data: condaExists?.data,
+                    });
                   }
                   setIntervalXTimes(
                     async () => {
@@ -580,12 +592,18 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
                         await window.electron.ipcRenderer.invoke(
                           'server:checkIfCondaEnvironmentExists'
                         );
-                      if (condaExists) {
+                      if (condaExists?.status == 'success') {
                         setInstallStatus('success');
                         setActiveStep(
                           Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1
                         );
                         return true;
+                      } else {
+                        setInstallStatus('error');
+                        setErrorMessage({
+                          message: condaExists?.message,
+                          data: condaExists?.data,
+                        });
                       }
                       return false;
                     },
@@ -599,6 +617,12 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
               </Button>
             </ButtonGroup>
           )}
+        <Typography level="body-sm" color="warning">
+          {errorMessage?.message}
+        </Typography>
+        <Typography level="body-sm" color="neutral">
+          {errorMessage?.data?.stdout} {errorMessage?.data?.stderr}
+        </Typography>
       </Stack>
     </>
   );

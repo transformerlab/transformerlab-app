@@ -314,7 +314,7 @@ export async function checkIfCondaEnvironmentExists() {
   if (error) {
     response.status = 'error';
     response.message = 'Conda environment check failed.';
-    response.data = { stdout: '', stderr: stderr.toString() };
+    response.data = { stdout: stdout?.toString(), stderr: stderr.toString() };
     console.log('Conda environment check failed.');
     return response;
   }
@@ -330,8 +330,11 @@ export async function checkIfCondaEnvironmentExists() {
     stdout.includes(env_path) &&
     fs.existsSync(path.join(root_dir, 'envs', 'transformerlab'))
   ) {
-    return true;
+    response.status = 'success';
+    return response;
   } else {
+    response.status = 'error';
+    response.message = 'Conda environment "transformerlab" not found.';
     return false;
   }
 }
