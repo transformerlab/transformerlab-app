@@ -330,10 +330,9 @@ export default function ModelStore() {
                             setCurrentlyDownloading(null);
                             setJobId(null);
                             return alert(
-                              'Failed to download: this model may require a huggingface access token (in settings).'
+                              `Failed to download:\n${response.message}` 
                             );
                           }
-                          const job_id = response?.job_id;
                           setCurrentlyDownloading(null);
                           modelGalleryMutate();
                         } catch (e) {
