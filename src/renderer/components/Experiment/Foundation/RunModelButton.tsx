@@ -134,7 +134,9 @@ export default function RunModelButton({
                 experimentInfo?.id
               );
               if (response?.status == 'error') {
-                alert(response?.message);
+                alert(
+                  `Failed to start model:\n${response?.message}` 
+                );
                 setJobId(null);
                 return;
               }
