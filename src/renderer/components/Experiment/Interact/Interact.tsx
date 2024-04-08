@@ -31,6 +31,8 @@ import './styles.css';
 import { useDebounce } from 'use-debounce';
 import CompletionsPage from './CompletionsPage';
 import { MessagesSquareIcon, XIcon } from 'lucide-react';
+import PromptSettingsModal from './PromptSettingsModal';
+import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
@@ -53,23 +55,6 @@ function truncate(str, n) {
   return str.length > n ? <>{str.slice(0, n - 1)} &hellip;</> : <>{str}</>;
 }
 
-function ThinSlider(props) {
-  return (
-    <Slider
-      sx={{
-        margin: 'auto',
-        width: '90%',
-        '--Slider-trackSize': '3px',
-        '--Slider-thumbSize': '8px',
-        '--Slider-thumbWidth': '18px',
-        paddingTop: 1,
-        marginBottom: 2,
-      }}
-      {...props}
-    />
-  );
-}
-
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Chat({ experimentInfo, experimentInfoMutate }) {
@@ -78,10 +63,16 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
   const [conversationId, setConversationId] = React.useState(null);
   const [chats, setChats] = React.useState([]);
   const [isThinking, setIsThinking] = React.useState(false);
-  const [temperature, setTemperature] = React.useState(0.7);
-  const [maxTokens, setMaxTokens] = React.useState(256);
-  const [topP, setTopP] = React.useState(1);
-  const [frequencyPenalty, setFrequencyPenalty] = React.useState(0);
+  // const [temperature, setTemperature] = React.useState(0.7);
+  // const [maxTokens, setMaxTokens] = React.useState(256);
+  // const [topP, setTopP] = React.useState(1);
+  // const [frequencyPenalty, setFrequencyPenalty] = React.useState(0);
+  const [generationParameters, setGenerationParameters] = React.useState({
+    temperature: 0.7,
+    maxTokens: 256,
+    topP: 1,
+    frequencyPenalty: 0,
+  });
 
   const [text, setText] = React.useState('');
 
@@ -212,10 +203,10 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
       currentModel,
       adaptor,
       texts,
-      temperature,
-      maxTokens,
-      topP,
-      frequencyPenalty,
+      generationParameters?.temperature,
+      generationParameters?.maxTokens,
+      generationParameters?.topP,
+      generationParameters?.frequencyPenalty,
       systemMessage
     );
 
@@ -307,9 +298,9 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
       currentModel,
       adaptor,
       text,
-      temperature,
-      maxTokens,
-      topP,
+      generationParameters?.temperature,
+      generationParameters?.maxTokens,
+      generationParameters?.topP,
       false
     );
     setIsThinking(false);
@@ -375,6 +366,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
             No Model is Running
           </Alert>
         </Sheet>
+
         {/* <pre>{JSON.stringify(chats, null, 2)}</pre> */}
         {mode === 'chat' && (
           <ChatPage
@@ -482,72 +474,11 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
             </FormControl>
             <Box sx={{ overflow: 'auto', width: '100%', padding: 3 }}>
               <FormControl>
-                <FormLabel>
-                  Temperature &nbsp;
-                  <span style={{ color: '#aaa' }}>{temperature}</span>
-                </FormLabel>
-                <ThinSlider
-                  value={temperature}
-                  onChange={(event: Event, newValue: number | number[]) => {
-                    setTemperature(newValue as number);
-                  }}
-                  max={2}
-                  min={0}
-                  step={0.01}
-                  valueLabelDisplay="auto"
+                <MainGenerationConfigKnobs
+                  generationParameters={generationParameters}
+                  setGenerationParameters={setGenerationParameters}
+                  tokenCount={tokenCount}
                 />
-                {/* <FormHelperText>This is a helper text.</FormHelperText> */}
-                <FormLabel>
-                  Maximum Length &nbsp;
-                  <span style={{ color: '#aaa' }}>{maxTokens}</span>
-                </FormLabel>
-                <ThinSlider
-                  defaultValue={1024}
-                  value={maxTokens}
-                  onChange={(e, newValue) => {
-                    setMaxTokens(newValue as number);
-                  }}
-                  max={
-                    tokenCount?.contextLength
-                      ? parseInt(tokenCount.contextLength)
-                      : 1024
-                  }
-                  min={0}
-                  valueLabelDisplay="auto"
-                />
-                <FormLabel>
-                  Top P &nbsp;
-                  <span style={{ color: '#aaa' }}>{topP}</span>
-                </FormLabel>
-                <ThinSlider
-                  value={topP}
-                  onChange={(event: Event, newValue: number | number[]) => {
-                    setTopP(newValue as number);
-                  }}
-                  defaultValue={1.0}
-                  max={1}
-                  step={0.01}
-                  valueLabelDisplay="auto"
-                />
-                <FormLabel>
-                  Frequency Penalty &nbsp;
-                  <span style={{ color: '#aaa' }}>{frequencyPenalty}</span>
-                </FormLabel>
-                <ThinSlider
-                  value={frequencyPenalty}
-                  onChange={(event: Event, newValue: number | number[]) => {
-                    setFrequencyPenalty(newValue as number);
-                  }}
-                  defaultValue={0}
-                  max={2}
-                  min={-2}
-                  step={0.2}
-                  valueLabelDisplay="auto"
-                />
-                <br />
-                <Button variant="outlined" disabled>
-                  Other Settings
-                </Button>
               </FormControl>
             </Box>
           </Sheet>
