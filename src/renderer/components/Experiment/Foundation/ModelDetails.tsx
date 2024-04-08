@@ -63,7 +63,6 @@ export default function ModelDetails({
   const huggingfaceId = experimentInfo?.config?.foundation;
 
   useMemo(() => {
-
     // This is a local model
     if (experimentInfo?.config?.foundation_filename) {
       // TODO: Load in model details from the filesystem
@@ -74,7 +73,7 @@ export default function ModelDetails({
 
       setHugggingfaceData({});
 
-    // Try to see if this is a HuggingFace model
+      // Try to see if this is a HuggingFace model
     } else if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
       fetch(`https://huggingface.co/${huggingfaceId}/resolve/main/config.json`)
         .then((res) => res.json())
@@ -198,6 +197,7 @@ export default function ModelDetails({
               }}
               color="danger"
               variant="outlined"
+              disabled={models?.length > 0}
             >
               Eject Model
             </Button>
