@@ -63,18 +63,23 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
   const [conversationId, setConversationId] = React.useState(null);
   const [chats, setChats] = React.useState([]);
   const [isThinking, setIsThinking] = React.useState(false);
-  // const [temperature, setTemperature] = React.useState(0.7);
-  // const [maxTokens, setMaxTokens] = React.useState(256);
-  // const [topP, setTopP] = React.useState(1);
-  // const [frequencyPenalty, setFrequencyPenalty] = React.useState(0);
   const [generationParameters, setGenerationParameters] = React.useState({
     temperature: 0.7,
     maxTokens: 256,
     topP: 1,
     frequencyPenalty: 0,
   });
+  const [showPromptSettingsModal, setShowPromptSettingsModal] =
+    React.useState(false);
 
   const [text, setText] = React.useState('');
+
+  const { data: defaultPromptConfigForModel } = useSWR(
+    chatAPI.TEMPLATE_FOR_MODEL_URL(experimentInfo?.config?.foundation),
+    fetcher
+  );
+
+  const parsedPromptData = experimentInfo?.config?.prompt_template;
 
   var textToDebounce = '';
 
@@ -366,7 +371,16 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
             No Model is Running
           </Alert>
         </Sheet>
-
+        <PromptSettingsModal
+          open={showPromptSettingsModal}
+          setOpen={setShowPromptSettingsModal}
+          defaultPromptConfigForModel={defaultPromptConfigForModel}
+          generationParameters={generationParameters}
+          setGenerationParameters={setGenerationParameters}
+          tokenCount={tokenCount}
+          experimentInfo={experimentInfo}
+          experimentInfoMutate={experimentInfoMutate}
+        />
         {/* <pre>{JSON.stringify(chats, null, 2)}</pre> */}
         {mode === 'chat' && (
           <ChatPage
@@ -478,7 +492,16 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   generationParameters={generationParameters}
                   setGenerationParameters={setGenerationParameters}
                   tokenCount={tokenCount}
+                  defaultPromptConfigForModel={defaultPromptConfigForModel}
                 />
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setShowPromptSettingsModal(true);
+                  }}
+                >
+                  Other Settings
+                </Button>
               </FormControl>
             </Box>
           </Sheet>

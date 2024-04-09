@@ -11,6 +11,7 @@ import ChatSubmit from './ChatSubmit';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useEffect, useState } from 'react';
 import { useDebounce } from 'use-debounce';
+import SystemMessageBox from './SystemMessageBox';
 
 export default function ChatPage({
   chats,
@@ -84,35 +85,10 @@ export default function ChatPage({
         overflow: 'hidden',
       }}
     >
-      <FormLabel sx={{ justifyContent: 'space-between', width: '100%' }}>
-        <span>System message</span>
-        <span></span>
-      </FormLabel>
-      <Sheet
-        variant="outlined"
-        id="system-message-box"
-        sx={{
-          width: '100%',
-          // borderRadius: "md",
-          flex: '0 0 130px',
-          overflow: 'auto',
-          padding: 2,
-        }}
-      >
-        <FormControl>
-          <Textarea
-            variant="plain"
-            name="system-message"
-            minRows={2}
-            value={systemMessage}
-            onChange={(e) => setSystemMessage(e.target.value)}
-            sx={{
-              '--Textarea-focusedThickness': '0',
-              '--Textarea-focusedHighlight': 'transparent !important',
-            }}
-          />
-        </FormControl>
-      </Sheet>
+      <SystemMessageBox
+        experimentInfo={experimentInfo}
+        experimentInfoMutate={experimentInfoMutate}
+      />
       <Sheet
         variant="plain"
         sx={{
