@@ -8,7 +8,7 @@ import ModalDialog from '@mui/joy/ModalDialog';
 import DialogTitle from '@mui/joy/DialogTitle';
 import DialogContent from '@mui/joy/DialogContent';
 import Stack from '@mui/joy/Stack';
-import { FormHelperText, ModalClose, Textarea } from '@mui/joy';
+import { Divider, FormHelperText, ModalClose, Textarea } from '@mui/joy';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import { RotateCcwIcon } from 'lucide-react';
 import SystemMessageBox from './SystemMessageBox';
@@ -36,7 +36,7 @@ export default function BasicModalDialog({
               setOpen(false);
             }}
           >
-            <Stack spacing={2}>
+            <Stack spacing={2} sx={{ marginTop: 3 }}>
               <MainGenerationConfigKnobs
                 generationParameters={generationParameters}
                 setGenerationParameters={setGenerationParameters}
@@ -49,10 +49,26 @@ export default function BasicModalDialog({
                 defaultPromptConfigForModel={defaultPromptConfigForModel}
                 showResetButton
               />
-              {/* <FormControl>
+              {/* {JSON.stringify(defaultPromptConfigForModel)} */}
+              <FormControl sx={{ paddingTop: 3 }}>
+                <FormLabel>Stop String</FormLabel>
+                <Input
+                  value={defaultPromptConfigForModel?.stop_str}
+                  disabled
+                ></Input>
+                <FormHelperText>
+                  The model will stop generating text when it encounters this
+                  string.
+                </FormHelperText>
+              </FormControl>
+              <FormControl>
                 <FormLabel>Template</FormLabel>
-                <Textarea minRows={5}></Textarea>
-              </FormControl> */}
+                <Textarea
+                  minRows={5}
+                  value={defaultPromptConfigForModel?.system_template}
+                  disabled
+                ></Textarea>
+              </FormControl>
             </Stack>
           </form>
         </ModalDialog>

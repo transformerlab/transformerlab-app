@@ -8,7 +8,6 @@ export default function MainGenerationConfigKnobs({
   tokenCount,
   defaultPromptConfigForModel,
 }) {
-  const [showPromptSettingsModal, setShowPromptSettingsModal] = useState(false);
   return (
     <>
       <Sheet sx={{ display: 'flex', flexWrap: 'wrap' }}>

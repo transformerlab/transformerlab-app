@@ -62,7 +62,13 @@ export default function SystemMessageBox({
 
   return (
     <div>
-      <FormLabel sx={{ justifyContent: 'space-between', width: '100%' }}>
+      <FormLabel
+        sx={{
+          justifyContent: 'space-between',
+          width: '100%',
+          marginBottom: '3px',
+        }}
+      >
         <span>System message</span>
         <span>
           <Typography level="body-xs" sx={{ ml: 'auto' }}>

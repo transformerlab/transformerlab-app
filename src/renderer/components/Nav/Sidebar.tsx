@@ -108,12 +108,12 @@ export default function Sidebar({
           icon={<LayersIcon />}
           disabled={!experimentInfo?.name}
         />
-        <SubNavItem
+        {/* <SubNavItem
           title="Prompt"
           path="/projects/prompt"
           icon={<TextSelectIcon />}
           disabled={!experimentInfo?.name}
-        />
+        /> */}
         <SubNavItem
           title="Interact"
           path="/projects/chat"

@@ -495,12 +495,12 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   defaultPromptConfigForModel={defaultPromptConfigForModel}
                 />
                 <Button
-                  variant="outlined"
+                  variant="soft"
                   onClick={() => {
                     setShowPromptSettingsModal(true);
                   }}
                 >
-                  Other Settings
+                  All Generation Settings
                 </Button>
               </FormControl>
             </Box>
