@@ -7,6 +7,7 @@ export default function MainGenerationConfigKnobs({
   setGenerationParameters,
   tokenCount,
   defaultPromptConfigForModel,
+  showAllKnobs = true,
 }) {
   return (
     <>
@@ -58,47 +59,53 @@ export default function MainGenerationConfigKnobs({
             valueLabelDisplay="auto"
           />
         </Box>
-        <Box sx={{ flex: 1, minWidth: '200px' }}>
-          <FormLabel>
-            Top P &nbsp;
-            <span style={{ color: '#aaa' }}>{generationParameters?.topP}</span>
-          </FormLabel>
-          <ThinSlider
-            value={generationParameters?.topP}
-            onChange={(event: Event, newValue: number | number[]) => {
-              setGenerationParameters({
-                ...generationParameters,
-                topP: newValue as number,
-              });
-            }}
-            defaultValue={1.0}
-            max={1}
-            step={0.01}
-            valueLabelDisplay="auto"
-          />
-        </Box>
-        <Box sx={{ flex: 1, minWidth: '200px', maxWidth: '400px' }}>
-          <FormLabel>
-            Frequency Penalty &nbsp;
-            <span style={{ color: '#aaa' }}>
-              {generationParameters?.frequencyPenalty}
-            </span>
-          </FormLabel>
-          <ThinSlider
-            value={generationParameters?.frequencyPenalty}
-            onChange={(event: Event, newValue: number | number[]) => {
-              setGenerationParameters({
-                ...generationParameters,
-                frequencyPenalty: newValue as number,
-              });
-            }}
-            defaultValue={0}
-            max={2}
-            min={-2}
-            step={0.2}
-            valueLabelDisplay="auto"
-          />
-        </Box>
+        {showAllKnobs && (
+          <Box sx={{ flex: 1, minWidth: '200px' }}>
+            <FormLabel>
+              Top P &nbsp;
+              <span style={{ color: '#aaa' }}>
+                {generationParameters?.topP}
+              </span>
+            </FormLabel>
+            <ThinSlider
+              value={generationParameters?.topP}
+              onChange={(event: Event, newValue: number | number[]) => {
+                setGenerationParameters({
+                  ...generationParameters,
+                  topP: newValue as number,
+                });
+              }}
+              defaultValue={1.0}
+              max={1}
+              step={0.01}
+              valueLabelDisplay="auto"
+            />
+          </Box>
+        )}
+        {showAllKnobs && (
+          <Box sx={{ flex: 1, minWidth: '200px', maxWidth: '400px' }}>
+            <FormLabel>
+              Frequency Penalty &nbsp;
+              <span style={{ color: '#aaa' }}>
+                {generationParameters?.frequencyPenalty}
+              </span>
+            </FormLabel>
+            <ThinSlider
+              value={generationParameters?.frequencyPenalty}
+              onChange={(event: Event, newValue: number | number[]) => {
+                setGenerationParameters({
+                  ...generationParameters,
+                  frequencyPenalty: newValue as number,
+                });
+              }}
+              defaultValue={0}
+              max={2}
+              min={-2}
+              step={0.2}
+              valueLabelDisplay="auto"
+            />
+          </Box>
+        )}
       </Sheet>
     </>
   );

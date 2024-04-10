@@ -53,8 +53,14 @@ export default function BasicModalDialog({
               <FormControl sx={{ paddingTop: 3 }}>
                 <FormLabel>Stop String</FormLabel>
                 <Input
-                  value={defaultPromptConfigForModel?.stop_str}
-                  disabled
+                  defaultValue={defaultPromptConfigForModel?.stop_str}
+                  value={generationParameters?.stop_str}
+                  onChange={() => {
+                    setGenerationParameters({
+                      ...generationParameters,
+                      stop_str: event.target.value,
+                    });
+                  }}
                 ></Input>
                 <FormHelperText>
                   The model will stop generating text when it encounters this

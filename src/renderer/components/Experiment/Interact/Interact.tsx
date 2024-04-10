@@ -493,6 +493,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   setGenerationParameters={setGenerationParameters}
                   tokenCount={tokenCount}
                   defaultPromptConfigForModel={defaultPromptConfigForModel}
+                  showAllKnobs={false}
                 />
                 <Button
                   variant="soft"
