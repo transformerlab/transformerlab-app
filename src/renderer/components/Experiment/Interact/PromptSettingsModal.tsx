@@ -23,6 +23,10 @@ export default function BasicModalDialog({
   experimentInfo,
   experimentInfoMutate,
 }) {
+  const [stopString, setStopString] = React.useState(
+    defaultPromptConfigForModel?.stop_str
+  );
+
   return (
     <React.Fragment>
       <Modal open={open} onClose={() => setOpen(false)}>
@@ -53,9 +57,9 @@ export default function BasicModalDialog({
               <FormControl sx={{ paddingTop: 3 }}>
                 <FormLabel>Stop String</FormLabel>
                 <Input
-                  defaultValue={defaultPromptConfigForModel?.stop_str}
+                  // defaultValue={defaultPromptConfigForModel?.stop_str}
                   value={generationParameters?.stop_str}
-                  onChange={() => {
+                  onChange={(event) => {
                     setGenerationParameters({
                       ...generationParameters,
                       stop_str: event.target.value,
@@ -65,6 +69,24 @@ export default function BasicModalDialog({
                 <FormHelperText>
                   The model will stop generating text when it encounters this
                   string.
+                  <Button
+                    variant="plain"
+                    startDecorator={<RotateCcwIcon size="14px" />}
+                    onClick={() => {
+                      setGenerationParameters({
+                        ...generationParameters,
+                        stop_str: defaultPromptConfigForModel?.stop_str,
+                      });
+                    }}
+                    sx={{
+                      padding: '2px',
+                      margin: '0px',
+                      minHeight: 'unset',
+                      marginLeft: 'auto',
+                    }}
+                  >
+                    Reset
+                  </Button>
                 </FormHelperText>
               </FormControl>
               <FormControl>

@@ -33,6 +33,7 @@ import CompletionsPage from './CompletionsPage';
 import { MessagesSquareIcon, XIcon } from 'lucide-react';
 import PromptSettingsModal from './PromptSettingsModal';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
+import exp from 'constants';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
@@ -65,9 +66,10 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
   const [isThinking, setIsThinking] = React.useState(false);
   const [generationParameters, setGenerationParameters] = React.useState({
     temperature: 0.7,
-    maxTokens: 256,
-    topP: 1,
-    frequencyPenalty: 0,
+    maxTokens: 1024,
+    topP: 1.0,
+    frequencyPenalty: 0.0,
+    needsReset: true,
   });
   const [showPromptSettingsModal, setShowPromptSettingsModal] =
     React.useState(false);
@@ -146,8 +148,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
           document.getElementsByName('system-message')[0].value = t;
       } else {
         if (document.getElementsByName('system-message')[0]) {
-          document.getElementsByName('system-message')[0].value =
-            'You are a helpful chatbot';
+          document.getElementsByName('system-message')[0].value = '';
         }
       }
 
@@ -172,6 +173,36 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
 
     asyncTasks();
   }, [currentModel, adaptor, experimentInfo?.config?.prompt_template]);
+
+  React.useEffect(() => {
+    if (generationParameters?.needsReset) {
+      // Get the generation parameters from the experiment config
+      var generationParams = experimentInfo?.config?.generationParams;
+      if (generationParams) {
+        generationParams = JSON.parse(generationParams);
+        setGenerationParameters(generationParams);
+      } else {
+        // If they don't exist, set them to some defaults
+        setGenerationParameters({
+          temperature: 0.7,
+          maxTokens: 1024,
+          topP: 1.0,
+          frequencyPenalty: 0.0,
+          needsReset: false,
+        });
+      }
+    } else {
+      fetch(
+        chatAPI.Endpoints.Experiment.UpdateConfig(
+          experimentInfo?.id,
+          'generationParams',
+          JSON.stringify(generationParameters)
+        )
+      ).then(() => {
+        experimentInfoMutate();
+      });
+    }
+  }, [generationParameters]);
 
   const sendNewMessageToLLM = async (text: String) => {
     const r = Math.floor(Math.random() * 1000000);

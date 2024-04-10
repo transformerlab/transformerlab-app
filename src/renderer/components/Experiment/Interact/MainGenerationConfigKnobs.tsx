@@ -42,7 +42,6 @@ export default function MainGenerationConfigKnobs({
             </span>
           </FormLabel>
           <ThinSlider
-            defaultValue={1024}
             value={generationParameters?.maxTokens}
             onChange={(e, newValue) => {
               setGenerationParameters({
@@ -75,7 +74,6 @@ export default function MainGenerationConfigKnobs({
                   topP: newValue as number,
                 });
               }}
-              defaultValue={1.0}
               max={1}
               step={0.01}
               valueLabelDisplay="auto"
@@ -98,7 +96,6 @@ export default function MainGenerationConfigKnobs({
                   frequencyPenalty: newValue as number,
                 });
               }}
-              defaultValue={0}
               max={2}
               min={-2}
               step={0.2}

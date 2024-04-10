@@ -563,7 +563,7 @@ Endpoints.Experiment = {
     '?key=' +
     key +
     '&value=' +
-    value,
+    encodeURIComponent(value),
   Create: (name: string) => API_URL() + 'experiment/create?name=' + name,
   Get: (id: string) => API_URL() + 'experiment/' + id,
   Delete: '',

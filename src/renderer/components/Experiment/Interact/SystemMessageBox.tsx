@@ -119,7 +119,7 @@ export default function SystemMessageBox({
               marginLeft: 'auto',
             }}
           >
-            Reset to Model Default
+            Reset
           </Button>
         </FormHelperText>
       )}
