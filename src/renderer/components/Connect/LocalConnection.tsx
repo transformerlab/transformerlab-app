@@ -678,15 +678,14 @@ function CheckDependencies({ activeStep, setActiveStep }) {
             </Typography>
           </>
         )}
-        {missingDependencies.length > 0 && installStatus == 'notstarted' && (
+        {missingDependencies.data?.length > 0 && installStatus == 'notstarted' && (
           <Typography level="body-sm" color="warning">
             Many dependencies are missing including:{' '}
             <Typography level="body-sm" color="warning">
-              {missingDependencies.join(', ')} ...
+              {missingDependencies.data?.join(', ')} ...
             </Typography>
           </Typography>
         )}
-
         {activeStep ==
           Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') &&
           installStatus == 'notstarted' && (
