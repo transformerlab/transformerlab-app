@@ -249,7 +249,8 @@ export async function sendCompletion(
   temperature: number = 0.7,
   maxTokens: number = 256,
   topP: number = 1.0,
-  useLongModelName = true
+  useLongModelName = true,
+  stopString = null
 ) {
   let model = '';
 
@@ -273,6 +274,10 @@ export async function sendCompletion(
     max_tokens: maxTokens,
     top_p: topP,
   };
+
+  if (stopString) {
+    data.stop = stopString;
+  }
 
   let result;
 

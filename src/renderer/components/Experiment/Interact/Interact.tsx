@@ -334,6 +334,9 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
 
     console.log('WE ARE USING VLLM SERVER: ', isVLLMInferenceEngine);
 
+    const generationParamsJSON = experimentInfo?.config?.generationParams;
+    const generationParameters = JSON.parse(generationParamsJSON);
+
     const result = await chatAPI.sendCompletion(
       currentModel,
       adaptor,
@@ -341,7 +344,8 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
       generationParameters?.temperature,
       generationParameters?.maxTokens,
       generationParameters?.topP,
-      false
+      false,
+      generationParameters?.stop_str
     );
     setIsThinking(false);
 
