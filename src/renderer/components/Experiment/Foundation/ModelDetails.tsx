@@ -80,7 +80,7 @@ export default function ModelDetails({
 
       // Try to see if this is a HuggingFace model
     } else if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
-      fetch(`https://huggingface.co/${huggingfaceId}/resolve/main/config.json`)
+      fetch(chatAPI.Endpoints.Models.GetLocalHFConfig(huggingfaceId))
         .then((res) => res.json())
         .then((data) => setHugggingfaceData(data))
         .catch((error) => console.log(error));

@@ -497,6 +497,8 @@ Endpoints.Models = {
     API_URL() + 'model/gallery/' + convertSlashInUrl(modelId),
   ModelDetailsFromFilesystem: (modelId: string) =>
     API_URL() + 'model/details/' + convertSlashInUrl(modelId),
+  GetLocalHFConfig: (modelId: string) =>
+    API_URL() + 'model/get_local_hfconfig?model_id=' + modelId,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
 };
