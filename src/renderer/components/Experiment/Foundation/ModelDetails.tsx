@@ -27,6 +27,11 @@ import { FaEject } from 'react-icons/fa6';
 
 const hf_config_translation = {
   architectures: 'Architecture',
+  max_position_embeddings: 'Context Window',
+  max_sequence_length: 'Context Window',
+  seq_length: 'Context Window',
+  max_seq_len: 'Context Window',
+  model_max_length: 'Context Window',
   attention_dropout: 'Attention Dropout',
   bos_token_id: 'BOS Token ID',
   bos_token: 'BOS Token',
