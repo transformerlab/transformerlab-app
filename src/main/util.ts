@@ -231,20 +231,28 @@ export async function checkIfCondaBinExists() {
 }
 
 export async function checkDependencies() {
-  // First activate the transformerlab environment
-  // Then run pip list
-  // Then compare the output to the list of dependencies
-  // If any are missing, return the missing ones
-  // If all are present, manually check if the uvicorn command is present
-  const { error, stdout, stderr } = await executeInstallStep(
-    'list_installed_packages'
-  );
-
+  // This function returns an API like response with status, message and data field
   let response = {
     status: '',
     message: '',
     data: [],
   };
+
+  // check if we've done an install/update of dependencies with this build
+  // if not, report back that we need to do an install/update!
+  const installedDependenciesFile = path.join(
+    await getTransformerLabCodeDir(),
+    'INSTALLED_DEPENDENCIES'
+  );
+  if (!fs.existsSync(installedDependenciesFile)) {
+    response.status = 'error';
+    response.message = 'Dependencies need to be installed for new API version.';
+    return response;
+  }
+
+  const { error, stdout, stderr } = await executeInstallStep(
+    'list_installed_packages'
+  );
 
   // if there was an error abort processing
   if (error) {
@@ -289,10 +297,15 @@ export async function checkDependencies() {
     }
   }
 
-  console.log('missingDependencies', missingDependencies);
-
-  response.status = 'success';
   response.data = missingDependencies;
+  console.log('missingDependencies', missingDependencies);
+  if (missingDependencies.legnth > 0) {
+    response.status = 'error';
+    const missingList = missingDependencies.data?.join(', ');
+    response.message = `Missing dependencies including: ${missingList}...`;
+  } else {
+    response.status = 'success';
+  }
   return response;
 }
 

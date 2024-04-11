@@ -630,7 +630,6 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
 
 function CheckDependencies({ activeStep, setActiveStep }) {
   const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
-  const [missingDependencies, setMissingDependencies] = useState([]);
   const [errorMessage, setErrorMessage] = useState(null);
 
   useEffect(() => {
@@ -638,27 +637,26 @@ function CheckDependencies({ activeStep, setActiveStep }) {
       return;
 
     (async () => {
-      const missingDependencies = await window.electron.ipcRenderer.invoke(
+      const ipcResponse = await window.electron.ipcRenderer.invoke(
         'server:checkDependencies'
       );
 
       if (
-        missingDependencies?.status == 'success' &&
-        missingDependencies?.data?.length == 0
+        ipcResponse?.status == 'success' &&
+        ipcResponse?.data?.length == 0
       ) {
         setInstallStatus('success');
         setActiveStep(
           Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1
         );
       } else {
-        setMissingDependencies(missingDependencies);
         setInstallStatus('notstarted');
       }
 
-      if (missingDependencies?.status == 'error') {
+      if (ipcResponse?.status == 'error') {
         setErrorMessage({
-          message: missingDependencies?.message,
-          data: missingDependencies?.data,
+          message: ipcResponse?.message,
+          data: ipcResponse?.data,
         });
       } else {
         setErrorMessage(null);
@@ -678,14 +676,6 @@ function CheckDependencies({ activeStep, setActiveStep }) {
             </Typography>
           </>
         )}
-        {missingDependencies.data?.length > 0 && installStatus == 'notstarted' && (
-          <Typography level="body-sm" color="warning">
-            Many dependencies are missing including:{' '}
-            <Typography level="body-sm" color="warning">
-              {missingDependencies.data?.join(', ')} ...
-            </Typography>
-          </Typography>
-        )}
         {activeStep ==
           Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') &&
           installStatus == 'notstarted' && (
@@ -696,22 +686,21 @@ function CheckDependencies({ activeStep, setActiveStep }) {
                 startDecorator={<RotateCcwIcon size="16px" />}
                 onClick={async () => {
                   setInstallStatus('pending');
-                  const installDependencies =
-                    await window.electron.ipcRenderer.invoke(
-                      'server:install_install-dependencies'
-                    );
+                  setErrorMessage(null);
+                  await window.electron.ipcRenderer.invoke(
+                    'server:install_install-dependencies'
+                  );
 
-                  const missingDependencies =
+                  const ipcResponse =
                     await window.electron.ipcRenderer.invoke(
                       'server:checkDependencies'
                     );
 
                   if (
-                    missingDependencies?.status == 'success' &&
-                    missingDependencies?.data?.length == 0
+                    ipcResponse?.status == 'success' &&
+                    ipcResponse?.data?.length == 0
                   ) {
                     setInstallStatus('success');
-                    setErrorMessage(null);
                     setActiveStep(
                       Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') +
                         1
@@ -719,10 +708,10 @@ function CheckDependencies({ activeStep, setActiveStep }) {
                     return;
                   }
 
-                  if (missingDependencies?.status == 'error') {
+                  if (ipcResponse?.status == 'error') {
                     setErrorMessage({
-                      message: missingDependencies?.message,
-                      data: missingDependencies?.data,
+                      message: ipcResponse?.message,
+                      data: ipcResponse?.data,
                     });
                   } else {
                     setErrorMessage(null);
