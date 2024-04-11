@@ -234,6 +234,9 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
     // Add the user's message
     texts.push({ role: 'user', content: text });
 
+    const generationParamsJSON = experimentInfo?.config?.generationParams;
+    const generationParameters = JSON.parse(generationParamsJSON);
+
     // Send them over
     const result = await chatAPI.sendAndReceiveStreaming(
       currentModel,
@@ -243,7 +246,8 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
       generationParameters?.maxTokens,
       generationParameters?.topP,
       generationParameters?.frequencyPenalty,
-      systemMessage
+      systemMessage,
+      generationParameters?.stop_str
     );
 
     clearTimeout(timeoutId);

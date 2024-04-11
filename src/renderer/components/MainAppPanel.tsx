@@ -51,31 +51,39 @@ export default function MainAppPanel({
       }
     }
 
-    fetch(
-      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-        experimentInfo?.id,
-        'foundation',
-        model_name
-      )
-    ).then((res) => {
-      fetch(
+    async function updateConfigs() {
+      await fetch(
+        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+          experimentInfo?.id,
+          'foundation',
+          model_name
+        )
+      );
+      await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'foundation_model_architecture',
           model?.json_data?.architecture
         )
-      ).then((res) => {
-        fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'foundation_filename',
-            model_filename
-          )
-        ).then((res) => {
-          experimentInfoMutate();
-        });
-      });
-    });
+      );
+      await fetch(
+        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+          experimentInfo?.id,
+          'foundation_filename',
+          model_filename
+        )
+      );
+      await fetch(
+        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+          experimentInfo?.id,
+          'generationParams',
+          '{"temperature": 0.7, "maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}'
+        )
+      );
+      experimentInfoMutate();
+    }
+
+    updateConfigs();
   }
 
   function setAdaptor(name) {

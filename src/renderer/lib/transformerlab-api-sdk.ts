@@ -102,7 +102,8 @@ export async function sendAndReceiveStreaming(
   maxTokens: number,
   topP: number,
   freqencyPenalty: number,
-  systemMessage: string
+  systemMessage: string,
+  stopString = null
 ) {
   let shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -124,6 +125,10 @@ export async function sendAndReceiveStreaming(
     frequency_penalty: freqencyPenalty,
     system_message: systemMessage,
   };
+
+  if (stopString) {
+    data.stop = stopString;
+  }
 
   let result;
   var id = Math.random() * 1000;
