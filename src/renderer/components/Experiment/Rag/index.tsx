@@ -80,7 +80,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
                 </Option>
               ))}
             </Select>
-            <Button type="submit">Save</Button>
+            <Button type="submit">Select</Button>
           </Stack>
         </form>
       </Sheet>
