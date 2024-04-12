@@ -27,6 +27,7 @@ import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import { FaEllipsisVertical } from 'react-icons/fa6';
 import Rag from '../Rag';
 import PreviousMessageList from './PreviousMessageList';
+import TemplatedCompletion from './TemplatedCompletion';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
@@ -439,6 +440,9 @@ export default function Chat({
         {mode === 'retrieval' && (
           <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
         )}
+        {mode === 'template' && (
+          <TemplatedCompletion experimentInfo={experimentInfo} />
+        )}
         <Box
           id="right-hand-panel-of-chat-page"
           sx={{
@@ -492,45 +496,47 @@ export default function Chat({
                   },
                 }}
               >
-                {['chat', 'completion' /*'retrieval', 'more'*/].map((item) => (
-                  <Radio
-                    key={item}
-                    color="neutral"
-                    value={item}
-                    disableIcon
-                    label={
-                      item == 'more' ? (
-                        <FaEllipsisVertical
-                          size="12px"
-                          style={{ marginBottom: '-1px' }}
-                        />
-                      ) : (
-                        item
-                      )
-                    }
-                    variant="plain"
-                    sx={{
-                      px: 2,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexGrow: 1,
-                    }}
-                    slotProps={{
-                      label: { style: { textAlign: 'center' } },
-                      action: ({ checked }) => ({
-                        sx: {
-                          ...(checked && {
-                            bgcolor: 'background.surface',
-                            boxShadow: 'sm',
-                            '&:hover': {
+                {['chat', 'completion', 'template' /*'retrieval', 'more'*/].map(
+                  (item) => (
+                    <Radio
+                      key={item}
+                      color="neutral"
+                      value={item}
+                      disableIcon
+                      label={
+                        item == 'more' ? (
+                          <FaEllipsisVertical
+                            size="12px"
+                            style={{ marginBottom: '-1px' }}
+                          />
+                        ) : (
+                          item
+                        )
+                      }
+                      variant="plain"
+                      sx={{
+                        px: 2,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexGrow: 1,
+                      }}
+                      slotProps={{
+                        label: { style: { textAlign: 'center' } },
+                        action: ({ checked }) => ({
+                          sx: {
+                            ...(checked && {
                               bgcolor: 'background.surface',
-                            },
-                          }),
-                        },
-                      }),
-                    }}
-                  />
-                ))}
+                              boxShadow: 'sm',
+                              '&:hover': {
+                                bgcolor: 'background.surface',
+                              },
+                            }),
+                          },
+                        }),
+                      }}
+                    />
+                  )
+                )}
               </RadioGroup>
             </FormControl>
             <Box sx={{ overflow: 'auto', width: '100%', padding: 3 }}>
