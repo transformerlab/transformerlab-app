@@ -168,6 +168,7 @@ export default function MainAppPanel({
           <Interact
             experimentInfo={experimentInfo}
             experimentInfoMutate={experimentInfoMutate}
+            setRagEngine={setRagEngine}
           />
         }
       />

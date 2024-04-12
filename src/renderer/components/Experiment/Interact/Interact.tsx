@@ -7,18 +7,10 @@ import {
   FormControl,
   FormLabel,
   Button,
-  Slider,
   Typography,
   Radio,
   RadioGroup,
   Box,
-  List,
-  ListItem,
-  ListDivider,
-  ListItemDecorator,
-  ListItemContent,
-  ListItemButton,
-  IconButton,
   Alert,
 } from '@mui/joy';
 
@@ -30,10 +22,11 @@ import './styles.css';
 
 import { useDebounce } from 'use-debounce';
 import CompletionsPage from './CompletionsPage';
-import { MessagesSquareIcon, XIcon } from 'lucide-react';
 import PromptSettingsModal from './PromptSettingsModal';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
-import exp from 'constants';
+import { FaEllipsisVertical } from 'react-icons/fa6';
+import Rag from '../Rag';
+import PreviousMessageList from './PreviousMessageList';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
@@ -50,15 +43,13 @@ function shortenArray(arr, maxLen) {
   return arr.slice(0, maxLen - 1).concat('...');
 }
 
-function truncate(str, n) {
-  if (!str) return '';
-
-  return str.length > n ? <>{str.slice(0, n - 1)} &hellip;</> : <>{str}</>;
-}
-
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Chat({ experimentInfo, experimentInfoMutate }) {
+export default function Chat({
+  experimentInfo,
+  experimentInfoMutate,
+  setRagEngine,
+}) {
   const { models, isError, isLoading } = chatAPI.useModelStatus();
   const [mode, setMode] = React.useState('chat');
   const [conversationId, setConversationId] = React.useState(null);
@@ -435,7 +426,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
             debouncedText={debouncedText}
           />
         )}
-        {mode === 'completions' && (
+        {mode === 'completion' && (
           <CompletionsPage
             text={text}
             setText={setText}
@@ -444,6 +435,9 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
             isThinking={isThinking}
             sendCompletionToLLM={sendCompletionToLLM}
           />
+        )}
+        {mode === 'retrieval' && (
+          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
         )}
         <Box
           id="right-hand-panel-of-chat-page"
@@ -471,7 +465,8 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
             }}
           >
             <Typography level="h2" fontSize="lg" id="card-description" mb={3}>
-              {currentModel} - {adaptor}
+              {currentModel} {adaptor && '- '}
+              {adaptor}
             </Typography>
             <FormControl>
               <FormLabel sx={{ fontWeight: '600' }}>Mode:</FormLabel>
@@ -483,6 +478,7 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                 onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                   setMode(event.target.value)
                 }
+                size="sm"
                 sx={{
                   minHeight: 48,
                   padding: '4px',
@@ -491,15 +487,27 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
                   '--RadioGroup-gap': '4px',
                   '--Radio-actionRadius': '8px',
                   justifyContent: 'space-evenly',
+                  '& .MuiRadio-root': {
+                    padding: '0px',
+                  },
                 }}
               >
-                {['chat', 'completions'].map((item) => (
+                {['chat', 'completion' /*'retrieval', 'more'*/].map((item) => (
                   <Radio
                     key={item}
                     color="neutral"
                     value={item}
                     disableIcon
-                    label={item}
+                    label={
+                      item == 'more' ? (
+                        <FaEllipsisVertical
+                          size="12px"
+                          style={{ marginBottom: '-1px' }}
+                        />
+                      ) : (
+                        item
+                      )
+                    }
                     variant="plain"
                     sx={{
                       px: 2,
@@ -545,97 +553,15 @@ export default function Chat({ experimentInfo, experimentInfoMutate }) {
               </FormControl>
             </Box>
           </Sheet>
-          <Sheet
-            sx={{
-              display: 'flex',
-              flex: '2',
-              // border: '4px solid red',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <Sheet
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'auto',
-                width: '100%',
-              }}
-              variant="outlined"
-            >
-              <List>
-                {conversationsIsLoading && <div>Loading...</div>}
-                {conversations &&
-                  conversations?.map((c) => {
-                    return (
-                      <div key={c?.id}>
-                        <ListItem>
-                          <ListItemButton
-                            onClick={() => {
-                              setChats(c?.contents);
-                              setConversationId(c?.id);
-                            }}
-                            selected={conversationId === c?.id}
-                          >
-                            <ListItemDecorator>
-                              <MessagesSquareIcon />
-                            </ListItemDecorator>
-                            <ListItemContent>
-                              <Typography level="title-md">{c?.id}</Typography>
-                              <Typography level="body-sm">
-                                {c?.contents?.length > 0 &&
-                                  shortenArray(c?.contents, 3).map((m) => {
-                                    return (
-                                      <>
-                                        {m?.user == 'human' ? 'User' : 'Bot'}:
-                                        &nbsp;
-                                        {truncate(m?.t, 20)}
-                                        <br />
-                                      </>
-                                    );
-                                  })}
-                              </Typography>
-                            </ListItemContent>
-                            <IconButton
-                              onClick={() => {
-                                fetch(
-                                  chatAPI.Endpoints.Experiment.DeleteConversation(
-                                    experimentInfo?.id,
-                                    c?.id
-                                  ),
-                                  {
-                                    method: 'DELETE',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                    },
-                                  }
-                                ).then((response) => {
-                                  conversationsMutate();
-                                });
-                              }}
-                            >
-                              <XIcon />
-                            </IconButton>
-                          </ListItemButton>
-                        </ListItem>
-                        <ListDivider />
-                      </div>
-                    );
-                  })}
-              </List>
-            </Sheet>
-            <Button
-              variant="soft"
-              onClick={() => {
-                setChats([]);
-                setConversationId(null);
-                conversationsMutate();
-              }}
-            >
-              New Conversation
-            </Button>
-          </Sheet>
+          <PreviousMessageList
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setChats={setChats}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+            experimentInfo={experimentInfo}
+          />
         </Box>
       </Sheet>
     </>

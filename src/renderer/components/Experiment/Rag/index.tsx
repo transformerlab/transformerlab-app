@@ -37,7 +37,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
 
   if (plugins?.length === 0) {
     return (
-      <>
+      <Sheet sx={{ flexDirection: 'column', flex: '1' }}>
         <Typography level="h1" mb={2}>
           Query Documents
         </Typography>
@@ -45,7 +45,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
           No RAG Engines available, please install a RAG plugin from the plugin
           store.
         </Alert>
-      </>
+      </Sheet>
     );
   }
 
@@ -54,7 +54,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
     experimentInfo?.config?.rag_engine === ''
   ) {
     return (
-      <>
+      <Sheet sx={{ flexDirection: 'column', flex: '1' }}>
         <Typography level="h1" mb={2}>
           Query Documents
         </Typography>
@@ -83,12 +83,19 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
             <Button type="submit">Save</Button>
           </Stack>
         </form>
-      </>
+      </Sheet>
     );
   }
 
   return (
-    <>
+    <Sheet
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: '1',
+        height: '100%',
+      }}
+    >
       <Typography level="h1">Query Documents</Typography>
 
       <Sheet
@@ -154,6 +161,6 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
           <Documents experimentInfo={experimentInfo} />
         </Box>
       </Sheet>
-    </>
+    </Sheet>
   );
 }

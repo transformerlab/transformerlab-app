@@ -107,7 +107,7 @@ export default function ChatSubmit({
                     }}
                   />
                 ) : (
-                  <SendIcon />
+                  <SendIcon size="20px" />
                 )
               }
               disabled={spinner}
