@@ -89,11 +89,8 @@ export default function Sidebar({
         backgroundColor: 'rgb(214,207,225,0.5)',
         '& .lucide': {
           strokeWidth: '1.5px',
-          color: 'var(--joy-palette-neutral-700)',
         },
-        '& .MuiBadge-root': {
-          color: 'var(--joy-palette-neutral-700)',
-        },
+        '& .MuiBadge-root': {},
       }}
     >
       <SelectExperimentMenu
