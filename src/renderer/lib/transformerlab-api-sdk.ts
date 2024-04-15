@@ -813,20 +813,6 @@ export function SAVE_EXPERIMENT_PROMPT_URL(id: string) {
   return API_URL() + 'experiment/' + id + '/prompt';
 }
 
-export async function getAvailableData() {
-  const response = await fetch(Endpoints.Dataset.Gallery());
-  const result = await response.json();
-  return result;
-}
-
-export async function downloadData(datasetId: string) {
-  const response = await fetch(
-    API_URL() + 'data/download?dataset_id=' + datasetId
-  );
-  const result = await response.json();
-  return result;
-}
-
 // Right now health function is the same as activeModels
 // But later we can add a health endpoint to the API
 export async function apiHealthz() {
