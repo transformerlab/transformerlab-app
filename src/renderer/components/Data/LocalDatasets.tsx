@@ -31,6 +31,9 @@ export default function LocalDatasets() {
 
   if (error) return 'An error has occurred.';
   if (isLoading) return <LinearProgress />;
+
+  console.log(data);
+
   return (
     <Sheet
       sx={{
@@ -96,14 +99,25 @@ export default function LocalDatasets() {
                       // this triggers UI changes while download is in progress
                       setDownloadingDataset(dataset);
 
-                      // Try downloading the dataset
-                      const response = await chatAPI.downloadData(dataset);
-                      if (response?.status == 'error') {
-                        alert('Download failed!\n' + response.message);
-                      }
-
-                      // download complete
-                      setDownloadingDataset(null);
+                      // Datasets can be very large so do this asynchronously
+                      fetch(chatAPI.Endpoints.Dataset.Download(dataset))
+                        .then((response) => {
+                          if (!response.ok) {
+                            console.log(response);
+                            throw new Error(`HTTP Status: ${response.status}`);
+                          }
+                          return response.json();
+                        })
+                        .then((response_json) => {
+                          if (response_json?.status == 'error') {
+                            throw new Error(response_json.message);
+                          }
+                          setDownloadingDataset(null);
+                        })
+                        .catch((error) => {
+                          setDownloadingDataset(null);
+                          alert('Download failed:\n' + error);
+                        });
                     }
                   }}
                   startDecorator={
