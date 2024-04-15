@@ -547,6 +547,10 @@ Endpoints.Rag = {
     `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}`,
 };
 
+Endpoints.Prompts = {
+  List: () => API_URL() + 'prompts/list',
+};
+
 export function GET_TRAINING_TEMPLATE_URL() {
   return API_URL() + 'train/templates';
 }

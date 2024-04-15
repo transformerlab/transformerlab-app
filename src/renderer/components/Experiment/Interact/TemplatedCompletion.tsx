@@ -15,6 +15,8 @@ import { useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+import useSWR from 'swr';
+
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 /* We hardcode these below but later on we will fetch them from the API */
@@ -59,11 +61,15 @@ const templates = [
   },
 ];
 
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function TemplatedCompletion({ experimentInfo }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplate, setShowTemplate] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [completionOutput, setCompletionOutput] = useState('');
+
+  const { data: templates } = useSWR(chatAPI.Endpoints.Prompts.List(), fetcher);
 
   const sendTemplatedCompletionToLLM = async (element) => {
     if (!selectedTemplate) {
@@ -79,7 +85,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
       return;
     }
 
-    const completionText = template.template.replace('{text}', text);
+    const completionText = template.text.replace('{text}', text);
 
     setIsThinking(true);
 
@@ -125,6 +131,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
       }}
     >
       <div>
+        {/* {JSON.stringify(templates)} */}
         <FormLabel>Prompt Template:</FormLabel>
         <Select
           placeholder="Select Template"
@@ -138,7 +145,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
           required
           sx={{ minWidth: 200, marginTop: '5px' }}
         >
-          {templates.map((template) => (
+          {templates?.map((template) => (
             <Option key={template.id} value={template.id}>
               {template.title}
             </Option>
@@ -181,8 +188,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
                     }}
                   >
                     {selectedTemplate
-                      ? templates.find((t) => t.id === selectedTemplate)
-                          .template
+                      ? templates.find((t) => t.id === selectedTemplate).text
                       : ''}
                   </pre>
                 </Typography>
@@ -205,11 +211,14 @@ export default function TemplatedCompletion({ experimentInfo }) {
               placeholder=""
               variant="plain"
               name="completion-text"
-              minRows={20}
+              minRows={4}
               sx={{
+                display: 'flex',
                 flex: 1,
-                height: '100%',
-                '--Textarea-focusedHighlight': 'rgba(13,110,253,0)',
+                '--Textarea-focusedThickness': '0px',
+                '& textarea': {
+                  overflow: 'auto',
+                },
               }}
             />
           </Sheet>
@@ -244,7 +253,8 @@ export default function TemplatedCompletion({ experimentInfo }) {
             variant="plain"
             sx={{
               padding: '2rem 1rem',
-              flex: 3,
+              flex: 2,
+              overflow: 'auto',
             }}
             id="completion-output"
           >
