@@ -133,7 +133,7 @@ export default function ChatSubmit({
           // Support Submit on Enter, but ignore if
           // User types shift-enter
           if (event.shiftKey) return;
-          if (event.keyCode === 13) {
+          if (event.key === 'Enter') {
             event.preventDefault();
             document.getElementById('chat-submit-button').click();
           }
