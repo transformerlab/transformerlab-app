@@ -34,6 +34,13 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
 
     const models = modelsData?.data;
 
+    async function importRun(params_json: string) {
+        alert(params_json);
+        const response = await fetch(
+            chatAPI.Endpoints.Models.ImportHFCacheModels()
+        );
+    }
+
     return (
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog>
@@ -51,6 +58,8 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                 event.preventDefault();
                 const form_data = new FormData(event.currentTarget);
                 const form_json = Object.fromEntries((form_data as any).entries());
+
+                importRun(JSON.stringify(form_json));
                 setOpen(false);
             }}
             >
