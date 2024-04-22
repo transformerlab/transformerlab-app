@@ -15,6 +15,8 @@ import {
 
 import {
     ArrowRightFromLineIcon,
+    CheckSquareIcon,
+    SquareIcon
 } from 'lucide-react';
 
 // fetcher used by SWR
@@ -75,14 +77,19 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                   <th style={{ width: 25, padding: 12 }}> </th>
                   <th style={{ width: 175, padding: 12 }}>Model ID</th>
                   <th style={{ width: 120, padding: 12 }}>Architecture</th>
-                  <th style={{ width: 80, padding: 12 }}>Supported</th>
+                  <th style={{ width: 80, padding: 12 }}>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {models.map((row) => (
+                {models.map((row) => !row.installed && (
                 <tr key={row.rowid}>
                   <td>
-                    <Typography ml={2} fontWeight="lg"> </Typography>
+                  <Typography ml={2} fontWeight="lg">
+                    {row.installed
+                        ? " "
+                        : (row.supported ? <CheckSquareIcon /> : <SquareIcon />)
+                    }
+                    </Typography>
                   </td>
                   <td>
                     <Typography ml={2} fontWeight="lg">{row.id}</Typography>
@@ -91,7 +98,12 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                     <Typography ml={2} fontWeight="lg">{} </Typography>
                   </td>
                   <td>
-                    <Typography ml={2} fontWeight="lg"> </Typography>
+                    <Typography ml={2} fontWeight="lg">
+                    {row.installed
+                        ? "Installed"
+                        : (row.supported ? "Available" : "Not Supported")
+                    }
+                    </Typography>
                   </td>
                 </tr>
               ))}
