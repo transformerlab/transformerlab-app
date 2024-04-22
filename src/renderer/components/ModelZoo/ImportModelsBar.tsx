@@ -8,12 +8,22 @@ import {
     CircularProgress,
   } from '@mui/joy';
 
+import { PlusIcon } from 'lucide-react';
+
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import ImportFromHFCacheModal from './ImportFromHFCacheModal';
 
 export default function ModelDetails({}) {
     const [downloadingModel, setDownloadingModel] = useState(null);
+    const [importModelsModalOpen, setImportModelsModalOpen] = useState(false);
 
     return (
+      <>
+        <ImportFromHFCacheModal
+            open={importModelsModalOpen}
+            setOpen={setImportModelsModalOpen}
+        />
+
         <Box
         sx={{
             justifyContent: 'space-between',
@@ -76,7 +86,20 @@ export default function ModelDetails({}) {
                 disabled={downloadingModel}
               />
             </FormControl>
+            {/*
+            <Button
+              size="sm"
+              sx={{ height: '30px' }}
+              endDecorator={<PlusIcon />}
+              onClick={() => {
+                setImportModelsModalOpen(true);
+              }}
+            >
+              Import From 🤗 Cache
+            </Button>
+            */}
           </div>
         </Box>
+      </>
     );
 }
