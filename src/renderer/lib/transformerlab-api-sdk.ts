@@ -500,6 +500,7 @@ Endpoints.Models = {
   GetLocalHFConfig: (modelId: string) =>
     API_URL() + 'model/get_local_hfconfig?model_id=' + modelId,
   GetHFCacheModelList: () => API_URL() + 'model/hfcache_list',
+  ImportHFCacheModels: () => API_URL() + 'model/hfcache_import',
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
 };
