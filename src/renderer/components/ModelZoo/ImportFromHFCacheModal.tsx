@@ -51,9 +51,6 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                 event.preventDefault();
                 const form_data = new FormData(event.currentTarget);
                 const form_json = Object.fromEntries((form_data as any).entries());
-
-                //onSubmit(plugin.uniqueId, plugin.export_architecture, JSON.stringify(form_json));
-                alert(JSON.stringify(form_json));
                 setOpen(false);
             }}
             >
@@ -81,7 +78,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                 </tr>
               </thead>
               <tbody>
-                {models.map((row) => !row.installed && (
+                {models?.length > 0 && models.map((row) => !row.installed && (
                 <tr key={row.rowid}>
                   <td>
                   <Typography ml={2} fontWeight="lg">
@@ -133,7 +130,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                 <Button
                     variant="soft"
                     type="submit"
-                    disabled={models.length==0}
+                    disabled={models?.length==0}
                     startDecorator={<ArrowRightFromLineIcon />}>
                 Import
                 </Button>
