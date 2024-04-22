@@ -1,3 +1,6 @@
+import useSWR from 'swr';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
 import { 
     Button, 
     FormControl,
@@ -14,12 +17,20 @@ import {
     ArrowRightFromLineIcon,
 } from 'lucide-react';
 
+// fetcher used by SWR
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function ImportFromHFCacheModal({ open, setOpen}) {
-    const models = [
-        {
-            "id":"test-model"
-        }
-    ];
+    const {
+        data: modelsData,
+        error: modelsError,
+        isLoading: isLoading,
+    } = useSWR(
+        chatAPI.Endpoints.Models.GetHFCacheModelList(),
+        fetcher
+    );
+
+    const models = modelsData?.data;
 
     return (
       <Modal open={open} onClose={() => setOpen(false)}>
@@ -96,7 +107,10 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                     justifyContent="center"
                     margin={5}
                   >
-                    No new models found.
+                    {isLoading
+                        ? "Loading..."
+                        : (modelsError || "No new models found.")
+                    }
                   </Typography>
                 </td>
               </tr>
