@@ -72,11 +72,10 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
               >
               <thead>
                 <tr>
-                  <th style={{ width: 120, padding: 12 }}> </th>
-                  <th style={{ width: 120, padding: 12 }}>Model ID</th>
+                  <th style={{ width: 25, padding: 12 }}> </th>
+                  <th style={{ width: 175, padding: 12 }}>Model ID</th>
                   <th style={{ width: 120, padding: 12 }}>Architecture</th>
-                  <th style={{ width: 120, padding: 12 }}>Supported</th>
-                  <th style={{ width: 160, padding: 12 }}> </th>
+                  <th style={{ width: 80, padding: 12 }}>Supported</th>
                 </tr>
               </thead>
               <tbody>
@@ -90,9 +89,6 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                   </td>
                   <td>
                     <Typography ml={2} fontWeight="lg">{} </Typography>
-                  </td>
-                  <td>
-                    <Typography ml={2} fontWeight="lg"> </Typography>
                   </td>
                   <td>
                     <Typography ml={2} fontWeight="lg"> </Typography>
