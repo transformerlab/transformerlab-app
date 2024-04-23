@@ -86,10 +86,10 @@ export default function ModelDetails({}) {
                 disabled={downloadingModel}
               />
             </FormControl>
-            {/*
             <Button
               size="sm"
               sx={{ height: '30px' }}
+              disabled={process.env.NODE_ENV != "development"}
               endDecorator={<PlusIcon />}
               onClick={() => {
                 setImportModelsModalOpen(true);
@@ -97,7 +97,6 @@ export default function ModelDetails({}) {
             >
               Import From 🤗 Cache
             </Button>
-            */}
           </div>
         </Box>
       </>
