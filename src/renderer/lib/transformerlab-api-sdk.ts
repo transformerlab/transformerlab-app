@@ -742,6 +742,10 @@ Endpoints.Jobs = {
     API_URL() + 'jobs/create',
 };
 
+Endpoints.Global = {
+  PromptLog: () => API_URL() + 'prompt_log',
+};
+
 export function GET_EXPERIMENTS_URL() {
   if (API_URL() === null) {
     return null;
