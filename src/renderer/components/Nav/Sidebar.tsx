@@ -22,6 +22,7 @@ import {
   PlugIcon,
   FileIcon,
   FolderSearch2Icon,
+  TextIcon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
@@ -172,12 +173,6 @@ export default function Sidebar({
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
-          title="API"
-          path="/projects/api"
-          icon={<CodeIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
           title="Plugins"
           path="/projects/plugins"
           icon={<PlugIcon />}
@@ -207,17 +202,24 @@ export default function Sidebar({
           disabled={false}
         />
         <SubNavItem
+          title="API"
+          path="/projects/api"
+          icon={<CodeIcon />}
+          disabled={!experimentInfo?.name}
+        />
+        <SubNavItem
+          title="Logs"
+          path="/logs"
+          icon={<TextIcon />}
+          disabled={false}
+        />
+        <SubNavItem
           title="Computer"
           path="/computer"
           icon={<MonitorIcon />}
           disabled={false}
         />
-        {/* <SubNavItem
-          title="Logs"
-          path="/logs"
-          icon={<TextIcon />}
-          disabled={false}
-        /> */}
+
         {/* <ListItem>
           <ListItemButton
             onClick={() => {
