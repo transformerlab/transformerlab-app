@@ -100,15 +100,10 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                     <Typography ml={2} fontWeight="lg">{row.id}</Typography>
                   </td>
                   <td>
-                    <Typography ml={2} fontWeight="lg">{} </Typography>
+                    <Typography ml={2} fontWeight="lg">{row.architecture} </Typography>
                   </td>
                   <td>
-                    <Typography ml={2} fontWeight="lg">
-                    {row.installed
-                        ? "Installed"
-                        : (row.supported ? "Available" : "Not Supported")
-                    }
-                    </Typography>
+                    <Typography ml={2} fontWeight="lg">{row.status}</Typography>
                   </td>
                 </tr>
               ))}
