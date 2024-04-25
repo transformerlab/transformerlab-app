@@ -321,11 +321,6 @@ export default function Chat({
 
     console.log(inferenceParams);
 
-    const isVLLMInferenceEngine =
-      inferenceParams?.inferenceEngine === 'vllm_server';
-
-    console.log('WE ARE USING VLLM SERVER: ', isVLLMInferenceEngine);
-
     const generationParamsJSON = experimentInfo?.config?.generationParams;
     const generationParameters = JSON.parse(generationParamsJSON);
 
