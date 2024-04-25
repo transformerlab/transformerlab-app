@@ -38,12 +38,15 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
     async function importRun(model_ids: Iterator) {
         let next = model_ids.next();
         while(!next.done) {
-            console.log("Importing " + next.value);
+            // In the iterator, each iteam is a key (model_id) and a value (blank)
+            // this is just how it gets produced from the form
+            const model_id = next.value[0];
+            console.log("Importing " + model_id);
+            await fetch(
+              chatAPI.Endpoints.Models.ImportFromHFCache(model_id)
+            );
             next = model_ids.next();
         }
-        await fetch(
-          chatAPI.Endpoints.Models.ImportHFCacheModels(next.value)
-        );
         return;
     }
 
