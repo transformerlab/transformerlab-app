@@ -67,11 +67,10 @@ export default function TemplatedCompletion({ experimentInfo }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplate, setShowTemplate] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
-  const [completionOutput, setCompletionOutput] = useState('');
 
   const { data: templates } = useSWR(chatAPI.Endpoints.Prompts.List(), fetcher);
 
-  const sendTemplatedCompletionToLLM = async (element) => {
+  const sendTemplatedCompletionToLLM = async (element, target) => {
     if (!selectedTemplate) {
       return;
     }
@@ -109,11 +108,10 @@ export default function TemplatedCompletion({ experimentInfo }) {
       generationParameters?.maxTokens,
       generationParameters?.topP,
       false,
-      generationParameters?.stop_str
+      generationParameters?.stop_str,
+      target
     );
     setIsThinking(false);
-
-    setCompletionOutput(result?.text);
   };
 
   return (
@@ -140,7 +138,6 @@ export default function TemplatedCompletion({ experimentInfo }) {
           value={selectedTemplate}
           onChange={(e, newValue) => {
             setSelectedTemplate(newValue);
-            setCompletionOutput('');
           }}
           required
           sx={{ minWidth: 200, marginTop: '5px' }}
@@ -241,11 +238,13 @@ export default function TemplatedCompletion({ experimentInfo }) {
             }
             disabled={isThinking}
             id="chat-submit-button"
-            onClick={() =>
+            onClick={() => {
+              document.getElementsByName('output-text')[0].value = '';
               sendTemplatedCompletionToLLM(
-                document.getElementsByName('completion-text')?.[0]
-              )
-            }
+                document.getElementsByName('completion-text')?.[0],
+                document.getElementsByName('output-text')?.[0]
+              );
+            }}
           >
             {isThinking ? 'Answering' : 'Answer'}
           </Button>
@@ -264,12 +263,14 @@ export default function TemplatedCompletion({ experimentInfo }) {
                 borderLeft: '2px solid var(--joy-palette-neutral-500)',
               }}
             >
-              <Markdown
-                remarkPlugins={[remarkGfm]}
-                className="editableSheetContent"
-              >
-                {completionOutput}
-              </Markdown>
+              <Textarea name="output-text" variant="plain">
+                <Markdown
+                  remarkPlugins={[remarkGfm]}
+                  className="editableSheetContent"
+                >
+                  &nbsp;
+                </Markdown>
+              </Textarea>
             </Box>
           </Sheet>
         </>

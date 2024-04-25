@@ -92,6 +92,7 @@ export default function CompletionsPage({
         id="chat-submit-button"
         onClick={() =>
           sendCompletionToLLM(
+            document.getElementsByName('completion-text')?.[0],
             document.getElementsByName('completion-text')?.[0]
           )
         }

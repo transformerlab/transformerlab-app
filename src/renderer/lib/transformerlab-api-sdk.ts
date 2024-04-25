@@ -250,7 +250,8 @@ export async function sendCompletion(
   maxTokens: number = 256,
   topP: number = 1.0,
   useLongModelName = true,
-  stopString = null
+  stopString = null,
+  targetElementForStreaming
 ) {
   let model = '';
 
@@ -264,7 +265,7 @@ export async function sendCompletion(
     model = adaptor;
   }
 
-  console.log('model', model);
+  //console.log('model', model);
 
   const data = {
     model: model,
@@ -282,7 +283,7 @@ export async function sendCompletion(
   let result;
   var id = Math.random() * 1000;
 
-  const resultText = document.getElementsByName('completion-text')[0];
+  const resultText = targetElementForStreaming;
   const originalText = resultText.value;
 
   let response;
@@ -348,7 +349,7 @@ export async function sendCompletion(
 
       // eslint-disable-next-line no-restricted-syntax
       for (const parsedLine of parsedLines) {
-        console.log('parsedLine', parsedLine);
+        //console.log('parsedLine', parsedLine);
         const { choices } = parsedLine;
         const { text } = choices[0];
 

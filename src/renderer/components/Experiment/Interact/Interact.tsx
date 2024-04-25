@@ -307,7 +307,7 @@ export default function Chat({
     fetcher
   );
 
-  const sendCompletionToLLM = async (element) => {
+  const sendCompletionToLLM = async (element, targetElement) => {
     const text = element.value;
 
     setIsThinking(true);
@@ -330,11 +330,12 @@ export default function Chat({
       generationParameters?.maxTokens,
       generationParameters?.topP,
       false,
-      generationParameters?.stop_str
+      generationParameters?.stop_str,
+      targetElement
     );
     setIsThinking(false);
 
-    if (result?.text) element.value += result.text;
+    // if (result?.text) element.value += result.text;
   };
 
   async function countTokens() {
