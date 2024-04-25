@@ -97,13 +97,19 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                     </Typography>
                   </td>
                   <td>
-                    <Typography ml={2} fontWeight="lg">{row.id}</Typography>
+                    <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
+                        {row.id}
+                    </Typography>
                   </td>
                   <td>
-                    <Typography ml={2} fontWeight="lg">{row.architecture} </Typography>
+                    <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
+                        {row.architecture}
+                    </Typography>
                   </td>
                   <td>
-                    <Typography ml={2} fontWeight="lg">{row.status}</Typography>
+                    <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
+                        {row.status}
+                    </Typography>
                   </td>
                 </tr>
               ))}
