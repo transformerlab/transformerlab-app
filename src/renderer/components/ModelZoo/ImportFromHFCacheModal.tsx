@@ -85,7 +85,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                 </tr>
               </thead>
               <tbody>
-                {models?.length > 0 && models.map((row) => !row.installed && (
+                {models?.length > 0 && models.map((row) => (
                 <tr key={row.rowid}>
                   <td>
                   <Typography ml={2} fontWeight="lg">
