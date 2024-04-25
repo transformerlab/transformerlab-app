@@ -44,7 +44,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog>
             <ModalClose />
-            <Typography level="h2">Import:</Typography>
+            <Typography level="h2">Select models to import:</Typography>
             <form
             id="import-hfcache-form"
             style={{
