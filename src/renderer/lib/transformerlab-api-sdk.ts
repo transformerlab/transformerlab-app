@@ -268,7 +268,7 @@ export async function sendCompletion(
 
   const data = {
     model: model,
-    stream: false, // For streaming responses
+    stream: true, // For streaming responses
     prompt: text,
     temperature,
     max_tokens: maxTokens,
@@ -280,9 +280,15 @@ export async function sendCompletion(
   }
 
   let result;
+  var id = Math.random() * 1000;
+
+  const resultText = document.getElementsByName('completion-text')[0];
+  const originalText = resultText.value;
+
+  let response;
 
   try {
-    const response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
+    response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
       method: 'POST', // or 'PUT'
       headers: {
         'Content-Type': 'application/json',
@@ -290,13 +296,95 @@ export async function sendCompletion(
       },
       body: JSON.stringify(data),
     });
-    result = await response.json();
   } catch (error) {
     console.log('There was an error', error);
+    return null;
   }
 
-  if (result?.choices) {
-    return { id: result?.id, text: result?.choices?.[0]?.text };
+  if (!response.ok) {
+    const response_json = await response.json();
+    console.log('Completions API response:', response_json);
+    const error_text = `Completions API Error
+      HTTP Error Code: ${response?.status}
+      ${response_json?.message}`;
+    alert(error_text);
+    return null;
+  }
+
+  // Read the response as a stream of data
+  const reader = response?.body?.getReader();
+  const decoder = new TextDecoder('utf-8');
+
+  let finalResult = '';
+
+  var start = performance.now();
+  var firstTokenTime = null;
+  var end = start;
+
+  // Reader loop
+  try {
+    while (true) {
+      // eslint-disable-next-line no-await-in-loop
+      const { done, value } = await reader.read();
+
+      if (firstTokenTime == null) firstTokenTime = performance.now();
+
+      if (done) {
+        break;
+      }
+      // Massage and parse the chunk of data
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      let parsedLines = [];
+      try {
+        parsedLines = lines
+          .map((line) => line.replace(/^data: /, '').trim()) // Remove the "data: " prefix
+          .filter((line) => line !== '' && line !== '[DONE]') // Remove empty lines and "[DONE]"
+          .map((line) => JSON.parse(line)); // Parse the JSON string
+      } catch (error) {
+        console.log('error parsing line', error);
+      }
+
+      // eslint-disable-next-line no-restricted-syntax
+      for (const parsedLine of parsedLines) {
+        console.log('parsedLine', parsedLine);
+        const { choices } = parsedLine;
+        const { text } = choices[0];
+
+        id = parsedLine?.id;
+        // Update the UI with the new content
+        if (text) {
+          finalResult += text;
+          if (resultText) {
+            resultText.value = originalText + finalResult;
+            setTimeout(
+              () => document.getElementById('endofchat')?.scrollIntoView(),
+              100
+            );
+          }
+        }
+      }
+    }
+
+    result = finalResult;
+  } catch (error) {
+    console.log('There was an error:', error);
+  }
+
+  // Stop clock:
+  end = performance.now();
+  var time = end - firstTokenTime;
+  var timeToFirstToken = firstTokenTime - start;
+
+  if (result) {
+    if (resultText) resultText.innerText = '';
+    return {
+      id: id,
+      text: result,
+      time: time,
+      timeToFirstToken: timeToFirstToken,
+    };
   }
   return null;
 }

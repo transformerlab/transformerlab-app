@@ -319,8 +319,6 @@ export default function Chat({
       inferenceParams = JSON.parse(inferenceParams);
     }
 
-    console.log(inferenceParams);
-
     const generationParamsJSON = experimentInfo?.config?.generationParams;
     const generationParameters = JSON.parse(generationParamsJSON);
 

@@ -47,6 +47,7 @@ export default function CompletionsPage({
             flex: 1,
             height: '100%',
             '--Textarea-focusedHighlight': 'rgba(13,110,253,0)',
+            '& .MuiTextarea-textarea': { overflow: 'auto !important' },
           }}
           endDecorator={
             <Typography level="body-xs" sx={{ ml: 'auto' }}>
