@@ -3,6 +3,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import { 
     Button, 
+    Checkbox,
     FormControl,
     FormLabel,
     Modal, 
@@ -14,9 +15,7 @@ import {
 } from '@mui/joy';
 
 import {
-    ArrowRightFromLineIcon,
-    CheckSquareIcon,
-    SquareIcon
+    ArrowRightFromLineIcon
 } from 'lucide-react';
 
 // fetcher used by SWR
@@ -92,7 +91,10 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                   <Typography ml={2} fontWeight="lg">
                     {row.installed
                         ? " "
-                        : (row.supported ? <CheckSquareIcon /> : <SquareIcon />)
+                        : (row.supported 
+                            ? <Checkbox defaultChecked />
+                            : <Checkbox disabled />
+                          )
                     }
                     </Typography>
                   </td>
