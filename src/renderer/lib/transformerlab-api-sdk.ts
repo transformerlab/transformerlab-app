@@ -592,7 +592,6 @@ Endpoints.Models = {
     API_URL() + 'model/hfcache_list?uninstalled_only=' + uninstalled_only,
   ImportFromHFCache: (modelId: string) => 
     API_URL() + 'model/hfcache_import?model_id=' + modelId,
-  ImportHFCacheModels: () => API_URL() + 'model/hfcache_import_all',
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
 };
