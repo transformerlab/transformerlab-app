@@ -4,6 +4,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { 
     Button, 
     Checkbox,
+    CircularProgress,
     FormControl,
     FormLabel,
     Modal, 
@@ -33,18 +34,25 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
 
     const models = modelsData?.data;
 
-    async function importRun(params_json: string) {
-        const response = await fetch(
-            chatAPI.Endpoints.Models.ImportHFCacheModels()
+    // model_ids is an iterator
+    async function importRun(model_ids: Iterator) {
+        let next = model_ids.next();
+        while(!next.done) {
+            console.log("Importing " + next.value);
+            next = model_ids.next();
+        }
+        await fetch(
+          chatAPI.Endpoints.Models.ImportHFCacheModels(next.value)
         );
+        return;
     }
 
     return (
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog>
-            <ModalClose />
-            <Typography level="h2">Select models to import:</Typography>
-            <form
+          <ModalClose />
+          <Typography level="h2">Select models to import:</Typography>
+          <form
             id="import-hfcache-form"
             style={{
                 display: 'flex',
@@ -55,12 +63,13 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
             onSubmit={(event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
                 const form_data = new FormData(event.currentTarget);
-                const form_json = Object.fromEntries((form_data as any).entries());
+                const model_ids = (form_data as any).entries();
 
-                importRun(JSON.stringify(form_json));
+                // model_ids is an interator with a list of model IDs to import
+                importRun(model_ids);
                 setOpen(false);
             }}
-            >
+          >
 
             <Table
                 aria-labelledby="tableTitle"
@@ -85,14 +94,14 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                 </tr>
               </thead>
               <tbody>
-                {models?.length > 0 && models.map((row) => (
+                {!isLoading && models?.length > 0 && models.map((row) => (
                 <tr key={row.rowid}>
                   <td>
                   <Typography ml={2} fontWeight="lg">
                     {row.installed
                         ? " "
                         : (row.supported 
-                            ? <Checkbox defaultChecked />
+                            ? <Checkbox name={row.id} defaultChecked />
                             : <Checkbox disabled />
                           )
                     }
@@ -115,24 +124,35 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                   </td>
                 </tr>
               ))}
-            {models?.length === 0 && (
-              <tr>
-                <td colSpan={5}>
-                  <Typography
-                    level="body-lg"
-                    justifyContent="center"
-                    margin={5}
-                  >
-                    {isLoading
-                        ? "Loading..."
-                        : (modelsError || "No new models found.")
-                    }
+              {!isLoading && models?.length === 0 && (
+                <tr>
+                  <td colSpan={5}>
+                    <Typography
+                        level="body-lg"
+                        justifyContent="center"
+                        margin={5}
+                    >
+                      No new models found.
                   </Typography>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
+                  </td>
+                </tr>
+              )}
+              {isLoading && (
+                <tr>
+                  <td colSpan={5}>
+                    <CircularProgress color="primary" /> 
+                    <Typography
+                        level="body-lg"
+                        justifyContent="center"
+                        margin={5}
+                    >
+                      Scanning Hugging Face Cache...
+                  </Typography>
+                  </td>
+                </tr>
+              )}
+              </tbody>
+            </Table>
 
             <Stack spacing={2} direction="row" justifyContent="flex-end">
                 <Button color="danger" variant="soft" onClick={() => setOpen(false)}>
@@ -147,7 +167,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                 </Button>
             </Stack>
 
-            </form>
+          </form>
         </ModalDialog>
       </Modal>
     )
