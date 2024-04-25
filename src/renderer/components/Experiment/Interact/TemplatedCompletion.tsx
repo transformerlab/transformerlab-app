@@ -8,6 +8,7 @@ import {
   Typography,
   FormLabel,
   Box,
+  Stack,
 } from '@mui/joy';
 import { SendIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -67,6 +68,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showTemplate, setShowTemplate] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [timeTaken, setTimeTaken] = useState<number | null>(null);
 
   const { data: templates } = useSWR(chatAPI.Endpoints.Prompts.List(), fetcher);
 
@@ -219,35 +221,51 @@ export default function TemplatedCompletion({ experimentInfo }) {
               }}
             />
           </Sheet>
-          <Button
-            sx={{ ml: 'auto' }}
-            color="neutral"
-            endDecorator={
-              isThinking ? (
-                <CircularProgress
-                  thickness={2}
-                  size="sm"
-                  color="neutral"
-                  sx={{
-                    '--CircularProgress-size': '13px',
-                  }}
-                />
-              ) : (
-                <SendIcon />
-              )
-            }
-            disabled={isThinking}
-            id="chat-submit-button"
-            onClick={() => {
-              document.getElementsByName('output-text')[0].value = '';
-              sendTemplatedCompletionToLLM(
-                document.getElementsByName('completion-text')?.[0],
-                document.getElementsByName('output-text')?.[0]
-              );
-            }}
-          >
-            {isThinking ? 'Answering' : 'Answer'}
-          </Button>
+          <Stack direction="row">
+            <div>
+              {timeTaken && timeTaken !== -1 && (
+                <Typography level="body-sm" color="neutral">
+                  Time taken: {Math.round(timeTaken)}ms
+                </Typography>
+              )}
+              {timeTaken == -1 && <CircularProgress size="sm" />}
+            </div>
+            <Button
+              sx={{ ml: 'auto' }}
+              color="neutral"
+              endDecorator={
+                isThinking ? (
+                  <CircularProgress
+                    thickness={2}
+                    size="sm"
+                    color="neutral"
+                    sx={{
+                      '--CircularProgress-size': '13px',
+                    }}
+                  />
+                ) : (
+                  <SendIcon />
+                )
+              }
+              disabled={isThinking}
+              id="chat-submit-button"
+              onClick={async () => {
+                setTimeTaken(-1);
+                const startTime = performance.now();
+
+                document.getElementsByName('output-text')[0].value = '';
+                sendTemplatedCompletionToLLM(
+                  document.getElementsByName('completion-text')?.[0],
+                  document.getElementsByName('output-text')?.[0]
+                );
+
+                const endTime = performance.now();
+                setTimeTaken(endTime - startTime);
+              }}
+            >
+              {isThinking ? 'Answering' : 'Answer'}
+            </Button>
+          </Stack>
           <Sheet
             variant="plain"
             sx={{

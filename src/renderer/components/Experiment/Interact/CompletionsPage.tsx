@@ -2,10 +2,13 @@ import {
   Button,
   CircularProgress,
   Sheet,
+  Stack,
   Textarea,
   Typography,
 } from '@mui/joy';
+import { time } from 'console';
 import { SendIcon } from 'lucide-react';
+import { useState } from 'react';
 
 export default function CompletionsPage({
   text,
@@ -15,6 +18,7 @@ export default function CompletionsPage({
   isThinking,
   sendCompletionToLLM,
 }) {
+  const [timeTaken, setTimeTaken] = useState<number | null>(null);
   return (
     <div
       style={{
@@ -71,34 +75,48 @@ export default function CompletionsPage({
           }}
         />
       </Sheet>
-      <Button
-        sx={{ ml: 'auto' }}
-        color="neutral"
-        endDecorator={
-          isThinking ? (
-            <CircularProgress
-              thickness={2}
-              size="sm"
-              color="neutral"
-              sx={{
-                '--CircularProgress-size': '13px',
-              }}
-            />
-          ) : (
-            <SendIcon />
-          )
-        }
-        disabled={isThinking}
-        id="chat-submit-button"
-        onClick={() =>
-          sendCompletionToLLM(
-            document.getElementsByName('completion-text')?.[0],
-            document.getElementsByName('completion-text')?.[0]
-          )
-        }
-      >
-        {isThinking ? 'Generating' : 'Generate'}
-      </Button>
+      <Stack direction="row">
+        <div>
+          {timeTaken && timeTaken !== -1 && (
+            <Typography level="body-sm" color="neutral">
+              Time taken: {Math.round(timeTaken)}ms
+            </Typography>
+          )}
+          {timeTaken == -1 && <CircularProgress size="sm" />}
+        </div>
+        <Button
+          sx={{ ml: 'auto' }}
+          color="neutral"
+          endDecorator={
+            isThinking ? (
+              <CircularProgress
+                thickness={2}
+                size="sm"
+                color="neutral"
+                sx={{
+                  '--CircularProgress-size': '13px',
+                }}
+              />
+            ) : (
+              <SendIcon />
+            )
+          }
+          disabled={isThinking}
+          id="chat-submit-button"
+          onClick={async () => {
+            setTimeTaken(-1);
+            const startTime = performance.now();
+            await sendCompletionToLLM(
+              document.getElementsByName('completion-text')?.[0],
+              document.getElementsByName('completion-text')?.[0]
+            );
+            const endTime = performance.now();
+            setTimeTaken(endTime - startTime);
+          }}
+        >
+          {isThinking ? 'Generating' : 'Generate'}
+        </Button>
+      </Stack>
     </div>
   );
 }
