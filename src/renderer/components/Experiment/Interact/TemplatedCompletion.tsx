@@ -102,6 +102,14 @@ export default function TemplatedCompletion({ experimentInfo }) {
     const generationParamsJSON = experimentInfo?.config?.generationParams;
     const generationParameters = JSON.parse(generationParamsJSON);
 
+    try {
+      generationParameters.stop_str = JSON.parse(
+        generationParameters?.stop_str
+      );
+    } catch (e) {
+      console.log('Error parsing stop strings as JSON');
+    }
+
     const result = await chatAPI.sendCompletion(
       experimentInfo?.config?.foundation,
       experimentInfo?.config?.adaptor,

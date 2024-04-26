@@ -8,7 +8,15 @@ import ModalDialog from '@mui/joy/ModalDialog';
 import DialogTitle from '@mui/joy/DialogTitle';
 import DialogContent from '@mui/joy/DialogContent';
 import Stack from '@mui/joy/Stack';
-import { Divider, FormHelperText, ModalClose, Textarea } from '@mui/joy';
+import {
+  Box,
+  Chip,
+  ChipDelete,
+  Divider,
+  FormHelperText,
+  ModalClose,
+  Textarea,
+} from '@mui/joy';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import { RotateCcwIcon } from 'lucide-react';
 import SystemMessageBox from './SystemMessageBox';
@@ -23,9 +31,25 @@ export default function BasicModalDialog({
   experimentInfo,
   experimentInfoMutate,
 }) {
-  const [stopString, setStopString] = React.useState(
-    defaultPromptConfigForModel?.stop_str
-  );
+  const [stopStrings, setStopStrings] = React.useState<string[] | null>(null);
+
+  if (stopStrings == null && generationParameters?.stop_str) {
+    const paramsStopStringJSON = generationParameters?.stop_str;
+
+    let paramsStopStrings = [];
+
+    try {
+      paramsStopStrings = JSON.parse(paramsStopStringJSON);
+    } catch {
+      paramsStopStrings = [paramsStopStringJSON];
+    }
+
+    if (!Array.isArray(paramsStopStrings)) {
+      setStopStrings([paramsStopStrings]);
+    } else {
+      setStopStrings(paramsStopStrings);
+    }
+  }
 
   return (
     <React.Fragment>
@@ -55,28 +79,77 @@ export default function BasicModalDialog({
               />
               {/* {JSON.stringify(defaultPromptConfigForModel)} */}
               <FormControl sx={{ paddingTop: 3 }}>
-                <FormLabel>Stop String</FormLabel>
+                <FormLabel>Stop Strings</FormLabel>
                 <Input
-                  // defaultValue={defaultPromptConfigForModel?.stop_str}
-                  value={generationParameters?.stop_str}
-                  onChange={(event) => {
-                    setGenerationParameters({
-                      ...generationParameters,
-                      stop_str: event.target.value,
-                    });
-                  }}
+                  defaultValue=""
+                  name="stop_str"
+                  sx={{ width: '50%' }}
+                  endDecorator={
+                    <Button
+                      variant="soft"
+                      onClick={() => {
+                        setStopStrings([
+                          ...stopStrings,
+                          document.getElementsByName('stop_str')[0].value,
+                        ]);
+
+                        const stopStringsAsJSONArray = JSON.stringify([
+                          ...stopStrings,
+                          document.getElementsByName('stop_str')[0].value,
+                        ]);
+
+                        console.log('Saving: ', stopStringsAsJSONArray);
+
+                        document.getElementsByName('stop_str')[0].value = '';
+                        setGenerationParameters({
+                          ...generationParameters,
+                          stop_str: stopStringsAsJSONArray,
+                        });
+                      }}
+                    >
+                      Add
+                    </Button>
+                  }
                 ></Input>
+                <Box
+                  role="group"
+                  aria-labelledby="fav-movie"
+                  sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}
+                >
+                  {stopStrings &&
+                    Array.isArray(stopStrings) &&
+                    stopStrings.length > 0 &&
+                    stopStrings.map((stopString) => (
+                      <Chip
+                        endDecorator={
+                          <ChipDelete
+                            color="neutral"
+                            variant="plain"
+                            sx={{ ml: 0.2 }}
+                            onClick={() => {
+                              setStopStrings(
+                                stopStrings.filter((s) => s !== stopString)
+                              );
+                            }}
+                          />
+                        }
+                      >
+                        {stopString}
+                      </Chip>
+                    ))}
+                </Box>
                 <FormHelperText>
-                  The model will stop generating text when it encounters this
-                  string.
+                  The model will stop generating text when it encounters one of
+                  these strings.
                   <Button
                     variant="plain"
                     startDecorator={<RotateCcwIcon size="14px" />}
                     onClick={() => {
                       setGenerationParameters({
                         ...generationParameters,
-                        stop_str: defaultPromptConfigForModel?.stop_str,
+                        stop_str: [defaultPromptConfigForModel?.stop_str],
                       });
+                      setStopStrings([defaultPromptConfigForModel?.stop_str]);
                     }}
                     sx={{
                       padding: '2px',
