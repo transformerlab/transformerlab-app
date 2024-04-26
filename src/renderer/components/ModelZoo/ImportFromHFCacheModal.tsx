@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
@@ -23,6 +24,8 @@ import {
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ImportFromHFCacheModal({ open, setOpen}) {
+    const [importing, setImporting] = useState(false);
+
     const {
         data: modelsData,
         error: modelsError,
@@ -63,13 +66,15 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                 height: '100%',
                 justifyContent: 'space-between',
             }}
-            onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            onSubmit={async (event: FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
+                setImporting(true);
                 const form_data = new FormData(event.currentTarget);
                 const model_ids = (form_data as any).entries();
 
                 // model_ids is an interator with a list of model IDs to import
-                importRun(model_ids);
+                await importRun(model_ids);
+                setImporting(false);
                 setOpen(false);
             }}
           >
@@ -158,14 +163,24 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
             </Table>
 
             <Stack spacing={2} direction="row" justifyContent="flex-end">
-                <Button color="danger" variant="soft" onClick={() => setOpen(false)}>
+                <Button
+                  color="danger"
+                  variant="soft"
+                  disabled={importing}
+                  onClick={() => setOpen(false)}
+                >
                 Cancel
                 </Button>
                 <Button
                     variant="soft"
                     type="submit"
-                    disabled={models?.length==0}
-                    startDecorator={<ArrowRightFromLineIcon />}>
+                    disabled={models?.length==0 && importing}
+                    startDecorator={
+                      importing 
+                        ? <CircularProgress /> 
+                        : <ArrowRightFromLineIcon />
+                      }
+                    >
                 Import
                 </Button>
             </Stack>
