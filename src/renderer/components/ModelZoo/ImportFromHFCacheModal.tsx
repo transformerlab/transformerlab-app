@@ -53,6 +53,15 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
         return;
     }
 
+    function prettyModelSourceName(source: str) {
+        switch(source) {
+          case "huggingface":
+            return "Hugging Face"
+          default:
+            return source;
+        }
+    }
+
     return (
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog>
@@ -95,10 +104,11 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
               >
               <thead>
                 <tr>
-                  <th style={{ width: 25, padding: 12 }}> </th>
+                  <th style={{ width: 20, padding: 12 }}> </th>
                   <th style={{ width: 175, padding: 12 }}>Model ID</th>
+                  <th style={{ width: 100, padding: 12 }}>Source</th>
                   <th style={{ width: 120, padding: 12 }}>Architecture</th>
-                  <th style={{ width: 80, padding: 12 }}>Status</th>
+                  <th style={{ width: 100, padding: 12 }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -118,6 +128,11 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                   <td>
                     <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
                         {row.id}
+                    </Typography>
+                  </td>
+                  <td>
+                    <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
+                        {prettyModelSourceName(row.source)}
                     </Typography>
                   </td>
                   <td>
