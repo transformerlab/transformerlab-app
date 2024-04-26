@@ -130,6 +130,12 @@ export default function BasicModalDialog({
                               setStopStrings(
                                 stopStrings.filter((s) => s !== stopString)
                               );
+                              setGenerationParameters({
+                                ...generationParameters,
+                                stop_str: stopStrings.filter(
+                                  (s) => s !== stopString
+                                ),
+                              });
                             }}
                           />
                         }
