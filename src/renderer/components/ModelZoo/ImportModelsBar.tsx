@@ -95,7 +95,7 @@ export default function ModelDetails({}) {
                 setImportModelsModalOpen(true);
               }}
             >
-              Import From 🤗 Cache
+              Import Local Models
             </Button>
           </div>
         </Box>
