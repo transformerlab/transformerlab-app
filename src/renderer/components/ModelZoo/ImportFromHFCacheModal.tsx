@@ -57,6 +57,8 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
         switch(source) {
           case "huggingface":
             return "Hugging Face"
+          case "ollama":
+            return "Ollama"
           default:
             return source;
         }
@@ -113,7 +115,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
               </thead>
               <tbody>
                 {!isLoading && models?.length > 0 && models.map((row) => (
-                <tr key={row.rowid}>
+                <tr key={row.id}>
                   <td>
                   <Typography ml={2} fontWeight="lg">
                     {row.installed
