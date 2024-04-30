@@ -110,7 +110,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                   <th style={{ width: 175, padding: 12 }}>Model ID</th>
                   <th style={{ width: 100, padding: 12 }}>Source</th>
                   <th style={{ width: 120, padding: 12 }}>Architecture</th>
-                  <th style={{ width: 100, padding: 12 }}>Status</th>
+                  <th style={{ width: 75, padding: 12 }}>Supported</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,7 +144,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
                   </td>
                   <td>
                     <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
-                        {row.status}
+                        {row.supported ? "Yes" : "No"}
                     </Typography>
                   </td>
                 </tr>
