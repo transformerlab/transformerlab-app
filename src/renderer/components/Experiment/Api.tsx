@@ -3,7 +3,7 @@ import * as React from 'react';
 
 import Sheet from '@mui/joy/Sheet';
 
-import { Button, Typography } from '@mui/joy';
+import { Button, Stack, Typography } from '@mui/joy';
 import { ExternalLinkIcon } from 'lucide-react';
 
 export default function Api() {
@@ -16,19 +16,20 @@ export default function Api() {
         paddingBottom: '20px',
       }}
     >
-      <div style={{ flex: 1 }}>
-        <Typography level="h1">API Documentation</Typography>
-        <br />
-      </div>
-      <Button
-        onClick={() => {
-          window.open(`${window.TransformerLab.API_URL}docs`);
-        }}
-        endDecorator={<ExternalLinkIcon />}
-        variant="plain"
-      >
-        Open in Browser
-      </Button>
+      <Stack direction="row" justifyContent="flex-start" spacing={2}>
+        <div style={{}}>
+          <Typography level="h1">API Documentation</Typography>
+        </div>
+        <Button
+          onClick={() => {
+            window.open(`${window.TransformerLab.API_URL}docs`);
+          }}
+          endDecorator={<ExternalLinkIcon />}
+          variant="plain"
+        >
+          Open in Browser
+        </Button>
+      </Stack>
       <br />
       <iframe
         src={`${window.TransformerLab.API_URL}docs`}
