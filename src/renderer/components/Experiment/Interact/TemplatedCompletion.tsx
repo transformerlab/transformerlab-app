@@ -9,8 +9,13 @@ import {
   FormLabel,
   Box,
   Stack,
+  Chip,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
 } from '@mui/joy';
-import { SendIcon } from 'lucide-react';
+import { SendIcon, PlusCircleIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import Markdown from 'react-markdown';
@@ -69,6 +74,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
   const [showTemplate, setShowTemplate] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [timeTaken, setTimeTaken] = useState<number | null>(null);
+  const [outputText, setOutputText] = useState('');
 
   const { data: templates } = useSWR(chatAPI.Endpoints.Prompts.List(), fetcher);
 
@@ -87,6 +93,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
     }
 
     const completionText = template.text.replace('{text}', text);
+    setOutputText('');
 
     setIsThinking(true);
 
@@ -121,6 +128,8 @@ export default function TemplatedCompletion({ experimentInfo }) {
       generationParameters?.stop_str,
       target
     );
+
+    setOutputText(result?.text || '');
     setIsThinking(false);
   };
 
@@ -149,14 +158,24 @@ export default function TemplatedCompletion({ experimentInfo }) {
           onChange={(e, newValue) => {
             setSelectedTemplate(newValue);
           }}
+          renderValue={(selected) => {
+            const value = selected?.value;
+            return (
+              templates?.find((t) => t.id === value)?.title || 'Select Template'
+            );
+          }}
           required
           sx={{ minWidth: 200, marginTop: '5px' }}
         >
           {templates?.map((template) => (
             <Option key={template.id} value={template.id}>
+              <Chip color="warning">gallery</Chip>
               {template.title}
             </Option>
           ))}
+          <Option value="custom">
+            <PlusCircleIcon /> Create New Prompt
+          </Option>
         </Select>
       </div>
       {selectedTemplate && (
@@ -283,21 +302,39 @@ export default function TemplatedCompletion({ experimentInfo }) {
             }}
             id="completion-output"
           >
-            <Box
-              sx={{
-                paddingLeft: 2,
-                borderLeft: '2px solid var(--joy-palette-neutral-500)',
-              }}
-            >
-              <Textarea name="output-text" variant="plain">
-                <Markdown
-                  remarkPlugins={[remarkGfm]}
-                  className="editableSheetContent"
+            <Tabs>
+              <TabList>
+                <Tab variant="plain" color="neutral">
+                  Raw
+                </Tab>
+                <Tab>Markdown</Tab>
+              </TabList>
+              <TabPanel value={0} keepMounted>
+                <Box
+                  sx={{
+                    paddingLeft: 2,
+                    borderLeft: '2px solid var(--joy-palette-neutral-500)',
+                  }}
                 >
-                  &nbsp;
-                </Markdown>
-              </Textarea>
-            </Box>
+                  <Textarea name="output-text" variant="plain"></Textarea>
+                </Box>
+              </TabPanel>
+              <TabPanel value={1} keepMounted>
+                <Box
+                  sx={{
+                    paddingLeft: 2,
+                    borderLeft: '2px solid var(--joy-palette-neutral-500)',
+                  }}
+                >
+                  {isThinking && <CircularProgress />}
+                  <Markdown
+                    children={outputText}
+                    remarkPlugins={[remarkGfm]}
+                    className="editableSheetContent"
+                  ></Markdown>
+                </Box>
+              </TabPanel>
+            </Tabs>
           </Sheet>
         </>
       )}
