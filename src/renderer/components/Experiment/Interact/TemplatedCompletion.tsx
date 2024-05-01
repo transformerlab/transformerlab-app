@@ -156,6 +156,11 @@ export default function TemplatedCompletion({ experimentInfo }) {
           name="template"
           value={selectedTemplate}
           onChange={(e, newValue) => {
+            if (newValue === 'custom') {
+              setSelectedTemplate(null);
+              alert('Custom template creation not implemented yet');
+              return;
+            }
             setSelectedTemplate(newValue);
           }}
           renderValue={(selected) => {
@@ -173,7 +178,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
               {template.title}
             </Option>
           ))}
-          <Option value="custom">
+          <Option key="new-prompt" value="custom">
             <PlusCircleIcon /> Create New Prompt
           </Option>
         </Select>
