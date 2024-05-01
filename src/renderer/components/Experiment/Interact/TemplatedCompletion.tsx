@@ -281,7 +281,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
                 const startTime = performance.now();
 
                 document.getElementsByName('output-text')[0].value = '';
-                sendTemplatedCompletionToLLM(
+                await sendTemplatedCompletionToLLM(
                   document.getElementsByName('completion-text')?.[0],
                   document.getElementsByName('output-text')?.[0]
                 );
@@ -307,7 +307,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
                 <Tab variant="plain" color="neutral">
                   Raw
                 </Tab>
-                <Tab>Markdown</Tab>
+                <Tab disabled={isThinking}>Markdown</Tab>
               </TabList>
               <TabPanel value={0} keepMounted>
                 <Box
