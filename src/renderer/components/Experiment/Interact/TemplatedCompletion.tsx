@@ -214,7 +214,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
                     }}
                   >
                     {selectedTemplate
-                      ? templates.find((t) => t.id === selectedTemplate).text
+                      ? templates?.find((t) => t.id === selectedTemplate)?.text
                       : ''}
                   </pre>
                 </Typography>
