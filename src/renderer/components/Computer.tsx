@@ -24,11 +24,25 @@ import { formatBytes } from 'renderer/lib/utils';
 import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
 
 function getSystemProperties() {
-  const information = document.getElementById('info');
+  const information = document.getElementById('info') as HTMLPreElement;
   information.innerText = `This app is using Chrome (v${window.platform.chrome()}), Node.js (v${window.platform.node()}), and Electron (v${window.platform.electron()})`;
 }
 
-function ComputerCard({ children, title, description = '', chip = '', icon }) {
+interface ComputerCardProps {
+  title: string;
+  description?: string;
+  chip?: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}
+
+function ComputerCard({
+  children,
+  title,
+  description = '',
+  chip = '',
+  icon,
+}: ComputerCardProps) {
   return (
     <Card variant="outlined">
       <CardContent>
@@ -99,7 +113,7 @@ export default function Computer() {
                 title="GPU Specs"
                 image={undefined}
               >
-                {server.gpu?.map((g) => {
+                {server.gpu?.map((g: Record<string, any>) => {
                   return (
                     <>
                       🔥 {g.name}

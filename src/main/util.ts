@@ -1,6 +1,7 @@
 /* eslint import/prefer-default-export: off */
 import { URL } from 'url';
 import path from 'path';
+import { ExecException } from 'child_process';
 const fs = require('fs');
 const os = require('os');
 const { spawn, exec, ChildProcess } = require('child_process');
@@ -132,21 +133,21 @@ export async function startLocalServer() {
   console.log('Local server started with pid', localServer.pid);
 
   return new Promise((resolve) => {
-    let err_msg;
+    let err_msg: string;
 
     // if there was an error spawning then stderr will be null
     if (localServer.stderr) {
-      localServer.stderr.on('data', (data) => {
+      localServer.stderr.on('data', (data: string) => {
         console.error(`stderr: ${data}`);
       });
     }
 
-    localServer.on('error', (error_msg) => {
-      console.log(`child process failed: ${error_msg}`);
-      err_msg = error_msg;
+    localServer.on('error', (err: string) => {
+      console.log(`child process failed: ${err}`);
+      err_msg = err;
     });
 
-    localServer.on('close', (code) => {
+    localServer.on('close', (code: number) => {
       console.log(`child process exited with code ${code}`);
 
       if (code === 0) {
@@ -170,7 +171,7 @@ export function killLocalServer() {
         `Killing local server with pid ${localServer.pid} and all it children`
       );
       var kill = require('tree-kill');
-      kill(localServer.pid, 'SIGTERM', function (err) {
+      kill(localServer.pid, 'SIGTERM', function (err: string) {
         console.log('Finished killing local server');
         console.log(err);
         resolve(err);
@@ -201,10 +202,10 @@ export async function installLocalServer() {
     ? {}
     : { shell: '/bin/bash', cwd: root_dir };
   try {
-    const child = exec(
+    exec(
       installScriptCommand,
       options,
-      (error, stdout, stderr) => {
+      (error: ExecException | null, stdout: string, stderr: string) => {
         if (error) {
           console.error(`exec error: ${error}`);
           return;
@@ -235,7 +236,7 @@ export async function checkDependencies() {
   let response = {
     status: '',
     message: '',
-    data: [],
+    data: {},
   };
 
   // check if we've done an install/update of dependencies with this build
@@ -276,7 +277,7 @@ export async function checkDependencies() {
     return response;
   }
 
-  const pipListNames = pipList.map((x) => x.name);
+  const pipListNames = pipList.map((x: { name: string }) => x.name);
   const keyDependencies = [
     'fastapi',
     'pydantic',
@@ -299,9 +300,9 @@ export async function checkDependencies() {
 
   response.data = missingDependencies;
   console.log('missingDependencies', missingDependencies);
-  if (missingDependencies.legnth > 0) {
+  if (missingDependencies.length > 0) {
     response.status = 'error';
-    const missingList = missingDependencies.data?.join(', ');
+    const missingList = missingDependencies.join(', ');
     response.message = `Missing dependencies including: ${missingList}...`;
   } else {
     response.status = 'success';
@@ -319,7 +320,7 @@ export async function checkIfCondaEnvironmentExists() {
   let response = {
     status: '',
     message: '',
-    data: [],
+    data: {},
   };
 
   console.log(JSON.stringify({ error, stdout, stderr }));
@@ -352,18 +353,29 @@ export async function checkIfCondaEnvironmentExists() {
   }
 }
 
+interface ExecError extends Error {
+  code?: number;     // Exit code of the shell command if the process exited on its own.
+  stdout?: string;   // Standard output from the command.
+  stderr?: string;   // Standard error output from the command.
+}
+
 /**
  *
  * @param argument parameter to pass to install.sh
  * @returns the stdout of the process or false on failure.
  */
-export async function executeInstallStep(argument: string) {
+export async function executeInstallStep(argument: string): Promise<{
+  error: ExecException | null;
+  stdout: string;
+  stderr: string;
+}> {
   const server_dir = await getTransformerLabCodeDir();
   if (!fs.existsSync(server_dir)) {
-    console.log(
-      'Install step failed. TransformerLab directory has not been setup.'
-    );
-    return false;
+    return {
+      error: new Error('TransformerLab directory has not been setup.'),
+      stdout: 'TransformerLab directory has not been setup.',
+      stderr: 'TransformerLab directory has not been setup.',
+    };
   }
 
   const installScriptFilename = 'install.sh';
@@ -383,14 +395,19 @@ export async function executeInstallStep(argument: string) {
   try {
     ({ error, stdout, stderr } = await awaitExec(exec_cmd, options));
   } catch (err) {
+
     console.log('Failed to execute install step', err);
     console.log(JSON.stringify(err));
-    return {
-      error: err?.code,
-      stdout: err?.stdout?.toString(),
-      stderr: err?.stderr?.toString(),
-    };
+    if (err instanceof Error) {
+      const execError = err as ExecError;
+      return {
+        error: new Error(String(execError.code)),
+        stdout: execError.stdout?.toString() ?? '',
+        stderr: execError.stderr?.toString() ?? '',
+      };
+    }
   }
+
   if (stdout) console.log(`${installScriptFilename} stdout:`, stdout);
   if (stderr) console.error(`${installScriptFilename} stderr:`, stderr);
   return { error, stdout, stderr };

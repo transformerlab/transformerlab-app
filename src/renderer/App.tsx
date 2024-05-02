@@ -18,7 +18,7 @@ import XtermJSDrawer from './components/Connect/XtermJS';
 // import OutputTerminal from './components/OutputTerminal';
 // import AutoUpdateModal from './components/AutoUpdateModal';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function App() {
   const [experimentId, setExperimentId] = useState('');

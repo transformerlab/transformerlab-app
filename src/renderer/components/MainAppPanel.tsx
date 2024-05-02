@@ -86,7 +86,7 @@ export default function MainAppPanel({
     updateConfigs();
   }
 
-  function setAdaptor(name) {
+  function setAdaptor(name: string) {
     fetch(
       chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
         experimentInfo?.id,
