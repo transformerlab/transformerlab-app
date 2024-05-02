@@ -1,13 +1,14 @@
 import React from 'react';
-
 import { Modal, ModalClose, Sheet, Typography } from '@mui/joy';
-window.autoUpdater.onMessage((message) => {
-  console.log('autoupdate message', message);
-  var container = document.getElementById('messages');
-  var m = document.createElement('div');
-  m.innerHTML = text;
+
+window.autoUpdater.onMessage((message: Node) => {
+  // console.log('autoupdate message', message);
+  const container = document.getElementById('messages') as HTMLDivElement;
+  // const m = document.createElement('div');
+  // m.innerHTML = text;
   container?.appendChild(message);
 });
+
 export default function AutoUpdateModal({}) {
   const [open, setOpen] = React.useState<boolean>(true);
 

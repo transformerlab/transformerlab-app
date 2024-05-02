@@ -14,14 +14,16 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
 
-const fetcher = (url) => fetch(url).then((res) => res.text());
+const fetcher = (url: string) => fetch(url).then((res) => res.text());
 
-function objectMinusPrompt(obj) {
-  const { prompt, ...rest } = obj;
+function objectMinusPrompt({
+  prompt,
+  ...rest
+}: Record<string, any>): Record<string, any> {
   return rest;
 }
 
-function renderJSONLinesLog(logs) {
+function renderJSONLinesLog(logs: string) {
   return logs?.split('\n').map((line, i) => {
     try {
       const line_object = JSON.parse(line);
@@ -67,7 +69,7 @@ export default function Logs({}) {
           flexDirection: 'column',
         }}
       >
-        <AccordionGroup>{renderJSONLinesLog(data)}</AccordionGroup>
+        <AccordionGroup>{renderJSONLinesLog(data ?? '')}</AccordionGroup>
       </Box>
     </Sheet>
   );

@@ -6,7 +6,13 @@ import {
 import { Box, Button, CircularProgress, Typography } from '@mui/joy';
 import TinyCircle from './Shared/TinyCircle';
 
-export default function ModelCurrentlyPlaying({ experimentInfo }) {
+interface ModelCurrentlyPlayingProps {
+  experimentInfo: Record<string, any>;
+}
+
+export default function ModelCurrentlyPlaying({
+  experimentInfo,
+}: ModelCurrentlyPlayingProps) {
   const { models, isError, isLoading } = useModelStatus();
 
   const inferenceParams = experimentInfo?.config?.inferenceParams
@@ -50,7 +56,7 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
         variant="plain"
         sx={{ display: models?.length > 0 ? 'flex' : 'none' }}
       >
-        {models?.length == 0 ? (
+        {models?.length === 0 ? (
           <CircularProgress color="warning" />
         ) : (
           <StopCircleIcon />
