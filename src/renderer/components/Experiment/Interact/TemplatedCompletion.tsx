@@ -26,48 +26,6 @@ import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-/* We hardcode these below but later on we will fetch them from the API */
-const templates = [
-  {
-    id: 'a',
-    style: 'completion',
-    title: 'Convert to Standard English',
-    template:
-      'You will be provided with a statement, and your task is to convert it to standard English.\n\nStatement:\n\n{text}\n\nStandard English:\n',
-    temperature: 0.7,
-    max_tokens: 64,
-    top_p: 1,
-  },
-  {
-    id: 'b',
-    style: 'completion',
-    title: 'Summarize for Second-Grade Student',
-    template:
-      'Summarize content you are provided with for a second-grade student.\n\nContent:\n{text}\n\nSummary:\n',
-  },
-  {
-    id: 'c',
-    style: 'completion',
-    title: 'Convert CSV to Markdown Table',
-    template:
-      'You are an expert in data formatting. For the following csv data, output it as a markdown table.\nOutput the table only.\n```{text}```',
-  },
-  {
-    id: 'd',
-    style: 'completion',
-    title: 'Parse Unstructured Data',
-    template:
-      'You are a data scientist tasked with parsing unstructured data. Given the following text, output the structured data.\n\n{text}\n\nStructured Data:\n',
-  },
-  {
-    id: 'e',
-    style: 'completion',
-    title: 'Write a Summary',
-    template:
-      'You are a journalist tasked with writing a summary of the following text.\n\n{text}\n\nSummary:\n',
-  },
-];
-
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TemplatedCompletion({ experimentInfo }) {
