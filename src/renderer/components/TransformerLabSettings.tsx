@@ -17,7 +17,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TransformerLabSettings({}) {
   const [showPassword, setShowPassword] = React.useState(false);
@@ -52,16 +52,12 @@ export default function TransformerLabSettings({}) {
               endDecorator={
                 <IconButton
                   onClick={() => {
-                    const hfToken = document.getElementsByName(
-                      'hftoken'
-                    )[0] as HTMLInputElement;
-
-                    if (hfToken.type === 'text') {
-                      hfToken.type = 'password';
+                    var x = document.getElementsByName('hftoken')[0];
+                    if (x.type === 'text') {
+                      x.type = 'password';
                     } else {
-                      hfToken.type = 'text';
+                      x.type = 'text';
                     }
-
                     setShowPassword(!showPassword);
                   }}
                 >
@@ -72,10 +68,7 @@ export default function TransformerLabSettings({}) {
           )}
           <Button
             onClick={async () => {
-              const tokenElement = document.getElementsByName(
-                'hftoken'
-              )[0] as HTMLInputElement;
-              const token = tokenElement.value;
+              const token = document.getElementsByName('hftoken')[0].value;
               await fetch(
                 chatAPI.Endpoints.Config.Set(
                   'HuggingfaceUserAccessToken',
