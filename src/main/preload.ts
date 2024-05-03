@@ -81,13 +81,11 @@ contextBridge.exposeInMainWorld('storage', {
 });
 
 contextBridge.exposeInMainWorld('sshClient', {
-  connect: (data: string) => ipcRenderer.invoke('ssh:connect', data),
-  data: (data: string) => ipcRenderer.send('ssh:data', data),
+  connect: (data) => ipcRenderer.invoke('ssh:connect', data),
+  data: (data) => ipcRenderer.send('ssh:data', data),
 
-  onData: (data: any) => ipcRenderer.on('ssh:data', data),
-  onSSHConnected: (callback: {
-    (event: IpcRendererEvent, data: string): void;
-  }) => ipcRenderer.on('ssh:connected', callback),
+  onData: (data) => ipcRenderer.on('ssh:data', data),
+  onSSHConnected: (callback) => ipcRenderer.on('ssh:connected', callback),
 
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners('ssh:data');
@@ -96,5 +94,5 @@ contextBridge.exposeInMainWorld('sshClient', {
 });
 
 contextBridge.exposeInMainWorld('autoUpdater', {
-  onMessage: (data: any) => ipcRenderer.on('autoUpdater', data),
+  onMessage: (data) => ipcRenderer.on('autoUpdater', data),
 });

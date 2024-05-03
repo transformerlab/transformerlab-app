@@ -1,8 +1,12 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 
-import { Sheet, Stack, Typography } from '@mui/joy';
+import { Button, Sheet, Stack, Typography } from '@mui/joy';
+import { ArrowRightCircleIcon, FlaskConicalIcon } from 'lucide-react';
+
+async function testStore() {}
 
 import labImage from '../img/lab.jpg';
+
 import flaskLogo from '../img/flask.png';
 
 function LogoComponent() {
@@ -10,14 +14,12 @@ function LogoComponent() {
     <img
       src={flaskLogo}
       width="38"
-      style={{
-        verticalAlign: 'middle',
-        marginBottom: '10px',
-        display: 'inline-block',
-      }}
+      style={{ verticalAlign: 'middle', marginBottom: '10px' }}
     />
   );
 }
+
+testStore();
 
 export default function Welcome() {
   return (

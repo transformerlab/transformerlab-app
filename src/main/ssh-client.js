@@ -8,7 +8,7 @@ const HOME_DIR = app.getPath('home');
 const default_private_key = '';
 const default_private_key_location = HOME_DIR + '/.ssh/id_rsa';
 
-let mainWindow = null;
+var mainWindow = null;
 
 function sendToRenderer(channel, data) {
   if (mainWindow === null) {
@@ -119,6 +119,6 @@ ipcMain.handle('ssh:connect', (event, key) => {
 
 export default function setupSSHClient(browserWindow) {
   console.log('setting up ssh client');
-  // console.log(browserWindow);
+  console.log(browserWindow);
   mainWindow = browserWindow;
 }
