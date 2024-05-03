@@ -14,6 +14,7 @@ import {
   TabList,
   Tab,
   TabPanel,
+  LinearProgress,
 } from '@mui/joy';
 import { SendIcon, PlusCircleIcon } from 'lucide-react';
 import { useState } from 'react';
@@ -75,6 +76,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
   const [isThinking, setIsThinking] = useState(false);
   const [timeTaken, setTimeTaken] = useState<number | null>(null);
   const [outputText, setOutputText] = useState('');
+  const [currentTab, setCurrentTab] = useState(0);
 
   const { data: templates } = useSWR(chatAPI.Endpoints.Prompts.List(), fetcher);
 
@@ -110,6 +112,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
     const generationParameters = JSON.parse(generationParamsJSON);
 
     try {
+      console.log(generationParameters?.stop_str);
       generationParameters.stop_str = JSON.parse(
         generationParameters?.stop_str
       );
@@ -260,7 +263,18 @@ export default function TemplatedCompletion({ experimentInfo }) {
                   Time taken: {Math.round(timeTaken)}ms
                 </Typography>
               )}
-              {timeTaken == -1 && <CircularProgress size="sm" />}
+              {timeTaken == -1 && (
+                <CircularProgress
+                  size="sm"
+                  thickness={1}
+                  color="neutral"
+                  sx={{
+                    '--CircularProgress-size': '18px',
+                    '--CircularProgress-trackThickness': '1px',
+                    '--CircularProgress-progressThickness': '1px',
+                  }}
+                />
+              )}
             </div>
             <Button
               sx={{ ml: 'auto' }}
@@ -285,6 +299,8 @@ export default function TemplatedCompletion({ experimentInfo }) {
                 setTimeTaken(-1);
                 const startTime = performance.now();
 
+                setCurrentTab(0);
+
                 document.getElementsByName('output-text')[0].value = '';
                 await sendTemplatedCompletionToLLM(
                   document.getElementsByName('completion-text')?.[0],
@@ -307,7 +323,12 @@ export default function TemplatedCompletion({ experimentInfo }) {
             }}
             id="completion-output"
           >
-            <Tabs>
+            <Tabs
+              value={currentTab}
+              onChange={(e, newValue) => {
+                setCurrentTab(newValue);
+              }}
+            >
               <TabList>
                 <Tab variant="plain" color="neutral">
                   Raw
@@ -322,6 +343,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
                   }}
                 >
                   <Textarea name="output-text" variant="plain"></Textarea>
+                  {isThinking && <LinearProgress sx={{ width: '300px' }} />}
                 </Box>
               </TabPanel>
               <TabPanel value={1} keepMounted>
@@ -331,7 +353,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
                     borderLeft: '2px solid var(--joy-palette-neutral-500)',
                   }}
                 >
-                  {isThinking && <CircularProgress />}
+                  {isThinking && <LinearProgress sx={{ width: '300px' }} />}
                   <Markdown
                     children={outputText}
                     remarkPlugins={[remarkGfm]}
