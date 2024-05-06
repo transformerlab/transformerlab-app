@@ -11,7 +11,7 @@ import {
 import { PlusIcon } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import ImportFromHFCacheModal from './ImportModelsModal';
+import ImportModelsModal from './ImportModelsModal';
 
 export default function ModelDetails({}) {
     const [downloadingModel, setDownloadingModel] = useState(null);
@@ -19,7 +19,7 @@ export default function ModelDetails({}) {
 
     return (
       <>
-        <ImportFromHFCacheModal
+        <ImportModelsModal
             open={importModelsModalOpen}
             setOpen={setImportModelsModalOpen}
         />

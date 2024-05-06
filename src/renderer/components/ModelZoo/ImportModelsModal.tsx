@@ -23,7 +23,7 @@ import {
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ImportFromHFCacheModal({ open, setOpen}) {
+export default function ImportModelsModal({ open, setOpen}) {
     const [importing, setImporting] = useState(false);
 
     const {
@@ -70,7 +70,7 @@ export default function ImportFromHFCacheModal({ open, setOpen}) {
           <ModalClose />
           <Typography level="h2">Select models to import:</Typography>
           <form
-            id="import-hfcache-form"
+            id="import-models-form"
             style={{
                 display: 'flex',
                 flexDirection: 'column',
