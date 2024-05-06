@@ -11,7 +11,7 @@ import {
 import { PlusIcon } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import ImportFromHFCacheModal from './ImportFromHFCacheModal';
+import ImportFromHFCacheModal from './ImportModelsModal';
 
 export default function ModelDetails({}) {
     const [downloadingModel, setDownloadingModel] = useState(null);
