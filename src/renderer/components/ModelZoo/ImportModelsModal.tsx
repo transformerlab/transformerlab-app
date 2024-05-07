@@ -25,6 +25,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ImportModelsModal({ open, setOpen}) {
     const [importing, setImporting] = useState(false);
+    const [modelFolder, setModelFolder] = useState(null);
 
     const {
         data: modelsData,
@@ -34,7 +35,6 @@ export default function ImportModelsModal({ open, setOpen}) {
         chatAPI.Endpoints.Models.GetHFCacheModelList(),
         fetcher
     );
-
     const models = modelsData?.data;
 
     // model_ids is an iterator
@@ -68,7 +68,7 @@ export default function ImportModelsModal({ open, setOpen}) {
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalDialog>
           <ModalClose />
-          <Typography level="h2">Select models to import:</Typography>
+          <Typography level="h3">Select models to import:</Typography>
           <form
             id="import-models-form"
             style={{
@@ -89,6 +89,44 @@ export default function ImportModelsModal({ open, setOpen}) {
                 setOpen(false);
             }}
           >
+
+            {/*
+            <FormControl>
+              <Typography>
+                <b>Search Local Directory: </b>
+                <input
+                  type="text"
+                  size="50"
+                  for="modelFolderSelector"
+                  class="btn"
+                  value={modelFolder ? modelFolder.toString() : "(none)"}
+                />
+              </Typography>
+                <input
+                  directory=""
+                  webkitdirectory=""
+                  type="file"
+                  id="modelFolderSelector"
+                  onChange={async (event: FormEvent<HTMLFormElement>) => {
+
+                    // The input returns a list of files under the selected folder.
+                    // NOT the folder. But you can figure out the folder based on
+                    // the difference between path and webkitRelativePath.
+                    const filelist: FileList | null = event.target.files;
+                    if (filelist && filelist.length > 0 ) {
+                      const firstfile = filelist[0];
+                      const firstfilepath = firstfile.path;
+                      const webkitRelativePath = firstfile.webkitRelativePath;
+                      const parentPath = firstfilepath.slice(0, -1*webkitRelativePath.length)
+                      setModelFolder(parentPath);
+                    } else {
+                      setModelFolder(null);
+                    }
+                }}
+                />
+              <br />
+            </FormControl>
+            */}
 
             <Table
                 aria-labelledby="tableTitle"
@@ -171,7 +209,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                         justifyContent="center"
                         margin={5}
                     >
-                      Scanning Hugging Face Cache...
+                      Scanning for models...
                   </Typography>
                   </td>
                 </tr>
