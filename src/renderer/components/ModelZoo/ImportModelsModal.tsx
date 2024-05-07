@@ -32,7 +32,7 @@ export default function ImportModelsModal({ open, setOpen}) {
         error: modelsError,
         isLoading: isLoading,
     } = useSWR(
-        chatAPI.Endpoints.Models.GetHFCacheModelList(),
+        chatAPI.Endpoints.Models.GetLocalUninstalled(),
         fetcher
     );
     const models = modelsData?.data;
