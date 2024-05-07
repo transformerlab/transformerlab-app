@@ -590,7 +590,7 @@ Endpoints.Models = {
     API_URL() + 'model/get_local_hfconfig?model_id=' + modelId,
   GetHFCacheModelList: (uninstalled_only: boolean = true) =>
     API_URL() + 'model/hfcache_list?uninstalled_only=' + uninstalled_only,
-  ImportFromHFCache: (modelId: string) => 
+  ImportFromHFCache: (modelId: string) =>
     API_URL() + 'model/hfcache_import?model_id=' + modelId,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
@@ -642,6 +642,8 @@ Endpoints.Rag = {
 
 Endpoints.Prompts = {
   List: () => API_URL() + 'prompts/list',
+  New: () => API_URL() + 'prompts/new',
+  Delete: (promptId: string) => API_URL() + 'prompts/delete/' + promptId,
 };
 
 export function GET_TRAINING_TEMPLATE_URL() {

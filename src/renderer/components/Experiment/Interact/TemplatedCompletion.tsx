@@ -16,7 +16,7 @@ import {
   TabPanel,
   LinearProgress,
 } from '@mui/joy';
-import { SendIcon, PlusCircleIcon } from 'lucide-react';
+import { SendIcon, PlusCircleIcon, X, XIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import Markdown from 'react-markdown';
@@ -25,18 +25,23 @@ import remarkGfm from 'remark-gfm';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import TemplatedPromptModal from './TemplatedPromptModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TemplatedCompletion({ experimentInfo }) {
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
   const [showTemplate, setShowTemplate] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [timeTaken, setTimeTaken] = useState<number | null>(null);
   const [outputText, setOutputText] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
+  const [editTemplateModalOpen, setEditTemplateModalOpen] = useState(false);
 
-  const { data: templates } = useSWR(chatAPI.Endpoints.Prompts.List(), fetcher);
+  const { data: templates, mutate: templatesMutate } = useSWR(
+    chatAPI.Endpoints.Prompts.List(),
+    fetcher
+  );
 
   const sendTemplatedCompletionToLLM = async (element, target) => {
     if (!selectedTemplate) {
@@ -45,7 +50,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
 
     const text = element.value;
 
-    const template = templates.find((t) => t.id === selectedTemplate);
+    const template = selectedTemplate;
 
     if (!template) {
       alert('Template not found');
@@ -108,6 +113,11 @@ export default function TemplatedCompletion({ experimentInfo }) {
         paddingTop: '1rem',
       }}
     >
+      <TemplatedPromptModal
+        open={editTemplateModalOpen}
+        setOpen={setEditTemplateModalOpen}
+        mutate={templatesMutate}
+      />
       <div>
         {/* {JSON.stringify(templates)} */}
         <FormLabel>Prompt Template:</FormLabel>
@@ -115,14 +125,17 @@ export default function TemplatedCompletion({ experimentInfo }) {
           placeholder="Select Template"
           variant="soft"
           name="template"
-          value={selectedTemplate}
+          value={selectedTemplate?.id}
           onChange={(e, newValue) => {
             if (newValue === 'custom') {
               setSelectedTemplate(null);
-              alert('Custom template creation not implemented yet');
+              setEditTemplateModalOpen(true);
               return;
             }
-            setSelectedTemplate(newValue);
+            const newSelectedTemplate = templates?.find(
+              (t) => t.id === newValue
+            );
+            setSelectedTemplate(newSelectedTemplate);
           }}
           renderValue={(selected) => {
             const value = selected?.value;
@@ -135,7 +148,12 @@ export default function TemplatedCompletion({ experimentInfo }) {
         >
           {templates?.map((template) => (
             <Option key={template.id} value={template.id}>
-              <Chip color="warning">gallery</Chip>
+              {template?.source !== 'local' && (
+                <Chip color="warning">gallery</Chip>
+              )}
+              {template?.source == 'local' && (
+                <Chip color="success">local</Chip>
+              )}
               {template.title}
             </Option>
           ))}
@@ -146,19 +164,53 @@ export default function TemplatedCompletion({ experimentInfo }) {
       </div>
       {selectedTemplate && (
         <>
-          <Typography
-            level="body-xs"
-            onClick={() => {
-              setShowTemplate(!showTemplate);
-            }}
+          <Stack
+            direction="row"
             sx={{
-              cursor: 'pointer',
-              color: 'primary',
-              textAlign: 'right',
+              justifyContent: 'flex-end',
+              gap: '1rem',
             }}
           >
-            {showTemplate ? 'Hide Template' : 'Show Template'}
-          </Typography>
+            <Typography
+              level="body-xs"
+              onClick={() => {
+                setShowTemplate(!showTemplate);
+              }}
+              sx={{
+                cursor: 'pointer',
+                color: 'primary',
+                textAlign: 'right',
+              }}
+            >
+              {showTemplate ? 'Hide' : 'Show'}
+            </Typography>
+            {selectedTemplate?.source == 'local' && (
+              <Typography
+                color="warning"
+                level="body-xs"
+                onClick={async () => {
+                  if (!selectedTemplate) {
+                    return;
+                  }
+                  if (
+                    confirm('Are you sure you want to delete this template?')
+                  ) {
+                    await fetch(
+                      chatAPI.Endpoints.Prompts.Delete(selectedTemplate.id)
+                    );
+                    templatesMutate();
+                  }
+                }}
+                sx={{
+                  cursor: 'pointer',
+                  color: 'primary',
+                  textAlign: 'right',
+                }}
+              >
+                Delete
+              </Typography>
+            )}
+          </Stack>
           {showTemplate && (
             <>
               <Sheet
@@ -179,9 +231,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
                       fontFamily: 'var(--joy-fontFamily-code)',
                     }}
                   >
-                    {selectedTemplate
-                      ? templates?.find((t) => t.id === selectedTemplate)?.text
-                      : ''}
+                    {selectedTemplate ? selectedTemplate?.text : ''}
                   </pre>
                 </Typography>
               </Sheet>
@@ -295,10 +345,12 @@ export default function TemplatedCompletion({ experimentInfo }) {
               </TabList>
               <TabPanel value={0} keepMounted>
                 <Box
-                  sx={{
-                    paddingLeft: 2,
-                    borderLeft: '2px solid var(--joy-palette-neutral-500)',
-                  }}
+                  sx={
+                    {
+                      // paddingLeft: 2,
+                      // borderLeft: '2px solid var(--joy-palette-neutral-500)',
+                    }
+                  }
                 >
                   <Textarea name="output-text" variant="plain"></Textarea>
                   {isThinking && <LinearProgress sx={{ width: '300px' }} />}
@@ -306,10 +358,12 @@ export default function TemplatedCompletion({ experimentInfo }) {
               </TabPanel>
               <TabPanel value={1} keepMounted>
                 <Box
-                  sx={{
-                    paddingLeft: 2,
-                    borderLeft: '2px solid var(--joy-palette-neutral-500)',
-                  }}
+                  sx={
+                    {
+                      // paddingLeft: 2,
+                      // borderLeft: '2px solid var(--joy-palette-neutral-500)',
+                    }
+                  }
                 >
                   {isThinking && <LinearProgress sx={{ width: '300px' }} />}
                   <Markdown
