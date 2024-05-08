@@ -46,7 +46,8 @@ export default function ImportModelsModal({ open, setOpen}) {
             const model_id = next.value[0];
             console.log("Importing " + model_id);
             await fetch(
-              chatAPI.Endpoints.Models.ImportFromHFCache(model_id)
+              // TODO: Hardcoding hugging face as model source for now as it's the only source
+              chatAPI.Endpoints.Models.ImportLocal("huggingface", model_id)
             );
             next = model_ids.next();
         }
