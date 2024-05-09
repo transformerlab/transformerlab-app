@@ -37,19 +37,62 @@ export default function ImportModelsModal({ open, setOpen}) {
     );
     const models = modelsData?.data;
 
-    // model_ids is an iterator
+    /*
+     * This funciton takes an Iterator with model information and tries to import 
+     * each of those models through individual calls to the backend.
+     *
+     * When it completes it displays an alert with results.
+     */
     async function importRun(model_ids: Iterator) {
+
+        // storing results
+        let totalImports = 0;
+        let successfulImports = 0;
+        let error_msg = "";
+
         let next = model_ids.next();
         while(!next.done) {
             // In the iterator, each iteam is a key (model_id) and a value (blank)
             // this is just how it gets produced from the form
             const model_id = next.value[0];
+
             console.log("Importing " + model_id);
-            await fetch(
+            const response = await fetch(
               // TODO: Hardcoding hugging face as model source for now as it's the only source
               chatAPI.Endpoints.Models.ImportLocal("huggingface", model_id)
             );
+
+            // Read the response to see if it was successful and report any errors
+            let response_error = "";
+            if (response.ok) {
+              const response_json = await response.json();
+              if (response_json.status == "success") {
+                successfulImports++;
+              } else if ("message" in response_json) {
+                response_error = response_json.message;
+              } else {
+                response_error = "Unspecified error";
+              }
+            } else {
+              response_error = "API error";
+            }
+
+            // Log errors
+            if (response_error) {
+              const new_error = `${model_id}: ${response_error}`;
+              console.log(new_error);
+              error_msg += `${new_error}\n`;
+            }
+            totalImports++;
             next = model_ids.next();
+        }
+
+        const result_msg = `${successfulImports} of ${totalImports} models imported.`;
+        console.log(result_msg);
+        if (error_msg) {
+          alert(`${result_msg}\n\nErrors:\n${error_msg}`);
+        } else {
+          alert(result_msg);
         }
         return;
     }
