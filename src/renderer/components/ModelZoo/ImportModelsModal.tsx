@@ -191,8 +191,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                   <th style={{ width: 20, padding: 12 }}> </th>
                   <th style={{ width: 175, padding: 12 }}>Model ID</th>
                   <th style={{ width: 100, padding: 12 }}>Source</th>
-                  <th style={{ width: 120, padding: 12 }}>Architecture</th>
-                  <th style={{ width: 75, padding: 12 }}>Supported</th>
+                  <th style={{ width: 200, padding: 12 }}>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -221,12 +220,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                   </td>
                   <td>
                     <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
-                        {row.architecture}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
-                        {row.supported ? "Yes" : "No"}
+                        {row.status}
                     </Typography>
                   </td>
                 </tr>
