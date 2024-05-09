@@ -48,6 +48,12 @@ export default function MainAppPanel({
       // For most generated models this will be a path to a directory
       if (model.stored_in_filesystem) {
         model_filename = model.local_path;
+
+      // If stored_in_filesystem isn't set but model_filename is then
+      // just take model_filename directly
+      // This is an imported model and this should hold a full path
+      } else if (model.json_data?.model_filename) {
+        model_filename = model.json_data.model_filename;
       }
     }
 
