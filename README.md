@@ -29,19 +29,62 @@
 
 <!-- ABOUT THE PROJECT -->
 
+## Download Now
+
+[![Download Icon]][Download URL]
+
 ## About The Project
 
 ![Product Screen Shot](assets/screenshot.png)
 
 Transformer Lab is an app that allows anyone to experiment with Large Language Models.
 
-With Transformer Lab, you can:
+With Transformer Lab allows you to:
 
-- Download hundreds of popular models
-- Interact with models through chat or completions
-- Finetune models using a library of datasets, or your own data
-- Evaluate models
-- Access all of the functionality through a REST API
+- 💕 **One-click Download Hundreds of Popular Models**:
+  - Llama3, Phi3, Mistral, Mixtral, Gemma, Command-R, and dozens more
+- ⬇ **Download any LLM from Huggingface**
+- 🎶 **Finetune / Train Across Different Hardware**
+  - Finetune using MLX on Apple Silicon
+  - Finetune using Huggingface on GPU
+- 💻 **Work with LLMs Across Operating Systems**:
+  - Windows App
+  - MacOS App
+  - Linux
+- 💬 **Chat with Models**
+  - Chat
+  - Completions
+  - Preset (Templated) Prompts
+  - Chat History
+  - Tweak generation parameters
+- 🚂 **Use Different Inference Engines**
+  - MLX on Apple Silicon
+  - Huggingface Transformers
+  - vLLM
+  - Llama CPP
+- 🧑‍🎓 **Evaluate models**
+- 📖 **RAG (Retreival Augmented Generation)**
+  - Drag and Drop File UI
+  - Works on Apple MLX, Transformers, and other engines
+- 📓 **Build Datasets for Training**
+  - Pull from hundreds of common datasets available on HuggingFace
+  - Provide your own dataset using drag and drop
+- 🔢 **Calculate Embeddings**
+- 💁 **Full REST API**
+- 🌩 **Run in the Cloud**
+  - You can run the user interface on your desktop/laptop while the engine runs on a remote or cloud machine
+  - Or you can run everything locally on a single machine
+- 🔀 **Convert Models Across Platforms**
+  - Convert from/to Huggingface, MLX, GGUF
+- 🔌 **Plugin Support**
+  - Easily pull from a library of existing plugins
+  - Write your own plugins to extend functionality
+- 🧑‍💻 **Embedded Monaco Code Editor**
+  - Edit plugins and view what's happening behind the scenes
+- 📝 **Prompt Editing**
+  - Easily edit System Messages or Prompt Templates
+- 📜 **Inference Logs**
+  - While doing inference or RAG, wiew a log of the raw queries sent to the LLM
 
 And you can do the above, all through a simple cross-platform GUI.
 
@@ -117,3 +160,5 @@ If you found Transformer Lab useful in your research or applications, please cit
 [Electron-url]: https://www.electronjs.org/
 [HuggingFace]: https://img.shields.io/badge/🤗_HuggingFace-20232A?style=for-the-badge
 [HuggingFace-url]: https://huggingface.co/
+[Download Icon]: https://img.shields.io/badge/Download-EF2D5E?style=for-the-badge&logoColor=white&logo=DocuSign
+[Download URL]: https://transformerlab.ai/docs/download
