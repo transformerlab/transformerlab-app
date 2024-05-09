@@ -588,8 +588,6 @@ Endpoints.Models = {
     API_URL() + 'model/details/' + convertSlashInUrl(modelId),
   GetLocalHFConfig: (modelId: string) =>
     API_URL() + 'model/get_local_hfconfig?model_id=' + modelId,
-  ImportFromHFCache: (modelId: string) =>
-    API_URL() + 'model/hfcache_import?model_id=' + modelId,
   GetLocalUninstalled: () => API_URL() + 'model/list_local_uninstalled',
   ImportLocal: (modelSource: string, modelId: string) =>
     API_URL() + 'model/import_local?model_source=' + modelSource + '&model_id=' + modelId,
