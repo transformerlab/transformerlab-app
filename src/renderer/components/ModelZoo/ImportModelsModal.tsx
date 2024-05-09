@@ -25,7 +25,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ImportModelsModal({ open, setOpen}) {
     const [importing, setImporting] = useState(false);
-    const [modelFolder, setModelFolder] = useState(null);
+    const [modelFolder, setModelFolder] = useState(null); // Disabled folder support
 
     const {
         data: modelsData,
@@ -52,14 +52,15 @@ export default function ImportModelsModal({ open, setOpen}) {
 
         let next = model_ids.next();
         while(!next.done) {
-            // In the iterator, each iteam is a key (model_id) and a value (blank)
+            // In the iterator, each item is a key (model_id) and a value (model_source)
             // this is just how it gets produced from the form
             const model_id = next.value[0];
+            const model_source = next.value[1];
 
             console.log("Importing " + model_id);
             const response = await fetch(
               // TODO: Hardcoding hugging face as model source for now as it's the only source
-              chatAPI.Endpoints.Models.ImportLocal("huggingface", model_id)
+              chatAPI.Endpoints.Models.ImportLocal(model_source, model_id)
             );
 
             // Read the response to see if it was successful and report any errors
@@ -202,7 +203,11 @@ export default function ImportModelsModal({ open, setOpen}) {
                     {row.installed
                         ? " "
                         : (row.supported 
-                            ? <Checkbox name={row.id} defaultChecked />
+                            ? <Checkbox
+                                name={row.id}
+                                value={row.source}
+                                defaultChecked
+                              />
                             : <Checkbox disabled />
                           )
                     }
