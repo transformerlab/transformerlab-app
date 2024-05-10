@@ -39,7 +39,7 @@
 
 Transformer Lab is an app that allows anyone to experiment with Large Language Models.
 
-With Transformer Lab allows you to:
+Transformer Lab allows you to:
 
 - 💕 **One-click Download Hundreds of Popular Models**:
   - Llama3, Phi3, Mistral, Mixtral, Gemma, Command-R, and dozens more
