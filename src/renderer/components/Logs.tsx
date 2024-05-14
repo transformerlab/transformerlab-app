@@ -8,6 +8,7 @@ import {
   AccordionSummary,
   Box,
   Sheet,
+  Typography,
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -21,6 +22,24 @@ function objectMinusPrompt(obj) {
   return rest;
 }
 
+function isToday(someDateString) {
+  const someDate = new Date(someDateString);
+  const today = new Date();
+
+  const t =
+    someDate.getDate() === today.getDate() &&
+    someDate.getMonth() === today.getMonth() &&
+    someDate.getFullYear() === today.getFullYear();
+
+  console.log(t);
+  console.log(someDate + ' - ' + today);
+  return (
+    someDate.getDate() === today.getDate() &&
+    someDate.getMonth() === today.getMonth() &&
+    someDate.getFullYear() === today.getFullYear()
+  );
+}
+
 function renderJSONLinesLog(logs) {
   return logs?.split('\n').map((line, i) => {
     try {
@@ -30,7 +49,11 @@ function renderJSONLinesLog(logs) {
           {/* {i}:{' '} */}
           <Accordion key={i} color="primary" variant="soft">
             <AccordionSummary>
-              {line_object.date} - {line_object?.log?.model}
+              <Typography
+                color={isToday(line_object.date) ? 'black' : 'neutral'}
+              >
+                {line_object.date} - {line_object?.log?.model}
+              </Typography>
             </AccordionSummary>
             <AccordionDetails>
               <pre style={{ whiteSpace: 'pre-wrap' }}>
@@ -46,8 +69,8 @@ function renderJSONLinesLog(logs) {
     } catch (e) {
       return (
         <>
-          {/* {i}: {e.message} - {line} */}
-          <br />
+          {/* {i}: {e.message} - {line}
+          <br /> */}
         </>
       );
     }
@@ -56,10 +79,25 @@ function renderJSONLinesLog(logs) {
 
 export default function Logs({}) {
   const { data } = useSWR(chatAPI.Endpoints.Global.PromptLog, fetcher);
+
+  React.useEffect(() => {
+    // Scroll to bottom
+    const ae = document.getElementById('logs_accordion');
+    ae.scrollTop = ae.scrollHeight;
+  });
+
   return (
-    <Sheet style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Sheet
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        paddingBottom: '1rem',
+      }}
+    >
       <h1>Prompt Log</h1>
       <Box
+        id="logs_accordion"
         style={{
           overflow: 'auto',
           height: '100%',
