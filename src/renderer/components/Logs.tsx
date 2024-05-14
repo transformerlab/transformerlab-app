@@ -26,13 +26,6 @@ function isToday(someDateString) {
   const someDate = new Date(someDateString);
   const today = new Date();
 
-  const t =
-    someDate.getDate() === today.getDate() &&
-    someDate.getMonth() === today.getMonth() &&
-    someDate.getFullYear() === today.getFullYear();
-
-  console.log(t);
-  console.log(someDate + ' - ' + today);
   return (
     someDate.getDate() === today.getDate() &&
     someDate.getMonth() === today.getMonth() &&
