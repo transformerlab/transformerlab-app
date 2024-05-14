@@ -196,6 +196,10 @@ export default function Chat({
     }
   }, [generationParameters]);
 
+  function stopStreaming() {
+    chatAPI.stopStreamingResponse();
+  }
+
   const sendNewMessageToLLM = async (text: String) => {
     const r = Math.floor(Math.random() * 1000000);
 
@@ -431,6 +435,7 @@ export default function Chat({
             experimentInfo={experimentInfo}
             isThinking={isThinking}
             sendNewMessageToLLM={sendNewMessageToLLM}
+            stopStreaming={stopStreaming}
             experimentInfoMutate={experimentInfoMutate}
             tokenCount={tokenCount}
             text={textToDebounce}

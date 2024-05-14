@@ -19,6 +19,7 @@ export default function ChatPage({
   experimentInfo,
   isThinking,
   sendNewMessageToLLM,
+  stopStreaming,
   experimentInfoMutate,
   tokenCount,
   text,
@@ -131,6 +132,7 @@ export default function ChatPage({
       </Sheet>
       <ChatSubmit
         addMessage={sendNewMessageToLLM}
+        stopStreaming={stopStreaming}
         spinner={isThinking}
         clearHistory={clearHistory}
         tokenCount={tokenCount}

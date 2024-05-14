@@ -193,7 +193,7 @@ export default function ChatBubble({
               </Tooltip>{' '}
               {displayFloatStringWithPrecision(chat?.tokensPerSecond, 1)} -{' '}
               <Tooltip title="Time to first token" variant="solid">
-                <a>TTFT:</a>
+                <a>ttft:</a>
               </Tooltip>{' '}
               {displayFloatStringWithPrecision(chat?.timeToFirstToken, 2)}ms
             </Typography>

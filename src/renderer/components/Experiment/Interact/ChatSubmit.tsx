@@ -8,6 +8,7 @@ import {
   InfoIcon,
   SaveIcon,
   SendIcon,
+  StopCircle,
   XCircleIcon,
 } from 'lucide-react';
 import {
@@ -16,6 +17,8 @@ import {
   Tooltip,
   Typography,
   Option,
+  Stack,
+  IconButton,
 } from '@mui/joy';
 
 function scrollChatToBottom() {
@@ -24,6 +27,7 @@ function scrollChatToBottom() {
 
 export default function ChatSubmit({
   addMessage,
+  stopStreaming,
   spinner,
   clearHistory,
   tokenCount,
@@ -54,12 +58,13 @@ export default function ChatSubmit({
               borderColor: 'divider',
               flex: 'auto',
               alignItems: 'center',
+              justifyContent: 'space-between',
             }}
           >
             <Button
               color="neutral"
               variant="plain"
-              sx={{ color: 'text.tertiary' }}
+              sx={{ color: 'text.tertiary', flex: 1, justifyContent: 'left' }}
               startDecorator={<XCircleIcon />}
               onClick={() => {
                 clearHistory();
@@ -69,7 +74,7 @@ export default function ChatSubmit({
             </Button>
             <Typography
               level="body-xs"
-              sx={{ ml: 'auto' }}
+              sx={{ ml: 'auto', flex: '1' }}
               color={
                 tokenCount?.tokenCount > tokenCount?.contextLength
                   ? 'danger'
@@ -93,35 +98,46 @@ export default function ChatSubmit({
                 <InfoIcon size="12px" />
               </Tooltip>
             </Typography>
-            <Button
-              sx={{ ml: 'auto' }}
-              color="neutral"
-              endDecorator={
-                spinner ? (
-                  <CircularProgress
-                    thickness={2}
-                    size="sm"
-                    color="neutral"
-                    sx={{
-                      '--CircularProgress-size': '13px',
-                    }}
-                  />
-                ) : (
-                  <SendIcon size="20px" />
-                )
-              }
-              disabled={spinner}
-              id="chat-submit-button"
-              onClick={() => {
-                scrollChatToBottom();
-                const msg = document.getElementById('chat-input').value;
-                document.getElementById('chat-input').value = '';
-                document.getElementById('chat-input').focus();
-                addMessage(msg);
-              }}
+            <Stack
+              flexDirection="row"
+              flex={1}
+              sx={{ display: 'flex', justifyContent: 'flex-end' }}
             >
-              {spinner ? 'Generating' : 'Submit'}
-            </Button>
+              {spinner && (
+                <IconButton color="danger">
+                  <StopCircle onClick={stopStreaming} />
+                </IconButton>
+              )}
+              <Button
+                sx={{}}
+                color="neutral"
+                endDecorator={
+                  spinner ? (
+                    <CircularProgress
+                      thickness={2}
+                      size="sm"
+                      color="neutral"
+                      sx={{
+                        '--CircularProgress-size': '13px',
+                      }}
+                    />
+                  ) : (
+                    <SendIcon size="20px" />
+                  )
+                }
+                disabled={spinner}
+                id="chat-submit-button"
+                onClick={() => {
+                  scrollChatToBottom();
+                  const msg = document.getElementById('chat-input').value;
+                  document.getElementById('chat-input').value = '';
+                  document.getElementById('chat-input').focus();
+                  addMessage(msg);
+                }}
+              >
+                {spinner ? <>Generating</> : 'Submit'}
+              </Button>
+            </Stack>
           </Box>
         }
         sx={{

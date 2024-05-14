@@ -59,7 +59,7 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
       &nbsp;
       {models?.length > 0 ? <TinyCircle size={6} color="#51BC51" /> : ''}
       {models === null ? (
-        <TinyCircle size={6} color="var(--joy-palette-danger-400)" />
+        <TinyCircle size={6} color="rgb(228, 116, 116)" />
       ) : (
         ''
       )}

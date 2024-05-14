@@ -94,6 +94,13 @@ export async function sendAndReceive(
   return null;
 }
 
+// Global variable that if enabled, will stop the current streaming response
+let stopStreaming = false;
+
+export function stopStreamingResponse() {
+  stopStreaming = true;
+}
+
 export async function sendAndReceiveStreaming(
   currentModel: string,
   currentAdaptor: string,
@@ -172,12 +179,19 @@ export async function sendAndReceiveStreaming(
   var start = performance.now();
   var firstTokenTime = null;
   var end = start;
+  stopStreaming = false;
 
   // Reader loop
   try {
     while (true) {
       // eslint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
+
+      if (stopStreaming) {
+        console.log('User requested to stop streaming');
+        stopStreaming = false;
+        reader?.cancel();
+      }
 
       if (firstTokenTime == null) firstTokenTime = performance.now();
 
@@ -590,7 +604,11 @@ Endpoints.Models = {
     API_URL() + 'model/get_local_hfconfig?model_id=' + modelId,
   GetLocalUninstalled: () => API_URL() + 'model/list_local_uninstalled',
   ImportLocal: (modelSource: string, modelId: string) =>
-    API_URL() + 'model/import_local?model_source=' + modelSource + '&model_id=' + modelId,
+    API_URL() +
+    'model/import_local?model_source=' +
+    modelSource +
+    '&model_id=' +
+    modelId,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
 };
