@@ -84,7 +84,7 @@ Transformer Lab allows you to:
 - 📝 **Prompt Editing**
   - Easily edit System Messages or Prompt Templates
 - 📜 **Inference Logs**
-  - While doing inference or RAG, wiew a log of the raw queries sent to the LLM
+  - While doing inference or RAG, view a log of the raw queries sent to the LLM
 
 And you can do the above, all through a simple cross-platform GUI.
 
