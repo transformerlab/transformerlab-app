@@ -754,32 +754,32 @@ Endpoints.Experiment = {
     );
   },
   SaveConversation: (experimentId: String) =>
-    API_URL() + 'experiment/' + experimentId + '/save_conversation',
+    API_URL() + 'experiment/' + experimentId + '/conversations/save',
   GetConversations: (experimentId: string) =>
-    FULL_PATH('experiment/' + experimentId + '/get_conversations'),
+    FULL_PATH('experiment/' + experimentId + '/conversations/list'),
   DeleteConversation: (experimentId: string, conversationId: string) =>
     FULL_PATH(
       'experiment/' +
         experimentId +
-        '/delete_conversation?conversation_id=' +
+        '/conversations/delete?conversation_id=' +
         conversationId
     ),
   InstallPlugin: (experimentId: string, pluginId: string) =>
     API_URL() +
     'experiment/' +
     experimentId +
-    '/install_plugin_to_experiment' +
+    '/plugins/install_plugin_to_experiment' +
     '?plugin_name=' +
     pluginId,
   DeletePlugin: (experimentId: string, pluginId: string) =>
     API_URL() +
     'experiment/' +
     experimentId +
-    '/delete_plugin_from_experiment' +
+    '/plugins/delete_plugin_from_experiment' +
     '?plugin_name=' +
     pluginId,
   ListScripts: (experimentId: string) =>
-    FULL_PATH('experiment/' + experimentId + '/scripts/list'),
+    FULL_PATH('experiment/' + experimentId + '/plugins/list'),
   ListScriptsOfType: (
     experimentId: string,
     type: string,
@@ -788,17 +788,17 @@ Endpoints.Experiment = {
     FULL_PATH(
       'experiment/' +
         experimentId +
-        '/scripts/list?type=' +
+        '/plugins/list?type=' +
         type +
         (filter ? '&filter=' + filter : '')
     ),
   ScriptListFiles: (experimentId: string, id: string) =>
-    API_URL() + 'experiment/' + experimentId + '/scripts/' + id + '/list_files',
+    API_URL() + 'experiment/' + experimentId + '/plugins/' + id + '/list_files',
   ScriptGetFile: (experimentId: string, pluginId: string, filename: string) =>
     API_URL() +
     'experiment/' +
     experimentId +
-    '/scripts/' +
+    '/plugins/' +
     pluginId +
     '/file_contents?filename=' +
     filename,
@@ -806,7 +806,7 @@ Endpoints.Experiment = {
     API_URL() +
     'experiment/' +
     experimentId +
-    '/scripts/' +
+    '/plugins/' +
     pluginId +
     '/create_new_file?filename=' +
     filename,
@@ -818,7 +818,7 @@ Endpoints.Experiment = {
     API_URL() +
     'experiment/' +
     experimentId +
-    '/scripts/' +
+    '/plugins/' +
     pluginId +
     '/delete_file?filename=' +
     filename,
@@ -826,7 +826,7 @@ Endpoints.Experiment = {
     API_URL() +
     'experiment/' +
     experimentId +
-    '/scripts/' +
+    '/plugins/' +
     pluginId +
     '/save_file_contents?filename=' +
     filename,
@@ -834,7 +834,7 @@ Endpoints.Experiment = {
     API_URL() +
     'experiment/' +
     experimentId +
-    '/scripts/new_plugin?pluginId=' +
+    '/plugins/new_plugin?pluginId=' +
     pluginId,
   ScriptDeletePlugin: (experimentId: string, pluginId: string) =>
     API_URL() +
