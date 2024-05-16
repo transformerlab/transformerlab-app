@@ -363,7 +363,8 @@ export async function executeInstallStep(argument: string) {
     console.log(
       'Install step failed. TransformerLab directory has not been setup.'
     );
-    return false;
+    const err = new Error('TransformerLab directory has not been setup.');
+    return { error: err, stdout: '', stderr: '' };
   }
 
   const installScriptFilename = 'install.sh';
