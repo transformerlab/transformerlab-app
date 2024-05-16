@@ -68,7 +68,7 @@ ipcMain.handle('server:checkSystemRequirements', async (event) => {
 });
 
 ipcMain.handle('server:checkIfInstalledLocally', async (event) => {
-  return await checkLocalServerVersion() !== false;
+  return (await checkLocalServerVersion()) !== false;
 });
 
 ipcMain.handle('server:checkLocalVersion', async (event) => {
@@ -85,9 +85,10 @@ ipcMain.handle('server:InstallLocally', async (event) => {
 
 ipcMain.handle('server:install_conda', async (event) => {
   console.log('** Installing conda');
-  await executeInstallStep('install_conda');
+  const response = await executeInstallStep('install_conda');
+  console.log(response?.stdout);
   console.log('Finishing installing conda');
-  return;
+  return response;
 });
 
 ipcMain.handle('server:install_create-conda-environment', async (event) => {

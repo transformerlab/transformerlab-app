@@ -439,7 +439,7 @@ function CheckForPlugins({ activeStep, setActiveStep }) {
 
 function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
   const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
-
+  const [errorMessage, setErrorMessage] = useState(null);
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_INSTALLED')) return;
 
@@ -462,11 +462,13 @@ function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
         {installStatus == 'success' && <Chip color="success">Success!</Chip>}
         {installStatus == 'pending' && (
           <>
-            <CircularProgress color="primary" /> Installing. This can take a
-            while.
+            <Typography level="body-sm" color="neutral">
+              <CircularProgress color="primary" />
+              <br />
+              Installing. This can take a while.
+            </Typography>
           </>
         )}
-
         {activeStep == Steps.indexOf('CHECK_IF_CONDA_INSTALLED') &&
           installStatus == 'notstarted' && (
             <ButtonGroup variant="plain" spacing={1}>
@@ -479,6 +481,10 @@ function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
                   const installConda = await window.electron.ipcRenderer.invoke(
                     'server:install_conda'
                   );
+                  if (installConda?.error) {
+                    setInstallStatus('error');
+                    setErrorMessage(installConda?.stderr);
+                  }
                   const condaExists = await window.electron.ipcRenderer.invoke(
                     'server:checkIfCondaExists'
                   );
@@ -504,7 +510,9 @@ function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
                       }
                       return false;
                     },
-                    () => {},
+                    () => {
+                      setInstallStatus('error');
+                    },
                     2000,
                     8
                   );
@@ -514,6 +522,15 @@ function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
               </Button>
             </ButtonGroup>
           )}
+        <Typography level="body-sm" color="warning">
+          {errorMessage && (
+            <>
+              Transformer Lab encountered the following unexpected Error:
+              <pre style={{ whiteSpace: 'pre-wrap' }}>{errorMessage}</pre>
+              Please try to fix the above issue and restart the app.
+            </>
+          )}
+        </Typography>
       </Stack>
     </>
   );
@@ -641,10 +658,7 @@ function CheckDependencies({ activeStep, setActiveStep }) {
         'server:checkDependencies'
       );
 
-      if (
-        ipcResponse?.status == 'success' &&
-        ipcResponse?.data?.length == 0
-      ) {
+      if (ipcResponse?.status == 'success' && ipcResponse?.data?.length == 0) {
         setInstallStatus('success');
         setActiveStep(
           Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1
@@ -691,10 +705,9 @@ function CheckDependencies({ activeStep, setActiveStep }) {
                     'server:install_install-dependencies'
                   );
 
-                  const ipcResponse =
-                    await window.electron.ipcRenderer.invoke(
-                      'server:checkDependencies'
-                    );
+                  const ipcResponse = await window.electron.ipcRenderer.invoke(
+                    'server:checkDependencies'
+                  );
 
                   if (
                     ipcResponse?.status == 'success' &&
