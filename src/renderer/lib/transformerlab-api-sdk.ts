@@ -705,7 +705,7 @@ Endpoints.Experiment = {
       API_URL() +
       'experiment/' +
       id +
-      '/get_evaluation_plugin_file_contents?plugin_name=' +
+      '/evals/get_evaluation_plugin_file_contents?plugin_name=' +
       plugin_name
     );
   },
@@ -714,7 +714,7 @@ Endpoints.Experiment = {
       API_URL() +
       'experiment/' +
       id +
-      '/run_evaluation_script?eval_name=' +
+      '/evals/run_evaluation_script?eval_name=' +
       evalName +
       '&plugin_name=' +
       pluginName
@@ -724,7 +724,7 @@ Endpoints.Experiment = {
     API_URL() +
     'experiment/' +
     experimentId +
-    '/delete_eval_from_experiment' +
+    '/evals/delete' +
     '?eval_name=' +
     evalName,
   RunExport: (
@@ -737,7 +737,7 @@ Endpoints.Experiment = {
       API_URL() +
       'experiment/' +
       id +
-      '/run_exporter_script?plugin_name=' +
+      '/export/run_exporter_script?plugin_name=' +
       pluginName +
       '&plugin_architecture=' +
       pluginArchitecture +
@@ -895,17 +895,14 @@ export async function EXPERIMENT_ADD_EVALUATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await fetch(
-    API_URL() + 'experiment/' + id + '/add_evaluation',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(newPlugin),
-    }
-  );
+  const response = await fetch(API_URL() + 'experiment/' + id + '/evals/add', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(newPlugin),
+  });
   const result = await response.json();
   return result;
 }
