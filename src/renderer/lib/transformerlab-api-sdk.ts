@@ -578,8 +578,14 @@ function convertSlashInUrl(url: string) {
 Endpoints.Dataset = {
   Gallery: () => API_URL() + 'data/gallery',
   Info: (datasetId: string) => API_URL() + 'data/info?dataset_id=' + datasetId,
-  Preview: (datasetId: string) =>
-    API_URL() + 'data/preview?dataset_id=' + datasetId,
+  Preview: (datasetId: string, offset: number, limit: number) =>
+    API_URL() +
+    'data/preview?dataset_id=' +
+    datasetId +
+    '&offset=' +
+    offset +
+    '&limit=' +
+    limit,
   Delete: (datasetId: string) =>
     API_URL() + 'data/delete?dataset_id=' + datasetId,
   Create: (datasetId: string) => API_URL() + 'data/new?dataset_id=' + datasetId,
