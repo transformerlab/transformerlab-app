@@ -18,6 +18,8 @@ import {
 import { iconButtonClasses } from '@mui/joy/IconButton';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { FaEllipsisH } from 'react-icons/fa';
 
 const fetcher = (url) =>
   fetch(url)
@@ -56,132 +58,134 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
         <Typography level="h4">
           Preview <b>{dataset_id}</b>
         </Typography>
-        <Divider sx={{ my: 2 }} />
+        <Divider sx={{ my: 1 }} />
         <Sheet
           sx={{
             display: 'flex',
             flexDirection: 'column',
             gap: 2,
-            overflowY: 'scroll',
+            overflowY: 'hidden',
+            width: '80vw',
+            height: '80vh',
+            justifyContent: 'space-between',
           }}
         >
-          {isLoading && <CircularProgress />}
-          {data &&
-            data.out && ( //Data is loaded as a map of column names to arrays of values
-              <Table sx={{ tableLayout: 'auto' }}>
-                <thead>
-                  <tr>
-                    {Object.keys(data.out).map((key) => (
-                      <th key={key}>{key}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({
-                    length: data.out[Object.keys(data.out)[0]].length,
-                  }).map((_, rowIndex) => (
-                    <tr key={rowIndex}>
+          <Box sx={{ overflow: 'auto', height: '100%' }}>
+            {isLoading && <CircularProgress />}
+            {data &&
+              data.out && ( //Data is loaded as a map of column names to arrays of values
+                <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
+                  <thead>
+                    <tr>
                       {Object.keys(data.out).map((key) => (
-                        <td
-                          key={key}
-                          style={{
-                            whiteSpace: 'pre-line',
-                            verticalAlign: 'top',
-                          }}
-                        >
-                          {typeof data.out[key][rowIndex] === 'string'
-                            ? data.out[key][rowIndex]
-                            : JSON.stringify(data.out[key][rowIndex])}
-                        </td>
+                        <th key={key}>{key}</th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          {!isLoading && (
-            <Box
-              className="Pagination"
-              sx={{
-                pt: 2,
-                gap: 1,
-                [`& .${iconButtonClasses.root}`]: { borderRadius: '50%' },
-                display: 'inline-flex',
-              }}
-            >
-              {pageNumber > 1 ? (
-                <Button
-                  size="sm"
-                  variant="outlined"
-                  color="neutral"
-                  onClick={() => setPageNumber(pageNumber - 1)}
-                >
-                  Previous
-                </Button>
-              ) : (
-                <div style={{ width: '78px', height: '30px' }} />
-              )}
-              <Box sx={{ flex: 1 }} />
-              <IconButton
-                key={1}
+                  </thead>
+                  <tbody>
+                    {Array.from({
+                      length: data.out[Object.keys(data.out)[0]].length,
+                    }).map((_, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {Object.keys(data.out).map((key) => (
+                          <td
+                            key={key}
+                            style={{
+                              whiteSpace: 'pre-line',
+                              verticalAlign: 'top',
+                            }}
+                          >
+                            {typeof data.out[key][rowIndex] === 'string'
+                              ? data.out[key][rowIndex]
+                              : JSON.stringify(data.out[key][rowIndex])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}{' '}
+          </Box>
+          <Box
+            className="Pagination"
+            sx={{
+              pt: 2,
+              gap: 1,
+              [`& .${iconButtonClasses.root}`]: { borderRadius: '50%' },
+              display: 'inline-flex',
+              alignItems: 'center',
+            }}
+          >
+            {pageNumber > 1 ? (
+              <Button
                 size="sm"
-                variant={Number(1) === pageNumber ? 'outlined' : 'plain'}
+                variant="outlined"
                 color="neutral"
-                onClick={() => setPageNumber(Number(1))}
+                onClick={() => setPageNumber(pageNumber - 1)}
               >
-                {1}
-              </IconButton>
-              {pageNumber > 4 ? <div>...</div> : <div />}
-              {Array.from(
-                { length: Math.min(5, numOfPages) },
-                (_, i) => pageNumber + i - 2
-              )
-                .filter((page) => page >= 2 && page < numOfPages)
+                <ChevronLeftIcon /> Previous
+              </Button>
+            ) : (
+              <div style={{ width: '78px', height: '30px' }} />
+            )}
+            <Box sx={{ flex: 1, alignItems: 'center' }} />
+            <IconButton
+              key={1}
+              size="sm"
+              variant={Number(1) === pageNumber ? 'outlined' : 'plain'}
+              color="neutral"
+              onClick={() => setPageNumber(Number(1))}
+            >
+              {1}
+            </IconButton>
+            {pageNumber > 4 ? <FaEllipsisH /> : <div />}
+            {Array.from(
+              { length: Math.min(5, numOfPages) },
+              (_, i) => pageNumber + i - 2
+            )
+              .filter((page) => page >= 2 && page < numOfPages)
 
-                .map((page) => (
-                  <IconButton
-                    key={page}
-                    size="sm"
-                    variant={page === pageNumber ? 'outlined' : 'plain'}
-                    color="neutral"
-                    onClick={() => setPageNumber(Number(page))}
-                  >
-                    {page}
-                  </IconButton>
-                ))}
-              {pageNumber < numOfPages - 4 ? <div>...</div> : <div />}
-              {numOfPages != 1 && (
+              .map((page) => (
                 <IconButton
-                  key={numOfPages}
+                  key={page}
                   size="sm"
-                  variant={
-                    Number(numOfPages) === pageNumber ? 'outlined' : 'plain'
-                  }
+                  variant={page === pageNumber ? 'outlined' : 'plain'}
                   color="neutral"
-                  onClick={() => setPageNumber(Number(numOfPages))}
+                  onClick={() => setPageNumber(Number(page))}
                 >
-                  {numOfPages}
+                  {page}
                 </IconButton>
-              )}
-              <Box sx={{ flex: 1 }} />
-              {pageNumber < numOfPages ? (
-                <Button
-                  size="sm"
-                  variant="outlined"
-                  color="neutral"
-                  onClick={() => setPageNumber(pageNumber + 1)}
-                >
-                  Next
-                </Button>
-              ) : (
-                <div style={{ width: '78px', height: '30px' }} />
-              )}
-            </Box>
-          )}
+              ))}
+            {pageNumber < numOfPages - 4 ? <FaEllipsisH /> : <div />}
+            {numOfPages != 1 && (
+              <IconButton
+                key={numOfPages}
+                size="sm"
+                variant={
+                  Number(numOfPages) === pageNumber ? 'outlined' : 'plain'
+                }
+                color="neutral"
+                onClick={() => setPageNumber(Number(numOfPages))}
+              >
+                {numOfPages}
+              </IconButton>
+            )}
+            <Box sx={{ flex: 1 }} />
+            {pageNumber < numOfPages ? (
+              <Button
+                size="sm"
+                variant="outlined"
+                color="neutral"
+                onClick={() => setPageNumber(pageNumber + 1)}
+              >
+                Next <ChevronRightIcon />
+              </Button>
+            ) : (
+              <div style={{ width: '78px', height: '30px' }} />
+            )}
+          </Box>
         </Sheet>
       </ModalDialog>
     </Modal>
   );
 }
-
-	
