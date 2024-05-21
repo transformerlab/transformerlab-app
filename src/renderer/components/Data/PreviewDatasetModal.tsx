@@ -73,21 +73,21 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
           <Box sx={{ overflow: 'auto', height: '100%' }}>
             {isLoading && <CircularProgress />}
             {data &&
-              data.out && ( //Data is loaded as a map of column names to arrays of values
+              data.data && ( //Data is loaded as a map of column names to arrays of values
                 <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
                   <thead>
                     <tr>
-                      {Object.keys(data.out).map((key) => (
+                      {Object.keys(data.data).map((key) => (
                         <th key={key}>{key}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {Array.from({
-                      length: data.out[Object.keys(data.out)[0]].length,
+                      length: data.data[Object.keys(data.data)[0]].length,
                     }).map((_, rowIndex) => (
                       <tr key={rowIndex}>
-                        {Object.keys(data.out).map((key) => (
+                        {Object.keys(data.data).map((key) => (
                           <td
                             key={key}
                             style={{
@@ -95,9 +95,9 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
                               verticalAlign: 'top',
                             }}
                           >
-                            {typeof data.out[key][rowIndex] === 'string'
-                              ? data.out[key][rowIndex]
-                              : JSON.stringify(data.out[key][rowIndex])}
+                            {typeof data.data[key][rowIndex] === 'string'
+                              ? data.data[key][rowIndex]
+                              : JSON.stringify(data.data[key][rowIndex])}
                           </td>
                         ))}
                       </tr>
