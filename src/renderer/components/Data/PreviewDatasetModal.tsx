@@ -28,7 +28,8 @@ const fetcher = (url) =>
 
 export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
   const [pageNumber, setPageNumber] = useState(1);
-  const [numOfPages, setNumOfPages] = useState(0);
+  const [numOfPages, setNumOfPages] = useState(1);
+  const [datasetLen, setDatasetLen] = useState(null);
   let pageSize = 10; //Set the number of rows per page
   const offset = (pageNumber - 1) * pageSize; //Calculate current row number to start from
   //Set the pagination for the dataset
@@ -41,10 +42,11 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
     fetcher
   );
   useEffect(() => {
-    if (data && data.len) {
-      setPagination(data.len, pageSize);
+    if (data && data.data && datasetLen === null) {
+      setDatasetLen(data.data['len']);
+      setPagination(data.data['len'], pageSize);
     }
-  }, [data, pageSize]);
+  }, [data, pageSize, datasetLen]);
 
   return (
     <Modal
@@ -73,21 +75,24 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
           <Box sx={{ overflow: 'auto', height: '100%' }}>
             {isLoading && <CircularProgress />}
             {data &&
-              data.data && ( //Data is loaded as a map of column names to arrays of values
+              data.data['columns'] && ( //Data is loaded as a map of column names to arrays of values
                 <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
                   <thead>
                     <tr>
-                      {Object.keys(data.data).map((key) => (
+                      {Object.keys(data.data['columns']).map((key) => (
                         <th key={key}>{key}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {Array.from({
-                      length: data.data[Object.keys(data.data)[0]].length,
+                      length:
+                        data.data['columns'][
+                          Object.keys(data.data['columns'])[0]
+                        ].length,
                     }).map((_, rowIndex) => (
                       <tr key={rowIndex}>
-                        {Object.keys(data.data).map((key) => (
+                        {Object.keys(data.data['columns']).map((key) => (
                           <td
                             key={key}
                             style={{
@@ -95,9 +100,12 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
                               verticalAlign: 'top',
                             }}
                           >
-                            {typeof data.data[key][rowIndex] === 'string'
-                              ? data.data[key][rowIndex]
-                              : JSON.stringify(data.data[key][rowIndex])}
+                            {typeof data.data['columns'][key][rowIndex] ===
+                            'string'
+                              ? data.data['columns'][key][rowIndex]
+                              : JSON.stringify(
+                                  data.data['columns'][key][rowIndex]
+                                )}
                           </td>
                         ))}
                       </tr>
