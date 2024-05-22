@@ -1,4 +1,3 @@
-Datastore.tsx;
 import useSWR from 'swr';
 import { useState } from 'react';
 
@@ -21,8 +20,6 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function DataStore() {
   const [searchText, setSearchText] = useState('');
-  const [filters, setFilters] = useState({});
-
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Gallery(),
     fetcher
