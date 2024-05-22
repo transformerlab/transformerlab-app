@@ -91,11 +91,11 @@ export default function LocalPlugins({ experimentInfo }) {
         <>
           <FormControl>
             {/* <FormLabel>Load 🤗 Hugging Face Model</FormLabel> */}
-            <Input
+            {/* <Input
               placeholder="http://www.example.com/example-plugin"
               endDecorator={<Button>Download Plugin</Button>}
               sx={{ width: '500px' }}
-            />
+            /> */}
 
             {/* <FormHelperText>
 Enter full URL of model, for example:

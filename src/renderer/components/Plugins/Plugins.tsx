@@ -30,6 +30,7 @@ export default function Plugins({ experimentInfo }) {
         <TabPanel
           value={0}
           sx={{
+            overflow: 'hidden',
             height: '100%',
             flexDirection: 'column',
           }}
