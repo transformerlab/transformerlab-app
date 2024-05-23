@@ -96,6 +96,8 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
   const [order, setOrder] = useState<Order>('desc');
+  // jobId is null if there is no current download in progress,
+  // and it is -1 if a download has been initiated but it hasn't started yet
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [searchText, setSearchText] = useState('');
@@ -108,13 +110,6 @@ export default function ModelStore() {
     mutate: modelGalleryMutate,
   } = useSWR(chatAPI.Endpoints.Models.Gallery(), fetcher);
 
-  const {
-    data: localModelsData,
-    error: localModelsError,
-    isLoading: localModelsIsLoading,
-    mutate: localModelsMutate,
-  } = useSWR(chatAPI.Endpoints.Models.LocalList(), fetcher);
-
   const { data: modelDownloadProgress } = useSWR(
     currentlyDownloading && jobId != '-1'
       ? chatAPI.Endpoints.Jobs.Get(jobId)
@@ -126,17 +121,19 @@ export default function ModelStore() {
   // On page load, check if there are any models currently being downloaded, and if so,
   // Record the jobID and model Name
   useEffect(() => {
-    fetch(
-      chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'IN_PROGRESS')
-    ).then(async (response) => {
-      const jobs = await response.json();
-      if (jobs.length) {
-        setJobId(jobs[0]?.id);
-        jobs[0]?.job_data?.model
-          ? setCurrentlyDownloading(jobs[0]?.job_data?.model)
-          : setCurrentlyDownloading('Unknown');
-      }
-    });
+    fetch(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'IN_PROGRESS'))
+      .then(async (response) => {
+        const jobs = await response.json();
+        if (jobs.length) {
+          setJobId(jobs[0]?.id);
+          jobs[0]?.job_data?.model
+            ? setCurrentlyDownloading(jobs[0]?.job_data?.model)
+            : setCurrentlyDownloading('Unknown');
+        }
+      })
+      .catch((e) => {
+        console.log(e);
+      });
   }, []);
 
   const renderFilters = () => (
@@ -174,6 +171,62 @@ export default function ModelStore() {
   );
   return (
     <>
+      {jobId && (
+        <Box>
+          {/* <Typography level="title-md" sx={{ mt: 2 }}>
+            Downloading
+          </Typography> */}
+          <Stack>
+            {/* Download Progress: {JSON.stringify(modelDownloadProgress)}
+            Currently Downloading: {JSON.stringify(currentlyDownloading)}&nbsp;
+            Job: {JSON.stringify(jobId)} */}
+            <Sheet
+              variant="soft"
+              color="warning"
+              sx={{ my: 1, padding: 2, borderRadius: '8px' }}
+            >
+              <Typography level="title-sm" sx={{ pb: 1 }}>
+                Downloading <Chip variant="soft">{currentlyDownloading}</Chip>
+                {' - '}
+                {modelDownloadProgress?.job_data?.total_size_of_model_in_mb >
+                  0 && (
+                  <>
+                    {clamp(
+                      Number.parseFloat(modelDownloadProgress?.progress),
+                      0,
+                      100
+                    ).toFixed(0)}
+                    % {' - '}
+                  </>
+                )}
+                {modelDownloadProgress?.job_data?.downloaded != 0
+                  ? formatBytes(
+                      tryJSON(modelDownloadProgress?.job_data)?.downloaded *
+                        1024 *
+                        1024
+                    )
+                  : 'Download Starting'}
+              </Typography>
+              {modelDownloadProgress?.progress !== -1 && (
+                <>
+                  {modelDownloadProgress?.job_data?.total_size_of_model_in_mb >
+                  0 ? (
+                    <LinearProgress
+                      determinate
+                      value={clamp(modelDownloadProgress?.progress, 0, 100)}
+                    />
+                  ) : (
+                    <LinearProgress />
+                  )}
+                </>
+              )}
+            </Sheet>
+          </Stack>
+          {/* downloadprogress: {JSON.stringify(modelDownloadProgress)} - currdown:{' '}
+          {JSON.stringify(currentlyDownloading)} - jobid:{' '}
+          {JSON.stringify(jobId)} */}
+        </Box>
+      )}
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
@@ -351,6 +404,7 @@ export default function ModelStore() {
                             );
                           }
                           setCurrentlyDownloading(null);
+                          setJobId(null);
                           modelGalleryMutate();
                         } catch (e) {
                           setCurrentlyDownloading(null);
@@ -432,52 +486,6 @@ export default function ModelStore() {
           </tbody>
         </Table>
       </Sheet>
-      {jobId && (
-        <Box>
-          <Typography level="title-md" sx={{ mt: 2 }}>
-            Downloading
-          </Typography>
-          <Stack>
-            {/* Download Progress: {JSON.stringify(modelDownloadProgress)}
-            Currently Downloading: {JSON.stringify(currentlyDownloading)}&nbsp;
-            Job: {JSON.stringify(jobId)} */}
-            <Sheet
-              variant="soft"
-              color="warning"
-              sx={{ my: 1, padding: 2, borderRadius: '8px' }}
-            >
-              <Typography level="title-sm" sx={{ pb: 1 }}>
-                {currentlyDownloading}
-                {' - '}
-                {clamp(
-                  Number.parseFloat(modelDownloadProgress?.progress),
-                  0,
-                  100
-                ).toFixed(0)}
-                %{' - '}
-                {formatBytes(
-                  tryJSON(modelDownloadProgress?.job_data)?.downloaded *
-                    1024 *
-                    1024
-                )}
-              </Typography>
-              {modelDownloadProgress?.progress !== -1 && (
-                <LinearProgress
-                  determinate
-                  value={clamp(modelDownloadProgress?.progress, 0, 100)}
-                />
-              )}
-            </Sheet>
-            {/* <Sheet variant="soft" sx={{ my: 1, padding: 2, borderRadius: '8px' }}>
-            <Typography level="title-sm">Model 2: </Typography>
-            <LinearProgress
-              determinate
-              value={clamp(modelDownloadProgress?.progress, 0, 100)}
-            />
-          </Sheet> */}
-          </Stack>
-        </Box>
-      )}
     </>
   );
 }
