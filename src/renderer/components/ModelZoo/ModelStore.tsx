@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   FormControl,
@@ -16,6 +16,7 @@ import {
   Button,
   CircularProgress,
   LinearProgress,
+  Stack,
 } from '@mui/joy';
 import {
   ArrowDownIcon,
@@ -121,6 +122,22 @@ export default function ModelStore() {
     fetcher,
     { refreshInterval: 2000 }
   );
+
+  // On page load, check if there are any models currently being downloaded, and if so,
+  // Record the jobID and model Name
+  useEffect(() => {
+    fetch(
+      chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'IN_PROGRESS')
+    ).then(async (response) => {
+      const jobs = await response.json();
+      if (jobs.length) {
+        setJobId(jobs[0]?.id);
+        jobs[0]?.job_data?.model
+          ? setCurrentlyDownloading(jobs[0]?.job_data?.model)
+          : setCurrentlyDownloading('Unknown');
+      }
+    });
+  }, []);
 
   const renderFilters = () => (
     <>
@@ -330,7 +347,7 @@ export default function ModelStore() {
                             setCurrentlyDownloading(null);
                             setJobId(null);
                             return alert(
-                              `Failed to download:\n${response.message}` 
+                              `Failed to download:\n${response.message}`
                             );
                           }
                           setCurrentlyDownloading(null);
@@ -415,6 +432,52 @@ export default function ModelStore() {
           </tbody>
         </Table>
       </Sheet>
+      {jobId && (
+        <Box>
+          <Typography level="title-md" sx={{ mt: 2 }}>
+            Downloading
+          </Typography>
+          <Stack>
+            {/* Download Progress: {JSON.stringify(modelDownloadProgress)}
+            Currently Downloading: {JSON.stringify(currentlyDownloading)}&nbsp;
+            Job: {JSON.stringify(jobId)} */}
+            <Sheet
+              variant="soft"
+              color="warning"
+              sx={{ my: 1, padding: 2, borderRadius: '8px' }}
+            >
+              <Typography level="title-sm" sx={{ pb: 1 }}>
+                {currentlyDownloading}
+                {' - '}
+                {clamp(
+                  Number.parseFloat(modelDownloadProgress?.progress),
+                  0,
+                  100
+                ).toFixed(0)}
+                %{' - '}
+                {formatBytes(
+                  tryJSON(modelDownloadProgress?.job_data)?.downloaded *
+                    1024 *
+                    1024
+                )}
+              </Typography>
+              {modelDownloadProgress?.progress !== -1 && (
+                <LinearProgress
+                  determinate
+                  value={clamp(modelDownloadProgress?.progress, 0, 100)}
+                />
+              )}
+            </Sheet>
+            {/* <Sheet variant="soft" sx={{ my: 1, padding: 2, borderRadius: '8px' }}>
+            <Typography level="title-sm">Model 2: </Typography>
+            <LinearProgress
+              determinate
+              value={clamp(modelDownloadProgress?.progress, 0, 100)}
+            />
+          </Sheet> */}
+          </Stack>
+        </Box>
+      )}
     </>
   );
 }

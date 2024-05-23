@@ -852,10 +852,12 @@ Endpoints.Experiment = {
 };
 
 Endpoints.Jobs = {
-  List: () => API_URL() + 'train/jobs',
+  List: () => API_URL() + 'jobs/list',
   Get: (jobId: string) => API_URL() + 'train/job/' + jobId,
   Create: (templateId: string, experimentId: string) =>
     API_URL() + 'jobs/create',
+  GetJobsOfType: (type: string = '', status: string = '') =>
+    API_URL() + 'jobs/list' + '?type=' + type + '&status=' + status,
 };
 
 Endpoints.Global = {
