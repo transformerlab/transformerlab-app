@@ -135,18 +135,19 @@ export default function ImportModelsModal({ open, setOpen}) {
             }}
           >
 
-            {/*
+            {
             <FormControl>
               <Typography>
                 <b>Search Local Directory: </b>
+              </Typography>
                 <input
                   type="text"
                   size="50"
                   for="modelFolderSelector"
                   class="btn"
+                  readOnly
                   value={modelFolder ? modelFolder.toString() : "(none)"}
                 />
-              </Typography>
                 <input
                   directory=""
                   webkitdirectory=""
@@ -157,13 +158,18 @@ export default function ImportModelsModal({ open, setOpen}) {
                     // The input returns a list of files under the selected folder.
                     // NOT the folder. But you can figure out the folder based on
                     // the difference between path and webkitRelativePath.
+                    // The path we want includes the first directory in webkitRelativePath.
                     const filelist: FileList | null = event.target.files;
                     if (filelist && filelist.length > 0 ) {
                       const firstfile = filelist[0];
                       const firstfilepath = firstfile.path;
                       const webkitRelativePath = firstfile.webkitRelativePath;
-                      const parentPath = firstfilepath.slice(0, -1*webkitRelativePath.length)
-                      setModelFolder(parentPath);
+                      const parentPath = firstfilepath.slice(0, -1*webkitRelativePath.length);
+                      const topRelativePathDir = webkitRelativePath.split('/')[0];
+                      const fullPath = parentPath + '/' + topRelativePathDir;
+                      console.log(firstfile);
+                      console.log(webkitRelativePath);
+                      setModelFolder(fullPath);
                     } else {
                       setModelFolder(null);
                     }
@@ -171,7 +177,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                 />
               <br />
             </FormControl>
-            */}
+            }
 
             <Table
                 aria-labelledby="tableTitle"
