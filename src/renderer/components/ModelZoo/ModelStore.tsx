@@ -219,9 +219,9 @@ export default function ModelStore() {
               )}
             </Sheet>
           </Stack>
-          downloadprogress: {JSON.stringify(modelDownloadProgress)} - currdown:{' '}
+          {/* downloadprogress: {JSON.stringify(modelDownloadProgress)} - currdown:{' '}
           {JSON.stringify(currentlyDownloading)} - jobid:{' '}
-          {JSON.stringify(jobId)}
+          {JSON.stringify(jobId)} */}
         </Box>
       )}
     </>
