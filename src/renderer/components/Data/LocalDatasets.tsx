@@ -10,17 +10,37 @@ import {
   Input,
   LinearProgress,
   Sheet,
-  CircularProgress
+  CircularProgress,
+  FormLabel,
 } from '@mui/joy';
 import { PlusIcon } from 'lucide-react';
 import DatasetCard from './DatasetCard';
+import { SearchIcon } from 'lucide-react';
+import { filterByFilters } from 'renderer/lib/utils';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import NewDatasetModal from './NewDatasetModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
+export function filterByFiltersDatasetID(data, searchText = '', filters = {}) {
+  return data.filter((row) => {
+    if (row.dataset_id.toLowerCase().includes(searchText.toLowerCase())) {
+      for (const filterKey in filters) {
+        console.log(filterKey, filters[filterKey]);
+        if (filters[filterKey] !== 'All') {
+          if (row[filterKey] !== filters[filterKey]) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+    return false;
+  });
+}
 export default function LocalDatasets() {
+  const [searchText, setSearchText] = useState('');
   const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
   const [downloadingDataset, setDownloadingDataset] = useState(null);
 
@@ -47,12 +67,38 @@ export default function LocalDatasets() {
         open={newDatasetModalOpen}
         setOpen={setNewDatasetModalOpen}
       />
-
+      <Box
+        className="SearchAndFilters-tabletUp"
+        sx={{
+          borderRadius: 'sm',
+          pb: 2,
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 1.5,
+          '& > *': {
+            minWidth: {
+              xs: '120px',
+              md: '160px',
+            },
+          },
+        }}
+      >
+        <FormControl sx={{ flex: 2 }} size="sm">
+          <FormLabel>&nbsp;</FormLabel>
+          <Input
+            placeholder="Search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            startDecorator={<SearchIcon />}
+          />
+        </FormControl>
+      </Box>
       <Sheet
+        className="OrderTableContainer"
         variant="outlined"
-        color="primary"
         sx={{
           width: '100%',
+          height: '100%',
           borderRadius: 'md',
           flex: 1,
           overflow: 'auto',
@@ -61,22 +107,24 @@ export default function LocalDatasets() {
         }}
       >
         <Grid container spacing={2} sx={{ flexGrow: 1 }}>
-          {data.map((row) => (
-            <Grid xs={4}>
-              {/* {<pre>{JSON.stringify(row, null, 2)}</pre>} */}
-              <DatasetCard
-                name={row?.dataset_id}
-                size={row?.size}
-                key={row.id}
-                description={row?.description}
-                repo={row.huggingfacerepo}
-                location={row?.location}
-                parentMutate={mutate}
-              />
-            </Grid>
-          ))}
+          {data && console.log(data)}
+          {data &&
+            filterByFiltersDatasetID(data, searchText).map((row) => (
+              <Grid xs={4}>
+                <DatasetCard
+                  name={row?.dataset_id}
+                  size={row?.size}
+                  key={row.id}
+                  description={row?.description}
+                  repo={row.huggingfacerepo}
+                  location={row?.location}
+                  parentMutate={mutate}
+                />
+              </Grid>
+            ))}
         </Grid>
       </Sheet>
+
       <Box
         sx={{
           justifyContent: 'space-between',
@@ -93,7 +141,9 @@ export default function LocalDatasets() {
               endDecorator={
                 <Button
                   onClick={async (e) => {
-                    const dataset = document.getElementsByName('download-dataset-name')[0].value;
+                    const dataset = document.getElementsByName(
+                      'download-dataset-name'
+                    )[0].value;
                     // only download if valid model is entered
                     if (dataset) {
                       // this triggers UI changes while download is in progress
@@ -124,14 +174,11 @@ export default function LocalDatasets() {
                     downloadingDataset ? (
                       <CircularProgress size="sm" thickness={2} />
                     ) : (
-                      ""
-                    )}
+                      ''
+                    )
+                  }
                 >
-                  {downloadingDataset ? (
-                    "Downloading"
-                  ) : (
-                    "Download 🤗 Dataset"
-                  )}
+                  {downloadingDataset ? 'Downloading' : 'Download 🤗 Dataset'}
                 </Button>
               }
               sx={{ width: '500px' }}
