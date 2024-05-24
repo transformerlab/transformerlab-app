@@ -169,7 +169,8 @@ export default function ModelStore() {
       </FormControl>
     </>
   );
-  return (
+
+  const CurrentDownloadBox = () => (
     <>
       {jobId && (
         <Box>
@@ -199,13 +200,16 @@ export default function ModelStore() {
                     % {' - '}
                   </>
                 )}
-                {modelDownloadProgress?.job_data?.downloaded != 0
-                  ? formatBytes(
-                      tryJSON(modelDownloadProgress?.job_data)?.downloaded *
-                        1024 *
-                        1024
-                    )
-                  : 'Download Starting'}
+                <>
+                  {modelDownloadProgress?.job_data?.downloaded != 0
+                    ? formatBytes(
+                        tryJSON(modelDownloadProgress?.job_data)?.downloaded *
+                          1024 *
+                          1024
+                      )
+                    : 'Download Starting'}
+                  ↓
+                </>
               </Typography>
               {modelDownloadProgress?.progress !== -1 && (
                 <>
@@ -227,6 +231,11 @@ export default function ModelStore() {
           {JSON.stringify(jobId)} */}
         </Box>
       )}
+    </>
+  );
+  return (
+    <>
+      <CurrentDownloadBox />
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
