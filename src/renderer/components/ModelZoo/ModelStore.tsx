@@ -41,14 +41,6 @@ import {
   formatBytes,
 } from '../../lib/utils';
 
-function tryJSON(str) {
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return null;
-  }
-}
-
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
     return -1;
@@ -187,7 +179,8 @@ export default function ModelStore() {
               sx={{ my: 1, padding: 2, borderRadius: '8px' }}
             >
               <Typography level="title-sm" sx={{ pb: 1 }}>
-                Downloading <Chip variant="soft">{currentlyDownloading}</Chip>
+                Downloading
+                <Chip variant="soft">{currentlyDownloading}</Chip>
                 {' - '}
                 {modelDownloadProgress?.job_data?.total_size_of_model_in_mb >
                   0 && (
@@ -203,7 +196,7 @@ export default function ModelStore() {
                 <>
                   {modelDownloadProgress?.job_data?.downloaded != 0
                     ? formatBytes(
-                        tryJSON(modelDownloadProgress?.job_data)?.downloaded *
+                        modelDownloadProgress?.job_data?.downloaded *
                           1024 *
                           1024
                       )
@@ -226,9 +219,9 @@ export default function ModelStore() {
               )}
             </Sheet>
           </Stack>
-          {/* downloadprogress: {JSON.stringify(modelDownloadProgress)} - currdown:{' '}
+          downloadprogress: {JSON.stringify(modelDownloadProgress)} - currdown:{' '}
           {JSON.stringify(currentlyDownloading)} - jobid:{' '}
-          {JSON.stringify(jobId)} */}
+          {JSON.stringify(jobId)}
         </Box>
       )}
     </>
@@ -459,8 +452,7 @@ export default function ModelStore() {
                                 />
                                 &nbsp;&nbsp;
                                 {formatBytes(
-                                  tryJSON(modelDownloadProgress?.job_data)
-                                    ?.downloaded *
+                                  modelDownloadProgress?.job_data?.downloaded *
                                     1024 *
                                     1024
                                 )}
