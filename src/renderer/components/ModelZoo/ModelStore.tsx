@@ -128,6 +128,14 @@ export default function ModelStore() {
       });
   }, []);
 
+  useEffect(() => {
+    if (currentlyDownloading?.status == 'COMPLETE') {
+      setCurrentlyDownloading(null);
+      setJobId(null);
+      modelGalleryMutate();
+    }
+  }, [modelDownloadProgress]);
+
   const renderFilters = () => (
     <>
       <FormControl size="sm">
