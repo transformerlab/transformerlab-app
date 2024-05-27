@@ -104,6 +104,8 @@ export default function ImportModelsModal({ open, setOpen}) {
             return "Hugging Face"
           case "ollama":
             return "Ollama"
+            case "local":
+              return "Local Folder"
           default:
             return source;
         }
@@ -167,8 +169,6 @@ export default function ImportModelsModal({ open, setOpen}) {
                       const parentPath = firstfilepath.slice(0, -1*webkitRelativePath.length);
                       const topRelativePathDir = webkitRelativePath.split('/')[0];
                       const fullPath = parentPath + topRelativePathDir;
-                      console.log(firstfile);
-                      console.log(webkitRelativePath);
                       setModelFolder(fullPath);
                     } else {
                       setModelFolder("");
