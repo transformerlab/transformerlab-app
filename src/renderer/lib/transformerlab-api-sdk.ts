@@ -608,7 +608,8 @@ Endpoints.Models = {
     API_URL() + 'model/details/' + convertSlashInUrl(modelId),
   GetLocalHFConfig: (modelId: string) =>
     API_URL() + 'model/get_local_hfconfig?model_id=' + modelId,
-  GetLocalUninstalled: () => API_URL() + 'model/list_local_uninstalled',
+  SearchForLocalUninstalledModels: (path: string) =>
+    API_URL() + 'model/list_local_uninstalled?path=' + path,
   ImportLocal: (modelSource: string, modelId: string) =>
     API_URL() +
     'model/import_local?model_source=' +

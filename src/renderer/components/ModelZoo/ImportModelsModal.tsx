@@ -25,14 +25,14 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ImportModelsModal({ open, setOpen}) {
     const [importing, setImporting] = useState(false);
-    const [modelFolder, setModelFolder] = useState(null); // Disabled folder support
+    const [modelFolder, setModelFolder] = useState("");
 
     const {
         data: modelsData,
         error: modelsError,
         isLoading: isLoading,
     } = useSWR(
-        chatAPI.Endpoints.Models.GetLocalUninstalled(),
+        chatAPI.Endpoints.Models.SearchForLocalUninstalledModels(modelFolder),
         fetcher
     );
     const models = modelsData?.data;
@@ -166,12 +166,12 @@ export default function ImportModelsModal({ open, setOpen}) {
                       const webkitRelativePath = firstfile.webkitRelativePath;
                       const parentPath = firstfilepath.slice(0, -1*webkitRelativePath.length);
                       const topRelativePathDir = webkitRelativePath.split('/')[0];
-                      const fullPath = parentPath + '/' + topRelativePathDir;
+                      const fullPath = parentPath + topRelativePathDir;
                       console.log(firstfile);
                       console.log(webkitRelativePath);
                       setModelFolder(fullPath);
                     } else {
-                      setModelFolder(null);
+                      setModelFolder("");
                     }
                 }}
                 />

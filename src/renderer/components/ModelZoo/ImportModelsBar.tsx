@@ -89,7 +89,6 @@ export default function ModelDetails({}) {
             <Button
               size="sm"
               sx={{ height: '30px' }}
-              disabled={process.env.NODE_ENV != "development"}
               endDecorator={<PlusIcon />}
               onClick={() => {
                 setImportModelsModalOpen(true);
