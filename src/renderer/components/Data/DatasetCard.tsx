@@ -1,5 +1,5 @@
-import * as React from 'react';
 import { useState } from 'react';
+import * as React from 'react';
 
 import {
   Button,
@@ -11,7 +11,12 @@ import {
   ModalDialog,
   Typography,
 } from '@mui/joy';
-import { DownloadIcon, FileTextIcon, Trash2Icon } from 'lucide-react';
+import {
+  DownloadIcon,
+  FileTextIcon,
+  Trash2Icon,
+  CheckIcon,
+} from 'lucide-react';
 
 import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -25,9 +30,10 @@ export default function DatasetCard({
   size,
   description,
   repo,
-  download = false,
+  downloaded,
   location,
   parentMutate,
+  local,
 }) {
   const [installing, setInstalling] = useState(null);
   const [previewDatasetModalOpen, setPreviewDatasetModalOpen] =
@@ -81,7 +87,7 @@ export default function DatasetCard({
           </div>
         </CardContent>
         <CardContent orientation="horizontal">
-          {!download && (
+          {downloaded && local && (
             <>
               <Button
                 color="neutral"
@@ -111,16 +117,22 @@ export default function DatasetCard({
               </Button>
             </>
           )}
-          {download && (
+          {!local && (
             <Button
               variant="solid"
               size="sm"
               color="primary"
               aria-label="Download"
               sx={{ ml: 'auto' }}
-              disabled={installing}
+              disabled={downloaded || installing}
               endDecorator={
-                installing ? <CircularProgress /> : <DownloadIcon size="18px" />
+                downloaded ? (
+                  <CheckIcon />
+                ) : installing ? (
+                  <CircularProgress />
+                ) : (
+                  <DownloadIcon size="18px" />
+                )
               }
               onClick={() => {
                 setInstalling(true);
@@ -146,7 +158,11 @@ export default function DatasetCard({
                   });
               }}
             >
-              {installing ? 'Downloading' : 'Download'}
+              {downloaded
+                ? 'Downloaded'
+                : installing
+                ? 'Downloading'
+                : 'Download'}{' '}
             </Button>
           )}
         </CardContent>

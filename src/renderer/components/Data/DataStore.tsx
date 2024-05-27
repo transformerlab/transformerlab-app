@@ -70,15 +70,16 @@ export default function DataStore() {
       >
         <Grid container spacing={2} sx={{ flexGrow: 1 }}>
           {data &&
-            filterByFilters(data, searchText).map((row) => (
+            data.data &&
+            filterByFilters(data.data, searchText).map((row) => (
               <Grid xs={4}>
                 <DatasetCard
                   name={row.name}
                   size={row.size}
-                  key={row.id}
                   description={row.description}
                   repo={row.huggingfacerepo}
-                  download
+                  downloaded={row.downloaded}
+                  local={false}
                   location={undefined}
                   parentMutate={mutate}
                 />

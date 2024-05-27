@@ -107,7 +107,6 @@ export default function LocalDatasets() {
         }}
       >
         <Grid container spacing={2} sx={{ flexGrow: 1 }}>
-          {data && console.log(data)}
           {data &&
             filterByFiltersDatasetID(data, searchText).map((row) => (
               <Grid xs={4}>
@@ -118,6 +117,8 @@ export default function LocalDatasets() {
                   description={row?.description}
                   repo={row.huggingfacerepo}
                   location={row?.location}
+                  downloaded={true}
+                  local={true}
                   parentMutate={mutate}
                 />
               </Grid>
