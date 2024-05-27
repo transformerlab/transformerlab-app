@@ -41,14 +41,6 @@ import {
   formatBytes,
 } from '../../lib/utils';
 
-function tryJSON(str) {
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return null;
-  }
-}
-
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
     return -1;
@@ -136,6 +128,14 @@ export default function ModelStore() {
       });
   }, []);
 
+  useEffect(() => {
+    if (currentlyDownloading?.status == 'COMPLETE') {
+      setCurrentlyDownloading(null);
+      setJobId(null);
+      modelGalleryMutate();
+    }
+  }, [modelDownloadProgress]);
+
   const renderFilters = () => (
     <>
       <FormControl size="sm">
@@ -169,7 +169,8 @@ export default function ModelStore() {
       </FormControl>
     </>
   );
-  return (
+
+  const CurrentDownloadBox = () => (
     <>
       {jobId && (
         <Box>
@@ -186,7 +187,8 @@ export default function ModelStore() {
               sx={{ my: 1, padding: 2, borderRadius: '8px' }}
             >
               <Typography level="title-sm" sx={{ pb: 1 }}>
-                Downloading <Chip variant="soft">{currentlyDownloading}</Chip>
+                Downloading
+                <Chip variant="soft">{currentlyDownloading}</Chip>
                 {' - '}
                 {modelDownloadProgress?.job_data?.total_size_of_model_in_mb >
                   0 && (
@@ -199,13 +201,16 @@ export default function ModelStore() {
                     % {' - '}
                   </>
                 )}
-                {modelDownloadProgress?.job_data?.downloaded != 0
-                  ? formatBytes(
-                      tryJSON(modelDownloadProgress?.job_data)?.downloaded *
-                        1024 *
-                        1024
-                    )
-                  : 'Download Starting'}
+                <>
+                  {modelDownloadProgress?.job_data?.downloaded != 0
+                    ? formatBytes(
+                        modelDownloadProgress?.job_data?.downloaded *
+                          1024 *
+                          1024
+                      )
+                    : 'Download Starting'}
+                  ↓
+                </>
               </Typography>
               {modelDownloadProgress?.progress !== -1 && (
                 <>
@@ -227,6 +232,11 @@ export default function ModelStore() {
           {JSON.stringify(jobId)} */}
         </Box>
       )}
+    </>
+  );
+  return (
+    <>
+      <CurrentDownloadBox />
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
@@ -450,8 +460,7 @@ export default function ModelStore() {
                                 />
                                 &nbsp;&nbsp;
                                 {formatBytes(
-                                  tryJSON(modelDownloadProgress?.job_data)
-                                    ?.downloaded *
+                                  modelDownloadProgress?.job_data?.downloaded *
                                     1024 *
                                     1024
                                 )}
