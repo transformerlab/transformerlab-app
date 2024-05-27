@@ -196,11 +196,13 @@ export default function Computer() {
           </Sheet>
         </>
       )}
-      <Typography level="h2" paddingBottom={0}>
+      <Typography level="h2" paddingTop={2}>
         Installed Python Libraries
       </Typography>
+      <Typography level="title-sm" paddingBottom={0}>
+        Conda Environment: {server?.conda_environment} @ {server?.conda_prefix}
+      </Typography>
       <FormControl size="sm">
-        <FormLabel>&nbsp;</FormLabel>
         <Input
           placeholder="Search"
           value={searchText}
