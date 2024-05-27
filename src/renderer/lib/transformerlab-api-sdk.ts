@@ -670,6 +670,11 @@ Endpoints.Prompts = {
   Delete: (promptId: string) => API_URL() + 'prompts/delete/' + promptId,
 };
 
+Endpoints.ServerInfo = {
+  Get: () => API_URL() + 'server/info',
+  PythonLibraries: () => API_URL() + 'server/python_libraries',
+};
+
 export function GET_TRAINING_TEMPLATE_URL() {
   return API_URL() + 'train/templates';
 }
