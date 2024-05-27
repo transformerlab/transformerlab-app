@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import * as React from 'react';
 
 import {
   Button,
@@ -36,9 +35,8 @@ export default function DatasetCard({
   local,
 }) {
   const [installing, setInstalling] = useState(null);
-  const [previewDatasetModalOpen, setPreviewDatasetModalOpen] =
-    React.useState(false);
-  const [datasetInfoModalOpen, setDatasetInfoModalOpen] = React.useState(false);
+  const [previewDatasetModalOpen, setPreviewDatasetModalOpen] = useState(false);
+  const [datasetInfoModalOpen, setDatasetInfoModalOpen] = useState(false);
 
   return (
     <>
