@@ -155,14 +155,23 @@ export default function ImportModelsModal({ open, setOpen}) {
                   sx={{ width: '90%' }}
                   value={modelFolder ? modelFolder.toString() : "(none)"}
                 />
-                <Button 
+                {modelFolder
+                  ? <Button
+                    size="sm"
+                    sx={{ height: '30px' }}
+                    variant="plain"
+                    disabled={modelFolder==""}
+                    startDecorator={<FolderXIcon />}
+                    onClick={() => setModelFolder("")}
+                  />
+                  : <Button
                   size="sm"
                   sx={{ height: '30px' }}
                   variant="plain"
-                  disabled={modelFolder==""}
-                  startDecorator={<FolderXIcon />}
-                  onClick={() => setModelFolder("")}
+                  disabled={modelFolder}
+                  startDecorator={<FolderPlusIcon />}
                 />
+                }
               </div>
               <div>
                 <input
