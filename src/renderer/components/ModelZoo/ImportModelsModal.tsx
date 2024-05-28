@@ -61,10 +61,10 @@ export default function ImportModelsModal({ open, setOpen}) {
             const model_source = next.value[1];
 
             console.log("Importing " + model_id);
-            const response = await fetch(
-              // TODO: Hardcoding hugging face as model source for now as it's the only source
-              chatAPI.Endpoints.Models.ImportLocal(model_source, model_id)
-            );
+            const api_endpoint = model_source == "local"
+                ? chatAPI.Endpoints.Models.ImportFromLocalPath(modelFolder + '/' + model_id)
+                : chatAPI.Endpoints.Models.ImportFromSource(model_source, model_id);
+            const response = await fetch(api_endpoint);
 
             // Read the response to see if it was successful and report any errors
             let response_error = "";

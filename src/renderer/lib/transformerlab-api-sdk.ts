@@ -610,12 +610,14 @@ Endpoints.Models = {
     API_URL() + 'model/get_local_hfconfig?model_id=' + modelId,
   SearchForLocalUninstalledModels: (path: string) =>
     API_URL() + 'model/list_local_uninstalled?path=' + path,
-  ImportLocal: (modelSource: string, modelId: string) =>
+  ImportFromSource: (modelSource: string, modelId: string) =>
     API_URL() +
-    'model/import_local?model_source=' +
+    'model/import_from_source?model_source=' +
     modelSource +
     '&model_id=' +
     modelId,
+  ImportFromLocalPath: (modelPath: string) =>
+    API_URL() + 'model/import_from_local_path?model_path=' + modelPath,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
 };
