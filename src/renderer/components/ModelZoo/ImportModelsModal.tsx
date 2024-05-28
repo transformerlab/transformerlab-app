@@ -8,6 +8,7 @@ import {
     CircularProgress,
     FormControl,
     FormLabel,
+    Input,
     Modal, 
     ModalClose, 
     ModalDialog, 
@@ -17,7 +18,9 @@ import {
 } from '@mui/joy';
 
 import {
-    ArrowRightFromLineIcon
+    ArrowRightFromLineIcon,
+    FolderXIcon,
+    FolderPlusIcon
 } from 'lucide-react';
 
 // fetcher used by SWR
@@ -142,14 +145,26 @@ export default function ImportModelsModal({ open, setOpen}) {
               <Typography>
                 <b>Search Local Directory: </b>
               </Typography>
-                <input
+              <div>
+                <Input
                   type="text"
-                  size="50"
+                  size="40"
                   for="modelFolderSelector"
                   class="btn"
                   readOnly
+                  sx={{ width: '90%' }}
                   value={modelFolder ? modelFolder.toString() : "(none)"}
                 />
+                <Button 
+                  size="sm"
+                  sx={{ height: '30px' }}
+                  variant="plain"
+                  disabled={modelFolder==""}
+                  startDecorator={<FolderXIcon />}
+                  onClick={() => setModelFolder("")}
+                />
+              </div>
+              <div>
                 <input
                   directory=""
                   webkitdirectory=""
@@ -175,6 +190,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                     }
                 }}
                 />
+              </div>
               <br />
             </FormControl>
             }
