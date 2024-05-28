@@ -62,11 +62,11 @@ function formatJobConfig(c): ReactElement {
   const r = (
     <>
       {/* {JSON.stringify(c)} */}
-      <b>Template ID:</b> {c.template_name}
+      <b>Template ID:</b> {c?.template_name}
       <br />
-      <b>Model:</b> {c.model_name}
+      <b>Model:</b> {c?.model_name}
       <br />
-      <b>Dataset:</b> {c.dataset_name}
+      <b>Dataset:</b> {c?.dataset_name}
     </>
   );
   return r;
@@ -90,7 +90,7 @@ export default function TrainLoRA({ experimentInfo }) {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.API_URL() + 'train/jobs', fetcher, {
+  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('TRAIN', ''), fetcher, {
     refreshInterval: 1000,
   });
 
@@ -262,70 +262,71 @@ export default function TrainLoRA({ experimentInfo }) {
               </tr>
             </thead>
             <tbody style={{ overflow: 'auto', height: '100%' }}>
-              {jobs?.map((job) => {
-                return (
-                  <tr key={job.id}>
-                    <td>
-                      {/* {JSON.stringify(job)} */}
-                      <b>{job.id}-</b> {job.type}
-                    </td>
-                    <td>{formatJobConfig(job.config)}</td>
-                    <td>
-                      <Chip color={jobChipColor(job.status)}>
-                        {job.status}
-                        {job.progress == '-1'
-                          ? ''
-                          : ' - ' +
-                            Number.parseFloat(job.progress).toFixed(1) +
-                            '%'}
-                      </Chip>
-                      <br />
-                      <br />
-                      <LinearProgress determinate value={job.progress} />
-                    </td>
-                    <td
-                      style={{
-                        display: 'flex',
-                        gap: 2,
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                      }}
-                    >
-                      {job?.job_data?.tensorboard_output_dir && (
+              {jobs?.length > 0 &&
+                jobs?.map((job) => {
+                  return (
+                    <tr key={job.id}>
+                      <td>
+                        {/* {JSON.stringify(job)} */}
+                        <b>{job.id}-</b> {job.type}
+                      </td>
+                      <td>{formatJobConfig(job.config)}</td>
+                      <td>
+                        <Chip color={jobChipColor(job.status)}>
+                          {job.status}
+                          {job.progress == '-1'
+                            ? ''
+                            : ' - ' +
+                              Number.parseFloat(job.progress).toFixed(1) +
+                              '%'}
+                        </Chip>
+                        <br />
+                        <br />
+                        <LinearProgress determinate value={job.progress} />
+                      </td>
+                      <td
+                        style={{
+                          display: 'flex',
+                          gap: 2,
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          justifyContent: 'flex-end',
+                        }}
+                      >
+                        {job?.job_data?.tensorboard_output_dir && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setCurrentTensorboardForModal(job?.id);
+                            }}
+                            startDecorator={<LineChartIcon />}
+                          >
+                            Tensorboard
+                          </Button>
+                        )}
+
                         <Button
                           size="sm"
                           onClick={() => {
-                            setCurrentTensorboardForModal(job?.id);
+                            setViewOutputFromJob(job?.id);
                           }}
-                          startDecorator={<LineChartIcon />}
                         >
-                          Tensorboard
+                          Output
                         </Button>
-                      )}
-
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setViewOutputFromJob(job?.id);
-                        }}
-                      >
-                        Output
-                      </Button>
-                      <IconButton variant="soft">
-                        <Trash2Icon
-                          onClick={async () => {
-                            await fetch(
-                              chatAPI.API_URL() + 'train/job/delete/' + job.id
-                            );
-                            jobsMutate();
-                          }}
-                        />
-                      </IconButton>
-                    </td>
-                  </tr>
-                );
-              })}
+                        <IconButton variant="soft">
+                          <Trash2Icon
+                            onClick={async () => {
+                              await fetch(
+                                chatAPI.API_URL() + 'train/job/delete/' + job.id
+                              );
+                              jobsMutate();
+                            }}
+                          />
+                        </IconButton>
+                      </td>
+                    </tr>
+                  );
+                })}
             </tbody>
           </Table>
         </Sheet>
