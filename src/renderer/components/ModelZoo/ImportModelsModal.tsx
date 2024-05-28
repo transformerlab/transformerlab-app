@@ -152,7 +152,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                   for="modelFolderSelector"
                   class="btn"
                   readOnly
-                  sx={{ width: '90%' }}
+                  sx={{ width: '85%', float: 'left' }}
                   value={modelFolder ? modelFolder.toString() : "(none)"}
                 />
                 {modelFolder
