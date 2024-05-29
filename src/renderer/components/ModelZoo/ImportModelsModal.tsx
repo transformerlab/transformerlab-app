@@ -62,7 +62,7 @@ export default function ImportModelsModal({ open, setOpen}) {
 
             console.log("Importing " + model_id);
             const api_endpoint = model_source == "local"
-                ? chatAPI.Endpoints.Models.ImportFromLocalPath(modelFolder + '/' + model_id)
+                ? chatAPI.Endpoints.Models.ImportFromLocalPath(model_id)
                 : chatAPI.Endpoints.Models.ImportFromSource(model_source, model_id);
             const response = await fetch(api_endpoint);
 
@@ -235,7 +235,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                         ? " "
                         : (row.supported 
                             ? <Checkbox
-                                name={row.id}
+                                name={row.path}
                                 value={row.source}
                                 defaultChecked
                               />
