@@ -156,10 +156,16 @@ function CheckCurrentVersion({ activeStep, setActiveStep }) {
       );
       setVersion(ver);
 
-      const rel = await fetch(
-        'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest'
-      );
-      const json = await rel.json();
+      let json = {};
+
+      try {
+        const rel = await fetch(
+          'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest'
+        );
+        json = await rel.json();
+      } catch {
+        json.tag_name = 'Unable to Connect to Github Please Skip';
+      }
       const tag = json.tag_name;
 
       setRelease(tag);
