@@ -317,7 +317,7 @@ export default function TrainLoRA({ experimentInfo }) {
                           <Trash2Icon
                             onClick={async () => {
                               await fetch(
-                                chatAPI.API_URL() + 'train/job/delete/' + job.id
+                                chatAPI.Endpoints.Jobs.Delete(job.id)
                               );
                               jobsMutate();
                             }}

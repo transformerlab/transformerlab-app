@@ -866,6 +866,7 @@ Endpoints.Jobs = {
     API_URL() + 'jobs/create',
   GetJobsOfType: (type: string = '', status: string = '') =>
     API_URL() + 'jobs/list' + '?type=' + type + '&status=' + status,
+  Delete: (jobId: string) => API_URL() + 'jobs/delete/' + jobId,
 };
 
 Endpoints.Global = {
