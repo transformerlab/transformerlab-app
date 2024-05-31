@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { ButtonGroup, Chip, CircularProgress } from '@mui/joy';
+import { ButtonGroup, CardActions, Chip, CircularProgress } from '@mui/joy';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -47,50 +47,47 @@ export default function PluginCard({
 
   return (
     <>
-      <Card variant="outlined" sx={{ height: '300px' }}>
-        <div>
-          {/* {JSON.stringify(plugin)} */}
-          <Typography
-            level="title-md"
-            fontSize="md"
-            sx={{ mb: 0.5 }}
-            startDecorator={getIcon(type)}
-          >
-            <b>{plugin.name}</b>
-          </Typography>
-          <Typography level="body-md" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
-            {plugin.uniqueId}&nbsp;
-            {plugin?.gallery_version ? (
-              plugin?.version != plugin?.gallery_version ? (
-                <Chip color="danger">v{plugin.version} Needs Upgrade</Chip>
+      <Card variant="outlined" sx={{ minHeight: '320px' }}>
+        <CardContent orientation="vertical">
+          <>
+            {/* {JSON.stringify(plugin)} */}
+            <Typography
+              level="title-md"
+              fontSize="md"
+              sx={{ mb: 0.5 }}
+              startDecorator={getIcon(type)}
+            >
+              <b>{plugin.name}</b>
+            </Typography>
+            <Typography level="body-md" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
+              {plugin.uniqueId}&nbsp;
+              {plugin?.gallery_version ? (
+                plugin?.version != plugin?.gallery_version ? (
+                  <Chip color="danger">v{plugin.version} Needs Upgrade</Chip>
+                ) : (
+                  <>
+                    <Chip color="success">v{plugin.version}</Chip>
+                  </>
+                )
               ) : (
-                <>
-                  <Chip color="success">v{plugin.version}</Chip>
-                </>
-              )
-            ) : (
-              <Chip color="warning">v{plugin.version}</Chip>
-            )}
-          </Typography>
-          <Typography level="title-sm" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
-            <b>
-              Type: <Chip>{type}</Chip>
-            </b>
-          </Typography>
+                <Chip color="warning">v{plugin.version}</Chip>
+              )}
+            </Typography>
+            <Typography
+              level="title-sm"
+              fontSize="sm"
+              sx={{ mt: 0.5, mb: 0.5 }}
+            >
+              <b>
+                Type: <Chip>{type}</Chip>
+              </b>
+            </Typography>
 
-          <Typography
-            level="body-md"
-            sx={{
-              overflow: 'auto',
-              mt: 2,
-              mb: 2,
-            }}
-          >
-            {plugin.description}
-          </Typography>
-        </div>
-        <CardContent orientation="horizontal"></CardContent>
-        <ButtonGroup>
+            <Typography level="body-sm">{plugin.description}</Typography>
+          </>
+        </CardContent>
+
+        <CardActions buttonFlex="0 1 120px">
           {!download && (
             <>
               {/* <Button
@@ -168,7 +165,7 @@ export default function PluginCard({
               </>
             )}
           </Button>
-        </ButtonGroup>
+        </CardActions>
       </Card>
     </>
   );
