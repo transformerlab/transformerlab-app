@@ -8,7 +8,7 @@ import { Editor } from '@monaco-editor/react';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ViewOutputModal({ jobId, setJobId }) {
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, isValidating, mutate } = useSWR(
     jobId == -1 ? null : chatAPI.Endpoints.Experiment.GetOutputFromJob(jobId),
     fetcher,
     {
@@ -21,7 +21,7 @@ export default function ViewOutputModal({ jobId, setJobId }) {
       <ModalDialog>
         <ModalClose />
         <Typography level="title-lg">
-          Output from job: {jobId} {isLoading && <>Loading...</>}
+          Output from job: {jobId} {isValidating && <>Refreshing...</>}
         </Typography>
         <Typography>
           <Editor
