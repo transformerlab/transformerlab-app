@@ -10,14 +10,19 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function ViewOutputModal({ jobId, setJobId }) {
   const { data, error, isLoading, mutate } = useSWR(
     jobId == -1 ? null : chatAPI.Endpoints.Experiment.GetOutputFromJob(jobId),
-    fetcher
+    fetcher,
+    {
+      refreshInterval: 5000, //refresh every 5 seconds
+    }
   );
 
   return (
     <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
       <ModalDialog>
         <ModalClose />
-        <Typography>Output from {jobId}</Typography>
+        <Typography level="title-lg">
+          Output from job: {jobId} {isLoading && <>Loading...</>}
+        </Typography>
         <Typography>
           <Editor
             height="80vh"
