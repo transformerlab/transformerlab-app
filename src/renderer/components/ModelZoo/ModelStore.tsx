@@ -25,6 +25,7 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   GraduationCapIcon,
+  LockKeyholeIcon,
   SearchIcon,
 } from 'lucide-react';
 import { downloadModelFromGallery } from 'renderer/lib/transformerlab-api-sdk';
@@ -314,7 +315,7 @@ export default function ModelStore() {
                 </Link>
               </th>
 
-              <th style={{ width: 50, padding: 12 }}>Params</th>
+              <th style={{ width: 45, padding: 12 }}>Params</th>
               <th style={{ width: 80, padding: 12 }}>License</th>
               <th style={{ width: 50, padding: 12 }}>Engine</th>
               <th style={{ width: 200, padding: 12 }}>Description</th>
@@ -331,6 +332,7 @@ export default function ModelStore() {
                 <tr key={row.uniqueID}>
                   <td>
                     <Typography level="title-md" marginLeft={2}>
+                      {row.gated && <LockKeyholeIcon />}
                       {row.name}&nbsp;
                       <a href={row?.resources?.canonicalUrl} target="_blank">
                         <ExternalLinkIcon size="14px" />
