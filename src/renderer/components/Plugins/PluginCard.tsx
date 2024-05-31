@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { Chip, CircularProgress } from '@mui/joy';
+import { ButtonGroup, Chip, CircularProgress } from '@mui/joy';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -47,7 +47,7 @@ export default function PluginCard({
 
   return (
     <>
-      <Card variant="outlined" sx={{}}>
+      <Card variant="outlined" sx={{ height: '300px' }}>
         <div>
           {/* {JSON.stringify(plugin)} */}
           <Typography
@@ -90,7 +90,7 @@ export default function PluginCard({
           </Typography>
         </div>
         <CardContent orientation="horizontal"></CardContent>
-        <CardContent orientation="horizontal">
+        <ButtonGroup>
           {!download && (
             <>
               {/* <Button
@@ -168,7 +168,7 @@ export default function PluginCard({
               </>
             )}
           </Button>
-        </CardContent>
+        </ButtonGroup>
       </Card>
     </>
   );
