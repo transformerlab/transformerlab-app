@@ -33,6 +33,7 @@ import useSWR from 'swr';
 import { useState } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { FaPython } from 'react-icons/fa';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
@@ -41,7 +42,7 @@ function ComputerCard({ children, title, description = '', chip = '', icon }) {
         <Typography level="title-lg" startDecorator={icon}>
           {title}
         </Typography>
-        <>{description}</>
+        <Typography level="title-sm">{description}</Typography>
         {children}
       </CardContent>
     </Card>
@@ -89,14 +90,14 @@ export default function Computer() {
           </Typography>
           <Sheet className="OrderTableContainer">
             <Grid container spacing={2} sx={{}}>
-              <Grid xs={4}>
+              <Grid xs={2}>
                 <ComputerCard
                   icon={<FaComputer />}
                   title="Machine"
                   description={`${server.os} - ${server.name}`}
                 >
-                  CPU: {server.cpu_percent}%<br />
-                  {server.cpu_count} Cores
+                  <StatRow title="CPU" value={server?.cpu_percent + '%'} />
+                  <StatRow title="Cores" value={server?.cpu_count} />
                 </ComputerCard>
               </Grid>
               <Grid xs={4}>
@@ -195,7 +196,7 @@ export default function Computer() {
                 </ComputerCard>
               </Grid>
               <Grid xs={3}>
-                <ComputerCard icon={<Code2Icon />} title="Python Version">
+                <ComputerCard icon={<FaPython />} title="Python Version">
                   {server.python_version}
                 </ComputerCard>
               </Grid>
