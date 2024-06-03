@@ -45,7 +45,7 @@ function getSystemProperties() {
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
-    <Card variant="outlined">
+    <Card variant="soft">
       <CardContent>
         <Typography level="title-lg" startDecorator={icon}>
           {title}
