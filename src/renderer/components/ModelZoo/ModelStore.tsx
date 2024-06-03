@@ -85,8 +85,8 @@ function stableSort<T>(
   return stabilizedThis.map((el) => el[0]);
 }
 
-  // returns a URL to link to for agreeing to gate model terms
-  function getGatedModelURL(model) {
+  // returns a URL to the model on HuggingFace based on repo name
+  function getModelHuggingFaceURL(model) {
     const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
     return "https://huggingface.co/" + repo_id;
   }
@@ -339,7 +339,7 @@ export default function ModelStore() {
                   <td>
                     <Typography level="title-md" marginLeft={2}>
                       {row.gated &&
-                        <a href={getGatedModelURL(row)} target="_blank">
+                        <a href={getModelHuggingFaceURL(row)} target="_blank">
                           <LockKeyholeIcon />
                         </a>
                       }
