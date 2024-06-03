@@ -5,30 +5,26 @@ import Sheet from '@mui/joy/Sheet';
 import {
   Card,
   CardContent,
-  Chip,
   FormControl,
-  FormLabel,
   Grid,
   Input,
+  LinearProgress,
+  Stack,
   Table,
   Typography,
 } from '@mui/joy';
 
 import {
-  CalculatorIcon,
   Code2Icon,
   DatabaseIcon,
-  FlameIcon,
-  GridIcon,
   LayoutIcon,
   MemoryStickIcon,
-  RouterIcon,
   SearchIcon,
+  ZapIcon,
 } from 'lucide-react';
 
 import { BsGpuCard } from 'react-icons/bs';
 import { FaComputer } from 'react-icons/fa6';
-import { PiMathOperationsFill } from 'react-icons/pi';
 
 import { formatBytes } from 'renderer/lib/utils';
 
@@ -37,11 +33,6 @@ import useSWR from 'swr';
 import { useState } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-
-function getSystemProperties() {
-  const information = document.getElementById('info');
-  information.innerText = `This app is using Chrome (v${window.platform.chrome()}), Node.js (v${window.platform.node()}), and Electron (v${window.platform.electron()})`;
-}
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
@@ -54,6 +45,15 @@ function ComputerCard({ children, title, description = '', chip = '', icon }) {
         {children}
       </CardContent>
     </Card>
+  );
+}
+
+function StatRow({ title, value }) {
+  return (
+    <Stack direction="row" justifyContent="space-between">
+      <Typography level="title-md">{title}:</Typography>
+      <Typography level="body-md">{value}</Typography>
+    </Stack>
   );
 }
 
@@ -98,18 +98,7 @@ export default function Computer() {
                   CPU: {server.cpu_percent}%<br />
                   {server.cpu_count} Cores
                 </ComputerCard>
-              </Grid>{' '}
-              <Grid xs={2}>
-                <ComputerCard icon={<PiMathOperationsFill />} title="Device">
-                  GPU: {server.gpu?.length === 0 ? '❌' : '✅'}
-                  <br />
-                  CUDA: {server?.device === 'cuda' ? '✅ ' : '❌ '}
-                  <br />
-                  CUDA Version: {server?.cuda_version}
-                  <br />
-                  Python MPS: {server?.device === 'mps' ? '✅ ' : '❌ '}
-                </ComputerCard>
-              </Grid>{' '}
+              </Grid>
               <Grid xs={4}>
                 <ComputerCard
                   icon={<BsGpuCard />}
@@ -134,7 +123,24 @@ export default function Computer() {
                   )}
                   %
                 </ComputerCard>
-              </Grid>{' '}
+              </Grid>
+              <Grid xs={2}>
+                <ComputerCard icon={<ZapIcon />} title="Acceleration">
+                  <StatRow
+                    title="GPU"
+                    value={server.gpu?.length === 0 ? '❌' : '✅'}
+                  />
+                  <StatRow
+                    title="CUDA"
+                    value={server?.device === 'cuda' ? '✅ ' : '❌ '}
+                  />
+                  <StatRow title="CUDA Version" value={server?.cuda_version} />{' '}
+                  <StatRow
+                    title="Python MPS"
+                    value={server?.device === 'mps' ? '✅ ' : '❌ '}
+                  />
+                </ComputerCard>
+              </Grid>
               <Grid xs={3}>
                 <ComputerCard icon={<LayoutIcon />} title="Operating System">
                   {server?.platform}
@@ -143,21 +149,49 @@ export default function Computer() {
               <Grid xs={3}>
                 <ComputerCard icon={<MemoryStickIcon />} title="Memory">
                   <>
-                    <Typography>
-                      Total Memory: {formatBytes(server.memory?.total)}
-                    </Typography>
-                    <Typography>
-                      Available: {formatBytes(server.memory?.available)}
-                    </Typography>
-                    <Typography>Percent: {server.memory?.percent}%</Typography>
+                    <StatRow
+                      title="Total"
+                      value={formatBytes(server.memory?.total)}
+                    />
+                    <StatRow
+                      title="Available"
+                      value={formatBytes(server.memory?.available)}
+                    />
+                    <StatRow
+                      title="Percent"
+                      value={server.memory?.percent + '%'}
+                    />
                   </>
                 </ComputerCard>
               </Grid>
               <Grid xs={3}>
                 <ComputerCard title="Disk" icon={<DatabaseIcon />}>
-                  Total: {formatBytes(server.disk?.total)} - Used:{' '}
-                  {formatBytes(server.disk?.free)} - Free:{' '}
-                  {server.disk?.percent}%
+                  <StatRow
+                    title="Total"
+                    value={formatBytes(server.disk?.total)}
+                  />
+                  <StatRow
+                    title="Used"
+                    value={formatBytes(server.disk?.used)}
+                  />
+                  <StatRow
+                    title="Free"
+                    value={formatBytes(server.disk?.free)}
+                  />
+                  <StatRow
+                    title="Percent"
+                    value={
+                      <>
+                        {server.disk?.percent}%
+                        <LinearProgress
+                          determinate
+                          value={server.disk?.percent}
+                          variant="solid"
+                          sx={{ minWidth: '50px' }}
+                        />
+                      </>
+                    }
+                  />
                 </ComputerCard>
               </Grid>
               <Grid xs={3}>
