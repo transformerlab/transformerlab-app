@@ -219,7 +219,7 @@ export default function Computer() {
       <Typography level="title-sm" paddingBottom={0}>
         Conda Environment: {server?.conda_environment} @ {server?.conda_prefix}
       </Typography>
-      <FormControl size="sm">
+      <FormControl size="sm" sx={{ width: '400px' }}>
         <Input
           placeholder="Search"
           value={searchText}
@@ -229,7 +229,7 @@ export default function Computer() {
       </FormControl>
       {pythonLibraries && (
         <>
-          <Sheet sx={{ overflow: 'auto' }}>
+          <Sheet sx={{ overflow: 'auto', width: 'fit-content' }}>
             <Table borderAxis="both" sx={{ width: 'auto' }}>
               <thead>
                 <tr>
