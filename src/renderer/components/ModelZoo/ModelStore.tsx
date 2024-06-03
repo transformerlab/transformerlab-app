@@ -85,6 +85,12 @@ function stableSort<T>(
   return stabilizedThis.map((el) => el[0]);
 }
 
+  // returns a URL to link to for agreeing to gate model terms
+  function getGatedModelURL(model) {
+    const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
+    return "https://huggingface.co/" + repo_id;
+  }
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
@@ -332,7 +338,11 @@ export default function ModelStore() {
                 <tr key={row.uniqueID}>
                   <td>
                     <Typography level="title-md" marginLeft={2}>
-                      {row.gated && <LockKeyholeIcon />}
+                      {row.gated &&
+                        <a href={getGatedModelURL(row)} target="_blank">
+                          <LockKeyholeIcon />
+                        </a>
+                      }
                       {row.name}&nbsp;
                       <a href={row?.resources?.canonicalUrl} target="_blank">
                         <ExternalLinkIcon size="14px" />
