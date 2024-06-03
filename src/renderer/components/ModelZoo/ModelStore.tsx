@@ -342,7 +342,14 @@ export default function ModelStore() {
 
                       <a href={getModelHuggingFaceURL(row)} target="_blank">
                         {row.gated ? (
-                          <LockKeyholeIcon />
+                          <Chip
+                          variant="soft"
+                          size="sm"
+                          startDecorator={<LockKeyholeIcon />}
+                          color='neutral'
+                          >
+                            Gated
+                          </Chip>
                         ) : (
                           <ExternalLinkIcon size="14px" />
                         )}
