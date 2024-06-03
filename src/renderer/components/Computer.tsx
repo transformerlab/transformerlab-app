@@ -47,29 +47,11 @@ function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
     <Card variant="outlined">
       <CardContent>
-        <Typography
-          level="h2"
-          fontSize="lg"
-          id="card-description"
-          mb={0.5}
-          startDecorator={icon}
-        >
+        <Typography level="title-lg" startDecorator={icon}>
           {title}
         </Typography>
-        <Typography fontSize="sm" aria-describedby="card-description" mb={1}>
-          {description}
-        </Typography>
+        <>{description}</>
         {children}
-        {chip !== '' && (
-          <Chip
-            variant="outlined"
-            color="primary"
-            size="sm"
-            sx={{ pointerEvents: 'none' }}
-          >
-            {chip}
-          </Chip>
-        )}
       </CardContent>
     </Card>
   );
