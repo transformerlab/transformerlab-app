@@ -338,14 +338,14 @@ export default function ModelStore() {
                 <tr key={row.uniqueID}>
                   <td>
                     <Typography level="title-md" marginLeft={2}>
-                      {row.gated &&
-                        <a href={getModelHuggingFaceURL(row)} target="_blank">
-                          <LockKeyholeIcon />
-                        </a>
-                      }
                       {row.name}&nbsp;
-                      <a href={row?.resources?.canonicalUrl} target="_blank">
-                        <ExternalLinkIcon size="14px" />
+
+                      <a href={getModelHuggingFaceURL(row)} target="_blank">
+                        {row.gated ? (
+                          <LockKeyholeIcon />
+                        ) : (
+                          <ExternalLinkIcon size="14px" />
+                        )}
                       </a>
                     </Typography>
                   </td>
