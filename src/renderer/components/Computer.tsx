@@ -125,7 +125,7 @@ export default function Computer() {
                   %
                 </ComputerCard>
               </Grid>
-              <Grid xs={2}>
+              <Grid xs={3}>
                 <ComputerCard icon={<ZapIcon />} title="Acceleration">
                   <StatRow
                     title="GPU"
@@ -133,12 +133,25 @@ export default function Computer() {
                   />
                   <StatRow
                     title="CUDA"
-                    value={server?.device === 'cuda' ? '✅ ' : '❌ '}
+                    value={server?.device === 'cuda' ? '✅ ' : '❌'}
                   />
                   <StatRow title="CUDA Version" value={server?.cuda_version} />{' '}
                   <StatRow
                     title="Python MPS"
-                    value={server?.device === 'mps' ? '✅ ' : '❌ '}
+                    value={server?.device === 'mps' ? '✅ ' : '❌'}
+                  />{' '}
+                  <StatRow
+                    title="Flash Attention"
+                    value={
+                      server?.flash_attn_version &&
+                      server?.flash_attn_version != 'n/a'
+                        ? '✅'
+                        : '❌'
+                    }
+                  />
+                  <StatRow
+                    title="Flash Attn Version"
+                    value={server?.flash_attn_version}
                   />
                 </ComputerCard>
               </Grid>
