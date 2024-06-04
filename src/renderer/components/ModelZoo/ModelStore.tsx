@@ -85,11 +85,11 @@ function stableSort<T>(
   return stabilizedThis.map((el) => el[0]);
 }
 
-  // returns a URL to the model on HuggingFace based on repo name
-  function getModelHuggingFaceURL(model) {
-    const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
-    return "https://huggingface.co/" + repo_id;
-  }
+// returns a URL to the model on HuggingFace based on repo name
+function getModelHuggingFaceURL(model) {
+  const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
+  return 'https://huggingface.co/' + repo_id;
+}
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -339,14 +339,13 @@ export default function ModelStore() {
                   <td>
                     <Typography level="title-md" marginLeft={2}>
                       {row.name}&nbsp;
-
                       <a href={getModelHuggingFaceURL(row)} target="_blank">
                         {row.gated ? (
                           <Chip
-                          variant="soft"
-                          size="sm"
-                          startDecorator={<LockKeyholeIcon />}
-                          color='neutral'
+                            variant="outlined"
+                            size="sm"
+                            startDecorator={<LockKeyholeIcon size="13px" />}
+                            color="warning"
                           >
                             Gated
                           </Chip>
