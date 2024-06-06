@@ -34,6 +34,7 @@ import { downloadModelFromGallery } from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
+import ModelDetailsModal from './ModelDetailsModal';
 
 import {
   modelTypes,
@@ -100,6 +101,7 @@ export default function ModelStore() {
   // and it is -1 if a download has been initiated but it hasn't started yet
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
+  const [modelDetailsId, setModelDetailsId] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
 
@@ -276,6 +278,12 @@ export default function ModelStore() {
 
         {renderFilters()}
       </Box>
+
+      <ModelDetailsModal
+        modelId={modelDetailsId}
+        setModelId={setModelDetailsId}
+      />
+
       <Sheet
         className="OrderTableContainer"
         variant="outlined"
@@ -412,7 +420,7 @@ export default function ModelStore() {
                   <td style={{ textAlign: 'right' }}>
                     <InfoIcon
                       onClick={() => {
-                        alert(JSON.stringify(row));
+                        setModelDetailsId(row.uniqueID);
                       }}
                     />
                   </td>
