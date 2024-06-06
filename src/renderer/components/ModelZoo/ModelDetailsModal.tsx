@@ -9,6 +9,10 @@ import {
     Typography
 } from '@mui/joy';
 
+import {
+    formatBytes,
+} from '../../lib/utils';
+
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -22,6 +26,7 @@ export default function ImportModelsModal({ modelId, setModelId }) {
         (modelId == null) ? null : chatAPI.Endpoints.Models.ModelDetailsFromGallery(modelId),
         fetcher
     );
+    console.log(modelData);
 
     return (
         <Modal open={(modelId != null)} onClose={() => setModelId(null)}>
@@ -29,7 +34,24 @@ export default function ImportModelsModal({ modelId, setModelId }) {
             <ModalClose />
             <Typography level="h3">{modelData?.uniqueID}</Typography>
             <Typography>
-                {JSON.stringify(modelData)}
+                {modelData?.description}
+            </Typography>
+            <Typography>
+                <b>Parameters:</b>
+                {modelData?.parameters}
+            </Typography>
+            <Typography>
+                <b>Size:</b>
+                {modelData?.size_of_model_in_mb &&
+                    formatBytes(modelData?.size_of_model_in_mb * 1024 * 1024)}
+            </Typography>
+            <Typography>
+                <b>Architecture:</b>
+                {modelData?.architecture}
+            </Typography>
+            <Typography>
+                <b>License:</b>
+                {modelData?.license}
             </Typography>
         </ModalDialog>
       </Modal>
