@@ -32,18 +32,13 @@ export default function ImportModelsModal({ modelId, setModelId }) {
         <Modal open={(modelId != null)} onClose={() => setModelId(null)}>
           <ModalDialog>
             <ModalClose />
-            <Typography level="h3">{modelData?.uniqueID}</Typography>
+            <Typography level="h3">{modelData?.name}</Typography>
             <Typography>
                 {modelData?.description}
             </Typography>
             <Typography>
-                <b>Parameters:</b>
-                {modelData?.parameters}
-            </Typography>
-            <Typography>
-                <b>Size:</b>
-                {modelData?.size_of_model_in_mb &&
-                    formatBytes(modelData?.size_of_model_in_mb * 1024 * 1024)}
+                <b>Id:</b>
+                {modelData?.uniqueID}
             </Typography>
             <Typography>
                 <b>Architecture:</b>
@@ -52,6 +47,20 @@ export default function ImportModelsModal({ modelId, setModelId }) {
             <Typography>
                 <b>License:</b>
                 {modelData?.license}
+            </Typography>
+
+            <Typography>
+                <b>Parameters:</b>
+                {modelData?.parameters}
+            </Typography>
+            <Typography>
+                <b>Context:</b>
+                {modelData?.context}
+            </Typography>
+            <Typography>
+                <b>Size:</b>
+                {modelData?.size_of_model_in_mb &&
+                    formatBytes(modelData?.size_of_model_in_mb * 1024 * 1024)}
             </Typography>
         </ModalDialog>
       </Modal>
