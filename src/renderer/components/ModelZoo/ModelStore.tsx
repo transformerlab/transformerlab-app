@@ -310,7 +310,7 @@ export default function ModelStore() {
         >
           <thead>
             <tr>
-              <th style={{ width: 100, padding: 12 }}>
+              <th style={{ width: 200, padding: 12 }}>
                 <Link
                   underline="none"
                   color="primary"
@@ -330,11 +330,9 @@ export default function ModelStore() {
                 </Link>
               </th>
 
-              <th style={{ width: 45, padding: 12 }}>Params</th>
-              <th style={{ width: 80, padding: 12 }}>License</th>
-              <th style={{ width: 50, padding: 12 }}>Engine</th>
-              <th style={{ width: 200, padding: 12 }}>Description</th>
-              <th style={{ width: 30, padding: 12 }}>Size</th>
+              <th style={{ width: 100, padding: 12 }}>License</th>
+              <th style={{ width: 100, padding: 12 }}>Engine</th>
+              <th style={{ width: 60, padding: 12 }}>Size</th>
               <th style={{ width: 20, padding: 12 }}> </th>
               <th style={{ width: 70, padding: 12 }}> </th>
             </tr>
@@ -365,7 +363,6 @@ export default function ModelStore() {
                       </a>
                     </Typography>
                   </td>
-                  <td>{row.parameters}</td>
                   <td>
                     <Chip
                       variant="soft"
@@ -404,12 +401,6 @@ export default function ModelStore() {
                       </>
                     )}
                     {row.architecture}
-                  </td>
-                  <td>
-                    <div style={{ maxHeight: '60px', overflow: 'hidden' }}>
-                      {/* {JSON.stringify(row)} */}
-                      {row.description}
-                    </div>
                   </td>
 
                   <td>
