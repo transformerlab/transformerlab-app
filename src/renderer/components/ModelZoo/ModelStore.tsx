@@ -25,6 +25,7 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   GraduationCapIcon,
+  InfoIcon,
   LockKeyholeIcon,
   SearchIcon,
 } from 'lucide-react';
@@ -326,7 +327,8 @@ export default function ModelStore() {
               <th style={{ width: 50, padding: 12 }}>Engine</th>
               <th style={{ width: 200, padding: 12 }}>Description</th>
               <th style={{ width: 30, padding: 12 }}>Size</th>
-              <th style={{ width: 80, padding: 12 }}> </th>
+              <th style={{ width: 20, padding: 12 }}> </th>
+              <th style={{ width: 70, padding: 12 }}> </th>
             </tr>
           </thead>
           <tbody>
@@ -405,6 +407,14 @@ export default function ModelStore() {
                   <td>
                     {row?.size_of_model_in_mb &&
                       formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                  </td>
+
+                  <td style={{ textAlign: 'right' }}>
+                    <InfoIcon
+                      onClick={() => {
+                        alert(JSON.stringify(row));
+                      }}
+                    />
                   </td>
 
                   <td style={{ textAlign: 'right' }}>
