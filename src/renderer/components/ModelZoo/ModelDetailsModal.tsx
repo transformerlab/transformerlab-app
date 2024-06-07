@@ -16,7 +16,7 @@ import {
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ImportModelsModal({ modelId, setModelId }) {
+export default function ModelDetailsModal({ modelId, setModelId }) {
 
     const {
         data: modelData,
@@ -26,7 +26,6 @@ export default function ImportModelsModal({ modelId, setModelId }) {
         (modelId == null) ? null : chatAPI.Endpoints.Models.ModelDetailsFromGallery(modelId),
         fetcher
     );
-    console.log(modelData);
 
     return (
         <Modal open={(modelId != null)} onClose={() => setModelId(null)}>
