@@ -13,13 +13,21 @@ export default function LoRATrainingRunButton({
   experimentId,
 }) {
   const [progress, setProgress] = useState(0);
-
+  let job_data = {
+    template_id: trainingTemplateId,
+  };
   return (
     <Button
       onClick={async () => {
         // Use fetch API to call endpoint
         await fetch(
-          chatAPI.CREATE_TRAINING_JOB_URL(trainingTemplateId, experimentId)
+          chatAPI.Endpoints.Jobs.Create(
+            trainingTemplateId,
+            experimentId,
+            'TRAIN',
+            'QUEUED',
+            JSON.stringify(job_data)
+          )
         )
           .then((response) => response.json())
           .then((data) => console.log(data))

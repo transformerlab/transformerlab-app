@@ -862,11 +862,49 @@ Endpoints.Experiment = {
 Endpoints.Jobs = {
   List: () => API_URL() + 'jobs/list',
   Get: (jobId: string) => API_URL() + 'train/job/' + jobId,
-  Create: (templateId: string, experimentId: string) =>
-    API_URL() + 'jobs/create',
+  Create: (
+    templateId?: string,
+    experimentId?: string,
+    type?: string,
+    status?: string,
+    data?: string //Should be JSON
+  ) =>
+    API_URL() +
+    'jobs/create' +
+    '?template_id=' +
+    templateId +
+    '&experiment_id=' +
+    experimentId +
+    '&type=' +
+    type +
+    '&status=' +
+    status +
+    '&data=' +
+    data,
   GetJobsOfType: (type: string = '', status: string = '') =>
     API_URL() + 'jobs/list' + '?type=' + type + '&status=' + status,
   Delete: (jobId: string) => API_URL() + 'jobs/delete/' + jobId,
+  GetTrainingTemplate: (template_id: string) =>
+    API_URL() + 'jobs/template/' + template_id,
+  UpdateTrainingTemplate: (
+    template_id: string,
+    name: string,
+    description: string,
+    type: string,
+    config: Object
+  ) =>
+    API_URL() +
+    'jobs/template/update' +
+    '?template_id=' +
+    template_id +
+    '&name=' +
+    name +
+    '&description=' +
+    description +
+    '&type=' +
+    type +
+    '&config=' +
+    config,
 };
 
 Endpoints.Global = {

@@ -338,7 +338,15 @@ const widgets: RegistryWidgetsType = {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function DynamicPluginForm({ experimentInfo, plugin }) {
+export default function DynamicPluginForm({
+  experimentInfo,
+  plugin,
+  config,
+}: {
+  experimentInfo: any;
+  plugin: string;
+  config?: any; //Config should be optional in case there was no necessary config
+}) {
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
       plugin &&
@@ -349,13 +357,28 @@ export default function DynamicPluginForm({ experimentInfo, plugin }) {
       ),
     fetcher
   );
-
-  const schema = useMemo(() => getSchema(data), [data]);
-
+  const [configData, setConfigData] = React.useState(data);
+  //Using use effect here to update the config data when the data or config changes
   React.useEffect(() => {
+    if (config && data) {
+      let parsedData = JSON.parse(data); //Parsing data for easy access to parameters
+      //Iterating through the config object and updating the default values in the data
+      Object.keys(config).forEach((key) => {
+        if (
+          parsedData &&
+          parsedData.parameters &&
+          key in parsedData.parameters
+        ) {
+          parsedData.parameters[key].default = config[key];
+        }
+      });
+      //Schema takes in data as a JSON string
+      setConfigData(JSON.stringify(parsedData));
+    }
     mutate();
-  }, [plugin, experimentInfo]);
+  }, [plugin, experimentInfo, config, data]);
 
+  const schema = useMemo(() => getSchema(configData), [configData]);
   return (
     <>
       {/* <Typography level="title-sm">
