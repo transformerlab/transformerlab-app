@@ -35,6 +35,7 @@ const DefaultLoraConfig = {
   lora_r: 8,
   lora_alpha: 16,
   lora_dropout: 0.05,
+  adaptor_name: '',
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -54,6 +55,7 @@ export default function TrainingModalLoRA({
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [selectedPlugin, setSelectedPlugin] = useState(null);
   const [config, setConfig] = useState(DefaultLoraConfig);
+  const [nameInput, setNameInput] = useState('');
 
   // Fetch available datasets from the API
   const {
@@ -116,18 +118,23 @@ export default function TrainingModalLoRA({
     const result = await response.json();
     return result;
   }
+  //Whenever template data updates, we need to update state variables used in the form.
   useEffect(() => {
     if (templateData && typeof templateData.config === 'string') {
+      //Should only parse data once after initial load
       templateData.config = JSON.parse(templateData.config);
     }
     if (templateData && templateData.config) {
       setSelectedPlugin(templateData.config.plugin_name);
       setSelectedDataset(templateData.config.dataset_name);
       setConfig(templateData.config);
+      setNameInput(templateData.name);
     } else {
+      //This case is for when we are creating a new template
       setSelectedPlugin(null);
       setSelectedDataset(null);
       setConfig(DefaultLoraConfig);
+      setNameInput('');
     }
   }, [templateData]);
   // Once you have a dataset selected, we use SWR's dependency mode to fetch the
@@ -190,6 +197,7 @@ export default function TrainingModalLoRA({
             const formData = new FormData(event.currentTarget);
             const formJson = Object.fromEntries((formData as any).entries());
             if (templateData && template_id) {
+              //Only update if we are currently editing a template
               updateTrainingTemplate(
                 template_id,
                 event.currentTarget.elements['template_name'].value,
@@ -197,7 +205,7 @@ export default function TrainingModalLoRA({
                 'LoRA',
                 JSON.stringify(formJson)
               );
-              templateMutate();
+              templateMutate(); //Need to mutate template data after updating
             } else {
               chatAPI.saveTrainingTemplate(
                 event.currentTarget.elements['template_name'].value,
@@ -229,7 +237,8 @@ export default function TrainingModalLoRA({
                     placeholder={
                       templateData ? templateData.name : 'Alpaca Training Job'
                     }
-                    value={templateData ? templateData.name : ''}
+                    value={nameInput} //Value needs to be stored in a state variable otherwise it will not update on change/update
+                    onChange={(e) => setNameInput(e.target.value)}
                     name="template_name"
                     size="lg"
                   />

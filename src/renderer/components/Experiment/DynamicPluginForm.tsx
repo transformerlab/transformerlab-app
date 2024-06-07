@@ -345,7 +345,7 @@ export default function DynamicPluginForm({
 }: {
   experimentInfo: any;
   plugin: string;
-  config?: any;
+  config?: any; //Config should be optional in case there was no necessary config
 }) {
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
@@ -358,9 +358,11 @@ export default function DynamicPluginForm({
     fetcher
   );
   const [configData, setConfigData] = React.useState(data);
+  //Using use effect here to update the config data when the data or config changes
   React.useEffect(() => {
     if (config && data) {
-      let parsedData = JSON.parse(data);
+      let parsedData = JSON.parse(data); //Parsing data for easy access to parameters
+      //Iterating through the config object and updating the default values in the data
       Object.keys(config).forEach((key) => {
         if (
           parsedData &&
@@ -370,10 +372,7 @@ export default function DynamicPluginForm({
           parsedData.parameters[key].default = config[key];
         }
       });
-      setConfigData(JSON.stringify(parsedData));
-    } else if (JSON.parse(data)?.parameters['adaptor_name']) {
-      let parsedData = JSON.parse(data);
-      parsedData.parameters['adaptor_name'].default = '';
+      //Schema takes in data as a JSON string
       setConfigData(JSON.stringify(parsedData));
     }
     mutate();
