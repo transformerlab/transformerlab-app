@@ -120,6 +120,13 @@ export default function ModelStore() {
     { refreshInterval: 2000 }
   );
 
+  // check if we have a Hugging Face access token
+  const { data: hftoken } = useSWR(
+      chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
+      fetcher
+  );
+  const isHFAccessTokenSet = (hftoken && hftoken.length > 0);
+
   // On page load, check if there are any models currently being downloaded, and if so,
   // Record the jobID and model Name
   useEffect(() => {
@@ -334,7 +341,7 @@ export default function ModelStore() {
               <th style={{ width: 100, padding: 12 }}>Engine</th>
               <th style={{ width: 60, padding: 12 }}>Size</th>
               <th style={{ width: 20, padding: 12 }}> </th>
-              <th style={{ width: 70, padding: 12 }}> </th>
+              <th style={{ width: 80, padding: 12 }}> </th>
             </tr>
           </thead>
           <tbody>
@@ -352,7 +359,7 @@ export default function ModelStore() {
                           <Chip
                             variant="outlined"
                             size="sm"
-                            startDecorator={<LockKeyholeIcon size="13px" />}
+                            endDecorator={<LockKeyholeIcon size="13px" />}
                             color="warning"
                           >
                             Gated
@@ -417,6 +424,24 @@ export default function ModelStore() {
                   </td>
 
                   <td style={{ textAlign: 'right' }}>
+                  { // Don't display Download Button if gated model and no access token
+                  (row?.gated && !isHFAccessTokenSet ) ? (
+                      <Button
+                        size="sm"
+                        endDecorator={<LockKeyholeIcon />}
+                        color="warning"
+                        onClick={() => {
+                          alert("To access gated Hugging Face models you must first:\r\r"
+                          + "1. Create a READ access token in your Hugging Face account.\r\r"
+                          + "2. Enter the token on the Transformer Lab Settings "
+                          + "page (gear icon at bottom of sidebar)");
+                        }}
+                      >
+                        Gated Access
+                      </Button>
+
+                  // Otherwise display regular Download button
+                  ) : (
                     <Button
                       size="sm"
                       disabled={row.downloaded || currentlyDownloading !== null}
@@ -516,6 +541,7 @@ export default function ModelStore() {
                         <>Download{row.downloaded ? 'ed' : ''}</>
                       )}
                     </Button>
+                  )}
                   </td>
                 </tr>
               ))}
