@@ -25,6 +25,7 @@ import {
   DownloadIcon,
   ExternalLinkIcon,
   GraduationCapIcon,
+  InfoIcon,
   LockKeyholeIcon,
   SearchIcon,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ import { downloadModelFromGallery } from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
+import ModelDetailsModal from './ModelDetailsModal';
 
 import {
   modelTypes,
@@ -85,11 +87,11 @@ function stableSort<T>(
   return stabilizedThis.map((el) => el[0]);
 }
 
-  // returns a URL to the model on HuggingFace based on repo name
-  function getModelHuggingFaceURL(model) {
-    const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
-    return "https://huggingface.co/" + repo_id;
-  }
+// returns a URL to the model on HuggingFace based on repo name
+function getModelHuggingFaceURL(model) {
+  const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
+  return 'https://huggingface.co/' + repo_id;
+}
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -99,6 +101,7 @@ export default function ModelStore() {
   // and it is -1 if a download has been initiated but it hasn't started yet
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
+  const [modelDetailsId, setModelDetailsId] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
 
@@ -275,6 +278,12 @@ export default function ModelStore() {
 
         {renderFilters()}
       </Box>
+
+      <ModelDetailsModal
+        modelId={modelDetailsId}
+        setModelId={setModelDetailsId}
+      />
+
       <Sheet
         className="OrderTableContainer"
         variant="outlined"
@@ -301,7 +310,7 @@ export default function ModelStore() {
         >
           <thead>
             <tr>
-              <th style={{ width: 100, padding: 12 }}>
+              <th style={{ width: 200, padding: 12 }}>
                 <Link
                   underline="none"
                   color="primary"
@@ -321,12 +330,11 @@ export default function ModelStore() {
                 </Link>
               </th>
 
-              <th style={{ width: 45, padding: 12 }}>Params</th>
-              <th style={{ width: 80, padding: 12 }}>License</th>
-              <th style={{ width: 50, padding: 12 }}>Engine</th>
-              <th style={{ width: 200, padding: 12 }}>Description</th>
-              <th style={{ width: 30, padding: 12 }}>Size</th>
-              <th style={{ width: 80, padding: 12 }}> </th>
+              <th style={{ width: 100, padding: 12 }}>License</th>
+              <th style={{ width: 100, padding: 12 }}>Engine</th>
+              <th style={{ width: 60, padding: 12 }}>Size</th>
+              <th style={{ width: 20, padding: 12 }}> </th>
+              <th style={{ width: 70, padding: 12 }}> </th>
             </tr>
           </thead>
           <tbody>
@@ -339,14 +347,13 @@ export default function ModelStore() {
                   <td>
                     <Typography level="title-md" marginLeft={2}>
                       {row.name}&nbsp;
-
                       <a href={getModelHuggingFaceURL(row)} target="_blank">
                         {row.gated ? (
                           <Chip
-                          variant="soft"
-                          size="sm"
-                          startDecorator={<LockKeyholeIcon />}
-                          color='neutral'
+                            variant="outlined"
+                            size="sm"
+                            startDecorator={<LockKeyholeIcon size="13px" />}
+                            color="warning"
                           >
                             Gated
                           </Chip>
@@ -356,7 +363,6 @@ export default function ModelStore() {
                       </a>
                     </Typography>
                   </td>
-                  <td>{row.parameters}</td>
                   <td>
                     <Chip
                       variant="soft"
@@ -396,16 +402,18 @@ export default function ModelStore() {
                     )}
                     {row.architecture}
                   </td>
-                  <td>
-                    <div style={{ maxHeight: '60px', overflow: 'hidden' }}>
-                      {/* {JSON.stringify(row)} */}
-                      {row.description}
-                    </div>
-                  </td>
 
                   <td>
                     {row?.size_of_model_in_mb &&
                       formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                  </td>
+
+                  <td style={{ textAlign: 'right' }}>
+                    <InfoIcon
+                      onClick={() => {
+                        setModelDetailsId(row.uniqueID);
+                      }}
+                    />
                   </td>
 
                   <td style={{ textAlign: 'right' }}>
