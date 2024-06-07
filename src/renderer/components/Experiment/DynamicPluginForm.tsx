@@ -371,6 +371,10 @@ export default function DynamicPluginForm({
         }
       });
       setConfigData(JSON.stringify(parsedData));
+    } else if (JSON.parse(data)?.parameters['adaptor_name']) {
+      let parsedData = JSON.parse(data);
+      parsedData.parameters['adaptor_name'].default = '';
+      setConfigData(JSON.stringify(parsedData));
     }
     mutate();
   }, [plugin, experimentInfo, config, data]);

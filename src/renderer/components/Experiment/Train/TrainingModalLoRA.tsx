@@ -80,13 +80,13 @@ export default function TrainingModalLoRA({
     data: templateData,
     error: templateError,
     isLoading: templateIsLoading,
+    mutate: templateMutate,
   } = useSWR(
     template_id
       ? chatAPI.Endpoints.Jobs.GetTrainingTemplate(template_id)
       : null,
     fetcher
   );
-
   async function updateTrainingTemplate(
     template_id: string,
     name: string,
@@ -197,6 +197,7 @@ export default function TrainingModalLoRA({
                 'LoRA',
                 JSON.stringify(formJson)
               );
+              templateMutate();
             } else {
               chatAPI.saveTrainingTemplate(
                 event.currentTarget.elements['template_name'].value,
@@ -228,7 +229,7 @@ export default function TrainingModalLoRA({
                     placeholder={
                       templateData ? templateData.name : 'Alpaca Training Job'
                     }
-                    defaultValue={templateData ? templateData.name : undefined}
+                    value={templateData ? templateData.name : ''}
                     name="template_name"
                     size="lg"
                   />
