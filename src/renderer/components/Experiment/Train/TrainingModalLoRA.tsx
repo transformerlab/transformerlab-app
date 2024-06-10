@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -35,15 +35,27 @@ const DefaultLoraConfig = {
   lora_r: 8,
   lora_alpha: 16,
   lora_dropout: 0.05,
+  adaptor_name: '',
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
+export default function TrainingModalLoRA({
+  open,
+  onClose,
+  experimentInfo,
+  template_id,
+}: {
+  open: boolean;
+  onClose: () => void;
+  experimentInfo: any;
+  template_id?: string;
+}) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [selectedPlugin, setSelectedPlugin] = useState(null);
   const [config, setConfig] = useState(DefaultLoraConfig);
+  const [nameInput, setNameInput] = useState('');
 
   // Fetch available datasets from the API
   const {
@@ -66,7 +78,65 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
     ),
     fetcher
   );
-
+  const {
+    data: templateData,
+    error: templateError,
+    isLoading: templateIsLoading,
+    mutate: templateMutate,
+  } = useSWR(
+    template_id
+      ? chatAPI.Endpoints.Jobs.GetTrainingTemplate(template_id)
+      : null,
+    fetcher
+  );
+  async function updateTrainingTemplate(
+    template_id: string,
+    name: string,
+    description: string,
+    type: string,
+    config: string
+  ) {
+    const configBody = {
+      config: config,
+    };
+    const response = await fetch(
+      chatAPI.Endpoints.Jobs.UpdateTrainingTemplate(
+        template_id,
+        name,
+        description,
+        type
+      ),
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(configBody),
+      }
+    );
+    const result = await response.json();
+    return result;
+  }
+  //Whenever template data updates, we need to update state variables used in the form.
+  useEffect(() => {
+    if (templateData && typeof templateData.config === 'string') {
+      //Should only parse data once after initial load
+      templateData.config = JSON.parse(templateData.config);
+    }
+    if (templateData && templateData.config) {
+      setSelectedPlugin(templateData.config.plugin_name);
+      setSelectedDataset(templateData.config.dataset_name);
+      setConfig(templateData.config);
+      setNameInput(templateData.name);
+    } else {
+      //This case is for when we are creating a new template
+      setSelectedPlugin(null);
+      setSelectedDataset(null);
+      setConfig(DefaultLoraConfig);
+      setNameInput('');
+    }
+  }, [templateData]);
   // Once you have a dataset selected, we use SWR's dependency mode to fetch the
   // Dataset's info. Note how useSWR is declared as a function -- this is is how
   // the dependency works. If selectedDataset errors, the fetcher knows to not run.
@@ -77,10 +147,9 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
       }
       return chatAPI.Endpoints.Dataset.Info(selectedDataset);
     }, fetcher);
-
-  const currentModel = experimentInfo?.config?.foundation_filename ?
-    experimentInfo?.config?.foundation_filename :
-    experimentInfo?.config?.foundation;
+  const currentModel = experimentInfo?.config?.foundation_filename
+    ? experimentInfo?.config?.foundation_filename
+    : experimentInfo?.config?.foundation;
 
   function injectIntoTemplate(key) {
     // Add the key to the textbox with id "template"
@@ -127,12 +196,24 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             const formJson = Object.fromEntries((formData as any).entries());
-            chatAPI.saveTrainingTemplate(
-              event.currentTarget.elements['template_name'].value,
-              'Description',
-              'LoRA',
-              JSON.stringify(formJson)
-            );
+            if (templateData && template_id) {
+              //Only update if we are currently editing a template
+              updateTrainingTemplate(
+                template_id,
+                event.currentTarget.elements['template_name'].value,
+                'Description',
+                'LoRA',
+                JSON.stringify(formJson)
+              );
+              templateMutate(); //Need to mutate template data after updating
+            } else {
+              chatAPI.saveTrainingTemplate(
+                event.currentTarget.elements['template_name'].value,
+                'Description',
+                'LoRA',
+                JSON.stringify(formJson)
+              );
+            }
             onClose();
           }}
         >
@@ -153,7 +234,11 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
                   <Input
                     required
                     autoFocus
-                    placeholder="Alpaca Training Job"
+                    placeholder={
+                      templateData ? templateData.name : 'Alpaca Training Job'
+                    }
+                    value={nameInput} //Value needs to be stored in a state variable otherwise it will not update on change/update
+                    onChange={(e) => setNameInput(e.target.value)}
                     name="template_name"
                     size="lg"
                   />
@@ -271,7 +356,11 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
                         required
                         name="formatting_template"
                         id="formatting_template"
-                        defaultValue="Instruction: $instruction \n###\n Prompt: $prompt\n###\n Generation: $generation"
+                        defaultValue={
+                          templateData
+                            ? templateData.config.formatting_template
+                            : 'Instruction: $instruction \n###\n Prompt: $prompt\n###\n Generation: $generation'
+                        }
                         rows={5}
                       />
                       <FormHelperText>
@@ -293,6 +382,7 @@ export default function TrainingModalLoRA({ open, onClose, experimentInfo }) {
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={selectedPlugin}
+                config={config}
               />
             </TabPanel>
           </Tabs>

@@ -1,6 +1,6 @@
 /* eslint-disable prefer-template */
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { ReactElement, useState } from 'react';
+import { ReactElement, useEffect, useState } from 'react';
 import useSWR from 'swr';
 
 import Sheet from '@mui/joy/Sheet';
@@ -79,19 +79,22 @@ export default function TrainLoRA({ experimentInfo }) {
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
+  const [templateID, setTemplateID] = useState('-1');
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.GET_TRAINING_TEMPLATE_URL(),
     fetcher
   );
-
+  useEffect(() => {
+    mutate();
+  }, [data]);
   const {
     data: jobs,
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
   } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('TRAIN', ''), fetcher, {
-    refreshInterval: 1000,
+    refreshInterval: 2000,
   });
 
   if (!experimentInfo) {
@@ -107,6 +110,7 @@ export default function TrainLoRA({ experimentInfo }) {
           mutate();
         }}
         experimentInfo={experimentInfo}
+        template_id={Number(templateID) > -1 ? templateID : undefined}
       />
       <TensorboardModal
         currentTensorboard={currentTensorboardForModal}
@@ -130,7 +134,10 @@ export default function TrainLoRA({ experimentInfo }) {
             Training Templates
           </Typography>
           <Button
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              setTemplateID('-1');
+              setOpen(true);
+            }}
             startDecorator={<PlusCircleIcon />}
             sx={{ width: 'fit-content' }}
             size="md"
@@ -193,6 +200,14 @@ export default function TrainLoRA({ experimentInfo }) {
                           justifyContent: 'flex-end',
                         }}
                       >
+                        <Button
+                          onClick={() => {
+                            setTemplateID(row[0]);
+                            setOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
                         <LoRATrainingRunButton
                           initialMessage="Queue"
                           trainingTemplateId={row[0]}
