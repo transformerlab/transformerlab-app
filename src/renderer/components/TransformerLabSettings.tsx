@@ -84,6 +84,10 @@ export default function TransformerLabSettings({}) {
             Save
           </Button>
           <FormHelperText>
+            A Huggingface access token is required in order to access certain models 
+            and datasets (those marked as "Gated").
+          </FormHelperText>
+          <FormHelperText>
             Documentation here:
             <a
               href="https://huggingface.co/docs/hub/security-tokens"
