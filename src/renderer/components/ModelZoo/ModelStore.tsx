@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   FormControl,
@@ -104,6 +105,7 @@ export default function ModelStore() {
   const [modelDetailsId, setModelDetailsId] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
+  const navigate = useNavigate();
 
   const {
     data: modelGalleryData,
@@ -431,13 +433,16 @@ export default function ModelStore() {
                         endDecorator={<LockKeyholeIcon />}
                         color="warning"
                         onClick={() => {
-                          alert("To access gated Hugging Face models you must first:\r\r"
+                          const confirm_result = confirm("To access gated Hugging Face models you must first:\r\r"
                           + "1. Create a READ access token in your Hugging Face account.\r\r"
-                          + "2. Enter the token on the Transformer Lab Settings "
-                          + "page (gear icon at bottom of sidebar)");
+                          + "2. Enter the token on the Transformer Lab Settings page.\r\r"
+                          + "Click OK to go to Settings.");
+                          if (confirm_result) {
+                            navigate('/settings');
+                          }
                         }}
                       >
-                        Gated Access
+                        Unlock
                       </Button>
 
                   // Otherwise display regular Download button
