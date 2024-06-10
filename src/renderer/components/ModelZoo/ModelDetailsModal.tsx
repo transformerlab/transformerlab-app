@@ -1,67 +1,90 @@
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-import { 
-    Button,
-    Modal,
-    ModalClose,
-    ModalDialog,
-    Typography
+import {
+  Box,
+  Button,
+  Divider,
+  Modal,
+  ModalClose,
+  ModalDialog,
+  Skeleton,
+  Stack,
+  Typography,
 } from '@mui/joy';
 
-import {
-    formatBytes,
-} from '../../lib/utils';
+import { formatBytes } from '../../lib/utils';
 
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelDetailsModal({ modelId, setModelId }) {
+  const {
+    data: modelData,
+    error: modelError,
+    isLoading: isLoading,
+  } = useSWR(
+    modelId == null
+      ? null
+      : chatAPI.Endpoints.Models.ModelDetailsFromGallery(modelId),
+    fetcher
+  );
 
-    const {
-        data: modelData,
-        error: modelError,
-        isLoading: isLoading,
-    } = useSWR(
-        (modelId == null) ? null : chatAPI.Endpoints.Models.ModelDetailsFromGallery(modelId),
-        fetcher
-    );
-
-    return (
-        <Modal open={(modelId != null)} onClose={() => setModelId(null)}>
-          <ModalDialog>
-            <ModalClose />
-            <Typography level="h3">{modelData?.name}</Typography>
-            <Typography>
+  return (
+    <Modal open={modelId != null} onClose={() => setModelId(null)}>
+      <ModalDialog sx={{ gap: 0 }}>
+        <ModalClose />
+        <Stack direction="row" alignItems="flex-start">
+          {modelData?.logo ? (
+            <img
+              src={modelData?.logo}
+              alt=""
+              style={{
+                margin: '0px 40px 0px 0px',
+                width: '200px',
+                objectFit: 'contain',
+                borderRadius: '20px',
+              }}
+              width="200"
+            />
+          ) : (
+            <Skeleton variant="rectangular" width={200} height={200} />
+          )}
+          <div>
+            <Typography level="h2">{modelData?.name}</Typography>
+            <Typography level="title-sm" pb={3}>
+              {modelData?.uniqueID}
+            </Typography>
+            <Typography pb={2}>
+              <Box sx={{ maxHeight: '200px', overflow: 'auto' }}>
                 {modelData?.description}
+              </Box>
             </Typography>
             <Typography>
-                <b>Id:</b>
-                {modelData?.uniqueID}
+              <b>Architecture:&nbsp;</b>
+              {modelData?.architecture}
             </Typography>
             <Typography>
-                <b>Architecture:</b>
-                {modelData?.architecture}
-            </Typography>
-            <Typography>
-                <b>License:</b>
-                {modelData?.license}
+              <b>License:&nbsp;</b>
+              {modelData?.license}
             </Typography>
 
             <Typography>
-                <b>Parameters:</b>
-                {modelData?.parameters}
+              <b>Parameters:&nbsp;</b>
+              {modelData?.parameters}
             </Typography>
             <Typography>
-                <b>Context:</b>
-                {modelData?.context}
+              <b>Context:&nbsp;</b>
+              {modelData?.context}
             </Typography>
             <Typography>
-                <b>Size:</b>
-                {modelData?.size_of_model_in_mb &&
-                    formatBytes(modelData?.size_of_model_in_mb * 1024 * 1024)}
+              <b>Size:&nbsp;</b>
+              {modelData?.size_of_model_in_mb &&
+                formatBytes(modelData?.size_of_model_in_mb * 1024 * 1024)}
             </Typography>
-        </ModalDialog>
-      </Modal>
-    )
+          </div>
+        </Stack>
+      </ModalDialog>
+    </Modal>
+  );
 }
