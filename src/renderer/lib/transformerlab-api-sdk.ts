@@ -863,7 +863,6 @@ Endpoints.Jobs = {
   List: () => API_URL() + 'jobs/list',
   Get: (jobId: string) => API_URL() + 'train/job/' + jobId,
   Create: (
-    templateId?: string,
     experimentId?: string,
     type?: string,
     status?: string,
@@ -871,16 +870,11 @@ Endpoints.Jobs = {
   ) =>
     API_URL() +
     'jobs/create' +
-    '?template_id=' +
-    templateId +
-    '&experiment_id=' +
-    experimentId +
-    '&type=' +
-    type +
-    '&status=' +
-    status +
-    '&data=' +
-    data,
+    '?status=' +
+    (status ? status : 'CREATED') +
+    (experimentId ? '&experiment_id=' + experimentId : '') +
+    (type ? '&type=' + type : '') +
+    (data ? '&data=' + data : ''),
   GetJobsOfType: (type: string = '', status: string = '') =>
     API_URL() + 'jobs/list' + '?type=' + type + '&status=' + status,
   Delete: (jobId: string) => API_URL() + 'jobs/delete/' + jobId,

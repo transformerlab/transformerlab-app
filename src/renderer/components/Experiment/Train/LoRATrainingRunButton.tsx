@@ -22,7 +22,6 @@ export default function LoRATrainingRunButton({
         // Use fetch API to call endpoint
         await fetch(
           chatAPI.Endpoints.Jobs.Create(
-            trainingTemplateId,
             experimentId,
             'TRAIN',
             'QUEUED',
