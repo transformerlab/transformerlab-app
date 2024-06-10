@@ -37,7 +37,6 @@ export default function PluginSettingsModal({
           overflow: 'auto',
           maxHeight: '80vh',
           minHeight: '70vh',
-          height: '100%',
         }}
       >
         <Typography level="h3">Configure {plugin}</Typography>
