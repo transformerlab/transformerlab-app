@@ -47,7 +47,13 @@ export default function PluginCard({
 
   return (
     <>
-      <Card variant="outlined" sx={{ minHeight: '320px' }}>
+      <Card
+        variant="outlined"
+        sx={{
+          minHeight: '320px',
+          overflow: 'hidden',
+        }}
+      >
         <CardContent orientation="vertical">
           <>
             {/* {JSON.stringify(plugin)} */}
@@ -87,7 +93,10 @@ export default function PluginCard({
           </>
         </CardContent>
 
-        <CardActions buttonFlex="0 1 120px">
+        <CardActions
+          buttonFlex="0 1 120px"
+          sx={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}
+        >
           {!download && (
             <>
               {/* <Button
@@ -109,7 +118,10 @@ export default function PluginCard({
                   Edit
                 </Button>
               </Link>
-
+            </>
+          )}
+          {!download && (
+            <>
               <Button
                 variant="plain"
                 color="danger"
@@ -134,7 +146,6 @@ export default function PluginCard({
             size="sm"
             color="primary"
             aria-label="Download"
-            sx={{ ml: 'auto' }}
             onClick={async () => {
               setInstalling(plugin.uniqueId);
               await fetch(
@@ -155,7 +166,7 @@ export default function PluginCard({
             )}
             {plugin?.installed == true ? (
               <>
-                Reinstall &nbsp;
+                Reinstall&nbsp;
                 <RotateCcwIcon size={16} />
               </>
             ) : (
