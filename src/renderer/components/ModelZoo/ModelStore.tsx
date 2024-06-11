@@ -469,6 +469,14 @@ export default function ModelStore() {
                             return alert(
                               `Failed to download:\n${response.message}`
                             );
+                          } else if (response?.status == 'unauthorized') {
+                            setCurrentlyDownloading(null);
+                            setJobId(null);
+                            const confirm_text =
+                              `${response.message}\n\nPress OK to open the model agreement.`;
+                            if (confirm(confirm_text)) {
+                              window.open(getModelHuggingFaceURL(row), '_blank')?.focus();
+                            }
                           }
                           setCurrentlyDownloading(null);
                           setJobId(null);
