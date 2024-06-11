@@ -275,7 +275,7 @@ function CustomSelect<
         required={required}
         disabled={disabled}
         placeholder={placeholder}
-        defaultValue={defaultValue}
+        defaultValue={String(defaultValue)}
       >
         {Array.isArray(enumOptions) &&
           enumOptions.map(({ value, label }, i: number) => {
@@ -292,7 +292,7 @@ function CustomSelect<
                 key={i}
                 value={String(label)}
                 disabled={disabled}
-                selected={selected}
+                label={label}
               >
                 {label}
               </Option>
@@ -357,7 +357,7 @@ export default function DynamicPluginForm({
       ),
     fetcher
   );
-  const [configData, setConfigData] = React.useState(data);
+  const [configData, setConfigData] = React.useState<any>(null);
   //Using use effect here to update the config data when the data or config changes
   React.useEffect(() => {
     if (config && data) {
@@ -375,17 +375,19 @@ export default function DynamicPluginForm({
       //Schema takes in data as a JSON string
       setConfigData(JSON.stringify(parsedData));
     }
-    mutate();
   }, [plugin, experimentInfo, config, data]);
 
   const schema = useMemo(() => getSchema(configData), [configData]);
+  /* Below we wait for "configData" to be sure that defaults are set before rendering
+  if we don't do this, then the form is rendered twice and Select elements will not
+  honour the second settings for default Value */
   return (
     <>
       {/* <Typography level="title-sm">
         Custom Fields from Plugin: {plugin}
       </Typography> */}
       {/* <pre>{JSON.stringify(schema, null, 2)}</pre> */}
-      {plugin && data ? (
+      {plugin && configData ? (
         <Form
           tagName="div"
           className="pure-form pure-form-stacked"

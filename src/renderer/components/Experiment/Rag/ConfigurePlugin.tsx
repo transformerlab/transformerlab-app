@@ -21,6 +21,12 @@ export default function PluginSettingsModal({
 }) {
   const currentModelName = experimentInfo?.config?.foundation;
 
+  let ragEngineSettings = {};
+  try {
+    ragEngineSettings = JSON.parse(experimentInfo?.config?.rag_engine_settings);
+  } catch (e) {
+    console.log('Error parsing rag_engine_settings', e);
+  }
   return (
     <Modal
       open={open}
@@ -52,8 +58,7 @@ export default function PluginSettingsModal({
             event.preventDefault();
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
-
-            setRagEngine(plugin, JSON.stringify(form_json));
+            setRagEngine(plugin, form_json);
             onClose();
           }}
         >
@@ -61,6 +66,7 @@ export default function PluginSettingsModal({
             <DynamicPluginForm
               experimentInfo={experimentInfo}
               plugin={plugin}
+              config={ragEngineSettings}
             />
           </Stack>
 
