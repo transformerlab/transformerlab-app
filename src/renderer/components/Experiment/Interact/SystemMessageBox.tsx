@@ -56,7 +56,8 @@ export default function SystemMessageBox({
   // Update if the server has been updated with a new message
   useEffect(() => {
     setSystemMessage(
-      experimentInfo?.config?.prompt_template?.system_message || ''
+      experimentInfo?.config?.prompt_template?.system_message ||
+        defaultPromptConfigForModel?.system_message
     );
   }, [experimentInfo?.config?.prompt_template?.system_message]);
 

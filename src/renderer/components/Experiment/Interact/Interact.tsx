@@ -440,6 +440,7 @@ export default function Chat({
             tokenCount={tokenCount}
             text={textToDebounce}
             debouncedText={debouncedText}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
           />
         )}
         {mode === 'completion' && (
