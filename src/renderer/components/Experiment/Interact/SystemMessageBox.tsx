@@ -92,7 +92,7 @@ export default function SystemMessageBox({
           <Textarea
             variant="plain"
             name="system-message"
-            minRows={4}
+            minRows={1}
             maxRows={8}
             value={systemMessage}
             onChange={(e) => setSystemMessage(e.target.value)}
