@@ -278,9 +278,9 @@ app.on('before-quit', async (e) => {
   }
 });
 
-// /////////////////////////////
-import sshClient from './ssh-client';
-// /////////////////////////////
+// // /////////////////////////////
+// import sshClient from './ssh-client';
+// // /////////////////////////////
 
 // AUTO UPDATER
 let updater;
