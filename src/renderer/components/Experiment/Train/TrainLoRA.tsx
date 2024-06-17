@@ -6,7 +6,6 @@ import useSWR from 'swr';
 import Sheet from '@mui/joy/Sheet';
 
 import {
-  Box,
   Button,
   ButtonGroup,
   Chip,
@@ -18,12 +17,10 @@ import {
 } from '@mui/joy';
 
 import {
-  CheckIcon,
   ClockIcon,
   FileTextIcon,
   GraduationCapIcon,
   LineChartIcon,
-  PlayIcon,
   PlusCircleIcon,
   Trash2Icon,
 } from 'lucide-react';
