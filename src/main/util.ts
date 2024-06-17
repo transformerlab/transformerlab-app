@@ -352,6 +352,10 @@ export async function checkIfCondaEnvironmentExists() {
   }
 }
 
+function truncate(str: string, max: number) {
+  return str.length > max ? str.substr(0, max - 1) + '…' : str;
+}
+
 /**
  *
  * @param argument parameter to pass to install.sh
@@ -392,7 +396,8 @@ export async function executeInstallStep(argument: string) {
       stderr: err?.stderr?.toString(),
     };
   }
-  if (stdout) console.log(`${installScriptFilename} stdout:`, stdout);
+  if (stdout)
+    console.log(`${installScriptFilename} stdout:`, truncate(stdout, 150));
   if (stderr) console.error(`${installScriptFilename} stderr:`, stderr);
   return { error, stdout, stderr };
 }
