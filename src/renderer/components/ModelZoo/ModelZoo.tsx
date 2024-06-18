@@ -26,8 +26,9 @@ export default function ModelZoo({ experimentInfo }) {
           overflow: 'unset',
         }}
       >
-        <TabList tabFlex={1}>
+        <TabList>
           <Tab>Local Models</Tab>
+          <Tab>Generated</Tab>
           <Tab>
             <StoreIcon color="grey" />
             &nbsp; Model Store
@@ -41,6 +42,16 @@ export default function ModelZoo({ experimentInfo }) {
         </TabPanel>
         <TabPanel
           value={1}
+          sx={{ p: 0, pb: 2, height: '100%', overflow: 'hidden' }}
+        >
+          <LocalModels
+            pickAModelMode={false}
+            experimentInfo={experimentInfo}
+            showOnlyGeneratedModels
+          />
+        </TabPanel>
+        <TabPanel
+          value={2}
           sx={{ p: 0, pb: 2, height: '100%', overflow: 'hidden' }}
         >
           <Sheet

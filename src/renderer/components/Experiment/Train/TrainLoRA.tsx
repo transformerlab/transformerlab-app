@@ -159,7 +159,7 @@ export default function TrainLoRA({ experimentInfo }) {
               <th width="150px">Name</th>
               {/* <th>Description</th> */}
               <th width="100px">Dataset</th>
-              <th width="300px">Data</th>
+              <th width="400px">Data</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </thead>
             <tbody>
@@ -187,16 +187,8 @@ export default function TrainLoRA({ experimentInfo }) {
                       <td style={{ overflow: 'clip' }}>
                         {formatTemplateConfig(row[5])}
                       </td>
-                      <td
-                        style={{
-                          display: 'flex',
-                          gap: 2,
-                          flexWrap: 'wrap',
-                          alignItems: 'center',
-                          justifyContent: 'flex-end',
-                        }}
-                      >
-                        <ButtonGroup>
+                      <td style={{}}>
+                        <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
                           <LoRATrainingRunButton
                             initialMessage="Queue"
                             trainingTemplateId={row[0]}
@@ -260,7 +252,7 @@ export default function TrainLoRA({ experimentInfo }) {
             Delete all Jobs
           </Button>
         </ButtonGroup> */}
-        <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}>
+        <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
           {/* <pre>{JSON.stringify(jobs, '\n', 2)}</pre> */}
           <Table>
             <thead>
@@ -294,16 +286,8 @@ export default function TrainLoRA({ experimentInfo }) {
                         <br />
                         <LinearProgress determinate value={job.progress} />
                       </td>
-                      <td
-                        style={{
-                          display: 'flex',
-                          gap: 2,
-                          flexWrap: 'wrap',
-                          alignItems: 'center',
-                          justifyContent: 'flex-end',
-                        }}
-                      >
-                        <ButtonGroup>
+                      <td style={{}}>
+                        <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
                           {job?.job_data?.tensorboard_output_dir && (
                             <Button
                               size="sm"

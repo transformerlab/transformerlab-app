@@ -1,13 +1,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useCallback, useState } from 'react';
 
-import {
-  Sheet,
-  Typography,
-  Stack,
-  LinearProgress,
-  Modal,
-} from '@mui/joy';
+import { Sheet, Typography, Stack, LinearProgress, Modal } from '@mui/joy';
 
 import { useLocation } from 'react-router-dom';
 
@@ -25,6 +19,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function LocalModels({
   pickAModelMode = false,
   experimentInfo,
+  showOnlyGeneratedModels = false,
   setFoundation = (name: string) => {},
   setAdaptor = (name: string) => {},
 }) {
@@ -113,17 +108,15 @@ export default function LocalModels({
           </Typography>
         </Sheet>
       </Modal>
-
       <LocalModelsTable
         models={data}
         mutateModels={mutate}
         setFoundation={setFoundation}
         setAdaptor={setAdaptor}
+        showOnlyGeneratedModels={showOnlyGeneratedModels}
       />
 
-      <ImportModelsBar
-      />
-
+      <ImportModelsBar />
     </Sheet>
   );
 }
