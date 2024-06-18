@@ -56,7 +56,8 @@ export default function SystemMessageBox({
   // Update if the server has been updated with a new message
   useEffect(() => {
     setSystemMessage(
-      experimentInfo?.config?.prompt_template?.system_message || ''
+      experimentInfo?.config?.prompt_template?.system_message ||
+        defaultPromptConfigForModel?.system_message
     );
   }, [experimentInfo?.config?.prompt_template?.system_message]);
 
@@ -91,7 +92,7 @@ export default function SystemMessageBox({
           <Textarea
             variant="plain"
             name="system-message"
-            minRows={4}
+            minRows={1}
             maxRows={8}
             value={systemMessage}
             onChange={(e) => setSystemMessage(e.target.value)}

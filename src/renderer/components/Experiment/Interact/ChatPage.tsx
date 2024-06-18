@@ -24,6 +24,7 @@ export default function ChatPage({
   tokenCount,
   text,
   debouncedText,
+  defaultPromptConfigForModel = {},
 }) {
   const [systemMessage, setSystemMessage] = useState(
     experimentInfo?.config?.prompt_template?.system_message
@@ -89,6 +90,7 @@ export default function ChatPage({
       <SystemMessageBox
         experimentInfo={experimentInfo}
         experimentInfoMutate={experimentInfoMutate}
+        defaultPromptConfigForModel={defaultPromptConfigForModel}
       />
       <Sheet
         variant="plain"

@@ -6,7 +6,6 @@ import useSWR from 'swr';
 import Sheet from '@mui/joy/Sheet';
 
 import {
-  Box,
   Button,
   ButtonGroup,
   Chip,
@@ -18,12 +17,10 @@ import {
 } from '@mui/joy';
 
 import {
-  CheckIcon,
   ClockIcon,
   FileTextIcon,
   GraduationCapIcon,
   LineChartIcon,
-  PlayIcon,
   PlusCircleIcon,
   Trash2Icon,
 } from 'lucide-react';
@@ -147,7 +144,6 @@ export default function TrainLoRA({ experimentInfo }) {
         </Stack>
 
         <Sheet
-          color="neutral"
           variant="soft"
           sx={{
             px: 1,
@@ -160,10 +156,10 @@ export default function TrainLoRA({ experimentInfo }) {
         >
           <Table>
             <thead>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Dataset</th>
-              <th>Data</th>
+              <th width="150px">Name</th>
+              {/* <th>Description</th> */}
+              <th width="100px">Dataset</th>
+              <th width="300px">Data</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </thead>
             <tbody>
@@ -184,7 +180,7 @@ export default function TrainLoRA({ experimentInfo }) {
                       <td>
                         <Typography level="title-sm">{row[1]}</Typography>
                       </td>
-                      <td>{row[2]}</td>
+                      {/* <td>{row[2]}</td> */}
                       <td>
                         {row[4]} <FileTextIcon size={14} />
                       </td>
@@ -200,33 +196,36 @@ export default function TrainLoRA({ experimentInfo }) {
                           justifyContent: 'flex-end',
                         }}
                       >
-                        <Button
-                          onClick={() => {
-                            setTemplateID(row[0]);
-                            setOpen(true);
-                          }}
-                        >
-                          Edit
-                        </Button>
-                        <LoRATrainingRunButton
-                          initialMessage="Queue"
-                          trainingTemplateId={row[0]}
-                          jobsMutate={jobsMutate}
-                          experimentId={experimentInfo?.id}
-                        />
-                        <IconButton
-                          onClick={async () => {
-                            await fetch(
-                              chatAPI.API_URL() +
-                                'train/template/' +
-                                row[0] +
-                                '/delete'
-                            );
-                            mutate();
-                          }}
-                        >
-                          <Trash2Icon />
-                        </IconButton>
+                        <ButtonGroup>
+                          <LoRATrainingRunButton
+                            initialMessage="Queue"
+                            trainingTemplateId={row[0]}
+                            jobsMutate={jobsMutate}
+                            experimentId={experimentInfo?.id}
+                          />
+                          <Button
+                            onClick={() => {
+                              setTemplateID(row[0]);
+                              setOpen(true);
+                            }}
+                            variant="plain"
+                          >
+                            Edit
+                          </Button>
+                          <IconButton
+                            onClick={async () => {
+                              await fetch(
+                                chatAPI.API_URL() +
+                                  'train/template/' +
+                                  row[0] +
+                                  '/delete'
+                              );
+                              mutate();
+                            }}
+                          >
+                            <Trash2Icon />
+                          </IconButton>
+                        </ButtonGroup>
                       </td>
                     </tr>
                   );
@@ -261,11 +260,7 @@ export default function TrainLoRA({ experimentInfo }) {
             Delete all Jobs
           </Button>
         </ButtonGroup> */}
-        <Sheet
-          color="warning"
-          variant="soft"
-          sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}
-        >
+        <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}>
           {/* <pre>{JSON.stringify(jobs, '\n', 2)}</pre> */}
           <Table>
             <thead>
@@ -308,36 +303,40 @@ export default function TrainLoRA({ experimentInfo }) {
                           justifyContent: 'flex-end',
                         }}
                       >
-                        {job?.job_data?.tensorboard_output_dir && (
+                        <ButtonGroup>
+                          {job?.job_data?.tensorboard_output_dir && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => {
+                                setCurrentTensorboardForModal(job?.id);
+                              }}
+                              startDecorator={<LineChartIcon />}
+                            >
+                              Tensorboard
+                            </Button>
+                          )}
+
                           <Button
                             size="sm"
+                            variant="plain"
                             onClick={() => {
-                              setCurrentTensorboardForModal(job?.id);
+                              setViewOutputFromJob(job?.id);
                             }}
-                            startDecorator={<LineChartIcon />}
                           >
-                            Tensorboard
+                            Output
                           </Button>
-                        )}
-
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setViewOutputFromJob(job?.id);
-                          }}
-                        >
-                          Output
-                        </Button>
-                        <IconButton variant="soft">
-                          <Trash2Icon
-                            onClick={async () => {
-                              await fetch(
-                                chatAPI.Endpoints.Jobs.Delete(job.id)
-                              );
-                              jobsMutate();
-                            }}
-                          />
-                        </IconButton>
+                          <IconButton variant="plain">
+                            <Trash2Icon
+                              onClick={async () => {
+                                await fetch(
+                                  chatAPI.Endpoints.Jobs.Delete(job.id)
+                                );
+                                jobsMutate();
+                              }}
+                            />
+                          </IconButton>
+                        </ButtonGroup>
                       </td>
                     </tr>
                   );

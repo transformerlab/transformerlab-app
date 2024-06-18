@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button, LinearProgress, Stack } from '@mui/joy';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { PlayIcon } from 'lucide-react';
 
 export default function LoRATrainingRunButton({
   initialMessage,
@@ -18,6 +19,8 @@ export default function LoRATrainingRunButton({
   };
   return (
     <Button
+      variant="solid"
+      endDecorator={<PlayIcon size="14px" />}
       onClick={async () => {
         // Use fetch API to call endpoint
         await fetch(
