@@ -16,7 +16,7 @@ export default function ModelZoo({ experimentInfo }) {
     >
       <Tabs
         aria-label="Basic tabs"
-        defaultValue={1}
+        defaultValue={2}
         size="sm"
         sx={{
           borderRadius: 'lg',
