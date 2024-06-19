@@ -11,22 +11,15 @@ import {
   Input,
   Modal,
   ModalDialog,
-  Select,
-  Option,
-  Slider,
   Stack,
   Tab,
   TabList,
   TabPanel,
   Tabs,
-  Textarea,
-  Typography,
-  Chip,
-  Box,
-  CircularProgress,
   Sheet,
 } from '@mui/joy';
 import DynamicPluginForm from '../DynamicPluginForm';
+import TrainingModalDataTab from './TraningModalDataTab';
 
 const DefaultLoraConfig = {
   model_max_length: 2048,
@@ -45,15 +38,16 @@ export default function TrainingModalLoRA({
   onClose,
   experimentInfo,
   template_id,
+  pluginId,
 }: {
   open: boolean;
   onClose: () => void;
   experimentInfo: any;
   template_id?: string;
+  pluginId: string;
 }) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
-  const [selectedPlugin, setSelectedPlugin] = useState(null);
   const [config, setConfig] = useState(DefaultLoraConfig);
   const [nameInput, setNameInput] = useState('');
 
@@ -64,20 +58,6 @@ export default function TrainingModalLoRA({
     isLoading: datasetsIsLoading,
   } = useSWR(chatAPI.Endpoints.Dataset.LocalList(), fetcher);
 
-  //Fetch available training plugins
-  const {
-    data: pluginsData,
-    error: pluginsIsError,
-    isLoading: pluginsIsLoading,
-  } = useSWR(
-    chatAPI.Endpoints.Experiment.ListScriptsOfType(
-      experimentInfo?.id,
-      'trainer', // type
-      'model_architectures:' +
-        experimentInfo?.config?.foundation_model_architecture //filter
-    ),
-    fetcher
-  );
   const {
     data: templateData,
     error: templateError,
@@ -125,13 +105,11 @@ export default function TrainingModalLoRA({
       templateData.config = JSON.parse(templateData.config);
     }
     if (templateData && templateData.config) {
-      setSelectedPlugin(templateData.config.plugin_name);
       setSelectedDataset(templateData.config.dataset_name);
       setConfig(templateData.config);
       setNameInput(templateData.name);
     } else {
       //This case is for when we are creating a new template
-      setSelectedPlugin(null);
       setSelectedDataset(null);
       setConfig(DefaultLoraConfig);
       setNameInput('');
@@ -169,6 +147,63 @@ export default function TrainingModalLoRA({
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
+  }
+
+  function TrainingModalFirstTab() {
+    return (
+      <Stack spacing={2}>
+        <FormControl>
+          <FormLabel>Training Template Name</FormLabel>
+          <Input
+            required
+            autoFocus
+            placeholder={
+              templateData ? templateData.name : 'Alpaca Training Job'
+            }
+            value={nameInput} //Value needs to be stored in a state variable otherwise it will not update on change/update
+            onChange={(e) => setNameInput(e.target.value)}
+            name="template_name"
+            size="lg"
+          />
+          <FormHelperText>
+            Give this training recipe a unique name
+          </FormHelperText>
+        </FormControl>
+        <FormLabel>Info</FormLabel>
+        <Sheet color="neutral" variant="soft">
+          <Stack direction="column" justifyContent="space-evenly" gap={2} p={2}>
+            <FormControl sx={{ flex: 1 }}>
+              <FormLabel>Base Model:</FormLabel>
+              <Input readOnly value={currentModel} variant="soft" />
+            </FormControl>
+            <FormControl sx={{ flex: 1 }}>
+              <FormLabel>Architecture:</FormLabel>
+              <Input
+                readOnly
+                value={experimentInfo?.config?.foundation_model_architecture}
+                variant="soft"
+              />
+            </FormControl>
+            <FormControl sx={{ flex: 1 }}>
+              <FormLabel>Plugin:</FormLabel>
+              <Input
+                readOnly
+                value={pluginId}
+                variant="soft"
+                name="plugin_name"
+              />
+            </FormControl>
+            <input hidden value={currentModel} name="model_name" readOnly />
+            <input
+              hidden
+              value={experimentInfo?.config?.foundation_model_architecture}
+              name="model_architecture"
+              readOnly
+            />
+          </Stack>
+        </Sheet>
+      </Stack>
+    );
   }
 
   return (
@@ -223,165 +258,32 @@ export default function TrainingModalLoRA({
             sx={{ borderRadius: 'lg', display: 'flex', overflow: 'hidden' }}
           >
             <TabList>
-              <Tab>Training Data</Tab>
-              {/* <Tab>Training Settings</Tab> */}
-              <Tab>Plugin Config</Tab>
+              <Tab>1. Name</Tab>
+              <Tab>2. Data</Tab>
+              <Tab>3. Plugin Config</Tab>
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-              <Stack spacing={2}>
-                <FormControl>
-                  <FormLabel>Training Template Name</FormLabel>
-                  <Input
-                    required
-                    autoFocus
-                    placeholder={
-                      templateData ? templateData.name : 'Alpaca Training Job'
-                    }
-                    value={nameInput} //Value needs to be stored in a state variable otherwise it will not update on change/update
-                    onChange={(e) => setNameInput(e.target.value)}
-                    name="template_name"
-                    size="lg"
-                  />
-                  <FormHelperText>
-                    Give this training recipe a unique name
-                  </FormHelperText>
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Plugin Script</FormLabel>
-
-                  <Select
-                    placeholder={
-                      pluginsIsLoading ? 'Loading...' : 'Select Plugin'
-                    }
-                    variant="soft"
-                    size="lg"
-                    name="plugin_name"
-                    value={selectedPlugin}
-                    onChange={(e, newValue) => setSelectedPlugin(newValue)}
-                  >
-                    {pluginsData?.map((row) => (
-                      <Option value={row?.uniqueId} key={row.uniqueId}>
-                        {row.name}
-                      </Option>
-                    ))}
-                  </Select>
-                </FormControl>
-                <Stack direction="row" justifyContent="space-evenly" gap={2}>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Model:</FormLabel>
-                    <Typography variant="soft">{currentModel}</Typography>
-                  </FormControl>
-                  <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Architecture:</FormLabel>
-                    <Typography variant="soft">
-                      {experimentInfo?.config?.foundation_model_architecture}
-                    </Typography>
-                  </FormControl>
-
-                  <input
-                    hidden
-                    value={currentModel}
-                    name="model_name"
-                    readOnly
-                  />
-                  <input
-                    hidden
-                    value={
-                      experimentInfo?.config?.foundation_model_architecture
-                    }
-                    name="model_architecture"
-                    readOnly
-                  />
-                </Stack>
-                <FormControl>
-                  <FormLabel>Dataset</FormLabel>
-
-                  <Select
-                    placeholder={
-                      datasetsIsLoading ? 'Loading...' : 'Select Dataset'
-                    }
-                    variant="soft"
-                    size="lg"
-                    name="dataset_name"
-                    value={selectedDataset}
-                    onChange={(e, newValue) => setSelectedDataset(newValue)}
-                  >
-                    {datasets?.map((row) => (
-                      <Option value={row?.dataset_id} key={row.id}>
-                        {row.dataset_id}
-                      </Option>
-                    ))}
-                  </Select>
-                </FormControl>
-                {selectedDataset && (
-                  <>
-                    <FormControl>
-                      <FormLabel>Available Fields</FormLabel>
-
-                      <Box
-                        sx={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}
-                      >
-                        {currentDatasetInfoIsLoading && <CircularProgress />}
-                        {/* // For each key in the currentDatasetInfo.features object,
-  display it: */}
-                        {currentDatasetInfo?.features &&
-                          Object.keys(currentDatasetInfo?.features).map(
-                            (key) => (
-                              <>
-                                <Chip
-                                  onClick={() => {
-                                    injectIntoTemplate(key);
-                                  }}
-                                >
-                                  {key}
-                                </Chip>
-                                &nbsp;
-                              </>
-                            )
-                          )}
-                      </Box>
-                      {/* {selectedDataset && (
-    <FormHelperText>
-      Use the field names above, maintaining capitalization, in
-      the template below
-    </FormHelperText>
-  )} */}
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Template</FormLabel>
-                      {/* I want the following to be a Textarea, not a textarea
-                      but when we do, it gives resizeobserver error when you
-                      switch tabs back and forth */}
-                      <textarea
-                        required
-                        name="formatting_template"
-                        id="formatting_template"
-                        defaultValue={
-                          templateData
-                            ? templateData.config.formatting_template
-                            : 'Instruction: $instruction \n###\n Prompt: $prompt\n###\n Generation: $generation'
-                        }
-                        rows={5}
-                      />
-                      <FormHelperText>
-                        This describes how the data is formatted when passed to
-                        the trainer. Use Python Standard String Templating
-                        format. For example <br />
-                        "Instruction: $instruction \n###\n Prompt: $prompt
-                        \n###\n Generation: $generation"
-                        <br />
-                        Using the field names from above with the same
-                        capitalization.
-                      </FormHelperText>
-                    </FormControl>
-                  </>
-                )}
-              </Stack>
+              <TrainingModalFirstTab />
             </TabPanel>
+
             <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TrainingModalDataTab
+                datasetsIsLoading={datasetsIsLoading}
+                datasets={datasets}
+                selectedDataset={selectedDataset}
+                setSelectedDataset={setSelectedDataset}
+                currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
+                currentDatasetInfo={currentDatasetInfo}
+                templateData={templateData}
+                injectIntoTemplate={injectIntoTemplate}
+                experimentInfo={experimentInfo}
+                pluginId={pluginId}
+              />
+            </TabPanel>
+            <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
-                plugin={selectedPlugin}
+                plugin={pluginId}
                 config={config}
               />
             </TabPanel>

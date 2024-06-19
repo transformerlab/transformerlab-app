@@ -9,8 +9,12 @@ import {
   Button,
   ButtonGroup,
   Chip,
+  Dropdown,
   IconButton,
   LinearProgress,
+  Menu,
+  MenuButton,
+  MenuItem,
   Stack,
   Table,
   Typography,
@@ -77,6 +81,7 @@ export default function TrainLoRA({ experimentInfo }) {
     useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [templateID, setTemplateID] = useState('-1');
+  const [currentPlugin, setCurrentPlugin] = useState('');
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.GET_TRAINING_TEMPLATE_URL(),
@@ -94,6 +99,21 @@ export default function TrainLoRA({ experimentInfo }) {
     refreshInterval: 2000,
   });
 
+  //Fetch available training plugins
+  const {
+    data: pluginsData,
+    error: pluginsIsError,
+    isLoading: pluginsIsLoading,
+  } = useSWR(
+    chatAPI.Endpoints.Experiment.ListScriptsOfType(
+      experimentInfo?.id,
+      'trainer', // type
+      'model_architectures:' +
+        experimentInfo?.config?.foundation_model_architecture //filter
+    ),
+    fetcher
+  );
+
   if (!experimentInfo) {
     return 'No experiment selected';
   }
@@ -108,6 +128,7 @@ export default function TrainLoRA({ experimentInfo }) {
         }}
         experimentInfo={experimentInfo}
         template_id={Number(templateID) > -1 ? templateID : undefined}
+        pluginId={currentPlugin}
       />
       <TensorboardModal
         currentTensorboard={currentTensorboardForModal}
@@ -130,19 +151,26 @@ export default function TrainLoRA({ experimentInfo }) {
           <Typography level="title-md" startDecorator={<GraduationCapIcon />}>
             Training Templates
           </Typography>
-          <Button
-            onClick={() => {
-              setTemplateID('-1');
-              setOpen(true);
-            }}
-            startDecorator={<PlusCircleIcon />}
-            sx={{ width: 'fit-content' }}
-            size="md"
-          >
-            New
-          </Button>
-        </Stack>
 
+          <Dropdown>
+            <MenuButton startDecorator={<PlusCircleIcon />} variant="solid">
+              New
+            </MenuButton>
+            <Menu>
+              {pluginsData?.map((plugin) => (
+                <MenuItem
+                  onClick={() => {
+                    setTemplateID('-1');
+                    setCurrentPlugin(plugin.uniqueId);
+                    setOpen(true);
+                  }}
+                >
+                  {plugin.name}
+                </MenuItem>
+              ))}
+            </Menu>
+          </Dropdown>
+        </Stack>
         <Sheet
           variant="soft"
           sx={{
@@ -198,6 +226,7 @@ export default function TrainLoRA({ experimentInfo }) {
                           <Button
                             onClick={() => {
                               setTemplateID(row[0]);
+                              setCurrentPlugin(JSON.parse(row[5])?.plugin_name);
                               setOpen(true);
                             }}
                             variant="plain"
