@@ -115,9 +115,9 @@ export default function TrainingModalDataTab({
                   rows={5}
                 />
                 <FormHelperText>
-                  The instruction (aka system message) to send to the model. For
-                  example in a summarization task, this could be "Summarize the
-                  following text:"
+                  The instruction (usually the system message) to send to the
+                  model. For example in a summarization task, this could be
+                  "Summarize the following text:"
                 </FormHelperText>
               </FormControl>
               <br />
@@ -170,18 +170,24 @@ export default function TrainingModalDataTab({
                   defaultValue={
                     templateData
                       ? templateData.config.formatting_template
-                      : 'Instruction: {{instruction}} \n###\n Prompt: {{prompt}}\n###\n Generation: {{generation}}'
+                      : 'Instruction: {{instruction}}\nPrompt: {{prompt}}\n Generation: {{generation}}'
                   }
                   rows={5}
                 />
-                <FormHelperText>
+                <FormHelperText
+                  sx={{ flexDirection: 'column', alignItems: 'flex-start' }}
+                >
                   This describes how the data is formatted when passed to the
                   trainer. Use Jinja2 Standard String Templating format. For
-                  example <br />
-                  "Instruction:
-                  &#123;&#123;instruction&#125;&#125;\n###\nPrompt:
-                  &#123;&#123;prompt&#125;&#125;\n###\n Generation:
-                  &#123;&#123;generation&#125;&#125;"
+                  example:
+                  <br />
+                  <span style={{}}>
+                    Summarize the following:
+                    <br />
+                    Prompt: &#123;&#123;prompt&#125;&#125;
+                    <br />
+                    Generation: &#123;&#123;generation&#125;&#125;
+                  </span>
                 </FormHelperText>
               </FormControl>
             </>
