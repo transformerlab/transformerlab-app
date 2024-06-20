@@ -12,6 +12,7 @@ import {
   Dropdown,
   IconButton,
   LinearProgress,
+  ListItemDecorator,
   Menu,
   MenuButton,
   MenuItem,
@@ -25,7 +26,9 @@ import {
   FileTextIcon,
   GraduationCapIcon,
   LineChartIcon,
+  Plug2Icon,
   PlusCircleIcon,
+  PlusIcon,
   Trash2Icon,
 } from 'lucide-react';
 
@@ -153,10 +156,20 @@ export default function TrainLoRA({ experimentInfo }) {
           </Typography>
 
           <Dropdown>
-            <MenuButton startDecorator={<PlusCircleIcon />} variant="solid">
+            <MenuButton
+              color="primary"
+              size="sm"
+              startDecorator={<PlusIcon />}
+              variant="solid"
+            >
               New
             </MenuButton>
-            <Menu>
+            <Menu sx={{ maxWidth: '300px' }}>
+              <MenuItem disabled variant="soft" color="primary">
+                <Typography level="title-sm">
+                  Select a training plugin from the following list:
+                </Typography>
+              </MenuItem>
               {pluginsData?.map((plugin) => (
                 <MenuItem
                   onClick={() => {
@@ -164,7 +177,11 @@ export default function TrainLoRA({ experimentInfo }) {
                     setCurrentPlugin(plugin.uniqueId);
                     setOpen(true);
                   }}
+                  key={plugin.uniqueId}
                 >
+                  <ListItemDecorator>
+                    <Plug2Icon />
+                  </ListItemDecorator>
                   {plugin.name}
                 </MenuItem>
               ))}
