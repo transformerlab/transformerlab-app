@@ -65,12 +65,13 @@ function jobChipColor(status: string): string {
 function formatJobConfig(c): ReactElement {
   const r = (
     <>
-      {/* {JSON.stringify(c)} */}
-      <b>Template ID:</b> {c?.template_name}
+      <b>Template ID:</b> {c?.job_data?.template_id}
       <br />
       <b>Model:</b> {c?.model_name}
       <br />
       <b>Dataset:</b> {c?.dataset_name}
+      <br />
+      <b>Created:</b> {c?.created_at}
     </>
   );
   return r;
@@ -318,7 +319,7 @@ export default function TrainLoRA({ experimentInfo }) {
                         {/* {JSON.stringify(job)} */}
                         <b>{job.id}-</b> {job.type}
                       </td>
-                      <td>{formatJobConfig(job.config)}</td>
+                      <td>{formatJobConfig(job)}</td>
                       <td>
                         <Chip color={jobChipColor(job.status)}>
                           {job.status}
