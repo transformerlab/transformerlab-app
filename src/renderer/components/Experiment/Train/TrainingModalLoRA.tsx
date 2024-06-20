@@ -166,7 +166,7 @@ export default function TrainingModalLoRA({
             size="lg"
           />
           <FormHelperText>
-            Give this training recipe a unique name
+            Give this specific training recipe a unique name
           </FormHelperText>
         </FormControl>
         <FormLabel>Info</FormLabel>
