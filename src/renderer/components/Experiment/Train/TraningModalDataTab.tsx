@@ -169,7 +169,7 @@ export default function TrainingModalDataTab({
                   id="formatting_template"
                   defaultValue={
                     templateData
-                      ? templateData.config.formatting_template
+                      ? templateData?.config?.formatting_template
                       : 'Instruction: {{instruction}}\nPrompt: {{prompt}}\nGeneration: {{generation}}'
                   }
                   rows={5}
