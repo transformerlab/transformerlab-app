@@ -74,7 +74,7 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
           <Box sx={{ overflow: 'auto', height: '100%' }}>
             {isLoading && <CircularProgress />}
             {data &&
-              data.data['columns'] && ( //Data is loaded as a map of column names to arrays of values
+              data?.data?.['columns'] && ( //Data is loaded as a map of column names to arrays of values
                 <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
                   <thead>
                     <tr>
