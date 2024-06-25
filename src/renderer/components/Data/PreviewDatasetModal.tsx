@@ -19,7 +19,6 @@ import { iconButtonClasses } from '@mui/joy/IconButton';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import { FaEllipsisH } from 'react-icons/fa';
 
 const fetcher = (url) =>
   fetch(url)
@@ -146,7 +145,7 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
             >
               {1}
             </IconButton>
-            {pageNumber > 4 ? <FaEllipsisH /> : <div />}
+            {pageNumber > 4 ? '…' : <div />}
             {Array.from(
               { length: Math.min(5, numOfPages) },
               (_, i) => pageNumber + i - 2
@@ -164,7 +163,7 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
                   {page}
                 </IconButton>
               ))}
-            {pageNumber < numOfPages - 4 ? <FaEllipsisH /> : <div />}
+            {pageNumber < numOfPages - 4 ? '…' : <div />}
             {numOfPages != 1 && (
               <IconButton
                 key={numOfPages}
