@@ -31,6 +31,8 @@ const DefaultLoraConfig = {
   adaptor_name: '',
 };
 
+import { generateFriendlyName } from 'renderer/lib/utils';
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TrainingModalLoRA({
@@ -112,7 +114,7 @@ export default function TrainingModalLoRA({
       //This case is for when we are creating a new template
       setSelectedDataset(null);
       setConfig(DefaultLoraConfig);
-      setNameInput('');
+      setNameInput(generateFriendlyName());
     }
   }, [templateData]);
   // Once you have a dataset selected, we use SWR's dependency mode to fetch the
@@ -157,9 +159,6 @@ export default function TrainingModalLoRA({
           <Input
             required
             autoFocus
-            placeholder={
-              templateData ? templateData.name : 'Alpaca Training Job'
-            }
             value={nameInput} //Value needs to be stored in a state variable otherwise it will not update on change/update
             onChange={(e) => setNameInput(e.target.value)}
             name="template_name"
@@ -249,6 +248,7 @@ export default function TrainingModalLoRA({
                 JSON.stringify(formJson)
               );
             }
+            setNameInput(generateFriendlyName());
             onClose();
           }}
         >
