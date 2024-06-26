@@ -14,6 +14,7 @@ import {
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { parse } from 'path';
+import DatasetTable from 'renderer/components/Data/DatasetTable';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -106,7 +107,15 @@ export default function TrainingModalDataTab({
           </>
         );
       case 'none':
-        return <> </>;
+        return (
+          <>
+            <Typography level="title-md" pb={1}>
+              Preview:
+            </Typography>
+
+            <DatasetTable datasetId={selectedDataset} />
+          </>
+        );
       default:
         return (
           <FormControl>
@@ -143,7 +152,14 @@ export default function TrainingModalDataTab({
 
   const parsedData = data ? JSON.parse(data) : null;
   return (
-    <>
+    <Box
+      sx={{
+        overflow: 'hidden',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* <pre>{JSON.stringify(templateData, null, 2)}</pre> */}
       <FormControl>
         <FormLabel>Dataset</FormLabel>
@@ -209,6 +225,6 @@ export default function TrainingModalDataTab({
           {renderTemplate(parsedData?.training_template_format)}
         </>
       )}
-    </>
+    </Box>
   );
 }
