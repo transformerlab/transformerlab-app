@@ -16,6 +16,14 @@ export default function ViewOutputModal({ jobId, setJobId }) {
     }
   );
 
+  // The following code prevents a crash if the output file doesn't exist
+  var dataChecked = '';
+  if (data?.status) {
+    dataChecked = '';
+  } else {
+    dataChecked = data;
+  }
+
   return (
     <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
       <ModalDialog>
@@ -37,7 +45,7 @@ export default function ViewOutputModal({ jobId, setJobId }) {
               cursorStyle: 'block',
               wordWrap: 'on',
             }}
-            value={data}
+            value={dataChecked}
           />
         </Typography>
         <Button
