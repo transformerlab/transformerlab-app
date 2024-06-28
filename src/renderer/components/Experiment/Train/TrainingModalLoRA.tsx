@@ -2,7 +2,8 @@ import { useState, FormEvent, useEffect } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Button,
   FormControl,
@@ -32,8 +33,28 @@ const DefaultLoraConfig = {
 };
 
 import { generateFriendlyName } from 'renderer/lib/utils';
-
 const fetcher = (url) => fetch(url).then((res) => res.json());
+
+function PluginIntroduction({ experimentInfo, pluginId }) {
+  const { data, error, isLoading } = useSWR(
+    chatAPI.Endpoints.Experiment.ScriptGetFile(
+      experimentInfo?.id,
+      pluginId,
+      'info.md'
+    ),
+    fetcher
+  );
+
+  return (
+    <>
+      <Markdown remarkPlugins={[remarkGfm]} className="editableSheetContent">
+        {data && data != 'FILE NOT FOUND'
+          ? data
+          : 'No description for this plugin is availabe.'}
+      </Markdown>
+    </>
+  );
+}
 
 export default function TrainingModalLoRA({
   open,
@@ -258,15 +279,22 @@ export default function TrainingModalLoRA({
             sx={{ borderRadius: 'lg', display: 'flex', overflow: 'hidden' }}
           >
             <TabList>
-              <Tab>1. Name</Tab>
-              <Tab>2. Data</Tab>
-              <Tab>3. Plugin Config</Tab>
+              <Tab>Introduction</Tab>
+              <Tab>Name</Tab>
+              <Tab>Data</Tab>
+              <Tab>Plugin Config</Tab>
             </TabList>
-            <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
+              <PluginIntroduction
+                experimentInfo={experimentInfo}
+                pluginId={pluginId}
+              />
+            </TabPanel>
+            <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <TrainingModalFirstTab />
             </TabPanel>
 
-            <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <TrainingModalDataTab
                 datasetsIsLoading={datasetsIsLoading}
                 datasets={datasets}
@@ -280,7 +308,7 @@ export default function TrainingModalLoRA({
                 pluginId={pluginId}
               />
             </TabPanel>
-            <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
