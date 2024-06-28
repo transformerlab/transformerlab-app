@@ -22,16 +22,6 @@ import {
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from './TraningModalDataTab';
 
-const DefaultLoraConfig = {
-  model_max_length: 2048,
-  num_train_epochs: 3,
-  learning_rate: 1e-3,
-  lora_r: 8,
-  lora_alpha: 16,
-  lora_dropout: 0.05,
-  adaptor_name: '',
-};
-
 import { generateFriendlyName } from 'renderer/lib/utils';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -71,7 +61,7 @@ export default function TrainingModalLoRA({
 }) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
-  const [config, setConfig] = useState(DefaultLoraConfig);
+  const [config, setConfig] = useState({});
   const [nameInput, setNameInput] = useState('');
 
   // Fetch available datasets from the API
@@ -134,7 +124,7 @@ export default function TrainingModalLoRA({
     } else {
       //This case is for when we are creating a new template
       setSelectedDataset(null);
-      setConfig(DefaultLoraConfig);
+      setConfig({});
       setNameInput(generateFriendlyName());
     }
   }, [templateData]);
