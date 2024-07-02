@@ -10,6 +10,7 @@ import {
   Option,
   Textarea,
   Typography,
+  Alert,
 } from '@mui/joy';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -109,10 +110,14 @@ export default function TrainingModalDataTab({
       case 'none':
         return (
           <>
-            <Typography level="title-md" pb={1}>
+            {parsedData?.training_data_instructions && (
+              <Alert color="primary">
+                {parsedData?.training_data_instructions}
+              </Alert>
+            )}
+            <Typography level="title-md" py={1}>
               Preview:
             </Typography>
-
             <DatasetTable datasetId={selectedDataset} />
           </>
         );
