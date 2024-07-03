@@ -12,13 +12,17 @@ import {
   Sheet,
   CircularProgress,
   FormLabel,
+  Typography
 } from '@mui/joy';
-import { PlusIcon } from 'lucide-react';
-import DatasetCard from './DatasetCard';
-import { SearchIcon } from 'lucide-react';
-import { filterByFilters } from 'renderer/lib/utils';
+import {
+  PlusIcon,
+  SearchIcon,
+  StoreIcon,
+ } from 'lucide-react';
+import { Link as ReactRouterLink } from 'react-router-dom';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import DatasetCard from './DatasetCard';
 import NewDatasetModal from './NewDatasetModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -123,6 +127,22 @@ export default function LocalDatasets() {
                 />
               </Grid>
             ))}
+
+          {data?.length === 0 && (
+              <Typography
+                level="body-lg"
+                justifyContent="center"
+                margin={5}
+              >
+                You do not have any datasets on your local machine. You can
+                download a dataset by going to the{' '}
+                <ReactRouterLink to="/data">
+                  <StoreIcon />
+                  Dataset Store
+                </ReactRouterLink>
+                .
+              </Typography>
+            )}
         </Grid>
       </Sheet>
 
