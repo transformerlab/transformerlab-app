@@ -6,12 +6,14 @@ import {
   Button,
   FormControl,
   Grid,
-  Input,
   LinearProgress,
   Sheet,
   Typography,
 } from '@mui/joy';
-import { FolderOpenIcon, PlusIcon } from 'lucide-react';
+import {
+  PlusIcon,
+  StoreIcon,
+} from 'lucide-react';
 import PluginCard from './PluginCard';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -46,9 +48,8 @@ export default function LocalPlugins({ experimentInfo }) {
         experimentInfo={experimentInfo}
       />
       <Typography level="body-md">
-        Below are plugin scripts installed to project{' '}
-        <b>{experimentInfo?.name}</b>. Additional scripts can be added from the
-        Script Store{' '}
+        Below is a list of currently installed and available plugins. Additional scripts can be added in the
+        {' '} <StoreIcon /> Plugin Script Store
       </Typography>
       <Sheet
         variant="soft"
