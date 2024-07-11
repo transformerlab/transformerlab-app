@@ -65,7 +65,7 @@ function jobChipColor(status: string): string {
 function formatJobConfig(c): ReactElement {
   const r = (
     <>
-      <b>Template ID:</b> {c?.job_data?.template_id}
+      <b>Template:</b> {c?.job_data?.template_name || c?.job_data?.template_id}
       <br />
       <b>Model:</b> {c?.job_data?.model_name}
       <br />
