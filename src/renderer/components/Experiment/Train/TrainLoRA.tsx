@@ -67,9 +67,9 @@ function formatJobConfig(c): ReactElement {
     <>
       <b>Template ID:</b> {c?.job_data?.template_id}
       <br />
-      <b>Model:</b> {c?.model_name}
+      <b>Model:</b> {c?.job_data?.model_name}
       <br />
-      <b>Dataset:</b> {c?.dataset_name}
+      <b>Dataset:</b> {c?.job_data?.dataset}
       <br />
       <b>Created:</b> {c?.created_at}
     </>
