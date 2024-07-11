@@ -38,6 +38,12 @@ import LoRATrainingRunButton from './LoRATrainingRunButton';
 import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
 
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
+var duration = require('dayjs/plugin/duration');
+dayjs.extend(duration);
+
 function formatTemplateConfig(config): ReactElement {
   const c = JSON.parse(config);
 
@@ -337,8 +343,37 @@ export default function TrainLoRA({ experimentInfo }) {
                               '%'}
                         </Chip>
                         <br />
+
+                        {job?.job_data?.start_time && (
+                          <>
+                            Started:{' '}
+                            {dayjs(job?.job_data?.start_time).fromNow()}
+                          </>
+                        )}
                         <br />
-                        <LinearProgress determinate value={job.progress} />
+                        {/* {job?.job_data?.end_time &&
+                          dayjs(job?.job_data?.end_time).fromNow()} */}
+                        {job?.job_data?.start_time &&
+                        job?.job_data?.end_time ? (
+                          <>
+                            Completed in:{' '}
+                            {job?.job_data?.end_time &&
+                              job?.job_data?.end_time &&
+                              dayjs
+                                .duration(
+                                  dayjs(job?.job_data?.end_time).diff(
+                                    dayjs(job?.job_data?.start_time)
+                                  )
+                                )
+                                .humanize()}
+                          </>
+                        ) : (
+                          <LinearProgress
+                            determinate
+                            value={job.progress}
+                            sx={{ my: 1 }}
+                          />
+                        )}
                       </td>
                       <td style={{}}>
                         <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
