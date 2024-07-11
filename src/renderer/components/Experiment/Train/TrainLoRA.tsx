@@ -304,10 +304,10 @@ export default function TrainLoRA({ experimentInfo }) {
           <Table>
             <thead>
               <tr>
-                <th>Type</th>
+                <th style={{ width: 80}}>ID</th>
                 <th>Details</th>
-                <th>Status</th>
-                <th></th>
+                <th style={{ width: 180}}>Status</th>
+                <th style={{ width: 240}}></th>
               </tr>
             </thead>
             <tbody style={{ overflow: 'auto', height: '100%' }}>
@@ -316,8 +316,7 @@ export default function TrainLoRA({ experimentInfo }) {
                   return (
                     <tr key={job.id}>
                       <td>
-                        {/* {JSON.stringify(job)} */}
-                        <b>{job.id}-</b> {job.type}
+                        <b>{job.id}</b>
                       </td>
                       <td>{formatJobConfig(job)}</td>
                       <td>
