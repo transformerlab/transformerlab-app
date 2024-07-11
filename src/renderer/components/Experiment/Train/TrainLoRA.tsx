@@ -219,7 +219,9 @@ export default function TrainLoRA({ experimentInfo }) {
                   <td>error...</td>
                 </tr>
               )}
-              {data &&
+              { // Format of template data by column:
+              // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
+              data &&
                 data?.map((row) => {
                   return (
                     <tr key={row[0]}>
@@ -237,7 +239,13 @@ export default function TrainLoRA({ experimentInfo }) {
                         <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
                           <LoRATrainingRunButton
                             initialMessage="Queue"
-                            trainingTemplateId={row[0]}
+                            trainingTemplate={{
+                              template_id: row[0],
+                              template_name: row[1],
+                              model_name: row[5]?.model_name || "unknown",
+                              dataset: row[4],
+                              config: row[5]
+                            }}
                             jobsMutate={jobsMutate}
                             experimentId={experimentInfo?.id}
                           />

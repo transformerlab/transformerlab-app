@@ -9,14 +9,12 @@ import { PlayIcon } from 'lucide-react';
 export default function LoRATrainingRunButton({
   initialMessage,
   action = () => {},
-  trainingTemplateId,
+  trainingTemplate,
   jobsMutate,
   experimentId,
 }) {
   const [progress, setProgress] = useState(0);
-  let job_data = {
-    template_id: trainingTemplateId,
-  };
+  let job_data = trainingTemplate;
   return (
     <Button
       variant="solid"
