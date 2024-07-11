@@ -246,7 +246,7 @@ export default function TrainLoRA({ experimentInfo }) {
                             trainingTemplate={{
                               template_id: row[0],
                               template_name: row[1],
-                              model_name: row[5]?.model_name || "unknown",
+                              model_name: JSON.parse(row[5])?.model_name || "unknown",
                               dataset: row[4],
                               config: row[5]
                             }}
