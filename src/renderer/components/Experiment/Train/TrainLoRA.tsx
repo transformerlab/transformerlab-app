@@ -25,9 +25,9 @@ import {
   ClockIcon,
   FileTextIcon,
   GraduationCapIcon,
+  InfoIcon,
   LineChartIcon,
   Plug2Icon,
-  PlusCircleIcon,
   PlusIcon,
   Trash2Icon,
 } from 'lucide-react';
@@ -318,7 +318,7 @@ export default function TrainLoRA({ experimentInfo }) {
           <Table>
             <thead>
               <tr>
-                <th style={{ width: 80}}>ID</th>
+                <th style={{ width: 60}}>ID</th>
                 <th>Details</th>
                 <th style={{ width: 200}}>Status</th>
                 <th style={{ width: 260}}></th>
@@ -330,7 +330,13 @@ export default function TrainLoRA({ experimentInfo }) {
                   return (
                     <tr key={job.id}>
                       <td>
-                        <b>{job.id}</b>
+                        <b>{job.id}</b><br />
+
+                        <InfoIcon
+                          onClick={() => {
+                            alert(job?.job_data?.config);
+                          }}
+                        />
                       </td>
                       <td>{formatJobConfig(job)}</td>
                       <td>
