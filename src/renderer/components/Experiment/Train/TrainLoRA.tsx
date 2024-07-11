@@ -320,8 +320,8 @@ export default function TrainLoRA({ experimentInfo }) {
               <tr>
                 <th style={{ width: 80}}>ID</th>
                 <th>Details</th>
-                <th style={{ width: 180}}>Status</th>
-                <th style={{ width: 240}}></th>
+                <th style={{ width: 200}}>Status</th>
+                <th style={{ width: 260}}></th>
               </tr>
             </thead>
             <tbody style={{ overflow: 'auto', height: '100%' }}>
@@ -346,6 +346,7 @@ export default function TrainLoRA({ experimentInfo }) {
 
                         {job?.job_data?.start_time && (
                           <>
+                            &nbsp;
                             Started:{' '}
                             {dayjs(job?.job_data?.start_time).fromNow()}
                           </>
@@ -356,6 +357,7 @@ export default function TrainLoRA({ experimentInfo }) {
                         {job?.job_data?.start_time &&
                         job?.job_data?.end_time ? (
                           <>
+                            &nbsp;
                             Completed in:{' '}
                             {job?.job_data?.end_time &&
                               job?.job_data?.end_time &&
