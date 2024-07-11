@@ -76,8 +76,6 @@ function formatJobConfig(c): ReactElement {
       <b>Model:</b> {c?.job_data?.model_name}
       <br />
       <b>Dataset:</b> {c?.job_data?.dataset}
-      <br />
-      <b>Created:</b> {c?.created_at}
     </>
   );
   return r;
