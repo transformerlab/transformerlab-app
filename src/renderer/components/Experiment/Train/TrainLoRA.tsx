@@ -225,64 +225,69 @@ export default function TrainLoRA({ experimentInfo }) {
                   <td>error...</td>
                 </tr>
               )}
-              { // Format of template data by column:
-              // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
-              data &&
-                data?.map((row) => {
-                  return (
-                    <tr key={row[0]}>
-                      <td>
-                        <Typography level="title-sm">{row[1]}</Typography>
-                      </td>
-                      {/* <td>{row[2]}</td> */}
-                      <td>
-                        {row[4]} <FileTextIcon size={14} />
-                      </td>
-                      <td style={{ overflow: 'clip' }}>
-                        {formatTemplateConfig(row[5])}
-                      </td>
-                      <td style={{}}>
-                        <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
-                          <LoRATrainingRunButton
-                            initialMessage="Queue"
-                            trainingTemplate={{
-                              template_id: row[0],
-                              template_name: row[1],
-                              model_name: JSON.parse(row[5])?.model_name || "unknown",
-                              dataset: row[4],
-                              config: row[5]
-                            }}
-                            jobsMutate={jobsMutate}
-                            experimentId={experimentInfo?.id}
-                          />
-                          <Button
-                            onClick={() => {
-                              setTemplateID(row[0]);
-                              setCurrentPlugin(JSON.parse(row[5])?.plugin_name);
-                              setOpen(true);
-                            }}
-                            variant="plain"
-                          >
-                            Edit
-                          </Button>
-                          <IconButton
-                            onClick={async () => {
-                              await fetch(
-                                chatAPI.API_URL() +
-                                  'train/template/' +
-                                  row[0] +
-                                  '/delete'
-                              );
-                              mutate();
-                            }}
-                          >
-                            <Trash2Icon />
-                          </IconButton>
-                        </ButtonGroup>
-                      </td>
-                    </tr>
-                  );
-                })}
+              {
+                // Format of template data by column:
+                // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
+                data &&
+                  data?.map((row) => {
+                    return (
+                      <tr key={row[0]}>
+                        <td>
+                          <Typography level="title-sm">{row[1]}</Typography>
+                        </td>
+                        {/* <td>{row[2]}</td> */}
+                        <td>
+                          {row[4]} <FileTextIcon size={14} />
+                        </td>
+                        <td style={{ overflow: 'clip' }}>
+                          {formatTemplateConfig(row[5])}
+                        </td>
+                        <td style={{}}>
+                          <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
+                            <LoRATrainingRunButton
+                              initialMessage="Queue"
+                              trainingTemplate={{
+                                template_id: row[0],
+                                template_name: row[1],
+                                model_name:
+                                  JSON.parse(row[5])?.model_name || 'unknown',
+                                dataset: row[4],
+                                config: row[5],
+                              }}
+                              jobsMutate={jobsMutate}
+                              experimentId={experimentInfo?.id}
+                            />
+                            <Button
+                              onClick={() => {
+                                setTemplateID(row[0]);
+                                setCurrentPlugin(
+                                  JSON.parse(row[5])?.plugin_name
+                                );
+                                setOpen(true);
+                              }}
+                              variant="plain"
+                            >
+                              Edit
+                            </Button>
+                            <IconButton
+                              onClick={async () => {
+                                await fetch(
+                                  chatAPI.API_URL() +
+                                    'train/template/' +
+                                    row[0] +
+                                    '/delete'
+                                );
+                                mutate();
+                              }}
+                            >
+                              <Trash2Icon />
+                            </IconButton>
+                          </ButtonGroup>
+                        </td>
+                      </tr>
+                    );
+                  })
+              }
               {
                 // Format of template data by column:
                 // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
@@ -380,10 +385,10 @@ export default function TrainLoRA({ experimentInfo }) {
           <Table>
             <thead>
               <tr>
-                <th style={{ width: 60}}>ID</th>
+                <th style={{ width: '60px' }}>ID</th>
                 <th>Details</th>
-                <th style={{ width: 200}}>Status</th>
-                <th style={{ width: 260}}></th>
+                <th>Status</th>
+                <th style={{ width: '300px' }}></th>
               </tr>
             </thead>
             <tbody style={{ overflow: 'auto', height: '100%' }}>
@@ -392,7 +397,8 @@ export default function TrainLoRA({ experimentInfo }) {
                   return (
                     <tr key={job.id}>
                       <td>
-                        <b>{job.id}</b><br />
+                        <b>{job.id}</b>
+                        <br />
 
                         <InfoIcon
                           onClick={() => {
@@ -402,38 +408,6 @@ export default function TrainLoRA({ experimentInfo }) {
                       </td>
                       <td>{formatJobConfig(job)}</td>
                       <td>
-                        <Chip color={jobChipColor(job.status)}>
-                          {job.status}
-                          {job.progress == '-1'
-                            ? ''
-                            : ' - ' +
-                              Number.parseFloat(job.progress).toFixed(1) +
-                              '%'}
-                        </Chip>
-                        <br />
-
-                        {job?.job_data?.start_time && (
-                          <>
-                            &nbsp;
-                            Started:{' '}
-                            {dayjs(job?.job_data?.start_time).fromNow()}
-                          </>
-                        )}
-                        <br />
-                        {/* {job?.job_data?.end_time &&
-                          dayjs(job?.job_data?.end_time).fromNow()} */}
-                        {job?.job_data?.start_time &&
-                        job?.job_data?.end_time ? (
-                          <>
-                            &nbsp;
-                            Completed in:{' '}
-                            {job?.job_data?.end_time &&
-                              job?.job_data?.end_time &&
-                              dayjs
-                                .duration(
-                                  dayjs(job?.job_data?.end_time).diff(
-                                    dayjs(job?.job_data?.start_time)
-                        {' '}
                         <Stack
                           direction={'column'}
                           justifyContent={'space-between'}
