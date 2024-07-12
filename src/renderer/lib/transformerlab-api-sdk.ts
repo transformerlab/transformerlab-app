@@ -899,6 +899,7 @@ Endpoints.Jobs = {
     type +
     '&config=' +
     config,
+  Stop: (jobId: string) => API_URL() + 'jobs/' + jobId + '/stop',
 };
 
 Endpoints.Global = {
