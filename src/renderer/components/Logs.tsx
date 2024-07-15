@@ -7,13 +7,17 @@ import {
   AccordionGroup,
   AccordionSummary,
   Box,
+  Button,
+  IconButton,
   Sheet,
+  Stack,
   Typography,
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
+import { RotateCcwIcon } from 'lucide-react';
 
 const fetcher = (url) => fetch(url).then((res) => res.text());
 
@@ -71,7 +75,7 @@ function renderJSONLinesLog(logs) {
 }
 
 export default function Logs({}) {
-  const { data } = useSWR(chatAPI.Endpoints.Global.PromptLog, fetcher);
+  const { data, mutate } = useSWR(chatAPI.Endpoints.Global.PromptLog, fetcher);
 
   React.useEffect(() => {
     // Scroll to bottom
@@ -88,7 +92,16 @@ export default function Logs({}) {
         paddingBottom: '1rem',
       }}
     >
-      <h1>Prompt Log</h1>
+      <Stack direction="row" spacing={1} justifyContent="space-between">
+        <h1>Prompt Log</h1>
+        <IconButton
+          onClick={() => {
+            mutate();
+          }}
+        >
+          <RotateCcwIcon style={{ width: '18px', height: '18px' }} />
+        </IconButton>
+      </Stack>
       <Box
         id="logs_accordion"
         style={{
