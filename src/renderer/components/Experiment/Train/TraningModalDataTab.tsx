@@ -159,7 +159,7 @@ export default function TrainingModalDataTab({
   return (
     <Box
       sx={{
-        overflow: 'hidden',
+        overflow: 'auto',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
