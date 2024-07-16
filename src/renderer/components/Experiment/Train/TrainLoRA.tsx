@@ -288,68 +288,6 @@ export default function TrainLoRA({ experimentInfo }) {
                     );
                   })
               }
-              {
-                // Format of template data by column:
-                // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
-                data &&
-                  data?.map((row) => {
-                    return (
-                      <tr key={row[0]}>
-                        <td>
-                          <Typography level="title-sm">{row[1]}</Typography>
-                        </td>
-                        {/* <td>{row[2]}</td> */}
-                        <td>
-                          {row[4]} <FileTextIcon size={14} />
-                        </td>
-                        <td style={{ overflow: 'clip' }}>
-                          {formatTemplateConfig(row[5])}
-                        </td>
-                        <td style={{}}>
-                          <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
-                            <LoRATrainingRunButton
-                              initialMessage="Queue"
-                              trainingTemplate={{
-                                template_id: row[0],
-                                template_name: row[1],
-                                model_name: row[5]?.model_name || 'unknown',
-                                dataset: row[4],
-                                config: row[5],
-                              }}
-                              jobsMutate={jobsMutate}
-                              experimentId={experimentInfo?.id}
-                            />
-                            <Button
-                              onClick={() => {
-                                setTemplateID(row[0]);
-                                setCurrentPlugin(
-                                  JSON.parse(row[5])?.plugin_name
-                                );
-                                setOpen(true);
-                              }}
-                              variant="plain"
-                            >
-                              Edit
-                            </Button>
-                            <IconButton
-                              onClick={async () => {
-                                await fetch(
-                                  chatAPI.API_URL() +
-                                    'train/template/' +
-                                    row[0] +
-                                    '/delete'
-                                );
-                                mutate();
-                              }}
-                            >
-                              <Trash2Icon />
-                            </IconButton>
-                          </ButtonGroup>
-                        </td>
-                      </tr>
-                    );
-                  })
-              }
             </tbody>
           </Table>
         </Sheet>
