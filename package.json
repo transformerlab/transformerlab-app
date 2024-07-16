@@ -112,7 +112,7 @@
     "electron-log": "^4.4.8",
     "electron-ssh2": "^0.1.2",
     "electron-store": "^8.1.0",
-    "electron-updater": "^6.1.4",
+    "electron-updater": "^6.2.1",
     "lucide-react": "^0.287.0",
     "monaco-themes": "^0.4.4",
     "morgan": "~1.10.0",
