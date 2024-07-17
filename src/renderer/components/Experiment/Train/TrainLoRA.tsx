@@ -63,9 +63,11 @@ function formatTemplateConfig(config): ReactElement {
 }
 
 function jobChipColor(status: string): string {
-  if (status === 'COMPLETE') return 'success';
-  if (status === 'QUEUED') return 'warning';
-  if (status === 'FAILED') return 'danger';
+  if (status === 'COMPLETE') return 'var(--joy-palette-success-200)';
+  if (status === 'QUEUED') return 'var(--joy-palette-warning-200)';
+  if (status === 'FAILED') return 'var(--joy-palette-danger-200)';
+  if (status == 'STOPPED') return 'var(--joy-palette-warning-200)';
+  if (status == 'RUNNING') return 'rgb(225,237,233)';
 
   return 'neutral';
 }
@@ -342,70 +344,99 @@ export default function TrainLoRA({ experimentInfo }) {
                           onClick={() => {
                             alert(job?.job_data?.config);
                           }}
+                          size="16px"
+                          color="var(--joy-palette-neutral-500)"
                         />
                       </td>
                       <td>{formatJobConfig(job)}</td>
                       <td>
-                        <Stack
-                          direction={'column'}
-                          justifyContent={'space-between'}
-                        >
-                          <Chip color={jobChipColor(job.status)}>
-                            {job.status}
-                            {job.progress == '-1'
-                              ? ''
-                              : ' - ' +
-                                Number.parseFloat(job.progress).toFixed(1) +
-                                '%'}
-                          </Chip>
-                          {job?.job_data?.start_time && (
+                        <Stack>
+                          {job?.status == 'RUNNING' ? (
                             <>
-                              Started:{' '}
-                              {dayjs(job?.job_data?.start_time).fromNow()}
-                            </>
-                          )}
-                          <br />
-                          {/* {job?.job_data?.end_time &&
-                          dayjs(job?.job_data?.end_time).fromNow()} */}
-                          {job?.job_data?.start_time &&
-                          job?.job_data?.end_time ? (
-                            <>
-                              Completed in:{' '}
-                              {job?.job_data?.end_time &&
-                                job?.job_data?.end_time &&
-                                dayjs
-                                  .duration(
-                                    dayjs(job?.job_data?.end_time).diff(
-                                      dayjs(job?.job_data?.start_time)
-                                    )
-                                  )
-                                  .humanize()}
-                            </>
-                          ) : (
-                            <>
-                              {job.status == 'RUNNING' && (
-                                <Stack direction={'row'}>
-                                  <LinearProgress
-                                    determinate
-                                    value={job.progress}
-                                    sx={{ my: 1 }}
-                                  />
-                                  <IconButton
-                                    color="danger"
-                                    onClick={async () => {
-                                      confirm(
-                                        'Are you sure you want to stop this job?'
-                                      ) &&
-                                        (await fetch(
-                                          chatAPI.Endpoints.Jobs.Stop(job.id)
-                                        ));
-                                    }}
-                                  >
-                                    <StopCircleIcon />
-                                  </IconButton>
-                                </Stack>
+                              <Stack
+                                direction={'row'}
+                                alignItems="center"
+                                gap={1}
+                              >
+                                <Chip
+                                  sx={{
+                                    backgroundColor: jobChipColor(job.status),
+                                  }}
+                                >
+                                  {job.status}
+                                </Chip>
+                                {job.progress == '-1'
+                                  ? ''
+                                  : Number.parseFloat(job.progress).toFixed(1) +
+                                    '%'}
+                                <LinearProgress
+                                  determinate
+                                  value={job.progress}
+                                  sx={{ my: 1 }}
+                                ></LinearProgress>
+                                <IconButton
+                                  color="danger"
+                                  onClick={async () => {
+                                    confirm(
+                                      'Are you sure you want to stop this job?'
+                                    ) &&
+                                      (await fetch(
+                                        chatAPI.Endpoints.Jobs.Stop(job.id)
+                                      ));
+                                  }}
+                                >
+                                  <StopCircleIcon size="20px" />
+                                </IconButton>
+                              </Stack>
+                              {job?.job_data?.start_time && (
+                                <>
+                                  Started:{' '}
+                                  {dayjs(job?.job_data?.start_time).fromNow()}
+                                </>
                               )}
                             </>
+                          ) : (
+                            <Stack
+                              direction={'column'}
+                              justifyContent={'space-between'}
+                            >
+                              <>
+                                <Chip
+                                  sx={{
+                                    backgroundColor: jobChipColor(job.status),
+                                  }}
+                                >
+                                  {job.status}
+                                  {job.progress == '-1'
+                                    ? ''
+                                    : ' - ' +
+                                      Number.parseFloat(job.progress).toFixed(
+                                        1
+                                      ) +
+                                      '%'}
+                                </Chip>
+                                {job?.job_data?.start_time && (
+                                  <>
+                                    Started:{' '}
+                                    {dayjs(job?.job_data?.start_time).fromNow()}
+                                  </>
+                                )}
+                                <br />
+                                {job?.job_data?.end_time &&
+                                  job?.job_data?.end_time && (
+                                    <>
+                                      Completed in:{' '}
+                                      {dayjs
+                                        .duration(
+                                          dayjs(job?.job_data?.end_time).diff(
+                                            dayjs(job?.job_data?.start_time)
+                                          )
+                                        )
+                                        .humanize()}
+                                    </>
+                                  )}
+                              </>
+                            </Stack>
                           )}
                         </Stack>
                       </td>
