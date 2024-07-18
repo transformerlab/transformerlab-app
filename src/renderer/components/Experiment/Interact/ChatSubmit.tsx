@@ -32,57 +32,13 @@ import {
   MenuButton,
   MenuItem,
   ListItemDecorator,
+  DialogTitle,
+  DialogContent,
+  ModalClose,
 } from '@mui/joy';
 
 function scrollChatToBottom() {
   document.getElementById('endofchat').scrollIntoView();
-}
-
-function AttachImageButton({ setImage, setImageLink }) {
-  return (
-    <>
-      <Dropdown>
-        <MenuButton variant="plain">
-          <PaperclipIcon size="20px" />
-        </MenuButton>
-        <Menu>
-          <MenuItem
-            onClick={() => {
-              var input = document.createElement('input');
-              input.type = 'file';
-              input.multiple = false;
-              input.accept =
-                'image/jpeg, image/png, image/gif, image/bmp, image/tiff'; //Only allow image files that are supported
-              input.onchange = async (e) => {
-                let file = input.files[0];
-                console.log(file);
-                if (file) {
-                  setImage(file);
-                  const reader = new FileReader();
-                  reader.onload = (e) => {
-                    setImageLink(e.target.result);
-                  };
-                  reader.readAsDataURL(file);
-                }
-              };
-              input.click();
-            }}
-          >
-            <ListItemDecorator>
-              <PaperclipIcon size="20px" />
-            </ListItemDecorator>
-            From your computer
-          </MenuItem>
-          <MenuItem>
-            <ListItemDecorator>
-              <UploadIcon size="20px" />
-            </ListItemDecorator>
-            From a URL
-          </MenuItem>
-        </Menu>
-      </Dropdown>
-    </>
-  );
 }
 
 export default function ChatSubmit({
@@ -101,6 +57,7 @@ export default function ChatSubmit({
   const [imageLink, setImageLink] = useState(null);
   const [imageURLInput, setImageURLInput] = useState('');
   const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [imageURLModalOpen, setImageURLModalOpen] = useState(false);
   //List of multimodal models we currently support
   const multimodalModelArchitectures = ['LlavaForConditionalGeneration'];
   const handleSend = () => {
@@ -111,53 +68,6 @@ export default function ChatSubmit({
     addMessage(msg, imageLink);
     setImageLink(null);
   };
-
-  function ImageURLInput() {
-    return (
-      <>
-        <Box
-          sx={{
-            position: 'relative',
-            display: 'inline-block',
-            maxWidth: '500px',
-            flexShrink: 1,
-            overflow: 'hidden',
-            marginBottom: '10px',
-          }}
-        >
-          <Input
-            placeholder="Add Image via URL"
-            startDecorator={<UploadIcon size="20px" />}
-            value={imageURLInput}
-            onChange={(e) => setImageURLInput(e.target.value)}
-            endDecorator={
-              imageURLInput.length > 0 && (
-                <IconButton
-                  variant="soft"
-                  color="success"
-                  disabled={!imageURLInput.trim()}
-                  onClick={() => {
-                    //Testing to see if the image is valid
-                    const img = new Image();
-                    img.src = imageURLInput;
-                    img.onload = () => {
-                      setImageLink(imageURLInput);
-                      setImageURLInput('');
-                    };
-                    img.onerror = () => {
-                      alert('Invalid Image URL. Please input a valid URL.');
-                    };
-                  }}
-                >
-                  <CheckIcon size="20px" />
-                </IconButton>
-              )
-            }
-          ></Input>
-        </Box>
-      </>
-    );
-  }
 
   function TokenCount() {
     return (
@@ -237,6 +147,57 @@ export default function ChatSubmit({
     );
   }
 
+  function AttachImageButton() {
+    return (
+      <>
+        <Dropdown>
+          <MenuButton variant="plain">
+            <PaperclipIcon size="20px" />
+          </MenuButton>
+          <Menu>
+            <MenuItem
+              onClick={() => {
+                var input = document.createElement('input');
+                input.type = 'file';
+                input.multiple = false;
+                input.accept =
+                  'image/jpeg, image/png, image/gif, image/bmp, image/tiff'; //Only allow image files that are supported
+                input.onchange = async (e) => {
+                  let file = input.files[0];
+                  console.log(file);
+                  if (file) {
+                    setImage(file);
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      setImageLink(e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                  }
+                };
+                input.click();
+              }}
+            >
+              <ListItemDecorator>
+                <PaperclipIcon size="20px" />
+              </ListItemDecorator>
+              From your computer
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setImageURLModalOpen(true);
+              }}
+            >
+              <ListItemDecorator>
+                <UploadIcon size="20px" />
+              </ListItemDecorator>
+              From a URL
+            </MenuItem>
+          </Menu>
+        </Dropdown>
+      </>
+    );
+  }
+
   return (
     <Box
       sx={{
@@ -286,10 +247,10 @@ export default function ChatSubmit({
           </IconButton>
         </Box>
       )}{' '}
-      {!imageLink &&
+      {/* {!imageLink &&
         multimodalModelArchitectures.includes(currentModelArchitecture) && (
-          <ImageURLInput />
-        )}
+          <ImageURLInputField />
+        )} */}
       <Box
         sx={{
           display: 'flex',
@@ -336,10 +297,7 @@ export default function ChatSubmit({
                   {multimodalModelArchitectures.includes(
                     currentModelArchitecture
                   ) ? (
-                    <AttachImageButton
-                      setImage={setImage}
-                      setImageLink={setImageLink}
-                    />
+                    <AttachImageButton />
                   ) : (
                     ' '
                   )}
@@ -390,6 +348,59 @@ export default function ChatSubmit({
             }}
             alt="uploaded large"
           />
+        </ModalDialog>
+      </Modal>
+      <Modal
+        open={imageURLModalOpen}
+        onClose={() => setImageURLModalOpen(false)}
+      >
+        <ModalDialog>
+          <DialogTitle>Submit Image via URL:</DialogTitle>
+          <ModalClose />
+          <DialogContent>
+            <Box
+              sx={{
+                position: 'relative',
+                display: 'inline-block',
+                maxWidth: '500px',
+                flexShrink: 1,
+                overflow: 'hidden',
+                marginBottom: '10px',
+              }}
+            >
+              <Input
+                placeholder="Add Image via URL"
+                startDecorator={<UploadIcon size="20px" />}
+                value={imageURLInput}
+                onChange={(e) => setImageURLInput(e.target.value)}
+                endDecorator={
+                  imageURLInput.length > 0 && (
+                    <IconButton
+                      variant="soft"
+                      color="success"
+                      disabled={!imageURLInput.trim()}
+                      onClick={() => {
+                        //Testing to see if the image is valid
+                        const img = new Image();
+                        img.src = imageURLInput;
+                        img.onload = () => {
+                          setImageLink(imageURLInput);
+                          setImageURLInput('');
+                        };
+                        img.onerror = () => {
+                          alert('Invalid Image URL. Please input a valid URL.');
+                        };
+                        setImageURLModalOpen(false);
+                        console.log('closing');
+                      }}
+                    >
+                      <CheckIcon size="20px" />
+                    </IconButton>
+                  )
+                }
+              ></Input>
+            </Box>
+          </DialogContent>
         </ModalDialog>
       </Modal>
     </Box>
