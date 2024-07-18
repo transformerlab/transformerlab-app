@@ -34,6 +34,7 @@ export default function PreviousMessageList({
       sx={{
         display: 'flex',
         flex: '2',
+        paddingBottom: 2,
         // border: '4px solid red',
         flexDirection: 'column',
         overflow: 'hidden',

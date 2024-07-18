@@ -405,7 +405,7 @@ export default function Chat({
         sx={{
           display: 'flex',
           height: '100%',
-          paddingBottom: 4,
+          paddingBottom: 1,
           flexDirection: 'row',
           gap: 3,
         }}
