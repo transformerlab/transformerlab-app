@@ -27,6 +27,11 @@ import {
   ModalDialog,
   Input,
   FormHelperText,
+  Dropdown,
+  Menu,
+  MenuButton,
+  MenuItem,
+  ListItemDecorator,
 } from '@mui/joy';
 
 function scrollChatToBottom() {
@@ -35,32 +40,48 @@ function scrollChatToBottom() {
 
 function AttachImageButton({ setImage, setImageLink }) {
   return (
-    <IconButton
-      color="neutral"
-      variant="plain"
-      onClick={() => {
-        var input = document.createElement('input');
-        input.type = 'file';
-        input.multiple = false;
-        input.accept =
-          'image/jpeg, image/png, image/gif, image/bmp, image/tiff'; //Only allow image files that are supported
-        input.onchange = async (e) => {
-          let file = input.files[0];
-          console.log(file);
-          if (file) {
-            setImage(file);
-            const reader = new FileReader();
-            reader.onload = (e) => {
-              setImageLink(e.target.result);
-            };
-            reader.readAsDataURL(file);
-          }
-        };
-        input.click();
-      }}
-    >
-      <PaperclipIcon size="20px" />
-    </IconButton>
+    <>
+      <Dropdown>
+        <MenuButton variant="plain">
+          <PaperclipIcon size="20px" />
+        </MenuButton>
+        <Menu>
+          <MenuItem
+            onClick={() => {
+              var input = document.createElement('input');
+              input.type = 'file';
+              input.multiple = false;
+              input.accept =
+                'image/jpeg, image/png, image/gif, image/bmp, image/tiff'; //Only allow image files that are supported
+              input.onchange = async (e) => {
+                let file = input.files[0];
+                console.log(file);
+                if (file) {
+                  setImage(file);
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    setImageLink(e.target.result);
+                  };
+                  reader.readAsDataURL(file);
+                }
+              };
+              input.click();
+            }}
+          >
+            <ListItemDecorator>
+              <PaperclipIcon size="20px" />
+            </ListItemDecorator>
+            From your computer
+          </MenuItem>
+          <MenuItem>
+            <ListItemDecorator>
+              <UploadIcon size="20px" />
+            </ListItemDecorator>
+            From a URL
+          </MenuItem>
+        </Menu>
+      </Dropdown>
+    </>
   );
 }
 
@@ -90,6 +111,131 @@ export default function ChatSubmit({
     addMessage(msg, imageLink);
     setImageLink(null);
   };
+
+  function ImageURLInput() {
+    return (
+      <>
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'inline-block',
+            maxWidth: '500px',
+            flexShrink: 1,
+            overflow: 'hidden',
+            marginBottom: '10px',
+          }}
+        >
+          <Input
+            placeholder="Add Image via URL"
+            startDecorator={<UploadIcon size="20px" />}
+            value={imageURLInput}
+            onChange={(e) => setImageURLInput(e.target.value)}
+            endDecorator={
+              imageURLInput.length > 0 && (
+                <IconButton
+                  variant="soft"
+                  color="success"
+                  disabled={!imageURLInput.trim()}
+                  onClick={() => {
+                    //Testing to see if the image is valid
+                    const img = new Image();
+                    img.src = imageURLInput;
+                    img.onload = () => {
+                      setImageLink(imageURLInput);
+                      setImageURLInput('');
+                    };
+                    img.onerror = () => {
+                      alert('Invalid Image URL. Please input a valid URL.');
+                    };
+                  }}
+                >
+                  <CheckIcon size="20px" />
+                </IconButton>
+              )
+            }
+          ></Input>
+        </Box>
+      </>
+    );
+  }
+
+  function TokenCount() {
+    return (
+      <>
+        <Typography
+          level="body-xs"
+          sx={{
+            ml: 'auto',
+            flex: '1',
+            display: 'flex',
+            justifyContent: 'center',
+          }}
+          color={
+            tokenCount?.tokenCount > tokenCount?.contextLength
+              ? 'danger'
+              : 'neutral'
+          }
+        >
+          {text !== debouncedText ? (
+            <CircularProgress
+              color="neutral"
+              sx={{
+                '--CircularProgress-size': '16px',
+                '--CircularProgress-trackThickness': '4px',
+                '--CircularProgress-progressThickness': '3px',
+              }}
+            />
+          ) : (
+            tokenCount?.tokenCount
+          )}{' '}
+          of {tokenCount?.contextLength} tokens &nbsp;
+          <Tooltip title="Approximation only" followCursor>
+            <InfoIcon size="12px" />
+          </Tooltip>
+        </Typography>
+      </>
+    );
+  }
+
+  function SubmitGenerateButton() {
+    return (
+      <>
+        <Stack
+          flexDirection="row"
+          sx={{ display: 'flex', justifyContent: 'flex-end' }}
+        >
+          {spinner && (
+            <IconButton color="danger">
+              <StopCircle onClick={stopStreaming} />
+            </IconButton>
+          )}
+          <Button
+            sx={{}}
+            color="neutral"
+            endDecorator={
+              spinner ? (
+                <CircularProgress
+                  thickness={2}
+                  size="sm"
+                  color="neutral"
+                  sx={{
+                    '--CircularProgress-size': '13px',
+                  }}
+                />
+              ) : (
+                <SendIcon size="20px" />
+              )
+            }
+            disabled={spinner}
+            id="chat-submit-button"
+            onClick={handleSend}
+          >
+            {spinner ? <>Generating</> : 'Submit'}
+          </Button>
+        </Stack>
+      </>
+    );
+  }
 
   return (
     <Box
@@ -142,46 +288,7 @@ export default function ChatSubmit({
       )}{' '}
       {!imageLink &&
         multimodalModelArchitectures.includes(currentModelArchitecture) && (
-          <Box
-            sx={{
-              position: 'relative',
-              display: 'inline-block',
-              maxWidth: '500px',
-              flexShrink: 1,
-              overflow: 'hidden',
-              marginBottom: '10px',
-            }}
-          >
-            <Input
-              placeholder="Add Image via URL"
-              startDecorator={<UploadIcon size="20px" />}
-              value={imageURLInput}
-              onChange={(e) => setImageURLInput(e.target.value)}
-              endDecorator={
-                imageURLInput.length > 0 && (
-                  <IconButton
-                    variant="soft"
-                    color="success"
-                    disabled={!imageURLInput.trim()}
-                    onClick={() => {
-                      //Testing to see if the image is valid
-                      const img = new Image();
-                      img.src = imageURLInput;
-                      img.onload = () => {
-                        setImageLink(imageURLInput);
-                        setImageURLInput('');
-                      };
-                      img.onerror = () => {
-                        alert('Invalid Image URL. Please input a valid URL.');
-                      };
-                    }}
-                  >
-                    <CheckIcon size="20px" />
-                  </IconButton>
-                )
-              }
-            ></Input>
-          </Box>
+          <ImageURLInput />
         )}
       <Box
         sx={{
@@ -237,70 +344,8 @@ export default function ChatSubmit({
                     ' '
                   )}
                 </IconButton>
-                <Typography
-                  level="body-xs"
-                  sx={{
-                    ml: 'auto',
-                    flex: '1',
-                    display: 'flex',
-                    justifyContent: 'center',
-                  }}
-                  color={
-                    tokenCount?.tokenCount > tokenCount?.contextLength
-                      ? 'danger'
-                      : 'neutral'
-                  }
-                >
-                  {text !== debouncedText ? (
-                    <CircularProgress
-                      color="neutral"
-                      sx={{
-                        '--CircularProgress-size': '16px',
-                        '--CircularProgress-trackThickness': '4px',
-                        '--CircularProgress-progressThickness': '3px',
-                      }}
-                    />
-                  ) : (
-                    tokenCount?.tokenCount
-                  )}{' '}
-                  of {tokenCount?.contextLength} tokens &nbsp;
-                  <Tooltip title="Approximation only" followCursor>
-                    <InfoIcon size="12px" />
-                  </Tooltip>
-                </Typography>
-                <Stack
-                  flexDirection="row"
-                  sx={{ display: 'flex', justifyContent: 'flex-end' }}
-                >
-                  {spinner && (
-                    <IconButton color="danger">
-                      <StopCircle onClick={stopStreaming} />
-                    </IconButton>
-                  )}
-                  <Button
-                    sx={{}}
-                    color="neutral"
-                    endDecorator={
-                      spinner ? (
-                        <CircularProgress
-                          thickness={2}
-                          size="sm"
-                          color="neutral"
-                          sx={{
-                            '--CircularProgress-size': '13px',
-                          }}
-                        />
-                      ) : (
-                        <SendIcon size="20px" />
-                      )
-                    }
-                    disabled={spinner}
-                    id="chat-submit-button"
-                    onClick={handleSend}
-                  >
-                    {spinner ? <>Generating</> : 'Submit'}
-                  </Button>
-                </Stack>
+                <TokenCount />
+                <SubmitGenerateButton />
               </Box>
             }
           />
