@@ -8,7 +8,7 @@ import { Link2Icon } from 'lucide-react';
 import { formatBytes } from 'renderer/lib/utils';
 import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 
-export default function Header({ connection, setConnection, experimentInfo }) {
+function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
   const { server, isLoading, isError } = useServerStats();
 
@@ -67,43 +67,8 @@ export default function Header({ connection, setConnection, experimentInfo }) {
       setConnection('');
     }
   }, [isError]);
-
   return (
-    <Sheet
-      sx={{
-        gridArea: 'header',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0,
-        top: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: 1000,
-        p: 0,
-        color: '#888',
-        userSelect: 'none',
-        backgroundColor: 'var(--joy-palette-background-level1)',
-      }}
-      className="header"
-    >
-      <div
-        id="currently-playing"
-        style={{
-          backgroundColor: 'var(--joy-palette-background-level1)',
-          // border: '1px solid red',
-          height: '100%',
-          padding: 0,
-          margin: 0,
-          flex: '1',
-          justifyContent: 'center',
-          alignItems: 'center',
-          display: 'flex',
-          '-webkit-app-region': 'drag',
-        }}
-      >
-        <ModelCurrentlyPlayingBar experimentInfo={experimentInfo} />
-      </div>
-
+    <>
       {isError ? (
         <div
           style={{
@@ -270,6 +235,48 @@ export default function Header({ connection, setConnection, experimentInfo }) {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+export default function Header({ connection, setConnection, experimentInfo }) {
+  return (
+    <Sheet
+      sx={{
+        gridArea: 'header',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0,
+        top: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 1000,
+        p: 0,
+        color: '#888',
+        userSelect: 'none',
+        backgroundColor: 'var(--joy-palette-background-level1)',
+      }}
+      className="header"
+    >
+      <div
+        id="currently-playing"
+        style={{
+          backgroundColor: 'var(--joy-palette-background-level1)',
+          // border: '1px solid red',
+          height: '100%',
+          padding: 0,
+          margin: 0,
+          flex: '1',
+          justifyContent: 'center',
+          alignItems: 'center',
+          display: 'flex',
+          '-webkit-app-region': 'drag',
+        }}
+      >
+        <ModelCurrentlyPlayingBar experimentInfo={experimentInfo} />
+      </div>
+
+      <StatsBar connection={connection} setConnection={setConnection} />
     </Sheet>
   );
 }
