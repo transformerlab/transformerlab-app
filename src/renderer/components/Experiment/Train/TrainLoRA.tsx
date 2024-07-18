@@ -52,10 +52,10 @@ function formatTemplateConfig(config): ReactElement {
   const r = (
     <>
       <b>Model:</b> {c.model_name}
-      <br />
-      <b>Plugin:</b> {c.plugin_name} <br />
-      <b>Dataset:</b> {c.dataset_name} <br />
-      <b>Adaptor:</b> {c.adaptor_name} <br />
+      {/* <br />
+      <b>Trainer Plugin:</b> {c.plugin_name} <br /> */}
+      {/* <b>Dataset:</b> {c.dataset_name} <br /> */}
+      {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
       {/* {JSON.stringify(c)} */}
     </>
   );
@@ -213,6 +213,7 @@ export default function TrainLoRA({ experimentInfo }) {
               <th width="150px">Name</th>
               {/* <th>Description</th> */}
               <th width="120px">Dataset</th>
+              <th width="300px">Plugin</th>
               <th width="400px">Data</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </thead>
@@ -241,6 +242,7 @@ export default function TrainLoRA({ experimentInfo }) {
                         <td>
                           {row[4]} <FileTextIcon size={14} />
                         </td>
+                        <td>{JSON.parse(row[5])?.plugin_name}</td>
                         <td style={{ overflow: 'clip' }}>
                           {formatTemplateConfig(row[5])}
                         </td>
