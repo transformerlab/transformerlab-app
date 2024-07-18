@@ -13,6 +13,7 @@ import {
   PaperclipIcon,
   XIcon,
   UploadIcon,
+  CheckIcon,
 } from 'lucide-react';
 import {
   CircularProgress,
@@ -157,24 +158,27 @@ export default function ChatSubmit({
               value={imageURLInput}
               onChange={(e) => setImageURLInput(e.target.value)}
               endDecorator={
-                <Button
-                  sx={{ backgroundColor: 'transparent' }}
-                  disabled={!imageURLInput.trim()}
-                  onClick={() => {
-                    //Testing to see if the image is valid
-                    const img = new Image();
-                    img.src = imageURLInput;
-                    img.onload = () => {
-                      setImageLink(imageURLInput);
-                      setImageURLInput('');
-                    };
-                    img.onerror = () => {
-                      alert('Invalid Image URL. Please input a valid URL.');
-                    };
-                  }}
-                >
-                  <SendIcon color="gray" size="20px" />
-                </Button>
+                imageURLInput.length > 0 && (
+                  <IconButton
+                    variant="soft"
+                    color="success"
+                    disabled={!imageURLInput.trim()}
+                    onClick={() => {
+                      //Testing to see if the image is valid
+                      const img = new Image();
+                      img.src = imageURLInput;
+                      img.onload = () => {
+                        setImageLink(imageURLInput);
+                        setImageURLInput('');
+                      };
+                      img.onerror = () => {
+                        alert('Invalid Image URL. Please input a valid URL.');
+                      };
+                    }}
+                  >
+                    <CheckIcon size="20px" />
+                  </IconButton>
+                )
               }
             ></Input>
           </Box>
