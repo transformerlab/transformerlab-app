@@ -97,8 +97,10 @@ export default function Chat({
   const [debouncedText] = useDebounce(textToDebounce, 1000);
 
   const [tokenCount, setTokenCount] = React.useState({});
-
   const currentModel = experimentInfo?.config?.foundation;
+  //This is necessary for assessing whether a model is multimodal or not, and whether images can be sent
+  const currentModelArchitecture =
+    experimentInfo?.config?.foundation_model_architecture;
   const adaptor = experimentInfo?.config?.adaptor;
 
   React.useEffect(() => {
@@ -200,14 +202,14 @@ export default function Chat({
     chatAPI.stopStreamingResponse();
   }
 
-  const sendNewMessageToLLM = async (text: String) => {
+  const sendNewMessageToLLM = async (text: String, image?: string) => {
     const r = Math.floor(Math.random() * 1000000);
 
     // Create a new chat for the user's message
-    var newChats = [...chats, { t: text, user: 'human', key: r }];
+    var newChats = [...chats, { t: text, user: 'human', key: r, image: image }];
 
     // Add Message to Chat Array:
-    setChats((c) => [...c, { t: text, user: 'human', key: r }]);
+    setChats((c) => [...c, { t: text, user: 'human', key: r, image: image }]);
     scrollChatToBottom();
 
     const timeoutId = setTimeout(() => {
@@ -228,7 +230,19 @@ export default function Chat({
     });
 
     // Add the user's message
-    texts.push({ role: 'user', content: text });
+    if (image && image !== '') {
+      //Images must be sent in this format for fastchat
+      texts.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: text },
+          { type: 'image_url', image_url: image },
+        ],
+      });
+      //texts.push({ role: 'user', content: { image } });
+    } else {
+      texts.push({ role: 'user', content: text });
+    }
 
     const generationParamsJSON = experimentInfo?.config?.generationParams;
     const generationParameters = JSON.parse(generationParamsJSON);
@@ -251,7 +265,8 @@ export default function Chat({
       generationParameters?.topP,
       generationParameters?.frequencyPenalty,
       systemMessage,
-      generationParameters?.stop_str
+      generationParameters?.stop_str,
+      image
     );
 
     clearTimeout(timeoutId);
@@ -441,6 +456,7 @@ export default function Chat({
             text={textToDebounce}
             debouncedText={debouncedText}
             defaultPromptConfigForModel={defaultPromptConfigForModel}
+            currentModelArchitecture={currentModelArchitecture}
           />
         )}
         {mode === 'completion' && (

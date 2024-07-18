@@ -5,6 +5,9 @@ import {
   Sheet,
   Stack,
   Textarea,
+  Box,
+  Modal,
+  ModalDialog,
 } from '@mui/joy';
 import ChatBubble from './ChatBubble';
 import ChatSubmit from './ChatSubmit';
@@ -25,7 +28,11 @@ export default function ChatPage({
   text,
   debouncedText,
   defaultPromptConfigForModel = {},
+  currentModelArchitecture,
 }) {
+  const [image, setImage] = useState(null); //This is mostly used for the modal. The actual image is stored in the chats array
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+
   const [systemMessage, setSystemMessage] = useState(
     experimentInfo?.config?.prompt_template?.system_message
   );
@@ -116,6 +123,28 @@ export default function ChatPage({
                 regenerateLastMessage={regenerateLastMessage}
                 isLastMessage={i === chats.length - 1}
               />
+              {chat.image && (
+                <Box
+                  component="img"
+                  src={chat.image}
+                  onClick={() => {
+                    setImageModalOpen(true);
+                    setImage(chat.image);
+                  }}
+                  sx={{
+                    position: 'relative',
+                    display: 'inline-block',
+                    maxWidth: '200px',
+                    maxHeight: '200px',
+                    width: 'auto',
+                    height: 'auto',
+                    flexShrink: 1,
+                    overflow: 'hidden',
+                    marginRight: '10px',
+                  }}
+                  alt="uploaded"
+                />
+              )}
             </>
           ))}
         </Stack>
@@ -140,7 +169,33 @@ export default function ChatPage({
         tokenCount={tokenCount}
         text={text}
         debouncedText={debouncedText}
+        currentModelArchitecture={currentModelArchitecture}
       />
+      <Modal open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
+        <ModalDialog
+          sx={{
+            maxWidth: '90vw',
+            maxHeight: '90vh',
+            width: 'auto',
+            height: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Box
+            component="img"
+            src={image}
+            sx={{
+              maxWidth: '100%',
+              maxHeight: '100%',
+              width: 'auto',
+              height: 'auto',
+            }}
+            alt="uploaded large"
+          />
+        </ModalDialog>
+      </Modal>
     </Sheet>
   );
 }

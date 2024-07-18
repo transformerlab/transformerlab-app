@@ -110,7 +110,8 @@ export async function sendAndReceiveStreaming(
   topP: number,
   freqencyPenalty: number,
   systemMessage: string,
-  stopString = null
+  stopString = null,
+  image?: string
 ) {
   let shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -121,7 +122,6 @@ export async function sendAndReceiveStreaming(
   let messages = [];
   messages.push({ role: 'system', content: systemMessage });
   messages = messages.concat(texts);
-
   const data = {
     model: shortModelName,
     stream: true, // For streaming responses
@@ -166,6 +166,7 @@ export async function sendAndReceiveStreaming(
     const error_text = `Completions API Error
       HTTP Error Code: ${response?.status}
       ${response_json?.message}`;
+    console.log(error_text);
     alert(error_text);
     return null;
   }
@@ -267,6 +268,7 @@ export async function sendCompletion(
   stopString = null,
   targetElementForStreaming
 ) {
+  console.log('sent completion request');
   let model = '';
 
   if (useLongModelName) {
