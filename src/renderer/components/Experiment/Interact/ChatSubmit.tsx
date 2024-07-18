@@ -25,10 +25,42 @@ import {
   Modal,
   ModalDialog,
   Input,
+  FormHelperText,
 } from '@mui/joy';
 
 function scrollChatToBottom() {
   document.getElementById('endofchat').scrollIntoView();
+}
+
+function AttachImageButton({ setImage, setImageLink }) {
+  return (
+    <IconButton
+      color="neutral"
+      variant="plain"
+      onClick={() => {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = false;
+        input.accept =
+          'image/jpeg, image/png, image/gif, image/bmp, image/tiff'; //Only allow image files that are supported
+        input.onchange = async (e) => {
+          let file = input.files[0];
+          console.log(file);
+          if (file) {
+            setImage(file);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              setImageLink(e.target.result);
+            };
+            reader.readAsDataURL(file);
+          }
+        };
+        input.click();
+      }}
+    >
+      <PaperclipIcon size="20px" />
+    </IconButton>
+  );
 }
 
 export default function ChatSubmit({
@@ -120,7 +152,7 @@ export default function ChatSubmit({
             }}
           >
             <Input
-              placeholder="Add Image VIA URL"
+              placeholder="Add Image via URL"
               startDecorator={<UploadIcon size="20px" />}
               value={imageURLInput}
               onChange={(e) => setImageURLInput(e.target.value)}
@@ -152,40 +184,12 @@ export default function ChatSubmit({
           display: 'flex',
           flexDirection: 'row',
           mb: 1,
+          gap: 1,
         }}
       >
-        {multimodalModelArchitectures.includes(currentModelArchitecture) && (
-          <Button
-            sx={{ mr: 1, backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-            color="neutral"
-            onClick={() => {
-              var input = document.createElement('input');
-              input.type = 'file';
-              input.multiple = false;
-              input.accept =
-                'image/jpeg, image/png, image/gif, image/bmp, image/tiff'; //Only allow image files that are supported
-              input.onchange = async (e) => {
-                let file = input.files[0];
-                console.log(file);
-                if (file) {
-                  setImage(file);
-                  const reader = new FileReader();
-                  reader.onload = (e) => {
-                    setImageLink(e.target.result);
-                  };
-                  reader.readAsDataURL(file);
-                }
-              };
-              input.click();
-            }}
-          >
-            {' '}
-            <PaperclipIcon size="20px" />
-          </Button>
-        )}
         <FormControl sx={{ width: '100%', margin: 'auto', flex: 1 }}>
           <Textarea
-            placeholder="Type something here..."
+            placeholder="Type a message here..."
             minRows={3}
             slotProps={{
               textarea: {
@@ -207,92 +211,112 @@ export default function ChatSubmit({
                 handleSend();
               }
             }}
-          />
-        </FormControl>
-      </Box>
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 'var(--Textarea-paddingBlock)',
-          paddingTop: '6px',
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          flex: 'auto',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Button
-          color="neutral"
-          variant="plain"
-          sx={{ color: 'text.tertiary', flex: 1, justifyContent: 'left' }}
-          startDecorator={<XCircleIcon />}
-          onClick={() => {
-            clearHistory();
-          }}
-        >
-          Clear Chat History
-        </Button>
-        <Typography
-          level="body-xs"
-          sx={{ ml: 'auto', flex: '1' }}
-          color={
-            tokenCount?.tokenCount > tokenCount?.contextLength
-              ? 'danger'
-              : 'neutral'
-          }
-        >
-          {text !== debouncedText ? (
-            <CircularProgress
-              color="neutral"
-              sx={{
-                '--CircularProgress-size': '16px',
-                '--CircularProgress-trackThickness': '4px',
-                '--CircularProgress-progressThickness': '3px',
-              }}
-            />
-          ) : (
-            tokenCount?.tokenCount
-          )}{' '}
-          of {tokenCount?.contextLength} tokens &nbsp;
-          <Tooltip title="Approximation only" followCursor>
-            <InfoIcon size="12px" />
-          </Tooltip>
-        </Typography>
-        <Stack
-          flexDirection="row"
-          flex={1}
-          sx={{ display: 'flex', justifyContent: 'flex-end' }}
-        >
-          {spinner && (
-            <IconButton color="danger">
-              <StopCircle onClick={stopStreaming} />
-            </IconButton>
-          )}
-          <Button
-            sx={{}}
-            color="neutral"
             endDecorator={
-              spinner ? (
-                <CircularProgress
-                  thickness={2}
-                  size="sm"
-                  color="neutral"
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 0.5,
+                  flex: 1,
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <IconButton variant="plain" color="neutral">
+                  {multimodalModelArchitectures.includes(
+                    currentModelArchitecture
+                  ) ? (
+                    <AttachImageButton
+                      setImage={setImage}
+                      setImageLink={setImageLink}
+                    />
+                  ) : (
+                    ' '
+                  )}
+                </IconButton>
+                <Typography
+                  level="body-xs"
                   sx={{
-                    '--CircularProgress-size': '13px',
+                    ml: 'auto',
+                    flex: '1',
+                    display: 'flex',
+                    justifyContent: 'center',
                   }}
-                />
-              ) : (
-                <SendIcon size="20px" />
-              )
+                  color={
+                    tokenCount?.tokenCount > tokenCount?.contextLength
+                      ? 'danger'
+                      : 'neutral'
+                  }
+                >
+                  {text !== debouncedText ? (
+                    <CircularProgress
+                      color="neutral"
+                      sx={{
+                        '--CircularProgress-size': '16px',
+                        '--CircularProgress-trackThickness': '4px',
+                        '--CircularProgress-progressThickness': '3px',
+                      }}
+                    />
+                  ) : (
+                    tokenCount?.tokenCount
+                  )}{' '}
+                  of {tokenCount?.contextLength} tokens &nbsp;
+                  <Tooltip title="Approximation only" followCursor>
+                    <InfoIcon size="12px" />
+                  </Tooltip>
+                </Typography>
+                <Stack
+                  flexDirection="row"
+                  sx={{ display: 'flex', justifyContent: 'flex-end' }}
+                >
+                  {spinner && (
+                    <IconButton color="danger">
+                      <StopCircle onClick={stopStreaming} />
+                    </IconButton>
+                  )}
+                  <Button
+                    sx={{}}
+                    color="neutral"
+                    endDecorator={
+                      spinner ? (
+                        <CircularProgress
+                          thickness={2}
+                          size="sm"
+                          color="neutral"
+                          sx={{
+                            '--CircularProgress-size': '13px',
+                          }}
+                        />
+                      ) : (
+                        <SendIcon size="20px" />
+                      )
+                    }
+                    disabled={spinner}
+                    id="chat-submit-button"
+                    onClick={handleSend}
+                  >
+                    {spinner ? <>Generating</> : 'Submit'}
+                  </Button>
+                </Stack>
+              </Box>
             }
-            disabled={spinner}
-            id="chat-submit-button"
-            onClick={handleSend}
-          >
-            {spinner ? <>Generating</> : 'Submit'}
-          </Button>
-        </Stack>
+          />
+          <FormHelperText>
+            <Button
+              color="neutral"
+              variant="plain"
+              sx={{
+                color: 'text.tertiary',
+                justifyContent: 'flex-start',
+              }}
+              startDecorator={<XCircleIcon size="14px" />}
+              onClick={() => {
+                clearHistory();
+              }}
+            >
+              Clear Chat History
+            </Button>
+          </FormHelperText>
+        </FormControl>
       </Box>
       <Modal open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
         <ModalDialog
