@@ -214,7 +214,7 @@ export default function TrainLoRA({ experimentInfo }) {
               {/* <th>Description</th> */}
               <th width="120px">Dataset</th>
               <th width="300px">Plugin</th>
-              <th width="400px">Data</th>
+              <th width="400px">Config</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </thead>
             <tbody>
