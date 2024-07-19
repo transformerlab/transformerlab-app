@@ -47,6 +47,11 @@ Transformer Lab allows you to:
 - 🎶 **Finetune / Train Across Different Hardware**
   - Finetune using MLX on Apple Silicon
   - Finetune using Huggingface on GPU
+- ⚖️ **RLHF and Preference Optimization**
+  - DPO
+  - ORPO
+  - SIMPO
+  - Reward Modeling
 - 💻 **Work with LLMs Across Operating Systems**:
   - Windows App
   - MacOS App
