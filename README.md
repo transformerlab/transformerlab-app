@@ -13,7 +13,7 @@
     <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://youtu.be/S-Ea5XAztPA?feature=shared">View Demo</a>
+    <a href="https://youtu.be/tY5TAvKviLo">View Demo</a>
     ·
     <a href="https://github.com/transformerlab/transformerlab-app/issues">Report Bugs</a>
     ·
