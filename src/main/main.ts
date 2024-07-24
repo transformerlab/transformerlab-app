@@ -189,7 +189,7 @@ const createWindow = async () => {
     minHeight: 640,
     icon: getAssetPath('icon.png'),
     titleBarStyle: 'hiddenInset',
-    vibrancy: 'light',
+    vibrancy: 'sidebar',
     visualEffectState: 'followWindow',
     webPreferences: {
       webSecurity: false,

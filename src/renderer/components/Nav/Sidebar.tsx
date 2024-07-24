@@ -87,7 +87,7 @@ export default function Sidebar({
         gap: 1,
         userSelect: 'none',
         width: '100%',
-        backgroundColor: 'rgb(214,207,225,0.5)',
+        backgroundColor: 'rgb(214,207,225,0.4)',
         '& .lucide': {
           strokeWidth: '1.5px',
         },
