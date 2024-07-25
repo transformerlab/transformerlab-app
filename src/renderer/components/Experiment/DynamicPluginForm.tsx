@@ -374,6 +374,8 @@ export default function DynamicPluginForm({
       });
       //Schema takes in data as a JSON string
       setConfigData(JSON.stringify(parsedData));
+    } else if (data) {
+      setConfigData(data);  //Setting the config data to the data if there is no config
     }
   }, [plugin, experimentInfo, config, data]);
 

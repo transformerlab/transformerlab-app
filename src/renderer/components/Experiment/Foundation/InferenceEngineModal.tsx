@@ -10,6 +10,7 @@ import {
   Option,
   Switch,
   Button,
+  Typography,
 } from '@mui/joy';
 import React, { useState } from 'react';
 import DynamicPluginForm from '../DynamicPluginForm';
@@ -38,7 +39,7 @@ function EngineSelect({
       variant="soft"
       size="lg"
       name="inferenceEngine"
-      defaultValue={inferenceSettings?.inferenceEngine}
+      defaultValue="Select Engine"
       onChange={(e, newValue) => {
         setSelectedPlugin(newValue);
       }}
@@ -82,6 +83,10 @@ export default function InferenceEngineModal({
             const formObject = Object.fromEntries(formData.entries());
 
             const engine = formData.get('inferenceEngine');
+
+            if (!engine) {
+              closeModal();
+            }
             const experimentId = experimentInfo?.id;
 
             const newInferenceSettings = {
@@ -113,7 +118,7 @@ export default function InferenceEngineModal({
               />
             </FormControl>
 
-            <FormLabel>&nbsp;</FormLabel>
+            <Typography level="title-md" paddingTop={2}>Engine Configuration:</Typography>
             <DynamicPluginForm
               experimentInfo={experimentInfo}
               plugin={selectedPlugin}
