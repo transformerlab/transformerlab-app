@@ -666,6 +666,8 @@ Endpoints.Rag = {
   ) =>
     API_URL() +
     `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}`,
+  ReIndex: (experimentId: string) =>
+    API_URL() + `experiment/${experimentId}/rag/reindex`,
 };
 
 Endpoints.Prompts = {

@@ -25,7 +25,12 @@ import MenuButton from '@mui/joy/MenuButton';
 import MenuItem from '@mui/joy/MenuItem';
 import Dropdown from '@mui/joy/Dropdown';
 
-import { FileTextIcon, PlusCircleIcon, SearchIcon } from 'lucide-react';
+import {
+  FileTextIcon,
+  PlusCircleIcon,
+  RotateCcwIcon,
+  SearchIcon,
+} from 'lucide-react';
 import {
   FilterIcon as FilterAltIcon,
   ChevronDownIcon as ArrowDropDownIcon,
@@ -43,6 +48,8 @@ import { FaRegFileAlt } from 'react-icons/fa';
 
 import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
+import { Stack } from '@mui/joy';
+import TinyButton from 'renderer/components/Shared/TinyButton';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -516,9 +523,21 @@ export default function Documents({ experimentInfo }) {
           </div>
         )}
       </Dropzone>
-      <Typography level="body-xs" color="neutral">
-        Allowed filetypes: .txt, .pdf, .csv, .epub, .ipynb, .mbox, .md, .ppt
-      </Typography>
+      <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+        <Typography level="body-xs" color="neutral">
+          Allowed filetypes: .txt, .pdf, .csv, .epub, .ipynb, .mbox, .md, .ppt
+        </Typography>
+        <TinyButton
+          startDecorator={<RotateCcwIcon size="12px" />}
+          color="neutral"
+          variant="outlined"
+          onClick={() => {
+            fetch(chatAPI.Endpoints.Rag.ReIndex(experimentInfo?.id));
+          }}
+        >
+          Reindex
+        </TinyButton>
+      </Stack>
     </>
   );
 }
