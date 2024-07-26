@@ -467,6 +467,7 @@ export default function Chat({
             tokenCount={tokenCount}
             isThinking={isThinking}
             sendCompletionToLLM={sendCompletionToLLM}
+            stopStreaming={stopStreaming}
           />
         )}
         {mode === 'retrieval' && (

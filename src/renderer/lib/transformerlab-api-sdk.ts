@@ -338,9 +338,16 @@ export async function sendCompletion(
   var firstTokenTime = null;
   var end = start;
 
+  stopStreaming = false;
+
   // Reader loop
   try {
     while (true) {
+      if (stopStreaming) {
+        console.log('User requested to stop streaming');
+        stopStreaming = false;
+        reader?.cancel();
+      }
       // eslint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
 
