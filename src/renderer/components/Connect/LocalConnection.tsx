@@ -19,10 +19,16 @@ import { FaApple } from 'react-icons/fa6';
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
 // If the callback returns false, and the interval has run repetitions times, the notSuccessful callback is run.
-function setIntervalXTimes(callback, notSuccessful, delay, repetitions) {
+function setIntervalXTimes(
+  checkName,
+  callback,
+  notSuccessful,
+  delay,
+  repetitions
+) {
   var x = 0;
   var intervalID = window.setInterval(async function () {
-    console.log(`trying ${x} times`);
+    console.log(`Testing if ${checkName} ${x} times`);
     const response = await callback();
 
     if (response) {
@@ -113,6 +119,7 @@ function CheckIfInstalled({ activeStep, setActiveStep }) {
                   );
                   setInstallStatus('pending');
                   setIntervalXTimes(
+                    'API is Installed',
                     async () => {
                       const serverIsInstalled =
                         await window.electron.ipcRenderer.invoke(
@@ -206,6 +213,7 @@ function CheckCurrentVersion({ activeStep, setActiveStep }) {
                 );
                 setInstallStatus('pending');
                 setIntervalXTimes(
+                  'Server Version is Updated',
                   async () => {
                     const ver = await window.electron.ipcRenderer.invoke(
                       'server:checkLocalVersion'
@@ -262,6 +270,7 @@ function RunServer({ activeStep, setActiveStep }) {
       return;
     } else {
       setIntervalXTimes(
+        'Server is Running on Port 8000',
         async () => {
           if (!server || serverError) return false;
           setActiveStep(
@@ -269,9 +278,11 @@ function RunServer({ activeStep, setActiveStep }) {
           );
           return true;
         },
-        () => {},
+        () => {
+          console.log('failed to detect server running (priliminary)');
+        },
         2000,
-        8
+        10
       );
     }
   }, [activeStep, server]);
@@ -295,7 +306,20 @@ function RunServer({ activeStep, setActiveStep }) {
                   <Button
                     variant="solid"
                     onClick={async () => {
+                      console.log('Start Server Clicked');
                       setThinking(true);
+
+                      // before starting the process, check one more time if it is running
+                      if (server && !serverError) {
+                        setThinking(false);
+                        setActiveStep(
+                          Steps.indexOf(
+                            'CHECK_IF_SERVER_RUNNING_ON_PORT_8000'
+                          ) + 1
+                        );
+                        return;
+                      }
+
                       const start_process =
                         await window.electron.ipcRenderer.invoke(
                           'server:startLocalServer'
@@ -308,8 +332,9 @@ function RunServer({ activeStep, setActiveStep }) {
                         setThinking(false);
                         return;
                       }
-                      //set interval to check if server is running every 2 seconds, 15 times:
+                      // set interval to check if server is running every 2 seconds, 15 times:
                       setIntervalXTimes(
+                        'Server is Running on Port 8000',
                         async () => {
                           if (!server || serverError) return false;
                           setThinking(false);
@@ -321,10 +346,13 @@ function RunServer({ activeStep, setActiveStep }) {
                           return true;
                         },
                         () => {
+                          console.log(
+                            'failed to detect server running (after running)'
+                          );
                           setThinking(false);
                         },
-                        2000,
-                        15
+                        1000,
+                        25
                       );
                     }}
                   >
@@ -502,6 +530,7 @@ function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
                     return;
                   }
                   setIntervalXTimes(
+                    'Conda is Installed',
                     async () => {
                       const condaExists =
                         await window.electron.ipcRenderer.invoke(
@@ -610,6 +639,7 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
                     });
                   }
                   setIntervalXTimes(
+                    'Conda Environment Exists',
                     async () => {
                       const condaExists =
                         await window.electron.ipcRenderer.invoke(
@@ -785,108 +815,106 @@ function InstallStepper({ setServer }) {
     setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
     setServer(fullServer);
   }
+
   return (
     <Sheet
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
         height: '100%',
+        overflow: 'hidden',
       }}
     >
-      <Stepper
-        orientation="vertical"
-        sx={{ display: 'flex', overflow: 'auto' }}
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        <Stepper orientation="vertical" sx={{}}>
+          {/* Active Step: {activeStep} */}
+          <InstallStep
+            thisStep={Steps.indexOf('CHECK_IF_INSTALLED')}
+            title="Check if Server is Installed at ~/.transformerlab/"
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          >
+            <CheckIfInstalled
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </InstallStep>
+          <InstallStep
+            thisStep={Steps.indexOf('CHECK_VERSION')}
+            title="Check Current Version"
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          >
+            <CheckCurrentVersion
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </InstallStep>
+          <InstallStep
+            thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
+            title="Check if Conda is Installed at ~/.transformerlab/miniconda3/"
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          >
+            <CheckIfCondaInstalled
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </InstallStep>
+          <InstallStep
+            thisStep={Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')}
+            title="Check if Conda Environment 'transformerlab' Exists"
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          >
+            <CheckIfCondaEnvironmentExists
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </InstallStep>
+          <InstallStep
+            thisStep={Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')}
+            title="Check if Python Dependencies are Installed"
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          >
+            <CheckDependencies
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </InstallStep>
+          <InstallStep
+            thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')}
+            title="Check if Server is Running Locally on Port 8000"
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          >
+            <RunServer activeStep={activeStep} setActiveStep={setActiveStep} />
+          </InstallStep>
+          <InstallStep
+            thisStep={Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')}
+            title="Check for Important Plugins"
+            activeStep={activeStep}
+            setActiveStep={setActiveStep}
+          >
+            <CheckForPlugins
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            />
+          </InstallStep>
+        </Stepper>
+      </div>
+      <Button
+        size="lg"
+        variant="solid"
+        color="success"
+        onClick={tryToConnect}
+        startDecorator={<PlayIcon />}
+        sx={{ width: '100%', mt: 2 }}
+        disabled={activeStep !== Steps.length}
       >
-        {/* Active Step: {activeStep} */}
-        <InstallStep
-          thisStep={Steps.indexOf('CHECK_IF_INSTALLED')}
-          title="Check if Server is Installed at ~/.transformerlab/"
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        >
-          <CheckIfInstalled
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          />
-        </InstallStep>
-        <InstallStep
-          thisStep={Steps.indexOf('CHECK_VERSION')}
-          title="Check Current Version"
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        >
-          <CheckCurrentVersion
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          />
-        </InstallStep>
-        <InstallStep
-          thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
-          title="Check if Conda is Installed at ~/.transformerlab/miniconda3/"
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        >
-          <CheckIfCondaInstalled
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          />
-        </InstallStep>
-        <InstallStep
-          thisStep={Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')}
-          title="Check if Conda Environment 'transformerlab' Exists"
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        >
-          <CheckIfCondaEnvironmentExists
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          />
-        </InstallStep>
-        <InstallStep
-          thisStep={Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')}
-          title="Check if Python Dependencies are Installed"
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        >
-          <CheckDependencies
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          />
-        </InstallStep>
-        <InstallStep
-          thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')}
-          title="Check if Server is Running Locally on Port 8000"
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        >
-          <RunServer activeStep={activeStep} setActiveStep={setActiveStep} />
-        </InstallStep>
-        <InstallStep
-          thisStep={Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')}
-          title="Check for Important Plugins"
-          activeStep={activeStep}
-          setActiveStep={setActiveStep}
-        >
-          <CheckForPlugins
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          />
-        </InstallStep>
-      </Stepper>
-      {
-        <Button
-          size="lg"
-          variant="solid"
-          color="success"
-          onClick={tryToConnect}
-          startDecorator={<PlayIcon />}
-          sx={{ width: '100%', mt: 2, flex: 1, display: 'flex' }}
-          disabled={activeStep !== Steps.length}
-        >
-          Connect
-        </Button>
-      }
+        Connect
+      </Button>
     </Sheet>
   );
 }

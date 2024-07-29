@@ -17,6 +17,7 @@ import {
   FormHelperText,
   Link,
   ModalClose,
+  Sheet,
   Tab,
   TabList,
   TabPanel,
@@ -101,7 +102,7 @@ export default function LoginModal({
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
           width: '55vw',
           maxWidth: '700px',
-          maxHeight: '90vh',
+          height: '90vh',
         }}
       >
         <Tabs
@@ -118,15 +119,15 @@ export default function LoginModal({
           <TabPanel
             value={0}
             sx={{
-              p: 2,
+              p: 1,
               overflowY: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
+              height: '100%',
             }}
+            keepMounted
           >
             <LocalConnection setServer={setServer} />
           </TabPanel>
-          <TabPanel value={1} sx={{ p: 2 }}>
+          <TabPanel value={1} sx={{ p: 2 }} keepMounted>
             {/* <Typography id="basic-modal-dialog-title" component="h2">
               Connect to Server
             </Typography> */}
