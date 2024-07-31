@@ -838,13 +838,7 @@ function InstallStepper({ setServer }) {
       }}
     >
       <Alert variant="plain">
-        <Typography
-          level="body-sm"
-          mt={1}
-          mb={2}
-          textColor="text.tertiary"
-          fontWeight={400}
-        >
+        <Typography level="body-sm" textColor="text.tertiary" fontWeight={400}>
           This panel starts up and connects to the Transformer Lab Engine on
           your local machine. If you have access to a separate computer with a
           powerful GPU, use "Connect to Remote Engine" instead.

@@ -129,7 +129,7 @@ export default function LoginModal({
           >
             <LocalConnection setServer={setServer} />
           </TabPanel>
-          <TabPanel value={1} sx={{ p: 2 }} keepMounted>
+          <TabPanel value={1} sx={{ p: 1 }} keepMounted>
             {/* <Typography id="basic-modal-dialog-title" component="h2">
               Connect to Server
             </Typography> */}
@@ -142,8 +142,6 @@ export default function LoginModal({
             <Alert variant="plain">
               <Typography
                 level="body-sm"
-                mt={1}
-                mb={2}
                 textColor="text.tertiary"
                 fontWeight={400}
               >
