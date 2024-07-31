@@ -18,6 +18,7 @@ export default function LoRATrainingRunButton({
   return (
     <Button
       variant="solid"
+      color="primary"
       endDecorator={<PlayIcon size="14px" />}
       onClick={async () => {
         // Use fetch API to call endpoint

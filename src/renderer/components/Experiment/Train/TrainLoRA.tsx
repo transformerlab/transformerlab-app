@@ -210,7 +210,7 @@ export default function TrainLoRA({ experimentInfo }) {
         >
           <Table>
             <thead>
-              <th width="150px">Name</th>
+              <th width="110px">Name</th>
               {/* <th>Description</th> */}
               <th width="120px">Dataset</th>
               <th width="150px">Plugin</th>
@@ -269,7 +269,8 @@ export default function TrainLoRA({ experimentInfo }) {
                                 );
                                 setOpen(true);
                               }}
-                              variant="plain"
+                              variant="outlined"
+                              color="primary"
                             >
                               Edit
                             </Button>
@@ -284,7 +285,7 @@ export default function TrainLoRA({ experimentInfo }) {
                                 mutate();
                               }}
                             >
-                              <Trash2Icon />
+                              <Trash2Icon size="20px" />
                             </IconButton>
                           </ButtonGroup>
                         </td>
