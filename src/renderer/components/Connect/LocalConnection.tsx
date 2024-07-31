@@ -898,7 +898,7 @@ function InstallStepper({ setServer }) {
           </InstallStep>
           <InstallStep
             thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')}
-            title="Check if Server is Running Locally on Port 8000"
+            title="Check if the Transformer Lab Engine is Running Locally on Port 8000"
             activeStep={activeStep}
             setActiveStep={setActiveStep}
           >
