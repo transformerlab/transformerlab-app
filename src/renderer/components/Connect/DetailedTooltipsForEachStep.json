@@ -1,0 +1,9 @@
+[
+  "In this step we check if Transformer Lab is already installed on your local machine. The Transformer Lab Engine is stored at ~/.transformerlab/ which you can see if you type `cd ~/.transformerlab/` in your terminal.",
+  "In this step we check the current version of the Transformer Lab Engine versus the most recent version in Github. If the version is outdated, we will prompt you to update the Transformer Lab Engine.",
+  "In this step we install Conda if it is not already installed. Conda is a tool that packages a full version of Python specifically for Transformer Lab's Engine. It is used often in Machine Learning because it is good at packaging Python and dependencies alongside the necessary tools to access your GPU, etc. By installing a separate version of Python, we can avoid conflicts with other Python packages you may have installed.",
+  "Now that Conda is installed, we create a 'Conda Environment' just for Transformer Lab. This is where all the Python dependencies will be installed.",
+  "Here we run pip install -r requirements.txt to install all the Python dependencies for Transformer Lab. Transformer Lab brings in dozens of important LLM Python Libraries so this step can take a very long while as gigabytes of Python packages are downloaded and installed.",
+  "Now all the requirements for Transformer Lab's Engine are installed. This step starts up the engine on Port 8000 so that the app can communicate with the engine.",
+  "Plugins are a way to extend the functionality of Transformer Lab. In this step we install the plugins that are appropriate for your specific machine. For example if you are using a Mac, we will auto install the inference and training plugins that works specifically for Macs."
+]

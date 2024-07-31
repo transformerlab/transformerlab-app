@@ -8,13 +8,15 @@ import {
   Step,
   StepIndicator,
   Stepper,
+  Tooltip,
   Typography,
 } from '@mui/joy';
-import { CheckCircle2, PlayIcon, RotateCcwIcon } from 'lucide-react';
+import { CheckCircle2, InfoIcon, PlayIcon, RotateCcwIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
 import { FaApple } from 'react-icons/fa6';
+import LargeTooltip from './LargeTooltip';
 
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
@@ -796,7 +798,16 @@ function InstallStep({ children, thisStep, title, activeStep, setActiveStep }) {
       }
     >
       <Sheet variant="outlined" sx={{ p: 1 }}>
-        <Typography level="title-sm">{title}</Typography>
+        <Typography level="title-sm">
+          {title}{' '}
+          <Tooltip
+            title={<LargeTooltip stepNumber={thisStep} />}
+            placement="bottom-start"
+            variant="outlined"
+          >
+            <InfoIcon size="18px" />
+          </Tooltip>
+        </Typography>
         {children}
       </Sheet>
     </Step>
@@ -852,7 +863,9 @@ function InstallStepper({ setServer }) {
           </InstallStep>
           <InstallStep
             thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
-            title="Check if Conda is Installed at ~/.transformerlab/miniconda3/"
+            title={
+              <>Check if Conda is Installed at ~/.transformerlab/miniconda3/ </>
+            }
             activeStep={activeStep}
             setActiveStep={setActiveStep}
           >
