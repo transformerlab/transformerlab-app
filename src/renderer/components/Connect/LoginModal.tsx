@@ -9,6 +9,7 @@ import ModalDialog from '@mui/joy/ModalDialog';
 import Stack from '@mui/joy/Stack';
 import Typography from '@mui/joy/Typography';
 import {
+  Alert,
   Checkbox,
   CircularProgress,
   DialogContent,
@@ -28,6 +29,7 @@ import { apiHealthz } from '../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import { connect } from 'http2';
 import LocalConnection from './LocalConnection';
+import { InfoIcon } from 'lucide-react';
 
 export default function LoginModal({
   setServer,
@@ -112,8 +114,8 @@ export default function LoginModal({
           onChange={(_event, newValue) => {}}
         >
           <TabList tabFlex={1}>
-            <Tab>Local Connection</Tab>
-            <Tab>Remote Connection</Tab>
+            <Tab>Local Engine</Tab>
+            <Tab>Connect to Remote Engine</Tab>
             {/* <Tab value="SSH">Connect via SSH</Tab> */}
           </TabList>
           <TabPanel
@@ -137,6 +139,25 @@ export default function LoginModal({
         >
           Provide connection information:
         </Typography> */}
+            <Alert variant="plain">
+              <Typography
+                level="body-sm"
+                mt={1}
+                mb={2}
+                textColor="text.tertiary"
+                fontWeight={400}
+              >
+                <a
+                  href="https://transformerlab.ai/docs/advanced-install#manual-install-instructions"
+                  target="_blank"
+                >
+                  Follow these instructions
+                </a>{' '}
+                to install the Transformer Lab Engine on a remote computer. Once
+                you have completed those steps, enter the server URL and port
+                below.
+              </Typography>
+            </Alert>
             <form
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
