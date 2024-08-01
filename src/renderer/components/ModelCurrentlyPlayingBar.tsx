@@ -5,9 +5,12 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 import { Box, Button, CircularProgress, Typography } from '@mui/joy';
 import TinyCircle from './Shared/TinyCircle';
+import HelpVideoModal from './HelpVideoModal';
+import { useState } from 'react';
 
 export default function ModelCurrentlyPlaying({ experimentInfo }) {
   const { models, isError, isLoading } = useModelStatus();
+  const [helpDialogOpen, setHelpDialogOpen] = useState<boolean>(false);
 
   const inferenceParams = experimentInfo?.config?.inferenceParams
     ? JSON.parse(experimentInfo?.config?.inferenceParams)
@@ -32,12 +35,23 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
           boxShadow: 'inset 0px 0px 10px 0px rgba(0,0,0,0.15)',
         },
       }}
+      onClick={() => {
+        // if (!helpDialogOpen) {
+        //   setHelpDialogOpen(true);
+        // }
+        let m = experimentInfo?.config?.foundation
+          ? experimentInfo?.config?.foundation +
+            ' selected. Click on the "Foundation" tab then "Eject" to change models.'
+          : 'No model selected. Click on the "Foundation tab" to select a model';
+        alert(m + ' ');
+      }}
     >
       {/* <RunModelButton
         experimentInfo={experimentInfo}
         killWorker={killWorker}
         models={models}
       /> */}
+      {/* <HelpVideoModal open={helpDialogOpen} setOpen={setHelpDialogOpen} /> */}
       <Button
         variant="plain"
         disabled
