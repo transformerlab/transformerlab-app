@@ -56,7 +56,6 @@ export default function Embeddings({ experimentInfo }) {
           paddingBottom: '1rem',
           overflowY: 'auto',
           overflowX: 'hidden',
-          padding: '1rem',
         }}
       >
         <Typography level="h1" mb={3}>
