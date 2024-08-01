@@ -1,19 +1,15 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useRef, useEffect, useState } from 'react';
-
-import useSWR from 'swr';
 
 import Sheet from '@mui/joy/Sheet';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { PencilIcon, PlayIcon } from 'lucide-react';
+import { LightbulbIcon, PlayIcon } from 'lucide-react';
 import {
-  Box,
+  Alert,
   Button,
   FormControl,
   FormHelperText,
   FormLabel,
-  Input,
   Textarea,
   Typography,
 } from '@mui/joy';
@@ -58,9 +54,21 @@ export default function Embeddings({ experimentInfo }) {
           overflowX: 'hidden',
         }}
       >
-        <Typography level="h1" mb={3}>
-          Generate Embeddings
-        </Typography>
+        <Typography level="h1">Generate Embeddings</Typography>
+        <Alert variant="plain" startDecorator={<LightbulbIcon />}>
+          <Typography
+            level="body-sm"
+            textColor="text.tertiary"
+            fontWeight={400}
+          >
+            An embedding is a mathematical representation of a word or a piece
+            of text in a high-dimensional vector space. In the context of large
+            language models, embeddings are used to convert words, characters,
+            or subwords into numerical vectors that capture their semantic
+            meaning. The resulting embedding vectors can be used to compare the
+            meaning of chunks of text.
+          </Typography>
+        </Alert>
         <div>
           <FormControl>
             <FormLabel>Input Text</FormLabel>
