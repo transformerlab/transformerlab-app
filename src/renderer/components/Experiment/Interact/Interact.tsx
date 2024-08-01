@@ -173,7 +173,12 @@ export default function Chat({
       // Get the generation parameters from the experiment config
       var generationParams = experimentInfo?.config?.generationParams;
       if (generationParams) {
-        generationParams = JSON.parse(generationParams);
+        try {
+          generationParams = JSON.parse(generationParams);
+        } catch (e) {
+          generationParams = {};
+          console.log('Error parsing generation parameters as JSON');
+        }
         setGenerationParameters(generationParams);
       } else {
         // If they don't exist, set them to some defaults
