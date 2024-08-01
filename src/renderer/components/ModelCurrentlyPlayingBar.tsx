@@ -27,6 +27,10 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
         paddingRight: '8px',
         backgroundColor: 'var(--joy-palette-background-level2)',
         boxShadow: 'inset 0px 0px 4px 0px rgba(0,0,0,0.05)',
+        '&:hover': {
+          //background: 'var(--joy-palette-background-level3)',
+          boxShadow: 'inset 0px 0px 10px 0px rgba(0,0,0,0.15)',
+        },
       }}
     >
       {/* <RunModelButton

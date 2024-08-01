@@ -80,7 +80,7 @@ export default function Sidebar({
         top: 0,
         p: 2,
         py: 1,
-        pt: '60px',
+        pt: '0',
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -94,6 +94,9 @@ export default function Sidebar({
         '& .MuiBadge-root': {},
       }}
     >
+      <div
+        style={{ width: '100%', height: '52px', '-webkit-app-region': 'drag' }}
+      ></div>
       <SelectExperimentMenu
         experimentInfo={experimentInfo}
         setExperimentId={setExperimentId}

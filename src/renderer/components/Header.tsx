@@ -176,36 +176,43 @@ function StatsBar({ connection, setConnection }) {
               &nbsp; Connected -
             </div>
           </Tooltip>
-          &nbsp;CPU:
-          <div style={{ width: '60px', textAlign: 'center' }}>
-            <div style={{ width: '60px', position: 'absolute', opacity: 0.6 }}>
-              <Sparklines height={20} width={60} data={cs.cpu}>
-                <SparklinesLine color="green" />
-              </Sparklines>
+          <span style={{ display: 'flex', '-webkit-app-region': 'drag' }}>
+            &nbsp;CPU:
+            <div style={{ width: '60px', textAlign: 'center' }}>
+              <div
+                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
+              >
+                <Sparklines height={20} width={60} data={cs.cpu}>
+                  <SparklinesLine color="green" />
+                </Sparklines>
+              </div>
+              {cs.cpu[cs.cpu.length - 1]}%
+            </div>{' '}
+            RAM:{' '}
+            <div style={{ width: '60px', textAlign: 'center' }}>
+              <div
+                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
+              >
+                <Sparklines height={20} width={60} data={cs.mem} max={100}>
+                  <SparklinesLine color="#1c8cdc" />
+                </Sparklines>
+              </div>
+              {Math.round(cs.mem[cs.mem.length - 1])}%
             </div>
-            {cs.cpu[cs.cpu.length - 1]}%
-          </div>{' '}
-          RAM:{' '}
-          <div style={{ width: '60px', textAlign: 'center' }}>
-            <div style={{ width: '60px', position: 'absolute', opacity: 0.6 }}>
-              <Sparklines height={20} width={60} data={cs.mem} max={100}>
-                <SparklinesLine color="#1c8cdc" />
-              </Sparklines>
-            </div>
-            {Math.round(cs.mem[cs.mem.length - 1])}%
-          </div>
-          VRAM:
-          <div style={{ width: '60px', textAlign: 'center' }}>
-            <div style={{ width: '60px', position: 'absolute', opacity: 0.6 }}>
-              <Sparklines height={20} width={60} data={cs.gpu}>
-                <SparklinesLine color="var(--joy-palette-danger-500)" />
-              </Sparklines>
-            </div>
-            {Math.round(cs.gpu[cs.gpu.length - 1])}%
-          </div>{' '}
-          <div style={{ minWidth: '80px' }}>
-            GPU:&nbsp;
-            {/* <div style={{ width: '60px', textAlign: 'center' }}>
+            VRAM:
+            <div style={{ width: '60px', textAlign: 'center' }}>
+              <div
+                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
+              >
+                <Sparklines height={20} width={60} data={cs.gpu}>
+                  <SparklinesLine color="var(--joy-palette-danger-500)" />
+                </Sparklines>
+              </div>
+              {Math.round(cs.gpu[cs.gpu.length - 1])}%
+            </div>{' '}
+            <div style={{ minWidth: '80px' }}>
+              GPU:&nbsp;
+              {/* <div style={{ width: '60px', textAlign: 'center' }}>
               <div
                 style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
               >
@@ -215,24 +222,25 @@ function StatsBar({ connection, setConnection }) {
               </div>
               {Math.round(cs.gpu[cs.gpu.length - 1])} %
             </div>{' '} */}
-            {server?.gpu?.[0]?.utilization > 40 ? (
-              <span
-                style={{ backgroundColor: 'var(--joy-palette-danger-100)' }}
-              >
-                {server?.gpu?.[0]?.utilization} %
-              </span>
-            ) : (
-              <span
-                style={{
-                  backgroundColor: 'rgb(0,128,0,0.1)',
-                  paddingRight: '3px',
-                  paddingLeft: '3px',
-                }}
-              >
-                {server?.gpu?.[0]?.utilization} %
-              </span>
-            )}
-          </div>
+              {server?.gpu?.[0]?.utilization > 40 ? (
+                <span
+                  style={{ backgroundColor: 'var(--joy-palette-danger-100)' }}
+                >
+                  {server?.gpu?.[0]?.utilization} %
+                </span>
+              ) : (
+                <span
+                  style={{
+                    backgroundColor: 'rgb(0,128,0,0.1)',
+                    paddingRight: '3px',
+                    paddingLeft: '3px',
+                  }}
+                >
+                  {server?.gpu?.[0]?.utilization} %
+                </span>
+              )}
+            </div>
+          </span>
         </div>
       )}
     </>
@@ -259,6 +267,14 @@ export default function Header({ connection, setConnection, experimentInfo }) {
       className="header"
     >
       <div
+        style={{
+          height: '100%',
+          flex: 1,
+          // border: '1px solid purple',
+          '-webkit-app-region': 'drag',
+        }}
+      />
+      <div
         id="currently-playing"
         style={{
           backgroundColor: 'var(--joy-palette-background-level1)',
@@ -270,11 +286,18 @@ export default function Header({ connection, setConnection, experimentInfo }) {
           justifyContent: 'center',
           alignItems: 'center',
           display: 'flex',
-          '-webkit-app-region': 'drag',
         }}
       >
         <ModelCurrentlyPlayingBar experimentInfo={experimentInfo} />
       </div>
+      <div
+        style={{
+          height: '100%',
+          flex: 1,
+          // border: '1px solid purple',
+          '-webkit-app-region': 'drag',
+        }}
+      />
 
       <StatsBar connection={connection} setConnection={setConnection} />
     </Sheet>
