@@ -36,6 +36,7 @@ import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import ModelDetailsModal from './ModelDetailsModal';
+import ImportModelsBar from './ImportModelsBar';
 
 import {
   modelTypes,
@@ -299,7 +300,6 @@ export default function ModelStore() {
         sx={{
           width: '100%',
           borderRadius: 'md',
-          flex: 1,
           overflow: 'auto',
           minHeight: 0,
           height: '100%',
@@ -561,6 +561,8 @@ export default function ModelStore() {
           </tbody>
         </Table>
       </Sheet>
+
+      <ImportModelsBar />
     </>
   );
 }
