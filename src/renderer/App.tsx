@@ -37,6 +37,10 @@ export default function App() {
       );
       if (experimentId) {
         setExperimentId(experimentId);
+      } else if (connection !== '') {
+        // If there's no stored experiment and we are connected
+        // then default to to the first experiment
+        setExperimentId(1);
       }
     }
 
