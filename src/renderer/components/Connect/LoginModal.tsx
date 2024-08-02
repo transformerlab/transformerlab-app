@@ -160,8 +160,8 @@ export default function LoginModal({
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
 
-                const server = event.currentTarget.elements[0].value;
-                const port = event.currentTarget.elements[1].value;
+                const server = event.currentTarget.elements[0].value.trim().replace(/\/+$/, '');
+                const port = event.currentTarget.elements[1].value.replace(/[\s]+/g, '');
 
                 // eslint-disable-next-line prefer-template
                 const fullServer = 'http://' + server + ':' + port + '/';
@@ -177,7 +177,7 @@ export default function LoginModal({
                   <FormLabel>Server URL</FormLabel>
                   <Input autoFocus required placeholder="192.168.1.100" />
                   <FormHelperText>
-                    Do not include http:// in the URL or a / at the end
+                    Do not include http:// in the URL.
                   </FormHelperText>
                 </FormControl>
                 <FormControl>
