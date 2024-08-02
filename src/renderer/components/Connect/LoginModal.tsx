@@ -160,7 +160,7 @@ export default function LoginModal({
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
 
-                const server = event.currentTarget.elements[0].value.replace(/[\s\/]+/g, '');
+                const server = event.currentTarget.elements[0].value.trim().replace(/\/+$/, '');
                 const port = event.currentTarget.elements[1].value.replace(/[\s]+/g, '');
 
                 // eslint-disable-next-line prefer-template
