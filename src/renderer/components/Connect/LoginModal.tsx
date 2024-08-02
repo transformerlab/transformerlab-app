@@ -12,13 +12,9 @@ import {
   Alert,
   Checkbox,
   CircularProgress,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormHelperText,
   Link,
-  ModalClose,
-  Sheet,
   Tab,
   TabList,
   TabPanel,
@@ -27,9 +23,10 @@ import {
 
 import { apiHealthz } from '../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
-import { connect } from 'http2';
 import LocalConnection from './LocalConnection';
-import { InfoIcon } from 'lucide-react';
+import OneTimePopup from '../Shared/OneTimePopup';
+
+import MuxPlayer from '@mux/mux-player-react';
 
 export default function LoginModal({
   setServer,
@@ -107,6 +104,30 @@ export default function LoginModal({
           height: '90vh',
         }}
       >
+        <OneTimePopup title="Welcome To Transformer Lab">
+          <>
+            <p>
+              To start using Transformer Lab, you can either install the
+              Transformer Lab engine on your local machine or connect to a
+              remote computer where the engine is already running.
+            </p>
+            <MuxPlayer
+              streamType="on-demand"
+              playbackId="2EK002M4GdFF32RCeOVIqEhas02GfUmu01UCSjuxqwRmcI"
+              metadataVideoTitle="Placeholder (optional)"
+              metadataViewerUserId="Placeholder (optional)"
+              primaryColor="#FFFFFF"
+              secondaryColor="#000000"
+              style={{ maxWidth: '300px', alignSelf: 'center' }}
+              autoPlay
+            />
+            <p>
+              Installing the engine takes time but by the end of the process,
+              you will have all the components of a poweful LLM workstation at
+              your disposal.
+            </p>
+          </>
+        </OneTimePopup>
         <Tabs
           aria-label="Basic tabs"
           defaultValue={0}

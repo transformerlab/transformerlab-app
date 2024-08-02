@@ -5,6 +5,7 @@ import Sheet from '@mui/joy/Sheet';
 import {
   Button,
   CircularProgress,
+  Divider,
   FormControl,
   FormHelperText,
   FormLabel,
@@ -84,8 +85,8 @@ export default function TransformerLabSettings({}) {
             Save
           </Button>
           <FormHelperText>
-            A Huggingface access token is required in order to access certain models 
-            and datasets (those marked as "Gated").
+            A Huggingface access token is required in order to access certain
+            models and datasets (those marked as "Gated").
           </FormHelperText>
           <FormHelperText>
             Documentation here:
@@ -97,6 +98,23 @@ export default function TransformerLabSettings({}) {
             </a>
           </FormHelperText>
         </FormControl>
+        <Divider sx={{ mt: 2, mb: 2 }} />{' '}
+        <Typography level="title-lg" marginBottom={2}>
+          Application:
+        </Typography>
+        <Button
+          variant="soft"
+          onClick={() => {
+            // find and delete all items in local storage that begin with oneTimePopup:
+            for (var key in localStorage) {
+              if (key.startsWith('oneTimePopup')) {
+                localStorage.removeItem(key);
+              }
+            }
+          }}
+        >
+          Reset all Tutorial Popup Screens
+        </Button>
       </Sheet>
     </>
   );

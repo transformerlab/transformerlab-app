@@ -18,6 +18,7 @@ import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
 import { FaApple } from 'react-icons/fa6';
 import LargeTooltip from './LargeTooltip';
+import OneTimePopup from '../Shared/OneTimePopup';
 
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
