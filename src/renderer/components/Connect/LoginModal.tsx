@@ -104,7 +104,8 @@ export default function LoginModal({
           height: '90vh',
         }}
       >
-        <OneTimePopup title="Welcome To Transformer Lab">
+        💡
+        <OneTimePopup title="💡 Welcome To Transformer Lab">
           <>
             <p>
               To start using Transformer Lab, you can either install the
@@ -114,17 +115,17 @@ export default function LoginModal({
             <MuxPlayer
               streamType="on-demand"
               playbackId="2EK002M4GdFF32RCeOVIqEhas02GfUmu01UCSjuxqwRmcI"
-              metadataVideoTitle="Placeholder (optional)"
-              metadataViewerUserId="Placeholder (optional)"
               primaryColor="#FFFFFF"
               secondaryColor="#000000"
               style={{ maxWidth: '300px', alignSelf: 'center' }}
               autoPlay
+              loop
+              muted
             />
             <p>
-              Installing the engine takes time but by the end of the process,
-              you will have all the components of a poweful LLM workstation at
-              your disposal.
+              Installing the engine takes time (often about 15 minutes) but by
+              the end of the process, you will have all the components of a
+              powerful LLM workstation on your machine.
             </p>
           </>
         </OneTimePopup>
@@ -181,8 +182,13 @@ export default function LoginModal({
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
 
-                const server = event.currentTarget.elements[0].value.trim().replace(/\/+$/, '');
-                const port = event.currentTarget.elements[1].value.replace(/[\s]+/g, '');
+                const server = event.currentTarget.elements[0].value
+                  .trim()
+                  .replace(/\/+$/, '');
+                const port = event.currentTarget.elements[1].value.replace(
+                  /[\s]+/g,
+                  ''
+                );
 
                 // eslint-disable-next-line prefer-template
                 const fullServer = 'http://' + server + ':' + port + '/';
