@@ -104,7 +104,6 @@ export default function LoginModal({
           height: '90vh',
         }}
       >
-        💡
         <OneTimePopup title="💡 Welcome To Transformer Lab">
           <>
             <p>
