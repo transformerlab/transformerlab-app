@@ -119,12 +119,15 @@ export default function TrainLoRA({ experimentInfo }) {
   } = useSWR(
     chatAPI.Endpoints.Experiment.ListScriptsOfType(
       experimentInfo?.id,
-      'trainer', // type
-      'model_architectures:' +
-        experimentInfo?.config?.foundation_model_architecture //filter
+      'trainer' // type
+      // 'model_architectures:' +
+      //   experimentInfo?.config?.foundation_model_architecture //filter
     ),
     fetcher
   );
+
+  const modelArchitecture =
+    experimentInfo?.config?.foundation_model_architecture;
 
   if (!experimentInfo) {
     return 'No experiment selected';
@@ -187,11 +190,24 @@ export default function TrainLoRA({ experimentInfo }) {
                     setOpen(true);
                   }}
                   key={plugin.uniqueId}
+                  disabled={
+                    !plugin.model_architectures?.includes(modelArchitecture)
+                  }
                 >
                   <ListItemDecorator>
                     <Plug2Icon />
                   </ListItemDecorator>
-                  {plugin.name}
+                  <div>
+                    {plugin.name}
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: 'var(--joy-palette-neutral-400)' }}
+                    >
+                      {!plugin.model_architectures?.includes(modelArchitecture)
+                        ? '(Does not support this model architecture)'
+                        : ''}
+                    </Typography>
+                  </div>
                 </MenuItem>
               ))}
             </Menu>
