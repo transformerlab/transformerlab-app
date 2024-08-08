@@ -20,7 +20,7 @@ export default function Plugins({ experimentInfo }) {
           width: '100%',
         }}
       >
-        <TabList tabFlex={1}>
+        <TabList>
           <Tab>Installed Plugin Scripts</Tab>
           <Tab>
             <StoreIcon color="grey" />

@@ -20,7 +20,7 @@ export default function Data() {
           width: '100%',
         }}
       >
-        <TabList tabFlex={1}>
+        <TabList>
           <Tab>Local Datasets</Tab>
           <Tab>
             <StoreIcon color="grey" />
