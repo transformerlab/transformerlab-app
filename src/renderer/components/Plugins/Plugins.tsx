@@ -11,7 +11,7 @@ export default function Plugins({ experimentInfo }) {
     <Sheet sx={{ display: 'flex', height: '100%' }}>
       <Tabs
         aria-label="Plugin Tabs"
-        defaultValue={0}
+        defaultValue={1}
         size="sm"
         sx={{
           borderRadius: 'lg',
