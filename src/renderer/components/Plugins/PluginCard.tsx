@@ -58,38 +58,34 @@ export default function PluginCard({
           <>
             {/* {JSON.stringify(plugin)} */}
             <Typography
-              level="title-md"
-              fontSize="md"
-              sx={{ mb: 0.5 }}
-              startDecorator={getIcon(type)}
+              level="title-lg"
+              // startDecorator={getIcon(type)}
             >
-              <b>{plugin.name}</b>
+              <b>
+                {plugin.name}&nbsp;
+                <Chip>{type}</Chip>
+              </b>
             </Typography>
             <Typography level="body-md" fontSize="sm" sx={{ mt: 0.5, mb: 0.5 }}>
-              {plugin.uniqueId}&nbsp;
+              {/* {plugin.uniqueId}&nbsp; */}
               {plugin?.gallery_version ? (
                 plugin?.version != plugin?.gallery_version ? (
                   <Chip color="danger">v{plugin.version} Needs Upgrade</Chip>
                 ) : (
                   <>
-                    <Chip color="success">v{plugin.version}</Chip>
+                    <Chip color="success" variant="outlined">
+                      v{plugin.version}
+                    </Chip>
                   </>
                 )
               ) : (
-                <Chip color="warning">v{plugin.version}</Chip>
+                <Chip color="warning" variant="outlined">
+                  v{plugin.version}
+                </Chip>
               )}
             </Typography>
-            <Typography
-              level="title-sm"
-              fontSize="sm"
-              sx={{ mt: 0.5, mb: 0.5 }}
-            >
-              <b>
-                Type: <Chip>{type}</Chip>
-              </b>
-            </Typography>
 
-            <Typography level="body-sm">{plugin.description}</Typography>
+            <Typography level="body-md">{plugin.description}</Typography>
           </>
         </CardContent>
 
@@ -114,7 +110,7 @@ export default function PluginCard({
                 style={{ textDecoration: 'none', color: 'white' }}
                 state={plugin}
               >
-                <Button variant="solid" color="primary" sx={{ ml: 'auto' }}>
+                <Button variant="plain" color="primary" sx={{ ml: 'auto' }}>
                   Edit
                 </Button>
               </Link>
@@ -142,7 +138,7 @@ export default function PluginCard({
             </>
           )}
           <Button
-            variant={plugin?.installed ? 'soft' : 'solid'}
+            variant={plugin?.installed ? 'plain' : 'solid'}
             size="sm"
             color="primary"
             aria-label="Download"
