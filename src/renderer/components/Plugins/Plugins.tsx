@@ -5,10 +5,21 @@ import { StoreIcon } from 'lucide-react';
 
 import PluginGallery from './PluginGallery';
 import LocalPlugins from './LocalPlugins';
+import OneTimePopup from '../Shared/OneTimePopup';
 
 export default function Plugins({ experimentInfo }) {
   return (
     <Sheet sx={{ display: 'flex', height: '100%' }}>
+      <OneTimePopup title="💡 About Plugins">
+        <>
+          <p>
+            Plugins enable additional functionality to Transformer Lab. The
+            available plugins are based on your hardware (e.g. whether or not
+            you have a GPU).
+          </p>
+          <p>You can add a plugin by clicking on "Install".</p>
+        </>
+      </OneTimePopup>
       <Tabs
         aria-label="Plugin Tabs"
         defaultValue={1}
