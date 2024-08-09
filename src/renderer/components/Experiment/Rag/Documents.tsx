@@ -226,12 +226,13 @@ export default function Documents({ experimentInfo }) {
           onClick={() => {
             var input = document.createElement('input');
             input.type = 'file';
+            input.multiple = true;
             input.onchange = async (e) => {
               let files = Array.from(input.files);
               console.log(files);
               const formData = new FormData();
               for (const file of files) {
-                formData.append('file', file);
+                formData.append('files', file);
               }
               await uploadFiles(formData);
             };
@@ -308,7 +309,7 @@ export default function Documents({ experimentInfo }) {
 
           const formData = new FormData();
           for (const file of acceptedFiles) {
-            formData.append('file', file);
+            formData.append('files', file);
           }
           await uploadFiles(formData);
         }}
