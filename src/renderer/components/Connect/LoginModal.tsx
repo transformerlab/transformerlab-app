@@ -229,7 +229,7 @@ export default function LoginModal({
                   Submit
                 </Button>
                 {failed && (
-                  <div style={{ color: 'red' }}>
+                  <div style={{ color: 'var(--joy-palette-danger-600)' }}>
                     Couldn&apos;t connect to server. Please try a different URL.
                   </div>
                 )}
