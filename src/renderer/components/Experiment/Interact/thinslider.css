@@ -1,0 +1,8 @@
+.thinslider-container:hover .hoverable {
+    visibility: visible !important;
+}
+
+.hoverable:hover {
+    text-decoration: underline;
+    cursor: pointer
+}

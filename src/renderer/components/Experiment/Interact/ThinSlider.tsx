@@ -8,6 +8,7 @@ import {
 } from '@mui/joy';
 import { CheckIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
+import './thinslider.css';
 
 export default function ThinSlider(props) {
   const [editValueDirectlyMode, setEditValueDirectlyMode] = useState(false);
@@ -50,7 +51,7 @@ export default function ThinSlider(props) {
   }
 
   return (
-    <>
+    <div className="thinslider-container">
       <FormLabel>
         {props?.title} &nbsp;
         {!editValueDirectlyMode && (
@@ -61,6 +62,8 @@ export default function ThinSlider(props) {
           >
             {props.value}&nbsp;{' '}
             <span
+              className="hoverable"
+              style={{ visibility: 'hidden' }}
               onClick={() => {
                 setEditValueDirectlyMode(true);
               }}
@@ -86,6 +89,6 @@ export default function ThinSlider(props) {
           {...props}
         />
       )}
-    </>
+    </div>
   );
 }
