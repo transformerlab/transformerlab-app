@@ -1,27 +1,99 @@
-import { FormLabel, Input, Slider } from '@mui/joy';
+import {
+  Box,
+  ButtonGroup,
+  Checkbox,
+  FormLabel,
+  IconButton,
+  Input,
+  Slider,
+} from '@mui/joy';
+import {
+  CheckCheckIcon,
+  CheckIcon,
+  CheckSquareIcon,
+  PencilIcon,
+  PenIcon,
+  XIcon,
+} from 'lucide-react';
+import { useState } from 'react';
 
 export default function ThinSlider(props) {
+  const [editValueDirectlyMode, setEditValueDirectlyMode] = useState(false);
+
+  function ManualInput() {
+    return (
+      <Input
+        sx={{ mb: 2 }}
+        size="sm"
+        defaultValue={props.value}
+        endDecorator={
+          <ButtonGroup>
+            <IconButton variant="plain" color="danger">
+              <XIcon
+                onClick={() => {
+                  setEditValueDirectlyMode(false);
+                }}
+              />
+            </IconButton>
+            <IconButton
+              variant="plain"
+              color="primary"
+              onClick={(e) => {
+                //The following shows how to traverse the DOM to get to the
+                //input field value
+                let v = e.target
+                  .closest('.MuiInput-root')
+                  .querySelector('input').value;
+
+                props.onChange(null, parseFloat(v));
+                setEditValueDirectlyMode(false);
+              }}
+            >
+              <CheckIcon />
+            </IconButton>
+          </ButtonGroup>
+        }
+      />
+    );
+  }
+
   return (
     <>
       <FormLabel>
         {props?.title} &nbsp;
-        <span style={{ color: '#aaa' }}>
-          {/* <Input size="sm" /> */}
-          {props.value}
-        </span>
+        {!editValueDirectlyMode && (
+          <Box
+            sx={{
+              color: '#aaa',
+            }}
+          >
+            {props.value}&nbsp;{' '}
+            <span
+              onClick={() => {
+                setEditValueDirectlyMode(true);
+              }}
+            >
+              edit
+            </span>
+          </Box>
+        )}
       </FormLabel>
-      <Slider
-        sx={{
-          margin: 'auto',
-          width: '90%',
-          '--Slider-trackSize': '3px',
-          '--Slider-thumbSize': '8px',
-          '--Slider-thumbWidth': '18px',
-          paddingTop: 1,
-          marginBottom: 2,
-        }}
-        {...props}
-      />
+      {editValueDirectlyMode ? (
+        <ManualInput />
+      ) : (
+        <Slider
+          sx={{
+            margin: 'auto',
+            width: '90%',
+            '--Slider-trackSize': '3px',
+            '--Slider-thumbSize': '8px',
+            '--Slider-thumbWidth': '18px',
+            paddingTop: 1,
+            marginBottom: 2,
+          }}
+          {...props}
+        />
+      )}
     </>
   );
 }
