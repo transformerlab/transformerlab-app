@@ -16,15 +16,11 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import {
   FormControl,
-  FormHelperText,
   FormLabel,
   Input,
-  MenuItem,
   Select,
   Slider,
   Stack,
-  TextField,
-  Typography,
   Option,
 } from '@mui/joy';
 import { useMemo } from 'react';
@@ -34,7 +30,6 @@ import {
   getInputProps,
   BaseInputTemplateProps,
   ariaDescribedByIds,
-  labelValue,
   FormContextType,
   RJSFSchema,
   StrictRJSFSchema,
