@@ -258,7 +258,9 @@ export default function TrainLoRA({ experimentInfo }) {
                         <td>
                           {row[4]} <FileTextIcon size={14} />
                         </td>
-                        <td>{JSON.parse(row[5])?.plugin_name}</td>
+                        <td style={{ overflow: 'clip' }}>
+                          {JSON.parse(row[5])?.plugin_name}
+                        </td>
                         <td style={{ overflow: 'clip' }}>
                           {formatTemplateConfig(row[5])}
                         </td>
