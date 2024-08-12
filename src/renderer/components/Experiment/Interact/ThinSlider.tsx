@@ -1,8 +1,15 @@
-import { Slider } from '@mui/joy';
+import { FormLabel, Input, Slider } from '@mui/joy';
 
 export default function ThinSlider(props) {
   return (
     <>
+      <FormLabel>
+        {props?.title} &nbsp;
+        <span style={{ color: '#aaa' }}>
+          {/* <Input size="sm" /> */}
+          {props.value}
+        </span>
+      </FormLabel>
       <Slider
         sx={{
           margin: 'auto',

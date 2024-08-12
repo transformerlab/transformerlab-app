@@ -1,4 +1,4 @@
-import { Box, FormLabel, Sheet, Stack } from '@mui/joy';
+import { Box, FormLabel, Input, Sheet, Stack } from '@mui/joy';
 import { useState } from 'react';
 import ThinSlider from './ThinSlider';
 
@@ -13,13 +13,8 @@ export default function MainGenerationConfigKnobs({
     <>
       <Sheet sx={{ display: 'flex', flexWrap: 'wrap' }}>
         <Box sx={{ flex: 1, minWidth: '200px', maxWidth: '400px' }}>
-          <FormLabel>
-            Temperature &nbsp;
-            <span style={{ color: '#aaa' }}>
-              {generationParameters?.temperature}
-            </span>
-          </FormLabel>
           <ThinSlider
+            title="Temperature"
             value={generationParameters?.temperature}
             onChange={(event: Event, newValue: number | number[]) => {
               setGenerationParameters({
@@ -35,13 +30,8 @@ export default function MainGenerationConfigKnobs({
           {/* <FormHelperText>This is a helper text.</FormHelperText> */}
         </Box>
         <Box sx={{ flex: 1, minWidth: '200px' }}>
-          <FormLabel>
-            Maximum Length &nbsp;
-            <span style={{ color: '#aaa' }}>
-              {generationParameters?.maxTokens}
-            </span>
-          </FormLabel>
           <ThinSlider
+            title="Maximum Length"
             value={generationParameters?.maxTokens}
             onChange={(e, newValue) => {
               setGenerationParameters({
@@ -60,13 +50,8 @@ export default function MainGenerationConfigKnobs({
         </Box>
         {showAllKnobs && (
           <Box sx={{ flex: 1, minWidth: '200px' }}>
-            <FormLabel>
-              Top P &nbsp;
-              <span style={{ color: '#aaa' }}>
-                {generationParameters?.topP}
-              </span>
-            </FormLabel>
             <ThinSlider
+              title="Top P"
               value={generationParameters?.topP}
               onChange={(event: Event, newValue: number | number[]) => {
                 setGenerationParameters({
@@ -82,13 +67,8 @@ export default function MainGenerationConfigKnobs({
         )}
         {showAllKnobs && (
           <Box sx={{ flex: 1, minWidth: '200px', maxWidth: '400px' }}>
-            <FormLabel>
-              Frequency Penalty &nbsp;
-              <span style={{ color: '#aaa' }}>
-                {generationParameters?.frequencyPenalty}
-              </span>
-            </FormLabel>
             <ThinSlider
+              title="Frequency Penalty"
               value={generationParameters?.frequencyPenalty}
               onChange={(event: Event, newValue: number | number[]) => {
                 setGenerationParameters({
