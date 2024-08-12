@@ -1,20 +1,12 @@
 import {
   Box,
   ButtonGroup,
-  Checkbox,
   FormLabel,
   IconButton,
   Input,
   Slider,
 } from '@mui/joy';
-import {
-  CheckCheckIcon,
-  CheckIcon,
-  CheckSquareIcon,
-  PencilIcon,
-  PenIcon,
-  XIcon,
-} from 'lucide-react';
+import { CheckIcon, XIcon } from 'lucide-react';
 import { useState } from 'react';
 
 export default function ThinSlider(props) {
