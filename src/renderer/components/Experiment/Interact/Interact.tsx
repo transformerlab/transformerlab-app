@@ -541,6 +541,7 @@ export default function Chat({
                       color="neutral"
                       value={item}
                       disableIcon
+                      disabled={isThinking}
                       label={
                         item == 'more' ? (
                           <FaEllipsisVertical
