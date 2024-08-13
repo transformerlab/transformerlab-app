@@ -10,7 +10,7 @@ import OneTimePopup from '../Shared/OneTimePopup';
 export default function Plugins({ experimentInfo }) {
   return (
     <Sheet sx={{ display: 'flex', height: '100%' }}>
-      <OneTimePopup title="💡 About Plugins">
+      <OneTimePopup title="About Plugins">
         <>
           <p>
             Plugins enable additional functionality to Transformer Lab. The
