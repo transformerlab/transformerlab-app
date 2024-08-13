@@ -16,6 +16,9 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { parse } from 'path';
 import DatasetTable from 'renderer/components/Data/DatasetTable';
+import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
+
+import AvailableFieldsImage from 'renderer/img/show-available-fields.png';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -185,15 +188,15 @@ export default function TrainingModalDataTab({
         </Select>
       </FormControl>
       <Divider />
-      <br />
-      <br />
+
       {selectedDataset && (
         <>
           {parsedData?.training_template_format !== 'none' && (
             <>
               <FormControl>
-                <FormLabel>Available Fields</FormLabel>
-
+                <Typography level="title-lg" mt={2} pb={2}>
+                  Available Fields
+                </Typography>
                 <Box sx={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                   {currentDatasetInfoIsLoading && <CircularProgress />}
                   {/* // For each key in the currentDatasetInfo.features object,
@@ -220,8 +223,8 @@ export default function TrainingModalDataTab({
                   </FormHelperText>
                 )}
               </FormControl>
-              <Divider sx={{ mt: '1rem', mb: '2rem' }} />
-              <Typography level="title-sm" pb={2}>
+              {/* <Divider sx={{ mt: '1rem', mb: '2rem' }} /> */}
+              <Typography level="title-lg" mt={2} pb={2}>
                 Template
               </Typography>
             </>
