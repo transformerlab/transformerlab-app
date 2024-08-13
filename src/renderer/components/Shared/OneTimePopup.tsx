@@ -10,15 +10,15 @@ import {
 import React, { useState, useEffect } from 'react';
 
 export default function OneTimePopup({ title, children }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const localStorageKey = 'oneTimePopup' + '#' + title;
 
   // Check Local Storage if this popup has been shown before:
   useEffect(() => {
     const hasShownBefore = localStorage.getItem(localStorageKey);
-    if (hasShownBefore) {
-      setOpen(false);
+    if (!hasShownBefore) {
+      setOpen(true);
     }
   }, []);
 
@@ -39,7 +39,7 @@ export default function OneTimePopup({ title, children }) {
             overflowY: 'hidden',
           }}
         >
-          <DialogTitle level="h2">{title}</DialogTitle>
+          <DialogTitle level="h2">💡&nbsp;{title}</DialogTitle>
           <DialogContent sx={{ pt: 2, overflowY: 'auto', overflowX: 'hidden' }}>
             <Typography level="body-md">{children}</Typography>
           </DialogContent>
