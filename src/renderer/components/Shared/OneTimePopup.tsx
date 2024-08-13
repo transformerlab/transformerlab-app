@@ -5,6 +5,7 @@ import {
   Modal,
   ModalClose,
   ModalDialog,
+  Typography,
 } from '@mui/joy';
 import React, { useState, useEffect } from 'react';
 
@@ -31,13 +32,17 @@ export default function OneTimePopup({ title, children }) {
       <Modal open={open} onClose={() => handleClose()}>
         <ModalDialog
           variant="soft"
-          sx={{ width: '50vw', maxHeight: '100%', overflowY: 'hidden' }}
+          sx={{
+            minWidth: '25vw',
+            maxWidth: '50vw',
+            maxHeight: '100%',
+            overflowY: 'hidden',
+          }}
         >
-          <ModalClose />
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle level="h2">{title}</DialogTitle>
           <DialogContent sx={{ pt: 2, overflowY: 'auto', overflowX: 'hidden' }}>
-            {children}
-          </DialogContent>{' '}
+            <Typography level="body-md">{children}</Typography>
+          </DialogContent>
           <Button
             sx={{ width: 'fit-content', alignSelf: 'flex-end', mt: 1 }}
             onClick={() => {

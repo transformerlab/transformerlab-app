@@ -23,6 +23,7 @@ import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
 import InferenceEngineModal from './InferenceEngineModal';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -98,6 +99,12 @@ export default function RunModelButton({
         gap: '0px',
       }}
     >
+      {models != null && (
+        <OneTimePopup title="Congratulations on Running your first Model 🚀">
+          You can now go to <b>Interact</b>, <b>Query Docs</b>, and{' '}
+          <b>Embeddings</b> tabs to chat with it.
+        </OneTimePopup>
+      )}
       {/* {JSON.stringify(models)} */}
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
@@ -134,9 +141,7 @@ export default function RunModelButton({
                 experimentInfo?.id
               );
               if (response?.status == 'error') {
-                alert(
-                  `Failed to start model:\n${response?.message}` 
-                );
+                alert(`Failed to start model:\n${response?.message}`);
                 setJobId(null);
                 return;
               }
