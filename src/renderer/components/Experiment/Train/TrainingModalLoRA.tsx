@@ -22,7 +22,10 @@ import {
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from './TraningModalDataTab';
 
+import AvailableFieldsImage from 'renderer/img/show-available-fields.png';
+
 import { generateFriendlyName } from 'renderer/lib/utils';
+import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
@@ -63,6 +66,7 @@ export default function TrainingModalLoRA({
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [config, setConfig] = useState({});
   const [nameInput, setNameInput] = useState('');
+  const [currentTab, setCurrentTab] = useState(0);
 
   // Fetch available datasets from the API
   const {
@@ -265,7 +269,8 @@ export default function TrainingModalLoRA({
         >
           <Tabs
             aria-label="Training Template Tabs"
-            defaultValue={0}
+            value={currentTab}
+            onChange={(event, newValue) => setCurrentTab(newValue)}
             sx={{ borderRadius: 'lg', display: 'flex', overflow: 'hidden' }}
           >
             <TabList>
@@ -285,18 +290,41 @@ export default function TrainingModalLoRA({
             </TabPanel>
 
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-              <TrainingModalDataTab
-                datasetsIsLoading={datasetsIsLoading}
-                datasets={datasets}
-                selectedDataset={selectedDataset}
-                setSelectedDataset={setSelectedDataset}
-                currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
-                currentDatasetInfo={currentDatasetInfo}
-                templateData={templateData}
-                injectIntoTemplate={injectIntoTemplate}
-                experimentInfo={experimentInfo}
-                pluginId={pluginId}
-              />
+              <>
+                {currentTab == 2 && (
+                  <OneTimePopup title="How to Create a Training Template:">
+                    Use the <b>Available Fields</b> to populate the template
+                    fields on this screen. For each template field, you can type
+                    any text, and when you want to inject text from your
+                    dataset, add the field name, surrounded with curly braces
+                    like this: &#123;&#123; example &#125;&#125; .
+                    <br />
+                    <br />
+                    <img
+                      src={AvailableFieldsImage}
+                      alt="Available Fields"
+                      width="400"
+                    />
+                    <br />
+                    <br />
+                    The Avaiable Fields will change dynamically based on the
+                    columns in your selected dataset.
+                  </OneTimePopup>
+                )}
+
+                <TrainingModalDataTab
+                  datasetsIsLoading={datasetsIsLoading}
+                  datasets={datasets}
+                  selectedDataset={selectedDataset}
+                  setSelectedDataset={setSelectedDataset}
+                  currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
+                  currentDatasetInfo={currentDatasetInfo}
+                  templateData={templateData}
+                  injectIntoTemplate={injectIntoTemplate}
+                  experimentInfo={experimentInfo}
+                  pluginId={pluginId}
+                />
+              </>
             </TabPanel>
             <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
