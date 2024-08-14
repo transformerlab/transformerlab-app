@@ -25,7 +25,10 @@ export type Channels =
   | 'server:checkIfCondaExists'
   | 'server:checkIfCondaEnvironmentExists'
   | 'server:checkIfUvicornExists'
-  | 'server:checkDependencies';
+  | 'server:checkDependencies'
+  | 'serverLog:startListening'
+  | 'serverLog:stopListening'
+  | 'serverLog:update';
 
 const electronHandler = {
   ipcRenderer: {

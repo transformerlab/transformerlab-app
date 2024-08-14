@@ -18,6 +18,7 @@ import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
 import { FaApple } from 'react-icons/fa6';
 import LargeTooltip from './LargeTooltip';
+import LogViewer from './LogViewer';
 
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
@@ -303,10 +304,11 @@ function RunServer({ activeStep, setActiveStep }) {
             Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') &&
             (!server || serverError ? (
               thinking ? (
-                <CircularProgress color="primary" />
+                <CircularProgress color="primary" sx={{ mt: 1 }} />
               ) : (
                 <>
                   <Button
+                    sx={{ mt: 1 }}
                     variant="solid"
                     onClick={async () => {
                       console.log('Start Server Clicked');
@@ -968,14 +970,14 @@ function InstallStepper({ setServer }) {
       <Sheet
         sx={{
           flex: 2,
-          backgroundColor: 'black',
+          backgroundColor: '#222',
           color: 'white',
           fontFamily: 'monospace',
           p: 3,
           borderRadius: 10,
         }}
       >
-        terminal
+        <LogViewer />
       </Sheet>
     </Sheet>
   );

@@ -36,7 +36,7 @@ async function getTransformerLabRootDir() {
     : transformerLabRootDir;
 }
 
-async function getTransformerLabCodeDir() {
+export async function getTransformerLabCodeDir() {
   return isPlatformWindows()
     ? path.join(await getTransformerLabRootDir(), 'src')
     : transformerLabDir;

@@ -35,7 +35,10 @@ import {
   checkIfCondaEnvironmentExists,
   checkDependencies,
   checkIfCondaBinExists,
+  getTransformerLabCodeDir,
 } from './util';
+
+const Tail = require('tail').Tail;
 
 // ////////////
 // STORAGE
@@ -125,6 +128,48 @@ if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
   sourceMapSupport.install();
 }
+
+console.log('setting up listening to log file');
+
+const startListeningToServerLog = async () => {
+  // Now listen to the log file and send updates to the renderer
+  const server_dir = await getTransformerLabCodeDir();
+  const logFile = path.join(server_dir, 'local_server.log');
+  let tail = new Tail(logFile);
+
+  let currentlyWatching = false;
+
+  ipcMain.on('serverLog:startListening', async (event) => {
+    event.reply('serverLog:update', '**starting to listen to the log**');
+
+    console.log('logFile', logFile);
+
+    if (currentlyWatching) {
+      console.log('already watching');
+      return;
+    }
+
+    currentlyWatching = true;
+    tail.watch();
+
+    tail.on('line', function (data) {
+      // console.log(data);
+      event.reply('serverLog:update', data);
+    });
+
+    tail.on('error', function (error) {
+      console.log('ERROR: ', error);
+    });
+  });
+
+  ipcMain.on('serverLog:stopListening', async (event) => {
+    console.log('stopping listening');
+    tail.unwatch();
+    currentlyWatching = false;
+  });
+};
+
+startListeningToServerLog();
 
 const isDebug =
   process.env.NODE_ENV === 'development' || process.env.DEBUG_PROD === 'true';
@@ -225,7 +270,7 @@ const createWindow = async () => {
     return { action: 'deny' };
   });
 
-  sshClient(mainWindow);
+  // sshClient(mainWindow);
 
   // Remove this if your app does not use auto updates
   // eslint-disable-next-line

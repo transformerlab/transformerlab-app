@@ -129,6 +129,7 @@
     "remark-gfm": "^3.0.1",
     "serve-favicon": "^2.5.0",
     "swr": "^2.2.0",
+    "tail": "^2.2.6",
     "tree-kill": "^1.2.2",
     "use-debounce": "^9.0.4",
     "validator": "^13.7.0",
