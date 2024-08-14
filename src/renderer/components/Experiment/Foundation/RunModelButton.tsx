@@ -10,6 +10,16 @@ import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
+function removeServerFromEndOfString(str) {
+  if (str == null) {
+    return null;
+  }
+  // If the word "Server" is at the end of the string, remove it
+  if (str.endsWith(' Server')) {
+    return str.slice(0, -7);
+  }
+}
+
 export default function RunModelButton({
   experimentInfo,
   killWorker,
@@ -164,7 +174,9 @@ export default function RunModelButton({
         disabled={models?.length > 0 || jobId == -1}
       >
         using{' '}
-        {inferenceSettings?.inferenceEngineFriendlyName ||
+        {removeServerFromEndOfString(
+          inferenceSettings?.inferenceEngineFriendlyName
+        ) ||
           inferenceSettings?.inferenceEngine ||
           'Engine'}
       </Button>
