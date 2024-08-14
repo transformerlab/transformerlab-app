@@ -1,27 +1,10 @@
-import {
-  Button,
-  CircularProgress,
-  DialogTitle,
-  FormControl,
-  FormLabel,
-  IconButton,
-  Modal,
-  ModalClose,
-  ModalDialog,
-  Select,
-  Stack,
-  Switch,
-  Option,
-  Typography,
-  Tooltip,
-} from '@mui/joy';
-import { CogIcon, PlayCircleIcon, StopCircleIcon } from 'lucide-react';
+import { Button, CircularProgress } from '@mui/joy';
+import { PlayCircleIcon, StopCircleIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
 
 import InferenceEngineModal from './InferenceEngineModal';
-import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 
@@ -37,6 +20,7 @@ export default function RunModelButton({
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
+    inferenceEngineFriendlyName: '',
   });
 
   function isPossibleToRunAModel() {
@@ -179,7 +163,10 @@ export default function RunModelButton({
         onClick={() => setShowRunSettings(!showRunSettings)}
         disabled={models?.length > 0 || jobId == -1}
       >
-        using {inferenceSettings?.inferenceEngine}
+        using{' '}
+        {inferenceSettings?.inferenceEngineFriendlyName ||
+          inferenceSettings?.inferenceEngine ||
+          'Engine'}
       </Button>
       <InferenceEngineModal
         showModal={showRunSettings}

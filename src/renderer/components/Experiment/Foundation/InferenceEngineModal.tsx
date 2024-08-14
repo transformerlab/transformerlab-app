@@ -87,12 +87,20 @@ export default function InferenceEngineModal({
             if (!engine) {
               closeModal();
             }
+
+            // We don't want to go to the server to get the friendly name of the server
+            // so we dig into the DOM to get it
+            const engineFriendlyName = document.querySelector(
+              `button[name='inferenceEngine']`
+            )?.innerHTML;
+
             const experimentId = experimentInfo?.id;
 
             const newInferenceSettings = {
               ...inferenceSettings,
               ...formObject,
               inferenceEngine: engine,
+              inferenceEngineFriendlyName: engineFriendlyName,
             };
 
             setInferenceSettings(newInferenceSettings);
@@ -118,7 +126,9 @@ export default function InferenceEngineModal({
               />
             </FormControl>
 
-            <Typography level="title-md" paddingTop={2}>Engine Configuration:</Typography>
+            <Typography level="title-md" paddingTop={2}>
+              Engine Configuration:
+            </Typography>
             <DynamicPluginForm
               experimentInfo={experimentInfo}
               plugin={selectedPlugin}
