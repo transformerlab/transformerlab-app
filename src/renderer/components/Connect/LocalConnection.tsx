@@ -111,9 +111,9 @@ function CheckIfInstalled({ activeStep, setActiveStep }) {
           </>
         )}
 
-        <ButtonGroup variant="plain" spacing={1}>
-          {activeStep == Steps.indexOf('CHECK_IF_INSTALLED') &&
-            installStatus == 'notstarted' && (
+        {activeStep == Steps.indexOf('CHECK_IF_INSTALLED') &&
+          installStatus == 'notstarted' && (
+            <ButtonGroup variant="plain" spacing={1}>
               <Button
                 variant="solid"
                 onClick={async () => {
@@ -145,8 +145,8 @@ function CheckIfInstalled({ activeStep, setActiveStep }) {
               >
                 Install Transformer Lab Server API
               </Button>
-            )}
-        </ButtonGroup>
+            </ButtonGroup>
+          )}
       </Stack>
     </>
   );
@@ -292,7 +292,7 @@ function RunServer({ activeStep, setActiveStep }) {
 
   return (
     <>
-      <Stack spacing={1}>
+      <Stack spacing={0}>
         {activeStep >= Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') &&
           server &&
           !serverError && <Chip color="success">Success!</Chip>}
@@ -560,15 +560,15 @@ function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
               </Button>
             </ButtonGroup>
           )}
-        <Typography level="body-sm" color="warning">
-          {errorMessage && (
+        {errorMessage && (
+          <Typography level="body-sm" color="warning">
             <>
               Transformer Lab encountered the following unexpected Error:
               <pre style={{ whiteSpace: 'pre-wrap' }}>{errorMessage}</pre>
               Please try to fix the above issue and restart the app.
             </>
-          )}
-        </Typography>
+          </Typography>
+        )}
       </Stack>
     </>
   );
@@ -673,12 +673,17 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
               </Button>
             </ButtonGroup>
           )}
-        <Typography level="body-sm" color="warning">
-          {errorMessage?.message}
-        </Typography>
-        <Typography level="body-sm" color="neutral">
-          {errorMessage?.data?.stdout} {errorMessage?.data?.stderr}
-        </Typography>
+
+        {errorMessage?.message && (
+          <Typography level="body-sm" color="warning">
+            {errorMessage?.message}
+          </Typography>
+        )}
+        {(errorMessage?.data?.stdout || errorMessage?.data?.stderr) && (
+          <Typography level="body-sm" color="neutral">
+            {errorMessage?.data?.stdout} {errorMessage?.data?.stderr}
+          </Typography>
+        )}
       </Stack>
     </>
   );
@@ -775,12 +780,16 @@ function CheckDependencies({ activeStep, setActiveStep }) {
             </ButtonGroup>
           )}
 
-        <Typography level="body-sm" color="warning">
-          {errorMessage?.message}
-        </Typography>
-        <Typography level="body-sm" color="neutral">
-          {errorMessage?.data?.stdout} {errorMessage?.data?.stderr}
-        </Typography>
+        {errorMessage?.message && (
+          <Typography level="body-sm" color="warning">
+            {errorMessage?.message}
+          </Typography>
+        )}
+        {(errorMessage?.data?.stdout || errorMessage?.data?.stderr) && (
+          <Typography level="body-sm" color="neutral">
+            {errorMessage?.data?.stdout} {errorMessage?.data?.stderr}
+          </Typography>
+        )}
       </Stack>
     </>
   );
@@ -799,14 +808,14 @@ function InstallStep({ children, thisStep, title, activeStep, setActiveStep }) {
       }
     >
       <Sheet variant="outlined" sx={{ p: 1 }}>
-        <Typography level="title-sm">
+        <Typography level="title-sm" mb={1}>
           {title}{' '}
           <Tooltip
             title={<LargeTooltip stepNumber={thisStep} />}
             placement="bottom-start"
             variant="outlined"
           >
-            <InfoIcon size="18px" />
+            <InfoIcon size="14px" color="var(--joy-palette-neutral-400)" />
           </Tooltip>
         </Typography>
         {children}
@@ -950,7 +959,7 @@ function InstallStepper({ setServer }) {
           color="success"
           onClick={tryToConnect}
           startDecorator={<PlayIcon />}
-          sx={{ width: '100%', mt: 2 }}
+          sx={{ width: '100%', mt: 1 }}
           disabled={activeStep !== Steps.length}
         >
           Connect
@@ -963,6 +972,7 @@ function InstallStepper({ setServer }) {
           color: 'white',
           fontFamily: 'monospace',
           p: 3,
+          borderRadius: 10,
         }}
       >
         terminal
