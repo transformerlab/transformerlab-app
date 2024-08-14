@@ -99,8 +99,8 @@ export default function LoginModal({
           top: '5vh', // Sit 20% from the top of the screen
           margin: 'auto',
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
-          width: '55vw',
-          maxWidth: '700px',
+          width: '80vw',
+          // maxWidth: '700px',
           height: '90vh',
         }}
       >
@@ -150,7 +150,11 @@ export default function LoginModal({
           >
             <LocalConnection setServer={setServer} />
           </TabPanel>
-          <TabPanel value={1} sx={{ p: 1 }} keepMounted>
+          <TabPanel
+            value={1}
+            sx={{ p: 1, maxWidth: '600px', margin: 'auto', pt: 4 }}
+            keepMounted
+          >
             {/* <Typography id="basic-modal-dialog-title" component="h2">
               Connect to Server
             </Typography> */}

@@ -832,110 +832,141 @@ function InstallStepper({ setServer }) {
     <Sheet
       sx={{
         display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
+        flexDirection: 'row',
         overflow: 'hidden',
+        height: '100%',
+        gap: 2,
       }}
     >
-      <Alert variant="plain">
-        <Typography level="body-sm" textColor="text.tertiary" fontWeight={400}>
-          This panel starts up and connects to the Transformer Lab Engine on
-          your local machine. If you have access to a separate computer with a
-          powerful GPU, use "Connect to Remote Engine" instead.
-        </Typography>
-      </Alert>
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        <Stepper orientation="vertical" sx={{}}>
-          {/* Active Step: {activeStep} */}
-          <InstallStep
-            thisStep={Steps.indexOf('CHECK_IF_INSTALLED')}
-            title="Check if Server is Installed at ~/.transformerlab/"
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          >
-            <CheckIfInstalled
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </InstallStep>
-          <InstallStep
-            thisStep={Steps.indexOf('CHECK_VERSION')}
-            title="Check Current Version"
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          >
-            <CheckCurrentVersion
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </InstallStep>
-          <InstallStep
-            thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
-            title={
-              <>Check if Conda is Installed at ~/.transformerlab/miniconda3/ </>
-            }
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          >
-            <CheckIfCondaInstalled
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </InstallStep>
-          <InstallStep
-            thisStep={Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')}
-            title="Check if Conda Environment 'transformerlab' Exists"
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          >
-            <CheckIfCondaEnvironmentExists
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </InstallStep>
-          <InstallStep
-            thisStep={Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')}
-            title="Check if Python Dependencies are Installed"
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          >
-            <CheckDependencies
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </InstallStep>
-          <InstallStep
-            thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')}
-            title="Check if the Transformer Lab Engine is Running Locally on Port 8000"
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          >
-            <RunServer activeStep={activeStep} setActiveStep={setActiveStep} />
-          </InstallStep>
-          <InstallStep
-            thisStep={Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')}
-            title="Check for Important Plugins"
-            activeStep={activeStep}
-            setActiveStep={setActiveStep}
-          >
-            <CheckForPlugins
-              activeStep={activeStep}
-              setActiveStep={setActiveStep}
-            />
-          </InstallStep>
-        </Stepper>
-      </div>
-      <Button
-        size="lg"
-        variant="solid"
-        color="success"
-        onClick={tryToConnect}
-        startDecorator={<PlayIcon />}
-        sx={{ width: '100%', mt: 2 }}
-        disabled={activeStep !== Steps.length}
+      <Sheet
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          overflow: 'hidden',
+          flex: 1,
+        }}
       >
-        Connect
-      </Button>
+        <Alert variant="plain">
+          <Typography
+            level="body-sm"
+            textColor="text.tertiary"
+            fontWeight={400}
+          >
+            This panel starts up and connects to the Transformer Lab Engine on
+            your local machine. If you have access to a separate computer with a
+            powerful GPU, use "Connect to Remote Engine" instead.
+          </Typography>
+        </Alert>
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          <Stepper orientation="vertical" sx={{}}>
+            {/* Active Step: {activeStep} */}
+            <InstallStep
+              thisStep={Steps.indexOf('CHECK_IF_INSTALLED')}
+              title="Check if Server is Installed at ~/.transformerlab/"
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            >
+              <CheckIfInstalled
+                activeStep={activeStep}
+                setActiveStep={setActiveStep}
+              />
+            </InstallStep>
+            <InstallStep
+              thisStep={Steps.indexOf('CHECK_VERSION')}
+              title="Check Current Version"
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            >
+              <CheckCurrentVersion
+                activeStep={activeStep}
+                setActiveStep={setActiveStep}
+              />
+            </InstallStep>
+            <InstallStep
+              thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
+              title={
+                <>
+                  Check if Conda is Installed at ~/.transformerlab/miniconda3/{' '}
+                </>
+              }
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            >
+              <CheckIfCondaInstalled
+                activeStep={activeStep}
+                setActiveStep={setActiveStep}
+              />
+            </InstallStep>
+            <InstallStep
+              thisStep={Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')}
+              title="Check if Conda Environment 'transformerlab' Exists"
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            >
+              <CheckIfCondaEnvironmentExists
+                activeStep={activeStep}
+                setActiveStep={setActiveStep}
+              />
+            </InstallStep>
+            <InstallStep
+              thisStep={Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')}
+              title="Check if Python Dependencies are Installed"
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            >
+              <CheckDependencies
+                activeStep={activeStep}
+                setActiveStep={setActiveStep}
+              />
+            </InstallStep>
+            <InstallStep
+              thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')}
+              title="Check if the Transformer Lab Engine is Running Locally on Port 8000"
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            >
+              <RunServer
+                activeStep={activeStep}
+                setActiveStep={setActiveStep}
+              />
+            </InstallStep>
+            <InstallStep
+              thisStep={Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')}
+              title="Check for Important Plugins"
+              activeStep={activeStep}
+              setActiveStep={setActiveStep}
+            >
+              <CheckForPlugins
+                activeStep={activeStep}
+                setActiveStep={setActiveStep}
+              />
+            </InstallStep>
+          </Stepper>
+        </div>
+        <Button
+          size="lg"
+          variant="solid"
+          color="success"
+          onClick={tryToConnect}
+          startDecorator={<PlayIcon />}
+          sx={{ width: '100%', mt: 2 }}
+          disabled={activeStep !== Steps.length}
+        >
+          Connect
+        </Button>
+      </Sheet>
+      <Sheet
+        sx={{
+          flex: 2,
+          backgroundColor: 'black',
+          color: 'white',
+          fontFamily: 'monospace',
+          p: 3,
+        }}
+      >
+        terminal
+      </Sheet>
     </Sheet>
   );
 }
