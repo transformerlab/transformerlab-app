@@ -140,7 +140,7 @@ const startListeningToServerLog = async () => {
   let currentlySubscribed = false;
 
   ipcMain.on('serverLog:startListening', async (event) => {
-    console.log('main.js: start listening');
+    console.log('main.js: start listening to log');
     event.reply(
       'serverLog:update',
       '**Connecting to Terminal Output from Transformer Engine**'
@@ -155,8 +155,10 @@ const startListeningToServerLog = async () => {
     }
 
     currentlySubscribed = true;
+    tail = new Tail(logFile);
 
     tail.on('line', function (data) {
+      // console.log('main.js: line', data);
       event.reply('serverLog:update', data);
     });
 
@@ -166,7 +168,7 @@ const startListeningToServerLog = async () => {
   });
 
   ipcMain.on('serverLog:stopListening', async (event) => {
-    console.log('main.js: stopping listening');
+    console.log('main.js: stopping listening to log');
     event.reply(
       'serverLog:update',
       '**Disconnecting Terminal Output from Transformer Engine**'
