@@ -363,6 +363,10 @@ function truncate(str: string, max: number) {
  */
 export async function executeInstallStep(argument: string) {
   const server_dir = await getTransformerLabCodeDir();
+  const logFilePath = path.join(server_dir, 'local_server.log');
+  const out = fs.openSync(logFilePath, 'a');
+  const err = fs.openSync(logFilePath, 'a');
+
   if (!fs.existsSync(server_dir)) {
     console.log(
       'Install step failed. TransformerLab directory has not been setup.'
@@ -396,8 +400,13 @@ export async function executeInstallStep(argument: string) {
       stderr: err?.stderr?.toString(),
     };
   }
-  if (stdout)
+  if (stdout) {
     console.log(`${installScriptFilename} stdout:`, truncate(stdout, 150));
-  if (stderr) console.error(`${installScriptFilename} stderr:`, stderr);
+    fs.writeSync(out, stdout);
+  }
+  if (stderr) {
+    console.error(`${installScriptFilename} stderr:`, stderr);
+    fs.writeSync(err, stderr);
+  }
   return { error, stdout, stderr };
 }
