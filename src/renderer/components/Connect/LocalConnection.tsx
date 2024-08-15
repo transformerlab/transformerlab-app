@@ -12,7 +12,15 @@ import {
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { CheckCircle2, InfoIcon, PlayIcon, RotateCcwIcon } from 'lucide-react';
+import {
+  CheckCircle2,
+  ChevronLeftIcon,
+  ChevronRight,
+  ChevronRightIcon,
+  InfoIcon,
+  PlayIcon,
+  RotateCcwIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
@@ -831,6 +839,8 @@ function InstallStepper({ setServer }) {
     Steps.indexOf('CHECK_IF_INSTALLED')
   ); // 0, 1, 2
 
+  const [logViewerVisible, setLogViewerVisible] = useState(true);
+
   function tryToConnect() {
     const fullServer = 'http://' + 'localhost' + ':' + '8000' + '/';
     window.TransformerLab = {};
@@ -846,7 +856,7 @@ function InstallStepper({ setServer }) {
         flexDirection: 'row',
         overflow: 'hidden',
         height: '100%',
-        gap: 2,
+        gap: 1,
       }}
     >
       <Sheet
@@ -855,7 +865,8 @@ function InstallStepper({ setServer }) {
           flexDirection: 'column',
           height: '100%',
           overflow: 'hidden',
-          flex: 1,
+          flex: '1',
+          minWidth: 300,
         }}
       >
         <Alert variant="plain">
@@ -967,17 +978,36 @@ function InstallStepper({ setServer }) {
           Connect
         </Button>
       </Sheet>
-      <Sheet
-        sx={{
-          flex: 2,
-          backgroundColor: '#222',
-          fontFamily: 'monospace',
-          p: 3,
-          borderRadius: 10,
+      {/* <Button
+        variant="plain"
+        size="sm"
+        // sx={{ p: 0 }}
+        onClick={() => {
+          setLogViewerVisible(!logViewerVisible);
         }}
       >
-        <LogViewer />
-      </Sheet>
+        {logViewerVisible ? (
+          <ChevronRightIcon />
+        ) : (
+          <>
+            <ChevronLeftIcon />
+            Detailed Progress
+          </>
+        )}
+      </Button> */}
+      {logViewerVisible && (
+        <Sheet
+          sx={{
+            flex: 2,
+            backgroundColor: '#222',
+            fontFamily: 'monospace',
+            p: 3,
+            borderRadius: 10,
+          }}
+        >
+          <LogViewer />
+        </Sheet>
+      )}
     </Sheet>
   );
 }

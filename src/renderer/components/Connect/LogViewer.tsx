@@ -1,4 +1,4 @@
-import { Box, Sheet } from '@mui/joy';
+import { Box, Button, Sheet } from '@mui/joy';
 import { useEffect, useRef } from 'react';
 
 import 'xterm/css/xterm.css';
@@ -32,7 +32,7 @@ export default function LogViewer({}) {
 
       setTimeout(() => {
         window.electron.ipcRenderer.sendMessage('serverLog:startListening');
-      }, 1500);
+      }, 100);
       window.electron.ipcRenderer.removeAllListeners('serverLog:onUpdate');
       console.log('Listening for server log updates');
       window.electron.ipcRenderer.on('serverLog:update', (data: any) => {
