@@ -137,20 +137,23 @@ const startListeningToServerLog = async () => {
   const logFile = path.join(server_dir, 'local_server.log');
   let tail = new Tail(logFile);
 
-  let currentlyWatching = false;
+  let currentlySubscribed = false;
 
   ipcMain.on('serverLog:startListening', async (event) => {
+    console.log('main.js: start listening');
     event.reply('serverLog:update', '**starting to listen to the log**');
 
     console.log('logFile', logFile);
 
-    if (currentlyWatching) {
+    console.log(tail);
+
+    if (currentlySubscribed) {
       console.log('already watching');
       return;
     }
 
-    currentlyWatching = true;
-    tail.watch();
+    currentlySubscribed = true;
+    // tail.watch();
 
     tail.on('line', function (data) {
       // console.log(data);
@@ -163,9 +166,10 @@ const startListeningToServerLog = async () => {
   });
 
   ipcMain.on('serverLog:stopListening', async (event) => {
-    console.log('stopping listening');
+    console.log('main.js: stopping listening');
+    event.reply('serverLog:update', '**Stopping listening to the log**');
     tail.unwatch();
-    currentlyWatching = false;
+    currentlySubscribed = false;
   });
 };
 

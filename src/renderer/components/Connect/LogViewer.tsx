@@ -1,19 +1,40 @@
 import { Sheet } from '@mui/joy';
-import React, { useState, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
-const BlankPage: React.FC = () => {
+import 'xterm/css/xterm.css';
+import { Terminal } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+
+export default function LogViewer({}) {
+  const terminalRef = useRef(null);
+
+  let term: Terminal | null = null;
+
   useEffect(() => {
     async function fetchData() {
-      await window.electron.ipcRenderer.sendMessage('serverLog:startListening');
+      setTimeout(() => {
+        window.electron.ipcRenderer.sendMessage('serverLog:startListening');
+      }, 1500);
       window.electron.ipcRenderer.removeAllListeners('serverLog:onUpdate');
       window.electron.ipcRenderer.on('serverLog:update', (data: any) => {
         // append data to the log-viewer div
-        const logViewer = document.getElementById('log-viewer');
-        if (logViewer) {
-          logViewer.innerHTML += `${data}\n`;
+        if (term != null) {
+          term.writeln(`${data}`);
         }
       });
     }
+
+    if (term != null) {
+      term.dispose;
+    } else {
+      term = new Terminal();
+      const fitAddon = new FitAddon();
+      term.loadAddon(fitAddon);
+
+      term.open(terminalRef.current);
+      fitAddon.fit();
+    }
+
     fetchData();
 
     return () => {
@@ -22,6 +43,7 @@ const BlankPage: React.FC = () => {
       window.electron.ipcRenderer.removeAllListeners(
         'serverLog:startListening'
       );
+      window.electron.ipcRenderer.removeAllListeners('serverLog:onUpdate');
     };
   }, []);
 
@@ -30,13 +52,11 @@ const BlankPage: React.FC = () => {
       sx={{
         height: '100%',
         overflow: 'auto',
-        backgroundColor: '#222',
-        color: 'white',
+        // backgroundColor: '#222',
+        // color: 'white',
       }}
-    >
-      <pre id="log-viewer" style={{ whiteSpace: 'pre-wrap' }}></pre>
-    </Sheet>
+      ref={terminalRef}
+    ></Sheet>
   );
 };
 
-export default BlankPage;
