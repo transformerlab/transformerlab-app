@@ -971,10 +971,10 @@ function InstallStepper({ setServer }) {
         sx={{
           flex: 2,
           backgroundColor: '#222',
-          color: 'white',
           fontFamily: 'monospace',
           p: 3,
           borderRadius: 10,
+          overflow: 'auto',
         }}
       >
         <LogViewer />

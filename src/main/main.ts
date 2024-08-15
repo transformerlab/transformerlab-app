@@ -141,22 +141,22 @@ const startListeningToServerLog = async () => {
 
   ipcMain.on('serverLog:startListening', async (event) => {
     console.log('main.js: start listening');
-    event.reply('serverLog:update', '**starting to listen to the log**');
-
+    event.reply(
+      'serverLog:update',
+      '**Connecting to Terminal Output from Transformer Engine**'
+    );
+    if (!tail.isWatching) {
+      tail.watch();
+    }
     console.log('logFile', logFile);
-
-    console.log(tail);
-
     if (currentlySubscribed) {
       console.log('already watching');
       return;
     }
 
     currentlySubscribed = true;
-    // tail.watch();
 
     tail.on('line', function (data) {
-      // console.log(data);
       event.reply('serverLog:update', data);
     });
 
@@ -167,7 +167,10 @@ const startListeningToServerLog = async () => {
 
   ipcMain.on('serverLog:stopListening', async (event) => {
     console.log('main.js: stopping listening');
-    event.reply('serverLog:update', '**Stopping listening to the log**');
+    event.reply(
+      'serverLog:update',
+      '**Disconnecting Terminal Output from Transformer Engine**'
+    );
     tail.unwatch();
     currentlySubscribed = false;
   });

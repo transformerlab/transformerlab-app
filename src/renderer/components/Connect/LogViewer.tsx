@@ -16,8 +16,10 @@ export default function LogViewer({}) {
         window.electron.ipcRenderer.sendMessage('serverLog:startListening');
       }, 1500);
       window.electron.ipcRenderer.removeAllListeners('serverLog:onUpdate');
+      console.log('Listening for server log updates');
       window.electron.ipcRenderer.on('serverLog:update', (data: any) => {
         // append data to the log-viewer div
+        console.log('got data');
         if (term != null) {
           term.writeln(`${data}`);
         }
