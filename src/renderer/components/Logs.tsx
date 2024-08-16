@@ -11,6 +11,7 @@ import {
   CircularProgress,
   IconButton,
   Sheet,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/joy';
@@ -75,6 +76,25 @@ function renderJSONLinesLog(logs) {
   });
 }
 
+function SkeletonRows({ isLoading }) {
+  return (
+    <>
+      <Stack gap={1} direction="column">
+        {[...Array(15)].map((_, i) => (
+          <Skeleton
+            variant="rectangular"
+            key={i}
+            loading={isLoading}
+            width={800}
+            height="1.5em"
+            sx={{}}
+          />
+        ))}
+      </Stack>
+    </>
+  );
+}
+
 export default function Logs({}) {
   const { data, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Global.PromptLog,
@@ -106,7 +126,7 @@ export default function Logs({}) {
           <RotateCcwIcon style={{ width: '18px', height: '18px' }} />
         </IconButton>
       </Stack>
-      {isLoading && <CircularProgress />}
+      <SkeletonRows isLoading={isLoading} />
       <Box
         id="logs_accordion"
         style={{

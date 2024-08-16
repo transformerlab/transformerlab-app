@@ -92,7 +92,7 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@monaco-editor/react": "^4.6.0",
-    "@mui/joy": "^5.0.0-beta.24",
+    "@mui/joy": "^5.0.0-beta.48",
     "@mux/mux-player-react": "^2.9.0",
     "@rjsf/core": "^5.15.1",
     "@rjsf/utils": "^5.15.1",
