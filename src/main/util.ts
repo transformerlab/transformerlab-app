@@ -256,7 +256,8 @@ export async function checkDependencies() {
   }
 
   const { error, stdout, stderr } = await executeInstallStep(
-    'list_installed_packages'
+    'list_installed_packages',
+    false
   );
 
   // if there was an error abort processing
@@ -366,7 +367,7 @@ function truncate(str: string, max: number) {
  * @param argument parameter to pass to install.sh
  * @returns the stdout of the process or false on failure.
  */
-export async function executeInstallStep(argument: string) {
+export async function executeInstallStep(argument: string, logToFile = true) {
   const server_dir = await getTransformerLabCodeDir();
   const logFilePath = await getLogFilePath();
   const out = fs.openSync(logFilePath, 'a');
@@ -407,11 +408,11 @@ export async function executeInstallStep(argument: string) {
   }
   if (stdout) {
     console.log(`${installScriptFilename} stdout:`, truncate(stdout, 150));
-    fs.writeSync(out, stdout);
+    if (logToFile) fs.writeSync(out, stdout);
   }
   if (stderr) {
     console.error(`${installScriptFilename} stderr:`, stderr);
-    fs.writeSync(err, stderr);
+    if (logToFile) fs.writeSync(err, stderr);
   }
   return { error, stdout, stderr };
 }
