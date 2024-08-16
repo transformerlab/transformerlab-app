@@ -12,6 +12,8 @@ export default function ModelZoo({ experimentInfo }) {
       sx={{
         display: 'flex',
         height: '100%',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
       <Tabs
@@ -36,13 +38,13 @@ export default function ModelZoo({ experimentInfo }) {
         </TabList>
         <TabPanel
           value={0}
-          sx={{ p: 0, pb: 2, height: '100%', overflow: 'hidden' }}
+          sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
           <LocalModels pickAModelMode={false} experimentInfo={experimentInfo} />
         </TabPanel>
         <TabPanel
           value={1}
-          sx={{ p: 0, pb: 2, height: '100%', overflow: 'hidden' }}
+          sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
           <LocalModels
             pickAModelMode={false}
@@ -52,19 +54,9 @@ export default function ModelZoo({ experimentInfo }) {
         </TabPanel>
         <TabPanel
           value={2}
-          sx={{ p: 0, pb: 2, height: '100%', overflow: 'hidden' }}
+          sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
-          <Sheet
-            sx={{
-              overflow: 'hidden',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-            id="model-store-tab-panel"
-          >
-            <ModelStore />
-          </Sheet>
+          <ModelStore />
         </TabPanel>
       </Tabs>
     </Sheet>

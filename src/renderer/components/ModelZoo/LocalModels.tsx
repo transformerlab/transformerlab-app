@@ -65,9 +65,9 @@ export default function LocalModels({
     <Sheet
       sx={{
         display: 'flex',
+        height: '100%',
         flexDirection: 'column',
         overflow: 'hidden',
-        height: '100%',
       }}
     >
       {/* <Typography level="h1">Local Models</Typography> */}
