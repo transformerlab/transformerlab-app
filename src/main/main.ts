@@ -10,15 +10,7 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import {
-  app,
-  BrowserWindow,
-  shell,
-  ipcMain,
-  utilityProcess,
-  Menu,
-  dialog,
-} from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import Store from 'electron-store';
@@ -35,9 +27,10 @@ import {
   checkIfCondaEnvironmentExists,
   checkDependencies,
   checkIfCondaBinExists,
-  getTransformerLabCodeDir,
+  getLogFilePath,
 } from './util';
 
+const fs = require('fs');
 const Tail = require('tail').Tail;
 
 // ////////////
@@ -133,8 +126,16 @@ console.log('setting up listening to log file');
 
 const startListeningToServerLog = async () => {
   // Now listen to the log file and send updates to the renderer
-  const server_dir = await getTransformerLabCodeDir();
-  const logFile = path.join(server_dir, 'local_server.log');
+  const logFile = await getLogFilePath();
+  //create the file if it doesn't exist:
+  if (!fs.existsSync(logFile)) {
+    // first make the directory:
+    const logDir = path.dirname(logFile);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    fs.writeFileSync(logFile, '');
+  }
   let tail = new Tail(logFile);
 
   let currentlySubscribed = false;

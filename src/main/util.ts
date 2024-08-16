@@ -1,6 +1,7 @@
 /* eslint import/prefer-default-export: off */
 import { URL } from 'url';
 import path from 'path';
+import { log } from 'console';
 const fs = require('fs');
 const os = require('os');
 const { spawn, exec, ChildProcess } = require('child_process');
@@ -40,6 +41,10 @@ export async function getTransformerLabCodeDir() {
   return isPlatformWindows()
     ? path.join(await getTransformerLabRootDir(), 'src')
     : transformerLabDir;
+}
+
+export async function getLogFilePath() {
+  return path.join(await getTransformerLabCodeDir(), 'local_server.log');
 }
 
 export function resolveHtmlPath(htmlFileName: string) {
@@ -106,7 +111,7 @@ export async function checkLocalServerVersion() {
 
 export async function startLocalServer() {
   const server_dir = await getTransformerLabCodeDir();
-  const logFilePath = path.join(server_dir, 'local_server.log');
+  const logFilePath = await getLogFilePath();
   const out = fs.openSync(logFilePath, 'a');
   const err = fs.openSync(logFilePath, 'a');
 
@@ -363,7 +368,7 @@ function truncate(str: string, max: number) {
  */
 export async function executeInstallStep(argument: string) {
   const server_dir = await getTransformerLabCodeDir();
-  const logFilePath = path.join(server_dir, 'local_server.log');
+  const logFilePath = await getLogFilePath();
   const out = fs.openSync(logFilePath, 'a');
   const err = fs.openSync(logFilePath, 'a');
 
