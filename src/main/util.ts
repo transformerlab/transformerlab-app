@@ -44,7 +44,7 @@ export async function getTransformerLabCodeDir() {
 }
 
 export async function getLogFilePath() {
-  return path.join(await getTransformerLabCodeDir(), 'local_server.log');
+  return path.join(await getTransformerLabRootDir(), 'local_server.log');
 }
 
 export function resolveHtmlPath(htmlFileName: string) {
