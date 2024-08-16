@@ -8,6 +8,7 @@ import {
   AccordionSummary,
   Box,
   Button,
+  CircularProgress,
   IconButton,
   Sheet,
   Stack,
@@ -75,7 +76,10 @@ function renderJSONLinesLog(logs) {
 }
 
 export default function Logs({}) {
-  const { data, mutate } = useSWR(chatAPI.Endpoints.Global.PromptLog, fetcher);
+  const { data, isLoading, mutate } = useSWR(
+    chatAPI.Endpoints.Global.PromptLog,
+    fetcher
+  );
 
   React.useEffect(() => {
     // Scroll to bottom
@@ -92,8 +96,8 @@ export default function Logs({}) {
         paddingBottom: '1rem',
       }}
     >
-      <Stack direction="row" spacing={1} justifyContent="space-between">
-        <h1>Prompt Log</h1>
+      <Stack direction="row" spacing={1} mb={2} justifyContent="space-between">
+        <Typography level="h1">Prompt Log</Typography>
         <IconButton
           onClick={() => {
             mutate();
@@ -102,6 +106,7 @@ export default function Logs({}) {
           <RotateCcwIcon style={{ width: '18px', height: '18px' }} />
         </IconButton>
       </Stack>
+      {isLoading && <CircularProgress />}
       <Box
         id="logs_accordion"
         style={{
