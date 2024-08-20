@@ -609,6 +609,21 @@ Endpoints.Models = {
   LocalList: () => API_URL() + 'model/list',
   Gallery: () => API_URL() + 'model/gallery',
   GetPeftsForModel: () => API_URL() + 'model/pefts',
+  UploadModelToHuggingFace: (
+    modelId: string,
+    modelName: string,
+    organizationName?: string,
+    model_card_data?: object
+  ) =>
+    API_URL() +
+    'model/upload_to_huggingface?model_id=' +
+    modelId +
+    '&model_name=' +
+    modelName +
+    '&organization_name=' +
+    organizationName +
+    '&model_card_data=' +
+    JSON.stringify(model_card_data),
   DeletePeft: (modelId: string, peft: string) =>
     API_URL() + 'model/delete_peft?model_id=' + modelId + '&peft=' + peft,
   ModelDetailsFromGallery: (modelId: string) =>

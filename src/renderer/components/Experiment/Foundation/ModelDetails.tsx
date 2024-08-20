@@ -7,7 +7,17 @@ import {
   Stack,
   Table,
   Typography,
+  Modal,
+  ModalDialog,
+  FormLabel,
+  Input,
+  FormHelperText,
+  DialogContent,
+  CircularProgress,
+  DialogTitle,
 } from '@mui/joy';
+import useSWR from 'swr';
+
 import {
   DeleteIcon,
   ExternalLinkIcon,
@@ -54,6 +64,7 @@ function hf_translate(key) {
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
 }
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelDetails({
   experimentInfo,
@@ -62,11 +73,54 @@ export default function ModelDetails({
   setAdaptor,
 }) {
   const [huggingfaceData, setHugggingfaceData] = useState({});
+  const [huggingfaceNewModelName, setHuggingfaceNewModelName] = useState('');
+  const [huggingfaceOrganizationName, setHuggingfaceOrganizationName] =
+    useState('');
+  const [huggingfaceModelCardData, setHuggingfaceModelCardData] = useState({});
+  const [huggingfaceUploadDialog, setHuggingfaceUploadDialog] = useState(false);
+  const [isUploadLoading, setIsUploadLoading] = useState(false);
   const [modelDetailsData, setModelDetailsData] = useState({});
   const { models, isError, isLoading, mutate } = useModelStatus();
 
   const huggingfaceId = experimentInfo?.config?.foundation;
+  const handleSubmit = async () => {
+    //This is a handlesubmit function for the huggingface upload dialog
+    if (!/^[a-zA-Z0-9-]+$/.test(huggingfaceNewModelName)) {
+      //If the name is not in the correct format (letters, numbers, hyphens)
+      alert(
+        'Invalid model name. Please only use letters, numbers, and hyphens.'
+      );
+      setHuggingfaceNewModelName('');
+      return;
+    }
+    setIsUploadLoading(true); //For the loading spinner
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Models.UploadModelToHuggingFace(
+          huggingfaceId,
+          huggingfaceNewModelName,
+          huggingfaceOrganizationName,
+          huggingfaceModelCardData
+        )
+      );
 
+      const data = await response.json();
+
+      if (response.ok && data.status === 'success') {
+        alert('Model uploaded successfully.');
+      } else {
+        alert(data.message || 'An error occurred during upload.');
+      }
+    } catch (error) {
+      console.error('Error uploading model:', error);
+      alert('An error occurred during upload.');
+    }
+    setHuggingfaceNewModelName('');
+    setHuggingfaceUploadDialog(false);
+    setIsUploadLoading(false);
+    setHuggingfaceModelCardData({});
+    setHuggingfaceOrganizationName('');
+  };
   useMemo(() => {
     // This is a local model
     if (experimentInfo?.config?.foundation_filename) {
@@ -75,7 +129,6 @@ export default function ModelDetails({
         .then((res) => res.json())
         .then((data) => setModelDetailsData(data))
         .catch((error) => console.log(error));
-
       setHugggingfaceData({});
 
       // Try to see if this is a HuggingFace model
@@ -207,6 +260,18 @@ export default function ModelDetails({
               Eject Model
             </Button>
             {/* <Button startDecorator={<SquareIcon />}>Stop</Button> */}
+            {experimentInfo?.config?.foundation_filename !== '' && (
+              <Button
+                variant="soft"
+                onClick={() => {
+                  setHuggingfaceUploadDialog(true);
+                }}
+                disabled={isUploadLoading}
+                endDecorator={isUploadLoading ? <CircularProgress /> : null}
+              >
+                Export to Hugging Face
+              </Button>
+            )}
           </Stack>
         </Box>
       </Stack>
@@ -228,6 +293,98 @@ export default function ModelDetails({
         {/* <pre>{data && JSON.stringify(data, null, 2)}</pre> */}
         {/* {JSON.stringify(modelDetailsData, null, 2)} */}
       </div>
+      <Modal
+        open={huggingfaceUploadDialog}
+        onClose={() => {
+          setHuggingfaceUploadDialog(false);
+          setHuggingfaceNewModelName('');
+          setHuggingfaceUploadDialog(false);
+          setHuggingfaceModelCardData({});
+          setHuggingfaceOrganizationName('');
+        }}
+      >
+        <ModalDialog>
+          <DialogContent>
+            <Box
+              sx={{
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                maxWidth: '500px',
+                overflow: 'hidden',
+                marginBottom: '10px',
+                gap: '8px',
+              }}
+            >
+              <DialogTitle>Upload to Hugging Face</DialogTitle>
+              <FormLabel>Please input a name for your new model.</FormLabel>
+              <Input
+                placeholder="transformerlab-model"
+                required
+                onChange={(e) => {
+                  setHuggingfaceNewModelName(e.target.value);
+                }}
+              />
+              <FormHelperText>
+                You do not need to include your username or organization name.{' '}
+                <br />
+                Your name can only contain letters, numbers and hyphens.
+              </FormHelperText>
+              <FormLabel>
+                Please input an organization name for your model.
+              </FormLabel>
+              <Input
+                placeholder="transformerlab"
+                onChange={(e) => {
+                  setHuggingfaceOrganizationName(e.target.value);
+                }}
+              ></Input>
+              <FormHelperText>
+                If you do not include an organization name, your model will be
+                created under your namespace.
+              </FormHelperText>
+              <h3>Model Card</h3>
+              <FormLabel>License</FormLabel>
+              <Input
+                placeholder="MIT"
+                onChange={(e) => {
+                  setHuggingfaceModelCardData((prevData) => ({
+                    ...prevData,
+                    license: e.target.value,
+                  }));
+                }}
+              />
+              <FormLabel>Language</FormLabel>
+              <Input
+                placeholder="English"
+                onChange={(e) => {
+                  setHuggingfaceModelCardData((prevData) => ({
+                    ...prevData,
+                    language: e.target.value,
+                  }));
+                }}
+              />
+              <FormLabel>Library Name</FormLabel>
+              <Input
+                placeholder="transformerlab"
+                onChange={(e) => {
+                  setHuggingfaceModelCardData((prevData) => ({
+                    ...prevData,
+                    library: e.target.value,
+                  }));
+                }}
+              />
+            </Box>
+
+            <Button
+              endDecorator={isUploadLoading ? <CircularProgress /> : null}
+              onClick={handleSubmit}
+            >
+              Submit
+            </Button>
+          </DialogContent>
+        </ModalDialog>
+      </Modal>
     </>
   );
 }
