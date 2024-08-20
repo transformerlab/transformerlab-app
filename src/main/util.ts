@@ -190,6 +190,10 @@ export function killLocalServer() {
 export async function installLocalServer() {
   console.log('Installing local server');
 
+  const server_dir = await getTransformerLabCodeDir();
+  const logFilePath = await getLogFilePath();
+  const out = fs.openSync(logFilePath, 'a');
+
   const root_dir = await getTransformerLabRootDir();
   if (!fs.existsSync(root_dir)) {
     fs.mkdirSync(root_dir);
@@ -216,6 +220,8 @@ export async function installLocalServer() {
         }
         console.log(`stdout: ${stdout}`);
         console.error(`stderr: ${stderr}`);
+        // write stdout to the file called out:
+        fs.writeSync(out, stdout);
       }
     );
   } catch (err) {
@@ -367,7 +373,10 @@ function truncate(str: string, max: number) {
  * @param argument parameter to pass to install.sh
  * @returns the stdout of the process or false on failure.
  */
-export async function executeInstallStep(argument: string, logToFile = true) {
+export async function executeInstallStep(
+  argument: string,
+  logToFile = true
+): Promise<{ error: string | null; stdout: string; stderr: string }> {
   const server_dir = await getTransformerLabCodeDir();
   const logFilePath = await getLogFilePath();
   const out = fs.openSync(logFilePath, 'a');
@@ -387,32 +396,76 @@ export async function executeInstallStep(argument: string, logToFile = true) {
   // Set installer script filename and options based on platform
   // For windows this is a bit hacky...we need to pass a unix-style path to WSL
   const exec_cmd = isPlatformWindows()
-    ? `wsl ~/.transformerlab/src/${installScriptFilename} ${argument}`
-    : `${fullInstallScriptPath} ${argument}`;
-  const options = isPlatformWindows() ? {} : { cwd: server_dir };
+    ? `wsl ~/.transformerlab/src/${installScriptFilename}`
+    : `${fullInstallScriptPath}`;
 
   console.log(`Running: ${exec_cmd}`);
   // Call installer script and return stdout if it succeeds
-  let error, stdout, stderr;
 
-  try {
-    ({ error, stdout, stderr } = await awaitExec(exec_cmd, options));
-  } catch (err) {
-    console.log('Failed to execute install step', err);
-    console.log(JSON.stringify(err));
-    return {
-      error: err?.code,
-      stdout: err?.stdout?.toString(),
-      stderr: err?.stderr?.toString(),
-    };
-  }
-  if (stdout) {
-    console.log(`${installScriptFilename} stdout:`, truncate(stdout, 150));
-    if (logToFile) fs.writeSync(out, stdout);
-  }
-  if (stderr) {
-    console.error(`${installScriptFilename} stderr:`, stderr);
-    if (logToFile) fs.writeSync(err, stderr);
-  }
-  return { error, stdout, stderr };
+  return new Promise<{ error: string | null; stdout: string; stderr: string }>(
+    async (resolve) => {
+      let error, stdout: string, stderr: string;
+
+      stdout = '';
+      stderr = '';
+
+      const exec_args = [`${argument}`];
+
+      const options = {};
+
+      let process = null;
+      try {
+        // console.log('Executing install step');
+        // console.log(exec_cmd);
+        // console.log(exec_args);
+        process = spawn(exec_cmd, exec_args, options);
+      } catch (err) {
+        console.log('Failed to execute install step', err);
+        console.log(JSON.stringify(err));
+        resolve({
+          error: err?.code,
+          stdout: err?.stdout?.toString(),
+          stderr: err?.stderr?.toString(),
+        });
+      }
+
+      process.stderr.on('data', (data) => {
+        // console.error(`stderr: ${data}`);
+        stderr += data;
+        if (logToFile) fs.writeSync(out, data);
+      });
+
+      process.stdout.on('data', (data) => {
+        // console.log(`stdout: ${truncate(data.toString(), 100)}`);
+        if (data) {
+          stdout += data;
+          if (logToFile) fs.writeSync(out, data);
+        }
+      });
+
+      process.on('error', (error_msg) => {
+        console.log(`child process failed: ${error_msg}`);
+        error = error_msg;
+        resolve({ error, stdout, stderr });
+      });
+
+      process.on('close', (code) => {
+        console.log(`child process exited with code ${code}`);
+        if (code === 0) {
+          // console.log(stdout);
+          resolve({
+            error: null,
+            stdout: stdout?.toString(),
+            stderr: stderr?.toString(),
+          });
+        } else {
+          resolve({
+            error: '1',
+            stdout: stdout,
+            stderr: stderr,
+          });
+        }
+      });
+    }
+  );
 }
