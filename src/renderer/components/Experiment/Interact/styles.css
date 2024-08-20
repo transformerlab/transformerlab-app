@@ -4,9 +4,9 @@
   align-items: flex-end;
   transform-origin: 0 100%;
   padding-top: 0;
-  max-height: 0;
+  /* max-height: 0; */
   overflow: visible;
-  animation: message 0.15s ease-out 0s forwards;
+  /* animation: message 0.15s ease-out 0s forwards; */
 }
 
 .chatBubbleL {

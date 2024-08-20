@@ -110,7 +110,7 @@ export default function ChatPage({
         }}
       >
         {/* {JSON.stringify(chats)} */}
-        <Stack spacing={2} sx={{ display: 'flex', flexDirection: 'column' }}>
+        <Stack spacing={0} sx={{ display: 'flex', flexDirection: 'column' }}>
           {chats.map((chat, i) => (
             <>
               <ChatBubble

@@ -214,7 +214,7 @@ export default function Chat({
     var newChats = [...chats, { t: text, user: 'human', key: r, image: image }];
 
     // Add Message to Chat Array:
-    setChats((c) => [...c, { t: text, user: 'human', key: r, image: image }]);
+    setChats(newChats);
     scrollChatToBottom();
 
     const timeoutId = setTimeout(() => {
