@@ -349,7 +349,7 @@ function RunServer({ activeStep, setActiveStep }) {
 
                       console.log('Server has started');
                       console.log(
-                        'Start checking if the server is running after 0.150 seconds, 25 times'
+                        'Start checking if the server is running every 1 seconds, 25 times'
                       );
                       // set interval to check if server is running every 1 seconds, 25 times:
                       setIntervalXTimes(
@@ -370,7 +370,7 @@ function RunServer({ activeStep, setActiveStep }) {
                           );
                           setThinking(false);
                         },
-                        150,
+                        1000,
                         25
                       );
                     }}
@@ -599,6 +599,7 @@ function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
       return;
 
     (async () => {
+      setInstallStatus('pending');
       const condaExists = await window.electron.ipcRenderer.invoke(
         'server:checkIfCondaEnvironmentExists'
       );
