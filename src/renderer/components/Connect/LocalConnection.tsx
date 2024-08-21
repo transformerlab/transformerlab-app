@@ -40,7 +40,7 @@ function setIntervalXTimes(
 ) {
   var x = 0;
   var intervalID = window.setInterval(async function () {
-    console.log(`Testing if ${checkName} ${x} times`);
+    console.log(`Testing if ${checkName} ${x} of ${repetitions} times`);
     const response = await callback();
 
     if (response) {
@@ -333,6 +333,7 @@ function RunServer({ activeStep, setActiveStep }) {
                         return;
                       }
 
+                      console.log('Starting Server');
                       const start_process =
                         await window.electron.ipcRenderer.invoke(
                           'server:startLocalServer'
@@ -345,7 +346,12 @@ function RunServer({ activeStep, setActiveStep }) {
                         setThinking(false);
                         return;
                       }
-                      // set interval to check if server is running every 2 seconds, 15 times:
+
+                      console.log('Server has started');
+                      console.log(
+                        'Start checking if the server is running after 0.150 seconds, 25 times'
+                      );
+                      // set interval to check if server is running every 1 seconds, 25 times:
                       setIntervalXTimes(
                         'Server is Running on Port 8000',
                         async () => {
@@ -364,7 +370,7 @@ function RunServer({ activeStep, setActiveStep }) {
                           );
                           setThinking(false);
                         },
-                        1000,
+                        150,
                         25
                       );
                     }}

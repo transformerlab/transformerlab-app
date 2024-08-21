@@ -113,7 +113,7 @@ export async function startLocalServer() {
   const server_dir = await getTransformerLabCodeDir();
   const logFilePath = await getLogFilePath();
   const out = fs.openSync(logFilePath, 'a');
-  const err = fs.openSync(logFilePath, 'a');
+  // const err = fs.openSync(logFilePath, 'a');
 
   // Need to call bash script through WSL on Windows
   // Windows will not let you set a UNC directory to cwd
@@ -124,11 +124,11 @@ export async function startLocalServer() {
     : ['-l', path.join(server_dir, 'run.sh')];
   const options = isPlatformWindows()
     ? {
-        stdio: ['ignore', out, err],
+        // stdio: ['ignore', out, err],
       }
     : {
         cwd: server_dir,
-        stdio: ['ignore', out, err],
+        // stdio: ['ignore', out, err],
         shell: '/bin/bash',
       };
 
@@ -143,8 +143,19 @@ export async function startLocalServer() {
     if (localServer.stderr) {
       localServer.stderr.on('data', (data) => {
         console.error(`stderr: ${data}`);
+        fs.writeSync(out, data);
+
+        if (data.includes('Uvicorn running on')) {
+          console.log('Server is running');
+          resolve({ status: 'success', code: 0 });
+        }
       });
     }
+
+    localServer.stdout.on('data', (data) => {
+      console.log(`stdout: ${data}`);
+      fs.writeSync(out, data);
+    });
 
     localServer.on('error', (error_msg) => {
       console.log(`child process failed: ${error_msg}`);
