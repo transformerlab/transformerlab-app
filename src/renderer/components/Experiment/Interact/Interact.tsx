@@ -481,6 +481,23 @@ export default function Chat({
         {mode === 'template' && (
           <TemplatedCompletion experimentInfo={experimentInfo} />
         )}
+        {mode === 'agent' && (
+          <ChatPage
+            key={conversationId}
+            chats={chats}
+            setChats={setChats}
+            experimentInfo={experimentInfo}
+            isThinking={isThinking}
+            sendNewMessageToLLM={sendNewMessageToLLM}
+            stopStreaming={stopStreaming}
+            experimentInfoMutate={experimentInfoMutate}
+            tokenCount={tokenCount}
+            text={textToDebounce}
+            debouncedText={debouncedText}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            currentModelArchitecture={currentModelArchitecture}
+          />
+        )}
         <Box
           id="right-hand-panel-of-chat-page"
           sx={{
@@ -534,7 +551,7 @@ export default function Chat({
                   },
                 }}
               >
-                {['chat', 'completion', 'template' /*'retrieval', 'more'*/].map(
+                {['chat', 'completion', 'template', 'agent' /*'retrieval', 'more'*/].map(
                   (item) => (
                     <Radio
                       key={item}
