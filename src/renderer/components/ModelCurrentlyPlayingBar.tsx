@@ -35,16 +35,6 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
           boxShadow: 'inset 0px 0px 10px 0px rgba(0,0,0,0.15)',
         },
       }}
-      onClick={() => {
-        // if (!helpDialogOpen) {
-        //   setHelpDialogOpen(true);
-        // }
-        let m = experimentInfo?.config?.foundation
-          ? experimentInfo?.config?.foundation +
-            ' selected. Click on the "Foundation" tab then "Eject" to change models.'
-          : 'No model selected. Click on the "Foundation tab" to select a model';
-        alert(m + ' ');
-      }}
     >
       {/* <RunModelButton
         experimentInfo={experimentInfo}
@@ -96,6 +86,16 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
           display: 'flex',
         }}
         className="xspin-border"
+        onClick={() => {
+          // if (!helpDialogOpen) {
+          //   setHelpDialogOpen(true);
+          // }
+          let m = experimentInfo?.config?.foundation
+            ? experimentInfo?.config?.foundation +
+              ' selected. Click on the "Foundation" tab then "Eject" to change models.'
+            : 'No model selected. Click on the "Foundation tab" to select a model';
+          alert(m + ' ');
+        }}
       >
         <span
           style={{
