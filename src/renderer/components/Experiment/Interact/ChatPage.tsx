@@ -28,6 +28,7 @@ export default function ChatPage({
   text,
   debouncedText,
   defaultPromptConfigForModel = {},
+  agentMode = false,
   currentModelArchitecture,
 }) {
   const [image, setImage] = useState(null); //This is mostly used for the modal. The actual image is stored in the chats array
@@ -94,11 +95,16 @@ export default function ChatPage({
         overflow: 'hidden',
       }}
     >
+      {agentMode &&
+      <Textarea value="available tools" />
+      }
+      {!agentMode &&
       <SystemMessageBox
         experimentInfo={experimentInfo}
         experimentInfoMutate={experimentInfoMutate}
         defaultPromptConfigForModel={defaultPromptConfigForModel}
       />
+}
       <Sheet
         variant="plain"
         sx={{
