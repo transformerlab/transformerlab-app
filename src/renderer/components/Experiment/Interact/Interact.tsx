@@ -60,7 +60,7 @@ For each function call return a json object with function name and arguments wit
 // If there is an issue, respond with a message that the model will understand
 function callTool(requestString: str) {
   // TEMP: Return a random number for now
-  return requestString.length;
+  return String(requestString.length);
 }
 
 function shortenArray(arr, maxLen) {
