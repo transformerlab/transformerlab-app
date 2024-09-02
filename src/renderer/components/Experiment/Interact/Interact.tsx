@@ -267,7 +267,7 @@ export default function Chat({
     const r = Math.floor(Math.random() * 1000000);
     return {
       t: result,
-      user: 'human',
+      user: 'tool',
       key: r
     }
   }
@@ -487,8 +487,6 @@ export default function Chat({
       // TODO: this should be tool not user...but have to add that
       texts.push({ role: 'user', content: tool_response });
 
-      // TODO: Add this when we also add the previous result?
-      //addChat('user', tool_response);
       newChats = [...newChats, addToolResult(tool_response)];
       setChats(newChats);
 
