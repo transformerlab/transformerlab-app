@@ -241,17 +241,26 @@ export default function Chat({
   // Call this function to add a new chat to the chats array and scroll the UI.
   // Since setChats won't update chats until after this render
   // this also returns an updated array you can work with before next render
-  function addChat(user: String, text: String, image?: string) {
-    const r = Math.floor(Math.random() * 1000000);
-
-    // Create a new chat for the user's message
-    const newChats = [...chats, { t: text, user: user, key: r, image: image }];
+  function addChat(newChat: object) {
+    const newChats = [...chats, newChat];
 
     // Add Message to Chat Array:
     setChats(newChats);
     scrollChatToBottom();
 
     return newChats;
+  }
+
+  function addUserChat(text: String, image?: string) {
+    // Generate a random key for this message
+    const r = Math.floor(Math.random() * 1000000);
+
+    return addChat({
+      t: text,
+      user: 'human',
+      key: r,
+      image: image
+    });
   }
 
   // This returns the Chats list in the format that the LLM is expecting
@@ -267,7 +276,7 @@ export default function Chat({
   const sendNewMessageToLLM = async (text: String, image?: string) => {
 
     // Add new user message to chat history
-    var newChats = addChat('human', text, image);
+    var newChats = addUserChat(text, image);
 
     const timeoutId = setTimeout(() => {
       setIsThinking(true);
@@ -375,7 +384,7 @@ export default function Chat({
   const sendNewMessageToAgent = async (text: String, image?: string) => {
 
     // Add new user message to chat history
-    var newChats = addChat('human', text, image);
+    var newChats = addUserChat(text, image);
 
     const timeoutId = setTimeout(() => {
       setIsThinking(true);
