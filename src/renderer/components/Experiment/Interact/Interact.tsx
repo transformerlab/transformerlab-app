@@ -234,6 +234,26 @@ export default function Chat({
     chatAPI.stopStreamingResponse();
   }
 
+  /////////////////////////////////////////////
+  //FUNCTIONS USED BY BOTH CHAT AND AGENT PANES
+  /////////////////////////////////////////////
+
+  // Call this function to add a new chat to the chats array and scroll the UI.
+  // Since setChats won't update chats until after this render
+  // this also returns an updated array you can work with before next render
+  function addChat(user: String, text: String, image?: string) {
+    const r = Math.floor(Math.random() * 1000000);
+
+    // Create a new chat for the user's message
+    const newChats = [...chats, { t: text, user: user, key: r, image: image }];
+
+    // Add Message to Chat Array:
+    setChats(newChats);
+    scrollChatToBottom();
+
+    return newChats;
+  }
+
   // This returns the Chats list in the format that the LLM is expecting
   function getChatsInLLMFormat() {
     return chats.map((c) => {
@@ -245,18 +265,12 @@ export default function Chat({
   }
 
   const sendNewMessageToLLM = async (text: String, image?: string) => {
-    const r = Math.floor(Math.random() * 1000000);
 
-    // Create a new chat for the user's message
-    var newChats = [...chats, { t: text, user: 'human', key: r, image: image }];
-
-    // Add Message to Chat Array:
-    setChats(newChats);
-    scrollChatToBottom();
+    // Add new user message to chat history
+    var newChats = addChat('human', text, image);
 
     const timeoutId = setTimeout(() => {
       setIsThinking(true);
-
       scrollChatToBottom();
     }, 100);
 
@@ -361,25 +375,13 @@ export default function Chat({
     return result?.text;
   };
 
-  // TODO: Call this in sendNewMessageToLLM as well
-  // Called at start of generation to add user's message to chat history
-  function addChat(user: String, text: String, image?: string) {
-    const r = Math.floor(Math.random() * 1000000);
-
-    // Create a new chat for the user's message
-    var newChats = [...chats, { t: text, user: user, key: r, image: image }];
-
-    // Add Message to Chat Array:
-    setChats(newChats);
-    scrollChatToBottom();
-  }
-
   const sendNewMessageToAgent = async (text: String, image?: string) => {
-    addChat('user', text, image);
+
+    // Add new user message to chat history
+    var newChats = addChat('human', text, image);
 
     const timeoutId = setTimeout(() => {
       setIsThinking(true);
-
       scrollChatToBottom();
     }, 100);
 
@@ -482,7 +484,7 @@ export default function Chat({
     const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
 
     // TODO: Call addChat once I figure out how to pass the key
-    var newChats = [...chats, { t: result?.text, user: 'bot', key: result?.id }];
+    newChats = [...newChats, { t: result?.text, user: 'bot', key: result?.id }];
 
     setChats((c) => [
       ...c,
