@@ -36,6 +36,8 @@ function scrollChatToBottom() {
   setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 400);
 }
 
+// TODO: Make this call the backend to get the list of tools that are available
+// For now this is a static message
 function getAgentSystemMessage() {
   return `You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {"type": "function", "function": {"name": "get_current_temperature", "description": "get_current_temperature(location: str) - Gets the temperature at a given location.
 
@@ -51,6 +53,14 @@ For each function call return a json object with function name and arguments wit
 <tool_call>
 {"name": <function-name>, "arguments": <args-dict>}
 </tool_call>`
+}
+
+// Try to interpret a model's request to call a tool and call the backend
+// If successful respond with the API's answer
+// If there is an issue, respond with a message that the model will understand
+function callTool(requestString: str) {
+  // TEMP: Return a random number for now
+  return requestString.length;
 }
 
 function shortenArray(arr, maxLen) {
@@ -410,6 +420,18 @@ export default function Chat({
       generationParameters?.stop_str,
       image
     );
+
+    // Before we return to the user, check to see if the LLM is trying to call a function
+    const llm_response = result?.text;
+    if (llm_response) {
+      if (llm_response.includes("<tool_call>")) {
+        const func_name = "temp_placeholder"
+        const func_response = callTool(llm_response);
+        console.log(`Calling Function ${func_name}:`);
+        console.log(func_response);
+      }
+
+    }
 
     clearTimeout(timeoutId);
     setIsThinking(false);
