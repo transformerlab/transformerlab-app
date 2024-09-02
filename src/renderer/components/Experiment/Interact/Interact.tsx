@@ -111,7 +111,7 @@ export default function Chat({
   // the moel's template. More info here: https://huggingface.co/docs/transformers/main/en/chat_templating
   // For now this is helpful a rough indicator of the number of tokens used.
   // But we should improve this later
-  if (mode === 'chat') {
+  if (mode === 'chat' || mode == 'agent') {
     textToDebounce += experimentInfo?.config?.prompt_template?.system_message;
     textToDebounce += '\n';
     chats.forEach((c) => {
