@@ -234,6 +234,16 @@ export default function Chat({
     chatAPI.stopStreamingResponse();
   }
 
+  // This returns the Chats list in the format that the LLM is expecting
+  function getChatsInLLMFormat() {
+    return chats.map((c) => {
+      return {
+        role: c.user === 'bot' ? 'assistant' : 'user',
+        content: c.t ? c.t : '',
+      };
+    });
+  }
+
   const sendNewMessageToLLM = async (text: String, image?: string) => {
     const r = Math.floor(Math.random() * 1000000);
 
@@ -254,12 +264,7 @@ export default function Chat({
       document.getElementsByName('system-message')[0]?.value;
 
     // Get a list of all the existing chats so we can send them to the LLM
-    let texts = chats.map((c) => {
-      return {
-        role: c.user === 'bot' ? 'user' : 'assistant',
-        content: c.t ? c.t : '',
-      };
-    });
+    let texts = getChatsInLLMFormat();
 
     // Add the user's message
     if (image && image !== '') {
@@ -381,12 +386,7 @@ export default function Chat({
     const systemMessage = getAgentSystemMessage();
 
     // Get a list of all the existing chats so we can send them to the LLM
-    let texts = chats.map((c) => {
-      return {
-        role: c.user === 'bot' ? 'user' : 'assistant',
-        content: c.t ? c.t : '',
-      };
-    });
+    let texts = getChatsInLLMFormat();
 
     // Add the user's message
     if (image && image !== '') {
