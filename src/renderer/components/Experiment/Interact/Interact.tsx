@@ -57,14 +57,25 @@ For each function call return a json object with function name and arguments wit
 
 /**
  * callTool - calls the Tools API and returns the result
+ * TODO: Wrap all of the comms code in here and move to the SDK?
  *
  * @param function_name String with name of tool to call
  * @param arguments Object with named arguments to be passed to tool
  * @returns A JSON object with fields status, error and data.
  */
-function callTool(function_name: String, function_args: Object = {}) {
-  // TEMP: Return a random number for now
-  console.log(function_args);
+async function callTool(function_name: String, function_args: Object = {}) {
+  const arg_string = JSON.stringify(function_args);
+  console.log(`Calling Function: ${function_name}`);
+  console.log(`with arguments ${arg_string}`);
+
+  const response = await fetch(
+    chatAPI.Endpoints.Tools.Call(
+      function_name,
+      function_args
+    )
+  );
+  console.log(response);
+
   return String(function_name.length % 30);
 }
 
@@ -534,11 +545,7 @@ export default function Chat({
         for(const tool_call of tool_calls) {
           const func_name = tool_call.name;
           const func_args = tool_call.arguments;
-          const func_response = callTool(func_name, func_args);
-          console.log(`Calling Function: ${func_name}`);
-          console.log(`With arguments: ${func_args}:`);
-          console.log(func_response);
-
+          const func_response = await callTool(func_name, func_args);
           tool_responses.push(func_response);
         }
 
