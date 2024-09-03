@@ -410,6 +410,36 @@ export default function Chat({
     return result?.text;
   };
 
+  /**
+   * getToolCallsFromLLMResponse
+   *
+   * Returns an array of tool call JSON objects.
+   * Throws an exception if any tool call is not formatted correctly
+   */
+  function getToolCallsFromLLMResponse(llm_response: String) {
+    let tool_calls: any[] = [];
+
+    let start = 0;
+    let end = -1;
+    const START_TAG = "<tool_call>";
+    const END_TAG = "</tool_call>";
+    while (start >= 0) {
+      start = llm_response.indexOf(START_TAG, start);
+      if (start == -1) break;  // no more tool calls found
+      start += START_TAG.length;
+      end = llm_response.indexOf(END_TAG, start);
+      if (end == -1) {
+        tool_calls.push(llm_response.substring(start));
+        break;  // tool call extends to end of string?
+      } else {
+        tool_calls.push(llm_response.substring(start, end));
+        start = end+END_TAG.length;
+      }
+
+    }
+    return tool_calls;
+  }
+
   const sendNewMessageToAgent = async (text: String, image?: string) => {
 
     // Add new user message to chat history
@@ -466,11 +496,15 @@ export default function Chat({
       image
     );
 
-    // BIG QUESTION: Doing all of this back and forth in a single operation. Is that right?
     // Before we return to the user, check to see if the LLM is trying to call a function
+    // Tool calls should be contained between a <tool_call> tag
+    // and either a close tag or the end of the string
     const llm_response = result?.text;
+    const tool_calls = getToolCallsFromLLMResponse(llm_response);
+    console.log(`Model responded with tool request(s):`);
+    console.log(tool_calls);
+
     if (llm_response && llm_response.includes("<tool_call>")) {
-      console.log(`Model responded with request for tool.`);
       texts.push({ role: 'assistant', content: llm_response });
 
       newChats = [...newChats, await addAssistantChat(result)];
