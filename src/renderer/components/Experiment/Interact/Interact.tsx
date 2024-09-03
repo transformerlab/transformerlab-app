@@ -440,8 +440,6 @@ export default function Chat({
 
       // Decode the JSON string
       const tool_call = JSON.parse(tool_string);
-      console.log("Tool call: " + tool_string);
-      console.log(tool_call);
       tool_calls.push(tool_call);
 
       if (end == -1) break;  // no more text to search
@@ -511,42 +509,59 @@ export default function Chat({
     // Tool calls should be contained between a <tool_call> tag
     // and either a close tag or the end of the string
     const llm_response = result?.text;
-    const tool_calls = getToolCallsFromLLMResponse(llm_response);
 
     if (llm_response && llm_response.includes("<tool_call>")) {
-      texts.push({ role: 'assistant', content: llm_response });
+      const tool_calls = getToolCallsFromLLMResponse(llm_response);
 
-      newChats = [...newChats, await addAssistantChat(result)];
-      setChats(newChats);
+      // if there are any tool calls in the LLM response then
+      // we have to call the Tools API and send back responses to the LLM
+      if (Array.isArray(tool_calls) && tool_calls.length) {
 
-      const func_name = "temp_placeholder"
-      const func_response = callTool(llm_response);
-      console.log(`Calling Function ${func_name}:`);
-      console.log(func_response);
+        // first push the assistant's original response on to the chat lists
+        texts.push({ role: 'assistant', content: llm_response });
+        newChats = [...newChats, await addAssistantChat(result)];
+        setChats(newChats);
 
-      // Add function output as response to conversation
-      const tool_response = func_response;
+        // iterate through tool_calls (there can be more than one)
+        // and actually call the tools and save responses
+        let tool_responses = [];
+        for(const tool_call of tool_calls) {
+          const func_name = tool_call.name;
+          const func_args = tool_call.arguments;
+          const func_response = callTool(llm_response);
+          console.log(`Calling Function: ${func_name}`);
+          console.log(`With arguments: ${func_args}:`);
+          console.log(func_response);
 
-      // TODO: this should be tool not user...but have to add that
-      texts.push({ role: 'user', content: tool_response });
+          tool_responses.push(func_response);
+        }
 
-      newChats = [...newChats, addToolResult(tool_response)];
-      setChats(newChats);
+        // Add all function output as response to conversation
+        // How to format response if there are multiple calls?
+        // For now just put a newline between them.
+        let tool_response = tool_responses.join("\n");
 
-      // Call the model AGAIN with the tool response
-      // Update result with the new response
-      result = await chatAPI.sendAndReceiveStreaming(
-        currentModel,
-        adaptor,
-        texts,
-        generationParameters?.temperature,
-        generationParameters?.maxTokens,
-        generationParameters?.topP,
-        generationParameters?.frequencyPenalty,
-        systemMessage,
-        generationParameters?.stop_str,
-        image
-      );
+        // TODO: role should be 'tool' not 'user'
+        // ...but tool is not supported by backend right now?
+        texts.push({ role: 'user', content: tool_response });
+        newChats = [...newChats, addToolResult(tool_response)];
+        setChats(newChats);
+
+        // Call the model AGAIN with the tool response
+        // Update result with the new response
+        result = await chatAPI.sendAndReceiveStreaming(
+          currentModel,
+          adaptor,
+          texts,
+          generationParameters?.temperature,
+          generationParameters?.maxTokens,
+          generationParameters?.topP,
+          generationParameters?.frequencyPenalty,
+          systemMessage,
+          generationParameters?.stop_str,
+          image
+        );
+      }
     }
 
     clearTimeout(timeoutId);
