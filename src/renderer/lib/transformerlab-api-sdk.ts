@@ -705,6 +705,8 @@ Endpoints.Tools = {
   ) =>
     API_URL() +
     `tools/call/${function_name}?params=${function_arguments}`,
+  Prompt: () =>
+      API_URL() + `tools/prompt`,
   List: () =>
     API_URL() + `tools/list`,
 };
