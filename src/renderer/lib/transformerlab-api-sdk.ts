@@ -503,6 +503,33 @@ export async function getEmbeddings(model: string, text: string[]) {
   return result;
 }
 
+export async function tokenize(model: string, text: string) {
+  let shortModelName = model.split('/').slice(-1)[0];
+
+  let result;
+
+  const data = {
+    model: shortModelName,
+    text: text,
+  };
+
+  try {
+    const response = await fetch(`${API_URL()}tokenize`, {
+      method: 'POST', // or 'PUT'
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    result = await response.json();
+  } catch (error) {
+    console.log('There was an error', error);
+  }
+
+  return result;
+}
+
 /**
  * Count tokens in a provided messages array
  */

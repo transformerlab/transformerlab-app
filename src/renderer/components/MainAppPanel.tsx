@@ -20,6 +20,7 @@ import TrainLoRA from './Experiment/Train/TrainLoRA';
 import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
 import Rag from './Experiment/Rag';
+import Tokenize from './Experiment/Tokenize';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExperimentNotes from './Experiment/ExperimentNotes';
@@ -181,6 +182,10 @@ export default function MainAppPanel({
       <Route
         path="/projects/embeddings"
         element={<Embeddings experimentInfo={experimentInfo} />}
+      />
+      <Route
+        path="/projects/tokenize"
+        element={<Tokenize experimentInfo={experimentInfo} />}
       />
       <Route
         path="/projects/training"

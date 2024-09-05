@@ -10,7 +10,6 @@ import {
   LayersIcon,
   MessageCircleIcon,
   SlidersIcon,
-  TextSelectIcon,
   FileDigitIcon,
   BoxesIcon,
   FileTextIcon,
@@ -20,9 +19,9 @@ import {
   GithubIcon,
   ArrowRightFromLineIcon,
   PlugIcon,
-  FileIcon,
   FolderSearch2Icon,
   TextIcon,
+  RectangleEllipsisIcon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
@@ -138,6 +137,12 @@ export default function Sidebar({
           title="Embeddings"
           path="/projects/embeddings"
           icon={<FileDigitIcon />}
+          disabled={activeModelIsNotSameAsFoundation()}
+        />
+        <SubNavItem
+          title="Tokenize"
+          path="/projects/tokenize"
+          icon={<RectangleEllipsisIcon />}
           disabled={activeModelIsNotSameAsFoundation()}
         />
         <SubNavItem
