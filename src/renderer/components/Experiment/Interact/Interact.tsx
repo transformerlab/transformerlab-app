@@ -38,7 +38,7 @@ function scrollChatToBottom() {
 
 // Get the System Message from the backend.
 // Returns "" if there was an error.
-function getAgentSystemMessage() {
+async function getAgentSystemMessage() {
   const prompt = await fetch(
     chatAPI.Endpoints.Tools.Prompt()
   ).then(
