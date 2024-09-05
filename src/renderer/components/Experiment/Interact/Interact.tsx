@@ -48,7 +48,6 @@ async function getAgentSystemMessage() {
     // For now just returning arbitrary system message.
     (error) => "You are a helpful chatbot assistant."
   );
-  console.log(prompt);
   return prompt;
 }
 
@@ -68,7 +67,7 @@ async function callTool(function_name: String, function_args: Object = {}) {
   const response = await fetch(
     chatAPI.Endpoints.Tools.Call(
       function_name,
-      function_args
+      JSON.stringify(function_args)
     )
   );
   const result = await response.json();
