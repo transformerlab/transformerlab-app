@@ -44,8 +44,11 @@ async function getAgentSystemMessage() {
   ).then(
     (res) => res.json()
   ).catch(
-    (error) => ""
+    // TODO: Retry? Post error message?
+    // For now just returning arbitrary system message.
+    (error) => "You are a helpful chatbot assistant."
   );
+  console.log(prompt);
   return prompt;
 }
 
@@ -470,7 +473,7 @@ export default function Chat({
       scrollChatToBottom();
     }, 100);
 
-    const systemMessage = getAgentSystemMessage();
+    const systemMessage = await getAgentSystemMessage();
 
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
