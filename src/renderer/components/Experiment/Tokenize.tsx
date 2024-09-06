@@ -16,7 +16,7 @@ import {
 import { useState } from 'react';
 
 // array of 5 pastel colours for the rainbow effect:
-const colourArray = ['#e9fcf1', '#f2e0fc', '#fbcae0', '#f6f3d8', '#d4effc'];
+const colourArray = ['#e9fcf1', '#f2e0fc', '#f6f3d8', '#d4effc', '#fbcae0'];
 function singleWordElement(word, i) {
   return (
     <span
@@ -30,6 +30,10 @@ function singleWordElement(word, i) {
   );
 }
 
+const SPACE_TOKENS = ['Ġ', 'Ċ', '▁'];
+const NEWLINE_TOKENS = ['Ċ', '<0x0A>', '\n'];
+const SPACE_AND_NEWLINE_TOKENS = SPACE_TOKENS.concat(NEWLINE_TOKENS);
+
 function makeRainbowTextFromArray(arr) {
   let result = [];
 
@@ -40,21 +44,23 @@ function makeRainbowTextFromArray(arr) {
     // Ċ is newline
     // Break up the word into an array of parts that are either Ġ, Ċ or any other text
     // So for example the string "Ġ[];ĊĊ" would be split into ["Ġ", "[];", "Ċ", "Ċ"]
-    word = word.split(/(Ġ|Ċ)/);
+    // word = word.split(/(Ġ|Ċ|▁)/);
+    // do the same as above but use the SPACE_AND_NEWLINE_TOKENS array:
+    word = word.split(new RegExp(`(${SPACE_AND_NEWLINE_TOKENS.join('|')})`));
 
     for (let j = 0; j < word.length; j++) {
-      // if word[j] is text, add it:
-      if (word[j] !== 'Ġ' && word[j] !== 'Ċ') {
+      // if word[j] is not in SPACE_AND_NEWLINE_TOKENS, add it:
+      if (!SPACE_AND_NEWLINE_TOKENS.includes(word[j])) {
         result.push(singleWordElement(word[j], i));
         continue;
       }
       // if word[j] is Ġ or Ċ, add a space:
-      if (word[j] === 'Ġ') {
+      if (SPACE_TOKENS.includes(word[j])) {
         result.push(singleWordElement(<>&nbsp;</>, i));
         continue;
       }
 
-      if (word[j] === 'Ċ') {
+      if (NEWLINE_TOKENS.includes(word[j])) {
         result.push(<br />);
         continue;
       }
@@ -159,9 +165,14 @@ This is a second line."
               id="embeddingsResult"
               variant="soft"
               color="neutral"
-              sx={{ padding: 1, overflow: 'hidden' }}
+              sx={{
+                padding: 1,
+                overflow: 'hidden',
+                backgroundColor: 'rgb(240, 244, 248)',
+                color: 'black',
+                fontSize: '1.2rem',
+              }}
             >
-              {' '}
               {tokenizedResult}
             </Sheet>
             <FormHelperText>
