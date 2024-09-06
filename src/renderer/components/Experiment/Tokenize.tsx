@@ -3,8 +3,9 @@
 import Sheet from '@mui/joy/Sheet';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { PlayIcon } from 'lucide-react';
+import { LightbulbIcon, PlayIcon } from 'lucide-react';
 import {
+  Alert,
   Button,
   FormControl,
   FormHelperText,
@@ -120,9 +121,18 @@ export default function Tokenize({ experimentInfo }) {
           overflowX: 'hidden',
         }}
       >
-        <Typography level="h1" mb={2}>
-          Tokenize
-        </Typography>
+        <Typography level="h1">Tokenize</Typography>
+        <Alert variant="plain" startDecorator={<LightbulbIcon />}>
+          <Typography
+            level="body-sm"
+            textColor="text.tertiary"
+            fontWeight={400}
+          >
+            A language model tokenizes text by breaking it up into words or
+            subwords. This is useful for understanding how the model "sees" your
+            input text.
+          </Typography>
+        </Alert>
         <div>
           <FormControl>
             <FormLabel>Input Text</FormLabel>
