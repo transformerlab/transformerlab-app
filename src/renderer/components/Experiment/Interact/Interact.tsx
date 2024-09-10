@@ -30,6 +30,8 @@ import { FaEllipsisVertical } from 'react-icons/fa6';
 import Rag from '../Rag';
 import PreviousMessageList from './PreviousMessageList';
 import TemplatedCompletion from './TemplatedCompletion';
+import ChatBubble from './ChatBubble';
+import { MessageCircleIcon } from 'lucide-react';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
@@ -457,32 +459,16 @@ export default function Chat({
                   event: React.SyntheticEvent | null,
                   newValue: string | null
                 ) => setMode(newValue)}
-                sx={{}}
               >
-                {['chat', 'completion', 'template' /*'retrieval', 'more'*/].map(
-                  (item) => (
-                    <Option
-                      key={item}
-                      color="neutral"
-                      value={item}
-                      disabled={isThinking}
-                      label={
-                        item == 'more' ? (
-                          <FaEllipsisVertical
-                            size="12px"
-                            style={{ marginBottom: '-1px' }}
-                          />
-                        ) : (
-                          item
-                        )
-                      }
-                      variant="plain"
-                      sx={{}}
-                    >
-                      {item}
-                    </Option>
-                  )
-                )}
+                <Option color="neutral" value="chat">
+                  Chat
+                </Option>
+                <Option color="neutral" value="completion">
+                  Completion
+                </Option>
+                <Option color="neutral" value="template">
+                  Template
+                </Option>
               </Select>
             </FormControl>
             <Box sx={{ overflow: 'auto', width: '100%', padding: 3 }}>
