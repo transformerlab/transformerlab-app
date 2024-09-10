@@ -28,6 +28,7 @@ export default function PreviousMessageList({
   setConversationId,
   conversationId,
   experimentInfo,
+  visibility = 'visible',
 }) {
   return (
     <Sheet
@@ -39,6 +40,7 @@ export default function PreviousMessageList({
         flexDirection: 'column',
         overflow: 'hidden',
         justifyContent: 'flex-end',
+        visibility: visibility,
       }}
     >
       <Sheet

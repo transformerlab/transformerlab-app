@@ -469,7 +469,16 @@ export default function Chat({
                 <Option value="tokenize">Tokenize</Option>
               </Select>
             </FormControl>
-            <Box sx={{ overflow: 'auto', width: '100%', padding: 3 }}>
+            <Box
+              sx={{
+                overflow: 'auto',
+                width: '100%',
+                padding: 3,
+                visibility: ['chat', 'completion', 'template'].includes(mode)
+                  ? 'visible'
+                  : 'hidden',
+              }}
+            >
               <FormControl>
                 <MainGenerationConfigKnobs
                   generationParameters={generationParameters}
@@ -497,6 +506,11 @@ export default function Chat({
             setConversationId={setConversationId}
             conversationId={conversationId}
             experimentInfo={experimentInfo}
+            visibility={
+              ['chat', 'completion', 'template'].includes(mode)
+                ? 'visible'
+                : 'hidden'
+            }
           />
         </Box>
         <Box sx={{ borderRight: '0.5px solid #ccc' }}></Box>
