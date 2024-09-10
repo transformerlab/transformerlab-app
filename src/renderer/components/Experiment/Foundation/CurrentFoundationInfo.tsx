@@ -116,7 +116,7 @@ export default function CurrentFoundationInfo({
           </Table>
         </Box>
         <Box flex={1}>
-          <Typography level="title-lg" marginTop={4} marginBottom={1}>
+          <Typography level="title-lg" marginTop={1} marginBottom={1}>
             <BabyIcon size="1rem" />
             &nbsp;Available Adaptors:
           </Typography>
