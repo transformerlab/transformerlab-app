@@ -403,6 +403,8 @@ export default function Chat({
 
   if (!experimentInfo) return 'Select an Experiment';
 
+  const shortModelName = currentModel.split('/')[1];
+
   return (
     <>
       <Sheet
@@ -412,75 +414,9 @@ export default function Chat({
           height: '100%',
           paddingBottom: 1,
           flexDirection: 'row',
-          gap: 3,
+          gap: 2,
         }}
       >
-        <Sheet
-          sx={{
-            position: 'absolute',
-            top: '0%',
-            left: '0%',
-            height: '90dvh',
-            width: '80dvw',
-            zIndex: 10000,
-            backgroundColor: 'var(--joy-palette-neutral-softBg)',
-            opacity: 0.9,
-            borderRadius: 'md',
-            padding: 2,
-            visibility: !models?.[0]?.id ? 'visible' : 'hidden',
-          }}
-        >
-          <Alert
-            sx={{ position: 'relative', top: '50%', justifyContent: 'center' }}
-          >
-            No Model is Running
-          </Alert>
-        </Sheet>
-        <PromptSettingsModal
-          open={showPromptSettingsModal}
-          setOpen={setShowPromptSettingsModal}
-          defaultPromptConfigForModel={defaultPromptConfigForModel}
-          generationParameters={generationParameters}
-          setGenerationParameters={setGenerationParameters}
-          tokenCount={tokenCount}
-          experimentInfo={experimentInfo}
-          experimentInfoMutate={experimentInfoMutate}
-        />
-        {/* <pre>{JSON.stringify(chats, null, 2)}</pre> */}
-        {mode === 'chat' && (
-          <ChatPage
-            key={conversationId}
-            chats={chats}
-            setChats={setChats}
-            experimentInfo={experimentInfo}
-            isThinking={isThinking}
-            sendNewMessageToLLM={sendNewMessageToLLM}
-            stopStreaming={stopStreaming}
-            experimentInfoMutate={experimentInfoMutate}
-            tokenCount={tokenCount}
-            text={textToDebounce}
-            debouncedText={debouncedText}
-            defaultPromptConfigForModel={defaultPromptConfigForModel}
-            currentModelArchitecture={currentModelArchitecture}
-          />
-        )}
-        {mode === 'completion' && (
-          <CompletionsPage
-            text={text}
-            setText={setText}
-            debouncedText={debouncedText}
-            tokenCount={tokenCount}
-            isThinking={isThinking}
-            sendCompletionToLLM={sendCompletionToLLM}
-            stopStreaming={stopStreaming}
-          />
-        )}
-        {mode === 'retrieval' && (
-          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
-        )}
-        {mode === 'template' && (
-          <TemplatedCompletion experimentInfo={experimentInfo} />
-        )}
         <Box
           id="right-hand-panel-of-chat-page"
           sx={{
@@ -507,7 +443,7 @@ export default function Chat({
             }}
           >
             <Typography level="h2" fontSize="lg" id="card-description" mb={3}>
-              {currentModel} {adaptor && '- '}
+              {shortModelName} {adaptor && '- '}
               {adaptor}
             </Typography>
             <FormControl>
@@ -608,6 +544,74 @@ export default function Chat({
             experimentInfo={experimentInfo}
           />
         </Box>
+        <Box sx={{ borderRight: '0.5px solid #ccc' }}></Box>
+        {/* The following Sheet covers up the page if no model is running */}
+        <Sheet
+          sx={{
+            position: 'absolute',
+            top: '0%',
+            left: '0%',
+            height: '90dvh',
+            width: '80dvw',
+            zIndex: 10000,
+            backgroundColor: 'var(--joy-palette-neutral-softBg)',
+            opacity: 0.9,
+            borderRadius: 'md',
+            padding: 2,
+            visibility: !models?.[0]?.id ? 'visible' : 'hidden',
+          }}
+        >
+          <Alert
+            sx={{ position: 'relative', top: '50%', justifyContent: 'center' }}
+          >
+            No Model is Running
+          </Alert>
+        </Sheet>
+        <PromptSettingsModal
+          open={showPromptSettingsModal}
+          setOpen={setShowPromptSettingsModal}
+          defaultPromptConfigForModel={defaultPromptConfigForModel}
+          generationParameters={generationParameters}
+          setGenerationParameters={setGenerationParameters}
+          tokenCount={tokenCount}
+          experimentInfo={experimentInfo}
+          experimentInfoMutate={experimentInfoMutate}
+        />
+        {/* <pre>{JSON.stringify(chats, null, 2)}</pre> */}
+        {mode === 'chat' && (
+          <ChatPage
+            key={conversationId}
+            chats={chats}
+            setChats={setChats}
+            experimentInfo={experimentInfo}
+            isThinking={isThinking}
+            sendNewMessageToLLM={sendNewMessageToLLM}
+            stopStreaming={stopStreaming}
+            experimentInfoMutate={experimentInfoMutate}
+            tokenCount={tokenCount}
+            text={textToDebounce}
+            debouncedText={debouncedText}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            currentModelArchitecture={currentModelArchitecture}
+          />
+        )}
+        {mode === 'completion' && (
+          <CompletionsPage
+            text={text}
+            setText={setText}
+            debouncedText={debouncedText}
+            tokenCount={tokenCount}
+            isThinking={isThinking}
+            sendCompletionToLLM={sendCompletionToLLM}
+            stopStreaming={stopStreaming}
+          />
+        )}
+        {mode === 'retrieval' && (
+          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
+        )}
+        {mode === 'template' && (
+          <TemplatedCompletion experimentInfo={experimentInfo} />
+        )}
       </Sheet>
     </>
   );
