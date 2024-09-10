@@ -12,6 +12,8 @@ import {
   RadioGroup,
   Box,
   Alert,
+  Select,
+  Option,
 } from '@mui/joy';
 
 import ChatPage from './ChatPage';
@@ -448,35 +450,21 @@ export default function Chat({
             </Typography>
             <FormControl>
               <FormLabel sx={{ fontWeight: '600' }}>Mode:</FormLabel>
-              <RadioGroup
-                orientation="horizontal"
-                aria-labelledby="segmented-controls-example"
+              <Select
                 name="mode"
                 value={mode}
-                onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                  setMode(event.target.value)
-                }
-                size="sm"
-                sx={{
-                  minHeight: 48,
-                  padding: '4px',
-                  borderRadius: '12px',
-                  bgcolor: 'neutral.softBg',
-                  '--RadioGroup-gap': '4px',
-                  '--Radio-actionRadius': '8px',
-                  justifyContent: 'space-evenly',
-                  '& .MuiRadio-root': {
-                    padding: '0px',
-                  },
-                }}
+                onChange={(
+                  event: React.SyntheticEvent | null,
+                  newValue: string | null
+                ) => setMode(newValue)}
+                sx={{}}
               >
                 {['chat', 'completion', 'template' /*'retrieval', 'more'*/].map(
                   (item) => (
-                    <Radio
+                    <Option
                       key={item}
                       color="neutral"
                       value={item}
-                      disableIcon
                       disabled={isThinking}
                       label={
                         item == 'more' ? (
@@ -489,30 +477,13 @@ export default function Chat({
                         )
                       }
                       variant="plain"
-                      sx={{
-                        px: 2,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexGrow: 1,
-                      }}
-                      slotProps={{
-                        label: { style: { textAlign: 'center' } },
-                        action: ({ checked }) => ({
-                          sx: {
-                            ...(checked && {
-                              bgcolor: 'background.surface',
-                              boxShadow: 'sm',
-                              '&:hover': {
-                                bgcolor: 'background.surface',
-                              },
-                            }),
-                          },
-                        }),
-                      }}
-                    />
+                      sx={{}}
+                    >
+                      {item}
+                    </Option>
                   )
                 )}
-              </RadioGroup>
+              </Select>
             </FormControl>
             <Box sx={{ overflow: 'auto', width: '100%', padding: 3 }}>
               <FormControl>
