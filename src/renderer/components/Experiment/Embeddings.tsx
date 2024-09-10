@@ -54,7 +54,7 @@ export default function Embeddings({ experimentInfo }) {
           overflowX: 'hidden',
         }}
       >
-        <Typography level="h1">Generate Embeddings</Typography>
+        <Typography level="title-lg">Generate Embeddings</Typography>
         <Alert variant="plain" startDecorator={<LightbulbIcon />}>
           <Typography
             level="body-sm"

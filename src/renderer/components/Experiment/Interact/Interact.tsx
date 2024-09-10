@@ -32,6 +32,8 @@ import PreviousMessageList from './PreviousMessageList';
 import TemplatedCompletion from './TemplatedCompletion';
 import ChatBubble from './ChatBubble';
 import { MessageCircleIcon } from 'lucide-react';
+import Tokenize from '../Tokenize';
+import Embeddings from '../Embeddings';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
@@ -460,15 +462,11 @@ export default function Chat({
                   newValue: string | null
                 ) => setMode(newValue)}
               >
-                <Option color="neutral" value="chat">
-                  Chat
-                </Option>
-                <Option color="neutral" value="completion">
-                  Completion
-                </Option>
-                <Option color="neutral" value="template">
-                  Template
-                </Option>
+                <Option value="chat">Chat</Option>
+                <Option value="completion">Completion</Option>
+                <Option value="template">Template</Option>
+                <Option value="embeddings">Embeddings</Option>
+                <Option value="tokenize">Tokenize</Option>
               </Select>
             </FormControl>
             <Box sx={{ overflow: 'auto', width: '100%', padding: 3 }}>
@@ -568,6 +566,12 @@ export default function Chat({
         )}
         {mode === 'template' && (
           <TemplatedCompletion experimentInfo={experimentInfo} />
+        )}
+        {mode === 'embeddings' && (
+          <Embeddings experimentInfo={experimentInfo}></Embeddings>
+        )}
+        {mode === 'tokenize' && (
+          <Tokenize experimentInfo={experimentInfo}></Tokenize>
         )}
       </Sheet>
     </>

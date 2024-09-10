@@ -133,7 +133,7 @@ export default function Sidebar({
           icon={<FolderSearch2Icon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
-        <SubNavItem
+        {/* <SubNavItem
           title="Embeddings"
           path="/projects/embeddings"
           icon={<FileDigitIcon />}
@@ -144,7 +144,7 @@ export default function Sidebar({
           path="/projects/tokenize"
           icon={<RectangleEllipsisIcon />}
           disabled={activeModelIsNotSameAsFoundation()}
-        />
+        /> */}
         <SubNavItem
           title="Train"
           path="/projects/training"
