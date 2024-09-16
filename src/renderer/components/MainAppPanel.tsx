@@ -27,6 +27,7 @@ import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
+import { useState } from 'react';
 
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
@@ -37,6 +38,8 @@ export default function MainAppPanel({
   experimentInfoMutate,
 }) {
   const navigate = useNavigate();
+  const [selectedInteractSubpage, setSelectedInteractSubpage] =
+    useState('chat');
 
   function setFoundation(model) {
     let model_name = '';
@@ -176,6 +179,8 @@ export default function MainAppPanel({
             experimentInfo={experimentInfo}
             experimentInfoMutate={experimentInfoMutate}
             setRagEngine={setRagEngine}
+            mode={selectedInteractSubpage}
+            setMode={setSelectedInteractSubpage}
           />
         }
       />
