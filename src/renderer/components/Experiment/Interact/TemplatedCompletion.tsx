@@ -110,7 +110,6 @@ export default function TemplatedCompletion({ experimentInfo }) {
         height: '100%',
         overflow: 'hidden',
         justifyContent: 'space-between',
-        paddingTop: '1rem',
       }}
     >
       <TemplatedPromptModal

@@ -5,11 +5,8 @@ import useSWR from 'swr';
 import {
   Sheet,
   FormControl,
-  FormLabel,
   Button,
   Typography,
-  Radio,
-  RadioGroup,
   Box,
   Alert,
   Select,
@@ -26,28 +23,19 @@ import { useDebounce } from 'use-debounce';
 import CompletionsPage from './CompletionsPage';
 import PromptSettingsModal from './PromptSettingsModal';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
-import { FaEllipsisVertical } from 'react-icons/fa6';
 import Rag from '../Rag';
 import PreviousMessageList from './PreviousMessageList';
 import TemplatedCompletion from './TemplatedCompletion';
-import ChatBubble from './ChatBubble';
-import { MessageCircleIcon } from 'lucide-react';
 import Tokenize from '../Tokenize';
 import Embeddings from '../Embeddings';
+import { ArrowBigDownIcon, ArrowDownIcon, ChevronDownIcon } from 'lucide-react';
+import { selectClasses } from '@mui/joy/Select';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
   // I find this looks better than one later scroll
   setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 100);
   setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 400);
-}
-
-function shortenArray(arr, maxLen) {
-  if (!arr) return [];
-  if (arr.length <= maxLen) {
-    return arr;
-  }
-  return arr.slice(0, maxLen - 1).concat('...');
 }
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -407,20 +395,125 @@ export default function Chat({
     setTokenCount(count);
   }
 
+  function InteractContent() {
+    return (
+      <Sheet sx={{ width: '100%', height: '100%', display: 'flex' }}>
+        {mode === 'chat' && (
+          <ChatPage
+            key={conversationId}
+            chats={chats}
+            setChats={setChats}
+            experimentInfo={experimentInfo}
+            isThinking={isThinking}
+            sendNewMessageToLLM={sendNewMessageToLLM}
+            stopStreaming={stopStreaming}
+            experimentInfoMutate={experimentInfoMutate}
+            tokenCount={tokenCount}
+            text={textToDebounce}
+            debouncedText={debouncedText}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            currentModelArchitecture={currentModelArchitecture}
+          />
+        )}
+        {mode === 'completion' && (
+          <CompletionsPage
+            text={text}
+            setText={setText}
+            debouncedText={debouncedText}
+            tokenCount={tokenCount}
+            isThinking={isThinking}
+            sendCompletionToLLM={sendCompletionToLLM}
+            stopStreaming={stopStreaming}
+          />
+        )}
+        {mode === 'template' && (
+          <TemplatedCompletion experimentInfo={experimentInfo} />
+        )}
+        {mode === 'embeddings' && (
+          <Embeddings experimentInfo={experimentInfo}></Embeddings>
+        )}
+        {mode === 'tokenize' && (
+          <Tokenize experimentInfo={experimentInfo}></Tokenize>
+        )}
+        {mode === 'rag' && (
+          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
+        )}
+      </Sheet>
+    );
+  }
+
   if (!experimentInfo) return 'Select an Experiment';
 
   const shortModelName = currentModel.split('/')[1];
 
   return (
-    <>
+    <Sheet
+      id="surrounding-container-for-the-whole-thing"
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        // border: '2px solid blue',
+        overflow: 'none',
+        height: '100%',
+      }}
+    >
+      <Box
+        id="top-bar-of-chat-page-that-says-name-and-dropdown"
+        sx={{
+          display: 'flex',
+          flexDirection: 'row',
+          gap: 2,
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          // border: '2px solid red',
+        }}
+      >
+        <FormControl>
+          <Select
+            name="mode"
+            value={mode}
+            onChange={(
+              event: React.SyntheticEvent | null,
+              newValue: string | null
+            ) => setMode(newValue)}
+            variant="plain"
+            renderValue={(option: SelectOption<string> | null) => (
+              <Typography level="title-lg">{option?.label}</Typography>
+            )}
+            indicator={<ChevronDownIcon />}
+            sx={
+              {
+                // [`& .${selectClasses.indicator}`]: {
+                //   transition: '0.2s',
+                //   [`&.${selectClasses.expanded}`]: {
+                //     transform: 'rotate(-180deg)',
+                //   },
+                // },
+              }
+            }
+          >
+            <Option value="chat">Chat</Option>
+            <Option value="completion">Completion</Option>
+            <Option value="template">Template</Option>
+            <Option value="embeddings">Embeddings</Option>
+            <Option value="tokenize">Tokenize</Option>
+            <Option value="rag">Query Documents</Option>
+          </Select>
+        </FormControl>
+        <Typography level="title-md">
+          {shortModelName} {adaptor && '- '}
+          {adaptor}
+        </Typography>
+      </Box>
       <Sheet
         id="interact-page"
         sx={{
           display: 'flex',
-          height: '100%',
-          paddingBottom: 1,
           flexDirection: 'row',
           gap: 2,
+          overflow: 'hidden',
+          paddingTop: 2,
+          // border: '4px solid green',
         }}
       >
         <Box
@@ -432,6 +525,8 @@ export default function Chat({
             flex: '0 0 300px',
             justifyContent: 'space-between',
             overflow: 'hidden',
+            height: '100%',
+            border: '1px solid #ccc',
           }}
         >
           <Sheet
@@ -442,38 +537,17 @@ export default function Chat({
               display: 'flex',
               flexDirection: 'column',
               flex: '1 1 50%',
-              xpadding: 2,
               justifyContent: 'flex-start',
               overflow: 'hidden',
+              height: '100%',
               // border: '4px solid green',
             }}
           >
-            <Typography level="h2" fontSize="lg" id="card-description" mb={3}>
-              {shortModelName} {adaptor && '- '}
-              {adaptor}
-            </Typography>
-            <FormControl>
-              <FormLabel sx={{ fontWeight: '600' }}>Mode:</FormLabel>
-              <Select
-                name="mode"
-                value={mode}
-                onChange={(
-                  event: React.SyntheticEvent | null,
-                  newValue: string | null
-                ) => setMode(newValue)}
-              >
-                <Option value="chat">Chat</Option>
-                <Option value="completion">Completion</Option>
-                <Option value="template">Template</Option>
-                <Option value="embeddings">Embeddings</Option>
-                <Option value="tokenize">Tokenize</Option>
-              </Select>
-            </FormControl>
             <Box
               sx={{
-                overflow: 'auto',
-                width: '100%',
+                overflow: 'hidden',
                 padding: 3,
+                display: 'flex',
                 visibility: ['chat', 'completion', 'template'].includes(mode)
                   ? 'visible'
                   : 'hidden',
@@ -513,29 +587,8 @@ export default function Chat({
             }
           />
         </Box>
-        <Box sx={{ borderRight: '0.5px solid #ccc' }}></Box>
+        {/* <Box sx={{ borderRight: '0.5px solid #ccc', display: 'flex' }}></Box> */}
         {/* The following Sheet covers up the page if no model is running */}
-        <Sheet
-          sx={{
-            position: 'absolute',
-            top: '0%',
-            left: '0%',
-            height: '90dvh',
-            width: '80dvw',
-            zIndex: 10000,
-            backgroundColor: 'var(--joy-palette-neutral-softBg)',
-            opacity: 0.9,
-            borderRadius: 'md',
-            padding: 2,
-            visibility: !models?.[0]?.id ? 'visible' : 'hidden',
-          }}
-        >
-          <Alert
-            sx={{ position: 'relative', top: '50%', justifyContent: 'center' }}
-          >
-            No Model is Running
-          </Alert>
-        </Sheet>
         <PromptSettingsModal
           open={showPromptSettingsModal}
           setOpen={setShowPromptSettingsModal}
@@ -546,48 +599,29 @@ export default function Chat({
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
         />
-        {/* <pre>{JSON.stringify(chats, null, 2)}</pre> */}
-        {mode === 'chat' && (
-          <ChatPage
-            key={conversationId}
-            chats={chats}
-            setChats={setChats}
-            experimentInfo={experimentInfo}
-            isThinking={isThinking}
-            sendNewMessageToLLM={sendNewMessageToLLM}
-            stopStreaming={stopStreaming}
-            experimentInfoMutate={experimentInfoMutate}
-            tokenCount={tokenCount}
-            text={textToDebounce}
-            debouncedText={debouncedText}
-            defaultPromptConfigForModel={defaultPromptConfigForModel}
-            currentModelArchitecture={currentModelArchitecture}
-          />
-        )}
-        {mode === 'completion' && (
-          <CompletionsPage
-            text={text}
-            setText={setText}
-            debouncedText={debouncedText}
-            tokenCount={tokenCount}
-            isThinking={isThinking}
-            sendCompletionToLLM={sendCompletionToLLM}
-            stopStreaming={stopStreaming}
-          />
-        )}
-        {mode === 'retrieval' && (
-          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
-        )}
-        {mode === 'template' && (
-          <TemplatedCompletion experimentInfo={experimentInfo} />
-        )}
-        {mode === 'embeddings' && (
-          <Embeddings experimentInfo={experimentInfo}></Embeddings>
-        )}
-        {mode === 'tokenize' && (
-          <Tokenize experimentInfo={experimentInfo}></Tokenize>
-        )}
+        <InteractContent />
       </Sheet>
-    </>
+      <Sheet
+        sx={{
+          position: 'absolute',
+          top: '0%',
+          left: '0%',
+          zIndex: 10000,
+          backgroundColor: 'var(--joy-palette-neutral-softBg)',
+          opacity: 0.9,
+          borderRadius: 'md',
+          padding: 2,
+          height: !models?.[0]?.id ? '90dvh' : 'inherit',
+          width: !models?.[0]?.id ? '100dvh' : 'inherit',
+          visibility: !models?.[0]?.id ? 'visible' : 'hidden',
+        }}
+      >
+        <Alert
+          sx={{ position: 'relative', top: '50%', justifyContent: 'center' }}
+        >
+          No Model is Running
+        </Alert>
+      </Sheet>
+    </Sheet>
   );
 }
