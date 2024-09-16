@@ -494,7 +494,7 @@ export default function Chat({
           >
             <Option value="chat">Chat</Option>
             <Option value="completion">Completion</Option>
-            <Option value="template">Template</Option>
+            <Option value="template">Templated Prompt</Option>
             <Option value="embeddings">Embeddings</Option>
             <Option value="tokenize">Tokenize</Option>
             <Option value="rag">Query Documents</Option>
