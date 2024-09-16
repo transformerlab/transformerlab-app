@@ -28,8 +28,7 @@ import PreviousMessageList from './PreviousMessageList';
 import TemplatedCompletion from './TemplatedCompletion';
 import Tokenize from '../Tokenize';
 import Embeddings from '../Embeddings';
-import { ArrowBigDownIcon, ArrowDownIcon, ChevronDownIcon } from 'lucide-react';
-import { selectClasses } from '@mui/joy/Select';
+import { ChevronDownIcon } from 'lucide-react';
 
 function scrollChatToBottom() {
   // We animate it twice, the second time to accomodate the scale up transition
