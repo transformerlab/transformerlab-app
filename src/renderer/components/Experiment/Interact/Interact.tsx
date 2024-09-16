@@ -513,80 +513,83 @@ export default function Chat({
           gap: 2,
           overflow: 'hidden',
           paddingTop: 2,
+          height: '100%',
           // border: '4px solid green',
         }}
       >
-        <Box
-          id="right-hand-panel-of-chat-page"
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1,
-            flex: '0 0 300px',
-            justifyContent: 'space-between',
-            overflow: 'hidden',
-            height: '100%',
-            border: '1px solid #ccc',
-          }}
-        >
-          <Sheet
-            id="chat-settings-on-right"
-            variant="plain"
+        {!['rag', 'tokenize', 'embeddings'].includes(mode) && (
+          <Box
+            id="right-hand-panel-of-chat-page"
             sx={{
-              // borderRadius: "md",
               display: 'flex',
               flexDirection: 'column',
-              flex: '1 1 50%',
-              justifyContent: 'flex-start',
+              gap: 1,
+              flex: '0 0 300px',
+              justifyContent: 'space-between',
               overflow: 'hidden',
               height: '100%',
-              // border: '4px solid green',
+              border: '1px solid #ccc',
             }}
           >
-            <Box
+            <Sheet
+              id="chat-settings-on-right"
+              variant="plain"
               sx={{
-                overflow: 'hidden',
-                padding: 3,
+                // borderRadius: "md",
                 display: 'flex',
-                visibility: ['chat', 'completion', 'template'].includes(mode)
-                  ? 'visible'
-                  : 'hidden',
+                flexDirection: 'column',
+                flex: '1 1 50%',
+                justifyContent: 'flex-start',
+                overflow: 'hidden',
+                height: '100%',
+                // border: '4px solid green',
               }}
             >
-              <FormControl>
-                <MainGenerationConfigKnobs
-                  generationParameters={generationParameters}
-                  setGenerationParameters={setGenerationParameters}
-                  tokenCount={tokenCount}
-                  defaultPromptConfigForModel={defaultPromptConfigForModel}
-                  showAllKnobs={false}
-                />
-                <Button
-                  variant="soft"
-                  onClick={() => {
-                    setShowPromptSettingsModal(true);
-                  }}
-                >
-                  All Generation Settings
-                </Button>
-              </FormControl>
-            </Box>
-          </Sheet>
-          <PreviousMessageList
-            conversations={conversations}
-            conversationsIsLoading={conversationsIsLoading}
-            conversationsMutate={conversationsMutate}
-            setChats={setChats}
-            setConversationId={setConversationId}
-            conversationId={conversationId}
-            experimentInfo={experimentInfo}
-            visibility={
-              ['chat', 'completion', 'template'].includes(mode)
-                ? 'visible'
-                : 'hidden'
-            }
-          />
-        </Box>
+              <Box
+                sx={{
+                  overflow: 'hidden',
+                  padding: 3,
+                  display: 'flex',
+                  visibility: ['chat', 'completion', 'template'].includes(mode)
+                    ? 'visible'
+                    : 'hidden',
+                }}
+              >
+                <FormControl>
+                  <MainGenerationConfigKnobs
+                    generationParameters={generationParameters}
+                    setGenerationParameters={setGenerationParameters}
+                    tokenCount={tokenCount}
+                    defaultPromptConfigForModel={defaultPromptConfigForModel}
+                    showAllKnobs={false}
+                  />
+                  <Button
+                    variant="soft"
+                    onClick={() => {
+                      setShowPromptSettingsModal(true);
+                    }}
+                  >
+                    All Generation Settings
+                  </Button>
+                </FormControl>
+              </Box>
+            </Sheet>
+            <PreviousMessageList
+              conversations={conversations}
+              conversationsIsLoading={conversationsIsLoading}
+              conversationsMutate={conversationsMutate}
+              setChats={setChats}
+              setConversationId={setConversationId}
+              conversationId={conversationId}
+              experimentInfo={experimentInfo}
+              visibility={
+                ['chat', 'completion', 'template'].includes(mode)
+                  ? 'visible'
+                  : 'hidden'
+              }
+            />
+          </Box>
+        )}
         {/* <Box sx={{ borderRight: '0.5px solid #ccc', display: 'flex' }}></Box> */}
         {/* The following Sheet covers up the page if no model is running */}
         <PromptSettingsModal

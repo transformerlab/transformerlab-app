@@ -128,7 +128,7 @@ export default function Tokenize({ experimentInfo }) {
           overflowX: 'hidden',
         }}
       >
-        <Typography level="title-lg">Tokenize</Typography>
+        {/* <Typography level="title-lg">Tokenize</Typography> */}
         <Alert variant="plain" startDecorator={<LightbulbIcon />}>
           <Typography
             level="body-sm"

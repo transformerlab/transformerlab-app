@@ -96,7 +96,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
         height: '100%',
       }}
     >
-      <Typography level="h1">Query Documents</Typography>
+      {/* <Typography level="h1">Query Documents</Typography> */}
 
       <Sheet
         sx={{

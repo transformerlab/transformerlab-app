@@ -127,12 +127,12 @@ export default function Sidebar({
           icon={<MessageCircleIcon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
-        <SubNavItem
+        {/* <SubNavItem
           title="Query Docs"
           path="/projects/rag"
           icon={<FolderSearch2Icon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
-        />
+        /> */}
         {/* <SubNavItem
           title="Embeddings"
           path="/projects/embeddings"
