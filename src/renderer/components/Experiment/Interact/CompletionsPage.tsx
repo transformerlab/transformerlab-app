@@ -9,7 +9,7 @@ import {
 } from '@mui/joy';
 import { time } from 'console';
 import { SendIcon, StopCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 export default function CompletionsPage({
   text,
@@ -22,13 +22,24 @@ export default function CompletionsPage({
 }) {
   const [timeTaken, setTimeTaken] = useState<number | null>(null);
 
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
   async function handleSend() {
     setTimeTaken(-1);
     const startTime = performance.now();
-    await sendCompletionToLLM(
-      document.getElementsByName('completion-text')?.[0],
-      document.getElementsByName('completion-text')?.[0]
+
+    setText(inputRef.current?.value);
+
+    const originalText = inputRef.current?.value;
+
+    const result = await sendCompletionToLLM(
+      inputRef.current,
+      inputRef.current
     );
+
+    if (result) {
+      setText(originalText + result);
+    }
     const endTime = performance.now();
     setTimeTaken(endTime - startTime);
   }
@@ -97,10 +108,11 @@ export default function CompletionsPage({
         }}
       >
         <Textarea
-          placeholder="When I was young, I would"
+          defaultValue={text}
           variant="plain"
           name="completion-text"
           minRows={20}
+          slotProps={{ textarea: { ref: inputRef } }}
           sx={{
             flex: 1,
             height: '100%',
@@ -124,9 +136,6 @@ export default function CompletionsPage({
               of {tokenCount?.contextLength} tokens
             </Typography>
           }
-          onChange={(e) => {
-            setText(e.target.value);
-          }}
         />
       </Sheet>
       <Stack direction="row" justifyContent="space-between">

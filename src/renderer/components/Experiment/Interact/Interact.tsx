@@ -369,7 +369,8 @@ export default function Chat({
     );
     setIsThinking(false);
 
-    // if (result?.text) element.value += result.text;
+    console.log('result', result);
+    return result?.text;
   };
 
   async function countTokens() {
