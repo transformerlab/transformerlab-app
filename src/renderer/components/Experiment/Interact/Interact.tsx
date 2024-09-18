@@ -323,19 +323,16 @@ export default function Chat({
     const timeToFirstToken = result?.timeToFirstToken;
     const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
 
-    newChats = [...newChats, { t: result?.text, user: 'bot', key: result?.id }];
+    newChats = [...newChats, {
+      t: result?.text,
+      user: 'bot',
+      key: result?.id,
+      numberOfTokens: numberOfTokens,
+      timeToFirstToken: timeToFirstToken,
+      tokensPerSecond: tokensPerSecond,
+    }];
 
-    setChats((c) => [
-      ...c,
-      {
-        t: result?.text,
-        user: 'bot',
-        key: result?.id,
-        numberOfTokens: numberOfTokens,
-        timeToFirstToken: timeToFirstToken,
-        tokensPerSecond: tokensPerSecond,
-      },
-    ]);
+    setChats(newChats);
 
     // If this is a new conversation, generate a new conversation Id
     var cid = conversationId;
@@ -472,20 +469,16 @@ export default function Chat({
     const timeToFirstToken = result?.timeToFirstToken;
     const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
 
-    // TODO: Call addChat once I figure out how to pass the key
-    newChats = [...newChats, { t: result?.text, user: 'bot', key: result?.id }];
+    newChats = [...newChats, {
+      t: result?.text,
+      user: 'bot',
+      key: result?.id,
+      numberOfTokens: numberOfTokens,
+      timeToFirstToken: timeToFirstToken,
+      tokensPerSecond: tokensPerSecond,
+    }];
 
-    setChats((c) => [
-      ...c,
-      {
-        t: result?.text,
-        user: 'bot',
-        key: result?.id,
-        numberOfTokens: numberOfTokens,
-        timeToFirstToken: timeToFirstToken,
-        tokensPerSecond: tokensPerSecond,
-      },
-    ]);
+    setChats(newChats);
 
 
     var cid = conversationId;
