@@ -409,22 +409,33 @@ export default function Chat({
   function getToolCallsFromLLMResponse(llm_response: String) {
     let tool_calls: any[] = [];
 
+    if (!llm_response) return tool_calls;
+
     let start = 0;
     let end = -1;
     const START_TAG = "<tool_call>";
     const END_TAG = "</tool_call>";
+
     while (start >= 0) {
+      // first search for start tag
       start = llm_response.indexOf(START_TAG, start);
-      if (start == -1) break;  // no more tool calls found
+      if (start == -1) break;  // no start tags found
+
+      // Move the start marker after the tag and search for close tag
       start += START_TAG.length;
       end = llm_response.indexOf(END_TAG, start);
-      if (end == -1) {
-        tool_calls.push(llm_response.substring(start));
-        break;  // tool call extends to end of string?
-      } else {
-        tool_calls.push(llm_response.substring(start, end));
-        start = end+END_TAG.length;
-      }
+      const tool_string = end == -1
+                    ? llm_response.substring(start)
+                    : llm_response.substring(start, end);
+
+      // Decode the JSON string
+      const tool_call = JSON.parse(tool_string);
+      console.log("Tool call: " + tool_string);
+      console.log(tool_call);
+      tool_calls.push(tool_call);
+
+      if (end == -1) break;  // no more text to search
+      start = end+END_TAG.length; // continue search after end tag
 
     }
     return tool_calls;
@@ -491,8 +502,6 @@ export default function Chat({
     // and either a close tag or the end of the string
     const llm_response = result?.text;
     const tool_calls = getToolCallsFromLLMResponse(llm_response);
-    console.log(`Model responded with tool request(s):`);
-    console.log(tool_calls);
 
     if (llm_response && llm_response.includes("<tool_call>")) {
       texts.push({ role: 'assistant', content: llm_response });
