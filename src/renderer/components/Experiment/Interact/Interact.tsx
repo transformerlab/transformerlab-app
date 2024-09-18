@@ -318,6 +318,7 @@ export default function Chat({
       },
     ]);
 
+    // If this is a new conversation, generate a new conversation Id
     var cid = conversationId;
     const experimentId = experimentInfo?.id;
 
@@ -345,15 +346,22 @@ export default function Chat({
     return result?.text;
   };
 
-  const sendNewMessageToAgent = async (text: String, image?: string) => {
+
+  // TODO: Call this in sendNewMessageToLLM as well
+  // Called at start of generation to add user's message to chat history
+  function addChat(user: String, text: String, image?: string) {
     const r = Math.floor(Math.random() * 1000000);
 
     // Create a new chat for the user's message
-    var newChats = [...chats, { t: text, user: 'human', key: r, image: image }];
+    var newChats = [...chats, { t: text, user: user, key: r, image: image }];
 
     // Add Message to Chat Array:
     setChats(newChats);
     scrollChatToBottom();
+  }
+
+  const sendNewMessageToAgent = async (text: String, image?: string) => {
+    addChat('user', text, image);
 
     const timeoutId = setTimeout(() => {
       setIsThinking(true);
@@ -398,7 +406,7 @@ export default function Chat({
     }
 
     // Send them over
-    const result = await chatAPI.sendAndReceiveStreaming(
+    let result = await chatAPI.sendAndReceiveStreaming(
       currentModel,
       adaptor,
       texts,
@@ -413,14 +421,40 @@ export default function Chat({
 
     // Before we return to the user, check to see if the LLM is trying to call a function
     const llm_response = result?.text;
-    if (llm_response) {
-      if (llm_response.includes("<tool_call>")) {
-        const func_name = "temp_placeholder"
-        const func_response = callTool(llm_response);
-        console.log(`Calling Function ${func_name}:`);
-        console.log(func_response);
-      }
+    if (llm_response && llm_response.includes("<tool_call>")) {
+      console.log(`Model responded with request for tool.`);
+      // TODO: Do I want to do this yet?
+      texts.push({ role: 'assistant', content: llm_response });
+      // addChat('bot', tool_response);
 
+      const func_name = "temp_placeholder"
+      const func_response = callTool(llm_response);
+      console.log(`Calling Function ${func_name}:`);
+      console.log(func_response);
+
+      // Add function output as response to conversation
+      const tool_response = func_response;
+
+      // TODO: this should be tool not user...but have to add that
+      texts.push({ role: 'user', content: tool_response });
+
+      // TODO: Add this when we also add the previous result?
+      //addChat('user', tool_response);
+
+      // Call the model AGAIN with the tool response
+      // Update result with the new response
+      result = await chatAPI.sendAndReceiveStreaming(
+        currentModel,
+        adaptor,
+        texts,
+        generationParameters?.temperature,
+        generationParameters?.maxTokens,
+        generationParameters?.topP,
+        generationParameters?.frequencyPenalty,
+        systemMessage,
+        generationParameters?.stop_str,
+        image
+      );
     }
 
     clearTimeout(timeoutId);
