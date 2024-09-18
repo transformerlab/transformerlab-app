@@ -70,9 +70,9 @@ async function callTool(function_name: String, function_args: Object = {}) {
       function_args
     )
   );
-  console.log(response);
-
-  return String(function_name.length % 30);
+  const result = await response.json();
+  console.log(result);
+  return result;
 }
 
 
@@ -540,7 +540,18 @@ export default function Chat({
           console.log(`With arguments: ${func_args}:`);
           console.log(func_response);
 
-          tool_responses.push(func_response);
+          // If this was successful then respond with the results
+          if (func_response.status && func_response.status != "error" && func_response.data) {
+            tool_responses.push(func_response.data);
+
+          // Otherwise, report an error to the LLM!
+          } else {
+            if (func_response.message) {
+              tool_responses.push(func_response.message);
+            } else {
+              tool_responses.push("There was an unknown error calling the tool.");
+            }
+          }
         }
 
         // Add all function output as response to conversation
