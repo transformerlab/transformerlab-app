@@ -253,6 +253,35 @@ export default function Chat({
     });
   }
 
+  function addToolResult(result: object) {
+    const r = Math.floor(Math.random() * 1000000);
+    return {
+      t: result,
+      user: 'human',
+      key: r
+    }
+  }
+
+  async function addAssistantChat(result: object) {
+    let numberOfTokens = await chatAPI.countTokens(currentModel, [
+      result?.text,
+    ]);
+    numberOfTokens = numberOfTokens?.tokenCount;
+    console.log('Number of Tokens: ', numberOfTokens);
+    console.log(result);
+    const timeToFirstToken = result?.timeToFirstToken;
+    const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
+
+    return {
+      t: result?.text,
+      user: 'bot',
+      key: result?.id,
+      numberOfTokens: numberOfTokens,
+      timeToFirstToken: timeToFirstToken,
+      tokensPerSecond: tokensPerSecond,
+    }
+  }
+
   // This returns the Chats list in the format that the LLM is expecting
   function getChatsInLLMFormat() {
     return chats.map((c) => {
@@ -431,9 +460,10 @@ export default function Chat({
     const llm_response = result?.text;
     if (llm_response && llm_response.includes("<tool_call>")) {
       console.log(`Model responded with request for tool.`);
-      // TODO: Do I want to do this yet?
       texts.push({ role: 'assistant', content: llm_response });
-      // addChat('bot', tool_response);
+
+      newChats = [...newChats, await addAssistantChat(result)];
+      setChats(newChats);
 
       const func_name = "temp_placeholder"
       const func_response = callTool(llm_response);
@@ -448,6 +478,8 @@ export default function Chat({
 
       // TODO: Add this when we also add the previous result?
       //addChat('user', tool_response);
+      newChats = [...newChats, addToolResult(tool_response)];
+      setChats(newChats);
 
       // Call the model AGAIN with the tool response
       // Update result with the new response
