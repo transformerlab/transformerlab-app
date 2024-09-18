@@ -14,7 +14,11 @@ import ChatSubmit from './ChatSubmit';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useEffect, useState } from 'react';
 import { useDebounce } from 'use-debounce';
+import useSWR from 'swr';
 import SystemMessageBox from './SystemMessageBox';
+
+// fetcher used by SWR
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ChatPage({
   chats,
@@ -56,6 +60,18 @@ export default function ChatPage({
     });
   };
 
+  // Get a list of tools to display
+  const {
+    data: available_tools
+  } = useSWR(
+    chatAPI.Endpoints.Tools.List(),
+    fetcher
+  );
+  const tool_list = available_tools
+    && available_tools.map(function(elem){
+      return elem.name;
+    }).join("\n");
+
   const [debouncedSystemMessage] = useDebounce(systemMessage, 1000);
 
   useEffect(() => {
@@ -96,7 +112,10 @@ export default function ChatPage({
       }}
     >
       {enableTools &&
-      <Textarea value="available tools" />
+      <>
+        <FormLabel>Available Tools</FormLabel>
+        <Textarea value={tool_list} />
+      </>
       }
       {!enableTools &&
       <SystemMessageBox
