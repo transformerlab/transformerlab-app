@@ -37,6 +37,21 @@ function scrollChatToBottom() {
   setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 400);
 }
 
+function getAgentSystemMessage() {
+  return `You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {"type": "function", "function": {"name": "get_current_temperature", "description": "get_current_temperature(location: str) - Gets the temperature at a given location.
+    Args:
+        location(str): The location to get the temperature for, in the format "city, country"", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The location to get the temperature for, in the format \"city, country\""}}, "required": ["location"]}}
+{"type": "function", "function": {"name": "get_current_wind_speed", "description": "get_current_wind_speed(location: str) -> float - Get the current wind speed in km/h at a given location.
+    Args:
+        location(str): The location to get the temperature for, in the format "City, Country"
+    Returns:
+        The current wind speed at the given location in km/h, as a float.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The location to get the temperature for, in the format \"City, Country\""}}, "required": ["location"]}} </tools>Use the following pydantic model json schema for each tool call you will make: {"properties": {"name": {"title": "Name", "type": "string"}, "arguments": {"title": "Arguments", "type": "object"}}, "required": ["name", "arguments"], "title": "FunctionCall", "type": "object"}}
+For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
+<tool_call>
+{"name": <function-name>, "arguments": <args-dict>}
+</tool_call>`
+}
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Chat({
@@ -322,6 +337,128 @@ export default function Chat({
     return result?.text;
   };
 
+  const sendNewMessageToAgent = async (text: String, image?: string) => {
+    const r = Math.floor(Math.random() * 1000000);
+
+    // Create a new chat for the user's message
+    var newChats = [...chats, { t: text, user: 'human', key: r, image: image }];
+
+    // Add Message to Chat Array:
+    setChats(newChats);
+    scrollChatToBottom();
+
+    const timeoutId = setTimeout(() => {
+      setIsThinking(true);
+
+      scrollChatToBottom();
+    }, 100);
+
+    const systemMessage = getAgentSystemMessage();
+
+    // Get a list of all the existing chats so we can send them to the LLM
+    let texts = chats.map((c) => {
+      return {
+        role: c.user === 'bot' ? 'user' : 'assistant',
+        content: c.t ? c.t : '',
+      };
+    });
+
+    // Add the user's message
+    if (image && image !== '') {
+      //Images must be sent in this format for fastchat
+      texts.push({
+        role: 'user',
+        content: [
+          { type: 'text', text: text },
+          { type: 'image_url', image_url: image },
+        ],
+      });
+      //texts.push({ role: 'user', content: { image } });
+    } else {
+      texts.push({ role: 'user', content: text });
+    }
+
+    const generationParamsJSON = experimentInfo?.config?.generationParams;
+    const generationParameters = JSON.parse(generationParamsJSON);
+
+    try {
+      generationParameters.stop_str = JSON.parse(
+        generationParameters?.stop_str
+      );
+    } catch (e) {
+      console.log('Error parsing stop strings as JSON');
+    }
+
+    // Send them over
+    const result = await chatAPI.sendAndReceiveStreaming(
+      currentModel,
+      adaptor,
+      texts,
+      generationParameters?.temperature,
+      generationParameters?.maxTokens,
+      generationParameters?.topP,
+      generationParameters?.frequencyPenalty,
+      systemMessage,
+      generationParameters?.stop_str,
+      image
+    );
+
+
+    clearTimeout(timeoutId);
+    setIsThinking(false);
+    // Add Response to Chat Array:
+
+    let numberOfTokens = await chatAPI.countTokens(currentModel, [
+      result?.text,
+    ]);
+    numberOfTokens = numberOfTokens?.tokenCount;
+    console.log('Number of Tokens: ', numberOfTokens);
+    console.log(result);
+    const timeToFirstToken = result?.timeToFirstToken;
+    const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
+
+    newChats = [...newChats, { t: result?.text, user: 'bot', key: result?.id }];
+
+    setChats((c) => [
+      ...c,
+      {
+        t: result?.text,
+        user: 'bot',
+        key: result?.id,
+        numberOfTokens: numberOfTokens,
+        timeToFirstToken: timeToFirstToken,
+        tokensPerSecond: tokensPerSecond,
+      },
+    ]);
+
+
+    var cid = conversationId;
+    const experimentId = experimentInfo?.id;
+
+    if (cid == null) {
+      cid = Math.random().toString(36).substring(7);
+      setConversationId(cid);
+    }
+
+    //save the conversation to the server
+    fetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        conversation_id: cid,
+        conversation: JSON.stringify(newChats),
+      }),
+    }).then((response) => {
+      conversationsMutate();
+    });
+
+    scrollChatToBottom();
+
+    return result?.text;
+  };
+
   // Get all conversations for this experiment
   const {
     data: conversations,
@@ -434,7 +571,7 @@ export default function Chat({
             setChats={setChats}
             experimentInfo={experimentInfo}
             isThinking={isThinking}
-            sendNewMessageToLLM={sendNewMessageToLLM}
+            sendNewMessageToLLM={sendNewMessageToAgent}
             stopStreaming={stopStreaming}
             experimentInfoMutate={experimentInfoMutate}
             tokenCount={tokenCount}
