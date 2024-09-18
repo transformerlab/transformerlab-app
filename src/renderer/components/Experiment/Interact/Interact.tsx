@@ -441,6 +441,7 @@ export default function Chat({
             text={textToDebounce}
             debouncedText={debouncedText}
             defaultPromptConfigForModel={defaultPromptConfigForModel}
+            enableTools
             currentModelArchitecture={currentModelArchitecture}
           />
         )}
