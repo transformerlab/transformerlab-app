@@ -37,19 +37,19 @@ function scrollChatToBottom() {
   setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 400);
 }
 
-function getAgentSystemMessage() {
-  return `You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {"type": "function", "function": {"name": "get_current_temperature", "description": "get_current_temperature(location: str) - Gets the temperature at a given location.
-    Args:
-        location(str): The location to get the temperature for, in the format "city, country"", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The location to get the temperature for, in the format \"city, country\""}}, "required": ["location"]}}
-{"type": "function", "function": {"name": "get_current_wind_speed", "description": "get_current_wind_speed(location: str) -> float - Get the current wind speed in km/h at a given location.
-    Args:
-        location(str): The location to get the temperature for, in the format "City, Country"
-    Returns:
-        The current wind speed at the given location in km/h, as a float.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The location to get the temperature for, in the format \"City, Country\""}}, "required": ["location"]}} </tools>Use the following pydantic model json schema for each tool call you will make: {"properties": {"name": {"title": "Name", "type": "string"}, "arguments": {"title": "Arguments", "type": "object"}}, "required": ["name", "arguments"], "title": "FunctionCall", "type": "object"}}
-For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
-<tool_call>
-{"name": <function-name>, "arguments": <args-dict>}
-</tool_call>`
+// Get the System Message from the backend.
+// Returns a default prompt if there was an error.
+async function getAgentSystemMessage() {
+  const prompt = await fetch(
+    chatAPI.Endpoints.Tools.Prompt()
+  ).then(
+    (res) => res.json()
+  ).catch(
+    // TODO: Retry? Post error message?
+    // For now just returning arbitrary system message.
+    (error) => "You are a helpful chatbot assistant."
+  );
+  return prompt;
 }
 
 /**
@@ -60,14 +60,13 @@ For each function call return a json object with function name and arguments wit
  * @returns A JSON object with fields status, error and data.
  */
 async function callTool(function_name: String, function_args: Object = {}) {
-  const arg_string = JSON.stringify(function_args);
   console.log(`Calling Function: ${function_name}`);
   console.log(`with arguments ${arg_string}`);
 
   const response = await fetch(
     chatAPI.Endpoints.Tools.Call(
       function_name,
-      function_args
+      JSON.stringify(function_args)
     )
   );
   const result = await response.json();
@@ -466,7 +465,7 @@ export default function Chat({
       scrollChatToBottom();
     }, 100);
 
-    const systemMessage = getAgentSystemMessage();
+    const systemMessage = await getAgentSystemMessage();
 
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
