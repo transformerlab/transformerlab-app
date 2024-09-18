@@ -54,19 +54,21 @@ async function getAgentSystemMessage() {
 
 /**
  * callTool - calls the Tools API and returns the result
+ * TODO: Move to the SDK?
  *
  * @param function_name String with name of tool to call
  * @param arguments Object with named arguments to be passed to tool
  * @returns A JSON object with fields status, error and data.
  */
 async function callTool(function_name: String, function_args: Object = {}) {
+  const arg_string = JSON.stringify(function_args);
   console.log(`Calling Function: ${function_name}`);
   console.log(`with arguments ${arg_string}`);
 
   const response = await fetch(
     chatAPI.Endpoints.Tools.Call(
       function_name,
-      JSON.stringify(function_args)
+      arg_string
     )
   );
   const result = await response.json();
@@ -419,7 +421,10 @@ export default function Chat({
    * getToolCallsFromLLMResponse
    *
    * Returns an array of tool call JSON objects.
-   * Throws an exception if any tool call is not formatted correctly
+   * If any tool calls are not formatted correctly then an error
+   * prints to the console and they are skipped..
+   * TODO: Generate and handle error if any tool call
+   * is not formatted correctly
    */
   function getToolCallsFromLLMResponse(llm_response: String) {
     let tool_calls: any[] = [];
@@ -443,9 +448,13 @@ export default function Chat({
                     ? llm_response.substring(start)
                     : llm_response.substring(start, end);
 
-      // Decode the JSON string
-      const tool_call = JSON.parse(tool_string);
-      tool_calls.push(tool_call);
+      // Decode the JSON string and add it to result if valid
+      try {
+        const tool_call = JSON.parse(tool_string);
+        tool_calls.push(tool_call);
+      } catch (e) {
+        console.error(e);
+      }
 
       if (end == -1) break;  // no more text to search
       start = end+END_TAG.length; // continue search after end tag
@@ -514,7 +523,6 @@ export default function Chat({
     // Tool calls should be contained between a <tool_call> tag
     // and either a close tag or the end of the string
     const llm_response = result?.text;
-    const tool_calls = getToolCallsFromLLMResponse(llm_response);
 
     if (llm_response && llm_response.includes("<tool_call>")) {
       const tool_calls = getToolCallsFromLLMResponse(llm_response);
@@ -535,9 +543,6 @@ export default function Chat({
           const func_name = tool_call.name;
           const func_args = tool_call.arguments;
           const func_response = await callTool(func_name, func_args);
-          console.log(`Calling Function: ${func_name}`);
-          console.log(`With arguments: ${func_args}:`);
-          console.log(func_response);
 
           // If this was successful then respond with the results
           if (func_response.status && func_response.status != "error" && func_response.data) {
@@ -605,7 +610,7 @@ export default function Chat({
 
     setChats(newChats);
 
-
+    // If this is a new conversation, generate a new conversation Id
     var cid = conversationId;
     const experimentId = experimentInfo?.id;
 
