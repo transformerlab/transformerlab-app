@@ -725,6 +725,17 @@ Endpoints.Prompts = {
   Delete: (promptId: string) => API_URL() + 'prompts/delete/' + promptId,
 };
 
+Endpoints.Tools = {
+  Call: (
+    function_name: string,
+    function_arguments: string
+  ) =>
+    API_URL() +
+    `tools/call/${function_name}?params=${function_arguments}`,
+  List: () =>
+    API_URL() + `tools/list`,
+};
+
 Endpoints.ServerInfo = {
   Get: () => API_URL() + 'server/info',
   PythonLibraries: () => API_URL() + 'server/python_libraries',
