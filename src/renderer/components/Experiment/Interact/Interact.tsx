@@ -78,7 +78,7 @@ export default function Chat({
   // the moel's template. More info here: https://huggingface.co/docs/transformers/main/en/chat_templating
   // For now this is helpful a rough indicator of the number of tokens used.
   // But we should improve this later
-  if (mode === 'chat') {
+  if (mode === 'chat' || mode === 'tools') {
     textToDebounce += experimentInfo?.config?.prompt_template?.system_message;
     textToDebounce += '\n';
     chats.forEach((c) => {
@@ -99,7 +99,7 @@ export default function Chat({
 
   React.useEffect(() => {
     if (debouncedText) {
-      if (mode === 'chat') {
+      if (mode === 'chat' || mode === 'tools') {
         countChatTokens();
       } else {
         countTokens();
@@ -427,6 +427,23 @@ export default function Chat({
             stopStreaming={stopStreaming}
           />
         )}
+        {mode === 'tools' && (
+          <ChatPage
+            key={conversationId}
+            chats={chats}
+            setChats={setChats}
+            experimentInfo={experimentInfo}
+            isThinking={isThinking}
+            sendNewMessageToLLM={sendNewMessageToLLM}
+            stopStreaming={stopStreaming}
+            experimentInfoMutate={experimentInfoMutate}
+            tokenCount={tokenCount}
+            text={textToDebounce}
+            debouncedText={debouncedText}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            currentModelArchitecture={currentModelArchitecture}
+          />
+        )}
         {mode === 'template' && (
           <TemplatedCompletion experimentInfo={experimentInfo} />
         )}
@@ -495,6 +512,7 @@ export default function Chat({
           >
             <Option value="chat">Chat</Option>
             <Option value="completion">Completion</Option>
+            <Option value="tools">Tool Calling</Option>
             <Option value="template">Templated Prompt</Option>
             <Option value="embeddings">Embeddings</Option>
             <Option value="tokenize">Tokenize</Option>
@@ -551,7 +569,7 @@ export default function Chat({
                   overflow: 'hidden',
                   padding: 3,
                   display: 'flex',
-                  visibility: ['chat', 'completion', 'template'].includes(mode)
+                  visibility: ['chat', 'completion', 'tools', 'template'].includes(mode)
                     ? 'visible'
                     : 'hidden',
                 }}
@@ -584,7 +602,7 @@ export default function Chat({
               conversationId={conversationId}
               experimentInfo={experimentInfo}
               visibility={
-                ['chat', 'completion', 'template'].includes(mode)
+                ['chat', 'completion', 'tools', 'template'].includes(mode)
                   ? 'visible'
                   : 'hidden'
               }
