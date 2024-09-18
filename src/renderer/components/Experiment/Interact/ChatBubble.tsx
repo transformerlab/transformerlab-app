@@ -107,6 +107,34 @@ export default function ChatBubble({
             />
           </div>
         )}
+        {pos === 'tool' && !isThinking && (
+          <div>
+            <code>
+            <Markdown
+              children={t}
+              components={{
+                code(props) {
+                  const { children, className, node, ...rest } = props;
+                  const match = /language-(\w+)/.exec(className || '');
+                  return match ? (
+                    <SyntaxHighlighter
+                      {...rest}
+                      PreTag="div"
+                      children={String(children).replace(/\n$/, '')}
+                      language={match[1]}
+                      style={oneDark}
+                    />
+                  ) : (
+                    <code {...rest} className={className}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}
+            />
+            </code>
+          </div>
+        )}
         <div
           style={{
             display: 'flex',
