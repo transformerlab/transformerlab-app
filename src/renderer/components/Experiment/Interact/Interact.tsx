@@ -52,6 +52,14 @@ For each function call return a json object with function name and arguments wit
 </tool_call>`
 }
 
+// Try to interpret a model's request to call a tool and call the backend
+// If successful respond with the API's answer
+// If there is an issue, respond with a message that the model will understand
+function callTool(requestString: str) {
+  // TEMP: Return a random number for now
+  return String(requestString.length % 30);
+}
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Chat({
@@ -403,6 +411,17 @@ export default function Chat({
       image
     );
 
+    // Before we return to the user, check to see if the LLM is trying to call a function
+    const llm_response = result?.text;
+    if (llm_response) {
+      if (llm_response.includes("<tool_call>")) {
+        const func_name = "temp_placeholder"
+        const func_response = callTool(llm_response);
+        console.log(`Calling Function ${func_name}:`);
+        console.log(func_response);
+      }
+
+    }
 
     clearTimeout(timeoutId);
     setIsThinking(false);
