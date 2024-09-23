@@ -220,12 +220,13 @@ export async function sendAndReceiveStreaming(
         const { choices } = parsedLine;
         const { delta } = choices[0];
         const { content } = delta;
+
         id = parsedLine.id;
         // Update the UI with the new content
         if (content) {
           finalResult += content;
           if (resultText) {
-            resultText.innerText = finalResult;
+            document.getElementById('resultText').innerText = finalResult;
             setTimeout(
               () => document.getElementById('endofchat')?.scrollIntoView(),
               100
