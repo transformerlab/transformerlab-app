@@ -67,7 +67,7 @@ export default function ChatPage({
     chatAPI.Endpoints.Tools.List(),
     fetcher
   );
-  const tool_list = available_tools
+  const tool_list = Array.isArray(available_tools)
     && available_tools.map(function(elem){
       return elem.name;
     }).join("\n");
