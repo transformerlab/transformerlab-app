@@ -382,7 +382,9 @@ export async function sendCompletion(
         if (text) {
           finalResult += text;
           if (resultText) {
-            resultText.value = originalText + finalResult;
+            document.getElementById('completion-textarea').value =
+              originalText + finalResult;
+            // document.getElementById('completion-textarea').value = finalResult;
             setTimeout(
               () => document.getElementById('endofchat')?.scrollIntoView(),
               100
@@ -403,7 +405,7 @@ export async function sendCompletion(
   var timeToFirstToken = firstTokenTime - start;
 
   if (result) {
-    if (resultText) resultText.innerText = '';
+    // if (resultText) resultText.innerText = '';
     return {
       id: id,
       text: result,
@@ -727,16 +729,10 @@ Endpoints.Prompts = {
 };
 
 Endpoints.Tools = {
-  Call: (
-    function_name: string,
-    function_arguments: string
-  ) =>
-    API_URL() +
-    `tools/call/${function_name}?params=${function_arguments}`,
-  Prompt: () =>
-    API_URL() + `tools/prompt`,
-  List: () =>
-    API_URL() + `tools/list`,
+  Call: (function_name: string, function_arguments: string) =>
+    API_URL() + `tools/call/${function_name}?params=${function_arguments}`,
+  Prompt: () => API_URL() + `tools/prompt`,
+  List: () => API_URL() + `tools/list`,
 };
 
 Endpoints.ServerInfo = {

@@ -311,7 +311,7 @@ export default function TemplatedCompletion({ experimentInfo }) {
                 document.getElementsByName('output-text')[0].value = '';
                 await sendTemplatedCompletionToLLM(
                   document.getElementsByName('completion-text')?.[0],
-                  document.getElementsByName('output-text')?.[0]
+                  document.getElementById('completion-textarea')
                 );
 
                 const endTime = performance.now();
@@ -351,8 +351,15 @@ export default function TemplatedCompletion({ experimentInfo }) {
                     }
                   }
                 >
-                  <Textarea name="output-text" variant="plain"></Textarea>
+                  <Textarea
+                    name="output-text"
+                    variant="plain"
+                    minRows={12}
+                    sx={{ height: '100%' }}
+                    slotProps={{ textarea: { id: 'completion-textarea' } }}
+                  ></Textarea>
                   {isThinking && <LinearProgress sx={{ width: '300px' }} />}
+                  <div id="endofchat"></div>
                 </Box>
               </TabPanel>
               <TabPanel value={1} keepMounted>
