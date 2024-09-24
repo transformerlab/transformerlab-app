@@ -112,7 +112,7 @@ export default function CompletionsPage({
           variant="plain"
           name="completion-text"
           minRows={20}
-          slotProps={{ textarea: { ref: inputRef } }}
+          slotProps={{ textarea: { ref: inputRef, id: 'completion-textarea' } }}
           sx={{
             flex: 1,
             height: '100%',
