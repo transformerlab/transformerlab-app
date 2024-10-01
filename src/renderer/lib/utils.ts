@@ -1,5 +1,7 @@
 /* eslint-disable import/prefer-default-export */
 
+import { useEffect, useRef } from 'react';
+
 /**
  * Give this function a number of bytes and it will return a human readable string
  * @param bytes number of Bytes
@@ -183,4 +185,20 @@ export function generateFriendlyName() {
     capFirst(adjectives[Math.floor(Math.random() * adjectives.length)]) +
     capFirst(animals[Math.floor(Math.random() * animals.length)]);
   return name;
+}
+
+export function useTraceUpdate(props) {
+  const prev = useRef(props);
+  useEffect(() => {
+    const changedProps = Object.entries(props).reduce((ps, [k, v]) => {
+      if (prev.current[k] !== v) {
+        ps[k] = [prev.current[k], v];
+      }
+      return ps;
+    }, {});
+    if (Object.keys(changedProps).length > 0) {
+      console.log('Changed props:', changedProps);
+    }
+    prev.current = props;
+  });
 }
