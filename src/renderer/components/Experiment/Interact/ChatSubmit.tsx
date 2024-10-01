@@ -93,6 +93,7 @@ export default function ChatSubmit({
                 '--CircularProgress-size': '16px',
                 '--CircularProgress-trackThickness': '4px',
                 '--CircularProgress-progressThickness': '3px',
+                marginRight: '4px',
               }}
             />
           ) : (
