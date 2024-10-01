@@ -18,6 +18,10 @@ a {
   filter: opacity(0.9);
 }
 
+.chatBubbleContent pre {
+  text-wrap: wrap;
+}
+
 .chatB .hoverIcon {
   opacity: 0.5;
   transition: opacity 0.1s ease-in-out;
@@ -143,4 +147,9 @@ not allowed */
 fieldset {
   border: none;
   padding: 0;
+}
+
+.chatBubbleContent code {
+  display: block;
+  max-width: 300px;
 }
