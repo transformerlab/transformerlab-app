@@ -11,6 +11,7 @@ import {
   Alert,
   Select,
   Option,
+  FormLabel,
 } from '@mui/joy';
 
 import ChatPage from './ChatPage';
@@ -823,6 +824,7 @@ export default function Chat({
         }}
       >
         <FormControl>
+          {/* <FormLabel>Interaction Mode:&nbsp; </FormLabel> */}
           <Select
             name="mode"
             value={mode}
@@ -830,7 +832,8 @@ export default function Chat({
               event: React.SyntheticEvent | null,
               newValue: string | null
             ) => setMode(newValue)}
-            variant="plain"
+            variant="soft"
+            size="md"
             renderValue={(option: SelectOption<string> | null) => (
               <Typography level="title-lg">{option?.label}</Typography>
             )}
@@ -883,7 +886,7 @@ export default function Chat({
               justifyContent: 'space-between',
               overflow: 'hidden',
               height: '100%',
-              border: '1px solid #ccc',
+              xborder: '1px solid #ccc',
             }}
           >
             <Sheet
