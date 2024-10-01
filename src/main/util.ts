@@ -336,7 +336,8 @@ export async function checkIfCondaEnvironmentExists() {
   console.log('Checking if Conda environment "transformerlab" exists');
 
   const { error, stdout, stderr } = await executeInstallStep(
-    'list_environments'
+    'list_environments',
+    false
   );
 
   let response = {
