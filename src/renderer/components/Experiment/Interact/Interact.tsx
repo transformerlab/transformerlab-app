@@ -83,6 +83,7 @@ export default function Chat({
   experimentInfoMutate,
   setRagEngine,
   mode,
+  setMode,
 }) {
   const { models, isError, isLoading } = chatAPI.useModelStatus();
   const [conversationId, setConversationId] = React.useState(null);
