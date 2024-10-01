@@ -11,7 +11,6 @@ import {
   Alert,
   Select,
   Option,
-  FormLabel,
 } from '@mui/joy';
 
 import ChatPage from './ChatPage';
@@ -31,51 +30,13 @@ import Tokenize from '../Tokenize';
 import Embeddings from '../Embeddings';
 import { ChevronDownIcon } from 'lucide-react';
 
-function scrollChatToBottom() {
-  setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 1);
-}
+import {
+  scrollChatToBottom,
+  focusChatInput,
+  getAgentSystemMessage,
+} from './interactUtils';
 
-function focusChatInput() {
-  setTimeout(() => {
-    if (document.getElementById('chat-input')) {
-      document.getElementById('chat-input').focus();
-    }
-  }, 100);
-}
-
-// Get the System Message from the backend.
-// Returns a default prompt if there was an error.
-async function getAgentSystemMessage() {
-  const prompt = await fetch(chatAPI.Endpoints.Tools.Prompt())
-    .then((res) => res.json())
-    .catch(
-      // TODO: Retry? Post error message?
-      // For now just returning arbitrary system message.
-      (error) => 'You are a helpful chatbot assistant.'
-    );
-  return prompt;
-}
-
-/**
- * callTool - calls the Tools API and returns the result
- * TODO: Move to the SDK?
- *
- * @param function_name String with name of tool to call
- * @param arguments Object with named arguments to be passed to tool
- * @returns A JSON object with fields status, error and data.
- */
-async function callTool(function_name: String, function_args: Object = {}) {
-  const arg_string = JSON.stringify(function_args);
-  console.log(`Calling Function: ${function_name}`);
-  console.log(`with arguments ${arg_string}`);
-
-  const response = await fetch(
-    chatAPI.Endpoints.Tools.Call(function_name, arg_string)
-  );
-  const result = await response.json();
-  console.log(result);
-  return result;
-}
+import { callTool } from './toolUtils';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -86,7 +47,7 @@ export default function Chat({
   mode,
   setMode,
 }) {
-  const { models, isError, isLoading } = chatAPI.useModelStatus();
+  const { models } = chatAPI.useModelStatus();
   const [conversationId, setConversationId] = React.useState(null);
   const [chats, setChats] = React.useState([]);
   const [isThinking, setIsThinking] = React.useState(false);
