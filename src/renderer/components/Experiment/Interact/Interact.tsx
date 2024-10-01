@@ -31,24 +31,27 @@ import Embeddings from '../Embeddings';
 import { ChevronDownIcon } from 'lucide-react';
 
 function scrollChatToBottom() {
-  // We animate it twice, the second time to accomodate the scale up transition
-  // I find this looks better than one later scroll
-  setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 100);
-  setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 400);
+  setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 1);
+}
+
+function focusChatInput() {
+  setTimeout(() => {
+    if (document.getElementById('chat-input')) {
+      document.getElementById('chat-input').focus();
+    }
+  }, 100);
 }
 
 // Get the System Message from the backend.
 // Returns a default prompt if there was an error.
 async function getAgentSystemMessage() {
-  const prompt = await fetch(
-    chatAPI.Endpoints.Tools.Prompt()
-  ).then(
-    (res) => res.json()
-  ).catch(
-    // TODO: Retry? Post error message?
-    // For now just returning arbitrary system message.
-    (error) => "You are a helpful chatbot assistant."
-  );
+  const prompt = await fetch(chatAPI.Endpoints.Tools.Prompt())
+    .then((res) => res.json())
+    .catch(
+      // TODO: Retry? Post error message?
+      // For now just returning arbitrary system message.
+      (error) => 'You are a helpful chatbot assistant.'
+    );
   return prompt;
 }
 
@@ -66,16 +69,12 @@ async function callTool(function_name: String, function_args: Object = {}) {
   console.log(`with arguments ${arg_string}`);
 
   const response = await fetch(
-    chatAPI.Endpoints.Tools.Call(
-      function_name,
-      arg_string
-    )
+    chatAPI.Endpoints.Tools.Call(function_name, arg_string)
   );
   const result = await response.json();
   console.log(result);
   return result;
 }
-
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -84,7 +83,6 @@ export default function Chat({
   experimentInfoMutate,
   setRagEngine,
   mode,
-  setMode,
 }) {
   const { models, isError, isLoading } = chatAPI.useModelStatus();
   const [conversationId, setConversationId] = React.useState(null);
@@ -108,6 +106,10 @@ export default function Chat({
   );
 
   const parsedPromptData = experimentInfo?.config?.prompt_template;
+
+  console.log('rendering chat');
+  focusChatInput();
+  scrollChatToBottom();
 
   var textToDebounce = '';
 
@@ -145,7 +147,8 @@ export default function Chat({
         countTokens();
       }
     }
-  }, [debouncedText]);
+    scrollChatToBottom();
+  }, []);
 
   // If the model changes, check the location of the inference service
   // And reset the global pointer to the inference server
@@ -195,6 +198,7 @@ export default function Chat({
       //setChats(startingChats);
 
       scrollChatToBottom();
+      focusChatInput();
     };
 
     if (!currentModel) return;
@@ -252,8 +256,7 @@ export default function Chat({
     const newChats = [...chats, newChat];
 
     // Add Message to Chat Array:
-    setChats(newChats);
-    scrollChatToBottom();
+    setChats((prevChat) => [...prevChat, newChat]);
 
     return newChats;
   }
@@ -266,7 +269,7 @@ export default function Chat({
       t: text,
       user: 'human',
       key: r,
-      image: image
+      image: image,
     });
   }
 
@@ -275,8 +278,8 @@ export default function Chat({
     return {
       t: result,
       user: 'tool',
-      key: r
-    }
+      key: r,
+    };
   }
 
   async function addAssistantChat(result: object) {
@@ -296,7 +299,7 @@ export default function Chat({
       numberOfTokens: numberOfTokens,
       timeToFirstToken: timeToFirstToken,
       tokensPerSecond: tokensPerSecond,
-    }
+    };
   }
 
   // This returns the Chats list in the format that the LLM is expecting
@@ -310,13 +313,11 @@ export default function Chat({
   }
 
   const sendNewMessageToLLM = async (text: String, image?: string) => {
-
     // Add new user message to chat history
     var newChats = addUserChat(text, image);
 
     const timeoutId = setTimeout(() => {
       setIsThinking(true);
-      scrollChatToBottom();
     }, 100);
 
     const systemMessage =
@@ -378,16 +379,29 @@ export default function Chat({
     const timeToFirstToken = result?.timeToFirstToken;
     const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
 
-    newChats = [...newChats, {
-      t: result?.text,
-      user: 'bot',
-      key: result?.id,
-      numberOfTokens: numberOfTokens,
-      timeToFirstToken: timeToFirstToken,
-      tokensPerSecond: tokensPerSecond,
-    }];
+    newChats = [
+      ...newChats,
+      {
+        t: result?.text,
+        user: 'bot',
+        key: result?.id,
+        numberOfTokens: numberOfTokens,
+        timeToFirstToken: timeToFirstToken,
+        tokensPerSecond: tokensPerSecond,
+      },
+    ];
 
-    setChats(newChats);
+    setChats((prevChat) => [
+      ...prevChat,
+      {
+        t: result?.text,
+        user: 'bot',
+        key: result?.id,
+        numberOfTokens: numberOfTokens,
+        timeToFirstToken: timeToFirstToken,
+        tokensPerSecond: tokensPerSecond,
+      },
+    ]);
 
     // If this is a new conversation, generate a new conversation Id
     var cid = conversationId;
@@ -413,7 +427,7 @@ export default function Chat({
     });
 
     scrollChatToBottom();
-
+    focusChatInput();
     return result?.text;
   };
 
@@ -433,20 +447,21 @@ export default function Chat({
 
     let start = 0;
     let end = -1;
-    const START_TAG = "<tool_call>";
-    const END_TAG = "</tool_call>";
+    const START_TAG = '<tool_call>';
+    const END_TAG = '</tool_call>';
 
     while (start >= 0) {
       // first search for start tag
       start = llm_response.indexOf(START_TAG, start);
-      if (start == -1) break;  // no start tags found
+      if (start == -1) break; // no start tags found
 
       // Move the start marker after the tag and search for close tag
       start += START_TAG.length;
       end = llm_response.indexOf(END_TAG, start);
-      const tool_string = end == -1
-                    ? llm_response.substring(start)
-                    : llm_response.substring(start, end);
+      const tool_string =
+        end == -1
+          ? llm_response.substring(start)
+          : llm_response.substring(start, end);
 
       // Decode the JSON string and add it to result if valid
       try {
@@ -456,22 +471,18 @@ export default function Chat({
         console.error(e);
       }
 
-      if (end == -1) break;  // no more text to search
-      start = end+END_TAG.length; // continue search after end tag
-
+      if (end == -1) break; // no more text to search
+      start = end + END_TAG.length; // continue search after end tag
     }
     return tool_calls;
   }
 
   const sendNewMessageToAgent = async (text: String, image?: string) => {
-
     // Add new user message to chat history
     var newChats = addUserChat(text, image);
 
     const timeoutId = setTimeout(() => {
       setIsThinking(true);
-
-      scrollChatToBottom();
     }, 100);
 
     const systemMessage = await getAgentSystemMessage();
@@ -524,36 +535,40 @@ export default function Chat({
     // and either a close tag or the end of the string
     const llm_response = result?.text;
 
-    if (llm_response && llm_response.includes("<tool_call>")) {
+    if (llm_response && llm_response.includes('<tool_call>')) {
       const tool_calls = getToolCallsFromLLMResponse(llm_response);
 
       // if there are any tool calls in the LLM response then
       // we have to call the Tools API and send back responses to the LLM
       if (Array.isArray(tool_calls) && tool_calls.length) {
-
         // first push the assistant's original response on to the chat lists
         texts.push({ role: 'assistant', content: llm_response });
-        newChats = [...newChats, await addAssistantChat(result)];
-        setChats(newChats);
+        setChats((prevChat) => [...prevChat, addAssistantChat(result)]);
 
         // iterate through tool_calls (there can be more than one)
         // and actually call the tools and save responses
         let tool_responses = [];
-        for(const tool_call of tool_calls) {
+        for (const tool_call of tool_calls) {
           const func_name = tool_call.name;
           const func_args = tool_call.arguments;
           const func_response = await callTool(func_name, func_args);
 
           // If this was successful then respond with the results
-          if (func_response.status && func_response.status != "error" && func_response.data) {
+          if (
+            func_response.status &&
+            func_response.status != 'error' &&
+            func_response.data
+          ) {
             tool_responses.push(func_response.data);
 
-          // Otherwise, report an error to the LLM!
+            // Otherwise, report an error to the LLM!
           } else {
             if (func_response.message) {
               tool_responses.push(func_response.message);
             } else {
-              tool_responses.push("There was an unknown error calling the tool.");
+              tool_responses.push(
+                'There was an unknown error calling the tool.'
+              );
             }
           }
         }
@@ -561,13 +576,12 @@ export default function Chat({
         // Add all function output as response to conversation
         // How to format response if there are multiple calls?
         // For now just put a newline between them.
-        let tool_response = tool_responses.join("\n");
+        let tool_response = tool_responses.join('\n');
 
         // TODO: role should be 'tool' not 'user'
         // ...but tool is not supported by backend right now?
         texts.push({ role: 'user', content: tool_response });
-        newChats = [...newChats, addToolResult(tool_response)];
-        setChats(newChats);
+        setChats((prevChat) => [...prevChat, addAssistantChat(result)]);
 
         // Call the model AGAIN with the tool response
         // Update result with the new response
@@ -599,14 +613,17 @@ export default function Chat({
     const timeToFirstToken = result?.timeToFirstToken;
     const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
 
-    newChats = [...newChats, {
-      t: result?.text,
-      user: 'bot',
-      key: result?.id,
-      numberOfTokens: numberOfTokens,
-      timeToFirstToken: timeToFirstToken,
-      tokensPerSecond: tokensPerSecond,
-    }];
+    newChats = [
+      ...newChats,
+      {
+        t: result?.text,
+        user: 'bot',
+        key: result?.id,
+        numberOfTokens: numberOfTokens,
+        timeToFirstToken: timeToFirstToken,
+        tokensPerSecond: tokensPerSecond,
+      },
+    ];
 
     setChats(newChats);
 
@@ -635,6 +652,7 @@ export default function Chat({
 
     scrollChatToBottom();
 
+    focusChatInput();
     return result?.text;
   };
 
@@ -886,7 +904,12 @@ export default function Chat({
                   overflow: 'hidden',
                   padding: 3,
                   display: 'flex',
-                  visibility: ['chat', 'completion', 'tools', 'template'].includes(mode)
+                  visibility: [
+                    'chat',
+                    'completion',
+                    'tools',
+                    'template',
+                  ].includes(mode)
                     ? 'visible'
                     : 'hidden',
                 }}
