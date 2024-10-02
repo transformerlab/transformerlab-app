@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import { useDebounce } from 'use-debounce';
 import useSWR from 'swr';
 import SystemMessageBox from './SystemMessageBox';
+import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -34,6 +35,13 @@ export default function ChatPage({
   defaultPromptConfigForModel = {},
   enableTools = false,
   currentModelArchitecture,
+  generationParameters,
+  setGenerationParameters,
+  conversations,
+  conversationsIsLoading,
+  conversationsMutate,
+  setConversationId,
+  conversationId,
 }) {
   const [image, setImage] = useState(null); //This is mostly used for the modal. The actual image is stored in the chats array
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -61,16 +69,17 @@ export default function ChatPage({
   };
 
   // Get a list of tools to display
-  const {
-    data: available_tools
-  } = useSWR(
+  const { data: available_tools } = useSWR(
     chatAPI.Endpoints.Tools.List(),
     fetcher
   );
-  const tool_list = Array.isArray(available_tools)
-    && available_tools.map(function(elem){
-      return elem.name;
-    }).join("\n");
+  const tool_list =
+    Array.isArray(available_tools) &&
+    available_tools
+      .map(function (elem) {
+        return elem.name;
+      })
+      .join('\n');
 
   const [debouncedSystemMessage] = useDebounce(systemMessage, 1000);
 
@@ -100,127 +109,153 @@ export default function ChatPage({
 
   return (
     <Sheet
-      id="chat-window"
       sx={{
-        borderRadius: 'md',
         display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-        flex: 'auto',
-        justifyContent: 'space-evenly',
+        flexDirection: 'row',
+        width: '100%',
+        height: '100%',
         overflow: 'hidden',
+        gap: 2,
       }}
+      id="chat-surrounding"
     >
-      {enableTools &&
-      <>
-        <FormLabel>Available Tools</FormLabel>
-        <Textarea value={tool_list} />
-      </>
-      }
-      {!enableTools &&
-      <SystemMessageBox
+      <ChatSettingsOnLeftHandSide
+        generationParameters={generationParameters}
+        setGenerationParameters={setGenerationParameters}
+        tokenCount={tokenCount}
+        defaultPromptConfigForModel={defaultPromptConfigForModel}
+        conversations={conversations}
+        conversationsIsLoading={conversationsIsLoading}
+        conversationsMutate={conversationsMutate}
+        setChats={setChats}
+        setConversationId={setConversationId}
+        conversationId={conversationId}
         experimentInfo={experimentInfo}
         experimentInfoMutate={experimentInfoMutate}
-        defaultPromptConfigForModel={defaultPromptConfigForModel}
       />
-      }
       <Sheet
-        variant="plain"
+        id="chat-window"
         sx={{
-          width: '100%',
-          // borderRadius: "md",
-          flex: '99',
-          overflow: 'auto',
-          padding: 1,
+          borderRadius: 'md',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1,
+          flex: 'auto',
+          justifyContent: 'space-evenly',
+          overflow: 'hidden',
         }}
       >
-        {/* {JSON.stringify(chats)} */}
-        <Stack spacing={0} sx={{ display: 'flex', flexDirection: 'column' }}>
-          {chats.map((chat, i) => (
-            <>
-              <ChatBubble
-                t={chat.t}
-                chat={chat}
-                chatId={chat.key}
-                pos={chat.user}
-                key={chat.key}
-                deleteChat={deleteChat}
-                regenerateLastMessage={regenerateLastMessage}
-                isLastMessage={i === chats.length - 1}
-              />
-              {chat.image && (
-                <Box
-                  component="img"
-                  src={chat.image}
-                  onClick={() => {
-                    setImageModalOpen(true);
-                    setImage(chat.image);
-                  }}
-                  sx={{
-                    position: 'relative',
-                    display: 'inline-block',
-                    maxWidth: '200px',
-                    maxHeight: '200px',
-                    width: 'auto',
-                    height: 'auto',
-                    flexShrink: 1,
-                    overflow: 'hidden',
-                    marginRight: '10px',
-                  }}
-                  alt="uploaded"
-                />
-              )}
-            </>
-          ))}
-        </Stack>
-        {/* This is a placeholder for the bot's response. sendMessageToLLM writes directly to this chat bubble */}
-        <ChatBubble
-          isThinking
-          chatId="thinking"
-          hide={!isThinking}
-          t="Thinking..."
-          pos="bot"
-          key={'thinking'}
-          chat={undefined}
-        />
-
-        <div id="endofchat" />
-      </Sheet>
-      <ChatSubmit
-        addMessage={sendNewMessageToLLM}
-        stopStreaming={stopStreaming}
-        spinner={isThinking}
-        clearHistory={clearHistory}
-        tokenCount={tokenCount}
-        text={text}
-        debouncedText={debouncedText}
-        currentModelArchitecture={currentModelArchitecture}
-      />
-      <Modal open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
-        <ModalDialog
+        {enableTools && (
+          <>
+            <FormLabel>Available Tools</FormLabel>
+            <Textarea value={tool_list} />
+          </>
+        )}
+        {!enableTools && (
+          <SystemMessageBox
+            experimentInfo={experimentInfo}
+            experimentInfoMutate={experimentInfoMutate}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+          />
+        )}
+        <Sheet
+          variant="plain"
           sx={{
-            maxWidth: '90vw',
-            maxHeight: '90vh',
-            width: 'auto',
-            height: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            width: '100%',
+            // borderRadius: "md",
+            flex: '99',
+            overflow: 'auto',
+            padding: 1,
           }}
         >
-          <Box
-            component="img"
-            src={image}
+          {/* {JSON.stringify(chats)} */}
+          <Stack spacing={0} sx={{ display: 'flex', flexDirection: 'column' }}>
+            {chats.map((chat, i) => (
+              <>
+                <ChatBubble
+                  t={chat.t}
+                  chat={chat}
+                  chatId={chat.key}
+                  pos={chat.user}
+                  key={chat.key}
+                  deleteChat={deleteChat}
+                  regenerateLastMessage={regenerateLastMessage}
+                  isLastMessage={i === chats.length - 1}
+                />
+                {chat.image && (
+                  <Box
+                    component="img"
+                    src={chat.image}
+                    onClick={() => {
+                      setImageModalOpen(true);
+                      setImage(chat.image);
+                    }}
+                    sx={{
+                      position: 'relative',
+                      display: 'inline-block',
+                      maxWidth: '200px',
+                      maxHeight: '200px',
+                      width: 'auto',
+                      height: 'auto',
+                      flexShrink: 1,
+                      overflow: 'hidden',
+                      marginRight: '10px',
+                    }}
+                    alt="uploaded"
+                  />
+                )}
+              </>
+            ))}
+          </Stack>
+          {/* This is a placeholder for the bot's response. sendMessageToLLM writes directly to this chat bubble */}
+          <ChatBubble
+            isThinking
+            chatId="thinking"
+            hide={!isThinking}
+            t="Thinking..."
+            pos="bot"
+            key={'thinking'}
+            chat={undefined}
+          />
+
+          <div id="endofchat" />
+        </Sheet>
+        <ChatSubmit
+          addMessage={sendNewMessageToLLM}
+          stopStreaming={stopStreaming}
+          spinner={isThinking}
+          clearHistory={clearHistory}
+          tokenCount={tokenCount}
+          text={text}
+          debouncedText={debouncedText}
+          currentModelArchitecture={currentModelArchitecture}
+        />
+        <Modal open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
+          <ModalDialog
             sx={{
-              maxWidth: '100%',
-              maxHeight: '100%',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
               width: 'auto',
               height: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-            alt="uploaded large"
-          />
-        </ModalDialog>
-      </Modal>
+          >
+            <Box
+              component="img"
+              src={image}
+              sx={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                width: 'auto',
+                height: 'auto',
+              }}
+              alt="uploaded large"
+            />
+          </ModalDialog>
+        </Modal>
+      </Sheet>
     </Sheet>
   );
 }

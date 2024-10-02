@@ -56,8 +56,6 @@ export default function Chat({
     frequencyPenalty: 0.0,
     needsReset: true,
   });
-  const [showPromptSettingsModal, setShowPromptSettingsModal] =
-    React.useState(false);
 
   const [text, setText] = React.useState('');
 
@@ -701,8 +699,7 @@ export default function Chat({
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        // border: '2px solid blue',
-        overflow: 'none',
+        overflow: 'hidden',
         height: '100%',
       }}
     >
@@ -714,7 +711,6 @@ export default function Chat({
           gap: 2,
           justifyContent: 'space-between',
           alignItems: 'center',
-          // border: '2px solid red',
         }}
       >
         <FormControl>
@@ -757,168 +753,92 @@ export default function Chat({
           {adaptor}
         </Typography>
       </Box>
+
       <Sheet
-        id="interact-page"
         sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: 2,
-          overflow: 'hidden',
-          paddingTop: 2,
+          width: '100%',
           height: '100%',
-          // border: '4px solid green',
+          overflow: 'hidden',
+          display: 'flex',
+          paddingTop: 2,
         }}
       >
-        {!['rag', 'tokenize', 'embeddings'].includes(mode) && (
-          <Box
-            id="right-hand-panel-of-chat-page"
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-              flex: '0 0 300px',
-              justifyContent: 'space-between',
-              overflow: 'hidden',
-              height: '100%',
-              xborder: '1px solid #ccc',
-            }}
-          >
-            <Sheet
-              id="chat-settings-on-right"
-              variant="plain"
-              sx={{
-                // borderRadius: "md",
-                display: 'flex',
-                flexDirection: 'column',
-                flex: '1 1 50%',
-                justifyContent: 'flex-start',
-                overflow: 'hidden',
-                height: '100%',
-                // border: '4px solid green',
-              }}
-            >
-              <Box
-                sx={{
-                  overflow: 'hidden',
-                  padding: 3,
-                  display: 'flex',
-                  visibility: [
-                    'chat',
-                    'completion',
-                    'tools',
-                    'template',
-                  ].includes(mode)
-                    ? 'visible'
-                    : 'hidden',
-                }}
-              >
-                <FormControl>
-                  <MainGenerationConfigKnobs
-                    generationParameters={generationParameters}
-                    setGenerationParameters={setGenerationParameters}
-                    tokenCount={tokenCount}
-                    defaultPromptConfigForModel={defaultPromptConfigForModel}
-                    showAllKnobs={false}
-                  />
-                  <Button
-                    variant="soft"
-                    onClick={() => {
-                      setShowPromptSettingsModal(true);
-                    }}
-                  >
-                    All Generation Settings
-                  </Button>
-                </FormControl>
-              </Box>
-            </Sheet>
-            <PreviousMessageList
-              conversations={conversations}
-              conversationsIsLoading={conversationsIsLoading}
-              conversationsMutate={conversationsMutate}
-              setChats={setChats}
-              setConversationId={setConversationId}
-              conversationId={conversationId}
-              experimentInfo={experimentInfo}
-              visibility={
-                ['chat', 'completion', 'tools', 'template'].includes(mode)
-                  ? 'visible'
-                  : 'hidden'
-              }
-            />
-          </Box>
+        {mode === 'chat' && (
+          <ChatPage
+            key={conversationId}
+            chats={chats}
+            setChats={setChats}
+            experimentInfo={experimentInfo}
+            isThinking={isThinking}
+            sendNewMessageToLLM={sendNewMessageToLLM}
+            stopStreaming={stopStreaming}
+            experimentInfoMutate={experimentInfoMutate}
+            tokenCount={tokenCount}
+            text={textToDebounce}
+            debouncedText={debouncedText}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            currentModelArchitecture={currentModelArchitecture}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+          />
         )}
-        {/* <Box sx={{ borderRight: '0.5px solid #ccc', display: 'flex' }}></Box> */}
-        {/* The following Sheet covers up the page if no model is running */}
-        <PromptSettingsModal
-          open={showPromptSettingsModal}
-          setOpen={setShowPromptSettingsModal}
-          defaultPromptConfigForModel={defaultPromptConfigForModel}
-          generationParameters={generationParameters}
-          setGenerationParameters={setGenerationParameters}
-          tokenCount={tokenCount}
-          experimentInfo={experimentInfo}
-          experimentInfoMutate={experimentInfoMutate}
-        />
-        <Sheet sx={{ width: '100%', height: '100%', display: 'flex' }}>
-          {mode === 'chat' && (
-            <ChatPage
-              key={conversationId}
-              chats={chats}
-              setChats={setChats}
-              experimentInfo={experimentInfo}
-              isThinking={isThinking}
-              sendNewMessageToLLM={sendNewMessageToLLM}
-              stopStreaming={stopStreaming}
-              experimentInfoMutate={experimentInfoMutate}
-              tokenCount={tokenCount}
-              text={textToDebounce}
-              debouncedText={debouncedText}
-              defaultPromptConfigForModel={defaultPromptConfigForModel}
-              currentModelArchitecture={currentModelArchitecture}
-            />
-          )}
-          {mode === 'completion' && (
-            <CompletionsPage
-              text={text}
-              setText={setText}
-              debouncedText={debouncedText}
-              tokenCount={tokenCount}
-              isThinking={isThinking}
-              sendCompletionToLLM={sendCompletionToLLM}
-              stopStreaming={stopStreaming}
-            />
-          )}
-          {mode === 'tools' && (
-            <ChatPage
-              key={conversationId}
-              chats={chats}
-              setChats={setChats}
-              experimentInfo={experimentInfo}
-              isThinking={isThinking}
-              sendNewMessageToLLM={sendNewMessageToAgent}
-              stopStreaming={stopStreaming}
-              experimentInfoMutate={experimentInfoMutate}
-              tokenCount={tokenCount}
-              text={textToDebounce}
-              debouncedText={debouncedText}
-              defaultPromptConfigForModel={defaultPromptConfigForModel}
-              enableTools
-              currentModelArchitecture={currentModelArchitecture}
-            />
-          )}
-          {mode === 'template' && (
-            <TemplatedCompletion experimentInfo={experimentInfo} />
-          )}
-          {mode === 'embeddings' && (
-            <Embeddings experimentInfo={experimentInfo}></Embeddings>
-          )}
-          {mode === 'tokenize' && (
-            <Tokenize experimentInfo={experimentInfo}></Tokenize>
-          )}
-          {mode === 'rag' && (
-            <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
-          )}
-        </Sheet>
+        {mode === 'completion' && (
+          <CompletionsPage
+            text={text}
+            setText={setText}
+            debouncedText={debouncedText}
+            tokenCount={tokenCount}
+            isThinking={isThinking}
+            sendCompletionToLLM={sendCompletionToLLM}
+            stopStreaming={stopStreaming}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setChats={setChats}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+            experimentInfo={experimentInfo}
+            experimentInfoMutate={experimentInfoMutate}
+          />
+        )}
+        {mode === 'tools' && (
+          <ChatPage
+            key={conversationId}
+            chats={chats}
+            setChats={setChats}
+            experimentInfo={experimentInfo}
+            isThinking={isThinking}
+            sendNewMessageToLLM={sendNewMessageToAgent}
+            stopStreaming={stopStreaming}
+            experimentInfoMutate={experimentInfoMutate}
+            tokenCount={tokenCount}
+            text={textToDebounce}
+            debouncedText={debouncedText}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            enableTools
+            currentModelArchitecture={currentModelArchitecture}
+          />
+        )}
+        {mode === 'template' && (
+          <TemplatedCompletion experimentInfo={experimentInfo} />
+        )}
+        {mode === 'embeddings' && (
+          <Embeddings experimentInfo={experimentInfo}></Embeddings>
+        )}
+        {mode === 'tokenize' && (
+          <Tokenize experimentInfo={experimentInfo}></Tokenize>
+        )}
+        {mode === 'rag' && (
+          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
+        )}
       </Sheet>
       <Sheet
         sx={{
