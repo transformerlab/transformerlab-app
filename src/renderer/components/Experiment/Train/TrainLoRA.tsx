@@ -252,7 +252,12 @@ export default function TrainLoRA({ experimentInfo }) {
                     return (
                       <tr key={row[0]}>
                         <td>
-                          <Typography level="title-sm">{row[1]}</Typography>
+                          <Typography
+                            level="title-sm"
+                            sx={{ overflow: 'clip' }}
+                          >
+                            {row[1]}
+                          </Typography>
                         </td>
                         {/* <td>{row[2]}</td> */}
                         <td>
