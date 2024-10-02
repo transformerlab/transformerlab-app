@@ -416,6 +416,22 @@ export async function sendCompletion(
   return null;
 }
 
+export async function callTool(
+  function_name: String,
+  function_args: Object = {}
+) {
+  const arg_string = JSON.stringify(function_args);
+  console.log(`Calling Function: ${function_name}`);
+  console.log(`with arguments ${arg_string}`);
+
+  const response = await fetch(
+    Endpoints.Tools.Call(function_name, arg_string)
+  );
+  const result = await response.json();
+  console.log(result);
+  return result;
+}
+
 export async function getAvailableModels() {
   const response = await fetch(API_URL() + 'model/gallery');
   const result = await response.json();

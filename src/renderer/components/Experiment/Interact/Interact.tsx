@@ -36,8 +36,6 @@ import {
   getAgentSystemMessage,
 } from './interactUtils';
 
-import { callTool } from './toolUtils';
-
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Chat({
@@ -514,7 +512,7 @@ export default function Chat({
         for (const tool_call of tool_calls) {
           const func_name = tool_call.name;
           const func_args = tool_call.arguments;
-          const func_response = await callTool(func_name, func_args);
+          const func_response = await chatAPI.callTool(func_name, func_args);
 
           // If this was successful then respond with the results
           if (
