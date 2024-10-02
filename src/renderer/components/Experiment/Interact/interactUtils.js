@@ -1,3 +1,5 @@
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+
 export function scrollChatToBottom() {
   setTimeout(() => document.getElementById('endofchat')?.scrollIntoView(), 1);
 }
