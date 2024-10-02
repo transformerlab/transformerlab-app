@@ -691,71 +691,6 @@ export default function Chat({
     setTokenCount(count);
   }
 
-  function InteractContent() {
-    return (
-      <Sheet sx={{ width: '100%', height: '100%', display: 'flex' }}>
-        {mode === 'chat' && (
-          <ChatPage
-            key={conversationId}
-            chats={chats}
-            setChats={setChats}
-            experimentInfo={experimentInfo}
-            isThinking={isThinking}
-            sendNewMessageToLLM={sendNewMessageToLLM}
-            stopStreaming={stopStreaming}
-            experimentInfoMutate={experimentInfoMutate}
-            tokenCount={tokenCount}
-            text={textToDebounce}
-            debouncedText={debouncedText}
-            defaultPromptConfigForModel={defaultPromptConfigForModel}
-            currentModelArchitecture={currentModelArchitecture}
-          />
-        )}
-        {mode === 'completion' && (
-          <CompletionsPage
-            text={text}
-            setText={setText}
-            debouncedText={debouncedText}
-            tokenCount={tokenCount}
-            isThinking={isThinking}
-            sendCompletionToLLM={sendCompletionToLLM}
-            stopStreaming={stopStreaming}
-          />
-        )}
-        {mode === 'tools' && (
-          <ChatPage
-            key={conversationId}
-            chats={chats}
-            setChats={setChats}
-            experimentInfo={experimentInfo}
-            isThinking={isThinking}
-            sendNewMessageToLLM={sendNewMessageToAgent}
-            stopStreaming={stopStreaming}
-            experimentInfoMutate={experimentInfoMutate}
-            tokenCount={tokenCount}
-            text={textToDebounce}
-            debouncedText={debouncedText}
-            defaultPromptConfigForModel={defaultPromptConfigForModel}
-            enableTools
-            currentModelArchitecture={currentModelArchitecture}
-          />
-        )}
-        {mode === 'template' && (
-          <TemplatedCompletion experimentInfo={experimentInfo} />
-        )}
-        {mode === 'embeddings' && (
-          <Embeddings experimentInfo={experimentInfo}></Embeddings>
-        )}
-        {mode === 'tokenize' && (
-          <Tokenize experimentInfo={experimentInfo}></Tokenize>
-        )}
-        {mode === 'rag' && (
-          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
-        )}
-      </Sheet>
-    );
-  }
-
   if (!experimentInfo) return 'Select an Experiment';
 
   const shortModelName = currentModel.split('/')[1];
@@ -924,7 +859,66 @@ export default function Chat({
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
         />
-        <InteractContent />
+        <Sheet sx={{ width: '100%', height: '100%', display: 'flex' }}>
+          {mode === 'chat' && (
+            <ChatPage
+              key={conversationId}
+              chats={chats}
+              setChats={setChats}
+              experimentInfo={experimentInfo}
+              isThinking={isThinking}
+              sendNewMessageToLLM={sendNewMessageToLLM}
+              stopStreaming={stopStreaming}
+              experimentInfoMutate={experimentInfoMutate}
+              tokenCount={tokenCount}
+              text={textToDebounce}
+              debouncedText={debouncedText}
+              defaultPromptConfigForModel={defaultPromptConfigForModel}
+              currentModelArchitecture={currentModelArchitecture}
+            />
+          )}
+          {mode === 'completion' && (
+            <CompletionsPage
+              text={text}
+              setText={setText}
+              debouncedText={debouncedText}
+              tokenCount={tokenCount}
+              isThinking={isThinking}
+              sendCompletionToLLM={sendCompletionToLLM}
+              stopStreaming={stopStreaming}
+            />
+          )}
+          {mode === 'tools' && (
+            <ChatPage
+              key={conversationId}
+              chats={chats}
+              setChats={setChats}
+              experimentInfo={experimentInfo}
+              isThinking={isThinking}
+              sendNewMessageToLLM={sendNewMessageToAgent}
+              stopStreaming={stopStreaming}
+              experimentInfoMutate={experimentInfoMutate}
+              tokenCount={tokenCount}
+              text={textToDebounce}
+              debouncedText={debouncedText}
+              defaultPromptConfigForModel={defaultPromptConfigForModel}
+              enableTools
+              currentModelArchitecture={currentModelArchitecture}
+            />
+          )}
+          {mode === 'template' && (
+            <TemplatedCompletion experimentInfo={experimentInfo} />
+          )}
+          {mode === 'embeddings' && (
+            <Embeddings experimentInfo={experimentInfo}></Embeddings>
+          )}
+          {mode === 'tokenize' && (
+            <Tokenize experimentInfo={experimentInfo}></Tokenize>
+          )}
+          {mode === 'rag' && (
+            <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
+          )}
+        </Sheet>
       </Sheet>
       <Sheet
         sx={{
