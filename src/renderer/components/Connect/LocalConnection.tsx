@@ -54,754 +54,75 @@ const Steps = [
   'CHECK_FOR_IMPORTANT_PLUGINS',
 ];
 
-function CheckIfInstalled({ activeStep, setActiveStep }) {
-  const [installStatus, setInstallStatus] = useState('notstarted'); // notstarted, pending, success, error
-  const [installErrorMessage, setInstallErrorMessage] = useState(null);
-
-  useEffect(() => {
-    if (activeStep !== Steps.indexOf('CHECK_IF_INSTALLED')) return;
-    (async () => {
-      // First check if there are any system requirement issues
-      // If not, then check if installed locally
-      // Report on any errors along the way
-      window.electron.ipcRenderer
-        .invoke('server:checkSystemRequirements')
-        .then((setupMessage) => {
-          if (setupMessage) {
-            throw new Error(setupMessage);
-          }
-          return window.electron.ipcRenderer.invoke(
-            'server:checkIfInstalledLocally'
-          );
-        })
-        .then((serverIsInstalled) => {
-          if (serverIsInstalled) {
-            setInstallStatus('success');
-            setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
-          } else {
-            setInstallStatus('notstarted');
-          }
-          return;
-        })
-        .catch((error) => {
-          setInstallStatus('error');
-          setInstallErrorMessage(error.message);
-        });
-    })();
-  }, [activeStep]);
-
-  return (
-    <>
-      <Stack spacing={1}>
-        {/* <Typography level="body-sm">
-          Check if Transformer Lab API is installed on your computer
-        </Typography> */}
-        {installStatus === 'pending' && <CircularProgress color="primary" />}
-        {installStatus === 'notstarted' && (
-          <Chip color="danger" variant="outlined">
-            Not Installed
-          </Chip>
-        )}
-        {installStatus === 'success' && <Chip color="success">Success!</Chip>}
-        {installStatus === 'error' && (
-          <>
-            <Chip color="danger">Error </Chip>
-            <Typography level="body-sm" color="danger">
-              {installErrorMessage}
-            </Typography>
-          </>
-        )}
-
-        {activeStep == Steps.indexOf('CHECK_IF_INSTALLED') &&
-          installStatus == 'notstarted' && (
-            <ButtonGroup variant="plain" spacing={1}>
-              <Button
-                variant="solid"
-                onClick={async () => {
-                  await window.electron.ipcRenderer.invoke(
-                    'server:InstallLocally'
-                  );
-                  setInstallStatus('pending');
-                  setIntervalXTimes(
-                    'API is Installed',
-                    async () => {
-                      const serverIsInstalled =
-                        await window.electron.ipcRenderer.invoke(
-                          'server:checkIfInstalledLocally'
-                        );
-                      if (serverIsInstalled) {
-                        setInstallStatus('success');
-                        setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
-                        return true;
-                      }
-                      return false;
-                    },
-                    () => {
-                      setInstallStatus('error');
-                    },
-                    2000,
-                    8
-                  );
-                }}
-              >
-                Install Transformer Lab Server API
-              </Button>
-            </ButtonGroup>
-          )}
-      </Stack>
-    </>
-  );
+function CheckIfInstalled({
+  activeStep,
+  setActiveStep,
+  installStatus,
+  setInstallStatus,
+  installErrorMessage,
+  installAPI,
+}) {
+  return <></>;
 }
 
-function CheckCurrentVersion({ activeStep, setActiveStep }) {
-  const [version, setVersion] = useState('pending'); // pending, or #.#.#
-  const [release, setRelease] = useState('');
-  const [installStatus, setInstallStatus] = useState('notstarted'); // notstarted, pending, success, error
-
-  useEffect(() => {
-    if (activeStep !== Steps.indexOf('CHECK_VERSION')) return;
-
-    (async () => {
-      const ver = await window.electron.ipcRenderer.invoke(
-        'server:checkLocalVersion'
-      );
-      setVersion(ver);
-
-      let json = {};
-
-      try {
-        const rel = await fetch(
-          'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest'
-        );
-        json = await rel.json();
-      } catch {
-        json.tag_name = 'Unable to Connect to Github Please Skip';
-      }
-      const tag = json.tag_name;
-
-      setRelease(tag);
-
-      if (ver === tag) {
-        setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
-      }
-    })();
-  }, [activeStep]);
-
-  return (
-    <>
-      <Stack spacing={1}>
-        {activeStep >= Steps.indexOf('CHECK_VERSION') && (
-          <>
-            <Typography level="body-sm">
-              Your version of Transformer Lab API is {version}
-            </Typography>
-            <Typography level="body-sm">
-              Latest release in Github is {release}
-            </Typography>
-            {(installStatus === 'pending' || release == '') && (
-              <CircularProgress color="primary" />
-            )}
-          </>
-        )}
-        {version == release && <Chip color="success">Success!</Chip>}
-
-        {activeStep == Steps.indexOf('CHECK_VERSION') && release != '' && (
-          <ButtonGroup variant="plain" spacing={1}>
-            <Button
-              variant="solid"
-              size="sm"
-              startDecorator={<RotateCcwIcon size="16px" />}
-              onClick={async () => {
-                await window.electron.ipcRenderer.invoke(
-                  'server:InstallLocally'
-                );
-                setInstallStatus('pending');
-                setIntervalXTimes(
-                  'Server Version is Updated',
-                  async () => {
-                    const ver = await window.electron.ipcRenderer.invoke(
-                      'server:checkLocalVersion'
-                    );
-                    if (ver === release) {
-                      setInstallStatus('success');
-                      setVersion(ver);
-                      setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
-                      return true;
-                    }
-                    return false;
-                  },
-                  () => {
-                    setInstallStatus('error');
-                  },
-                  2000,
-                  8
-                );
-              }}
-            >
-              Update Server API
-            </Button>
-            <Button
-              variant="plain"
-              size="sm"
-              onClick={() => {
-                setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
-              }}
-            >
-              Skip
-            </Button>
-          </ButtonGroup>
-        )}
-      </Stack>
-    </>
-  );
+function CheckCurrentVersion({
+  activeStep,
+  setActiveStep,
+  version,
+  setVersion,
+  release,
+  setRelease,
+  checkCurrentVersion,
+}) {
+  return <></>;
 }
 
-function RunServer({ activeStep, setActiveStep }) {
-  const [thinking, setThinking] = useState(false);
-  const {
-    server,
-    isLoading: serverIsLoading,
-    error: serverError,
-  } = useCheckLocalConnection();
-
-  useEffect(() => {
-    if (activeStep !== Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000'))
-      return;
-
-    if (server && !serverError) {
-      console.log('The server is up; I think things are good');
-      setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1);
-      return;
-    } else {
-      setIntervalXTimes(
-        'Server is Running on Port 8000',
-        async () => {
-          if (!server || serverError) return false;
-          setActiveStep(
-            Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1
-          );
-          return true;
-        },
-        () => {
-          console.log('failed to detect server running (priliminary)');
-        },
-        2000,
-        10
-      );
-    }
-  }, [activeStep, server]);
-
-  return (
-    <>
-      <Stack spacing={0}>
-        {activeStep >= Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') &&
-          server &&
-          !serverError && <Chip color="success">Success!</Chip>}
-        {activeStep >= Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') &&
-          (!server || serverError) && <Chip color="danger">Not Running</Chip>}
-        <ButtonGroup variant="plain" spacing={1}>
-          {activeStep ==
-            Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') &&
-            (!server || serverError ? (
-              thinking ? (
-                <CircularProgress color="primary" sx={{ mt: 1 }} />
-              ) : (
-                <>
-                  <Button
-                    sx={{ mt: 1 }}
-                    variant="solid"
-                    onClick={async () => {
-                      console.log('Start Server Clicked');
-                      setThinking(true);
-
-                      // before starting the process, check one more time if it is running
-                      if (server && !serverError) {
-                        setThinking(false);
-                        setActiveStep(
-                          Steps.indexOf(
-                            'CHECK_IF_SERVER_RUNNING_ON_PORT_8000'
-                          ) + 1
-                        );
-                        return;
-                      }
-
-                      console.log('Starting Server');
-                      const start_process =
-                        await window.electron.ipcRenderer.invoke(
-                          'server:startLocalServer'
-                        );
-
-                      if (start_process?.status == 'error') {
-                        const response_text =
-                          'Failed to start server: \n' + start_process?.message;
-                        alert(response_text);
-                        setThinking(false);
-                        return;
-                      }
-
-                      console.log('Server has started');
-                      console.log(
-                        'Start checking if the server is running every 1 seconds, 25 times'
-                      );
-                      // set interval to check if server is running every 1 seconds, 25 times:
-                      setIntervalXTimes(
-                        'Server is Running on Port 8000',
-                        async () => {
-                          if (!server || serverError) return false;
-                          setThinking(false);
-                          setActiveStep(
-                            Steps.indexOf(
-                              'CHECK_IF_SERVER_RUNNING_ON_PORT_8000'
-                            ) + 1
-                          );
-                          return true;
-                        },
-                        () => {
-                          console.log(
-                            'failed to detect server running (after running)'
-                          );
-                          setThinking(false);
-                        },
-                        1000,
-                        25
-                      );
-                    }}
-                  >
-                    Start
-                  </Button>
-                </>
-              )
-            ) : (
-              ''
-            ))}
-        </ButtonGroup>
-      </Stack>
-    </>
-  );
+function RunServer({ activeStep, setActiveStep, runServer, thinking }) {
+  return <></>;
 }
 
-function CheckForPlugins({ activeStep, setActiveStep }) {
-  const [missingPlugins, setMissingPlugins] = useState(null);
-  const [installing, setInstalling] = useState(false);
-
-  useEffect(() => {
-    if (activeStep !== Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')) return;
-
-    (async () => {
-      const p = await fetch(
-        'http://localhost:8000/plugins/list_missing_plugins_for_current_platform'
-      );
-      const json = await p.json();
-      setMissingPlugins(json);
-
-      if (json.length === 0) {
-        setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
-      }
-    })();
-  }, [activeStep]);
-
-  return (
-    <>
-      <Stack spacing={1}>
-        {missingPlugins?.length == 0 ? (
-          <Chip color="success">Success!</Chip>
-        ) : (
-          <></>
-        )}
-
-        <Typography level="body-sm">
-          {platform.isMac() && platform.arch() == 'arm64' && (
-            <>
-              You are running on a <FaApple /> Mac with <b>Apple Silicon</b>
-              .&nbsp;
-            </>
-          )}
-          {missingPlugins?.length > 0 &&
-            'The following platform-specific plugins are not yet installed:'}
-        </Typography>
-        <Typography level="body-sm" color="warning">
-          {missingPlugins?.map((p) => p).join(', ')}
-        </Typography>
-
-        {activeStep == Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') && (
-          <ButtonGroup variant="plain" spacing={1}>
-            <Button
-              variant="solid"
-              color="primary"
-              onClick={async () => {
-                setInstalling(true);
-                await fetch(
-                  'http://localhost:8000/plugins/install_missing_plugins_for_current_platform'
-                );
-                setInstalling(false);
-                setMissingPlugins([]);
-                setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
-                // setIntervalXTimes(
-                //   async () => {
-                //     const p = await fetch(
-                //       'http://localhost:8000/plugins/list_missing_plugins_for_current_platform'
-                //     );
-                //     const json = await p.json();
-                //     if (json.length === 0) {
-                //       setMissingPlugins([]);
-                //       setActiveStep(5);
-                //       return true;
-                //     }
-                //     return false;
-                //   },
-                //   () => {},
-                //   2000,
-                //   12
-                // );
-              }}
-              size="sm"
-              disabled={installing}
-              startDecorator={
-                installing && <CircularProgress size="sm" color="primary" />
-              }
-            >
-              Install{installing && 'ing'} Plugins
-            </Button>
-            {!installing && (
-              <Button
-                variant="plain"
-                onClick={() => {
-                  setActiveStep(
-                    Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1
-                  );
-                }}
-                size="sm"
-              >
-                Skip
-              </Button>
-            )}
-          </ButtonGroup>
-        )}
-      </Stack>
-    </>
-  );
+function CheckForPlugins({
+  activeStep,
+  setActiveStep,
+  missingPlugins,
+  setMissingPlugins,
+  installing,
+  setInstalling,
+  checkForPlugins,
+}) {
+  return <></>;
 }
 
-function CheckIfCondaInstalled({ activeStep, setActiveStep }) {
+function CheckIfCondaInstalled({
+  activeStep,
+  setActiveStep,
+  installStatus,
+  errorMessage,
+  checkIfCondaIsInstalled,
+}) {
+  return <></>;
+}
+
+function CheckIfCondaEnvironmentExists({
+  activeStep,
+  setActiveStep,
+  installStatus,
+  errorMessage,
+  checkIfCondaEnvironmentExists,
+}) {
+  return <></>;
+}
+
+function CheckDependencies({
+  activeStep,
+  setActiveStep,
+  errorMessage,
+  setErrorMessage,
+  installDependencies,
+}) {
   const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
-  const [errorMessage, setErrorMessage] = useState(null);
-  useEffect(() => {
-    if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_INSTALLED')) return;
 
-    (async () => {
-      const condaExists = await window.electron.ipcRenderer.invoke(
-        'server:checkIfCondaExists'
-      );
-      if (condaExists) {
-        setInstallStatus('success');
-        setActiveStep(Steps.indexOf('CHECK_IF_CONDA_INSTALLED') + 1);
-      } else {
-        setInstallStatus('notstarted');
-      }
-    })();
-  }, [activeStep]);
-
-  return (
-    <>
-      <Stack spacing={1}>
-        {installStatus == 'success' && <Chip color="success">Success!</Chip>}
-        {installStatus == 'pending' && (
-          <>
-            <Typography level="body-sm" color="neutral">
-              <CircularProgress color="primary" />
-              <br />
-              Installing. This can take a while.
-            </Typography>
-          </>
-        )}
-        {activeStep == Steps.indexOf('CHECK_IF_CONDA_INSTALLED') &&
-          installStatus == 'notstarted' && (
-            <ButtonGroup variant="plain" spacing={1}>
-              <Button
-                variant="solid"
-                size="sm"
-                startDecorator={<RotateCcwIcon size="16px" />}
-                onClick={async () => {
-                  setInstallStatus('pending');
-                  const installConda = await window.electron.ipcRenderer.invoke(
-                    'server:install_conda'
-                  );
-                  if (installConda?.error) {
-                    setInstallStatus('error');
-                    setErrorMessage(installConda?.stderr);
-                  }
-                  const condaExists = await window.electron.ipcRenderer.invoke(
-                    'server:checkIfCondaExists'
-                  );
-                  if (condaExists) {
-                    setInstallStatus('success');
-                    setActiveStep(
-                      Steps.indexOf('CHECK_IF_CONDA_INSTALLED') + 1
-                    );
-                    return;
-                  }
-                  setIntervalXTimes(
-                    'Conda is Installed',
-                    async () => {
-                      const condaExists =
-                        await window.electron.ipcRenderer.invoke(
-                          'server:checkIfCondaExists'
-                        );
-                      if (condaExists) {
-                        setInstallStatus('success');
-                        setActiveStep(
-                          Steps.indexOf('CHECK_IF_CONDA_INSTALLED') + 1
-                        );
-                        return true;
-                      }
-                      return false;
-                    },
-                    () => {
-                      setInstallStatus('error');
-                    },
-                    2000,
-                    8
-                  );
-                }}
-              >
-                Install Conda
-              </Button>
-            </ButtonGroup>
-          )}
-        {errorMessage && (
-          <Typography level="body-sm" color="warning">
-            <>
-              Transformer Lab encountered the following unexpected Error:
-              <pre style={{ whiteSpace: 'pre-wrap' }}>{errorMessage}</pre>
-              Please try to fix the above issue and restart the app.
-            </>
-          </Typography>
-        )}
-      </Stack>
-    </>
-  );
-}
-
-function CheckIfCondaEnvironmentExists({ activeStep, setActiveStep }) {
-  const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
-  const [errorMessage, setErrorMessage] = useState(null);
-
-  useEffect(() => {
-    if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS'))
-      return;
-
-    (async () => {
-      setInstallStatus('pending');
-      const condaExists = await window.electron.ipcRenderer.invoke(
-        'server:checkIfCondaEnvironmentExists'
-      );
-      console.log(JSON.stringify(condaExists));
-      if (condaExists?.status == 'success') {
-        setInstallStatus('success');
-        setActiveStep(Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1);
-      } else {
-        setInstallStatus('notstarted');
-        setErrorMessage({
-          message: condaExists?.message,
-          data: condaExists?.data,
-        });
-      }
-    })();
-  }, [activeStep]);
-
-  return (
-    <>
-      <Stack spacing={1}>
-        {installStatus == 'success' && <Chip color="success">Success!</Chip>}
-        {installStatus == 'pending' && (
-          <>
-            <CircularProgress color="primary" />
-            <Typography level="body-sm" color="warning">
-              Installing. This can take a while.
-            </Typography>
-          </>
-        )}
-
-        {activeStep == Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') &&
-          installStatus == 'notstarted' && (
-            <ButtonGroup variant="plain" spacing={1}>
-              <Button
-                variant="solid"
-                size="sm"
-                startDecorator={<RotateCcwIcon size="16px" />}
-                onClick={async () => {
-                  setInstallStatus('pending');
-                  const installConda = await window.electron.ipcRenderer.invoke(
-                    'server:install_create-conda-environment'
-                  );
-                  const condaExists = await window.electron.ipcRenderer.invoke(
-                    'server:checkIfCondaEnvironmentExists'
-                  );
-                  if (condaExists?.status == 'success') {
-                    setInstallStatus('success');
-                    setActiveStep(
-                      Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1
-                    );
-                    return;
-                  } else {
-                    setInstallStatus('error');
-                    setErrorMessage({
-                      message: condaExists?.message,
-                      data: condaExists?.data,
-                    });
-                  }
-                  setIntervalXTimes(
-                    'Conda Environment Exists',
-                    async () => {
-                      const condaExists =
-                        await window.electron.ipcRenderer.invoke(
-                          'server:checkIfCondaEnvironmentExists'
-                        );
-                      if (condaExists?.status == 'success') {
-                        setInstallStatus('success');
-                        setActiveStep(
-                          Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1
-                        );
-                        return true;
-                      } else {
-                        setInstallStatus('error');
-                        setErrorMessage({
-                          message: condaExists?.message,
-                          data: condaExists?.data,
-                        });
-                      }
-                      return false;
-                    },
-                    () => {},
-                    2000,
-                    8
-                  );
-                }}
-              >
-                Create "transformerlab" Conda Environment
-              </Button>
-            </ButtonGroup>
-          )}
-
-        {errorMessage?.message && (
-          <Typography level="body-sm" color="warning">
-            {errorMessage?.message}
-          </Typography>
-        )}
-        {(errorMessage?.data?.stdout || errorMessage?.data?.stderr) && (
-          <Typography level="body-sm" color="neutral">
-            {errorMessage?.data?.stdout} {errorMessage?.data?.stderr}
-          </Typography>
-        )}
-      </Stack>
-    </>
-  );
-}
-
-function CheckDependencies({ activeStep, setActiveStep }) {
-  const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
-  const [errorMessage, setErrorMessage] = useState(null);
-
-  useEffect(() => {
-    if (activeStep !== Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED'))
-      return;
-
-    (async () => {
-      const ipcResponse = await window.electron.ipcRenderer.invoke(
-        'server:checkDependencies'
-      );
-
-      if (ipcResponse?.status == 'success' && ipcResponse?.data?.length == 0) {
-        setInstallStatus('success');
-        setActiveStep(
-          Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1
-        );
-      } else {
-        setInstallStatus('notstarted');
-      }
-
-      if (ipcResponse?.status == 'error') {
-        setErrorMessage({
-          message: ipcResponse?.message,
-          data: ipcResponse?.data,
-        });
-      } else {
-        setErrorMessage(null);
-      }
-    })();
-  }, [activeStep]);
-
-  return (
-    <>
-      <Stack spacing={1}>
-        {installStatus == 'success' && <Chip color="success">Success!</Chip>}
-        {installStatus == 'pending' && (
-          <>
-            <CircularProgress color="primary" />
-            <Typography level="body-sm" color="warning">
-              Installing. This can take a long while.
-            </Typography>
-          </>
-        )}
-        {activeStep ==
-          Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') &&
-          installStatus == 'notstarted' && (
-            <ButtonGroup variant="plain" spacing={1}>
-              <Button
-                variant="solid"
-                size="sm"
-                startDecorator={<RotateCcwIcon size="16px" />}
-                onClick={async () => {
-                  setInstallStatus('pending');
-                  setErrorMessage(null);
-                  await window.electron.ipcRenderer.invoke(
-                    'server:install_install-dependencies'
-                  );
-
-                  const ipcResponse = await window.electron.ipcRenderer.invoke(
-                    'server:checkDependencies'
-                  );
-
-                  if (
-                    ipcResponse?.status == 'success' &&
-                    ipcResponse?.data?.length == 0
-                  ) {
-                    setInstallStatus('success');
-                    setActiveStep(
-                      Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') +
-                        1
-                    );
-                    return;
-                  }
-
-                  if (ipcResponse?.status == 'error') {
-                    setErrorMessage({
-                      message: ipcResponse?.message,
-                      data: ipcResponse?.data,
-                    });
-                  } else {
-                    setErrorMessage(null);
-                  }
-                }}
-              >
-                Install Dependencies
-              </Button>
-            </ButtonGroup>
-          )}
-
-        {errorMessage?.message && (
-          <Typography level="body-sm" color="warning">
-            {errorMessage?.message}
-          </Typography>
-        )}
-        {(errorMessage?.data?.stdout || errorMessage?.data?.stderr) && (
-          <Typography level="body-sm" color="neutral">
-            {errorMessage?.data?.stdout} {errorMessage?.data?.stderr}
-          </Typography>
-        )}
-      </Stack>
-    </>
-  );
+  return <></>;
 }
 
 function InstallStep({ children, thisStep, title, activeStep, setActiveStep }) {
@@ -838,7 +159,214 @@ function InstallStepper({ setServer }) {
     Steps.indexOf('CHECK_IF_INSTALLED')
   ); // 0, 1, 2
 
+  const [installStatus, setInstallStatus] = useState('notstarted'); // notstarted, pending, success, error
+  const [installErrorMessage, setInstallErrorMessage] = useState(null);
+
+  const [version, setVersion] = useState('pending'); // pending, or #.#.#
+  const [release, setRelease] = useState('');
+
   const [logViewerVisible, setLogViewerVisible] = useState(true);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [dependenciesErrorMessage, setDependenciesErrorMessage] =
+    useState(null);
+
+  const [missingPlugins, setMissingPlugins] = useState(null);
+  const [installingPlugins, setInstallingPlugins] = useState(false);
+
+  const [thinking, setThinking] = useState(false);
+  const {
+    server,
+    isLoading: serverIsLoading,
+    error: serverError,
+  } = useCheckLocalConnection();
+
+  useEffect(() => {
+    if (activeStep !== Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000'))
+      return;
+
+    console.log('useEffect Active Step: ' + activeStep);
+
+    if (server && !serverError) {
+      console.log('The server is up; I think things are good');
+      setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1);
+      return;
+    } else {
+      setIntervalXTimes(
+        'Server is Running on Port 8000',
+        async () => {
+          if (!server || serverError) return false;
+          setActiveStep(
+            Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1
+          );
+          return true;
+        },
+        () => {
+          console.log('failed to detect server running (priliminary)');
+        },
+        2000,
+        10
+      );
+    }
+  }, [activeStep, server]);
+
+  useEffect(() => {
+    if (activeStep !== Steps.indexOf('CHECK_IF_INSTALLED')) return;
+
+    console.log('useEffect Active Step: ' + activeStep);
+
+    (async () => {
+      // First check if there are any system requirement issues
+      // If not, then check if installed locally
+      // Report on any errors along the way
+      window.electron.ipcRenderer
+        .invoke('server:checkSystemRequirements')
+        .then((setupMessage) => {
+          if (setupMessage) {
+            throw new Error(setupMessage);
+          }
+          return window.electron.ipcRenderer.invoke(
+            'server:checkIfInstalledLocally'
+          );
+        })
+        .then((serverIsInstalled) => {
+          if (serverIsInstalled) {
+            setInstallStatus('success');
+            setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
+          } else {
+            setInstallStatus('notstarted');
+          }
+          return;
+        })
+        .catch((error) => {
+          setInstallStatus('error');
+          setInstallErrorMessage(error.message);
+        });
+    })();
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (activeStep !== Steps.indexOf('CHECK_VERSION')) return;
+
+    console.log('useEffect Active Step: ' + activeStep);
+
+    (async () => {
+      const ver = await window.electron.ipcRenderer.invoke(
+        'server:checkLocalVersion'
+      );
+      setVersion(ver);
+
+      let json = {};
+
+      try {
+        const rel = await fetch(
+          'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest'
+        );
+        json = await rel.json();
+      } catch {
+        json.tag_name = 'Unable to Connect to Github Please Skip';
+      }
+      const tag = json.tag_name;
+
+      setRelease(tag);
+
+      if (ver === tag) {
+        setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
+      }
+    })();
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_INSTALLED')) return;
+
+    console.log('useEffect Active Step: ' + activeStep);
+
+    (async () => {
+      const condaExists = await window.electron.ipcRenderer.invoke(
+        'server:checkIfCondaExists'
+      );
+      if (condaExists) {
+        setInstallStatus('success');
+        setActiveStep(Steps.indexOf('CHECK_IF_CONDA_INSTALLED') + 1);
+      } else {
+        setInstallStatus('notstarted');
+      }
+    })();
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS'))
+      return;
+
+    console.log('useEffect Active Step: ' + activeStep);
+
+    (async () => {
+      setInstallStatus('pending');
+      const condaExists = await window.electron.ipcRenderer.invoke(
+        'server:checkIfCondaEnvironmentExists'
+      );
+      console.log(JSON.stringify(condaExists));
+      if (condaExists?.status == 'success') {
+        setInstallStatus('success');
+        setActiveStep(Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1);
+      } else {
+        setInstallStatus('notstarted');
+        setErrorMessage({
+          message: condaExists?.message,
+          data: condaExists?.data,
+        });
+      }
+    })();
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (activeStep !== Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED'))
+      return;
+
+    console.log('useEffect Active Step: ' + activeStep);
+
+    (async () => {
+      const ipcResponse = await window.electron.ipcRenderer.invoke(
+        'server:checkDependencies'
+      );
+
+      if (ipcResponse?.status == 'success' && ipcResponse?.data?.length == 0) {
+        setInstallStatus('success');
+        setActiveStep(
+          Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1
+        );
+      } else {
+        setInstallStatus('notstarted');
+      }
+
+      if (ipcResponse?.status == 'error') {
+        console.log('error');
+        setDependenciesErrorMessage({
+          message: ipcResponse?.message,
+          data: ipcResponse?.data,
+        });
+      } else {
+        setDependenciesErrorMessage(null);
+      }
+    })();
+  }, [activeStep]);
+
+  useEffect(() => {
+    if (activeStep !== Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')) return;
+
+    console.log('useEffect Active Step: ' + activeStep);
+
+    (async () => {
+      const p = await fetch(
+        'http://localhost:8000/plugins/list_missing_plugins_for_current_platform'
+      );
+      const json = await p.json();
+      setMissingPlugins(json);
+
+      if (json.length === 0) {
+        setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
+      }
+    })();
+  }, [activeStep]);
 
   function tryToConnect() {
     const fullServer = 'http://' + 'localhost' + ':' + '8000' + '/';
@@ -847,6 +375,261 @@ function InstallStepper({ setServer }) {
     setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
     setServer(fullServer);
   }
+
+  async function runServer() {
+    console.log('Start Server Clicked');
+    setThinking(true);
+
+    // before starting the process, check one more time if it is running
+    if (server && !serverError) {
+      setThinking(false);
+      setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1);
+      return;
+    }
+
+    console.log('Starting Server');
+    const start_process = await window.electron.ipcRenderer.invoke(
+      'server:startLocalServer'
+    );
+
+    if (start_process?.status == 'error') {
+      const response_text =
+        'Failed to start server: \n' + start_process?.message;
+      alert(response_text);
+      setThinking(false);
+      return;
+    }
+
+    console.log('Server has started');
+    console.log(
+      'Start checking if the server is running every 1 seconds, 25 times'
+    );
+    // set interval to check if server is running every 1 seconds, 25 times:
+    setIntervalXTimes(
+      'Server is Running on Port 8000',
+      async () => {
+        if (!server || serverError) return false;
+        setThinking(false);
+        setActiveStep(
+          Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1
+        );
+        return true;
+      },
+      () => {
+        console.log('failed to detect server running (after running)');
+        setThinking(false);
+      },
+      1000,
+      25
+    );
+  }
+
+  async function installAPI() {
+    await window.electron.ipcRenderer.invoke('server:InstallLocally');
+    setInstallStatus('pending');
+    setIntervalXTimes(
+      'API is Installed',
+      async () => {
+        const serverIsInstalled = await window.electron.ipcRenderer.invoke(
+          'server:checkIfInstalledLocally'
+        );
+        if (serverIsInstalled) {
+          setInstallStatus('success');
+          setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
+          return true;
+        }
+        return false;
+      },
+      () => {
+        setInstallStatus('error');
+      },
+      2000,
+      8
+    );
+  }
+
+  async function checkCurrentVersion() {
+    await window.electron.ipcRenderer.invoke('server:InstallLocally');
+    setInstallStatus('pending');
+    setIntervalXTimes(
+      'Server Version is Updated',
+      async () => {
+        const ver = await window.electron.ipcRenderer.invoke(
+          'server:checkLocalVersion'
+        );
+        if (ver === release) {
+          setInstallStatus('success');
+          setVersion(ver);
+          setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
+          return true;
+        }
+        return false;
+      },
+      () => {
+        setInstallStatus('error');
+      },
+      2000,
+      8
+    );
+  }
+
+  async function checkIfCondaIsInstalled() {
+    setInstallStatus('pending');
+    const installConda = await window.electron.ipcRenderer.invoke(
+      'server:install_conda'
+    );
+    if (installConda?.error) {
+      setInstallStatus('error');
+      setErrorMessage(installConda?.stderr);
+    }
+    const condaExists = await window.electron.ipcRenderer.invoke(
+      'server:checkIfCondaExists'
+    );
+    if (condaExists) {
+      setInstallStatus('success');
+      setActiveStep(Steps.indexOf('CHECK_IF_CONDA_INSTALLED') + 1);
+      return;
+    }
+    setIntervalXTimes(
+      'Conda is Installed',
+      async () => {
+        const condaExists = await window.electron.ipcRenderer.invoke(
+          'server:checkIfCondaExists'
+        );
+        if (condaExists) {
+          setInstallStatus('success');
+          setActiveStep(Steps.indexOf('CHECK_IF_CONDA_INSTALLED') + 1);
+          return true;
+        }
+        return false;
+      },
+      () => {
+        setInstallStatus('error');
+      },
+      2000,
+      8
+    );
+  }
+
+  async function checkIfCondaEnvironmentExists() {
+    setInstallStatus('pending');
+    const installConda = await window.electron.ipcRenderer.invoke(
+      'server:install_create-conda-environment'
+    );
+    const condaExists = await window.electron.ipcRenderer.invoke(
+      'server:checkIfCondaEnvironmentExists'
+    );
+    if (condaExists?.status == 'success') {
+      setInstallStatus('success');
+      setActiveStep(Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1);
+      return;
+    } else {
+      setInstallStatus('error');
+      setErrorMessage({
+        message: condaExists?.message,
+        data: condaExists?.data,
+      });
+    }
+    setIntervalXTimes(
+      'Conda Environment Exists',
+      async () => {
+        const condaExists = await window.electron.ipcRenderer.invoke(
+          'server:checkIfCondaEnvironmentExists'
+        );
+        if (condaExists?.status == 'success') {
+          setInstallStatus('success');
+          setActiveStep(Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1);
+          return true;
+        } else {
+          setInstallStatus('error');
+          setErrorMessage({
+            message: condaExists?.message,
+            data: condaExists?.data,
+          });
+        }
+        return false;
+      },
+      () => {},
+      2000,
+      8
+    );
+  }
+
+  async function installDependencies() {
+    setInstallStatus('pending');
+    setDependenciesErrorMessage(null);
+    await window.electron.ipcRenderer.invoke(
+      'server:install_install-dependencies'
+    );
+
+    const ipcResponse = await window.electron.ipcRenderer.invoke(
+      'server:checkDependencies'
+    );
+
+    if (ipcResponse?.status == 'success' && ipcResponse?.data?.length == 0) {
+      setInstallStatus('success');
+      setActiveStep(
+        Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1
+      );
+      return;
+    }
+
+    if (ipcResponse?.status == 'error') {
+      setDependenciesErrorMessage({
+        message: ipcResponse?.message,
+        data: ipcResponse?.data,
+      });
+    } else {
+      setDependenciesErrorMessage(null);
+    }
+  }
+
+  async function checkForPlugins() {
+    setInstallingPlugins(true);
+    await fetch(
+      'http://localhost:8000/plugins/install_missing_plugins_for_current_platform'
+    );
+    setInstallingPlugins(false);
+    setMissingPlugins([]);
+    setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
+  }
+
+  var stepsFunctions: (() => Promise<void>)[] = [];
+
+  /*  'CHECK_IF_INSTALLED',
+  'CHECK_VERSION',
+  'CHECK_IF_CONDA_INSTALLED',
+  'CHECK_IF_CONDA_ENVIRONMENT_EXISTS',
+  'CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED',
+  'CHECK_IF_SERVER_RUNNING_ON_PORT_8000',
+  'CHECK_FOR_IMPORTANT_PLUGINS',*/
+
+  stepsFunctions[Steps.indexOf('CHECK_IF_INSTALLED')] = async () => {
+    await installAPI();
+  };
+  stepsFunctions[Steps.indexOf('CHECK_VERSION')] = async () => {
+    await checkCurrentVersion();
+  };
+  stepsFunctions[Steps.indexOf('CHECK_IF_CONDA_INSTALLED')] = async () => {
+    await checkIfCondaIsInstalled();
+  };
+  stepsFunctions[Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')] =
+    async () => {
+      await checkIfCondaEnvironmentExists();
+    };
+  stepsFunctions[Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')] =
+    async () => {
+      await installDependencies();
+    };
+  stepsFunctions[Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')] =
+    runServer;
+  stepsFunctions[Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')] = async () => {
+    await checkForPlugins();
+  };
+  // The following is the a fake step: we are done so we just connect
+  stepsFunctions[7] = async () => {
+    tryToConnect();
+  };
 
   return (
     <Sheet
@@ -891,6 +674,10 @@ function InstallStepper({ setServer }) {
               <CheckIfInstalled
                 activeStep={activeStep}
                 setActiveStep={setActiveStep}
+                installStatus={installStatus}
+                setInstallStatus={setInstallStatus}
+                installErrorMessage={installErrorMessage}
+                installAPI={installAPI}
               />
             </InstallStep>
             <InstallStep
@@ -902,6 +689,11 @@ function InstallStepper({ setServer }) {
               <CheckCurrentVersion
                 activeStep={activeStep}
                 setActiveStep={setActiveStep}
+                version={version}
+                setVersion={setVersion}
+                release={release}
+                setRelease={setRelease}
+                checkCurrentVersion={checkCurrentVersion}
               />
             </InstallStep>
             <InstallStep
@@ -917,6 +709,9 @@ function InstallStepper({ setServer }) {
               <CheckIfCondaInstalled
                 activeStep={activeStep}
                 setActiveStep={setActiveStep}
+                checkIfCondaIsInstalled={checkIfCondaIsInstalled}
+                installStatus={installStatus}
+                errorMessage={errorMessage}
               />
             </InstallStep>
             <InstallStep
@@ -928,6 +723,9 @@ function InstallStepper({ setServer }) {
               <CheckIfCondaEnvironmentExists
                 activeStep={activeStep}
                 setActiveStep={setActiveStep}
+                installStatus={installStatus}
+                errorMessage={errorMessage}
+                checkIfCondaEnvironmentExists={checkIfCondaEnvironmentExists}
               />
             </InstallStep>
             <InstallStep
@@ -939,6 +737,9 @@ function InstallStepper({ setServer }) {
               <CheckDependencies
                 activeStep={activeStep}
                 setActiveStep={setActiveStep}
+                errorMessage={dependenciesErrorMessage}
+                setErrorMessage={setDependenciesErrorMessage}
+                installDependencies={installDependencies}
               />
             </InstallStep>
             <InstallStep
@@ -950,6 +751,8 @@ function InstallStepper({ setServer }) {
               <RunServer
                 activeStep={activeStep}
                 setActiveStep={setActiveStep}
+                runServer={runServer}
+                thinking={thinking}
               />
             </InstallStep>
             <InstallStep
@@ -961,11 +764,16 @@ function InstallStepper({ setServer }) {
               <CheckForPlugins
                 activeStep={activeStep}
                 setActiveStep={setActiveStep}
+                missingPlugins={missingPlugins}
+                setMissingPlugins={setMissingPlugins}
+                installing={installingPlugins}
+                setInstalling={setInstallingPlugins}
+                checkForPlugins={checkForPlugins}
               />
             </InstallStep>
           </Stepper>
         </div>
-        <Button
+        {/* <Button
           size="lg"
           variant="solid"
           color="success"
@@ -975,25 +783,22 @@ function InstallStepper({ setServer }) {
           disabled={activeStep !== Steps.length}
         >
           Connect
+        </Button> */}
+        <Button
+          size="lg"
+          variant="solid"
+          color="success"
+          disabled={thinking}
+          onClick={async () => {
+            setThinking(true);
+            await stepsFunctions[activeStep]();
+            setThinking(false);
+          }}
+        >
+          {activeStep === 7 ? 'Connect' : 'Run Next Install Step'}
         </Button>
       </Sheet>
-      {/* <Button
-        variant="plain"
-        size="sm"
-        // sx={{ p: 0 }}
-        onClick={() => {
-          setLogViewerVisible(!logViewerVisible);
-        }}
-      >
-        {logViewerVisible ? (
-          <ChevronRightIcon />
-        ) : (
-          <>
-            <ChevronLeftIcon />
-            Detailed Progress
-          </>
-        )}
-      </Button> */}
+
       {logViewerVisible && (
         <Sheet
           sx={{
