@@ -1,22 +1,17 @@
 import {
   Alert,
   Button,
-  ButtonGroup,
-  Chip,
-  CircularProgress,
   Sheet,
-  Stack,
   Step,
   StepIndicator,
   Stepper,
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { CheckCircle2, InfoIcon, PlayIcon, RotateCcwIcon } from 'lucide-react';
+import { CheckCircle2, InfoIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
-import { FaApple } from 'react-icons/fa6';
 import LargeTooltip from './LargeTooltip';
 import LogViewer from './LogViewer';
 
