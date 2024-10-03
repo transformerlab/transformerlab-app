@@ -24,7 +24,6 @@ import CompletionsPage from './CompletionsPage';
 import PromptSettingsModal from './PromptSettingsModal';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import Rag from '../Rag';
-import PreviousMessageList from './PreviousMessageList';
 import TemplatedCompletion from './TemplatedCompletion';
 import Tokenize from '../Tokenize';
 import Embeddings from '../Embeddings';
@@ -823,8 +822,15 @@ export default function Chat({
             text={textToDebounce}
             debouncedText={debouncedText}
             defaultPromptConfigForModel={defaultPromptConfigForModel}
-            enableTools
             currentModelArchitecture={currentModelArchitecture}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+            enableTools
           />
         )}
         {mode === 'template' && (
