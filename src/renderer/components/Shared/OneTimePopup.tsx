@@ -38,6 +38,7 @@ export default function OneTimePopup({ title, children }) {
             maxHeight: '100%',
             overflowY: 'hidden',
           }}
+          color="warning"
         >
           <DialogTitle level="h2">💡&nbsp;{title}</DialogTitle>
           <DialogContent sx={{ pt: 2, overflowY: 'auto', overflowX: 'hidden' }}>
