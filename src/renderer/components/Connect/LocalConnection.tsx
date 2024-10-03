@@ -12,15 +12,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/joy';
-import {
-  CheckCircle2,
-  ChevronLeftIcon,
-  ChevronRight,
-  ChevronRightIcon,
-  InfoIcon,
-  PlayIcon,
-  RotateCcwIcon,
-} from 'lucide-react';
+import { CheckCircle2, InfoIcon, PlayIcon, RotateCcwIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
