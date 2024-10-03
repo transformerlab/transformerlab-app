@@ -30,6 +30,10 @@ import {
   getLogFilePath,
 } from './util';
 
+import installExtension, {
+  REACT_DEVELOPER_TOOLS,
+} from 'electron-devtools-installer';
+
 const fs = require('fs');
 const Tail = require('tail').Tail;
 
@@ -413,6 +417,13 @@ app
   .whenReady()
   .then(() => {
     createWindow();
+
+    if (isDebug) {
+      console.log('installing react dev tools');
+      installExtension(REACT_DEVELOPER_TOOLS)
+        .then((name) => console.log(`Added Extension:  ${name}`))
+        .catch((err) => console.log('An error occurred: ', err));
+    }
 
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the
