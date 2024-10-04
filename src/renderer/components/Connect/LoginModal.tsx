@@ -91,7 +91,7 @@ export default function LoginModal({
   }
 
   return (
-    <Modal open={connection == ''} keepMounted>
+    <Modal open={connection == ''}>
       <ModalDialog
         aria-labelledby="basic-modal-dialog-title"
         aria-describedby="basic-modal-dialog-description"

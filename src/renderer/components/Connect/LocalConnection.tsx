@@ -85,6 +85,8 @@ function InstallStepper({ setServer }) {
     Steps.indexOf('CHECK_IF_INSTALLED')
   ); // 0, 1, 2
 
+  const [userRequestedInstall, setUserRequestedInstall] = useState(false);
+
   const [installStatus, setInstallStatus] = useState('notstarted'); // notstarted, pending, success, error
   const [installErrorMessage, setInstallErrorMessage] = useState(null);
 
@@ -122,6 +124,7 @@ function InstallStepper({ setServer }) {
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_INSTALLED')) return;
+    if (!userRequestedInstall) return;
 
     console.log('useEffect Active Step: ' + activeStep);
 
@@ -153,10 +156,11 @@ function InstallStepper({ setServer }) {
           setInstallErrorMessage(error.message);
         });
     })();
-  }, [activeStep]);
+  }, [activeStep, userRequestedInstall]);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_VERSION')) return;
+    if (!userRequestedInstall) return;
 
     console.log('useEffect Active Step: ' + activeStep);
 
@@ -184,10 +188,11 @@ function InstallStepper({ setServer }) {
         setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
       }
     })();
-  }, [activeStep]);
+  }, [activeStep, userRequestedInstall]);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_INSTALLED')) return;
+    if (!userRequestedInstall) return;
 
     console.log('useEffect Active Step: ' + activeStep);
 
@@ -202,11 +207,12 @@ function InstallStepper({ setServer }) {
         setInstallStatus('notstarted');
       }
     })();
-  }, [activeStep]);
+  }, [activeStep, userRequestedInstall]);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS'))
       return;
+    if (!userRequestedInstall) return;
 
     console.log('useEffect Active Step: ' + activeStep);
 
@@ -227,11 +233,12 @@ function InstallStepper({ setServer }) {
         });
       }
     })();
-  }, [activeStep]);
+  }, [activeStep, userRequestedInstall]);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED'))
       return;
+    if (!userRequestedInstall) return;
 
     console.log('useEffect Active Step: ' + activeStep);
 
@@ -259,10 +266,11 @@ function InstallStepper({ setServer }) {
         setDependenciesErrorMessage(null);
       }
     })();
-  }, [activeStep]);
+  }, [activeStep, userRequestedInstall]);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')) return;
+    if (!userRequestedInstall) return;
 
     console.log('useEffect Active Step: ' + activeStep);
 
@@ -277,7 +285,7 @@ function InstallStepper({ setServer }) {
         setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
       }
     })();
-  }, [activeStep]);
+  }, [activeStep, userRequestedInstall]);
 
   function tryToConnect() {
     const fullServer = 'http://' + 'localhost' + ':' + '8000' + '/';
@@ -567,13 +575,11 @@ function InstallStepper({ setServer }) {
               thisStep={Steps.indexOf('CHECK_IF_INSTALLED')}
               title="Check if Server is Installed at ~/.transformerlab/"
               activeStep={activeStep}
-              setActiveStep={setActiveStep}
             ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_VERSION')}
               title="Check Current Version"
               activeStep={activeStep}
-              setActiveStep={setActiveStep}
             ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
@@ -583,31 +589,26 @@ function InstallStepper({ setServer }) {
                 </>
               }
               activeStep={activeStep}
-              setActiveStep={setActiveStep}
             ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')}
               title="Check if Conda Environment 'transformerlab' Exists"
               activeStep={activeStep}
-              setActiveStep={setActiveStep}
             ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')}
               title="Check if Python Dependencies are Installed"
               activeStep={activeStep}
-              setActiveStep={setActiveStep}
             ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')}
               title="Check if the Transformer Lab Engine is Running Locally on Port 8000"
               activeStep={activeStep}
-              setActiveStep={setActiveStep}
             ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')}
               title="Check for Important Plugins"
               activeStep={activeStep}
-              setActiveStep={setActiveStep}
             ></InstallStep>
           </Stepper>
         </div>
@@ -641,6 +642,13 @@ function InstallStepper({ setServer }) {
           {activeStep === 7
             ? 'Connect'
             : 'Run Next Install Step (' + activeStep + ')'}
+        </Button>
+        <Button
+          onClick={() => {
+            setUserRequestedInstall(true);
+          }}
+        >
+          {userRequestedInstall ? 'Connecting...' : 'Connect'}
         </Button>
       </Sheet>
 
