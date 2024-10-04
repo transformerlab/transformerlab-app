@@ -143,6 +143,7 @@ export default function ChatPage({
           flex: 'auto',
           justifyContent: 'space-evenly',
           overflow: 'hidden',
+          height: '100%',
         }}
       >
         {enableTools && (
@@ -163,9 +164,11 @@ export default function ChatPage({
           sx={{
             width: '100%',
             // borderRadius: "md",
-            flex: '99',
+            height: '100%',
             overflow: 'auto',
             padding: 1,
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
           {/* {JSON.stringify(chats)} */}
