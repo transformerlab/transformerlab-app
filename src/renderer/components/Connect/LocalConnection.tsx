@@ -63,7 +63,7 @@ function InstallStep({ children = <></>, thisStep, title, activeStep }) {
         </StepIndicator>
       }
     >
-      <Sheet variant="outlined" sx={{ p: 1 }}>
+      <Sheet variant="outlined" sx={{ p: 1, mr: 1, borderRadius: '5px' }}>
         <Typography level="title-sm" mb={1}>
           {title}{' '}
           <Tooltip
@@ -612,17 +612,6 @@ function InstallStepper({ setServer }) {
             ></InstallStep>
           </Stepper>
         </div>
-        {/* <Button
-          size="lg"
-          variant="solid"
-          color="success"
-          onClick={tryToConnect}
-          startDecorator={<PlayIcon />}
-          sx={{ width: '100%', mt: 1 }}
-          disabled={activeStep !== Steps.length}
-        >
-          Connect
-        </Button> */}
         <Button
           size="lg"
           variant="solid"
@@ -652,7 +641,7 @@ function InstallStepper({ setServer }) {
         </Button>
       </Sheet>
 
-      {logViewerVisible && (
+      {true && (
         <Sheet
           sx={{
             flex: 2,
