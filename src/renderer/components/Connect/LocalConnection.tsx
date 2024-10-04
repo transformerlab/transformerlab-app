@@ -59,7 +59,7 @@ function InstallStep({ children = <></>, thisStep, title, activeStep }) {
           color={activeStep > thisStep ? 'success' : 'primary'}
           className={activeStep == thisStep ? 'active-step' : ''}
         >
-          {activeStep > thisStep ? <CheckCircle2 /> : thisStep}
+          {activeStep > thisStep ? <CheckCircle2 /> : thisStep + 1}
         </StepIndicator>
       }
     >
