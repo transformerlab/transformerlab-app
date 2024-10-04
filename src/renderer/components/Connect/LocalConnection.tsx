@@ -650,12 +650,15 @@ function InstallStepper({ setServer }) {
           size="lg"
           variant="solid"
           color="success"
-          disabled={thinking}
+          disabled={thinking || userRequestedInstall}
           onClick={() => {
             setUserRequestedInstall(true);
           }}
         >
-          {thinking && <CircularProgress sx={{ marginRight: 1 }} />}
+          {thinking ||
+            (userRequestedInstall && (
+              <CircularProgress sx={{ marginRight: 1 }} />
+            ))}
           {userRequestedInstall ? 'Connecting...' : 'Connect'}
         </Button>
       </Sheet>
