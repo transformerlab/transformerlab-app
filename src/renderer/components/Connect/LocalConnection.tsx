@@ -1,6 +1,7 @@
 import {
   Alert,
   Button,
+  CircularProgress,
   Sheet,
   Step,
   StepIndicator,
@@ -49,84 +50,20 @@ const Steps = [
   'CHECK_FOR_IMPORTANT_PLUGINS',
 ];
 
-function CheckIfInstalled({
+function InstallStep({
+  children = <></>,
+  thisStep,
+  title,
   activeStep,
   setActiveStep,
-  installStatus,
-  setInstallStatus,
-  installErrorMessage,
-  installAPI,
 }) {
-  return <></>;
-}
-
-function CheckCurrentVersion({
-  activeStep,
-  setActiveStep,
-  version,
-  setVersion,
-  release,
-  setRelease,
-  checkCurrentVersion,
-}) {
-  return <></>;
-}
-
-function RunServer({ activeStep, setActiveStep, runServer, thinking }) {
-  return <></>;
-}
-
-function CheckForPlugins({
-  activeStep,
-  setActiveStep,
-  missingPlugins,
-  setMissingPlugins,
-  installing,
-  setInstalling,
-  checkForPlugins,
-}) {
-  return <></>;
-}
-
-function CheckIfCondaInstalled({
-  activeStep,
-  setActiveStep,
-  installStatus,
-  errorMessage,
-  checkIfCondaIsInstalled,
-}) {
-  return <></>;
-}
-
-function CheckIfCondaEnvironmentExists({
-  activeStep,
-  setActiveStep,
-  installStatus,
-  errorMessage,
-  checkIfCondaEnvironmentExists,
-}) {
-  return <></>;
-}
-
-function CheckDependencies({
-  activeStep,
-  setActiveStep,
-  errorMessage,
-  setErrorMessage,
-  installDependencies,
-}) {
-  const [installStatus, setInstallStatus] = useState(''); // notstarted, pending, success, error
-
-  return <></>;
-}
-
-function InstallStep({ children, thisStep, title, activeStep, setActiveStep }) {
   return (
     <Step
       indicator={
         <StepIndicator
           variant={activeStep == thisStep ? 'solid' : 'soft'}
           color={activeStep > thisStep ? 'success' : 'primary'}
+          className={activeStep == thisStep ? 'active-step' : ''}
         >
           {activeStep > thisStep ? <CheckCircle2 /> : thisStep}
         </StepIndicator>
@@ -168,12 +105,10 @@ function InstallStepper({ setServer }) {
   const [missingPlugins, setMissingPlugins] = useState(null);
   const [installingPlugins, setInstallingPlugins] = useState(false);
 
+  const [checkIfServerRunning, setCheckIfServerRunning] = useState(0);
+
   const [thinking, setThinking] = useState(false);
-  const {
-    server,
-    isLoading: serverIsLoading,
-    error: serverError,
-  } = useCheckLocalConnection();
+  const { server, error: serverError } = useCheckLocalConnection();
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000'))
@@ -184,25 +119,10 @@ function InstallStepper({ setServer }) {
     if (server && !serverError) {
       console.log('The server is up; I think things are good');
       setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1);
+      setThinking(false);
       return;
-    } else {
-      setIntervalXTimes(
-        'Server is Running on Port 8000',
-        async () => {
-          if (!server || serverError) return false;
-          setActiveStep(
-            Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1
-          );
-          return true;
-        },
-        () => {
-          console.log('failed to detect server running (priliminary)');
-        },
-        2000,
-        10
-      );
     }
-  }, [activeStep, server]);
+  }, [server]);
 
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_INSTALLED')) return;
@@ -396,27 +316,8 @@ function InstallStepper({ setServer }) {
     }
 
     console.log('Server has started');
-    console.log(
-      'Start checking if the server is running every 1 seconds, 25 times'
-    );
-    // set interval to check if server is running every 1 seconds, 25 times:
-    setIntervalXTimes(
-      'Server is Running on Port 8000',
-      async () => {
-        if (!server || serverError) return false;
-        setThinking(false);
-        setActiveStep(
-          Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1
-        );
-        return true;
-      },
-      () => {
-        console.log('failed to detect server running (after running)');
-        setThinking(false);
-      },
-      1000,
-      25
-    );
+
+    setCheckIfServerRunning(checkIfServerRunning + 1);
   }
 
   async function installAPI() {
@@ -601,25 +502,34 @@ function InstallStepper({ setServer }) {
 
   stepsFunctions[Steps.indexOf('CHECK_IF_INSTALLED')] = async () => {
     await installAPI();
+    setThinking(false);
   };
   stepsFunctions[Steps.indexOf('CHECK_VERSION')] = async () => {
     await checkCurrentVersion();
+    setThinking(false);
   };
   stepsFunctions[Steps.indexOf('CHECK_IF_CONDA_INSTALLED')] = async () => {
     await checkIfCondaIsInstalled();
+    setThinking(false);
   };
   stepsFunctions[Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')] =
     async () => {
       await checkIfCondaEnvironmentExists();
+      setThinking(false);
     };
   stepsFunctions[Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')] =
     async () => {
       await installDependencies();
+      setThinking(false);
     };
   stepsFunctions[Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')] =
-    runServer;
+    async () => {
+      await runServer();
+      // don't run set thinking -- server needs to be polled
+    };
   stepsFunctions[Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')] = async () => {
     await checkForPlugins();
+    setThinking(false);
   };
   // The following is the a fake step: we are done so we just connect
   stepsFunctions[7] = async () => {
@@ -665,32 +575,13 @@ function InstallStepper({ setServer }) {
               title="Check if Server is Installed at ~/.transformerlab/"
               activeStep={activeStep}
               setActiveStep={setActiveStep}
-            >
-              <CheckIfInstalled
-                activeStep={activeStep}
-                setActiveStep={setActiveStep}
-                installStatus={installStatus}
-                setInstallStatus={setInstallStatus}
-                installErrorMessage={installErrorMessage}
-                installAPI={installAPI}
-              />
-            </InstallStep>
+            ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_VERSION')}
               title="Check Current Version"
               activeStep={activeStep}
               setActiveStep={setActiveStep}
-            >
-              <CheckCurrentVersion
-                activeStep={activeStep}
-                setActiveStep={setActiveStep}
-                version={version}
-                setVersion={setVersion}
-                release={release}
-                setRelease={setRelease}
-                checkCurrentVersion={checkCurrentVersion}
-              />
-            </InstallStep>
+            ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
               title={
@@ -700,72 +591,31 @@ function InstallStepper({ setServer }) {
               }
               activeStep={activeStep}
               setActiveStep={setActiveStep}
-            >
-              <CheckIfCondaInstalled
-                activeStep={activeStep}
-                setActiveStep={setActiveStep}
-                checkIfCondaIsInstalled={checkIfCondaIsInstalled}
-                installStatus={installStatus}
-                errorMessage={errorMessage}
-              />
-            </InstallStep>
+            ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')}
               title="Check if Conda Environment 'transformerlab' Exists"
               activeStep={activeStep}
               setActiveStep={setActiveStep}
-            >
-              <CheckIfCondaEnvironmentExists
-                activeStep={activeStep}
-                setActiveStep={setActiveStep}
-                installStatus={installStatus}
-                errorMessage={errorMessage}
-                checkIfCondaEnvironmentExists={checkIfCondaEnvironmentExists}
-              />
-            </InstallStep>
+            ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')}
               title="Check if Python Dependencies are Installed"
               activeStep={activeStep}
               setActiveStep={setActiveStep}
-            >
-              <CheckDependencies
-                activeStep={activeStep}
-                setActiveStep={setActiveStep}
-                errorMessage={dependenciesErrorMessage}
-                setErrorMessage={setDependenciesErrorMessage}
-                installDependencies={installDependencies}
-              />
-            </InstallStep>
+            ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')}
               title="Check if the Transformer Lab Engine is Running Locally on Port 8000"
               activeStep={activeStep}
               setActiveStep={setActiveStep}
-            >
-              <RunServer
-                activeStep={activeStep}
-                setActiveStep={setActiveStep}
-                runServer={runServer}
-                thinking={thinking}
-              />
-            </InstallStep>
+            ></InstallStep>
             <InstallStep
               thisStep={Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')}
               title="Check for Important Plugins"
               activeStep={activeStep}
               setActiveStep={setActiveStep}
-            >
-              <CheckForPlugins
-                activeStep={activeStep}
-                setActiveStep={setActiveStep}
-                missingPlugins={missingPlugins}
-                setMissingPlugins={setMissingPlugins}
-                installing={installingPlugins}
-                setInstalling={setInstallingPlugins}
-                checkForPlugins={checkForPlugins}
-              />
-            </InstallStep>
+            ></InstallStep>
           </Stepper>
         </div>
         {/* <Button
@@ -786,11 +636,18 @@ function InstallStepper({ setServer }) {
           disabled={thinking}
           onClick={async () => {
             setThinking(true);
+            var activeStepElement =
+              document.getElementsByClassName('active-step')?.[0];
+            if (activeStepElement) {
+              activeStepElement.scrollIntoView();
+            }
             await stepsFunctions[activeStep]();
-            setThinking(false);
           }}
         >
-          {activeStep === 7 ? 'Connect' : 'Run Next Install Step'}
+          {thinking && <CircularProgress sx={{ marginRight: 1 }} />}
+          {activeStep === 7
+            ? 'Connect'
+            : 'Run Next Install Step (' + activeStep + ')'}
         </Button>
       </Sheet>
 

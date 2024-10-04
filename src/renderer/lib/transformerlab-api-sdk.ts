@@ -424,9 +424,7 @@ export async function callTool(
   console.log(`Calling Function: ${function_name}`);
   console.log(`with arguments ${arg_string}`);
 
-  const response = await fetch(
-    Endpoints.Tools.Call(function_name, arg_string)
-  );
+  const response = await fetch(Endpoints.Tools.Call(function_name, arg_string));
   const result = await response.json();
   console.log(result);
   return result;
@@ -1350,8 +1348,12 @@ export async function downloadPlugin(pluginId: string) {
   return result;
 }
 
-async function fetchAndGetErrorStatus(url) {
+const fetchAndGetErrorStatus = async (url) => {
+  // console.log('🛎️fetching', url);
+
   const res = await fetch(url);
+
+  // console.log('🛎️fetched', res);
 
   // If the status code is not in the range 200-299,
   // we still try to parse and throw it.
@@ -1364,7 +1366,7 @@ async function fetchAndGetErrorStatus(url) {
   }
 
   return res.json();
-}
+};
 
 /**
  * Check your localhost to see if the server is active
@@ -1380,11 +1382,10 @@ export function useCheckLocalConnection() {
   };
 
   // eslint-disable-next-line prefer-const
-  let { data, error, isLoading } = useSWR(url, fetchAndGetErrorStatus, options);
+  let { data, error } = useSWR(url, fetchAndGetErrorStatus, options);
 
   return {
     server: data,
-    isLoading,
-    error,
+    error: error,
   };
 }
