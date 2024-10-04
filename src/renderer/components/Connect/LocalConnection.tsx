@@ -50,13 +50,7 @@ const Steps = [
   'CHECK_FOR_IMPORTANT_PLUGINS',
 ];
 
-function InstallStep({
-  children = <></>,
-  thisStep,
-  title,
-  activeStep,
-  setActiveStep,
-}) {
+function InstallStep({ children = <></>, thisStep, title, activeStep }) {
   return (
     <Step
       indicator={
