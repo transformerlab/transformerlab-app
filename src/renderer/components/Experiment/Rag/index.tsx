@@ -11,6 +11,7 @@ import {
   Typography,
   Option,
   Chip,
+  FormLabel,
 } from '@mui/joy';
 import Documents from './Documents';
 import Query from './Query';
@@ -96,8 +97,6 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
         height: '100%',
       }}
     >
-      {/* <Typography level="h1">Query Documents</Typography> */}
-
       <Sheet
         sx={{
           display: 'flex',
@@ -107,9 +106,20 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
           justifyContent: 'space-between',
           marginBottom: '2rem',
           overflow: 'hidden',
+          gap: 2,
         }}
       >
-        <Box sx={{ flex: 3, display: 'flex', flexDirection: 'column' }}>
+        <Box
+          sx={{
+            width: '300px',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Documents experimentInfo={experimentInfo} />
+        </Box>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Query experimentInfo={experimentInfo} />
           <Box
             sx={{
@@ -149,16 +159,6 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
               setRagEngine={setRagEngine}
             />
           </Box>
-        </Box>
-        <Box
-          sx={{
-            flex: 2,
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <Documents experimentInfo={experimentInfo} />
         </Box>
       </Sheet>
     </Sheet>

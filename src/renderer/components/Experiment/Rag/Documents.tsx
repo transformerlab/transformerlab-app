@@ -48,7 +48,7 @@ import { FaRegFileAlt } from 'react-icons/fa';
 
 import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
-import { Stack } from '@mui/joy';
+import { Alert, Stack } from '@mui/joy';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -217,11 +217,10 @@ export default function Documents({ experimentInfo }) {
           justifyContent: 'space-between',
         }}
       >
-        <Typography level="title-lg">Documents to Search</Typography>
-        <Button
-          color="neutral"
+        <FormLabel>Documents:</FormLabel>
+        <IconButton
+          color="primary"
           variant="plain"
-          startDecorator={<PlusCircleIcon />}
           size="sm"
           onClick={() => {
             var input = document.createElement('input');
@@ -239,8 +238,8 @@ export default function Documents({ experimentInfo }) {
             input.click();
           }}
         >
-          Add File
-        </Button>
+          <PlusCircleIcon style={{ strokeWidth: '1.5px' }} />
+        </IconButton>
       </Box>
       <Sheet
         className="SearchAndFilters-mobile"
@@ -429,6 +428,19 @@ export default function Documents({ experimentInfo }) {
                   </tr>
                 </thead>
                 <tbody>
+                  {rows?.length == 0 && (
+                    <tr>
+                      <td colSpan={2}>
+                        <Alert
+                          variant="outlined"
+                          color="primary"
+                          sx={{ marginTop: 2 }}
+                        >
+                          Drag and drop documents here to query their contents.
+                        </Alert>
+                      </td>
+                    </tr>
+                  )}
                   {stableSort(rows, getComparator(doc, 'id'))?.map((row) => (
                     <tr key={row?.name}>
                       {/* <td style={{ textAlign: 'center', width: 120 }}>

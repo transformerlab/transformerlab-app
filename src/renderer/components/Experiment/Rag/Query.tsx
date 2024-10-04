@@ -73,7 +73,6 @@ export default function Query({ experimentInfo }) {
       <Box sx={{ flex: 3, maxWidth: '800px', overflow: 'hidden' }}>
         <Box
           sx={{
-            padding: '1rem',
             overflow: 'hidden',
             height: '100%',
             display: 'flex',
@@ -81,7 +80,7 @@ export default function Query({ experimentInfo }) {
           }}
         >
           <FormControl>
-            <FormLabel>Your question:</FormLabel>
+            <FormLabel sx={{ minHeight: '32px' }}>Your question:</FormLabel>
             <Input
               placeholder="What are the top six reasons for suffering?"
               name="query"
