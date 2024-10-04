@@ -56,7 +56,9 @@ const LocalModelsTable = ({
           }}
         >
           {licenseTypes.map((type) => (
-            <Option value={type}>{type}</Option>
+            <Option value={type} key={type}>
+              {type}
+            </Option>
           ))}
         </Select>
       </FormControl>
@@ -71,7 +73,9 @@ const LocalModelsTable = ({
           }}
         >
           {modelTypes.map((type) => (
-            <Option value={type}>{type}</Option>
+            <Option value={type} key={type}>
+              {type}
+            </Option>
           ))}
         </Select>
       </FormControl>
