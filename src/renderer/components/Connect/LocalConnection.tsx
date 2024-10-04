@@ -110,6 +110,8 @@ function InstallStepper({ setServer }) {
   const [thinking, setThinking] = useState(false);
   const { server, error: serverError } = useCheckLocalConnection();
 
+  // This useEffect will be triggered on every server update -- we use this to check
+  // if the server is running on port 8000 and if so, display the Connect button
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000'))
       return;
@@ -492,14 +494,6 @@ function InstallStepper({ setServer }) {
 
   var stepsFunctions: (() => Promise<void>)[] = [];
 
-  /*  'CHECK_IF_INSTALLED',
-  'CHECK_VERSION',
-  'CHECK_IF_CONDA_INSTALLED',
-  'CHECK_IF_CONDA_ENVIRONMENT_EXISTS',
-  'CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED',
-  'CHECK_IF_SERVER_RUNNING_ON_PORT_8000',
-  'CHECK_FOR_IMPORTANT_PLUGINS',*/
-
   stepsFunctions[Steps.indexOf('CHECK_IF_INSTALLED')] = async () => {
     await installAPI();
     setThinking(false);
@@ -567,6 +561,11 @@ function InstallStepper({ setServer }) {
             powerful GPU, use "Connect to Remote Engine" instead.
           </Typography>
         </Alert>
+        {installStatus === 'error' && (
+          <Alert variant="outlined" color="danger">
+            {installErrorMessage}
+          </Alert>
+        )}
         <div style={{ flex: 1, overflow: 'auto' }}>
           <Stepper orientation="vertical" sx={{}}>
             {/* Active Step: {activeStep} */}
