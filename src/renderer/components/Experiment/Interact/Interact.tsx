@@ -231,10 +231,10 @@ export default function Chat({
     });
   }
 
-  function addToolResult(result: object) {
+  function addToolResult(text: String) {
     const r = Math.floor(Math.random() * 1000000);
     return {
-      t: result,
+      t: text,
       user: 'tool',
       key: r,
     };
@@ -501,7 +501,9 @@ export default function Chat({
       if (Array.isArray(tool_calls) && tool_calls.length) {
         // first push the assistant's original response on to the chat lists
         texts.push({ role: 'assistant', content: llm_response });
-        setChats((prevChat) => [...prevChat, addAssistantChat(result)]);
+        const tool_call_chat = await addAssistantChat(result)
+        newChats = [...newChats, tool_call_chat,];
+        setChats((prevChat) => [...prevChat, tool_call_chat]);
 
         // iterate through tool_calls (there can be more than one)
         // and actually call the tools and save responses
@@ -534,12 +536,14 @@ export default function Chat({
         // Add all function output as response to conversation
         // How to format response if there are multiple calls?
         // For now just put a newline between them.
-        let tool_response = tool_responses.join('\n');
+        const tool_response = tool_responses.join('\n');
 
         // TODO: role should be 'tool' not 'user'
         // ...but tool is not supported by backend right now?
         texts.push({ role: 'user', content: tool_response });
-        setChats((prevChat) => [...prevChat, addAssistantChat(result)]);
+        const tool_result = addToolResult(tool_response);
+        newChats = [...newChats, tool_result,];
+        setChats((prevChat) => [...prevChat, tool_result]);
 
         // Call the model AGAIN with the tool response
         // Update result with the new response
@@ -583,7 +587,17 @@ export default function Chat({
       },
     ];
 
-    setChats(newChats);
+    setChats((prevChat) => [
+      ...prevChat,
+      {
+        t: result?.text,
+        user: 'bot',
+        key: result?.id,
+        numberOfTokens: numberOfTokens,
+        timeToFirstToken: timeToFirstToken,
+        tokensPerSecond: tokensPerSecond,
+      },
+    ]);
 
     // If this is a new conversation, generate a new conversation Id
     var cid = conversationId;
