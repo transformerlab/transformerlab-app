@@ -119,9 +119,15 @@ function InstallStepper({ setServer }) {
       setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1);
       setThinking(false);
       return;
+    } else {
+      console.log('we are on step 6 and the server is not up');
+      if (userRequestedInstall) {
+        stepsFunctions[Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')]();
+      }
     }
-  }, [server]);
+  }, [server, activeStep, userRequestedInstall]);
 
+  // Step 1 - Check if installed
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_INSTALLED')) return;
     if (!userRequestedInstall) return;
@@ -148,6 +154,9 @@ function InstallStepper({ setServer }) {
             setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
           } else {
             setInstallStatus('notstarted');
+            if (userRequestedInstall) {
+              stepsFunctions[Steps.indexOf('CHECK_IF_INSTALLED')]();
+            }
           }
           return;
         })
@@ -158,6 +167,7 @@ function InstallStepper({ setServer }) {
     })();
   }, [activeStep, userRequestedInstall]);
 
+  // Step 2 - Check Current Version
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_VERSION')) return;
     if (!userRequestedInstall) return;
@@ -186,10 +196,15 @@ function InstallStepper({ setServer }) {
 
       if (ver === tag) {
         setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
+      } else {
+        if (userRequestedInstall) {
+          stepsFunctions[Steps.indexOf('CHECK_VERSION')]();
+        }
       }
     })();
   }, [activeStep, userRequestedInstall]);
 
+  // Step 3 - Check if Conda is Installed
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_INSTALLED')) return;
     if (!userRequestedInstall) return;
@@ -205,10 +220,14 @@ function InstallStepper({ setServer }) {
         setActiveStep(Steps.indexOf('CHECK_IF_CONDA_INSTALLED') + 1);
       } else {
         setInstallStatus('notstarted');
+        if (userRequestedInstall) {
+          stepsFunctions[Steps.indexOf('CHECK_IF_CONDA_INSTALLED')]();
+        }
       }
     })();
   }, [activeStep, userRequestedInstall]);
 
+  // Step 4 - Check if Conda Environment Exists
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS'))
       return;
@@ -231,10 +250,14 @@ function InstallStepper({ setServer }) {
           message: condaExists?.message,
           data: condaExists?.data,
         });
+        if (userRequestedInstall) {
+          stepsFunctions[Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')]();
+        }
       }
     })();
   }, [activeStep, userRequestedInstall]);
 
+  // Step 5 - Check if Python Dependencies are Installed
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED'))
       return;
@@ -254,6 +277,11 @@ function InstallStepper({ setServer }) {
         );
       } else {
         setInstallStatus('notstarted');
+        if (userRequestedInstall) {
+          stepsFunctions[
+            Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED')
+          ]();
+        }
       }
 
       if (ipcResponse?.status == 'error') {
@@ -268,6 +296,7 @@ function InstallStepper({ setServer }) {
     })();
   }, [activeStep, userRequestedInstall]);
 
+  // Step 7 - Check for Important Plugins
   useEffect(() => {
     if (activeStep !== Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')) return;
     if (!userRequestedInstall) return;
@@ -283,6 +312,11 @@ function InstallStepper({ setServer }) {
 
       if (json.length === 0) {
         setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
+        stepsFunctions[Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1](); // This connects and closes the window
+      } else {
+        if (userRequestedInstall) {
+          stepsFunctions[Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')]();
+        }
       }
     })();
   }, [activeStep, userRequestedInstall]);
@@ -617,31 +651,16 @@ function InstallStepper({ setServer }) {
           variant="solid"
           color="success"
           disabled={thinking}
-          onClick={async () => {
-            setThinking(true);
-            var activeStepElement =
-              document.getElementsByClassName('active-step')?.[0];
-            if (activeStepElement) {
-              activeStepElement.scrollIntoView();
-            }
-            await stepsFunctions[activeStep]();
-          }}
-        >
-          {thinking && <CircularProgress sx={{ marginRight: 1 }} />}
-          {activeStep === 7
-            ? 'Connect'
-            : 'Run Next Install Step (' + activeStep + ')'}
-        </Button>
-        <Button
           onClick={() => {
             setUserRequestedInstall(true);
           }}
         >
+          {thinking && <CircularProgress sx={{ marginRight: 1 }} />}
           {userRequestedInstall ? 'Connecting...' : 'Connect'}
         </Button>
       </Sheet>
 
-      {true && (
+      {logViewerVisible && (
         <Sheet
           sx={{
             flex: 2,
