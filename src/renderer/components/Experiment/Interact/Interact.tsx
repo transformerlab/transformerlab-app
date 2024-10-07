@@ -34,6 +34,7 @@ import {
   focusChatInput,
   getAgentSystemMessage,
 } from './interactUtils';
+import Batched from './Batched';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -501,8 +502,8 @@ export default function Chat({
       if (Array.isArray(tool_calls) && tool_calls.length) {
         // first push the assistant's original response on to the chat lists
         texts.push({ role: 'assistant', content: llm_response });
-        const tool_call_chat = await addAssistantChat(result)
-        newChats = [...newChats, tool_call_chat,];
+        const tool_call_chat = await addAssistantChat(result);
+        newChats = [...newChats, tool_call_chat];
         setChats((prevChat) => [...prevChat, tool_call_chat]);
 
         // iterate through tool_calls (there can be more than one)
@@ -542,7 +543,7 @@ export default function Chat({
         // ...but tool is not supported by backend right now?
         texts.push({ role: 'user', content: tool_response });
         const tool_result = addToolResult(tool_response);
-        newChats = [...newChats, tool_result,];
+        newChats = [...newChats, tool_result];
         setChats((prevChat) => [...prevChat, tool_result]);
 
         // Call the model AGAIN with the tool response
@@ -759,6 +760,7 @@ export default function Chat({
             <Option value="embeddings">Embeddings</Option>
             <Option value="tokenize">Tokenize</Option>
             <Option value="rag">Query Documents</Option>
+            <Option value="batched">Batched Query</Option>
           </Select>
         </FormControl>
         <Typography level="title-md">
@@ -858,6 +860,30 @@ export default function Chat({
         )}
         {mode === 'rag' && (
           <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
+        )}
+        {mode == 'batched' && (
+          <Batched
+            key={conversationId}
+            chats={chats}
+            setChats={setChats}
+            experimentInfo={experimentInfo}
+            isThinking={isThinking}
+            sendNewMessageToLLM={sendNewMessageToLLM}
+            stopStreaming={stopStreaming}
+            experimentInfoMutate={experimentInfoMutate}
+            tokenCount={tokenCount}
+            text={textToDebounce}
+            debouncedText={debouncedText}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            currentModelArchitecture={currentModelArchitecture}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+          />
         )}
       </Sheet>
       <Sheet
