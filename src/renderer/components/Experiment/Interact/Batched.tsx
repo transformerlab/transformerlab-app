@@ -20,15 +20,18 @@ import {
   ListDivider,
   ListItemContent,
   LinearProgress,
+  IconButton,
+  Divider,
 } from '@mui/joy';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ConstructionIcon,
   FileStackIcon,
   PencilIcon,
   PlayIcon,
   PlusCircleIcon,
+  Trash2Icon,
 } from 'lucide-react';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 
@@ -46,8 +49,8 @@ export default function Batched({
   const [isThinking, setIsThinking] = useState(false);
   const [prompts, setPrompts] = useState<string[]>([]);
   const [result, setResult] = useState({});
-  async function sendBatchOfQueries(key) {
-    const text = batchedQueriesList.find((query) => query.key === key).prompts;
+  async function sendBatchOfQueries(prompts) {
+    const text = prompts;
 
     const currentModel = experimentInfo?.config?.foundation;
     const adaptor = experimentInfo?.config?.adaptor;
@@ -196,7 +199,7 @@ export default function Batched({
 const batchedQueriesList = [
   {
     name: 'Happy List',
-    key: '1',
+    key: 1,
     prompts: [
       'List all the things that make you happy',
       'What are some things that make you happy?',
@@ -205,62 +208,34 @@ const batchedQueriesList = [
   },
   {
     name: 'Sad List',
-    key: '2',
+    key: 2,
     prompts: [
       'List all the things that make you sad',
       'What are some things that make you sad?',
       'What are some thingies that make you sad?',
     ],
   },
-  {
-    name: 'Angry List',
-    key: '3',
-    prompts: [
-      'List all the things that make you angry',
-      'What are some things that make you angry?',
-      'What are some thingies that make you angry?',
-    ],
-  },
-  {
-    name: 'Surprised List',
-    key: '4',
-    prompts: [
-      'List all the things that make you surprised',
-      'What are some things that make you surprised?',
-      'What are some thingies that make you surprised?',
-    ],
-  },
-  {
-    name: 'Excited List',
-    key: '5',
-    prompts: [
-      'List all the things that make you excited',
-      'What are some things that make you excited?',
-      'What are some thingies that make you excited?',
-    ],
-  },
-  {
-    name: 'Bored List',
-    key: '6',
-    prompts: [
-      'List all the things that make you bored',
-      'What are some things that make you bored?',
-      'What are some thingies that make you bored?',
-    ],
-  },
-  {
-    name: 'Confused List',
-    key: '7',
-    prompts: [
-      'List all the things that make you confused',
-      'What are some things that make you confused?',
-      'What are some thingies that make you confused?',
-    ],
-  },
 ];
 
 function ListOfBatchedQueries({ sendBatchOfQueries }) {
   const [newQueryModalOpen, setNewQueryModalOpen] = useState(false);
+  const [savedBatchQueries, setSavedBatchQueries] = useState([]);
+
+  function addQuery(query) {
+    const newKey = Math.max(
+      ...batchedQueriesList.map((query) => parseInt(query.key))
+    );
+    const newBatch = {
+      key: newKey + 1,
+      name: query?.name,
+      prompts: query?.prompts,
+    };
+    setSavedBatchQueries([...savedBatchQueries, newBatch]);
+  }
+
+  useEffect(() => {
+    setSavedBatchQueries(batchedQueriesList);
+  }, []);
 
   return (
     <>
@@ -268,7 +243,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
         aria-labelledby="decorated-list-demo"
         sx={{ height: '100%', overflow: 'auto' }}
       >
-        {batchedQueriesList.map((query) => (
+        {savedBatchQueries?.map((query) => (
           <ListItem key={query.key}>
             <ListItemDecorator sx={{ color: 'var(--joy-palette-neutral-400)' }}>
               <FileStackIcon />
@@ -276,7 +251,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
             <ListItemContent>{query.name}</ListItemContent>
             <PlayIcon
               size="20px"
-              onClick={() => sendBatchOfQueries(query.key)}
+              onClick={() => sendBatchOfQueries(query?.prompts)}
             />
             <PencilIcon size="20px" />
           </ListItem>
@@ -296,7 +271,11 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
           </ListItemButton>
         </ListItem>
       </List>
-      <NewBatchModal open={newQueryModalOpen} setOpen={setNewQueryModalOpen} />
+      <NewBatchModal
+        open={newQueryModalOpen}
+        setOpen={setNewQueryModalOpen}
+        addQuery={addQuery}
+      />
     </>
   );
 }
@@ -310,7 +289,8 @@ function Result({ prompt, children }) {
   );
 }
 
-function NewBatchModal({ open, setOpen }) {
+function NewBatchModal({ open, setOpen, addQuery }) {
+  const [prompts, setPrompts] = useState<string[]>(['']);
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
       <ModalDialog
@@ -323,7 +303,7 @@ function NewBatchModal({ open, setOpen }) {
           display: 'flex',
         }}
       >
-        <DialogTitle>New Batch of Prompts</DialogTitle>
+        <DialogTitle>Prompts</DialogTitle>
         {/* <DialogContent>Fill in the information of the project.</DialogContent> */}
         <form
           onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
@@ -334,19 +314,72 @@ function NewBatchModal({ open, setOpen }) {
 
             console.log(formJson);
 
+            // convert {prompt[0]: 'sfdf', prompt[1]: 'sdf'} to ['sdf', 'sdf']
+            const prompts = Object.keys(formJson)
+              .filter((key) => key.startsWith('prompt'))
+              .map((key) => formJson[key]);
+
+            const newQuery = {
+              name: formJson.name,
+              prompts,
+            };
+            addQuery(newQuery);
+            setPrompts(['']);
             setOpen(false);
           }}
         >
+          <FormControl>
+            <FormLabel>Batch Name</FormLabel>
+            <Input required name="name" size="lg" />
+          </FormControl>
+          <Divider sx={{ my: 3 }} />
           <Stack spacing={2}>
-            <FormControl>
-              <FormLabel>System Prompt</FormLabel>
-              <Input autoFocus required name="system" />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Prompt</FormLabel>
-              <Input required name="prompt" />
-            </FormControl>
-            <Button type="submit">Submit</Button>
+            {prompts.map((prompt, index) => (
+              <FormControl key={index}>
+                <FormLabel>Prompt {index + 1}</FormLabel>
+                <Box sx={{ display: 'flex', flexDirection: 'row' }}>
+                  <Input
+                    required
+                    sx={{ width: '100%' }}
+                    name={`prompt[${index}]`}
+                    defaultValue={prompt}
+                    onChange={(event) => {
+                      setPrompts(
+                        prompts.map((p, i) =>
+                          i === index ? event.target.value : p
+                        )
+                      );
+                    }}
+                  />
+                  {
+                    // If this is the last item, show the delete button:
+                    index === prompts.length - 1 && (
+                      <IconButton
+                        color="danger"
+                        onClick={() => {
+                          const newPrompts = [...prompts];
+                          newPrompts.pop();
+                          setPrompts(newPrompts);
+                        }}
+                      >
+                        <Trash2Icon />
+                      </IconButton>
+                    )
+                  }
+                </Box>
+              </FormControl>
+            ))}
+            <Button
+              variant="outlined"
+              color="success"
+              onClick={() => {
+                setPrompts([...prompts, '']);
+              }}
+              startDecorator={<PlusCircleIcon />}
+            >
+              Add Prompt
+            </Button>
+            <Button type="submit">Save</Button>
           </Stack>
         </form>
       </ModalDialog>
