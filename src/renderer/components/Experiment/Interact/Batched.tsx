@@ -44,6 +44,8 @@ export default function Batched({
   experimentInfo,
 }) {
   const [isThinking, setIsThinking] = useState(false);
+  const [prompts, setPrompts] = useState<string[]>([]);
+  const [result, setResult] = useState({});
   async function sendBatchOfQueries(key) {
     const text = batchedQueriesList.find((query) => query.key === key).prompts;
 
@@ -71,7 +73,6 @@ export default function Batched({
     }
 
     const targetElement = document.getElementById('completion-textarea');
-    targetElement.value = '';
 
     const result = await chatAPI.sendBatchedCompletion(
       currentModel,
@@ -87,9 +88,8 @@ export default function Batched({
     setIsThinking(false);
 
     console.log('result', result);
-
-    targetElement.value = JSON.stringify(result?.choices, null, 2);
-
+    setPrompts(text);
+    setResult(result);
     return result?.text;
   }
 
@@ -181,16 +181,12 @@ export default function Batched({
             gap: 1,
           }}
         >
-          <FormControl sx={{ height: '100%' }}>
-            <FormLabel>Result:</FormLabel>
-            {isThinking && <LinearProgress />}
-            <textarea
-              name="completion-textarea"
-              id="completion-textarea"
-              rows={20}
-              style={{ overflow: 'auto', height: '100%' }}
-            />
-          </FormControl>
+          {isThinking && <LinearProgress />}
+          <Sheet sx={{ height: '100%', overflow: 'auto' }}>
+            {result?.choices?.map((choice, index) => (
+              <Result prompt={prompts?.[index]}>{choice?.text}</Result>
+            ))}
+          </Sheet>
         </Sheet>
       </Sheet>
     </Sheet>
@@ -344,5 +340,14 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
         </ModalDialog>
       </Modal>
     </>
+  );
+}
+
+export function Result({ prompt, children }) {
+  return (
+    <Sheet variant="outlined" sx={{ padding: 2 }}>
+      <Sheet color="success">{prompt}</Sheet>
+      <Sheet color="neutral">{children}</Sheet>
+    </Sheet>
   );
 }
