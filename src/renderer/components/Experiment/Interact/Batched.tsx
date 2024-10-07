@@ -19,11 +19,10 @@ import {
   Alert,
   ListDivider,
   ListItemContent,
+  LinearProgress,
 } from '@mui/joy';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { useEffect, useState } from 'react';
-import { useDebounce } from 'use-debounce';
-import useSWR from 'swr';
+import { useState } from 'react';
 import {
   ConstructionIcon,
   FileStackIcon,
@@ -37,27 +36,63 @@ import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Batched({
-  chats,
-  setChats,
-  experimentInfo,
-  isThinking,
-  sendNewMessageToLLM,
-  stopStreaming,
-  experimentInfoMutate,
   tokenCount,
-  text,
-  debouncedText,
   defaultPromptConfigForModel = {},
-  enableTools = false,
-  currentModelArchitecture,
   generationParameters,
   setGenerationParameters,
-  conversations,
-  conversationsIsLoading,
-  conversationsMutate,
-  setConversationId,
-  conversationId,
+  sendCompletionToLLM,
+  experimentInfo,
 }) {
+  const [isThinking, setIsThinking] = useState(false);
+  async function sendBatchOfQueries(key) {
+    const text = batchedQueriesList.find((query) => query.key === key).prompts;
+
+    const currentModel = experimentInfo?.config?.foundation;
+    const adaptor = experimentInfo?.config?.adaptor;
+
+    setIsThinking(true);
+
+    var inferenceParams = '';
+
+    if (experimentInfo?.config?.inferenceParams) {
+      inferenceParams = experimentInfo?.config?.inferenceParams;
+      inferenceParams = JSON.parse(inferenceParams);
+    }
+
+    const generationParamsJSON = experimentInfo?.config?.generationParams;
+    const generationParameters = JSON.parse(generationParamsJSON);
+
+    try {
+      generationParameters.stop_str = JSON.parse(
+        generationParameters?.stop_str
+      );
+    } catch (e) {
+      console.log('Error parsing stop strings as JSON');
+    }
+
+    const targetElement = document.getElementById('completion-textarea');
+    targetElement.value = '';
+
+    const result = await chatAPI.sendBatchedCompletion(
+      currentModel,
+      adaptor,
+      text,
+      generationParameters?.temperature,
+      generationParameters?.maxTokens,
+      generationParameters?.topP,
+      false,
+      generationParameters?.stop_str
+    );
+
+    setIsThinking(false);
+
+    console.log('result', result);
+
+    targetElement.value = JSON.stringify(result?.choices, null, 2);
+
+    return result?.text;
+  }
+
   return (
     <Sheet
       sx={{
@@ -94,7 +129,6 @@ export default function Batched({
           />
         </FormControl>{' '}
         <Typography
-          id="decorated-list-demo"
           level="body-xs"
           sx={{ textTransform: 'uppercase', fontWeight: 'lg', mb: 1 }}
         >
@@ -104,12 +138,12 @@ export default function Batched({
           sx={{
             display: 'flex',
             border: '1px solid #ccc',
-            padding: 2,
+            padding: 1,
             flexDirection: 'column',
             height: '100%',
           }}
         >
-          <ListOfBatchedQueries />
+          <ListOfBatchedQueries sendBatchOfQueries={sendBatchOfQueries} />
         </Box>
       </Box>
       <Sheet
@@ -147,9 +181,15 @@ export default function Batched({
             gap: 1,
           }}
         >
-          <FormControl>
+          <FormControl sx={{ height: '100%' }}>
             <FormLabel>Result:</FormLabel>
-            <Textarea minRows={20} />
+            {isThinking && <LinearProgress />}
+            <textarea
+              name="completion-textarea"
+              id="completion-textarea"
+              rows={20}
+              style={{ overflow: 'auto', height: '100%' }}
+            />
           </FormControl>
         </Sheet>
       </Sheet>
@@ -223,7 +263,7 @@ const batchedQueriesList = [
   },
 ];
 
-function ListOfBatchedQueries({}) {
+function ListOfBatchedQueries({ sendBatchOfQueries }) {
   const [newQueryModalOpen, setNewQueryModalOpen] = useState(false);
 
   return (
@@ -238,7 +278,10 @@ function ListOfBatchedQueries({}) {
               <FileStackIcon />
             </ListItemDecorator>
             <ListItemContent>{query.name}</ListItemContent>
-            <PlayIcon size="20px" onClick={() => alert('hi')} />
+            <PlayIcon
+              size="20px"
+              onClick={() => sendBatchOfQueries(query.key)}
+            />
             <PencilIcon size="20px" />
           </ListItem>
         ))}

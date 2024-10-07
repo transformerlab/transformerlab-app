@@ -416,6 +416,62 @@ export async function sendCompletion(
   return null;
 }
 
+export async function sendBatchedCompletion(
+  currentModel: string,
+  adaptor: string,
+  text: string[],
+  temperature: number = 0.7,
+  maxTokens: number = 256,
+  topP: number = 1.0,
+  useLongModelName = true,
+  stopString = null
+) {
+  let model = '';
+  if (useLongModelName) {
+    model = currentModel;
+  } else {
+    model = currentModel.split('/').slice(-1)[0];
+  }
+
+  if (adaptor && adaptor !== '') {
+    model = adaptor;
+  }
+
+  const data = {
+    model: model,
+    stream: false,
+    prompt: text,
+    temperature,
+    max_tokens: maxTokens,
+    top_p: topP,
+  };
+
+  if (stopString) {
+    data.stop = stopString;
+  }
+
+  let result;
+  var id = Math.random() * 1000;
+
+  let response;
+  try {
+    response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
+      method: 'POST', // or 'PUT'
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  } catch (error) {
+    console.log('There was an error', error);
+    return null;
+  }
+
+  result = await response.json();
+  return result;
+}
+
 export async function callTool(
   function_name: String,
   function_args: Object = {}

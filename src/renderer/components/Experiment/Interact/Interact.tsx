@@ -863,26 +863,12 @@ export default function Chat({
         )}
         {mode == 'batched' && (
           <Batched
-            key={conversationId}
-            chats={chats}
-            setChats={setChats}
-            experimentInfo={experimentInfo}
-            isThinking={isThinking}
-            sendNewMessageToLLM={sendNewMessageToLLM}
-            stopStreaming={stopStreaming}
-            experimentInfoMutate={experimentInfoMutate}
             tokenCount={tokenCount}
-            text={textToDebounce}
-            debouncedText={debouncedText}
             defaultPromptConfigForModel={defaultPromptConfigForModel}
-            currentModelArchitecture={currentModelArchitecture}
             generationParameters={generationParameters}
             setGenerationParameters={setGenerationParameters}
-            conversations={conversations}
-            conversationsIsLoading={conversationsIsLoading}
-            conversationsMutate={conversationsMutate}
-            setConversationId={setConversationId}
-            conversationId={conversationId}
+            sendCompletionToLLM={sendCompletionToLLM}
+            experimentInfo={experimentInfo}
           />
         )}
       </Sheet>
