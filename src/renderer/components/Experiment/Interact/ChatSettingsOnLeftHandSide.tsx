@@ -17,6 +17,7 @@ export default function ChatSettingsOnLeftHandSide({
   conversationId,
   experimentInfo,
   experimentInfoMutate,
+  showPreviousMessages = true,
 }) {
   const [showPromptSettingsModal, setShowPromptSettingsModal] = useState(false);
   return (
@@ -75,15 +76,17 @@ export default function ChatSettingsOnLeftHandSide({
             </FormControl>
           </Box>
         </Sheet>
-        <PreviousMessageList
-          conversations={conversations}
-          conversationsIsLoading={conversationsIsLoading}
-          conversationsMutate={conversationsMutate}
-          setChats={setChats}
-          setConversationId={setConversationId}
-          conversationId={conversationId}
-          experimentInfo={experimentInfo}
-        />
+        {showPreviousMessages && (
+          <PreviousMessageList
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setChats={setChats}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+            experimentInfo={experimentInfo}
+          />
+        )}
       </Box>
 
       {/* <Box sx={{ borderRight: '0.5px solid #ccc', display: 'flex' }}></Box> */}
