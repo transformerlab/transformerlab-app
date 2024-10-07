@@ -296,58 +296,60 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
           </ListItemButton>
         </ListItem>
       </List>
-      <Modal
-        open={newQueryModalOpen}
-        onClose={() => setNewQueryModalOpen(false)}
-      >
-        <ModalDialog
-          sx={{
-            minWidth: '50vw',
-
-            maxWidth: '90vw',
-            maxHeight: '90vh',
-            width: 'auto',
-            height: 'auto',
-            display: 'flex',
-          }}
-        >
-          <DialogTitle>Create new project</DialogTitle>
-          <DialogContent>Fill in the information of the project.</DialogContent>
-          <form
-            onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
-              event.preventDefault();
-
-              const formData = new FormData(event.currentTarget);
-              const formJson = Object.fromEntries((formData as any).entries());
-
-              console.log(formJson);
-
-              setNewQueryModalOpen(false);
-            }}
-          >
-            <Stack spacing={2}>
-              <FormControl>
-                <FormLabel>System Prompt</FormLabel>
-                <Input autoFocus required name="system" />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Prompt</FormLabel>
-                <Input required name="prompt" />
-              </FormControl>
-              <Button type="submit">Submit</Button>
-            </Stack>
-          </form>
-        </ModalDialog>
-      </Modal>
+      <NewBatchModal open={newQueryModalOpen} setOpen={setNewQueryModalOpen} />
     </>
   );
 }
 
-export function Result({ prompt, children }) {
+function Result({ prompt, children }) {
   return (
     <Sheet variant="outlined" sx={{ padding: 2 }}>
       <Sheet color="success">{prompt}</Sheet>
       <Sheet color="neutral">{children}</Sheet>
     </Sheet>
+  );
+}
+
+function NewBatchModal({ open, setOpen }) {
+  return (
+    <Modal open={open} onClose={() => setOpen(false)}>
+      <ModalDialog
+        sx={{
+          minWidth: '50vw',
+          maxWidth: '90vw',
+          maxHeight: '90vh',
+          width: 'auto',
+          height: 'auto',
+          display: 'flex',
+        }}
+      >
+        <DialogTitle>New Batch of Prompts</DialogTitle>
+        {/* <DialogContent>Fill in the information of the project.</DialogContent> */}
+        <form
+          onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+
+            const formData = new FormData(event.currentTarget);
+            const formJson = Object.fromEntries((formData as any).entries());
+
+            console.log(formJson);
+
+            setOpen(false);
+          }}
+        >
+          <Stack spacing={2}>
+            <FormControl>
+              <FormLabel>System Prompt</FormLabel>
+              <Input autoFocus required name="system" />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Prompt</FormLabel>
+              <Input required name="prompt" />
+            </FormControl>
+            <Button type="submit">Submit</Button>
+          </Stack>
+        </form>
+      </ModalDialog>
+    </Modal>
   );
 }
