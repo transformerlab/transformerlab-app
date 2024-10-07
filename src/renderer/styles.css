@@ -94,8 +94,10 @@ spinning gradient border effect */
 
 /* Scrollbar styles */
 ::-webkit-scrollbar {
-  width: 10px; /* for vertical scrollbars */
-  height: 10px; /* for horizontal scrollbars */
+  width: 10px;
+  /* for vertical scrollbars */
+  height: 10px;
+  /* for horizontal scrollbars */
 }
 
 ::-webkit-scrollbar-track {
@@ -105,6 +107,7 @@ spinning gradient border effect */
 ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.25);
 }
+
 /* End Scrollbar styles */
 
 /* remove borders on button groups -- fixes up sidebar buttons at bottom */
@@ -152,4 +155,14 @@ fieldset {
 .chatBubbleContent code {
   display: block;
   max-width: 300px;
+}
+
+
+textarea {
+  background-color: var(--joy-palette-background-level-1);
+  border: 1px solid rgb(209, 213, 219);
+  color: var(--joy-palette-text-tertiary);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI";
+  font-size: 16px;
+  padding: 16px;
 }
