@@ -430,14 +430,8 @@ export default function Documents({ experimentInfo }) {
                 <tbody>
                   {rows?.length == 0 && (
                     <tr>
-                      <td colSpan={2}>
-                        <Alert
-                          variant="outlined"
-                          color="primary"
-                          sx={{ marginTop: 2 }}
-                        >
-                          Drag and drop documents here to query their contents.
-                        </Alert>
+                      <td colSpan={3} style={{ padding: '2rem' }}>
+                        Drag and drop documents here to query their contents.
                       </td>
                     </tr>
                   )}
