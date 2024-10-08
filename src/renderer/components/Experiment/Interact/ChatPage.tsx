@@ -1,6 +1,5 @@
 import {
-  Button,
-  FormControl,
+  Alert,
   FormLabel,
   Sheet,
   Stack,
@@ -9,14 +8,19 @@ import {
   Modal,
   ModalDialog,
 } from '@mui/joy';
+import {
+  ConstructionIcon,
+} from 'lucide-react';
+
 import ChatBubble from './ChatBubble';
 import ChatSubmit from './ChatSubmit';
+import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import SystemMessageBox from './SystemMessageBox';
+
 import { useEffect, useState } from 'react';
 import { useDebounce } from 'use-debounce';
 import useSWR from 'swr';
-import SystemMessageBox from './SystemMessageBox';
-import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -148,6 +152,17 @@ export default function ChatPage({
       >
         {enableTools && (
           <>
+          <Alert
+          variant="outlined"
+          color="warning"
+          startDecorator={<ConstructionIcon />}
+        >
+          Work In Progress.
+          This is a preview of tool calling.
+          We will be expanding this portion of the app in an upcoming release.
+          This feature will allow a user to add functions that can be 
+          called by the model.
+        </Alert>
             <FormLabel>Available Tools</FormLabel>
             <Textarea value={tool_list} />
           </>
