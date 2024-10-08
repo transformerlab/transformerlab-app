@@ -187,7 +187,9 @@ export default function Batched({
           {isThinking && <LinearProgress />}
           <Sheet sx={{ height: '100%', overflow: 'auto' }}>
             {result?.choices?.map((choice, index) => (
-              <Result prompt={prompts?.[index]}>{choice?.text}</Result>
+              <Result prompt={prompts?.[index]} key={index}>
+                {choice?.text}
+              </Result>
             ))}
           </Sheet>
         </Sheet>
