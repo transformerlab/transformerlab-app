@@ -232,7 +232,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
               size="20px"
               onClick={() => sendBatchOfQueries(query?.prompts)}
             />
-            <PencilIcon size="20px" />
+            <PencilIcon size="20px" onClick={() => alert('not implemented')} />
           </ListItem>
         ))}
         <ListDivider />
