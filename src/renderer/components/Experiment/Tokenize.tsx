@@ -12,22 +12,25 @@ import {
   FormLabel,
   Stack,
   Textarea,
+  Tooltip,
   Typography,
 } from '@mui/joy';
 import { useState } from 'react';
 
 // array of 5 pastel colours for the rainbow effect:
 const colourArray = ['#e9fcf1', '#f2e0fc', '#f6f3d8', '#d4effc', '#fbcae0'];
-function singleWordElement(word, i) {
+function singleWordElement(word, tokenID, i) {
   return (
-    <span
-      key={i}
-      style={{
-        backgroundColor: colourArray[i % colourArray.length],
-      }}
-    >
-      {word}
-    </span>
+    <Tooltip title={tokenID} arrow>
+      <span
+        key={i}
+        style={{
+          backgroundColor: colourArray[i % colourArray.length],
+        }}
+      >
+        {word}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -39,7 +42,7 @@ function makeRainbowTextFromArray(arr) {
   let result = [];
 
   for (let i = 0; i < arr.length; i++) {
-    let word = arr[i];
+    let word = arr[i][0];
 
     // Ġ is &nbsp;
     // Ċ is newline
@@ -49,28 +52,34 @@ function makeRainbowTextFromArray(arr) {
     // do the same as above but use the SPACE_AND_NEWLINE_TOKENS array:
 
     word = word.split(new RegExp(`(${SPACE_AND_NEWLINE_TOKENS.join('|')})`));
-    // we have an array of strings, remove any empty strings:
+    // Remove any empty strings:
     word = word.filter((w) => w !== '');
 
+    let thisWord = '';
     for (let j = 0; j < word.length; j++) {
-      // if word[j] is not in SPACE_AND_NEWLINE_TOKENS, add it:
-      if (!SPACE_AND_NEWLINE_TOKENS.includes(word[j])) {
-        result.push(singleWordElement(word[j], i));
-        continue;
-      }
       // if word[j] is Ġ or Ċ, add a space:
       if (SPACE_TOKENS.includes(word[j])) {
-        result.push(singleWordElement(<>&nbsp;</>, i));
-        continue;
+        // result.push(singleWordElement(<>&nbsp;</>, arr[i][1], i));
+        thisWord += '_';
+      }
+      // if word[j] is not in SPACE_AND_NEWLINE_TOKENS, add it:
+      if (!SPACE_AND_NEWLINE_TOKENS.includes(word[j])) {
+        // result.push(singleWordElement(word[j], arr[i][1], i));
+        thisWord += word[j];
       }
 
       if (NEWLINE_TOKENS.includes(word[j])) {
+        result.push(singleWordElement('⮐', arr[i][1], i));
         result.push(
           <>
             <br />
           </>
         );
         continue;
+      }
+
+      if (j === word.length - 1) {
+        result.push(singleWordElement(thisWord, arr[i][1], i));
       }
     }
   }
@@ -104,7 +113,13 @@ export default function Tokenize({ experimentInfo }) {
       return;
     }
 
-    setTokenizedResult(tokens);
+    // Create a token array that looks like [[token, tokenId], [token, tokenId], ...]
+    let tokenArray = [];
+    for (let i = 0; i < tokens.length; i++) {
+      tokenArray.push([tokens[i], embeddings.token_ids[i]]);
+    }
+
+    setTokenizedResult(tokenArray);
 
     setNumberOfTokens(tokens?.length);
     setNumberOfCharacters(text?.length);
@@ -128,6 +143,7 @@ export default function Tokenize({ experimentInfo }) {
           overflowX: 'hidden',
         }}
       >
+        {/* {JSON.stringify(tokenizedResult)} */}
         {/* <Typography level="title-lg">Tokenize</Typography> */}
         <Alert variant="plain" startDecorator={<LightbulbIcon />}>
           <Typography
