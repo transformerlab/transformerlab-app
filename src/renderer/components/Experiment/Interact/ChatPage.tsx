@@ -119,6 +119,7 @@ export default function ChatPage({
         conversationId={conversationId}
         experimentInfo={experimentInfo}
         experimentInfoMutate={experimentInfoMutate}
+        enableTools={enableTools}
       />
       <Sheet
         id="chat-window"
