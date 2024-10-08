@@ -1,8 +1,20 @@
-import { Box, Button, FormControl, Sheet } from '@mui/joy';
+import { 
+  Box,
+  Button,
+  FormLabel,
+  FormControl,
+  Sheet,
+  Textarea
+} from '@mui/joy';
 import { useState } from 'react';
+import useSWR from 'swr';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import PreviousMessageList from './PreviousMessageList';
 import PromptSettingsModal from './PromptSettingsModal';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+
+// fetcher used by SWR
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ChatSettingsOnLeftHandSide({
   generationParameters,
@@ -17,9 +29,24 @@ export default function ChatSettingsOnLeftHandSide({
   conversationId,
   experimentInfo,
   experimentInfoMutate,
+  enableTools = false,
   showPreviousMessages = true,
 }) {
   const [showPromptSettingsModal, setShowPromptSettingsModal] = useState(false);
+
+  // Get a list of tools to display
+  const { data: available_tools } = useSWR(
+    chatAPI.Endpoints.Tools.List(),
+    fetcher
+  );
+  const tool_list =
+    Array.isArray(available_tools) &&
+    available_tools
+      .map(function (elem) {
+        return elem.name;
+      })
+      .join('\n');
+
   return (
     <>
       <Box
@@ -75,6 +102,12 @@ export default function ChatSettingsOnLeftHandSide({
               </Button>
             </FormControl>
           </Box>
+          {enableTools && (
+          <>
+            <FormLabel>Available Tools</FormLabel>
+            <Textarea value={tool_list} />
+          </>
+          )}
         </Sheet>
         {showPreviousMessages && (
           <PreviousMessageList
