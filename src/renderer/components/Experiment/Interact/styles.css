@@ -38,8 +38,7 @@
   border: 3px solid var(--joy-palette-primary-500);
   border-radius: 8px;
   margin: 0px 1px 0px 1px;
-  padding-right: 2px;
-  padding-left: 2px;
+  padding: 0px 4px 2px 3px;
   line-height: 2.3rem;
   cursor: pointer;
   font-size: 1.3rem,
