@@ -4,12 +4,10 @@ import {
   FormLabel,
   Sheet,
   Stack,
-  Textarea,
   Box,
   Modal,
   ModalDialog,
   DialogTitle,
-  DialogContent,
   Input,
   Typography,
   List,
@@ -24,7 +22,7 @@ import {
   Divider,
 } from '@mui/joy';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   ConstructionIcon,
   FileStackIcon,
@@ -34,6 +32,7 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
+import useSWR from 'swr';
 
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -130,7 +129,7 @@ export default function Batched({
             defaultPromptConfigForModel={defaultPromptConfigForModel}
             showAllKnobs={false}
           />
-        </FormControl>{' '}
+        </FormControl>
         <Typography
           level="body-xs"
           sx={{ textTransform: 'uppercase', fontWeight: 'lg', mb: 1 }}
@@ -198,46 +197,24 @@ export default function Batched({
   );
 }
 
-const batchedQueriesList = [
-  {
-    name: 'Happy List',
-    key: 1,
-    prompts: [
-      'List all the things that make you happy',
-      'What are some things that make you happy?',
-      'What are some thingies that make you happy?',
-    ],
-  },
-  {
-    name: 'Sad List',
-    key: 2,
-    prompts: [
-      'List all the things that make you sad',
-      'What are some things that make you sad?',
-      'What are some thingies that make you sad?',
-    ],
-  },
-];
-
 function ListOfBatchedQueries({ sendBatchOfQueries }) {
   const [newQueryModalOpen, setNewQueryModalOpen] = useState(false);
-  const [savedBatchQueries, setSavedBatchQueries] = useState([]);
 
-  function addQuery(query) {
-    const newKey = Math.max(
-      ...batchedQueriesList.map((query) => parseInt(query.key))
-    );
-    const newBatch = {
-      key: newKey + 1,
-      name: query?.name,
-      prompts: query?.prompts,
-    };
-    setSavedBatchQueries([...savedBatchQueries, newBatch]);
+  const { data: batchedPrompts, mutate: mutateBatchedPrompts } = useSWR(
+    chatAPI.Endpoints.BatchedPrompts.List(),
+    fetcher
+  );
+
+  async function addQuery(query) {
+    await fetch(chatAPI.Endpoints.BatchedPrompts.New(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(query),
+    });
+    mutateBatchedPrompts();
   }
-
-  useEffect(() => {
-    setSavedBatchQueries(batchedQueriesList);
-  }, []);
 
   return (
     <>
@@ -245,8 +222,8 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
         aria-labelledby="decorated-list-demo"
         sx={{ height: '100%', overflow: 'auto' }}
       >
-        {savedBatchQueries?.map((query) => (
-          <ListItem key={query.key}>
+        {batchedPrompts?.map((query) => (
+          <ListItem key={query.name}>
             <ListItemDecorator sx={{ color: 'var(--joy-palette-neutral-400)' }}>
               <FileStackIcon />
             </ListItemDecorator>
@@ -308,7 +285,7 @@ function NewBatchModal({ open, setOpen, addQuery }) {
         <DialogTitle>Prompts</DialogTitle>
         {/* <DialogContent>Fill in the information of the project.</DialogContent> */}
         <form
-          onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+          onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
 
             const formData = new FormData(event.currentTarget);
@@ -325,7 +302,7 @@ function NewBatchModal({ open, setOpen, addQuery }) {
               name: formJson.name,
               prompts,
             };
-            addQuery(newQuery);
+            await addQuery(newQuery);
             setPrompts(['']);
             setOpen(false);
           }}

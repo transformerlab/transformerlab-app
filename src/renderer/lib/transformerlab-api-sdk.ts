@@ -798,6 +798,13 @@ Endpoints.Prompts = {
   Delete: (promptId: string) => API_URL() + 'prompts/delete/' + promptId,
 };
 
+Endpoints.BatchedPrompts = {
+  List: () => API_URL() + 'batched_prompts/list',
+  New: () => API_URL() + 'batched_prompts/new',
+  Delete: (promptId: string) =>
+    API_URL() + 'batched_prompts/delete/' + promptId,
+};
+
 Endpoints.Tools = {
   Call: (function_name: string, function_arguments: string) =>
     API_URL() + `tools/call/${function_name}?params=${function_arguments}`,
