@@ -20,10 +20,6 @@ import SystemMessageBox from './SystemMessageBox';
 
 import { useEffect, useState } from 'react';
 import { useDebounce } from 'use-debounce';
-import useSWR from 'swr';
-
-// fetcher used by SWR
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ChatPage({
   chats,
@@ -71,19 +67,6 @@ export default function ChatPage({
       experimentInfoMutate();
     });
   };
-
-  // Get a list of tools to display
-  const { data: available_tools } = useSWR(
-    chatAPI.Endpoints.Tools.List(),
-    fetcher
-  );
-  const tool_list =
-    Array.isArray(available_tools) &&
-    available_tools
-      .map(function (elem) {
-        return elem.name;
-      })
-      .join('\n');
 
   const [debouncedSystemMessage] = useDebounce(systemMessage, 1000);
 
@@ -151,7 +134,6 @@ export default function ChatPage({
         }}
       >
         {enableTools && (
-          <>
           <Alert
           variant="outlined"
           color="warning"
@@ -163,9 +145,6 @@ export default function ChatPage({
           This feature will allow a user to add functions that can be 
           called by the model.
         </Alert>
-            <FormLabel>Available Tools</FormLabel>
-            <Textarea value={tool_list} />
-          </>
         )}
         {!enableTools && (
           <SystemMessageBox
