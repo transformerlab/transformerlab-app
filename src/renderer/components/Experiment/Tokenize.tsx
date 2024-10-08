@@ -104,7 +104,7 @@ export default function Tokenize({ experimentInfo }) {
       return;
     }
 
-    setTokenizedResult(makeRainbowTextFromArray(tokens));
+    setTokenizedResult(tokens);
 
     setNumberOfTokens(tokens?.length);
     setNumberOfCharacters(text?.length);
@@ -189,7 +189,7 @@ This is a second line."
                 color: 'black',
               }}
             >
-              {tokenizedResult}
+              {makeRainbowTextFromArray(tokenizedResult)}
             </Sheet>
             <FormHelperText>
               Number of Tokens: {numberOfTokens}, Number of Characters:{' '}
