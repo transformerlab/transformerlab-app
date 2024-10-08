@@ -20,6 +20,7 @@ import {
   LinearProgress,
   IconButton,
   Divider,
+  ButtonGroup,
 } from '@mui/joy';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
@@ -227,12 +228,27 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
             <ListItemDecorator sx={{ color: 'var(--joy-palette-neutral-400)' }}>
               <FileStackIcon />
             </ListItemDecorator>
-            <ListItemContent>{query.name}</ListItemContent>
-            <PlayIcon
-              size="20px"
-              onClick={() => sendBatchOfQueries(query?.prompts)}
-            />
-            <PencilIcon size="20px" onClick={() => alert('not implemented')} />
+            <ListItemContent sx={{ textWrap: 'balance', overflow: 'clip' }}>
+              {query.name}
+            </ListItemContent>
+            <ButtonGroup>
+              <IconButton onClick={() => sendBatchOfQueries(query?.prompts)}>
+                <PlayIcon size="20px" />
+              </IconButton>{' '}
+              <IconButton onClick={() => alert('not implemented')}>
+                <PencilIcon size="20px" />{' '}
+              </IconButton>
+              <IconButton
+                onClick={async () => {
+                  await fetch(
+                    chatAPI.Endpoints.BatchedPrompts.Delete(query.name)
+                  );
+                  mutateBatchedPrompts();
+                }}
+              >
+                <Trash2Icon size="20px" />{' '}
+              </IconButton>
+            </ButtonGroup>
           </ListItem>
         ))}
         <ListDivider />
