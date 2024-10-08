@@ -20,9 +20,11 @@
   0% {
     max-height: 100vmax;
   }
+
   80% {
     transform: scale(1);
   }
+
   100% {
     transform: scale(1);
     max-height: 100vmax;
@@ -30,4 +32,19 @@
     padding-top: 0.5rem;
     margin-top: 0.5rem;
   }
+}
+
+#embeddingsResult span {
+  border: 3px solid var(--joy-palette-primary-500);
+  border-radius: 8px;
+  margin: 0px 1px 0px 1px;
+  padding-right: 2px;
+  padding-left: 2px;
+  line-height: 2.3rem;
+  cursor: pointer;
+  font-size: 1.3rem,
+}
+
+#embeddingsResult span:hover {
+  border: 3px solid var(--joy-palette-warning-400);
 }

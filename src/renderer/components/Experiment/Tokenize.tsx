@@ -144,7 +144,7 @@ export default function Tokenize({ experimentInfo }) {
           <FormControl>
             <FormLabel>Input Text</FormLabel>
             <Textarea
-              minRows={8}
+              minRows={4}
               size="lg"
               defaultValue="This is a line
 This is a second line."
@@ -184,10 +184,9 @@ This is a second line."
               color="neutral"
               sx={{
                 padding: 1,
-                overflow: 'hidden',
+                overflow: 'auto',
                 backgroundColor: 'rgb(240, 244, 248)',
                 color: 'black',
-                fontSize: '1.2rem',
               }}
             >
               {tokenizedResult}
@@ -201,7 +200,11 @@ This is a second line."
         <div>
           <FormControl sx={{ marginTop: 4 }}>
             <FormLabel>Token IDs</FormLabel>
-            <Sheet variant="soft" color="neutral" sx={{ padding: 1 }}>
+            <Sheet
+              variant="soft"
+              color="neutral"
+              sx={{ padding: 1, overflow: 'auto' }}
+            >
               {JSON.stringify(tokenIds)}
             </Sheet>
           </FormControl>
