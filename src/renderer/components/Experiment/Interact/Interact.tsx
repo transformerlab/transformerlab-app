@@ -489,77 +489,83 @@ export default function Chat({
       image
     );
 
-    // Before we return to the user, check to see if the LLM is trying to call a function
-    // Tool calls should be contained between a <tool_call> tag
-    // and either a close tag or the end of the string
-    const llm_response = result?.text;
+    // The model may make repeated tool calls but don't let it get stuck in a loop
+    const MAX_TOOLS_CALLS = 3;
+    for (let tools_calls_remaining = MAX_TOOLS_CALLS; tools_calls_remaining > 0; tools_calls_remaining--)  {
 
-    if (llm_response && llm_response.includes('<tool_call>')) {
-      const tool_calls = getToolCallsFromLLMResponse(llm_response);
+      // Before we return to the user, check to see if the LLM is trying to call a function
+      // Tool calls should be contained between a <tool_call> tag
+      // and either a close tag or the end of the string
+      const llm_response = result?.text;
 
-      // if there are any tool calls in the LLM response then
-      // we have to call the Tools API and send back responses to the LLM
-      if (Array.isArray(tool_calls) && tool_calls.length) {
-        // first push the assistant's original response on to the chat lists
-        texts.push({ role: 'assistant', content: llm_response });
-        const tool_call_chat = await addAssistantChat(result);
-        newChats = [...newChats, tool_call_chat];
-        setChats((prevChat) => [...prevChat, tool_call_chat]);
+      if (llm_response && llm_response.includes('<tool_call>')) {
 
-        // iterate through tool_calls (there can be more than one)
-        // and actually call the tools and save responses
-        let tool_responses = [];
-        for (const tool_call of tool_calls) {
-          const func_name = tool_call.name;
-          const func_args = tool_call.arguments;
-          const func_response = await chatAPI.callTool(func_name, func_args);
+        const tool_calls = getToolCallsFromLLMResponse(llm_response);
 
-          // If this was successful then respond with the results
-          if (
-            func_response.status &&
-            func_response.status != 'error' &&
-            func_response.data
-          ) {
-            tool_responses.push(func_response.data);
+        // if there are any tool calls in the LLM response then
+        // we have to call the Tools API and send back responses to the LLM
+        if (Array.isArray(tool_calls) && tool_calls.length) {
+          // first push the assistant's original response on to the chat lists
+          texts.push({ role: 'assistant', content: llm_response });
+          const tool_call_chat = await addAssistantChat(result);
+          newChats = [...newChats, tool_call_chat];
+          setChats((prevChat) => [...prevChat, tool_call_chat]);
 
-            // Otherwise, report an error to the LLM!
-          } else {
-            if (func_response.message) {
-              tool_responses.push(func_response.message);
+          // iterate through tool_calls (there can be more than one)
+          // and actually call the tools and save responses
+          let tool_responses = [];
+          for (const tool_call of tool_calls) {
+            const func_name = tool_call.name;
+            const func_args = tool_call.arguments;
+            const func_response = await chatAPI.callTool(func_name, func_args);
+
+            // If this was successful then respond with the results
+            if (
+              func_response.status &&
+              func_response.status != 'error' &&
+              func_response.data
+            ) {
+              tool_responses.push(func_response.data);
+
+              // Otherwise, report an error to the LLM!
             } else {
-              tool_responses.push(
-                'There was an unknown error calling the tool.'
-              );
+              if (func_response.message) {
+                tool_responses.push(func_response.message);
+              } else {
+                tool_responses.push(
+                  'There was an unknown error calling the tool.'
+                );
+              }
             }
           }
+
+          // Add all function output as response to conversation
+          // How to format response if there are multiple calls?
+          // For now just put a newline between them.
+          const tool_response = tool_responses.join('\n');
+
+          // TODO: role should be 'tool' not 'user'
+          // ...but tool is not supported by backend right now?
+          texts.push({ role: 'user', content: tool_response });
+          const tool_result = addToolResult(tool_response);
+          newChats = [...newChats, tool_result];
+          setChats((prevChat) => [...prevChat, tool_result]);
+
+          // Call the model AGAIN with the tool response
+          // Update result with the new response
+          result = await chatAPI.sendAndReceiveStreaming(
+            currentModel,
+            adaptor,
+            texts,
+            generationParameters?.temperature,
+            generationParameters?.maxTokens,
+            generationParameters?.topP,
+            generationParameters?.frequencyPenalty,
+            systemMessage,
+            generationParameters?.stop_str,
+            image
+          );
         }
-
-        // Add all function output as response to conversation
-        // How to format response if there are multiple calls?
-        // For now just put a newline between them.
-        const tool_response = tool_responses.join('\n');
-
-        // TODO: role should be 'tool' not 'user'
-        // ...but tool is not supported by backend right now?
-        texts.push({ role: 'user', content: tool_response });
-        const tool_result = addToolResult(tool_response);
-        newChats = [...newChats, tool_result];
-        setChats((prevChat) => [...prevChat, tool_result]);
-
-        // Call the model AGAIN with the tool response
-        // Update result with the new response
-        result = await chatAPI.sendAndReceiveStreaming(
-          currentModel,
-          adaptor,
-          texts,
-          generationParameters?.temperature,
-          generationParameters?.maxTokens,
-          generationParameters?.topP,
-          generationParameters?.frequencyPenalty,
-          systemMessage,
-          generationParameters?.stop_str,
-          image
-        );
       }
     }
 
