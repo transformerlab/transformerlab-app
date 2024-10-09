@@ -768,7 +768,7 @@ export default function Chat({
             <Option value="template">Templated Prompt</Option>
             <Option value="embeddings">Embeddings</Option>
             <Option value="tokenize">Tokenize</Option>
-            <Option value="logprobs">Visualize Logprobs</Option>
+            {/* <Option value="logprobs">Visualize Logprobs</Option> */}
             <Option value="rag">Query Documents</Option>
             <Option value="batched">Batched Query</Option>
           </Select>
