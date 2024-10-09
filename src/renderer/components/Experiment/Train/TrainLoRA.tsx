@@ -69,7 +69,7 @@ function jobChipColor(status: string): string {
   if (status == 'STOPPED') return 'var(--joy-palette-warning-200)';
   if (status == 'RUNNING') return 'rgb(225,237,233)';
 
-  return 'neutral';
+  return 'var(--joy-palette-neutral-200)';
 }
 
 function formatJobConfig(c): ReactElement {
