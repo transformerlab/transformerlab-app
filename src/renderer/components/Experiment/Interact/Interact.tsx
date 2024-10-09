@@ -867,7 +867,7 @@ export default function Chat({
         )}
         {mode === 'tokenize' && (
           <Tokenize experimentInfo={experimentInfo}></Tokenize>
-        )}{' '}
+        )}
         {mode === 'logprobs' && (
           <VisualizeLogProbs
             experimentInfo={experimentInfo}
