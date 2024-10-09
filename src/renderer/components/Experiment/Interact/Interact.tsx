@@ -68,7 +68,7 @@ export default function Chat({
   const parsedPromptData = experimentInfo?.config?.prompt_template;
 
   console.log('rendering chat');
-  focusChatInput();
+  // focusChatInput();
   scrollChatToBottom();
 
   var textToDebounce = '';
