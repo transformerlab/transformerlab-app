@@ -25,7 +25,7 @@ import PromptSettingsModal from './PromptSettingsModal';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import Rag from '../Rag';
 import TemplatedCompletion from './TemplatedCompletion';
-import Tokenize from '../Tokenize';
+import Tokenize from './Tokenize';
 import Embeddings from '../Embeddings';
 import { ChevronDownIcon } from 'lucide-react';
 
@@ -35,6 +35,7 @@ import {
   getAgentSystemMessage,
 } from './interactUtils';
 import Batched from './Batched';
+import VisualizeLogProbs from './VisualizeLogProbs';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -491,15 +492,17 @@ export default function Chat({
 
     // The model may make repeated tool calls but don't let it get stuck in a loop
     const MAX_TOOLS_CALLS = 3;
-    for (let tools_calls_remaining = MAX_TOOLS_CALLS; tools_calls_remaining > 0; tools_calls_remaining--)  {
-
+    for (
+      let tools_calls_remaining = MAX_TOOLS_CALLS;
+      tools_calls_remaining > 0;
+      tools_calls_remaining--
+    ) {
       // Before we return to the user, check to see if the LLM is trying to call a function
       // Tool calls should be contained between a <tool_call> tag
       // and either a close tag or the end of the string
       const llm_response = result?.text;
 
       if (llm_response && llm_response.includes('<tool_call>')) {
-
         const tool_calls = getToolCallsFromLLMResponse(llm_response);
 
         // if there are any tool calls in the LLM response then
@@ -765,6 +768,7 @@ export default function Chat({
             <Option value="template">Templated Prompt</Option>
             <Option value="embeddings">Embeddings</Option>
             <Option value="tokenize">Tokenize</Option>
+            <Option value="logprobs">Visualize Logprobs</Option>
             <Option value="rag">Query Documents</Option>
             <Option value="batched">Batched Query</Option>
           </Select>
@@ -863,6 +867,11 @@ export default function Chat({
         )}
         {mode === 'tokenize' && (
           <Tokenize experimentInfo={experimentInfo}></Tokenize>
+        )}{' '}
+        {mode === 'logprobs' && (
+          <VisualizeLogProbs
+            experimentInfo={experimentInfo}
+          ></VisualizeLogProbs>
         )}
         {mode === 'rag' && (
           <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />

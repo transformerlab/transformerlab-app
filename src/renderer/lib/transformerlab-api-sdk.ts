@@ -603,6 +603,44 @@ export async function tokenize(model: string, text: string) {
   return result;
 }
 
+export async function generateLogProbs(model: string, prompt: string) {
+  let shortModelName = model.split('/').slice(-1)[0];
+  // @TODO Doesn't work with an adaptor right now
+
+  // Hardcode these for now
+  const temperature = 0.7;
+  const maxTokens = 256;
+  const topP = 0.95;
+  const stopString = null;
+
+  const data = {
+    model: shortModelName,
+    stream: false,
+    prompt: prompt,
+    temperature,
+    max_tokens: maxTokens,
+    top_p: topP,
+    logprobs: 1,
+  };
+
+  if (stopString) {
+    data.stop = stopString;
+  }
+
+  const response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
+    method: 'POST', // or 'PUT'
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  const result = await response.json();
+
+  return result;
+}
+
 /**
  * Count tokens in a provided messages array
  */
