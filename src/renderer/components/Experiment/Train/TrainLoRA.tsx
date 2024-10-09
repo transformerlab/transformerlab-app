@@ -387,6 +387,7 @@ export default function TrainLoRA({ experimentInfo }) {
                                 <Chip
                                   sx={{
                                     backgroundColor: jobChipColor(job.status),
+                                    color: 'var(--joy-palette-neutral-800)',
                                   }}
                                 >
                                   {job.status}
@@ -430,6 +431,7 @@ export default function TrainLoRA({ experimentInfo }) {
                                 <Chip
                                   sx={{
                                     backgroundColor: jobChipColor(job.status),
+                                    color: 'var(--joy-palette-neutral-800)',
                                   }}
                                 >
                                   {job.status}
