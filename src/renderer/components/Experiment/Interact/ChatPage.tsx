@@ -145,6 +145,7 @@ export default function ChatPage({
           We will be expanding this portion of the app in an upcoming release.
           This feature will allow a user to add functions that can be 
           called by the model.
+          For now, there is a static set of default tools you can test.
         </Alert>
         )}
         {!enableTools && (
