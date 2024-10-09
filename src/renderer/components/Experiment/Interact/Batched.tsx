@@ -299,6 +299,7 @@ function NewBatchModal({ open, setOpen, addQuery }) {
           width: 'auto',
           height: 'auto',
           display: 'flex',
+          overflow: 'auto',
         }}
       >
         <DialogTitle>Prompts</DialogTitle>
@@ -328,7 +329,12 @@ function NewBatchModal({ open, setOpen, addQuery }) {
         >
           <FormControl>
             <FormLabel>Batch Name</FormLabel>
-            <Input required name="name" size="lg" />
+            <Input
+              required
+              name="name"
+              size="lg"
+              placeholder="Common Knowledge"
+            />
           </FormControl>
           <Divider sx={{ my: 3 }} />
           <Stack spacing={2}>
@@ -341,6 +347,7 @@ function NewBatchModal({ open, setOpen, addQuery }) {
                     sx={{ width: '100%' }}
                     name={`prompt[${index}]`}
                     defaultValue={prompt}
+                    placeholder="The color of the sky is blue but sometimes it can also be"
                     onChange={(event) => {
                       setPrompts(
                         prompts.map((p, i) =>
@@ -351,7 +358,7 @@ function NewBatchModal({ open, setOpen, addQuery }) {
                   />
                   {
                     // If this is the last item, show the delete button:
-                    index === prompts.length - 1 && (
+                    index === prompts.length - 1 && prompts.length > 1 && (
                       <IconButton
                         color="danger"
                         onClick={() => {
