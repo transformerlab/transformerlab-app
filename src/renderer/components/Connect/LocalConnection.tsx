@@ -393,7 +393,24 @@ function InstallStepper({ setServer }) {
         const ver = await window.electron.ipcRenderer.invoke(
           'server:checkLocalVersion'
         );
-        if (ver === release) {
+
+        let json = {};
+        try {
+          const rel = await fetch(
+            'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest'
+          );
+          json = await rel.json();
+        } catch {
+          json.tag_name = 'Unable to Connect to Github Please Skip';
+        }
+        const tag = json.tag_name;
+
+        setRelease(tag);
+        const releaseValue = tag;
+
+        console.log('version: ', ver);
+        console.log('release: ', releaseValue);
+        if (ver === releaseValue) {
           setInstallStatus('success');
           setVersion(ver);
           setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
