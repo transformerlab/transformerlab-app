@@ -483,9 +483,13 @@ function InstallStepper({ setServer }) {
         }
         return false;
       },
-      () => {},
+      () => {
+        setThinking(false);
+        setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
+        setUserRequestedInstall(false);
+      },
       2000,
-      8
+      4
     );
   }
 
@@ -598,8 +602,9 @@ function InstallStepper({ setServer }) {
           </Typography>
         </Alert>
         {installStatus === 'error' && (
-          <Alert variant="outlined" color="danger">
-            {installErrorMessage}
+          <Alert variant="outlined" color="danger" sx={{ my: 2 }}>
+            {installErrorMessage} {errorMessage?.message}{' '}
+            {JSON.stringify(errorMessage?.data)}
           </Alert>
         )}
         <div style={{ flex: 1, overflow: 'auto' }}>
@@ -655,10 +660,9 @@ function InstallStepper({ setServer }) {
             setUserRequestedInstall(true);
           }}
         >
-          {thinking ||
-            (userRequestedInstall && (
-              <CircularProgress sx={{ marginRight: 1 }} />
-            ))}
+          {(thinking || userRequestedInstall) && (
+            <CircularProgress sx={{ marginRight: 1 }} />
+          )}
           {userRequestedInstall ? 'Connecting...' : 'Connect'}
         </Button>
       </Sheet>
