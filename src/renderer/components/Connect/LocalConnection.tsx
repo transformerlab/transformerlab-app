@@ -15,6 +15,8 @@ import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
 import LargeTooltip from './LargeTooltip';
 import LogViewer from './LogViewer';
+import { BsFillFileEarmarkPersonFill } from 'react-icons/bs';
+import { error } from 'console';
 
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
@@ -415,6 +417,12 @@ function InstallStepper({ setServer }) {
     if (installConda?.error) {
       setInstallStatus('error');
       setErrorMessage(installConda?.stderr);
+      alert(
+        'Conda could not be installed. Try running "~/.transformerlab/src/install.sh install_conda" in your terminal. This can sometimes be caused by a file permission error where the ~/.conda directory on your machine is not accessible to your user account.'
+      );
+      setThinking(false);
+      setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
+      setUserRequestedInstall(false);
     }
     const condaExists = await window.electron.ipcRenderer.invoke(
       'server:checkIfCondaExists'
@@ -604,7 +612,7 @@ function InstallStepper({ setServer }) {
         {installStatus === 'error' && (
           <Alert variant="outlined" color="danger" sx={{ my: 2 }}>
             {installErrorMessage} {errorMessage?.message}{' '}
-            {JSON.stringify(errorMessage?.data)}
+            {JSON.stringify(errorMessage?.data)} {errorMessage}
           </Alert>
         )}
         <div style={{ flex: 1, overflow: 'auto' }}>
