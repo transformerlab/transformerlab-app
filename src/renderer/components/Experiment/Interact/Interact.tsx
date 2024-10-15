@@ -34,7 +34,7 @@ import {
   focusChatInput,
   getAgentSystemMessage,
 } from './interactUtils';
-import Batched from './Batched';
+import Batched from './Batched/Batched';
 import VisualizeLogProbs from './VisualizeLogProbs';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());

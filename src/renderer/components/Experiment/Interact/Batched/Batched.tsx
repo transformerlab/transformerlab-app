@@ -1,14 +1,7 @@
 import {
-  Button,
   FormControl,
-  FormLabel,
   Sheet,
-  Stack,
   Box,
-  Modal,
-  ModalDialog,
-  DialogTitle,
-  Input,
   Typography,
   List,
   ListItem,
@@ -19,10 +12,9 @@ import {
   ListItemContent,
   LinearProgress,
   IconButton,
-  Divider,
   ButtonGroup,
 } from '@mui/joy';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import {
   ConstructionIcon,
@@ -32,7 +24,8 @@ import {
   PlusCircleIcon,
   Trash2Icon,
 } from 'lucide-react';
-import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
+import MainGenerationConfigKnobs from '../MainGenerationConfigKnobs';
+import NewBatchPromptModal from './NewBatchPromptModal';
 import useSWR from 'swr';
 
 // fetcher used by SWR
@@ -269,7 +262,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
           </ListItemButton>
         </ListItem>
       </List>
-      <NewBatchModal
+      <NewBatchPromptModal
         open={newQueryModalOpen}
         setOpen={setNewQueryModalOpen}
         addQuery={addQuery}
@@ -281,113 +274,15 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
 function Result({ prompt, children }) {
   return (
     <Sheet variant="outlined" sx={{ padding: 2 }}>
-      <Sheet color="success">{prompt}</Sheet>
-      <Sheet color="neutral">{children}</Sheet>
-    </Sheet>
-  );
-}
-
-function NewBatchModal({ open, setOpen, addQuery }) {
-  const [prompts, setPrompts] = useState<string[]>(['']);
-  return (
-    <Modal open={open} onClose={() => setOpen(false)}>
-      <ModalDialog
-        sx={{
-          minWidth: '50vw',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
-          width: 'auto',
-          height: 'auto',
-          display: 'flex',
-          overflow: 'auto',
+      <span
+        style={{
+          color: 'var(--joy-palette-success-700)',
+          backgroundColor: 'var(--joy-palette-success-100)',
         }}
       >
-        <DialogTitle>Prompts</DialogTitle>
-        {/* <DialogContent>Fill in the information of the project.</DialogContent> */}
-        <form
-          onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
-            event.preventDefault();
-
-            const formData = new FormData(event.currentTarget);
-            const formJson = Object.fromEntries((formData as any).entries());
-
-            console.log(formJson);
-
-            // convert {prompt[0]: 'sfdf', prompt[1]: 'sdf'} to ['sdf', 'sdf']
-            const prompts = Object.keys(formJson)
-              .filter((key) => key.startsWith('prompt'))
-              .map((key) => formJson[key]);
-
-            const newQuery = {
-              name: formJson.name,
-              prompts,
-            };
-            await addQuery(newQuery);
-            setPrompts(['']);
-            setOpen(false);
-          }}
-        >
-          <FormControl>
-            <FormLabel>Batch Name</FormLabel>
-            <Input
-              required
-              name="name"
-              size="lg"
-              placeholder="Common Knowledge"
-            />
-          </FormControl>
-          <Divider sx={{ my: 3 }} />
-          <Stack spacing={2}>
-            {prompts.map((prompt, index) => (
-              <FormControl key={index}>
-                <FormLabel>Prompt {index + 1}</FormLabel>
-                <Box sx={{ display: 'flex', flexDirection: 'row' }}>
-                  <Input
-                    required
-                    sx={{ width: '100%' }}
-                    name={`prompt[${index}]`}
-                    defaultValue={prompt}
-                    placeholder="The color of the sky is blue but sometimes it can also be"
-                    onChange={(event) => {
-                      setPrompts(
-                        prompts.map((p, i) =>
-                          i === index ? event.target.value : p
-                        )
-                      );
-                    }}
-                  />
-                  {
-                    // If this is the last item, show the delete button:
-                    index === prompts.length - 1 && prompts.length > 1 && (
-                      <IconButton
-                        color="danger"
-                        onClick={() => {
-                          const newPrompts = [...prompts];
-                          newPrompts.pop();
-                          setPrompts(newPrompts);
-                        }}
-                      >
-                        <Trash2Icon />
-                      </IconButton>
-                    )
-                  }
-                </Box>
-              </FormControl>
-            ))}
-            <Button
-              variant="outlined"
-              color="success"
-              onClick={() => {
-                setPrompts([...prompts, '']);
-              }}
-              startDecorator={<PlusCircleIcon />}
-            >
-              Add Prompt
-            </Button>
-            <Button type="submit">Save</Button>
-          </Stack>
-        </form>
-      </ModalDialog>
-    </Modal>
+        {prompt}
+      </span>
+      <span color="neutral">{children}</span>
+    </Sheet>
   );
 }
