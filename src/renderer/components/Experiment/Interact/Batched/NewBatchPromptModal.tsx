@@ -20,6 +20,7 @@ import {
   Option,
   ButtonGroup,
   ListItemDecorator,
+  ListItemContent,
 } from '@mui/joy';
 import {
   CheckIcon,
@@ -211,8 +212,6 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
         )}
         {typeOfBatch === 'chat' && (
           <ModalDialog sx={{}}>
-            <DialogTitle>Create Batch of Chat Formatted Prompts</DialogTitle>
-            <Divider sx={{ my: 1 }} />
             <ListOfChats />
           </ModalDialog>
         )}
@@ -313,6 +312,10 @@ function ListOfChats({}) {
   const [createNewChat, setCreateNewChat] = useState(false);
   return (
     <>
+      <DialogTitle>
+        {createNewChat ? 'New Chat' : 'Create Batch of Chat Formatted Prompts'}
+      </DialogTitle>
+      <Divider sx={{ my: 1 }} />
       {createNewChat ? (
         <NewChatForm
           submitChat={(chat) => {
@@ -331,12 +334,30 @@ function ListOfChats({}) {
           <List>
             {chats.map((chat, index) => (
               <ListItem key={index}>
-                <ListItemButton>
-                  <ListItemDecorator>
-                    <MessageSquareTextIcon />
-                  </ListItemDecorator>
+                <ListItemDecorator>
+                  <MessageSquareTextIcon />
+                </ListItemDecorator>
+                <ListItemContent sx={{ overflow: 'clip' }}>
                   {JSON.stringify(chat)}
-                </ListItemButton>
+                </ListItemContent>
+                <ButtonGroup>
+                  <Button
+                    variant="plain"
+                    onClick={() => alert('net yet implemented')}
+                  >
+                    <PencilIcon size="18px" />
+                  </Button>
+                  <Button
+                    variant="plain"
+                    onClick={() => {
+                      const newChats = [...chats];
+                      newChats.splice(index, 1);
+                      setChats(newChats);
+                    }}
+                  >
+                    <Trash2Icon size="18px" />
+                  </Button>
+                </ButtonGroup>
               </ListItem>
             ))}
           </List>
