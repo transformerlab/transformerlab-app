@@ -342,6 +342,7 @@ function ListOfChats({}) {
                 </ListItemContent>
                 <ButtonGroup>
                   <Button
+                    disabled
                     variant="plain"
                     onClick={() => alert('net yet implemented')}
                   >
