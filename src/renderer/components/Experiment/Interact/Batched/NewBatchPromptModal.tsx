@@ -19,6 +19,7 @@ import {
   Typography,
   Option,
   ButtonGroup,
+  ListItemDecorator,
 } from '@mui/joy';
 import {
   CheckIcon,
@@ -210,14 +211,9 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
         )}
         {typeOfBatch === 'chat' && (
           <ModalDialog sx={{}}>
-            <DialogTitle>Chat</DialogTitle>
-            <NewChatForm
-              submitChat={(chat) => {
-                console.log('submitting chat', chat);
-                setOpen(false);
-                setTypeOfBatch('');
-              }}
-            />
+            <DialogTitle>Create Batch of Chat Formatted Prompts</DialogTitle>
+            <Divider sx={{ my: 1 }} />
+            <ListOfChats />
           </ModalDialog>
         )}
         {typeOfBatch === 'file' && (
@@ -309,5 +305,48 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
         )}
       </>
     </Modal>
+  );
+}
+
+function ListOfChats({}) {
+  const [chats, setChats] = useState([]);
+  const [createNewChat, setCreateNewChat] = useState(false);
+  return (
+    <>
+      {createNewChat ? (
+        <NewChatForm
+          submitChat={(chat) => {
+            console.log(chat);
+            setChats([...chats, chat]);
+            setCreateNewChat(false);
+          }}
+        />
+      ) : (
+        <>
+          {chats.length === 0 && (
+            <Typography level="body-md" color="neutral">
+              List of Chats is Empty
+            </Typography>
+          )}
+          <List>
+            {chats.map((chat, index) => (
+              <ListItem key={index}>
+                <ListItemButton>
+                  <ListItemDecorator>
+                    <MessageSquareTextIcon />
+                  </ListItemDecorator>
+                  {JSON.stringify(chat)}
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+          <Button variant="soft" onClick={() => setCreateNewChat(true)}>
+            Add New
+          </Button>
+          {/* <Button onClick={() => setChats([])}>Clear</Button> */}
+          <Button onClick={() => console.log(chats)}>Save</Button>
+        </>
+      )}
+    </>
   );
 }

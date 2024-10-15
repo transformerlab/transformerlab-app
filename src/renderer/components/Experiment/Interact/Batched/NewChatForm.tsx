@@ -15,11 +15,11 @@ import { useState } from 'react';
 
 export default function NewChatForm({ submitChat }) {
   const [chats, setChats] = useState([
-    { user: 'human', t: 'Hello' },
-    { user: 'assistant', t: 'Hi there!' },
+    { role: 'human', content: 'Hello' },
+    { role: 'assistant', content: 'Hi there!' },
   ]);
 
-  const [nextChat, setNextChat] = useState({ user: 'human', t: '' });
+  const [nextChat, setNextChat] = useState({ role: 'human', content: '' });
 
   return (
     <Box
@@ -55,11 +55,11 @@ export default function NewChatForm({ submitChat }) {
         }}
       >
         <Select
-          value={nextChat.user}
+          value={nextChat.role}
           sx={{ minWidth: '120px' }}
           variant="soft"
           onChange={(event, newValue) => {
-            setNextChat({ user: newValue, t: nextChat.t });
+            setNextChat({ role: newValue, content: nextChat.content });
           }}
         >
           <Option value="human">Human</Option>
@@ -68,16 +68,16 @@ export default function NewChatForm({ submitChat }) {
         <Input
           sx={{ flex: 1 }}
           placeholder="Type a message..."
-          value={nextChat.t}
+          value={nextChat.content}
           onChange={(event) =>
-            setNextChat({ user: nextChat.user, t: event.target.value })
+            setNextChat({ role: nextChat.role, content: event.target.value })
           }
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               setChats([...chats, nextChat]);
               setNextChat({
-                user: nextChat?.user == 'human' ? 'assistant' : 'human',
-                t: '',
+                role: nextChat?.role == 'human' ? 'assistant' : 'human',
+                content: '',
               });
             }
           }}
@@ -88,8 +88,8 @@ export default function NewChatForm({ submitChat }) {
           onClick={(event) => {
             setChats([...chats, nextChat]);
             setNextChat({
-              user: nextChat?.user == 'human' ? 'assistant' : 'human',
-              t: '',
+              role: nextChat?.role == 'human' ? 'assistant' : 'human',
+              content: '',
             });
           }}
         >
@@ -116,12 +116,12 @@ function SingleLineOfChat({ index, chat, chats, setChats }) {
     >
       {isEditing ? (
         <Select
-          value={chat.user}
+          value={chat.role}
           sx={{ minWidth: '120px' }}
           variant="soft"
           onChange={(event, newValue) => {
             const newChats = [...chats];
-            newChats[index].user = newValue;
+            newChats[index].role = newValue;
             setChats(newChats);
           }}
         >
@@ -130,19 +130,19 @@ function SingleLineOfChat({ index, chat, chats, setChats }) {
         </Select>
       ) : (
         <Typography
-          color={chat.user === 'human' ? 'primary' : 'primary'}
+          color={chat.role === 'human' ? 'primary' : 'primary'}
           sx={{ minWidth: '120px' }}
         >
-          {chat.user === 'human' ? 'Human:' : 'Assistant:'}
+          {chat.role === 'human' ? 'Human:' : 'Assistant:'}
         </Typography>
       )}{' '}
       {isEditing ? (
         <Input
           sx={{ flex: 1 }}
-          value={chat.t}
+          value={chat.content}
           onChange={(event) => {
             const newChats = [...chats];
-            newChats[index].t = event.target.value;
+            newChats[index].content = event.target.value;
             setChats(newChats);
           }}
           onKeyDown={(event) => {
@@ -153,7 +153,7 @@ function SingleLineOfChat({ index, chat, chats, setChats }) {
           endDecorator={}
         />
       ) : (
-        <Typography sx={{ flex: 1 }}>{chat.t}</Typography>
+        <Typography sx={{ flex: 1 }}>{chat.content}</Typography>
       )}
       <ButtonGroup>
         {isEditing ? (
