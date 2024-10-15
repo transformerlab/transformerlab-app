@@ -309,19 +309,30 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
 
 function ListOfChats({}) {
   const [chats, setChats] = useState([]);
-  const [createNewChat, setCreateNewChat] = useState(false);
+  // set editChat to -1 if you want to create a new chat, set it a specific index in the chats
+  // array if you want to edit that chat. Set it to null if you are not editing
+  const [editChat, setEditChat] = useState<number | null>(null);
   return (
     <>
       <DialogTitle>
-        {createNewChat ? 'New Chat' : 'Create Batch of Chat Formatted Prompts'}
+        {editChat !== null
+          ? 'New Chat'
+          : 'Create Batch of Chat Formatted Prompts'}
       </DialogTitle>
       <Divider sx={{ my: 1 }} />
-      {createNewChat ? (
+      {editChat !== null ? (
         <NewChatForm
+          defaultChats={editChat === -1 ? [] : chats[editChat]}
           submitChat={(chat) => {
-            console.log(chat);
-            setChats([...chats, chat]);
-            setCreateNewChat(false);
+            // If editChat is -1, then we are creating a new chat
+            if (editChat === -1) {
+              setChats([...chats, chat]);
+            } else {
+              const newChats = [...chats];
+              newChats[editChat] = chat;
+              setChats(newChats);
+            }
+            setEditChat(null);
           }}
         />
       ) : (
@@ -342,9 +353,10 @@ function ListOfChats({}) {
                 </ListItemContent>
                 <ButtonGroup>
                   <Button
-                    disabled
                     variant="plain"
-                    onClick={() => alert('net yet implemented')}
+                    onClick={() => {
+                      setEditChat(index);
+                    }}
                   >
                     <PencilIcon size="18px" />
                   </Button>
@@ -362,7 +374,7 @@ function ListOfChats({}) {
               </ListItem>
             ))}
           </List>
-          <Button variant="soft" onClick={() => setCreateNewChat(true)}>
+          <Button variant="soft" onClick={() => setEditChat(-1)}>
             Add New
           </Button>
           {/* <Button onClick={() => setChats([])}>Clear</Button> */}

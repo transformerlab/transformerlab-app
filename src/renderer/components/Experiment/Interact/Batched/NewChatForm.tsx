@@ -11,9 +11,9 @@ import {
   ButtonGroup,
 } from '@mui/joy';
 import { CheckIcon, PencilIcon, Trash2Icon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-export default function NewChatForm({ submitChat }) {
+export default function NewChatForm({ submitChat, defaultChats = [] }) {
   const [chats, setChats] = useState([
     { role: 'system', content: 'You are a helpful assistant.' },
     { role: 'human', content: 'Hello' },
@@ -34,6 +34,12 @@ export default function NewChatForm({ submitChat }) {
     newChats[systemMessageIndex].content = value;
     setChats(newChats);
   }
+
+  useEffect(() => {
+    if (defaultChats.length > 0) {
+      setChats(defaultChats);
+    }
+  }, []);
 
   return (
     <Box
