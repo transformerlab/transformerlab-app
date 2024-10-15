@@ -17,10 +17,9 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
   const [chats, setChats] = useState([
     { role: 'system', content: 'You are a helpful assistant.' },
     { role: 'human', content: 'Hello' },
-    { role: 'assistant', content: 'Hi there!' },
   ]);
 
-  const [nextChat, setNextChat] = useState({ role: 'human', content: '' });
+  const [nextChat, setNextChat] = useState({ role: 'assistant', content: '' });
 
   function systemMessageValue() {
     return chats.find((chat) => chat.role === 'system')?.content;
@@ -48,8 +47,7 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
         flexDirection: 'column',
         gap: 2,
         overflowY: 'auto',
-        maxHeight: '50vh',
-        padding: 2,
+        padding: 1,
         minWidth: '50vw',
       }}
     >

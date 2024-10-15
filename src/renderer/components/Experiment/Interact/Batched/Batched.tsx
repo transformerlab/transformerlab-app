@@ -231,7 +231,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
                 <IconButton onClick={() => sendBatchOfQueries(query?.prompts)}>
                   <PlayIcon size="20px" />
                 </IconButton>{' '}
-                <IconButton onClick={() => alert('not implemented')}>
+                <IconButton disabled onClick={() => alert('not implemented')}>
                   <PencilIcon size="20px" />{' '}
                 </IconButton>
                 <IconButton

@@ -37,6 +37,7 @@ import NewChatForm from './NewChatForm';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { IoCloudUploadOutline } from 'react-icons/io5';
+import { Form } from 'react-router-dom';
 
 export default function NewBatchModal({ open, setOpen, addQuery }) {
   const [prompts, setPrompts] = useState<string[]>(['']);
@@ -75,12 +76,17 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
     setUploading(false);
   };
 
+  function closeWindow() {
+    setOpen(false);
+    setTypeOfBatch('');
+    setPrompts(['']);
+  }
+
   return (
     <Modal
       open={open}
       onClose={() => {
-        setOpen(false);
-        setTypeOfBatch('');
+        closeWindow();
       }}
     >
       <>
@@ -144,8 +150,7 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
                   prompts,
                 };
                 await addQuery(newQuery);
-                setPrompts(['']);
-                setOpen(false);
+                closeWindow();
               }}
             >
               <FormControl>
@@ -212,7 +217,17 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
         )}
         {typeOfBatch === 'chat' && (
           <ModalDialog sx={{}}>
-            <ListOfChats />
+            <ListOfChats
+              save={(chatName, chats) => {
+                // convert chats from a list of objects, to a list of strings:
+                const newChats = chats.map((chat) => JSON.stringify(chat));
+                addQuery({
+                  name: chatName,
+                  prompts: newChats,
+                });
+                closeWindow();
+              }}
+            />
           </ModalDialog>
         )}
         {typeOfBatch === 'file' && (
@@ -307,11 +322,12 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
   );
 }
 
-function ListOfChats({}) {
+function ListOfChats({ save }) {
   const [chats, setChats] = useState([]);
   // set editChat to -1 if you want to create a new chat, set it a specific index in the chats
   // array if you want to edit that chat. Set it to null if you are not editing
   const [editChat, setEditChat] = useState<number | null>(null);
+  const [chatName, setChatName] = useState('');
   return (
     <>
       <DialogTitle>
@@ -337,48 +353,70 @@ function ListOfChats({}) {
         />
       ) : (
         <>
-          {chats.length === 0 && (
-            <Typography level="body-md" color="neutral">
-              List of Chats is Empty
-            </Typography>
-          )}
-          <List>
-            {chats.map((chat, index) => (
-              <ListItem key={index}>
-                <ListItemDecorator>
-                  <MessageSquareTextIcon />
-                </ListItemDecorator>
-                <ListItemContent sx={{ overflow: 'clip' }}>
-                  {JSON.stringify(chat)}
-                </ListItemContent>
-                <ButtonGroup>
-                  <Button
-                    variant="plain"
-                    onClick={() => {
-                      setEditChat(index);
-                    }}
-                  >
-                    <PencilIcon size="18px" />
-                  </Button>
-                  <Button
-                    variant="plain"
-                    onClick={() => {
-                      const newChats = [...chats];
-                      newChats.splice(index, 1);
-                      setChats(newChats);
-                    }}
-                  >
-                    <Trash2Icon size="18px" />
-                  </Button>
-                </ButtonGroup>
-              </ListItem>
-            ))}
-          </List>
-          <Button variant="soft" onClick={() => setEditChat(-1)}>
-            Add New
-          </Button>
-          {/* <Button onClick={() => setChats([])}>Clear</Button> */}
-          <Button onClick={() => console.log(chats)}>Save</Button>
+          <form
+            onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+              event.preventDefault();
+              save(chatName, chats);
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+          >
+            <FormControl>
+              <FormLabel>Chat Name</FormLabel>
+              <Input
+                required
+                value={chatName}
+                onChange={(event) => setChatName(event.target.value)}
+                size="lg"
+                placeholder="e.g. Common Knowledge Prompts"
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Chats:</FormLabel>
+              {chats.length === 0 && (
+                <Typography level="body-md" color="neutral">
+                  List of Chats is Empty
+                </Typography>
+              )}
+              <List>
+                {chats.map((chat, index) => (
+                  <ListItem key={index}>
+                    <ListItemDecorator>
+                      <MessageSquareTextIcon />
+                    </ListItemDecorator>
+                    <ListItemContent sx={{ overflow: 'clip' }}>
+                      {JSON.stringify(chat)}
+                    </ListItemContent>
+                    <ButtonGroup>
+                      <Button
+                        variant="plain"
+                        onClick={() => {
+                          setEditChat(index);
+                        }}
+                      >
+                        <PencilIcon size="18px" />
+                      </Button>
+                      <Button
+                        variant="plain"
+                        onClick={() => {
+                          const newChats = [...chats];
+                          newChats.splice(index, 1);
+                          setChats(newChats);
+                        }}
+                      >
+                        <Trash2Icon size="18px" />
+                      </Button>
+                    </ButtonGroup>
+                  </ListItem>
+                ))}
+              </List>
+            </FormControl>
+
+            <Button variant="soft" onClick={() => setEditChat(-1)}>
+              Add New
+            </Button>
+            {/* <Button onClick={() => setChats([])}>Clear</Button> */}
+            <Button type="submit">Save Chats</Button>
+          </form>
         </>
       )}
     </>
