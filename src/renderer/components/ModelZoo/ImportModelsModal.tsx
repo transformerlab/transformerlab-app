@@ -3,15 +3,15 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import { 
-    Button, 
+    Box,
+    Button,
     Checkbox,
     CircularProgress,
     FormControl,
-    FormLabel,
     Input,
-    Modal, 
-    ModalClose, 
-    ModalDialog, 
+    Modal,
+    ModalClose,
+    ModalDialog,
     Stack,
     Table,
     Typography
@@ -204,6 +204,7 @@ export default function ImportModelsModal({ open, setOpen}) {
             </FormControl>
             }
 
+            <Box sx={{ maxHeight: '450px', overflow: 'auto' }}>
             <Table
                 aria-labelledby="tableTitle"
                 stickyHeader
@@ -290,6 +291,7 @@ export default function ImportModelsModal({ open, setOpen}) {
               )}
               </tbody>
             </Table>
+            </Box>
 
             <Stack spacing={2} direction="row" justifyContent="flex-end">
                 <Button
