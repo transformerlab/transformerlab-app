@@ -13,19 +13,25 @@ import {
   ListItemButton,
   Modal,
   ModalDialog,
+  Select,
   Sheet,
   Stack,
   Typography,
+  Option,
+  ButtonGroup,
 } from '@mui/joy';
 import {
+  CheckIcon,
   FileIcon,
   MessageSquareTextIcon,
+  PencilIcon,
   PlusCircleIcon,
   TerminalIcon,
   Trash2Icon,
 } from 'lucide-react';
 import { useState } from 'react';
 import Dropzone from 'react-dropzone';
+import NewChatForm from './NewChatForm';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { IoCloudUploadOutline } from 'react-icons/io5';
@@ -93,9 +99,9 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
                 </ListItemButton>
               </ListItem>
               <ListItem>
-                <ListItemButton onClick={() => setTypeOfBatch('chat')} disabled>
+                <ListItemButton onClick={() => setTypeOfBatch('chat')}>
                   <MessageSquareTextIcon />
-                  Chat Completion (not yet implemented)
+                  Chat Completion
                 </ListItemButton>
               </ListItem>
             </List>
@@ -205,7 +211,13 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
         {typeOfBatch === 'chat' && (
           <ModalDialog sx={{}}>
             <DialogTitle>Chat</DialogTitle>
-            Not Implemented
+            <NewChatForm
+              submitChat={(chat) => {
+                console.log('submitting chat', chat);
+                setOpen(false);
+                setTypeOfBatch('');
+              }}
+            />
           </ModalDialog>
         )}
         {typeOfBatch === 'file' && (
