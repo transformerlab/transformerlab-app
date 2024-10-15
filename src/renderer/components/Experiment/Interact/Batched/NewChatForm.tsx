@@ -15,11 +15,25 @@ import { useState } from 'react';
 
 export default function NewChatForm({ submitChat }) {
   const [chats, setChats] = useState([
+    { role: 'system', content: 'You are a helpful assistant.' },
     { role: 'human', content: 'Hello' },
     { role: 'assistant', content: 'Hi there!' },
   ]);
 
   const [nextChat, setNextChat] = useState({ role: 'human', content: '' });
+
+  function systemMessageValue() {
+    return chats.find((chat) => chat.role === 'system')?.content;
+  }
+
+  function editSystemMessageValue(value) {
+    const newChats = [...chats];
+    const systemMessageIndex = newChats.findIndex(
+      (chat) => chat.role === 'system'
+    );
+    newChats[systemMessageIndex].content = value;
+    setChats(newChats);
+  }
 
   return (
     <Box
@@ -35,7 +49,10 @@ export default function NewChatForm({ submitChat }) {
     >
       <FormControl>
         <FormLabel>System Message</FormLabel>
-        <Input placeholder="You are a friendly chatbot" />
+        <Input
+          value={systemMessageValue()}
+          onChange={(event) => editSystemMessageValue(event.target.value)}
+        />
       </FormControl>
       {chats.map((chat, index) => (
         <SingleLineOfChat
@@ -105,6 +122,12 @@ export default function NewChatForm({ submitChat }) {
 
 function SingleLineOfChat({ index, chat, chats, setChats }) {
   const [isEditing, setIsEditing] = useState(false);
+
+  // Don't display the system message
+  if (chat?.role === 'system') {
+    return null;
+  }
+
   return (
     <Box
       sx={{
