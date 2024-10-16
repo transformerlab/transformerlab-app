@@ -220,10 +220,10 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
             <ListOfChats
               save={(chatName, chats) => {
                 // convert chats from a list of objects, to a list of strings:
-                const newChats = chats.map((chat) => JSON.stringify(chat));
+                // const newChats = chats.map((chat) => JSON.stringify(chat));
                 addQuery({
                   name: chatName,
-                  prompts: newChats,
+                  prompts: chats,
                 });
                 closeWindow();
               }}
@@ -374,7 +374,7 @@ function ListOfChats({ save }) {
               <FormLabel>Chats:</FormLabel>
               {chats.length === 0 && (
                 <Typography level="body-md" color="neutral">
-                  List of Chats is Empty
+                  List of Chats is Empty. Click Add New to add a new chat.
                 </Typography>
               )}
               <List>

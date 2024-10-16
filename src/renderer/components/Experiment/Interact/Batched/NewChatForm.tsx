@@ -117,7 +117,16 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
           <CheckIcon />
         </IconButton>
       </Box>
-      <Button sx={{ mt: 3 }} onClick={() => submitChat(chats)}>
+      <Button
+        sx={{ mt: 3 }}
+        onClick={() => {
+          let newChats = [...chats];
+          if (nextChat?.content) {
+            newChats = [...chats, nextChat];
+          }
+          submitChat(newChats);
+        }}
+      >
         Save
       </Button>
     </Box>
