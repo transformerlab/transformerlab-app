@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react';
 export default function NewChatForm({ submitChat, defaultChats = [] }) {
   const [chats, setChats] = useState([
     { role: 'system', content: 'You are a helpful assistant.' },
-    { role: 'human', content: 'Hello' },
+    { role: 'user', content: 'Hello' },
   ]);
 
   const [nextChat, setNextChat] = useState({ role: 'assistant', content: '' });
@@ -83,7 +83,7 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
             setNextChat({ role: newValue, content: nextChat.content });
           }}
         >
-          <Option value="human">Human</Option>
+          <Option value="user">Human</Option>
           <Option value="assistant">Assistant</Option>
         </Select>
         <Input
@@ -97,7 +97,7 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
             if (event.key === 'Enter') {
               setChats([...chats, nextChat]);
               setNextChat({
-                role: nextChat?.role == 'human' ? 'assistant' : 'human',
+                role: nextChat?.role == 'user' ? 'assistant' : 'user',
                 content: '',
               });
             }
@@ -109,7 +109,7 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
           onClick={(event) => {
             setChats([...chats, nextChat]);
             setNextChat({
-              role: nextChat?.role == 'human' ? 'assistant' : 'human',
+              role: nextChat?.role == 'user' ? 'assistant' : 'user',
               content: '',
             });
           }}
@@ -161,15 +161,15 @@ function SingleLineOfChat({ index, chat, chats, setChats }) {
             setChats(newChats);
           }}
         >
-          <Option value="human">Human</Option>
+          <Option value="user">Human</Option>
           <Option value="assistant">Assistant</Option>
         </Select>
       ) : (
         <Typography
-          color={chat.role === 'human' ? 'primary' : 'primary'}
+          color={chat.role === 'user' ? 'primary' : 'primary'}
           sx={{ minWidth: '120px' }}
         >
-          {chat.role === 'human' ? 'Human:' : 'Assistant:'}
+          {chat.role === 'user' ? 'Human:' : 'Assistant:'}
         </Typography>
       )}{' '}
       {isEditing ? (
