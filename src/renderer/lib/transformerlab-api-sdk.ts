@@ -416,6 +416,8 @@ export async function sendCompletion(
   return null;
 }
 
+// This sends a request to the completion endpoint
+// but sends an array of prompts instead of a single prompt
 export async function sendBatchedCompletion(
   currentModel: string,
   adaptor: string,
@@ -470,6 +472,75 @@ export async function sendBatchedCompletion(
 
   result = await response.json();
   return result;
+}
+
+// If we want to use the chat endpoint of the inference engine,
+// we can't automatically batch. You can not send an array of chats
+// So we send the requests in a loop
+export async function sendBatchedChat(
+  currentModel: string,
+  adaptor: string,
+  text: string[][],
+  temperature: number = 0.7,
+  maxTokens: number = 256,
+  topP: number = 1.0,
+  useLongModelName = true,
+  stopString = null
+) {
+  let model = '';
+  if (useLongModelName) {
+    model = currentModel;
+  } else {
+    model = currentModel.split('/').slice(-1)[0];
+  }
+
+  if (adaptor && adaptor !== '') {
+    model = adaptor;
+  }
+
+  const data = {
+    model: model,
+    stream: false,
+    messages: text,
+    temperature,
+    max_tokens: maxTokens,
+    top_p: topP,
+  };
+
+  if (stopString) {
+    data.stop = stopString;
+  }
+
+  let result;
+  let results = [];
+
+  // for each array element in text, send a request
+  for (let i = 0; i < text.length; i++) {
+    const message = text[i];
+    data.messages = message;
+    let response;
+    try {
+      response = await fetch(`${INFERENCE_SERVER_URL()}v1/chat/completions`, {
+        method: 'POST', // or 'PUT'
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+    } catch (error) {
+      console.log('There was an error', error);
+      return null;
+    }
+
+    result = await response.json();
+    results.push(result);
+  }
+
+  return results;
 }
 
 export async function callTool(

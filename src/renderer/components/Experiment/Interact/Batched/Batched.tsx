@@ -44,6 +44,12 @@ export default function Batched({
   const [result, setResult] = useState({});
   async function sendBatchOfQueries(prompts) {
     const text = prompts;
+    let typeOfCompletion = 'chat';
+
+    // if prompts is a list of strings, this is a completion type
+    if (typeof prompts[0] === 'string') {
+      typeOfCompletion = 'completion';
+    }
 
     const currentModel = experimentInfo?.config?.foundation;
     const adaptor = experimentInfo?.config?.adaptor;
@@ -70,16 +76,31 @@ export default function Batched({
 
     const targetElement = document.getElementById('completion-textarea');
 
-    const result = await chatAPI.sendBatchedCompletion(
-      currentModel,
-      adaptor,
-      text,
-      generationParameters?.temperature,
-      generationParameters?.maxTokens,
-      generationParameters?.topP,
-      false,
-      generationParameters?.stop_str
-    );
+    let result: string | null = '';
+
+    if (typeOfCompletion == 'completion') {
+      result = await chatAPI.sendBatchedCompletion(
+        currentModel,
+        adaptor,
+        text,
+        generationParameters?.temperature,
+        generationParameters?.maxTokens,
+        generationParameters?.topP,
+        false,
+        generationParameters?.stop_str
+      );
+    } else {
+      result = await chatAPI.sendBatchedChat(
+        currentModel,
+        adaptor,
+        text,
+        generationParameters?.temperature,
+        generationParameters?.maxTokens,
+        generationParameters?.topP,
+        false,
+        generationParameters?.stop_str
+      );
+    }
 
     setIsThinking(false);
 
@@ -178,12 +199,28 @@ export default function Batched({
           }}
         >
           {isThinking && <LinearProgress />}
+          {/* {JSON.stringify(result, null, 2)} */}
+          {result == null && (
+            <Alert color="danger">
+              There was an error getting a response from the server.
+            </Alert>
+          )}
+
           <Sheet sx={{ height: '100%', overflow: 'auto' }}>
             {result?.choices?.map((choice, index) => (
-              <Result prompt={prompts?.[index]} key={index}>
+              <CompletionResult prompt={prompts?.[index]} key={index}>
                 {choice?.text}
-              </Result>
+              </CompletionResult>
             ))}
+
+            {result?.[0]?.choices != null &&
+              result?.map((r, index) => (
+                <ChatResult
+                  prompts={prompts[index]}
+                  key={index}
+                  response={r?.choices?.[0]?.message}
+                />
+              ))}
           </Sheet>
         </Sheet>
       </Sheet>
@@ -271,7 +308,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
   );
 }
 
-function Result({ prompt, children }) {
+function CompletionResult({ prompt, children }) {
   return (
     <Sheet variant="outlined" sx={{ padding: 2 }}>
       <span
@@ -283,6 +320,29 @@ function Result({ prompt, children }) {
         {prompt}
       </span>
       <span color="neutral">{children}</span>
+    </Sheet>
+  );
+}
+
+function ChatResult({ prompts, response }) {
+  return (
+    <Sheet variant="outlined" sx={{ padding: 2 }}>
+      {/* {JSON.stringify(prompts)} */}
+      {/* go through each prompt and display {role, content} */}
+      {prompts?.map((prompt, index) => (
+        <div
+          key={index}
+          style={{
+            color: 'var(--joy-palette-success-700)',
+            backgroundColor: 'var(--joy-palette-success-100)',
+          }}
+        >
+          <b>{prompt?.role}:</b> {prompt?.content}
+        </div>
+      ))}
+      <span color="neutral">
+        <b>{response?.role}:</b> {response?.content}
+      </span>
     </Sheet>
   );
 }

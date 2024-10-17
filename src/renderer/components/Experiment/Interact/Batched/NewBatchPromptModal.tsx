@@ -95,21 +95,21 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
             <DialogTitle>Type of Batch Prompt</DialogTitle>
             <List>
               <ListItem>
-                <ListItemButton onClick={() => setTypeOfBatch('file')} disabled>
-                  <FileIcon />
-                  Import From File (not yet implemented)
-                </ListItemButton>
-              </ListItem>
-              <ListItem>
                 <ListItemButton onClick={() => setTypeOfBatch('completion')}>
                   <TerminalIcon />
-                  Completion Style
+                  Completion
                 </ListItemButton>
               </ListItem>
               <ListItem>
                 <ListItemButton onClick={() => setTypeOfBatch('chat')}>
                   <MessageSquareTextIcon />
-                  Chat Completion
+                  Chat
+                </ListItemButton>
+              </ListItem>
+              <ListItem>
+                <ListItemButton onClick={() => setTypeOfBatch('file')} disabled>
+                  <FileIcon />
+                  Import From File (not yet implemented)
                 </ListItemButton>
               </ListItem>
             </List>
