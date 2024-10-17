@@ -128,7 +128,7 @@ export default function Batched({
           display: 'flex',
           flexDirection: 'column',
           gap: 1,
-          flex: '0 0 300px',
+          flex: '0 0 350px',
           xjustifyContent: 'space-between',
           overflow: 'hidden',
           height: '100%',
@@ -149,7 +149,7 @@ export default function Batched({
           level="body-xs"
           sx={{ textTransform: 'uppercase', fontWeight: 'lg', mb: 1 }}
         >
-          Batched Queries
+          Saved Batches
         </Typography>
         <Box
           sx={{
