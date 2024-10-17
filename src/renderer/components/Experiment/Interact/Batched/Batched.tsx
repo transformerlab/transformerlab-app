@@ -175,16 +175,6 @@ export default function Batched({
           height: '100%',
         }}
       >
-        <Alert
-          variant="outlined"
-          color="warning"
-          startDecorator={<ConstructionIcon />}
-        >
-          Work In Progress. This is a placeholder for batched queries -- we will
-          be expanding this portion of the app in an upcoming release. This
-          feature will allow a user to save a list of predefined queries and
-          then run them in batch.
-        </Alert>
         <Sheet
           variant="plain"
           sx={{
@@ -292,7 +282,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
               setNewQueryModalOpen(true);
             }}
           >
-            <ListItemDecorator sx={{ color: 'var(--joy-palette-success-400)' }}>
+            <ListItemDecorator>
               <PlusCircleIcon />
             </ListItemDecorator>
             New
@@ -333,8 +323,8 @@ function ChatResult({ prompts, response }) {
         <div
           key={index}
           style={{
-            color: 'var(--joy-palette-success-700)',
-            backgroundColor: 'var(--joy-palette-success-100)',
+            color: 'var(--joy-palette-neutral-700)',
+            backgroundColor: 'var(--joy-palette-neutral-100)',
           }}
         >
           <b>{prompt?.role}:</b> {prompt?.content}
