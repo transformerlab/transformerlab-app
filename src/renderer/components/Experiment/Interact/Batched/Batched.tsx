@@ -19,6 +19,7 @@ import { useState } from 'react';
 import {
   ConstructionIcon,
   FileStackIcon,
+  MessagesSquare,
   PencilIcon,
   PlayIcon,
   PlusCircleIcon,
@@ -249,10 +250,22 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
               <ListItemDecorator
                 sx={{ color: 'var(--joy-palette-neutral-400)' }}
               >
-                <FileStackIcon />
+                {
+                  // If first element in query?.prompts is a string, then it is a completion query:
+                  // Display the completion icon
+                  typeof query?.prompts[0] === 'string' ? (
+                    <FileStackIcon />
+                  ) : (
+                    <MessagesSquare />
+                  )
+                }
               </ListItemDecorator>
               <ListItemContent sx={{ textWrap: 'balance', overflow: 'clip' }}>
-                {query.name}
+                <Typography level="title-md"> {query.name}</Typography>
+                <Typography level="body-sm">
+                  {query.prompts?.length} prompt
+                  {query.prompts?.length == 1 ? '' : 's'}
+                </Typography>
               </ListItemContent>
               <ButtonGroup>
                 <IconButton onClick={() => sendBatchOfQueries(query?.prompts)}>
