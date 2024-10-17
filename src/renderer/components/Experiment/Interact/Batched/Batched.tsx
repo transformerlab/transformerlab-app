@@ -13,11 +13,13 @@ import {
   LinearProgress,
   IconButton,
   ButtonGroup,
+  Button,
 } from '@mui/joy';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import {
   ConstructionIcon,
+  DownloadIcon,
   FileStackIcon,
   MessagesSquare,
   PencilIcon,
@@ -189,6 +191,25 @@ export default function Batched({
             gap: 1,
           }}
         >
+          <Button
+            sx={{ alignSelf: 'flex-end' }}
+            variant="outlined"
+            startDecorator={<DownloadIcon />}
+            disabled={!result?.choices && !result?.[0]?.choices}
+            onClick={() => {
+              //add download link that returns value of result.
+              const element = document.createElement('a');
+              const file = new Blob([JSON.stringify(result)], {
+                type: 'text/plain',
+              });
+              element.href = URL.createObjectURL(file);
+              element.download = 'result.json';
+              document.body.appendChild(element); // Required for this to work in FireFox
+              element.click();
+            }}
+          >
+            Download Result
+          </Button>
           {isThinking && <LinearProgress />}
           {/* {JSON.stringify(result, null, 2)} */}
           {result == null && (
@@ -197,7 +218,15 @@ export default function Batched({
             </Alert>
           )}
 
-          <Sheet sx={{ height: '100%', overflow: 'auto' }}>
+          <Sheet
+            sx={{
+              height: '100%',
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+            }}
+          >
             {result?.choices?.map((choice, index) => (
               <CompletionResult prompt={prompts?.[index]} key={index}>
                 {choice?.text}
