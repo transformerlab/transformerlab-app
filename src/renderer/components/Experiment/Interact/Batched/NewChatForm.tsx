@@ -10,16 +10,19 @@ import {
   Typography,
   ButtonGroup,
 } from '@mui/joy';
-import { CheckIcon, PencilIcon, Trash2Icon } from 'lucide-react';
+import {
+  CheckIcon,
+  PencilIcon,
+  PlusCircleIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function NewChatForm({ submitChat, defaultChats = [] }) {
   const [chats, setChats] = useState([
     { role: 'system', content: 'You are a helpful assistant.' },
-    { role: 'user', content: 'Hello' },
+    { role: 'user', content: 'Hello!' },
   ]);
-
-  const [nextChat, setNextChat] = useState({ role: 'assistant', content: '' });
 
   function systemMessageValue() {
     return chats.find((chat) => chat.role === 'system')?.content;
@@ -65,66 +68,34 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
           chat={chat}
           chats={chats}
           setChats={setChats}
+          setAsEditable={index == chats.length - 1}
         />
       ))}
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          gap: 2,
-          alignItems: 'center',
+
+      <Button
+        variant="soft"
+        sx={{ alignSelf: 'flex-end' }}
+        endDecorator={<PlusCircleIcon />}
+        onClick={() => {
+          setChats([
+            ...chats,
+            {
+              role:
+                chats?.[chats?.length - 1].role == 'user'
+                  ? 'assistant'
+                  : 'user',
+              content: '',
+            },
+          ]);
         }}
       >
-        <Select
-          value={nextChat.role}
-          sx={{ minWidth: '120px' }}
-          variant="soft"
-          onChange={(event, newValue) => {
-            setNextChat({ role: newValue, content: nextChat.content });
-          }}
-        >
-          <Option value="user">Human</Option>
-          <Option value="assistant">Assistant</Option>
-        </Select>
-        <Input
-          sx={{ flex: 1 }}
-          placeholder="Type a message..."
-          value={nextChat.content}
-          onChange={(event) =>
-            setNextChat({ role: nextChat.role, content: event.target.value })
-          }
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') {
-              setChats([...chats, nextChat]);
-              setNextChat({
-                role: nextChat?.role == 'user' ? 'assistant' : 'user',
-                content: '',
-              });
-            }
-          }}
-        />{' '}
-        <IconButton
-          variant="plain"
-          color="success"
-          onClick={(event) => {
-            setChats([...chats, nextChat]);
-            setNextChat({
-              role: nextChat?.role == 'user' ? 'assistant' : 'user',
-              content: '',
-            });
-          }}
-        >
-          <CheckIcon />
-        </IconButton>
-      </Box>
+        Add Line
+      </Button>
+
       <Button
-        sx={{ mt: 3 }}
+        sx={{ mt: 1 }}
         onClick={() => {
-          let newChats = [...chats];
-          if (nextChat?.content) {
-            newChats = [...chats, nextChat];
-          }
-          submitChat(newChats);
+          submitChat(chats);
         }}
       >
         Save
@@ -133,8 +104,14 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
   );
 }
 
-function SingleLineOfChat({ index, chat, chats, setChats }) {
-  const [isEditing, setIsEditing] = useState(false);
+function SingleLineOfChat({ index, chat, chats, setChats, setAsEditable }) {
+  const [isEditing, setIsEditing] = useState(true);
+
+  useEffect(() => {
+    if (setAsEditable) {
+      setIsEditing(true);
+    }
+  }, []);
 
   // Don't display the system message
   if (chat?.role === 'system') {
@@ -154,12 +131,13 @@ function SingleLineOfChat({ index, chat, chats, setChats }) {
         <Select
           value={chat.role}
           sx={{ minWidth: '120px' }}
-          variant="soft"
           onChange={(event, newValue) => {
             const newChats = [...chats];
             newChats[index].role = newValue;
             setChats(newChats);
           }}
+          // color={chat.role === 'user' ? 'primary' : 'neutral'}
+          variant={chat.role === 'user' ? 'soft' : 'outlined'}
         >
           <Option value="user">Human</Option>
           <Option value="assistant">Assistant</Option>
@@ -192,7 +170,7 @@ function SingleLineOfChat({ index, chat, chats, setChats }) {
         <Typography sx={{ flex: 1 }}>{chat.content}</Typography>
       )}
       <ButtonGroup>
-        {isEditing ? (
+        {/* {isEditing ? (
           <IconButton
             variant="outlined"
             color="success"
@@ -208,7 +186,7 @@ function SingleLineOfChat({ index, chat, chats, setChats }) {
           >
             <PencilIcon size="18px" />
           </IconButton>
-        )}
+        )} */}
         <IconButton
           variant="outlined"
           color="danger"
