@@ -31,7 +31,7 @@ import {
   TerminalIcon,
   Trash2Icon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Dropzone from 'react-dropzone';
 import NewChatForm from './NewChatForm';
 
@@ -39,11 +39,30 @@ import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { IoCloudUploadOutline } from 'react-icons/io5';
 import { Form } from 'react-router-dom';
 
-export default function NewBatchModal({ open, setOpen, addQuery }) {
+export default function NewBatchModal({
+  open,
+  setOpen,
+  addQuery,
+  currentlyEditingQuery = null,
+}) {
   const [prompts, setPrompts] = useState<string[]>(['']);
   const [typeOfBatch, setTypeOfBatch] = useState('');
   const [uploading, setUploading] = useState(false);
   const [dropzoneActive, setDropzoneActive] = useState(false);
+
+  useEffect(() => {
+    if (currentlyEditingQuery) {
+      setPrompts(currentlyEditingQuery.prompts);
+
+      // if currentlyEditingQuery has a field called prompts and it is an array of strings, then it is a completion
+      // if it is an array of objects, then it is a chat
+      if (typeof currentlyEditingQuery.prompts[0] === 'string') {
+        setTypeOfBatch('completion');
+      } else {
+        setTypeOfBatch('chat');
+      }
+    }
+  }, [currentlyEditingQuery]);
 
   const uploadFiles = async (formData) => {
     setUploading(true); //This is for the loading spinner
@@ -93,6 +112,7 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
         {typeOfBatch === '' && (
           <ModalDialog>
             <DialogTitle>Type of Batch Prompt</DialogTitle>
+            {JSON.stringify(currentlyEditingQuery)}
             <List>
               <ListItem>
                 <ListItemButton onClick={() => setTypeOfBatch('completion')}>
@@ -160,6 +180,7 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
                   name="name"
                   size="lg"
                   placeholder="e.g. Common Knowledge Prompts"
+                  defaultValue={currentlyEditingQuery?.name}
                 />
               </FormControl>
               <Divider sx={{ my: 3 }} />
@@ -227,6 +248,8 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
                 });
                 closeWindow();
               }}
+              defaultChats={currentlyEditingQuery?.prompts}
+              defaultName={currentlyEditingQuery?.name}
             />
           </ModalDialog>
         )}
@@ -322,12 +345,18 @@ export default function NewBatchModal({ open, setOpen, addQuery }) {
   );
 }
 
-function ListOfChats({ save }) {
+function ListOfChats({ save, defaultChats = [], defaultName = '' }) {
   const [chats, setChats] = useState([]);
   // set editChat to -1 if you want to create a new chat, set it a specific index in the chats
   // array if you want to edit that chat. Set it to null if you are not editing
   const [editChat, setEditChat] = useState<number | null>(null);
   const [chatName, setChatName] = useState('');
+
+  useEffect(() => {
+    setChats(defaultChats);
+    setChatName(defaultName);
+  }, [defaultChats, defaultName]);
+
   return (
     <>
       <DialogTitle>

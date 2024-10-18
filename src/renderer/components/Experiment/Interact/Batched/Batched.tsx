@@ -250,6 +250,7 @@ export default function Batched({
 
 function ListOfBatchedQueries({ sendBatchOfQueries }) {
   const [newQueryModalOpen, setNewQueryModalOpen] = useState(false);
+  const [currentlyEditingQuery, setCurrentlyEditingQuery] = useState(null);
 
   const { data: batchedPrompts, mutate: mutateBatchedPrompts } = useSWR(
     chatAPI.Endpoints.BatchedPrompts.List(),
@@ -300,7 +301,12 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
                 <IconButton onClick={() => sendBatchOfQueries(query?.prompts)}>
                   <PlayIcon size="20px" />
                 </IconButton>{' '}
-                <IconButton disabled onClick={() => alert('not implemented')}>
+                <IconButton
+                  onClick={() => {
+                    setCurrentlyEditingQuery(query);
+                    setNewQueryModalOpen(true);
+                  }}
+                >
                   <PencilIcon size="20px" />{' '}
                 </IconButton>
                 <IconButton
@@ -321,6 +327,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
         <ListItem>
           <ListItemButton
             onClick={() => {
+              setCurrentlyEditingQuery(null);
               setNewQueryModalOpen(true);
             }}
           >
@@ -335,6 +342,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
         open={newQueryModalOpen}
         setOpen={setNewQueryModalOpen}
         addQuery={addQuery}
+        currentlyEditingQuery={currentlyEditingQuery}
       />
     </>
   );
