@@ -990,6 +990,13 @@ Endpoints.Experiment = {
     '/evals/delete' +
     '?eval_name=' +
     evalName,
+  GetEvalOutput: (experimentId: string, eval_name: string) =>
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/evals/get_output' +
+    '?eval_name=' +
+    eval_name,
   RunExport: (
     id: string,
     pluginName: string,
