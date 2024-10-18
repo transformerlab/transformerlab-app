@@ -370,11 +370,11 @@ function ListOfChats({ save }) {
                 placeholder="e.g. Common Knowledge Prompts"
               />
             </FormControl>
-            <FormControl>
+            <FormControl sx={{ mt: 3 }}>
               <FormLabel>Chats:</FormLabel>
               {chats.length === 0 && (
                 <Typography level="body-md" color="neutral">
-                  List of Chats is Empty. Click Add New to add a new chat.
+                  List of chats is empty
                 </Typography>
               )}
               <List>
@@ -411,10 +411,15 @@ function ListOfChats({ save }) {
               </List>
             </FormControl>
 
-            <Button variant="soft" onClick={() => setEditChat(-1)}>
-              Add New
+            <Button
+              variant="soft"
+              onClick={() => setEditChat(-1)}
+              sx={{ alignSelf: 'flex-end' }}
+            >
+              Add New Chat
             </Button>
             {/* <Button onClick={() => setChats([])}>Clear</Button> */}
+            <Divider sx={{ my: 2 }} />
             <Button type="submit">Save Chats</Button>
           </form>
         </>
