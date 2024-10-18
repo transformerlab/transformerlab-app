@@ -228,6 +228,7 @@ export default function NewBatchModal({
                     setPrompts([...prompts, '']);
                   }}
                   startDecorator={<PlusCircleIcon />}
+                  sx={{ alignSelf: 'flex-end' }}
                 >
                   Add Prompt
                 </Button>
