@@ -30,7 +30,7 @@ function setIntervalXTimes(
 ) {
   var x = 0;
   var intervalID = window.setInterval(async function () {
-    console.log(`Testing if ${checkName} ${x} of ${repetitions} times`);
+    console.log(`Testing if ${checkName} ${x+1} of ${repetitions} times`);
     const response = await callback();
 
     if (response) {
