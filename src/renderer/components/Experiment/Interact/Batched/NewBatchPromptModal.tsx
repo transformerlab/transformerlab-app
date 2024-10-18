@@ -51,7 +51,11 @@ export default function NewBatchModal({
   const [dropzoneActive, setDropzoneActive] = useState(false);
 
   useEffect(() => {
+    if (!open) {
+      return;
+    }
     if (currentlyEditingQuery) {
+      console.log('setting initials');
       setPrompts(currentlyEditingQuery.prompts);
 
       // if currentlyEditingQuery has a field called prompts and it is an array of strings, then it is a completion
@@ -62,7 +66,7 @@ export default function NewBatchModal({
         setTypeOfBatch('chat');
       }
     }
-  }, [currentlyEditingQuery]);
+  }, [open]);
 
   const uploadFiles = async (formData) => {
     setUploading(true); //This is for the loading spinner
@@ -112,7 +116,7 @@ export default function NewBatchModal({
         {typeOfBatch === '' && (
           <ModalDialog>
             <DialogTitle>Type of Batch Prompt</DialogTitle>
-            {JSON.stringify(currentlyEditingQuery)}
+            {/* {JSON.stringify(currentlyEditingQuery)} */}
             <List>
               <ListItem>
                 <ListItemButton onClick={() => setTypeOfBatch('completion')}>
@@ -356,7 +360,7 @@ function ListOfChats({ save, defaultChats = [], defaultName = '' }) {
   useEffect(() => {
     setChats(defaultChats);
     setChatName(defaultName);
-  }, [defaultChats, defaultName]);
+  }, []);
 
   return (
     <>
