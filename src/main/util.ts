@@ -350,9 +350,9 @@ export async function checkIfCondaEnvironmentExists() {
 
   if (error) {
     response.status = 'error';
-    response.message = 'Conda environment check failed.';
+    response.message = 'Conda environment check failed. ' + error;
     response.data = { stdout: stdout?.toString(), stderr: stderr.toString() };
-    console.log('Conda environment check failed.');
+    console.log(response.message);
     return response;
   }
 
