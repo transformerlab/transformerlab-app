@@ -248,10 +248,7 @@ function InstallStepper({ setServer }) {
         setActiveStep(Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1);
       } else {
         setInstallStatus('notstarted');
-        setErrorMessage({
-          message: condaExists?.message,
-          data: condaExists?.data,
-        });
+        setErrorMessage(condaExists?.message);
         if (userRequestedInstall) {
           stepsFunctions[Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS')]();
         }
@@ -484,10 +481,7 @@ function InstallStepper({ setServer }) {
       return;
     } else {
       setInstallStatus('error');
-      setErrorMessage({
-        message: condaExists?.message,
-        data: condaExists?.data,
-      });
+      setErrorMessage(condaExists?.message);
     }
     setIntervalXTimes(
       'Conda Environment Exists',
@@ -501,10 +495,7 @@ function InstallStepper({ setServer }) {
           return true;
         } else {
           setInstallStatus('error');
-          setErrorMessage({
-            message: condaExists?.message,
-            data: condaExists?.data,
-          });
+          setErrorMessage(condaExists?.message);
         }
         return false;
       },
