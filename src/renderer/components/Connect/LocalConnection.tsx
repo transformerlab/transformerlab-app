@@ -482,31 +482,14 @@ function InstallStepper({ setServer }) {
     } else {
       setInstallStatus('error');
       setErrorMessage(condaExists?.message);
+      setThinking(false);
+      setUserRequestedInstall(false);
+      // Not sure if this is the right thign to do or not?
+      // Pro: If you try to install again it will start at beginning.
+      // Con: You can't see visually where the install failed.
+      // Sticking with previous behaviour.
+      setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
     }
-    setIntervalXTimes(
-      'Conda Environment Exists',
-      async () => {
-        const condaExists = await window.electron.ipcRenderer.invoke(
-          'server:checkIfCondaEnvironmentExists'
-        );
-        if (condaExists?.status == 'success') {
-          setInstallStatus('success');
-          setActiveStep(Steps.indexOf('CHECK_IF_CONDA_ENVIRONMENT_EXISTS') + 1);
-          return true;
-        } else {
-          setInstallStatus('error');
-          setErrorMessage(condaExists?.message);
-        }
-        return false;
-      },
-      () => {
-        setThinking(false);
-        setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
-        setUserRequestedInstall(false);
-      },
-      2000,
-      4
-    );
   }
 
   async function installDependencies() {
