@@ -372,7 +372,7 @@ export async function checkIfCondaEnvironmentExists() {
   } else {
     response.status = 'error';
     response.message = 'Conda environment "transformerlab" not found.';
-    return false;
+    return response;
   }
 }
 
