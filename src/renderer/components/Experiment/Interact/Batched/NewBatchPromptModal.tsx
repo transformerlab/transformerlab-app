@@ -133,7 +133,9 @@ export default function NewBatchModal({
               <ListItem>
                 <ListItemButton onClick={() => setTypeOfBatch('file')} disabled>
                   <FileIcon />
-                  Import From File (not yet implemented)
+                  Import From File
+                  <br />
+                  (Not yet implemented)
                 </ListItemButton>
               </ListItem>
             </List>
@@ -227,7 +229,7 @@ export default function NewBatchModal({
                 ))}
                 <Button
                   variant="outlined"
-                  color="success"
+                  color="neutral"
                   onClick={() => {
                     setPrompts([...prompts, '']);
                   }}
@@ -236,7 +238,7 @@ export default function NewBatchModal({
                 >
                   Add Prompt
                 </Button>
-                <Button type="submit">Save</Button>
+                <Button type="submit">Save Batch</Button>
               </Stack>
             </form>
           </ModalDialog>
@@ -454,7 +456,7 @@ function ListOfChats({ save, defaultChats = [], defaultName = '' }) {
             </Button>
             {/* <Button onClick={() => setChats([])}>Clear</Button> */}
             <Divider sx={{ my: 2 }} />
-            <Button type="submit">Save Chats</Button>
+            <Button type="submit">Save Batch</Button>
           </form>
         </>
       )}
