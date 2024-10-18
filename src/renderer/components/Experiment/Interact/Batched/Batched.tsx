@@ -161,6 +161,7 @@ export default function Batched({
             padding: 1,
             flexDirection: 'column',
             height: '100%',
+            overflow: 'auto',
           }}
         >
           <ListOfBatchedQueries sendBatchOfQueries={sendBatchOfQueries} />
