@@ -62,6 +62,8 @@ Transformer Lab allows you to:
   - Preset (Templated) Prompts
   - Chat History
   - Tweak generation parameters
+  - Batched Inference
+  - Tool Use / Function Calling (in alpha)
 - 🚂 **Use Different Inference Engines**
   - MLX on Apple Silicon
   - Huggingface Transformers
