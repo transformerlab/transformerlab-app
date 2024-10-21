@@ -12,21 +12,20 @@ import {
 } from '@mui/joy';
 import {
   ArrowDownIcon,
-  DownloadCloudIcon,
   FlaskRoundIcon,
   InfoIcon,
   SearchIcon,
   StoreIcon,
   Trash2Icon,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
-import { Link as ReactRouterLink } from 'react-router-dom';
+import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 type Order = 'asc' | 'desc';
 
@@ -41,6 +40,8 @@ const LocalModelsTable = ({
   const [order, setOrder] = useState<Order>('desc');
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
+
+  const navigate = useNavigate();
 
   const renderFilters = () => (
     <>
@@ -290,6 +291,10 @@ const LocalModelsTable = ({
           </tbody>
         </Table>
       </Sheet>
+      <Typography mt={2} level="body-sm">
+        Looking for more models? Go to the{' '}
+        <ReactRouterLink to="/zoo/store">Model Store</ReactRouterLink>
+      </Typography>
     </>
   );
 };
