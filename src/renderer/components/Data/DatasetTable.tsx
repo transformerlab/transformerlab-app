@@ -6,6 +6,7 @@ import {
   Box,
   IconButton,
   iconButtonClasses,
+  Alert,
 } from '@mui/joy';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -42,6 +43,9 @@ const DatasetTable = ({ datasetId }) => {
     <>
       <Box sx={{ overflow: 'auto', height: '100%' }}>
         {isLoading && <CircularProgress />}
+        {data?.status == 'error' && (
+          <Alert color="danger">{data?.message}</Alert>
+        )}
         {data &&
           data?.data?.['columns'] && ( //Data is loaded as a map of column names to arrays of values
             <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
