@@ -5,9 +5,6 @@ import {
   Card,
   CardContent,
   CircularProgress,
-  Modal,
-  ModalClose,
-  ModalDialog,
   Typography,
 } from '@mui/joy';
 import {
