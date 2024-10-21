@@ -426,7 +426,8 @@ export async function sendBatchedCompletion(
   maxTokens: number = 256,
   topP: number = 1.0,
   useLongModelName = true,
-  stopString = null
+  stopString = null,
+  repeatTimes = 1
 ) {
   let model = '';
   if (useLongModelName) {
@@ -446,6 +447,7 @@ export async function sendBatchedCompletion(
     temperature,
     max_tokens: maxTokens,
     top_p: topP,
+    n: repeatTimes,
   };
 
   if (stopString) {
