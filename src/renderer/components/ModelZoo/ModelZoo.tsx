@@ -5,8 +5,11 @@ import { StoreIcon } from 'lucide-react';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import ModelStore from './ModelStore';
 import LocalModels from './LocalModels';
+import { useNavigate } from 'react-router-dom';
 
-export default function ModelZoo({ experimentInfo }) {
+export default function ModelZoo({ experimentInfo, tab = 'store' }) {
+  const navigate = useNavigate();
+
   return (
     <Sheet
       sx={{
@@ -18,7 +21,6 @@ export default function ModelZoo({ experimentInfo }) {
     >
       <Tabs
         aria-label="Basic tabs"
-        defaultValue={2}
         size="sm"
         sx={{
           borderRadius: 'lg',
@@ -27,23 +29,27 @@ export default function ModelZoo({ experimentInfo }) {
           height: '100%',
           overflow: 'unset',
         }}
+        value={tab}
+        onChange={(e, newValue) => {
+          navigate('/zoo/' + newValue);
+        }}
       >
         <TabList>
-          <Tab>Local Models</Tab>
-          <Tab>Generated</Tab>
-          <Tab>
+          <Tab value="local">Local Models</Tab>
+          <Tab value="generated">Generated</Tab>
+          <Tab value="store">
             <StoreIcon color="grey" />
             &nbsp; Model Store
           </Tab>
         </TabList>
         <TabPanel
-          value={0}
+          value="local"
           sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
           <LocalModels pickAModelMode={false} experimentInfo={experimentInfo} />
         </TabPanel>
         <TabPanel
-          value={1}
+          value="generated"
           sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
           <LocalModels
@@ -53,7 +59,7 @@ export default function ModelZoo({ experimentInfo }) {
           />
         </TabPanel>
         <TabPanel
-          value={2}
+          value="store"
           sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
           <ModelStore />

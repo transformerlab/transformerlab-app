@@ -239,10 +239,21 @@ export default function MainAppPanel({
           />
         }
       />
-
       <Route
         path="/zoo"
-        element={<ModelZoo experimentInfo={experimentInfo} />}
+        element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
+      />
+      <Route
+        path="/zoo/local"
+        element={<ModelZoo experimentInfo={experimentInfo} tab="local" />}
+      />
+      <Route
+        path="/zoo/generated"
+        element={<ModelZoo experimentInfo={experimentInfo} tab="generated" />}
+      />
+      <Route
+        path="/zoo/store"
+        element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
       />
       <Route path="/data" element={<Data />} />
       <Route
