@@ -14,6 +14,8 @@ import {
   IconButton,
   ButtonGroup,
   Button,
+  FormLabel,
+  Slider,
 } from '@mui/joy';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
@@ -30,6 +32,7 @@ import {
 import MainGenerationConfigKnobs from '../MainGenerationConfigKnobs';
 import NewBatchPromptModal from './NewBatchPromptModal';
 import useSWR from 'swr';
+import ThinSlider from '../ThinSlider';
 
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -45,6 +48,7 @@ export default function Batched({
   const [isThinking, setIsThinking] = useState(false);
   const [prompts, setPrompts] = useState<string[]>([]);
   const [result, setResult] = useState({});
+  const [repeatTimes, setRepeatTimes] = useState(1);
   async function sendBatchOfQueries(prompts) {
     const text = prompts;
     let typeOfCompletion = 'chat';
@@ -90,19 +94,25 @@ export default function Batched({
         generationParameters?.maxTokens,
         generationParameters?.topP,
         false,
-        generationParameters?.stop_str
+        generationParameters?.stop_str,
+        repeatTimes
       );
     } else {
-      result = await chatAPI.sendBatchedChat(
-        currentModel,
-        adaptor,
-        text,
-        generationParameters?.temperature,
-        generationParameters?.maxTokens,
-        generationParameters?.topP,
-        false,
-        generationParameters?.stop_str
-      );
+      result = [];
+      for (let i = 0; i < repeatTimes; i++) {
+        const r = await chatAPI.sendBatchedChat(
+          currentModel,
+          adaptor,
+          text,
+          generationParameters?.temperature,
+          generationParameters?.maxTokens,
+          generationParameters?.topP,
+          false,
+          generationParameters?.stop_str
+        );
+        // r is an array, add the elements of r to the result array
+        result = [...result, ...r];
+      }
     }
 
     setIsThinking(false);
@@ -148,6 +158,18 @@ export default function Batched({
             showAllKnobs={false}
           />
         </FormControl>
+        {/* <Box sx={{ flex: 1, minWidth: '200px' }}>
+          <ThinSlider
+            title="Repeat n times"
+            value={repeatTimes}
+            onChange={(e, newValue) => {
+              setRepeatTimes(newValue as number);
+            }}
+            max={6}
+            min={1}
+            valueLabelDisplay="auto"
+          />
+        </Box> */}
         <Typography
           level="body-xs"
           sx={{ textTransform: 'uppercase', fontWeight: 'lg', mb: 1 }}
@@ -228,6 +250,7 @@ export default function Batched({
               gap: 1,
             }}
           >
+            {/* <pre>{JSON.stringify(result, null, 2)}</pre> */}
             {result?.choices?.map((choice, index) => (
               <CompletionResult prompt={prompts?.[index]} key={index}>
                 {choice?.text}
