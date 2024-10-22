@@ -224,12 +224,12 @@ export default function TrainingModalLoRA({
     <Modal open={open}>
       <ModalDialog
         sx={{
-          width: '70vw',
+          width: '90dvw',
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
-          top: '10vh',
+          top: '5dvh',
           overflow: 'auto',
-          maxHeight: '80vh',
-          minHeight: '70vh',
+          maxHeight: '90dvh',
+          minHeight: '70dvh',
           height: '100%',
         }}
       >

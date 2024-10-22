@@ -61,6 +61,16 @@ button.hoverEditButton {
   app-region: no-drag;
 }
 
+.MuiModal-backdrop {
+  --webkit-app-region: drag;
+  app-region: drag;
+}
+
+.MuiModalDialog-root {
+  --webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 /* This is an unused style for a cool
 spinning gradient border effect */
 /*
