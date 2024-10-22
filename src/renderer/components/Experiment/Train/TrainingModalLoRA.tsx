@@ -338,7 +338,7 @@ export default function TrainingModalLoRA({
             <Button color="danger" variant="soft" onClick={() => onClose()}>
               Cancel
             </Button>
-            <Button variant="soft" type="submit">
+            <Button variant="soft" type="submit" color="success">
               Save Training Template
             </Button>
           </Stack>
