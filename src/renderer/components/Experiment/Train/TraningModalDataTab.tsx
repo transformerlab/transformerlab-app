@@ -193,38 +193,44 @@ export default function TrainingModalDataTab({
         <>
           {parsedData?.training_template_format !== 'none' && (
             <>
-              <FormControl>
-                <Typography level="title-lg" mt={2} pb={2}>
-                  Available Fields
-                </Typography>
-                <Box sx={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                  {currentDatasetInfoIsLoading && <CircularProgress />}
-                  {/* // For each key in the currentDatasetInfo.features object,
+              <Alert sx={{ mt: 1 }} color="danger">
+                <FormControl>
+                  <Typography level="title-md" mt={0} pb={1}>
+                    Available Fields in <u>{selectedDataset}</u> Dataset
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: '2px', flexWrap: 'wrap' }}>
+                    {currentDatasetInfoIsLoading && <CircularProgress />}
+                    {/* // For each key in the currentDatasetInfo.features object,
   display it: */}
-                  {currentDatasetInfo?.features &&
-                    Object.keys(currentDatasetInfo?.features).map((key) => (
-                      <>
-                        <Chip
-                          onClick={() => {
-                            injectIntoTemplate(key);
-                          }}
-                        >
-                          {key}
-                        </Chip>
-                        &nbsp;
-                      </>
-                    ))}
-                </Box>
+                    {(!currentDatasetInfo?.features ||
+                      currentDatasetInfo?.success == 'false') &&
+                      'No fields available'}
+                    {currentDatasetInfo?.features &&
+                      Object.keys(currentDatasetInfo?.features).map((key) => (
+                        <>
+                          <Chip
+                            color="success"
+                            onClick={() => {
+                              injectIntoTemplate(key);
+                            }}
+                          >
+                            {key}
+                          </Chip>
+                          &nbsp;
+                        </>
+                      ))}
+                  </Box>
 
-                {selectedDataset && (
-                  <FormHelperText>
-                    Use the field names above, surrounded by
-                    &#123;&#123;&#125;&#125; in the template below
-                  </FormHelperText>
-                )}
-              </FormControl>
+                  {selectedDataset && (
+                    <FormHelperText>
+                      Use the field names above, surrounded by
+                      &#123;&#123;&#125;&#125; in the template below
+                    </FormHelperText>
+                  )}
+                </FormControl>
+              </Alert>
               {/* <Divider sx={{ mt: '1rem', mb: '2rem' }} /> */}
-              <Typography level="title-lg" mt={2} pb={2}>
+              <Typography level="title-md" mt={2} pb={2}>
                 Template
               </Typography>
             </>

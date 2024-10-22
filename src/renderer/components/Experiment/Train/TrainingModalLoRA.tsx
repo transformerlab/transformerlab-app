@@ -149,7 +149,7 @@ export default function TrainingModalLoRA({
   function injectIntoTemplate(key) {
     // Add the key to the textbox with id "template"
     const template =
-      document.getElementById('training-form')?.elements['template'];
+      document.getElementById('training-form')?.elements['formatting_template'];
 
     if (template === undefined) return;
 
