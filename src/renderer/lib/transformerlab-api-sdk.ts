@@ -806,6 +806,21 @@ Endpoints.Dataset = {
     offset +
     '&limit=' +
     limit,
+  PreviewWithTemplate: (
+    datasetId: string,
+    offset: number,
+    limit: number,
+    template: string
+  ) =>
+    API_URL() +
+    'data/preview_with_template?dataset_id=' +
+    datasetId +
+    '&offset=' +
+    offset +
+    '&limit=' +
+    limit +
+    '&template=' +
+    template,
   Delete: (datasetId: string) =>
     API_URL() + 'data/delete?dataset_id=' + datasetId,
   Create: (datasetId: string) => API_URL() + 'data/new?dataset_id=' + datasetId,

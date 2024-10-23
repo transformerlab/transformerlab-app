@@ -225,11 +225,11 @@ export default function TrainingModalLoRA({
     <Modal open={open}>
       <ModalDialog
         sx={{
-          width: '90dvw',
+          width: '95dvw',
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
           top: '5dvh',
           overflow: 'auto',
-          maxHeight: '90dvh',
+          maxHeight: '92dvh',
           minHeight: '70dvh',
           height: '100%',
         }}
@@ -278,7 +278,7 @@ export default function TrainingModalLoRA({
               <Tab>Introduction</Tab>
               <Tab>Name</Tab>
               <Tab>Dataset</Tab>
-              <Tab>Data Templating</Tab>
+              <Tab>Data Template</Tab>
               <Tab>Plugin Config</Tab>
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
@@ -293,7 +293,6 @@ export default function TrainingModalLoRA({
             <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <TrainingModalDataTemplatingTab
                 selectedDataset={selectedDataset}
-                currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
                 currentDatasetInfo={currentDatasetInfo}
                 templateData={templateData}
                 injectIntoTemplate={injectIntoTemplate}
