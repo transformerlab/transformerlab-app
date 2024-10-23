@@ -299,12 +299,15 @@ export default function TrainLoRA({ experimentInfo }) {
                             </Button>
                             <IconButton
                               onClick={async () => {
-                                await fetch(
-                                  chatAPI.API_URL() +
-                                    'train/template/' +
-                                    row[0] +
-                                    '/delete'
-                                );
+                                confirm(
+                                  'Are you sure you want to delete this Training Template?'
+                                ) &&
+                                  (await fetch(
+                                    chatAPI.API_URL() +
+                                      'train/template/' +
+                                      row[0] +
+                                      '/delete'
+                                  ));
                                 mutate();
                               }}
                             >
