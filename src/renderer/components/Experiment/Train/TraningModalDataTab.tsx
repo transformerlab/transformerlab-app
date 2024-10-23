@@ -126,34 +126,40 @@ export default function TrainingModalDataTab({
         );
       default:
         return (
-          <FormControl>
-            <textarea
-              required
-              name="formatting_template"
-              id="formatting_template"
-              defaultValue={
-                templateData
-                  ? templateData?.config?.formatting_template
-                  : 'Instruction: {{instruction}}\nPrompt: {{prompt}}\nGeneration: {{generation}}'
-              }
-              rows={5}
-            />
-            <FormHelperText
-              sx={{ flexDirection: 'column', alignItems: 'flex-start' }}
-            >
-              This describes how the data is formatted when passed to the
-              trainer. Use Jinja2 Standard String Templating format. For
-              example:
-              <br />
-              <span style={{}}>
-                Summarize the following:
+          <>
+            <FormControl>
+              <textarea
+                required
+                name="formatting_template"
+                id="formatting_template"
+                defaultValue={
+                  templateData
+                    ? templateData?.config?.formatting_template
+                    : 'Instruction: {{instruction}}\nPrompt: {{prompt}}\nGeneration: {{generation}}'
+                }
+                rows={5}
+              />
+              <FormHelperText
+                sx={{ flexDirection: 'column', alignItems: 'flex-start' }}
+              >
+                This describes how the data is formatted when passed to the
+                trainer. Use Jinja2 Standard String Templating format. For
+                example:
                 <br />
-                Prompt: &#123;&#123;prompt&#125;&#125;
-                <br />
-                Generation: &#123;&#123;generation&#125;&#125;
-              </span>
-            </FormHelperText>
-          </FormControl>
+                <span style={{}}>
+                  Summarize the following:
+                  <br />
+                  Prompt: &#123;&#123;prompt&#125;&#125;
+                  <br />
+                  Generation: &#123;&#123;generation&#125;&#125;
+                </span>
+              </FormHelperText>
+            </FormControl>
+            <Typography level="title-md" py={1}>
+              Preview:
+            </Typography>
+            <DatasetTable datasetId={selectedDataset} />
+          </>
         );
     }
   }
@@ -230,7 +236,7 @@ export default function TrainingModalDataTab({
                 </FormControl>
               </Alert>
               {/* <Divider sx={{ mt: '1rem', mb: '2rem' }} /> */}
-              <Typography level="title-md" mt={2} pb={2}>
+              <Typography level="title-md" mt={2} mb={0.5}>
                 Template
               </Typography>
             </>

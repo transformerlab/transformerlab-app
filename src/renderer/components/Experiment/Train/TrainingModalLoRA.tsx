@@ -26,6 +26,7 @@ import AvailableFieldsImage from 'renderer/img/show-available-fields.png';
 
 import { generateFriendlyName } from 'renderer/lib/utils';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
+import TrainingModalDataTemplatingTab from './TrainingModalDataTemplatingTab';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
@@ -276,7 +277,8 @@ export default function TrainingModalLoRA({
             <TabList>
               <Tab>Introduction</Tab>
               <Tab>Name</Tab>
-              <Tab>Data</Tab>
+              <Tab>Dataset</Tab>
+              <Tab>Data Templating</Tab>
               <Tab>Plugin Config</Tab>
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
@@ -288,7 +290,17 @@ export default function TrainingModalLoRA({
             <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <TrainingModalFirstTab />
             </TabPanel>
-
+            <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TrainingModalDataTemplatingTab
+                selectedDataset={selectedDataset}
+                currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
+                currentDatasetInfo={currentDatasetInfo}
+                templateData={templateData}
+                injectIntoTemplate={injectIntoTemplate}
+                experimentInfo={experimentInfo}
+                pluginId={pluginId}
+              />
+            </TabPanel>
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <>
                 {currentTab == 2 && (
@@ -326,7 +338,7 @@ export default function TrainingModalLoRA({
                 />
               </>
             </TabPanel>
-            <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
