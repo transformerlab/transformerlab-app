@@ -34,6 +34,12 @@ const DatasetTable = ({ datasetId }) => {
   );
 
   useEffect(() => {
+    setDatasetLen(null);
+    setPageNumber(1);
+    setNumOfPages(1);
+  }, [datasetId]);
+
+  useEffect(() => {
     if (data && data.data && datasetLen === null) {
       setDatasetLen(data.data['len']);
       setPagination(data.data['len'], pageSize);
