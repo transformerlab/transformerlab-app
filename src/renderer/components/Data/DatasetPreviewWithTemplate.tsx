@@ -22,14 +22,19 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
   const [pageNumber, setPageNumber] = useState(1);
   const [numOfPages, setNumOfPages] = useState(1);
   const [datasetLen, setDatasetLen] = useState(null);
-  let pageSize = 10; //Set the number of rows per page
+  let pageSize = 4; //Set the number of rows per page
   const offset = (pageNumber - 1) * pageSize; //Calculate current row number to start from
   //Set the pagination for the dataset
   const setPagination = (totalRows, rowsPerPage) => {
     const totalPages = Math.ceil(totalRows / rowsPerPage);
     setNumOfPages(totalPages);
   };
-  const { data, error, isLoading, mutate } = useSWR(
+  const {
+    data: result,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(
     chatAPI.Endpoints.Dataset.PreviewWithTemplate(
       datasetId,
       encodeURI(template),
@@ -46,21 +51,28 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
   }, [datasetId]);
 
   useEffect(() => {
-    if (data && data.data && datasetLen === null) {
-      setDatasetLen(data.data['len']);
-      setPagination(data.data['len'], pageSize);
+    if (result && result.data && datasetLen === null) {
+      setDatasetLen(result?.data['len']);
+      setPagination(result?.data['len'], pageSize);
     }
-  }, [data, pageSize, datasetLen]);
+  }, [result, pageSize, datasetLen]);
+
+  if (!result?.data?.rows) {
+    if (isLoading) {
+      return <CircularProgress />;
+    }
+    return '';
+  }
   return (
     <>
       {/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
       <Box sx={{ overflow: 'auto', height: '100%' }}>
         {isLoading && <CircularProgress />}
-        {data?.status == 'error' && (
-          <Alert color="danger">{data?.message}</Alert>
+        {result?.status == 'error' && (
+          <Alert color="danger">{result?.message}</Alert>
         )}
       </Box>
-      {data?.data && (
+      {result?.data && (
         <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
           <thead>
             <tr>
@@ -76,13 +88,14 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
             </tr>
           </thead>
           <tbody>
-            {data?.data?.map((row) => (
+            {result?.data?.rows?.map((row) => (
               <tr key={row?.['__index__']}>
                 <td>
                   <pre style={{ whiteSpace: 'pre-wrap' }}>
                     <Box
                       style={{
                         backgroundColor: 'var(--joy-palette-success-100)',
+                        padding: '5px',
                       }}
                     >
                       {row?.['__formatted__']}
