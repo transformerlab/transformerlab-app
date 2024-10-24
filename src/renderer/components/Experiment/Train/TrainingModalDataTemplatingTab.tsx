@@ -2,6 +2,7 @@ import {
   Alert,
   Box,
   Chip,
+  CircularProgress,
   FormControl,
   FormHelperText,
   FormLabel,
@@ -13,6 +14,7 @@ import DatasetTableWithTemplate from 'renderer/components/Data/DatasetPreviewWit
 import DatasetTable from 'renderer/components/Data/DatasetTable';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
+import { useDebounce } from 'use-debounce';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -44,6 +46,8 @@ function TrainingModalDataTemplatingTab({
       ),
     fetcher
   );
+
+  const [debouncedTemplate] = useDebounce(template, 3000);
 
   const parsedData = data ? JSON.parse(data) : null;
 
@@ -115,6 +119,7 @@ function TrainingModalDataTemplatingTab({
                 <Typography level="title-md" py={1}>
                   Preview Templated Output:
                 </Typography>
+                {template != debouncedTemplate && <CircularProgress />}
                 <DatasetTable datasetId={selectedDataset} />
               </>
             )}
@@ -153,11 +158,14 @@ function TrainingModalDataTemplatingTab({
             {selectedDataset && (
               <>
                 <Typography level="title-md" py={1}>
-                  Preview Templated Output:
+                  Preview Templated Output:{' '}
+                  {template != debouncedTemplate && (
+                    <CircularProgress size="sm" />
+                  )}
                 </Typography>
                 <DatasetTableWithTemplate
                   datasetId={selectedDataset}
-                  template={template}
+                  template={debouncedTemplate}
                 />
               </>
             )}

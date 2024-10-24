@@ -77,7 +77,7 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
           </thead>
           <tbody>
             {data?.data?.map((row) => (
-              <tr>
+              <tr key={row?.['__index__']}>
                 <td>
                   <pre style={{ whiteSpace: 'pre-wrap' }}>
                     <Box
