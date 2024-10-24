@@ -9,6 +9,7 @@ import {
   Textarea,
   Typography,
 } from '@mui/joy';
+import { InfoIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import DatasetTableWithTemplate from 'renderer/components/Data/DatasetPreviewWithTemplate';
 import DatasetTable from 'renderer/components/Data/DatasetTable';
@@ -54,18 +55,24 @@ function TrainingModalDataTemplatingTab({
   function PreviewSection() {
     return (
       <>
-        <Typography level="title-md" py={1}>
+        <Typography level="title-lg" mt={2}>
           Preview Templated Output:{' '}
           {template != debouncedTemplate && (
             <CircularProgress
+              color="neutral"
+              variant="plain"
               sx={{
                 '--CircularProgress-size': '16px',
-                '--CircularProgress-trackThickness': '3px',
-                '--CircularProgress-progressThickness': '3px',
+                '--CircularProgress-trackThickness': '2px',
+                '--CircularProgress-progressThickness': '2px',
               }}
             />
           )}
         </Typography>
+        <Typography level="body-sm" textColor="text.tertiary" fontWeight={400}>
+          Below we render the actual data using the template you provide
+        </Typography>
+
         <DatasetTableWithTemplate
           datasetId={selectedDataset}
           template={debouncedTemplate}
@@ -154,21 +161,6 @@ function TrainingModalDataTemplatingTab({
                 value={template}
                 onChange={(e) => setTemplate(e.target.value)}
               />
-              <FormHelperText
-                sx={{ flexDirection: 'column', alignItems: 'flex-start' }}
-              >
-                This describes how the data is formatted when passed to the
-                trainer. Use Jinja2 Standard String Templating format. For
-                example:
-                <br />
-                <span style={{}}>
-                  Summarize the following:
-                  <br />
-                  Prompt: &#123;&#123;prompt&#125;&#125;
-                  <br />
-                  Generation: &#123;&#123;generation&#125;&#125;
-                </span>
-              </FormHelperText>
             </FormControl>
             {selectedDataset && <PreviewSection />}
           </>
@@ -220,12 +212,27 @@ function TrainingModalDataTemplatingTab({
                   &#123;&#123;&#125;&#125; in the template below
                 </FormHelperText>
               )}
+              <FormHelperText
+                sx={{ flexDirection: 'column', alignItems: 'flex-start' }}
+              >
+                The formatting template describes how the data is formatted when
+                passed to the trainer. Use the Jinja2 Standard String Templating
+                format. For example:
+                <br />
+                <span style={{}}>
+                  Summarize the following:
+                  <br />
+                  Prompt: &#123;&#123;prompt&#125;&#125;
+                  <br />
+                  Generation: &#123;&#123;generation&#125;&#125;
+                </span>
+              </FormHelperText>
             </FormControl>
           </Alert>
         </>
       )}
-      <Typography level="title-md" mt={2} mb={0.5}>
-        Template
+      <Typography level="title-lg" mt={2} mb={0.5}>
+        Formatting Template
       </Typography>
       {renderTemplate(parsedData?.training_template_format)}
     </Box>

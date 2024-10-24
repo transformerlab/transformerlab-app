@@ -76,7 +76,7 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
         <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
           <thead>
             <tr>
-              <th>Rendered</th>
+              <th>Rendered (this is what the model sees)</th>
               <th>Fields</th>
               {/* {Object.keys(data.data[0]).map((key) => {
                 if (key.startsWith('__') && key.endsWith('__')) {
