@@ -7,10 +7,11 @@ import {
   IconButton,
   iconButtonClasses,
   Alert,
+  Chip,
 } from '@mui/joy';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { ChevronLeftIcon, ChevronRightIcon, Sheet } from 'lucide-react';
 import useSWR from 'swr';
 const fetcher = (url) =>
   fetch(url)
@@ -29,7 +30,12 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
     setNumOfPages(totalPages);
   };
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.Preview(datasetId, offset, pageSize),
+    chatAPI.Endpoints.Dataset.PreviewWithTemplate(
+      datasetId,
+      encodeURI(template),
+      offset,
+      pageSize
+    ),
     fetcher
   );
 
@@ -47,47 +53,85 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
   }, [data, pageSize, datasetLen]);
   return (
     <>
+      {/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
       <Box sx={{ overflow: 'auto', height: '100%' }}>
         {isLoading && <CircularProgress />}
         {data?.status == 'error' && (
           <Alert color="danger">{data?.message}</Alert>
         )}
-        {data &&
-          data?.data?.['columns'] && ( //Data is loaded as a map of column names to arrays of values
-            <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
-              <thead>
-                <tr>
-                  {Object.keys(data.data['columns']).map((key) => (
-                    <th key={key}>{key}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({
-                  length:
-                    data.data['columns'][Object.keys(data.data['columns'])[0]]
-                      .length,
-                }).map((_, rowIndex) => (
-                  <tr key={rowIndex}>
-                    {Object.keys(data.data['columns']).map((key) => (
-                      <td
-                        key={key}
-                        style={{
-                          whiteSpace: 'pre-line',
-                          verticalAlign: 'top',
-                        }}
-                      >
-                        {typeof data.data['columns'][key][rowIndex] === 'string'
-                          ? data.data['columns'][key][rowIndex]
-                          : JSON.stringify(data.data['columns'][key][rowIndex])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          )}{' '}
       </Box>
+      {data?.data && (
+        <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
+          <thead>
+            <tr>
+              <th>Rendered</th>
+              <th>Fields</th>
+              {/* {Object.keys(data.data[0]).map((key) => {
+                if (key.startsWith('__') && key.endsWith('__')) {
+                  return null;
+                } else {
+                  return <th key={key}>{key}</th>;
+                }
+              })} */}
+            </tr>
+          </thead>
+          <tbody>
+            {data?.data?.map((row) => (
+              <tr>
+                <td>
+                  <pre style={{ whiteSpace: 'pre-wrap' }}>
+                    <Box
+                      style={{
+                        backgroundColor: 'var(--joy-palette-success-100)',
+                      }}
+                    >
+                      {row?.['__formatted__']}
+                    </Box>
+                  </pre>
+                </td>
+                {/* {Object.entries(row).map(([key, value]) => {
+                  // if key starts and ends with __ then skip:
+                  if (key.startsWith('__') && key.endsWith('__')) {
+                    return null;
+                  } else {
+                    return <td>{value}</td>;
+                  }
+                })} */}
+                <td>
+                  <pre style={{ whiteSpace: 'pre-wrap' }}>
+                    {/* {JSON.stringify(row, null, 2)} */}
+                    {Object.entries(row).map(([key, value]) => {
+                      if (key.startsWith('__') && key.endsWith('__')) {
+                        return null;
+                      } else {
+                        return (
+                          <Box>
+                            {typeof value === 'string' ? (
+                              <>
+                                <Chip>{key}</Chip>
+                                {value?.length > 200 ? (
+                                  <>
+                                    {value.substring(0, 200)}
+                                    ...
+                                  </>
+                                ) : (
+                                  value
+                                )}
+                              </>
+                            ) : (
+                              <pre>{JSON.stringify(value, null, 2)}</pre>
+                            )}
+                          </Box>
+                        );
+                      }
+                    })}
+                  </pre>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
       <Box
         className="Pagination"
         sx={{

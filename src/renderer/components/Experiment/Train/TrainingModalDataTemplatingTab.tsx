@@ -2,15 +2,13 @@ import {
   Alert,
   Box,
   Chip,
-  CircularProgress,
-  Divider,
   FormControl,
   FormHelperText,
   FormLabel,
   Textarea,
   Typography,
 } from '@mui/joy';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import DatasetTableWithTemplate from 'renderer/components/Data/DatasetPreviewWithTemplate';
 import DatasetTable from 'renderer/components/Data/DatasetTable';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -157,7 +155,10 @@ function TrainingModalDataTemplatingTab({
                 <Typography level="title-md" py={1}>
                   Preview Templated Output:
                 </Typography>
-                <DatasetTableWithTemplate datasetId={selectedDataset} />
+                <DatasetTableWithTemplate
+                  datasetId={selectedDataset}
+                  template={template}
+                />
               </>
             )}
           </>
