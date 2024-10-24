@@ -51,6 +51,29 @@ function TrainingModalDataTemplatingTab({
 
   const parsedData = data ? JSON.parse(data) : null;
 
+  function PreviewSection() {
+    return (
+      <>
+        <Typography level="title-md" py={1}>
+          Preview Templated Output:{' '}
+          {template != debouncedTemplate && (
+            <CircularProgress
+              sx={{
+                '--CircularProgress-size': '16px',
+                '--CircularProgress-trackThickness': '3px',
+                '--CircularProgress-progressThickness': '3px',
+              }}
+            />
+          )}
+        </Typography>
+        <DatasetTableWithTemplate
+          datasetId={selectedDataset}
+          template={debouncedTemplate}
+        />
+      </>
+    );
+  }
+
   function renderTemplate(templateType: string) {
     switch (templateType) {
       case 'alpaca':
@@ -114,18 +137,7 @@ function TrainingModalDataTemplatingTab({
                 input text.
               </FormHelperText>
             </FormControl>
-            {selectedDataset && (
-              <>
-                <Typography level="title-md" py={1}>
-                  Preview Templated Output:{' '}
-                  {template != debouncedTemplate && <CircularProgress />}
-                </Typography>
-                <DatasetTableWithTemplate
-                  datasetId={selectedDataset}
-                  template={debouncedTemplate}
-                />
-              </>
-            )}
+            {selectedDataset && <PreviewSection />}
           </>
         );
       case 'none':
@@ -158,20 +170,7 @@ function TrainingModalDataTemplatingTab({
                 </span>
               </FormHelperText>
             </FormControl>
-            {selectedDataset && (
-              <>
-                <Typography level="title-md" py={1}>
-                  Preview Templated Output:{' '}
-                  {template != debouncedTemplate && (
-                    <CircularProgress size="sm" />
-                  )}
-                </Typography>
-                <DatasetTableWithTemplate
-                  datasetId={selectedDataset}
-                  template={debouncedTemplate}
-                />
-              </>
-            )}
+            {selectedDataset && <PreviewSection />}
           </>
         );
     }
