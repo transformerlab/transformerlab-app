@@ -117,10 +117,13 @@ function TrainingModalDataTemplatingTab({
             {selectedDataset && (
               <>
                 <Typography level="title-md" py={1}>
-                  Preview Templated Output:
+                  Preview Templated Output:{' '}
+                  {template != debouncedTemplate && <CircularProgress />}
                 </Typography>
-                {template != debouncedTemplate && <CircularProgress />}
-                <DatasetTable datasetId={selectedDataset} />
+                <DatasetTableWithTemplate
+                  datasetId={selectedDataset}
+                  template={debouncedTemplate}
+                />
               </>
             )}
           </>
