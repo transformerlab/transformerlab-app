@@ -209,6 +209,18 @@ export default function ModelDetails({
               models={models}
               mutate={mutate}
             />
+            {experimentInfo?.config?.foundation_filename !== '' && (
+              <Button
+                variant="soft"
+                onClick={() => {
+                  setHuggingfaceUploadDialog(true);
+                }}
+                disabled={isUploadLoading}
+                endDecorator={isUploadLoading ? <CircularProgress /> : null}
+              >
+                Export to Hugging Face
+              </Button>
+            )}
             <Button
               startDecorator={<FaEject />}
               onClick={() => {
@@ -230,18 +242,6 @@ export default function ModelDetails({
               Eject Model
             </Button>
             {/* <Button startDecorator={<SquareIcon />}>Stop</Button> */}
-            {experimentInfo?.config?.foundation_filename !== '' && (
-              <Button
-                variant="soft"
-                onClick={() => {
-                  setHuggingfaceUploadDialog(true);
-                }}
-                disabled={isUploadLoading}
-                endDecorator={isUploadLoading ? <CircularProgress /> : null}
-              >
-                Export to Hugging Face
-              </Button>
-            )}
           </Stack>
         </Box>
       </Stack>
