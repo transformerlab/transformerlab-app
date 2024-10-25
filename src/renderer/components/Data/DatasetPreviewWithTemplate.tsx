@@ -38,7 +38,7 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
   } = useSWR(
     chatAPI.Endpoints.Dataset.PreviewWithTemplate(
       datasetId,
-      encodeURI(template),
+      encodeURIComponent(template),
       offset,
       pageSize
     ),
