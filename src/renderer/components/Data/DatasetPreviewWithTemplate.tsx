@@ -8,6 +8,7 @@ import {
   iconButtonClasses,
   Alert,
   Chip,
+  LinearProgress,
 } from '@mui/joy';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -59,7 +60,7 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
 
   if (!result?.data?.rows) {
     if (isLoading) {
-      return <CircularProgress />;
+      return <LinearProgress />;
     }
     return '';
   }
@@ -67,7 +68,7 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
     <>
       {/* <pre>{JSON.stringify(data, null, 2)}</pre> */}
       <Box sx={{ overflow: 'auto', height: '100%' }}>
-        {isLoading && <CircularProgress />}
+        {isLoading && <LinearProgress />}
         {result?.status == 'error' && (
           <Alert color="danger">{result?.message}</Alert>
         )}

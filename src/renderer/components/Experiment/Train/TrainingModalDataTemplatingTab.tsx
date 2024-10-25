@@ -62,7 +62,7 @@ function TrainingModalDataTemplatingTab({
               color="neutral"
               variant="plain"
               sx={{
-                '--CircularProgress-size': '16px',
+                '--CircularProgress-size': '12px',
                 '--CircularProgress-trackThickness': '2px',
                 '--CircularProgress-progressThickness': '2px',
               }}
