@@ -39,6 +39,16 @@
 
 Transformer Lab is an app that allows anyone to experiment with Large Language Models.
 
+## Backed by Mozilla
+
+Transformer Lab is proud to be supported by Mozilla through the <a href="https://future.mozilla.org/builders/">Mozilla Builders Program</a>
+
+<a href="https://future.mozilla.org/builders/">
+    <img src="https://transformerlab.ai/img/mozilla-builders-2024.png" alt="Mozilla Builders Logo" width=300>
+</a>
+
+## Features
+
 Transformer Lab allows you to:
 
 - 💕 **One-click Download Hundreds of Popular Models**:
