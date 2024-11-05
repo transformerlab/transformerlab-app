@@ -171,7 +171,7 @@ export default function LoginModal({
                 fontWeight={400}
               >
                 <a
-                  href="https://transformerlab.ai/docs/advanced-install#manual-install-instructions"
+                  href="https://transformerlab.ai/docs/install/advanced-install#manual-install-instructions"
                   target="_blank"
                 >
                   Follow these instructions
