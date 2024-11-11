@@ -300,12 +300,29 @@ export default function TrainLoRA({ experimentInfo }) {
                             </Button>
                             <IconButton
                               onClick={async () => {
-                                  (await fetch(
+                                  await fetch(
                                     chatAPI.API_URL() +
                                       'train/template/' +
                                       row[0] +
                                       '/export'
-                                  ));
+                                  ).then((response) => response.blob())
+                                  .then((blob) => {
+                                    // Create blob link to download
+                                    const url = window.URL.createObjectURL(
+                                      new Blob([blob]),
+                                    );
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.setAttribute(
+                                      'download',
+                                      `recipe.yaml`,
+                                    );
+
+                                    // Append to html link, click and remove
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    link.parentNode.removeChild(link);
+                                  });
                               }}
                             >
                               <DownloadIcon size="20px" />
