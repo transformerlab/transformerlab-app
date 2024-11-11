@@ -23,6 +23,7 @@ import {
 
 import {
   ClockIcon,
+  DownloadIcon,
   FileTextIcon,
   GraduationCapIcon,
   InfoIcon,
@@ -51,10 +52,8 @@ function formatTemplateConfig(config): ReactElement {
 
   const r = (
     <>
-      <b>Model:</b> {c.model_name}
-      {/* <br />
-      <b>Trainer Plugin:</b> {c.plugin_name} <br /> */}
-      {/* <b>Dataset:</b> {c.dataset_name} <br /> */}
+      <b>Model:</b> {c.model_name} <br />
+      <b>Dataset:</b> {c.dataset_name} <FileTextIcon size={14} /><br />
       {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
       {/* {JSON.stringify(c)} */}
     </>
@@ -226,9 +225,8 @@ export default function TrainLoRA({ experimentInfo }) {
         >
           <Table>
             <thead>
-              <th width="110px">Name</th>
+              <th width="125px">Name</th>
               {/* <th>Description</th> */}
-              <th width="120px">Dataset</th>
               <th width="150px">Plugin</th>
               <th width="400px">Config</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
@@ -260,13 +258,13 @@ export default function TrainLoRA({ experimentInfo }) {
                           </Typography>
                         </td>
                         {/* <td>{row[2]}</td> */}
-                        <td>
+                        {/* <td>
                           {row[4]} <FileTextIcon size={14} />
-                        </td>
+                        </td> */}
                         <td style={{ overflow: 'clip' }}>
                           {JSON.parse(row[5])?.plugin_name}
                         </td>
-                        <td style={{ overflow: 'clip' }}>
+                        <td style={{ overflow: 'hidden' }}>
                           {formatTemplateConfig(row[5])}
                         </td>
                         <td style={{}}>
@@ -297,6 +295,18 @@ export default function TrainLoRA({ experimentInfo }) {
                             >
                               Edit
                             </Button>
+                            <IconButton
+                              onClick={async () => {
+                                  (await fetch(
+                                    chatAPI.API_URL() +
+                                      'train/template/' +
+                                      row[0] +
+                                      '/export'
+                                  ));
+                              }}
+                            >
+                              <DownloadIcon size="20px" />
+                            </IconButton>
                             <IconButton
                               onClick={async () => {
                                 confirm(
