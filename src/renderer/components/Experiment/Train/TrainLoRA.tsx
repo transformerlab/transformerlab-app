@@ -301,10 +301,7 @@ export default function TrainLoRA({ experimentInfo }) {
                             <IconButton
                               onClick={async () => {
                                   await fetch(
-                                    chatAPI.API_URL() +
-                                      'train/template/' +
-                                      row[0] +
-                                      '/export'
+                                    chatAPI.Endpoints.Recipes.Export(row[0])
                                   ).then((response) => response.blob())
                                   .then((blob) => {
                                     // Create blob link to download
