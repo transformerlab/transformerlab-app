@@ -50,9 +50,12 @@ dayjs.extend(duration);
 function formatTemplateConfig(config): ReactElement {
   const c = JSON.parse(config);
 
+  // Remove the author/full path from the model name for cleanliness
+  const short_model_name = c.model_name.split("/").pop();
+
   const r = (
     <>
-      <b>Model:</b> {c.model_name} <br />
+      <b>Model:</b> {short_model_name} <br />
       <b>Dataset:</b> {c.dataset_name} <FileTextIcon size={14} /><br />
       {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
       {/* {JSON.stringify(c)} */}
