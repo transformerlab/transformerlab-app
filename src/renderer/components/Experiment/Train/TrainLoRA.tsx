@@ -33,6 +33,7 @@ import {
   StopCircle,
   StopCircleIcon,
   Trash2Icon,
+  UploadIcon,
 } from 'lucide-react';
 
 import TrainingModalLoRA from './TrainingModalLoRA';
@@ -212,6 +213,23 @@ export default function TrainLoRA({ experimentInfo }) {
                   </div>
                 </MenuItem>
               ))}
+              <MenuItem disabled variant="soft" color="primary">
+                <Typography level="title-sm">
+                  Or upload an existing recipe file:
+                </Typography>
+              </MenuItem>
+              <MenuItem
+                  onClick={() => {
+                    alert("Not yet implemented!");
+                  }}
+                >
+                <ListItemDecorator>
+                  <UploadIcon />
+                </ListItemDecorator>
+                <Typography level="title-sm">
+                  Import Recipe
+                </Typography>
+              </MenuItem>
             </Menu>
           </Dropdown>
         </Stack>
