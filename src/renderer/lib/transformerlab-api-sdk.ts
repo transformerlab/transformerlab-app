@@ -938,6 +938,13 @@ Endpoints.Tools = {
   List: () => API_URL() + `tools/list`,
 };
 
+Endpoints.Recipes = {
+  Import: (recipe_text: string) =>
+    API_URL() + `train/template/import??recipe=${encodeURIComponent(recipe_text)}`,
+  Export: (template_id: int) =>
+    API_URL() + 'train/template/' + template_id + '/export',
+}
+
 Endpoints.ServerInfo = {
   Get: () => API_URL() + 'server/info',
   PythonLibraries: () => API_URL() + 'server/python_libraries',
