@@ -29,19 +29,31 @@ export default function ImportRecipeModal({ open, setOpen }) {
   };
 
   const uploadRecipe = async (file) => {
-    setUploading(true); //This is for the loading spinner
-    console.log(file);
+
+    // Read the recipe from the file so we can pass it as HTTP body
+    const fullpath = file.path;
+    const recipe_text = await fetch(`file://${fullpath}`)
+      .then((res) => res.text())
+      .catch((e) => {
+        console.error(e);
+        alert(e);
+        return "";
+      });
+    if (!recipe_text) {
+      handleClose();
+      return;
+    }
   
     // TODO: Fix this to be post with data in the body
+    setUploading(true); //This is for the loading spinner
     const response = await fetch(
-      chatAPI.Endpoints.Recipes.Import("TEST"),/* {
+      chatAPI.Endpoints.Recipes.Import(recipe_text),/* {
       method: 'POST',
-      body: file,
+      body: recipe_text,
     }*/).then((response) => {
       if (response.ok) {
         return response.json();
       } else {
-        console.log(response)
         const error_msg = `${response.statusText}`;
         throw new Error(error_msg);
       }
