@@ -41,6 +41,7 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import LoRATrainingRunButton from './LoRATrainingRunButton';
 import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
+import ImportRecipeModal from './ImportRecipeModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -95,6 +96,7 @@ export default function TrainLoRA({ experimentInfo }) {
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
+  const [importRecipeModalOpen, setImportRecipeModalOpen] = useState(false);
   const [templateID, setTemplateID] = useState('-1');
   const [currentPlugin, setCurrentPlugin] = useState('');
 
@@ -155,6 +157,10 @@ export default function TrainLoRA({ experimentInfo }) {
       <ViewOutputModal
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
+      />
+      <ImportRecipeModal
+        open={importRecipeModalOpen}
+        setOpen={setImportRecipeModalOpen}
       />
       <Sheet
         sx={{
@@ -220,7 +226,7 @@ export default function TrainLoRA({ experimentInfo }) {
               </MenuItem>
               <MenuItem
                   onClick={() => {
-                    alert("Not yet implemented!");
+                    setImportRecipeModalOpen(true);
                   }}
                 >
                 <ListItemDecorator>
