@@ -47,10 +47,10 @@ export default function ImportRecipeModal({ open, setOpen }) {
     // TODO: Fix this to be post with data in the body
     setUploading(true); //This is for the loading spinner
     const response = await fetch(
-      chatAPI.Endpoints.Recipes.Import(recipe_text),/* {
+      chatAPI.Endpoints.Recipes.Import(), {
       method: 'POST',
       body: recipe_text,
-    }*/).then((response) => {
+    }).then((response) => {
       if (response.ok) {
         return response.json();
       } else {
