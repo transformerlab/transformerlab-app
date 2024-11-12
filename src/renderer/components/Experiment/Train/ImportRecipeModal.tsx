@@ -28,16 +28,16 @@ export default function ImportRecipeModal({ open, setOpen }) {
     setOpen(false);
   };
 
-  const uploadFiles = async (formData) => {
+  const uploadRecipe = async (file) => {
     setUploading(true); //This is for the loading spinner
-    console.log(formData);
+    console.log(file);
   
     // TODO: Fix this to be post with data in the body
     const response = await fetch(
-      chatAPI.Endpoints.Recipes.Import("TEST"), {
+      chatAPI.Endpoints.Recipes.Import("TEST"),/* {
       method: 'POST',
-      body: formData,
-    }).then((response) => {
+      body: file,
+    }*/).then((response) => {
       if (response.ok) {
         return response.json();
       } else {
@@ -77,12 +77,9 @@ export default function ImportRecipeModal({ open, setOpen }) {
             <Dropzone
               onDrop={async (acceptedFiles) => {
                 setDropzoneActive(false);
-
-                const formData = new FormData();
                 for (const file of acceptedFiles) {
-                  formData.append('files', file);
+                  await uploadRecipe(file);
                 }
-                await uploadFiles(formData);
               }}
               onDragEnter={() => {
                 setDropzoneActive(true);
@@ -131,12 +128,9 @@ export default function ImportRecipeModal({ open, setOpen }) {
 
                 input.onchange = async (e) => {
                   let files = Array.from(input.files);
-                  console.log(files);
-                  const formData = new FormData();
                   for (const file of files) {
-                    formData.append('files', file);
+                    await uploadRecipe(file);
                   }
-                  await uploadFiles(formData);
                 };
                 input.click();
               }}
