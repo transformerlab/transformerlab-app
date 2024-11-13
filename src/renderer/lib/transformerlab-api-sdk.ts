@@ -939,8 +939,8 @@ Endpoints.Tools = {
 };
 
 Endpoints.Recipes = {
-  Import: () =>
-    API_URL() + 'train/template/import',
+  Import: (name: string) =>
+    API_URL() + 'train/template/import?name=' + encodeURIComponent(name),
   Export: (template_id: int) =>
     API_URL() + 'train/template/' + template_id + '/export',
 }
