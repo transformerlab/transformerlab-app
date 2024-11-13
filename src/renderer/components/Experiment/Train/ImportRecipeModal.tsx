@@ -14,6 +14,7 @@ import {
 import { PlusCircleIcon } from 'lucide-react';
 import Dropzone from 'react-dropzone';
 import { IoCloudUploadOutline } from 'react-icons/io5';
+import { generateFriendlyName } from 'renderer/lib/utils';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
@@ -44,10 +45,13 @@ export default function ImportRecipeModal({ open, setOpen }) {
       return;
     }
   
-    // TODO: Fix this to be post with data in the body
+    // TODO: If the recipe has a name and there isn't a recipe with that name...
+    // We should use the name in the recipe, not a randomly generated one!
+    const recipe_name = generateFriendlyName();
+
     setUploading(true); //This is for the loading spinner
     const response = await fetch(
-      chatAPI.Endpoints.Recipes.Import(), {
+      chatAPI.Endpoints.Recipes.Import(recipe_name), {
       method: 'POST',
       body: recipe_text,
     }).then((response) => {
