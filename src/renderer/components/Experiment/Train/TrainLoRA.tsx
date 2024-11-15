@@ -161,6 +161,7 @@ export default function TrainLoRA({ experimentInfo }) {
       <ImportRecipeModal
         open={importRecipeModalOpen}
         setOpen={setImportRecipeModalOpen}
+        mutate={mutate}
       />
       <Sheet
         sx={{

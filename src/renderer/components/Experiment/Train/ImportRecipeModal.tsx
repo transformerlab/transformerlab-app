@@ -20,12 +20,13 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ImportRecipeModal({ open, setOpen }) {
+export default function ImportRecipeModal({ open, setOpen, mutate }) {
   const [uploading, setUploading] = useState(false);
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
 
   // For any variables that need to be reset on close
   const handleClose = () => {
+    mutate();
     setOpen(false);
   };
 
@@ -46,8 +47,10 @@ export default function ImportRecipeModal({ open, setOpen }) {
     }
   
     // TODO: If the recipe has a name and there isn't a recipe with that name...
-    // We should use the name in the recipe, not a randomly generated one!
-    const recipe_name = generateFriendlyName();
+    // We should use the name in the recipe, no the filename or random!
+    // const recipe_name = generateFriendlyName();
+    // For now: Remove the last . and extension from the filename
+    const recipe_name = file.name.replace(/\.[^/.]+$/, "");
 
     setUploading(true); //This is for the loading spinner
     const response = await fetch(
