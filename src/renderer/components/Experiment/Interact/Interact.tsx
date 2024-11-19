@@ -860,7 +860,20 @@ export default function Chat({
           />
         )}
         {mode === 'template' && (
-          <TemplatedCompletion experimentInfo={experimentInfo} />
+          <TemplatedCompletion
+            experimentInfo={experimentInfo}
+            tokenCount={tokenCount}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setChats={setChats}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+            experimentInfoMutate={experimentInfoMutate}
+          />
         )}
         {mode === 'embeddings' && (
           <Embeddings experimentInfo={experimentInfo}></Embeddings>
