@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
+import useSWR from 'swr';
 
 import {
+  Box,
   Button,
+  Checkbox,
+  CircularProgress,
   Divider,
   Modal,
   ModalClose,
   ModalDialog,
   Sheet,
+  Table,
   Typography,
-  Box,
-  CircularProgress,
 } from '@mui/joy';
 import { PlusCircleIcon } from 'lucide-react';
 import Dropzone from 'react-dropzone';
 import { IoCloudUploadOutline } from 'react-icons/io5';
-import { generateFriendlyName } from 'renderer/lib/utils';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
@@ -23,6 +25,17 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function ImportRecipeModal({ open, setOpen, mutate }) {
   const [uploading, setUploading] = useState(false);
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
+
+  const {
+    data: recipesData,
+    error: recipesError,
+    isLoading: isLoading,
+  } = useSWR(
+      chatAPI.Endpoints.Recipes.Gallery(),
+      fetcher
+  );
+
+  const recipes = recipesData;
 
   // For any variables that need to be reset on close
   const handleClose = () => {
@@ -47,7 +60,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
     }
   
     // TODO: If the recipe has a name and there isn't a recipe with that name...
-    // We should use the name in the recipe, no the filename or random!
+    // We should use the name in the recipe, not the filename!
     // const recipe_name = generateFriendlyName();
     // For now: Remove the last . and extension from the filename
     const recipe_name = file.name.replace(/\.[^/.]+$/, "");
@@ -82,14 +95,70 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
         <ModalDialog>
           <ModalClose />
           <Typography level="title-lg">Import Recipe</Typography>
+
+          <Box sx={{ maxHeight: '450px', overflow: 'auto' }}>
+            <Table
+                aria-labelledby="tableTitle"
+                stickyHeader
+                hoverRow
+                sx={{
+                    '--TableCell-headBackground': (theme) =>
+                    theme.vars.palette.background.level1,
+                    '--Table-headerUnderlineThickness': '1px',
+                    '--TableRow-hoverBackground': (theme) =>
+                    theme.vars.palette.background.level1,
+                    height: '100px',
+                    overflow: 'auto',
+                }}
+              >
+              <thead>
+                <tr>
+                  <th style={{ width: 150, padding: 12 }}>Name</th>
+                  <th style={{ width: 450, padding: 12 }}>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {!isLoading && recipes && recipes.map((row) => (
+                <tr key={row.metadata?.name}>
+                  <td>
+                    <Typography fontWeight="lg">
+                        {row.metadata?.name}
+                    </Typography>
+                  </td>
+                  <td>
+                    <Typography fontWeight="sm">
+                        {row.metadata?.description}
+                    </Typography>
+                  </td>
+                </tr>
+              ))}
+              {isLoading && (
+                <tr>
+                  <td colSpan={5}>
+                    <CircularProgress color="primary" /> 
+                    <Typography
+                        level="body-lg"
+                        justifyContent="center"
+                        margin={5}
+                    >
+                      Loading recipes...
+                  </Typography>
+                  </td>
+                </tr>
+              )}
+              </tbody>
+            </Table>
+          </Box>
+
           <Divider sx={{ my: 2 }} />
+
+
           <Box // Making the modal a set size
             sx={{
               display: 'flex',
               flexDirection: 'column',
               gap: 2,
               overflowY: 'hidden',
-              width: '25vw',
               justifyContent: 'center',
             }}
           >
@@ -155,7 +224,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
               }}
               disabled={uploading}
             >
-              {uploading ? <CircularProgress /> : 'Add files'}
+              {uploading ? <CircularProgress /> : 'Import file'}
             </Button>
           </Box>
         </ModalDialog>
