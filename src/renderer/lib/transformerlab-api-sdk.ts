@@ -950,6 +950,8 @@ Endpoints.Recipes = {
     API_URL() + 'train/template/import?name=' + encodeURIComponent(name),
   Export: (template_id: int) =>
     API_URL() + 'train/template/' + template_id + '/export',
+  Gallery: () =>
+    API_URL() + 'train/template/gallery',
 };
 
 Endpoints.ServerInfo = {
