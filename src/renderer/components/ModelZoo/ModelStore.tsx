@@ -372,6 +372,15 @@ export default function ModelStore() {
                 <tr key={row.uniqueID}>
                   <td>
                     <Typography level="title-md" marginLeft={2}>
+                      {row.new && (
+                        <Chip
+                          variant="outlined"
+                          size="sm"
+                          color="success"
+                        >
+                          NEW!
+                        </Chip>
+                      )}
                       {row.name}&nbsp;
                       <a href={getModelHuggingFaceURL(row)} target="_blank">
                         {row.gated ? (
