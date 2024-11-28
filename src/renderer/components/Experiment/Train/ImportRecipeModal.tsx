@@ -19,6 +19,8 @@ import { IoCloudUploadOutline } from 'react-icons/io5';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
+const YAML = require('yaml');
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ImportRecipeModal({ open, setOpen, mutate }) {
@@ -42,8 +44,8 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
     setOpen(false);
   };
 
-  const uploadRecipe = async (file) => {
-
+  // Takes a file path, reads recipe data from it and then uploads reccipe text
+  const uploadRecipeFile = async (file) => {
     // Read the recipe from the file so we can pass it as HTTP body
     const fullpath = file.path;
     const recipe_text = await fetch(`file://${fullpath}`)
@@ -57,12 +59,18 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
       handleClose();
       return;
     }
-  
+
     // TODO: If the recipe has a name and there isn't a recipe with that name...
     // We should use the name in the recipe, not the filename!
     // const recipe_name = generateFriendlyName();
     // For now: Remove the last . and extension from the filename
     const recipe_name = file.name.replace(/\.[^/.]+$/, "");
+
+    uploadRecipe(recipe_name, recipe_text);
+  };
+
+  // Given a recipe string, uploads to API.
+  const uploadRecipe = async (recipe_name, recipe_text) => {
 
     setUploading(true); //This is for the loading spinner
     const response = await fetch(
@@ -134,7 +142,8 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                     <Button
                         size="sm"
                         onClick={() => {
-                          alert("Not supported yet.  Check back in like an hour.");
+                          const recipe_text = YAML.stringify(row);
+                          uploadRecipe(row.metadata?.name, recipe_text);
                         }}
                       >
                         Add
@@ -176,7 +185,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
               onDrop={async (acceptedFiles) => {
                 setDropzoneActive(false);
                 for (const file of acceptedFiles) {
-                  await uploadRecipe(file);
+                  await uploadRecipeFile(file);
                 }
               }}
               onDragEnter={() => {
@@ -227,7 +236,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                 input.onchange = async (e) => {
                   let files = Array.from(input.files);
                   for (const file of files) {
-                    await uploadRecipe(file);
+                    await uploadRecipeFile(file);
                   }
                 };
                 input.click();
