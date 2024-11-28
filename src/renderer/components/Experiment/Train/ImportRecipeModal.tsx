@@ -4,7 +4,6 @@ import useSWR from 'swr';
 import {
   Box,
   Button,
-  Checkbox,
   CircularProgress,
   Divider,
   Modal,
@@ -114,7 +113,8 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
               <thead>
                 <tr>
                   <th style={{ width: 150, padding: 12 }}>Name</th>
-                  <th style={{ width: 450, padding: 12 }}>Description</th>
+                  <th style={{ width: 400, padding: 12 }}>Description</th>
+                  <th style={{ width: 75, padding: 12 }}> </th>
                 </tr>
               </thead>
               <tbody>
@@ -129,6 +129,16 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                     <Typography fontWeight="sm">
                         {row.metadata?.description}
                     </Typography>
+                  </td>
+                  <td> 
+                    <Button
+                        size="sm"
+                        onClick={() => {
+                          alert("Not supported yet.  Check back in like an hour.");
+                        }}
+                      >
+                        Add
+                    </Button>
                   </td>
                 </tr>
               ))}
