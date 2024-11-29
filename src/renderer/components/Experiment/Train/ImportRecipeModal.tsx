@@ -101,7 +101,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
       <Modal open={open} onClose={handleClose}>
         <ModalDialog>
           <ModalClose />
-          <Typography level="title-lg">Import Recipe</Typography>
+          <Typography level="title-lg">Recipe Gallery</Typography>
 
           <Box sx={{ maxHeight: '450px', overflow: 'auto' }}>
             <Table
@@ -171,7 +171,10 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
 
           <Divider sx={{ my: 2 }} />
 
-
+          <Typography
+            level="title-lg"
+          >
+          </Typography>
           <Box // Making the modal a set size
             sx={{
               display: 'flex',
@@ -243,7 +246,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
               }}
               disabled={uploading}
             >
-              {uploading ? <CircularProgress /> : 'Import file'}
+              {uploading ? <CircularProgress /> : 'Select file'}
             </Button>
           </Box>
         </ModalDialog>
