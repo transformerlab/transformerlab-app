@@ -8,6 +8,8 @@ import { Link2Icon } from 'lucide-react';
 import { formatBytes } from 'renderer/lib/utils';
 import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 
+import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
+
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
   const { server, isLoading, isError } = useServerStats();
@@ -122,45 +124,49 @@ function StatsBar({ connection, setConnection }) {
                   p: 1,
                 }}
               >
-                <Box sx={{ display: 'flex', gap: 1, width: '100%', mt: 1 }}>
+                <Box sx={{ display: 'flex', width: '100%', mt: 1 }}>
                   <Box>
-                    <Typography
-                      textColor="text.secondary"
-                      fontSize="sm"
-                      sx={{ mb: 1 }}
-                    >
-                      {/* {JSON.stringify(server)} */}
-                      <Stack>
-                        <Typography fontSize="sm">{connection}</Typography>
-                        <Typography>
-                          <b>OS: </b>
-                          {server?.os_alias[0]}
-                        </Typography>
-                        <Typography>
-                          <b>CPU: </b>
-                          {server?.cpu}
-                        </Typography>
-                        <Typography>
-                          <b>GPU: </b>
-                          {server?.gpu[0].name}
-                        </Typography>
-                        <Typography>
-                          <b>GPU Memory: </b>
-                          {formatBytes(server?.gpu[0].total_memory)}
-                        </Typography>
-                      </Stack>
-                    </Typography>
-                    <Button
-                      variant="solid"
-                      color="danger"
-                      size="small"
-                      sx={{ m: 0, p: 1 }}
-                      onClick={() => {
-                        setConnection('');
-                      }}
-                    >
-                      Disconnect
-                    </Button>
+                    {/* {JSON.stringify(server)} */}
+                    <Stack gap={0}>
+                      <Typography level="title-lg">{connection}</Typography>
+                      <Typography>
+                        <b>OS: </b>
+                        {server?.os_alias[0]}
+                      </Typography>
+                      <Typography>
+                        <b>CPU: </b>
+                        {server?.cpu}
+                      </Typography>
+                      <Typography>
+                        <b>GPU: </b>
+                        {server?.gpu[0].name == 'cpu'
+                          ? 'N/A'
+                          : server?.gpu[0].name}
+                      </Typography>
+                      <Typography>
+                        <b>GPU Memory: </b>
+                        {formatBytes(server?.gpu[0].total_memory) == '0 Bytes'
+                          ? 'N/A'
+                          : formatBytes(server?.gpu[0].total_memory)}
+                      </Typography>
+                      <Typography p={1}>
+                        <ReactRouterLink to="/computer">
+                          More about this computer
+                        </ReactRouterLink>
+                      </Typography>
+
+                      <Button
+                        variant="solid"
+                        color="danger"
+                        size="small"
+                        sx={{ m: 0, p: 1 }}
+                        onClick={() => {
+                          setConnection('');
+                        }}
+                      >
+                        Disconnect
+                      </Button>
+                    </Stack>
                   </Box>
                 </Box>
               </Box>
