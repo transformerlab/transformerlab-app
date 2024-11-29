@@ -395,6 +395,15 @@ export default function ModelStore() {
                         ) : (
                           <ExternalLinkIcon size="14px" />
                         )}
+                        {row.tags && row.tags.map((tag) => (
+                          <Chip
+                            variant="outlined"
+                            size="sm"
+                            color="success"
+                          >
+                            {tag}
+                          </Chip>
+                        ))}
                       </a>
                     </Typography>
                   </td>
