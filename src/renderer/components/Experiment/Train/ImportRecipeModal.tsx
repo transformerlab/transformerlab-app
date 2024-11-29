@@ -31,10 +31,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
     data: recipesData,
     error: recipesError,
     isLoading: isLoading,
-  } = useSWR(
-      chatAPI.Endpoints.Recipes.Gallery(),
-      fetcher
-  );
+  } = useSWR(chatAPI.Endpoints.Recipes.Gallery(), fetcher);
 
   const recipes = recipesData;
 
@@ -53,7 +50,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
       .catch((e) => {
         console.error(e);
         alert(e);
-        return "";
+        return '';
       });
     if (!recipe_text) {
       handleClose();
@@ -64,34 +61,36 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
     // We should use the name in the recipe, not the filename!
     // const recipe_name = generateFriendlyName();
     // For now: Remove the last . and extension from the filename
-    const recipe_name = file.name.replace(/\.[^/.]+$/, "");
+    const recipe_name = file.name.replace(/\.[^/.]+$/, '');
 
     uploadRecipe(recipe_name, recipe_text);
   };
 
   // Given a recipe string, uploads to API.
   const uploadRecipe = async (recipe_name, recipe_text) => {
-
     setUploading(true); //This is for the loading spinner
     const response = await fetch(
-      chatAPI.Endpoints.Recipes.Import(recipe_name), {
-      method: 'POST',
-      body: recipe_text,
-    }).then((response) => {
-      if (response.ok) {
-        return response.json();
-      } else {
-        const error_msg = `${response.statusText}`;
-        throw new Error(error_msg);
+      chatAPI.Endpoints.Recipes.Import(recipe_name),
+      {
+        method: 'POST',
+        body: recipe_text,
       }
-    })
-    .then((data) => {
-      console.log('Server response:', data);
-    })
-    .catch((error) => {
-      alert(error);
-    });
-  
+    )
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        } else {
+          const error_msg = `${response.statusText}`;
+          throw new Error(error_msg);
+        }
+      })
+      .then((data) => {
+        console.log('Server response:', data);
+      })
+      .catch((error) => {
+        alert(error);
+      });
+
     setUploading(false);
     handleClose();
   };
@@ -105,19 +104,19 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
 
           <Box sx={{ maxHeight: '450px', overflow: 'auto' }}>
             <Table
-                aria-labelledby="tableTitle"
-                stickyHeader
-                hoverRow
-                sx={{
-                    '--TableCell-headBackground': (theme) =>
-                    theme.vars.palette.background.level1,
-                    '--Table-headerUnderlineThickness': '1px',
-                    '--TableRow-hoverBackground': (theme) =>
-                    theme.vars.palette.background.level1,
-                    height: '100px',
-                    overflow: 'auto',
-                }}
-              >
+              aria-labelledby="tableTitle"
+              stickyHeader
+              hoverRow
+              sx={{
+                '--TableCell-headBackground': (theme) =>
+                  theme.vars.palette.background.level1,
+                '--Table-headerUnderlineThickness': '1px',
+                '--TableRow-hoverBackground': (theme) =>
+                  theme.vars.palette.background.level1,
+                height: '100px',
+                overflow: 'auto',
+              }}
+            >
               <thead>
                 <tr>
                   <th style={{ width: 150, padding: 12 }}>Name</th>
@@ -126,55 +125,54 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                 </tr>
               </thead>
               <tbody>
-                {!isLoading && recipes && recipes.map((row) => (
-                <tr key={row.metadata?.name}>
-                  <td>
-                    <Typography fontWeight="lg">
-                        {row.metadata?.name}
-                    </Typography>
-                  </td>
-                  <td>
-                    <Typography fontWeight="sm">
-                        {row.metadata?.description}
-                    </Typography>
-                  </td>
-                  <td> 
-                    <Button
-                        size="sm"
-                        onClick={() => {
-                          const recipe_text = YAML.stringify(row);
-                          uploadRecipe(row.metadata?.name, recipe_text);
-                        }}
-                      >
-                        Add
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              {isLoading && (
-                <tr>
-                  <td colSpan={5}>
-                    <CircularProgress color="primary" /> 
-                    <Typography
+                {!isLoading &&
+                  recipes &&
+                  recipes.map((row) => (
+                    <tr key={row.metadata?.name}>
+                      <td>
+                        <Typography fontWeight="lg">
+                          {row.metadata?.name}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography fontWeight="sm">
+                          {row.metadata?.description}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            const recipe_text = YAML.stringify(row);
+                            uploadRecipe(row.metadata?.name, recipe_text);
+                          }}
+                        >
+                          Use
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                {isLoading && (
+                  <tr>
+                    <td colSpan={5}>
+                      <CircularProgress color="primary" />
+                      <Typography
                         level="body-lg"
                         justifyContent="center"
                         margin={5}
-                    >
-                      Loading recipes...
-                  </Typography>
-                  </td>
-                </tr>
-              )}
+                      >
+                        Loading recipes...
+                      </Typography>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </Table>
           </Box>
 
           <Divider sx={{ my: 2 }} />
 
-          <Typography
-            level="title-lg"
-          >
-          </Typography>
+          <Typography level="title-lg"></Typography>
           <Box // Making the modal a set size
             sx={{
               display: 'flex',

@@ -30,6 +30,7 @@ import {
   LineChartIcon,
   Plug2Icon,
   PlusIcon,
+  ScrollIcon,
   StopCircle,
   StopCircleIcon,
   Trash2Icon,
@@ -53,12 +54,13 @@ function formatTemplateConfig(config): ReactElement {
   const c = JSON.parse(config);
 
   // Remove the author/full path from the model name for cleanliness
-  const short_model_name = c.model_name.split("/").pop();
+  const short_model_name = c.model_name.split('/').pop();
 
   const r = (
     <>
       <b>Model:</b> {short_model_name} <br />
-      <b>Dataset:</b> {c.dataset_name} <FileTextIcon size={14} /><br />
+      <b>Dataset:</b> {c.dataset_name} <FileTextIcon size={14} />
+      <br />
       {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
       {/* {JSON.stringify(c)} */}
     </>
@@ -189,6 +191,21 @@ export default function TrainLoRA({ experimentInfo }) {
             <Menu sx={{ maxWidth: '300px' }}>
               <MenuItem disabled variant="soft" color="primary">
                 <Typography level="title-sm">
+                  Start from a pre-existing recipe:
+                </Typography>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setImportRecipeModalOpen(true);
+                }}
+              >
+                <ListItemDecorator>
+                  <ScrollIcon />
+                </ListItemDecorator>
+                <Typography level="title-sm">Recipe Library</Typography>
+              </MenuItem>
+              <MenuItem disabled variant="soft" color="primary">
+                <Typography level="title-sm">
                   Select a training plugin from the following list:
                 </Typography>
               </MenuItem>
@@ -220,23 +237,6 @@ export default function TrainLoRA({ experimentInfo }) {
                   </div>
                 </MenuItem>
               ))}
-              <MenuItem disabled variant="soft" color="primary">
-                <Typography level="title-sm">
-                  Or upload an existing recipe file:
-                </Typography>
-              </MenuItem>
-              <MenuItem
-                  onClick={() => {
-                    setImportRecipeModalOpen(true);
-                  }}
-                >
-                <ListItemDecorator>
-                  <UploadIcon />
-                </ListItemDecorator>
-                <Typography level="title-sm">
-                  Import Recipe
-                </Typography>
-              </MenuItem>
             </Menu>
           </Dropdown>
         </Stack>
@@ -325,19 +325,20 @@ export default function TrainLoRA({ experimentInfo }) {
                             </Button>
                             <IconButton
                               onClick={async () => {
-                                  await fetch(
-                                    chatAPI.Endpoints.Recipes.Export(row[0])
-                                  ).then((response) => response.blob())
+                                await fetch(
+                                  chatAPI.Endpoints.Recipes.Export(row[0])
+                                )
+                                  .then((response) => response.blob())
                                   .then((blob) => {
                                     // Create blob link to download
                                     const url = window.URL.createObjectURL(
-                                      new Blob([blob]),
+                                      new Blob([blob])
                                     );
                                     const link = document.createElement('a');
                                     link.href = url;
                                     link.setAttribute(
                                       'download',
-                                      `recipe.yaml`,
+                                      `recipe.yaml`
                                     );
 
                                     // Append to html link, click and remove
