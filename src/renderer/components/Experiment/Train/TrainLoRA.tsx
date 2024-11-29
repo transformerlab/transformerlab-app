@@ -23,15 +23,18 @@ import {
 
 import {
   ClockIcon,
+  DownloadIcon,
   FileTextIcon,
   GraduationCapIcon,
   InfoIcon,
   LineChartIcon,
   Plug2Icon,
   PlusIcon,
+  ScrollIcon,
   StopCircle,
   StopCircleIcon,
   Trash2Icon,
+  UploadIcon,
 } from 'lucide-react';
 
 import TrainingModalLoRA from './TrainingModalLoRA';
@@ -39,6 +42,7 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import LoRATrainingRunButton from './LoRATrainingRunButton';
 import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
+import ImportRecipeModal from './ImportRecipeModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -49,12 +53,14 @@ dayjs.extend(duration);
 function formatTemplateConfig(config): ReactElement {
   const c = JSON.parse(config);
 
+  // Remove the author/full path from the model name for cleanliness
+  const short_model_name = c.model_name.split('/').pop();
+
   const r = (
     <>
-      <b>Model:</b> {c.model_name}
-      {/* <br />
-      <b>Trainer Plugin:</b> {c.plugin_name} <br /> */}
-      {/* <b>Dataset:</b> {c.dataset_name} <br /> */}
+      <b>Model:</b> {short_model_name} <br />
+      <b>Dataset:</b> {c.dataset_name} <FileTextIcon size={14} />
+      <br />
       {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
       {/* {JSON.stringify(c)} */}
     </>
@@ -92,6 +98,7 @@ export default function TrainLoRA({ experimentInfo }) {
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
+  const [importRecipeModalOpen, setImportRecipeModalOpen] = useState(false);
   const [templateID, setTemplateID] = useState('-1');
   const [currentPlugin, setCurrentPlugin] = useState('');
 
@@ -153,6 +160,11 @@ export default function TrainLoRA({ experimentInfo }) {
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
       />
+      <ImportRecipeModal
+        open={importRecipeModalOpen}
+        setOpen={setImportRecipeModalOpen}
+        mutate={mutate}
+      />
       <Sheet
         sx={{
           display: 'flex',
@@ -177,6 +189,21 @@ export default function TrainLoRA({ experimentInfo }) {
               New
             </MenuButton>
             <Menu sx={{ maxWidth: '300px' }}>
+              <MenuItem disabled variant="soft" color="primary">
+                <Typography level="title-sm">
+                  Start from a pre-existing recipe:
+                </Typography>
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setImportRecipeModalOpen(true);
+                }}
+              >
+                <ListItemDecorator>
+                  <ScrollIcon />
+                </ListItemDecorator>
+                <Typography level="title-sm">Recipe Library</Typography>
+              </MenuItem>
               <MenuItem disabled variant="soft" color="primary">
                 <Typography level="title-sm">
                   Select a training plugin from the following list:
@@ -226,9 +253,8 @@ export default function TrainLoRA({ experimentInfo }) {
         >
           <Table>
             <thead>
-              <th width="110px">Name</th>
+              <th width="125px">Name</th>
               {/* <th>Description</th> */}
-              <th width="120px">Dataset</th>
               <th width="150px">Plugin</th>
               <th width="400px">Config</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
@@ -260,13 +286,13 @@ export default function TrainLoRA({ experimentInfo }) {
                           </Typography>
                         </td>
                         {/* <td>{row[2]}</td> */}
-                        <td>
+                        {/* <td>
                           {row[4]} <FileTextIcon size={14} />
-                        </td>
+                        </td> */}
                         <td style={{ overflow: 'clip' }}>
                           {JSON.parse(row[5])?.plugin_name}
                         </td>
-                        <td style={{ overflow: 'clip' }}>
+                        <td style={{ overflow: 'hidden' }}>
                           {formatTemplateConfig(row[5])}
                         </td>
                         <td style={{}}>
@@ -297,6 +323,33 @@ export default function TrainLoRA({ experimentInfo }) {
                             >
                               Edit
                             </Button>
+                            <IconButton
+                              onClick={async () => {
+                                await fetch(
+                                  chatAPI.Endpoints.Recipes.Export(row[0])
+                                )
+                                  .then((response) => response.blob())
+                                  .then((blob) => {
+                                    // Create blob link to download
+                                    const url = window.URL.createObjectURL(
+                                      new Blob([blob])
+                                    );
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.setAttribute(
+                                      'download',
+                                      `recipe.yaml`
+                                    );
+
+                                    // Append to html link, click and remove
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    link.parentNode.removeChild(link);
+                                  });
+                              }}
+                            >
+                              <DownloadIcon size="20px" />
+                            </IconButton>
                             <IconButton
                               onClick={async () => {
                                 confirm(

@@ -35,7 +35,7 @@ function TrainingModalDataTemplatingTab({
     if (templateData?.config?.formatting_template) {
       setTemplate(templateData?.config?.formatting_template);
     }
-  }, []);
+  }, [templateData?.config?.formatting_template]);
 
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&

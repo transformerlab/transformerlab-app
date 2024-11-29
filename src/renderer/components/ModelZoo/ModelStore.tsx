@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
+  Checkbox,
   FormControl,
   FormLabel,
   Input,
@@ -158,6 +159,20 @@ export default function ModelStore() {
 
   const renderFilters = () => (
     <>
+      <FormControl size="sm">
+      <FormLabel>Status</FormLabel>
+        <Select
+          placeholder="Show Archived"
+          slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
+          value={filters?.archived}
+          onChange={(e, newValue) => {
+            setFilters({ ...filters, archived: newValue });
+          }}
+        >
+          <Option value={false}>Hide Archived</Option>
+          <Option value="All">Show Archived</Option>
+        </Select>
+      </FormControl>
       <FormControl size="sm">
         <FormLabel>License</FormLabel>
         <Select
@@ -357,6 +372,15 @@ export default function ModelStore() {
                 <tr key={row.uniqueID}>
                   <td>
                     <Typography level="title-md" marginLeft={2}>
+                      {row.new && (
+                        <Chip
+                          variant="outlined"
+                          size="sm"
+                          color="success"
+                        >
+                          NEW!
+                        </Chip>
+                      )}
                       {row.name}&nbsp;
                       <a href={getModelHuggingFaceURL(row)} target="_blank">
                         {row.gated ? (
@@ -371,6 +395,15 @@ export default function ModelStore() {
                         ) : (
                           <ExternalLinkIcon size="14px" />
                         )}
+                        {row.tags && row.tags.map((tag) => (
+                          <Chip
+                            variant="outlined"
+                            size="sm"
+                            color="success"
+                          >
+                            {tag}
+                          </Chip>
+                        ))}
                       </a>
                     </Typography>
                   </td>

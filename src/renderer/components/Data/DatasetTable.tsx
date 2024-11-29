@@ -7,6 +7,12 @@ import {
   IconButton,
   iconButtonClasses,
   Alert,
+  Select,
+  Option,
+  FormControl,
+  FormLabel,
+  LinearProgress,
+  Typography,
 } from '@mui/joy';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -23,13 +29,16 @@ const DatasetTable = ({ datasetId }) => {
   const [datasetLen, setDatasetLen] = useState(null);
   let pageSize = 10; //Set the number of rows per page
   const offset = (pageNumber - 1) * pageSize; //Calculate current row number to start from
+
+  const [split, setSplit] = useState('train'); //Set the default split to display
+
   //Set the pagination for the dataset
   const setPagination = (totalRows, rowsPerPage) => {
     const totalPages = Math.ceil(totalRows / rowsPerPage);
     setNumOfPages(totalPages);
   };
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.Preview(datasetId, offset, pageSize),
+    chatAPI.Endpoints.Dataset.Preview(datasetId, split, offset, pageSize),
     fetcher
   );
 
@@ -47,11 +56,41 @@ const DatasetTable = ({ datasetId }) => {
   }, [data, pageSize, datasetLen]);
   return (
     <>
+      {data?.data?.['splits'] && (
+        <FormControl
+          sx={{ flexDirection: 'row', gap: 2, alignItems: 'baseline' }}
+        >
+          <Typography level="title-md">Split:</Typography>
+          <Select
+            value={split}
+            sx={{ minWidth: '200px' }}
+            onChange={(e, newValue) => {
+              if (!newValue) return;
+
+              setSplit(newValue);
+              setPageNumber(1);
+              setNumOfPages(1);
+              setDatasetLen(null);
+              mutate();
+            }}
+          >
+            {data.data['splits'].map((split) => (
+              <Option key={split} value={split}>
+                {split}
+              </Option>
+            ))}
+          </Select>
+          <Typography level="body-sm" color="neutral">
+            Total rows in this split: {datasetLen}
+          </Typography>
+        </FormControl>
+      )}
       <Box sx={{ overflow: 'auto', height: '100%' }}>
-        {isLoading && <CircularProgress />}
+        {isLoading && <LinearProgress />}
         {data?.status == 'error' && (
           <Alert color="danger">{data?.message}</Alert>
         )}
+        {/* {JSON.stringify(data)} */}
         {data &&
           data?.data?.['columns'] && ( //Data is loaded as a map of column names to arrays of values
             <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>

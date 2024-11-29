@@ -798,10 +798,17 @@ function convertSlashInUrl(url: string) {
 Endpoints.Dataset = {
   Gallery: () => API_URL() + 'data/gallery',
   Info: (datasetId: string) => API_URL() + 'data/info?dataset_id=' + datasetId,
-  Preview: (datasetId: string, offset: number, limit: number) =>
+  Preview: (
+    datasetId: string,
+    split: string = 'test',
+    offset: number = 0,
+    limit: number = 10
+  ) =>
     API_URL() +
     'data/preview?dataset_id=' +
     datasetId +
+    '&split=' +
+    split +
     '&offset=' +
     offset +
     '&limit=' +
@@ -936,6 +943,15 @@ Endpoints.Tools = {
     API_URL() + `tools/call/${function_name}?params=${function_arguments}`,
   Prompt: () => API_URL() + `tools/prompt`,
   List: () => API_URL() + `tools/list`,
+};
+
+Endpoints.Recipes = {
+  Import: (name: string) =>
+    API_URL() + 'train/template/import?name=' + encodeURIComponent(name),
+  Export: (template_id: int) =>
+    API_URL() + 'train/template/' + template_id + '/export',
+  Gallery: () =>
+    API_URL() + 'train/template/gallery',
 };
 
 Endpoints.ServerInfo = {

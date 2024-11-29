@@ -26,6 +26,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import Dropdown from '@mui/joy/Dropdown';
 
 import {
+  EyeIcon,
   FileTextIcon,
   PlusCircleIcon,
   RotateCcwIcon,
@@ -102,7 +103,7 @@ function RowMenu({ experimentInfo, filename, mutate }) {
         slots={{ root: IconButton }}
         slotProps={{ root: { variant: 'plain', color: 'neutral', size: 'sm' } }}
       >
-        <MoreHorizRoundedIcon />
+        <MoreHorizRoundedIcon size="16px" />
       </MenuButton>
       <Menu size="sm" sx={{ minWidth: 140 }}>
         <MenuItem>Edit</MenuItem>
@@ -513,7 +514,7 @@ export default function Documents({ experimentInfo }) {
                               setPreviewFile(row?.name);
                             }}
                           >
-                            Preview
+                            <EyeIcon size="16px" />
                           </Button>
                           <RowMenu
                             experimentInfo={experimentInfo}
