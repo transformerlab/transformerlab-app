@@ -63,11 +63,11 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
     // For now: Remove the last . and extension from the filename
     const recipe_name = file.name.replace(/\.[^/.]+$/, '');
 
-    uploadRecipe(recipe_name, recipe_text);
+    return uploadRecipe(recipe_name, recipe_text);
   };
 
   // Given a recipe string, uploads to API.
-  const uploadRecipe = async (recipe_name, recipe_text) => {
+  const uploadRecipe = async (recipe_name: string, recipe_text: string) => {
     setUploading(true); //This is for the loading spinner
     const response = await fetch(
       chatAPI.Endpoints.Recipes.Import(recipe_name),
@@ -86,6 +86,9 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
       })
       .then((data) => {
         console.log('Server response:', data);
+        if (data?.status == "error") {
+          alert(data.message);
+        }
       })
       .catch((error) => {
         alert(error);
