@@ -35,8 +35,13 @@ export default function Welcome() {
         justifyContent: 'flex-end',
       }}
     >
+      <div>New Here?</div>
       <div
-        style={{ backgroundColor: 'rgba(255,255,255,0.8)', padding: '2rem' }}
+        style={{
+          backgroundColor: 'var(--joy-palette-background-surface)',
+          opacity: '0.8',
+          padding: '2rem',
+        }}
       >
         <Typography level="h1" color="neutral">
           <LogoComponent />

@@ -3,7 +3,7 @@ body {
 }
 
 a {
-  color: #363648;
+  color: var(--joy-palette-primary-400);
 }
 
 .showOnChatBubbleHover {
