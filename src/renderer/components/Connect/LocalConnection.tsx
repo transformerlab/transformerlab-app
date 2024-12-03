@@ -190,7 +190,10 @@ function InstallStepper({ setServer }) {
         );
         json = await rel.json();
       } catch {
-        json.tag_name = 'Unable to Connect to Github Please Skip';
+        json.tag_name =
+          'Unable to Connect to Github -- Skipping API version check';
+        // just skip this step if we can't connect
+        setActiveStep(Steps.indexOf('CHECK_VERSION') + 1);
       }
       const tag = json.tag_name;
 
