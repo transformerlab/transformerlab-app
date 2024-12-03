@@ -89,12 +89,39 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
         // Then check the API responose to see if there was an error.
         console.log('Server response:', data);
         if (data?.status == "error") {
-          alert(data.message);
+          throw new Error(data.message);
         }
+        if (!data?.data) {
+          throw new Error("Warning: Server response was missing expected field 'data'.");
+        }
+        return data.data;
       })
       .catch((error) => {
         alert(error);
+        return false;
       });
+
+    // If we have a response then recipe imported successfully.
+    // Check if we need to download any assets so we can tell the user.
+    if (response) {
+      if (!response.model || !response.model.path) {
+        alert("Warning: This recipe does not have an associated model")
+      } else if (!response.dataset || ! response.dataset.path) {
+        alert("Warning: This recipe does not have an associated dataset")
+      } else {
+        let msg = "";
+        if (!response.model.downloaded) {
+          msg += "Download model " + response.model.path
+        }
+        if (!response.dataset.downloaded) {
+          msg += "Download dataset " + response.dataset.path
+        }
+        if (msg) {
+          const alert_msg = "Warning: To use this recipe you will need to: " + msg
+          alert(alert_msg);
+        }
+      }
+    }
 
     setUploading(false);
     handleClose();
