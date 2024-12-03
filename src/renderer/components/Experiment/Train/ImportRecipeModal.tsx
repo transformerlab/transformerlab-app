@@ -77,6 +77,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
       }
     )
       .then((response) => {
+        // First check that the API responded correctly
         if (response.ok) {
           return response.json();
         } else {
@@ -85,6 +86,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
         }
       })
       .then((data) => {
+        // Then check the API responose to see if there was an error.
         console.log('Server response:', data);
         if (data?.status == "error") {
           alert(data.message);
