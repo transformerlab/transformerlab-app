@@ -53,14 +53,14 @@ export default function DatasetCard({
         <div>
           <Typography
             level="h4"
-            sx={{ mb: 0.5, height: '40px', overflow: 'clip' }}
+            sx={{ mb: 0.5, height: '60px', overflow: 'clip' }}
             startDecorator={<FileTextIcon />}
           >
             <b>{name}</b>&nbsp;
             {location === 'huggingfacehub' && ' 🤗'}
             {location === 'local' && ' (local)'}
           </Typography>
-          <div style={{ height: '100px', overflow: 'clip' }}>
+          <div style={{ height: '80px', overflow: 'clip' }}>
             <Typography
               level="body-sm"
               sx={{
