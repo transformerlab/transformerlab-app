@@ -13,7 +13,7 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
-import { PlusCircleIcon } from 'lucide-react';
+import { PlusCircleIcon, InfoIcon } from 'lucide-react';
 import Dropzone from 'react-dropzone';
 import { IoCloudUploadOutline } from 'react-icons/io5';
 
@@ -122,9 +122,11 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
             >
               <thead>
                 <tr>
-                  <th style={{ width: 150, padding: 12 }}>Name</th>
-                  <th style={{ width: 400, padding: 12 }}>Description</th>
-                  <th style={{ width: 75, padding: 12 }}> </th>
+                  <th style={{ width: 180, padding: 12 }}>Name</th>
+                  <th style={{ width: 150, padding: 12}}>Plugin</th>
+                  <th style={{ width: 220, padding: 12}}>Dataset</th>
+                  <th style={{ width: 35, padding: 12 }}> </th>
+                  <th style={{ width: 60, padding: 12 }}> </th>
                 </tr>
               </thead>
               <tbody>
@@ -138,9 +140,23 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                         </Typography>
                       </td>
                       <td>
-                        <Typography fontWeight="sm">
-                          {row.metadata?.description}
+                        <Typography fontWeight="sm" style={{overflow: 'hidden'}}>
+                          {row.training?.plugin}
                         </Typography>
+                      </td>
+                      <td>
+                        <Typography fontWeight="sm" style={{overflow: 'hidden'}}>
+                          {row.datasets?.name}
+                        </Typography>
+                      </td>
+                      <td>
+                        <InfoIcon
+                          size="28px"
+                          color="var(--joy-palette-neutral-400)"
+                          onClick={() => {
+                            alert(row.metadata?.description);
+                          }}
+                        />
                       </td>
                       <td>
                         <Button
