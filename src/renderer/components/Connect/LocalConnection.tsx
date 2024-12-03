@@ -30,7 +30,7 @@ function setIntervalXTimes(
 ) {
   var x = 0;
   var intervalID = window.setInterval(async function () {
-    console.log(`Testing if ${checkName} ${x+1} of ${repetitions} times`);
+    console.log(`Testing if ${checkName} ${x + 1} of ${repetitions} times`);
     const response = await callback();
 
     if (response) {
@@ -603,7 +603,7 @@ function InstallStepper({ setServer }) {
         {installStatus === 'error' && (
           <Alert variant="outlined" color="danger" sx={{ my: 2 }}>
             {installErrorMessage} {errorMessage?.message}{' '}
-            {JSON.stringify(errorMessage?.data)} {errorMessage}
+            {JSON.stringify(errorMessage?.data)} {errorMessage} {release}
           </Alert>
         )}
         <div style={{ flex: 1, overflow: 'auto' }}>
