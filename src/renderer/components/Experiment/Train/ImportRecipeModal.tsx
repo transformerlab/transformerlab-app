@@ -122,11 +122,11 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
             >
               <thead>
                 <tr>
-                  <th style={{ width: 180, padding: 12 }}>Name</th>
-                  <th style={{ width: 150, padding: 12}}>Plugin</th>
-                  <th style={{ width: 220, padding: 12}}>Dataset</th>
-                  <th style={{ width: 35, padding: 12 }}> </th>
-                  <th style={{ width: 60, padding: 12 }}> </th>
+                  <th style={{ width: 180, padding: 10 }}>Name</th>
+                  <th style={{ width: 150, padding: 10 }}>Plugin</th>
+                  <th style={{ width: 220, padding: 10 }}>Dataset</th>
+                  <th style={{ width: 35, padding: 10 }}> </th>
+                  <th style={{ width: 60, padding: 10 }}> </th>
                 </tr>
               </thead>
               <tbody>
