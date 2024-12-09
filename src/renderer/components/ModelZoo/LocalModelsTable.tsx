@@ -140,7 +140,7 @@ const LocalModelsTable = ({
         >
           <thead>
             <tr>
-              <th style={{ width: 140, padding: 12 }}>
+              <th style={{ width: 180, padding: 12 }}>
                 <Link
                   underline="none"
                   color="primary"
@@ -159,11 +159,11 @@ const LocalModelsTable = ({
                   Name
                 </Link>
               </th>
-              <th style={{ width: 120, padding: 12 }}>Architecture</th>
-              <th style={{ width: 120, padding: 12 }}>Params</th>
+              <th style={{ width: 150, padding: 12 }}>Architecture</th>
+              <th style={{ width: 60, padding: 12 }}>Params</th>
               {/* <th style={{ width: 220, padding: 12 }}>Type</th> */}
-              <th style={{ width: 120, padding: 12 }}>Model ID</th>
-              <th style={{ width: 160, padding: 12 }}> </th>
+              <th style={{ width: 180, padding: 12 }}>Model ID</th>
+              <th style={{ width: 60, padding: 12 }}> </th>
             </tr>
           </thead>
           <tbody>
@@ -191,6 +191,7 @@ const LocalModelsTable = ({
                       </Typography>
                     </td>
                     <td>
+                      <Typography style={{overflow: 'hidden'}}>
                       {' '}
                       {row?.json_data?.architecture == 'MLX' && (
                         <>
@@ -210,15 +211,19 @@ const LocalModelsTable = ({
                         </>
                       )}
                       {[
-                        'LlamaForCausalLM',
-                        'T5ForConditionalGeneration',
                         'FalconForCausalLM',
-                        'MistralForCausalLM',
+                        'Gemma2ForCausalLM',
                         'GPTBigCodeForCausalLM',
+                        'LlamaForCausalLM',
+                        'MistralForCausalLM',
+                        'Phi3ForCausalLM',
+                        'Qwen2ForCausalLM',
+                        'T5ForConditionalGeneration'
                       ].includes(row?.json_data?.architecture) && (
                         <>🤗 &nbsp;</>
                       )}
                       {row?.json_data?.architecture}
+                      </Typography>
                     </td>
                     <td>{row?.json_data?.parameters}</td>
                     {/* <td>{JSON.stringify(row)}</td> */}
