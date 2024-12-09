@@ -9,6 +9,12 @@ export default function LogViewer({}) {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;
 
+  const fitAddon = new FitAddon();
+
+  function handleResize() {
+    fitAddon.fit();
+  }
+
   useEffect(() => {
     // see if you can find any DOM elements with class "xterm" and remove them
     // I don't know why they are left behind, but this is a workaround
@@ -24,7 +30,6 @@ export default function LogViewer({}) {
       console.log('disposed terminal');
     } else {
       term = new Terminal();
-      const fitAddon = new FitAddon();
       term.loadAddon(fitAddon);
 
       term.open(terminalRef.current);
@@ -41,6 +46,7 @@ export default function LogViewer({}) {
           term.writeln(`${data}`);
         }
       });
+      window.addEventListener('resize', handleResize);
     }
 
     return () => {
@@ -50,6 +56,8 @@ export default function LogViewer({}) {
         'serverLog:startListening'
       );
       window.electron.ipcRenderer.removeAllListeners('serverLog:onUpdate');
+      console.log('Stopped listening for server log updates');
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
@@ -59,7 +67,7 @@ export default function LogViewer({}) {
         sx={{
           height: '100%',
           overflow: 'auto',
-          // backgroundColor: '#222',
+          backgroundColor: '#222',
           // color: 'white',
         }}
         ref={terminalRef}

@@ -677,6 +677,7 @@ function InstallStepper({ setServer }) {
             fontFamily: 'monospace',
             p: 3,
             borderRadius: 10,
+            height: '100%',
           }}
         >
           <LogViewer />

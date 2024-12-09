@@ -131,7 +131,7 @@ export default function LoginModal({
         <Tabs
           aria-label="Basic tabs"
           defaultValue={0}
-          sx={{ overflow: 'hidden' }}
+          sx={{ overflow: 'hidden', height: '100%' }}
           onChange={(_event, newValue) => {}}
         >
           <TabList tabFlex={1}>
