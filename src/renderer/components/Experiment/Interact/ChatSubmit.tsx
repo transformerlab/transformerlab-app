@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import DOMPurify from 'dompurify';
 import Box from '@mui/joy/Box';
 import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
@@ -383,7 +384,7 @@ export default function ChatSubmit({
                       onClick={() => {
                         //Testing to see if the image is valid
                         const img = new Image();
-                        img.src = imageURLInput;
+                        img.src = DOMPurify.sanitize(imageURLInput);
                         img.onload = () => {
                           setImageLink(imageURLInput);
                           setImageURLInput('');

@@ -134,7 +134,8 @@
     "use-debounce": "^9.0.4",
     "validator": "^13.7.0",
     "xterm": "^5.3.0",
-    "xterm-addon-fit": "^0.8.0"
+    "xterm-addon-fit": "^0.8.0",
+    "dompurify": "^3.2.1"
   },
   "devDependencies": {
     "@electron/notarize": "^2.1.0",
