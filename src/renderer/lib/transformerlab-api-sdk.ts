@@ -378,7 +378,7 @@ export async function sendCompletion(
         const { choices } = parsedLine;
         const { text } = choices[0];
 
-        console.log(choices[0]);
+        // console.log(choices[0]);
 
         id = parsedLine?.id;
         // Update the UI with the new content
