@@ -162,8 +162,8 @@ export default function Tokenize({ experimentInfo }) {
             <Textarea
               minRows={4}
               size="lg"
-              defaultValue="This is a line
-This is a second line."
+              defaultValue="How many letters are in compartmentalize?.
+What is 13411321.4 + 512351.52 ?"
               name="inputText"
             />
 
