@@ -291,6 +291,7 @@ export async function sendCompletion(
     temperature,
     max_tokens: maxTokens,
     top_p: topP,
+    logprobs: false,
   };
 
   if (stopString) {
@@ -376,6 +377,8 @@ export async function sendCompletion(
         //console.log('parsedLine', parsedLine);
         const { choices } = parsedLine;
         const { text } = choices[0];
+
+        console.log(choices[0]);
 
         id = parsedLine?.id;
         // Update the UI with the new content
@@ -950,8 +953,7 @@ Endpoints.Recipes = {
     API_URL() + 'train/template/import?name=' + encodeURIComponent(name),
   Export: (template_id: int) =>
     API_URL() + 'train/template/' + template_id + '/export',
-  Gallery: () =>
-    API_URL() + 'train/template/gallery',
+  Gallery: () => API_URL() + 'train/template/gallery',
 };
 
 Endpoints.ServerInfo = {
