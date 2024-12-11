@@ -19,7 +19,7 @@ import {
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
-import { EyeIcon, EyeOffIcon } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -36,10 +36,12 @@ export default function TransformerLabSettings({}) {
   );
   const [showJobsOfType, setShowJobsOfType] = React.useState('NONE');
 
-  const { data: jobs } = useSWR(
-    chatAPI.Endpoints.Jobs.GetJobsOfType(showJobsOfType, ''),
-    fetcher
-  );
+  const {
+    data: jobs,
+    error: jobsError,
+    isLoading: jobsIsLoading,
+    mutate: jobsMutate,
+  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType(showJobsOfType, ''), fetcher);
 
   return (
     <>
@@ -126,7 +128,10 @@ export default function TransformerLabSettings({}) {
         </Button>
         <Divider sx={{ mt: 2, mb: 2 }} />{' '}
         <Typography level="title-lg" marginBottom={2}>
-          View Jobs (debug):
+          View Jobs (debug):{' '}
+          <IconButton onClick={() => jobsMutate()}>
+            <RotateCcwIcon size="14px" />
+          </IconButton>
         </Typography>
         <Select
           sx={{ width: '400px' }}
