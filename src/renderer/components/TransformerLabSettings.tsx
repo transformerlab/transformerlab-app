@@ -11,6 +11,9 @@ import {
   FormLabel,
   IconButton,
   Input,
+  Select,
+  Option,
+  Table,
   Typography,
 } from '@mui/joy';
 
@@ -31,17 +34,23 @@ export default function TransformerLabSettings({}) {
     chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
     fetcher
   );
+  const [showJobsOfType, setShowJobsOfType] = React.useState('NONE');
+
+  const { data: jobs } = useSWR(
+    chatAPI.Endpoints.Jobs.GetJobsOfType(showJobsOfType, ''),
+    fetcher
+  );
 
   return (
     <>
       <Typography level="h1" marginBottom={3}>
         Transformer Lab Settings
       </Typography>
-      <Sheet sx={{ maxWidth: '500px' }}>
+      <Sheet sx={{ width: '100%', overflow: 'auto' }}>
         <Typography level="title-lg" marginBottom={2}>
           Huggingface Credentials:
         </Typography>
-        <FormControl>
+        <FormControl sx={{ maxWidth: '500px' }}>
           <FormLabel>User Access Token</FormLabel>
           {hftokenisloading ? (
             <CircularProgress />
@@ -115,6 +124,49 @@ export default function TransformerLabSettings({}) {
         >
           Reset all Tutorial Popup Screens
         </Button>
+        <Divider sx={{ mt: 2, mb: 2 }} />{' '}
+        <Typography level="title-lg" marginBottom={2}>
+          View Jobs (debug):
+        </Typography>
+        <Select
+          sx={{ width: '400px' }}
+          value={showJobsOfType}
+          onChange={(e, newValue) => {
+            setShowJobsOfType(newValue);
+          }}
+        >
+          <Option value="NONE">None</Option>
+          <Option value="">All</Option>
+          <Option value="DOWNLOAD_MODEL">Download Model</Option>
+          <Option value="LOAD_MODEL">Load Model</Option>
+          <Option value="TRAIN">Train</Option>
+        </Select>
+        {showJobsOfType !== 'NONE' && (
+          <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
+            <thead>
+              <tr>
+                <td>Job ID</td>
+                <td>Job Type</td>
+                <td>Job Status</td>
+                <td>Job Progress</td>
+                <td>Job Data</td>
+              </tr>
+            </thead>
+            <tbody>
+              {jobs?.map((job) => (
+                <tr key={job.id}>
+                  <td>{job.id}</td>
+                  <td>{job.type}</td>
+                  <td>{job.status}</td>
+                  <td>{job.progress}</td>
+                  <td>
+                    <pre>{JSON.stringify(job.job_data, null, 2)}</pre>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
       </Sheet>
     </>
   );
