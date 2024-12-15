@@ -31,8 +31,12 @@ function StatsBar({ connection, setConnection }) {
 
     // GPU Percent:
     const gpuPercent =
-      // eslint-disable-next-line no-unsafe-optional-chaining
-      (server?.gpu?.[0]?.used_memory / server?.gpu?.[0]?.total_memory) * 100;
+      server?.gpu?.reduce((acc, gpu) => {
+        if (gpu.total_memory && gpu.used_memory) {
+          return acc + (gpu.used_memory / gpu.total_memory) * 100;
+        }
+        return acc;
+      }, 0) / (server?.gpu?.length || 1);
 
     if (Number.isNaN(gpuPercent)) {
       newConnectionStats.gpu.push(0);
@@ -137,18 +141,20 @@ function StatsBar({ connection, setConnection }) {
                         <b>CPU: </b>
                         {server?.cpu}
                       </Typography>
-                      <Typography>
-                        <b>GPU: </b>
-                        {server?.gpu[0].name == 'cpu'
-                          ? 'N/A'
-                          : server?.gpu[0].name}
-                      </Typography>
-                      <Typography>
-                        <b>GPU Memory: </b>
-                        {formatBytes(server?.gpu[0].total_memory) == '0 Bytes'
-                          ? 'N/A'
-                          : formatBytes(server?.gpu[0].total_memory)}
-                      </Typography>
+                      {server?.gpu?.map((gpu, index) => (
+                        <div key={index}>
+                          <Typography>
+                            <b>GPU {index + 1}: </b>
+                            {gpu.name === 'cpu' ? 'N/A' : gpu.name}
+                          </Typography>
+                          <Typography>
+                            <b>GPU Memory: </b>
+                            {formatBytes(gpu.total_memory) === '0 Bytes'
+                              ? 'N/A'
+                              : formatBytes(gpu.total_memory)}
+                          </Typography>
+                        </div>
+                      ))}
                       <Typography p={1}>
                         <ReactRouterLink to="/computer">
                           More about this computer
@@ -216,36 +222,28 @@ function StatsBar({ connection, setConnection }) {
               </div>
               {Math.round(cs.gpu[cs.gpu.length - 1])}%
             </div>{' '}
-            <div style={{ minWidth: '80px' }}>
-              GPU:&nbsp;
-              {/* <div style={{ width: '60px', textAlign: 'center' }}>
-              <div
-                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
-              >
-                <Sparklines height={20} width={60} data={cs.gpu}>
-                  <SparklinesLine color="red" />
-                </Sparklines>
+            {server?.gpu?.map((gpu, index) => (
+              <div key={index} style={{ minWidth: '80px' }}>
+                GPU {index + 1}:&nbsp;
+                {gpu.utilization > 40 ? (
+                  <span
+                    style={{ backgroundColor: 'var(--joy-palette-danger-100)' }}
+                  >
+                    {gpu.utilization} %
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      backgroundColor: 'rgb(0,128,0,0.1)',
+                      paddingRight: '3px',
+                      paddingLeft: '3px',
+                    }}
+                  >
+                    {gpu.utilization} %
+                  </span>
+                )}
               </div>
-              {Math.round(cs.gpu[cs.gpu.length - 1])} %
-            </div>{' '} */}
-              {server?.gpu?.[0]?.utilization > 40 ? (
-                <span
-                  style={{ backgroundColor: 'var(--joy-palette-danger-100)' }}
-                >
-                  {server?.gpu?.[0]?.utilization} %
-                </span>
-              ) : (
-                <span
-                  style={{
-                    backgroundColor: 'rgb(0,128,0,0.1)',
-                    paddingRight: '3px',
-                    paddingLeft: '3px',
-                  }}
-                >
-                  {server?.gpu?.[0]?.utilization} %
-                </span>
-              )}
-            </div>
+            ))}
           </span>
         </div>
       )}
