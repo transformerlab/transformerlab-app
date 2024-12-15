@@ -3,6 +3,7 @@
 import Sheet from '@mui/joy/Sheet';
 
 import {
+  Box,
   Card,
   CardContent,
   FormControl,
@@ -103,26 +104,48 @@ export default function Computer() {
               <Grid xs={4}>
                 <ComputerCard
                   icon={<BsGpuCard />}
-                  title="GPU Specs"
+                  title={'GPU Specs (' + server.gpu?.length + ')'}
                   image={undefined}
                 >
-                  {server.gpu?.map((g) => {
+                  {server.gpu?.map((g, i) => {
                     return (
-                      <>
+                      <Box mb={2}>
+                        <Typography level="title-md">GPU # {i}</Typography>
                         🔥 {g.name}
-                        <br />
-                        {formatBytes(Math.round(g?.used_memory))} Used
-                        <br />
-                        {formatBytes(g.total_memory)} Total
-                      </>
+                        <StatRow
+                          title="Total VRAM"
+                          value={formatBytes(g?.total_memory)}
+                        />
+                        <StatRow
+                          title="Available"
+                          value={formatBytes(g?.used_memory)}
+                        />
+                        {g.total_memory !== 'n/a' && (
+                          <>
+                            <StatRow
+                              title="Used"
+                              value={
+                                <>
+                                  {Math.round(
+                                    (g?.used_memory / g?.total_memory) * 100
+                                  )}
+                                  %
+                                  <LinearProgress
+                                    determinate
+                                    value={
+                                      (g?.used_memory / g?.total_memory) * 100
+                                    }
+                                    variant="solid"
+                                    sx={{ minWidth: '50px' }}
+                                  />
+                                </>
+                              }
+                            />
+                          </>
+                        )}
+                      </Box>
                     );
                   })}
-                  <br />
-                  Used Memory:{' '}
-                  {Math.round(
-                    server.gpu[0]?.used_memory / server.gpu[0]?.total_memory
-                  )}
-                  %
                 </ComputerCard>
               </Grid>
               <Grid xs={3}>
