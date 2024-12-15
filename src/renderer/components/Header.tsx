@@ -73,6 +73,38 @@ function StatsBar({ connection, setConnection }) {
       setConnection('');
     }
   }, [isError]);
+
+  function showVRAM() {
+    return (
+      <Stack gap={0} direction="row">
+        VRAM:
+        <div style={{ width: '60px', textAlign: 'center' }}>
+          <div style={{ width: '60px', position: 'absolute', opacity: 0.6 }}>
+            <Sparklines height={20} width={60} data={cs.gpu}>
+              <SparklinesLine color="var(--joy-palette-danger-500)" />
+            </Sparklines>
+          </div>
+          {Math.round(cs.gpu[cs.gpu.length - 1])}%
+        </div>{' '}
+      </Stack>
+    );
+  }
+
+  function showDetailedVRAM() {
+    return (
+      <>
+        {server?.gpu?.map((gpuDetail, index) => (
+          <div key={index} style={{ marginBottom: '10px' }}>
+            <Typography level="title-sm">GPU {index + 1}:</Typography>
+            <div>Total VRAM: {formatBytes(gpuDetail?.total_memory)}</div>
+            <div>Used VRAM: {formatBytes(gpuDetail?.used_memory)}</div>
+            <div>Free VRAM: {formatBytes(gpuDetail?.free_memory)}</div>
+          </div>
+        ))}
+      </>
+    );
+  }
+
   return (
     <>
       {isError ? (
@@ -188,7 +220,7 @@ function StatsBar({ connection, setConnection }) {
               &nbsp; Connected -
             </div>
           </Tooltip>
-          <span style={{ display: 'flex', '-webkit-app-region': 'drag' }}>
+          <span style={{ display: 'flex', '-webkit-app-region': 'no-drag' }}>
             &nbsp;CPU:
             <div style={{ width: '60px', textAlign: 'center' }}>
               <div
@@ -211,17 +243,15 @@ function StatsBar({ connection, setConnection }) {
               </div>
               {Math.round(cs.mem[cs.mem.length - 1])}%
             </div>
-            VRAM:
-            <div style={{ width: '60px', textAlign: 'center' }}>
-              <div
-                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
-              >
-                <Sparklines height={20} width={60} data={cs.gpu}>
-                  <SparklinesLine color="var(--joy-palette-danger-500)" />
-                </Sparklines>
-              </div>
-              {Math.round(cs.gpu[cs.gpu.length - 1])}%
-            </div>{' '}
+            <Tooltip
+              title={showDetailedVRAM()}
+              placement="top"
+              arrow
+              sx={{ fontSize: 12 }}
+              variant="outlined"
+            >
+              <span>{showVRAM()}</span>
+            </Tooltip>
             {server?.gpu?.map((gpu, index) => (
               <div key={index} style={{ minWidth: '80px' }}>
                 GPU {index + 1}:&nbsp;
@@ -302,7 +332,6 @@ export default function Header({ connection, setConnection, experimentInfo }) {
           '-webkit-app-region': 'drag',
         }}
       />
-
       <StatsBar connection={connection} setConnection={setConnection} />
     </Sheet>
   );
