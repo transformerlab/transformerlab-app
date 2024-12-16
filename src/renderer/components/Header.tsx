@@ -1,6 +1,13 @@
 import Sheet from '@mui/joy/Sheet';
 import { Sparklines, SparklinesLine } from 'react-sparklines';
-import { Box, Button, Stack, Tooltip, Typography } from '@mui/joy';
+import {
+  Box,
+  Button,
+  LinearProgress,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/joy';
 import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
 import { useEffect, useState } from 'react';
 import { Link2Icon } from 'lucide-react';
@@ -99,6 +106,12 @@ function StatsBar({ connection, setConnection }) {
             <div>Total VRAM: {formatBytes(gpuDetail?.total_memory)}</div>
             <div>Used VRAM: {formatBytes(gpuDetail?.used_memory)}</div>
             <div>Free VRAM: {formatBytes(gpuDetail?.free_memory)}</div>
+            <LinearProgress
+              determinate
+              value={(gpuDetail?.used_memory / gpuDetail?.total_memory) * 100}
+              variant="solid"
+              sx={{ minWidth: '50px' }}
+            />
           </div>
         ))}
       </>
@@ -252,27 +265,12 @@ function StatsBar({ connection, setConnection }) {
             >
               <span>{showVRAM()}</span>
             </Tooltip>
+            GPU:{' '}
             {server?.gpu?.map((gpu, index) => (
-              <div key={index} style={{ minWidth: '80px' }}>
-                GPU {index + 1}:&nbsp;
-                {gpu.utilization > 40 ? (
-                  <span
-                    style={{ backgroundColor: 'var(--joy-palette-danger-100)' }}
-                  >
-                    {gpu.utilization} %
-                  </span>
-                ) : (
-                  <span
-                    style={{
-                      backgroundColor: 'rgb(0,128,0,0.1)',
-                      paddingRight: '3px',
-                      paddingLeft: '3px',
-                    }}
-                  >
-                    {gpu.utilization} %
-                  </span>
-                )}
-              </div>
+              <PercentWithColoredBackgroundMeter
+                key={index}
+                percent={Math.round(gpu?.utilization)}
+              />
             ))}
           </span>
         </div>
@@ -334,5 +332,28 @@ export default function Header({ connection, setConnection, experimentInfo }) {
       />
       <StatsBar connection={connection} setConnection={setConnection} />
     </Sheet>
+  );
+}
+
+function PercentWithColoredBackgroundMeter({ percent }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: '38px',
+        padding: '12px 0px 12px 5px',
+        height: '20px',
+        backgroundColor:
+          percent > 80
+            ? 'rgba(255, 0, 0, 0.1)'
+            : percent > 60
+            ? 'rgba(255, 255, 0, 0.1)'
+            : 'rgba(0, 255, 0, 0.1)',
+      }}
+    >
+      {percent}%
+    </div>
   );
 }
