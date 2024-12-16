@@ -126,7 +126,7 @@ export default function Computer() {
                         />
                         <StatRow
                           title="Available"
-                          value={formatBytes(g?.used_memory)}
+                          value={formatBytes(g?.free_memory)}
                         />
                         {g.total_memory !== 'n/a' && (
                           <>
