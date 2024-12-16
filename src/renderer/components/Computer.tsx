@@ -24,6 +24,8 @@ import {
   ZapIcon,
 } from 'lucide-react';
 
+import { SiNvidia } from 'react-icons/si';
+
 import { BsGpuCard } from 'react-icons/bs';
 import { FaComputer } from 'react-icons/fa6';
 
@@ -111,7 +113,13 @@ export default function Computer() {
                     return (
                       <Box mb={2}>
                         <Typography level="title-md">GPU # {i}</Typography>
-                        🔥 {g.name}
+                        {g.name.includes('NVIDIA') ? (
+                          <SiNvidia color="#76B900" />
+                        ) : (
+                          '🔥'
+                        )}
+                        &nbsp;
+                        {g.name}
                         <StatRow
                           title="Total VRAM"
                           value={formatBytes(g?.total_memory)}
