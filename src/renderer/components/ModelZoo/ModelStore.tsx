@@ -162,7 +162,7 @@ export default function ModelStore() {
       <FormControl size="sm">
       <FormLabel>Status</FormLabel>
         <Select
-          placeholder="Show Archived"
+          placeholder="Hide Archived"
           slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
           value={filters?.archived}
           onChange={(e, newValue) => {
