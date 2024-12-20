@@ -13,7 +13,7 @@ import { PlusIcon } from 'lucide-react';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import ImportModelsModal from './ImportModelsModal';
 
-export default function ModelDetails({}) {
+export default function ImportModelsBar({}) {
     const [downloadingModel, setDownloadingModel] = useState(null);
     const [importModelsModalOpen, setImportModelsModalOpen] = useState(false);
 
