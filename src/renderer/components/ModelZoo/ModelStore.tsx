@@ -106,7 +106,7 @@ export default function ModelStore() {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [modelDetailsId, setModelDetailsId] = useState(null);
   const [searchText, setSearchText] = useState('');
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState({archived: false});
   const navigate = useNavigate();
 
   const {
