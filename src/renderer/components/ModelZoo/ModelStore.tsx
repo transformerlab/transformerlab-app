@@ -139,7 +139,7 @@ export default function ModelStore() {
   // Record the jobID and model Name
   useEffect(() => {
     console.log(obj);
-    fetch(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'IN_PROGRESS'))
+    fetch(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'))
       .then(async (response) => {
         const jobs = await response.json();
         if (jobs.length) {
