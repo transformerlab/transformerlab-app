@@ -54,7 +54,6 @@ export function filterByFilters(data, searchText = '', filters = {}) {
   return data.filter((row) => {
     if (row.name.toLowerCase().includes(searchText.toLowerCase())) {
       for (const filterKey in filters) {
-        console.log(filterKey, filters[filterKey]);
         if (filters[filterKey] !== 'All') {
           if (row[filterKey] !== filters[filterKey]) {
             return false;
