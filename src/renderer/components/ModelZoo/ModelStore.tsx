@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
@@ -124,6 +124,10 @@ export default function ModelStore() {
     { refreshInterval: 2000 }
   );
 
+  // Creating a separate object to get useEffect for download jobs to work
+  // useEffect needs it to be the exact same object, not just the same values
+  const obj = useMemo(() => ({ currentlyDownloading }), [currentlyDownloading]);
+
   // check if we have a Hugging Face access token
   const { data: hftoken } = useSWR(
       chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
@@ -134,6 +138,7 @@ export default function ModelStore() {
   // On page load, check if there are any models currently being downloaded, and if so,
   // Record the jobID and model Name
   useEffect(() => {
+    console.log(obj);
     fetch(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'IN_PROGRESS'))
       .then(async (response) => {
         const jobs = await response.json();
@@ -147,7 +152,7 @@ export default function ModelStore() {
       .catch((e) => {
         console.log(e);
       });
-  }, []);
+  }, [obj]);
 
   useEffect(() => {
     if (currentlyDownloading?.status == 'COMPLETE') {
