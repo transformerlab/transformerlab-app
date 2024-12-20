@@ -29,6 +29,7 @@
  * does not need to know any API specifics
  * */
 
+import { log } from 'console';
 import useSWR from 'swr';
 
 export function API_URL() {
@@ -267,7 +268,8 @@ export async function sendCompletion(
   topP: number = 1.0,
   useLongModelName = true,
   stopString = null,
-  targetElementForStreaming
+  targetElementForStreaming,
+  logprobs = false
 ) {
   console.log('sent completion request');
   let model = '';
@@ -291,7 +293,7 @@ export async function sendCompletion(
     temperature,
     max_tokens: maxTokens,
     top_p: topP,
-    logprobs: false,
+    logprobs: logprobs,
   };
 
   if (stopString) {
@@ -378,7 +380,8 @@ export async function sendCompletion(
         const { choices } = parsedLine;
         const { text } = choices[0];
 
-        // console.log(choices[0]);
+        console.log('choice:');
+        console.log(choices[0]);
 
         id = parsedLine?.id;
         // Update the UI with the new content
@@ -393,6 +396,170 @@ export async function sendCompletion(
               100
             );
           }
+        }
+      }
+    }
+
+    result = finalResult;
+  } catch (error) {
+    console.log('There was an error:', error);
+  }
+
+  // Stop clock:
+  end = performance.now();
+  var time = end - firstTokenTime;
+  var timeToFirstToken = firstTokenTime - start;
+
+  if (result) {
+    // if (resultText) resultText.innerText = '';
+    return {
+      id: id,
+      text: result,
+      time: time,
+      timeToFirstToken: timeToFirstToken,
+    };
+  }
+  return null;
+}
+
+// This does a completion but instead of updating an element, it calls an update function
+export async function sendCompletionReactWay(
+  currentModel: string,
+  adaptor: string,
+  text: string,
+  temperature: number = 0.7,
+  maxTokens: number = 256,
+  topP: number = 1.0,
+  useLongModelName = true,
+  stopString = null,
+  updateFunction,
+  logprobs = false
+) {
+  console.log('sent completion request');
+  let model = '';
+
+  if (useLongModelName) {
+    model = currentModel;
+  } else {
+    model = currentModel.split('/').slice(-1)[0];
+  }
+
+  if (adaptor && adaptor !== '') {
+    model = adaptor;
+  }
+
+  //console.log('model', model);
+
+  const data = {
+    model: model,
+    stream: true, // For streaming responses
+    prompt: text,
+    temperature,
+    max_tokens: maxTokens,
+    top_p: topP,
+    logprobs: logprobs,
+  };
+
+  if (stopString) {
+    data.stop = stopString;
+  }
+
+  let result;
+  var id = Math.random() * 1000;
+
+  let response;
+
+  try {
+    response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
+      method: 'POST', // or 'PUT'
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  } catch (error) {
+    console.log('There was an error', error);
+    return null;
+  }
+
+  if (!response.ok) {
+    const response_json = await response.json();
+    console.log('Completions API response:', response_json);
+    const error_text = `Completions API Error
+      HTTP Error Code: ${response?.status}
+      ${response_json?.message}`;
+    alert(error_text);
+    return null;
+  }
+
+  // Read the response as a stream of data
+  const reader = response?.body?.getReader();
+  const decoder = new TextDecoder('utf-8');
+
+  let finalResult = '';
+  let finalResultArray = [];
+
+  var start = performance.now();
+  var firstTokenTime = null;
+  var end = start;
+
+  stopStreaming = false;
+
+  // Reader loop
+  try {
+    while (true) {
+      if (stopStreaming) {
+        console.log('User requested to stop streaming');
+        stopStreaming = false;
+        reader?.cancel();
+      }
+      // eslint-disable-next-line no-await-in-loop
+      const { done, value } = await reader.read();
+
+      if (firstTokenTime == null) firstTokenTime = performance.now();
+
+      if (done) {
+        break;
+      }
+      // Massage and parse the chunk of data
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      let parsedLines = [];
+      try {
+        parsedLines = lines
+          .map((line) => line.replace(/^data: /, '').trim()) // Remove the "data: " prefix
+          .filter((line) => line !== '' && line !== '[DONE]') // Remove empty lines and "[DONE]"
+          .map((line) => JSON.parse(line)); // Parse the JSON string
+      } catch (error) {
+        console.log('error parsing line', error);
+      }
+
+      // eslint-disable-next-line no-restricted-syntax
+      for (const parsedLine of parsedLines) {
+        //console.log('parsedLine', parsedLine);
+        const { choices } = parsedLine;
+        const { text } = choices[0];
+
+        console.log('choice:');
+        console.log(choices[0]);
+
+        id = parsedLine?.id;
+        // Update the UI with the new content
+        if (text) {
+          if (logprobs) {
+            finalResultArray.push(choices[0]);
+            updateFunction(finalResultArray);
+          } else {
+            finalResult += text;
+            updateFunction(finalResult);
+          }
+          // document.getElementById('completion-textarea').value = finalResult;
+          setTimeout(
+            () => document.getElementById('endofchat')?.scrollIntoView(),
+            100
+          );
         }
       }
     }

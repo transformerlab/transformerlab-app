@@ -768,7 +768,7 @@ export default function Chat({
             <Option value="template">Templated Prompt</Option>
             <Option value="embeddings">Embeddings</Option>
             <Option value="tokenize">Tokenize</Option>
-            {/* <Option value="logprobs">Visualize Logprobs</Option> */}
+            <Option value="logprobs">Visualize Logprobs</Option>
             <Option value="rag">Query Documents</Option>
             <Option value="batched">Batched Query</Option>
           </Select>
@@ -883,7 +883,24 @@ export default function Chat({
         )}
         {mode === 'logprobs' && (
           <VisualizeLogProbs
+            text={text}
+            setText={setText}
+            debouncedText={debouncedText}
+            tokenCount={tokenCount}
+            isThinking={isThinking}
+            sendCompletionToLLM={sendCompletionToLLM}
+            stopStreaming={stopStreaming}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setChats={setChats}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
             experimentInfo={experimentInfo}
+            experimentInfoMutate={experimentInfoMutate}
           ></VisualizeLogProbs>
         )}
         {mode === 'rag' && (
