@@ -209,7 +209,9 @@ export default function CompletionsPage({
             }}
           />
         </Sheet>
-        <RenderLogProbs logProbs={logProbs} />
+        <Sheet sx={{ flex: 1, width: '100%', overflow: 'auto' }}>
+          <RenderLogProbs logProbs={logProbs} />
+        </Sheet>
         <Stack direction="row" justifyContent="space-between">
           <div>
             {timeTaken && timeTaken !== -1 && (

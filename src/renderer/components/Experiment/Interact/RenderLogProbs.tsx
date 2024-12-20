@@ -1,4 +1,4 @@
-import { Chip, Tooltip } from '@mui/joy';
+import { Chip, Tooltip, Typography } from '@mui/joy';
 import React from 'react';
 
 function logProbToProbability(logprob) {
@@ -7,15 +7,15 @@ function logProbToProbability(logprob) {
 
 function logProbToColor(logprob: number): string {
   const probability = logProbToProbability(logprob);
-  const hue = Math.floor(probability * 240); // Reverse the hue calculation
-  const color = `hsl(${hue}, 100%, 70%)`; // Use HSL for more pleasing colors
+  const hue = Math.floor(probability * 100); // Reverse the hue calculation
+  const color = `hsl(${hue}, 80%, 80%)`; // Use HSL for more pleasing colors
   return color;
 }
 
 function renderListOfLogProbs(logProbs) {
   return logProbs.map((logprob, index) => (
     <div>
-      {logprob?.token} - {logProbToProbability(logprob?.logprob)}
+      {logProbToProbability(logprob?.logprob)}: {logprob?.token}
     </div>
   ));
 }
@@ -24,8 +24,6 @@ const RenderLogProbs = ({ logProbs }) => {
   return (
     <div
       style={{
-        flex: 1,
-        width: '100%',
         display: 'flex',
         flexWrap: 'wrap',
         alignContent: 'flex-start',
@@ -45,9 +43,10 @@ const RenderLogProbs = ({ logProbs }) => {
               margin: '2px',
             }}
           >
-            {logprob?.text}
-            <br />
-            {logProbToProbability(logprob?.logprobs?.logprob)}
+            <Typography level="body-md">{logprob?.text}</Typography>
+            <Typography level="body-sm">
+              {/* {logProbToProbability(logprob?.logprobs?.logprob)}{' '} */}
+            </Typography>
           </span>
         </Tooltip>
       ))}
