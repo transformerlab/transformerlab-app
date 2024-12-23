@@ -202,6 +202,7 @@ export default function CompletionsPage({
             margin: 'auto',
             flexDirection: 'column',
             width: '100%',
+            display: 'none',
           }}
         >
           <Textarea
