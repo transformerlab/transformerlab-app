@@ -1,11 +1,17 @@
 import { Chip, Tooltip, Typography } from '@mui/joy';
+import { log } from 'console';
 
 function renderToken(token) {
   if (token === ' ') {
     return '␣';
   }
   if (token === '\n') {
-    return <>'↵'</>;
+    return (
+      <>
+        ↵
+        <br />
+      </>
+    );
   }
   return token;
 }
@@ -27,13 +33,16 @@ function logProbToColor(logprob: number): string {
 }
 
 function renderListOfLogProbs(logProbs, chosenToken, color) {
-  return logProbs.map((logprob, index) => (
+  var logProbsAsArray = Object.entries(logProbs);
+  logProbsAsArray.sort((a, b) => b[1] - a[1]);
+
+  return logProbsAsArray.map((logprob, index) => (
     <div
       style={{
-        backgroundColor: chosenToken === logprob?.token ? color : 'white',
+        backgroundColor: chosenToken === logprob[0] ? color : 'white',
       }}
     >
-      {lpgProbToPercent(logprob?.logprob)}%: {logprob?.token}
+      {lpgProbToPercent(logprob[1])}%: {renderToken(logprob[0])}
     </div>
   ));
 }
@@ -42,22 +51,23 @@ function SingleChip({ index, logprob }) {
   return (
     <Tooltip
       title={renderListOfLogProbs(
-        logprob?.logprobs?.top_logprobs,
-        logprob?.text,
-        logProbToColor(logprob?.logprobs?.logprob)
+        logprob?.top_logprobs?.[0],
+        logprob?.tokens?.[0],
+        logProbToColor(logprob?.token_logprobs?.[0])
       )}
       key={index}
       variant="outlined"
     >
       <span
         style={{
-          backgroundColor: logProbToColor(logprob?.logprobs?.logprob),
+          backgroundColor: logProbToColor(logprob?.token_logprobs?.[0]),
           lineHeight: '1.0',
           color: 'black',
           margin: '0px',
         }}
       >
-        {renderToken(logprob?.text)}
+        {/* <pre>{JSON.stringify(logprob)}</pre> */}
+        {renderToken(logprob?.tokens?.[0])}
       </span>
     </Tooltip>
   );
@@ -67,7 +77,7 @@ const RenderLogProbs = ({ logProbs }) => {
   return (
     <Typography level="body-lg">
       {logProbs?.map((logprob, index) => (
-        <SingleChip index={index} logprob={logprob} />
+        <SingleChip index={index} logprob={logprob?.logprobs} />
       ))}
     </Typography>
   );
