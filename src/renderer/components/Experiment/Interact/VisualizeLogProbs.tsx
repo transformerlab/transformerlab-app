@@ -2,6 +2,7 @@ import {
   Button,
   CircularProgress,
   IconButton,
+  Input,
   Sheet,
   Stack,
   Textarea,
@@ -34,13 +35,14 @@ export default function CompletionsPage({
   const [isThinking, setIsThinking] = useState(false);
   const [timeTaken, setTimeTaken] = useState<number | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const outputRef = useRef<HTMLTextAreaElement | null>(null);
 
   function updateFunction(t) {
     let tx = '';
     for (let i = 0; i < t.length; i++) {
       tx += t[i].text;
     }
-    setText(text + tx);
+    setText(tx);
     setLogProbs(t);
   }
 
@@ -91,11 +93,12 @@ export default function CompletionsPage({
     setTimeTaken(-1);
     const startTime = performance.now();
 
-    const originalText = inputRef.current?.value;
+    outputRef.current.value = '';
+    setText('');
 
     const result = await sendCompletionToLLM(
       inputRef.current,
-      inputRef.current
+      outputRef.current
     );
 
     if (result) {
@@ -181,6 +184,15 @@ export default function CompletionsPage({
           justifyContent: 'space-between',
         }}
       >
+        <Input
+          name="starting-text"
+          placeholder="Enter text to complete here"
+          slotProps={{
+            input: {
+              ref: inputRef,
+            },
+          }}
+        ></Input>
         <Sheet
           variant="outlined"
           sx={{
@@ -194,12 +206,12 @@ export default function CompletionsPage({
         >
           <Textarea
             value={text}
-            onChange={(e) => setText(e.target.value)}
             variant="plain"
             name="completion-text"
             minRows={20}
+            readOnly
             slotProps={{
-              textarea: { ref: inputRef, id: 'completion-textarea' },
+              textarea: { id: 'completion-textarea', ref: outputRef },
             }}
             sx={{
               flex: 1,
