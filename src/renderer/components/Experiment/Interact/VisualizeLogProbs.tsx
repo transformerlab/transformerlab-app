@@ -102,7 +102,8 @@ export default function CompletionsPage({
     );
 
     if (result) {
-      // setText(originalText + result);
+      setText(result?.choices?.[0]?.text);
+      setLogProbs(result?.choices[0]?.logprobs);
     }
     const endTime = performance.now();
     setTimeTaken(endTime - startTime);

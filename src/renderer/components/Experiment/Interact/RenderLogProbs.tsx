@@ -33,6 +33,10 @@ function logProbToColor(logprob: number): string {
 }
 
 function renderListOfLogProbs(logProbs, chosenToken, color) {
+  if (!logProbs) {
+    return null;
+  }
+
   var logProbsAsArray = Object.entries(logProbs);
   logProbsAsArray.sort((a, b) => b[1] - a[1]);
 
@@ -76,9 +80,12 @@ function SingleChip({ index, logprob }) {
 const RenderLogProbs = ({ logProbs }) => {
   return (
     <Typography level="body-lg">
-      {logProbs?.map((logprob, index) => (
-        <SingleChip index={index} logprob={logprob?.logprobs} />
-      ))}
+      {Array.isArray(logProbs) &&
+        logProbs?.map((logprob, index) => (
+          <SingleChip index={index} logprob={logprob?.logprobs} />
+        ))}
+      {!Array.isArray(logProbs) &&
+        logProbs?.tokens?.map((token, index) => token)}
     </Typography>
   );
 };

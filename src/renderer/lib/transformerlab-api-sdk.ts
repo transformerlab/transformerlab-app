@@ -448,11 +448,13 @@ export async function sendCompletionReactWay(
     model = adaptor;
   }
 
+  const stream = true;
+
   //console.log('model', model);
 
   const data = {
     model: model,
-    stream: true, // For streaming responses
+    stream: stream, // For streaming responses
     prompt: text,
     temperature,
     max_tokens: maxTokens,
@@ -491,6 +493,11 @@ export async function sendCompletionReactWay(
       ${response_json?.message}`;
     alert(error_text);
     return null;
+  }
+
+  if (!stream) {
+    result = await response.json();
+    return result;
   }
 
   // Read the response as a stream of data
