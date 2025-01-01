@@ -15,6 +15,7 @@ import {
   Option,
   Table,
   Typography,
+  Alert,
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -43,72 +44,91 @@ export default function TransformerLabSettings({}) {
     mutate: jobsMutate,
   } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType(showJobsOfType, ''), fetcher);
 
+  const {
+    data: canLogInToHuggingFace,
+    error: canLogInToHuggingFaceError,
+    isLoading: canLogInToHuggingFaceIsLoading,
+    mutate: canLogInToHuggingFaceMutate,
+  } = useSWR(chatAPI.Endpoints.Models.HuggingFaceLogin(), fetcher);
+
   return (
     <>
       <Typography level="h1" marginBottom={3}>
         Transformer Lab Settings
       </Typography>
-      <Sheet sx={{ width: '100%', overflow: 'auto' }}>
+      <Sheet sx={{ width: '100%', overflowY: 'auto' }}>
+        {canLogInToHuggingFaceIsLoading && <CircularProgress />}
         <Typography level="title-lg" marginBottom={2}>
           Huggingface Credentials:
         </Typography>
-        <FormControl sx={{ maxWidth: '500px' }}>
-          <FormLabel>User Access Token</FormLabel>
-          {hftokenisloading ? (
-            <CircularProgress />
-          ) : (
-            <Input
-              name="hftoken"
-              defaultValue={hftoken}
-              type="password"
-              endDecorator={
-                <IconButton
-                  onClick={() => {
-                    var x = document.getElementsByName('hftoken')[0];
-                    if (x.type === 'text') {
-                      x.type = 'password';
-                    } else {
-                      x.type = 'text';
-                    }
-                    setShowPassword(!showPassword);
-                  }}
+        {canLogInToHuggingFace?.message == 'OK' ? (
+          <Alert color="success">Login to Huggingface Successful</Alert>
+        ) : (
+          <>
+            {' '}
+            <Alert color="danger" sx={{ mb: 1 }}>
+              Login to Huggingface Failed. Please set credentials below.
+            </Alert>
+            <FormControl sx={{ maxWidth: '500px' }}>
+              <FormLabel>User Access Token</FormLabel>
+              {hftokenisloading ? (
+                <CircularProgress />
+              ) : (
+                <Input
+                  name="hftoken"
+                  defaultValue={hftoken}
+                  type="password"
+                  endDecorator={
+                    <IconButton
+                      onClick={() => {
+                        var x = document.getElementsByName('hftoken')[0];
+                        if (x.type === 'text') {
+                          x.type = 'password';
+                        } else {
+                          x.type = 'text';
+                        }
+                        setShowPassword(!showPassword);
+                      }}
+                    >
+                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </IconButton>
+                  }
+                />
+              )}
+              <Button
+                onClick={async () => {
+                  const token = document.getElementsByName('hftoken')[0].value;
+                  await fetch(
+                    chatAPI.Endpoints.Config.Set(
+                      'HuggingfaceUserAccessToken',
+                      token
+                    )
+                  );
+                  // Now manually log in to huggingface
+                  await fetch(chatAPI.Endpoints.Models.HuggingFaceLogin());
+                  hftokenmutate(token);
+                  canLogInToHuggingFaceMutate();
+                }}
+                sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
+              >
+                Save
+              </Button>
+              <FormHelperText>
+                A Huggingface access token is required in order to access
+                certain models and datasets (those marked as "Gated").
+              </FormHelperText>
+              <FormHelperText>
+                Documentation here:
+                <a
+                  href="https://huggingface.co/docs/hub/security-tokens"
+                  target="_blank"
                 >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                </IconButton>
-              }
-            />
-          )}
-          <Button
-            onClick={async () => {
-              const token = document.getElementsByName('hftoken')[0].value;
-              await fetch(
-                chatAPI.Endpoints.Config.Set(
-                  'HuggingfaceUserAccessToken',
-                  token
-                )
-              );
-              // Now manually log in to huggingface
-              await fetch(chatAPI.Endpoints.Models.HuggingFaceLogin());
-              hftokenmutate(token);
-            }}
-            sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
-          >
-            Save
-          </Button>
-          <FormHelperText>
-            A Huggingface access token is required in order to access certain
-            models and datasets (those marked as "Gated").
-          </FormHelperText>
-          <FormHelperText>
-            Documentation here:
-            <a
-              href="https://huggingface.co/docs/hub/security-tokens"
-              target="_blank"
-            >
-              https://huggingface.co/docs/hub/security-tokens
-            </a>
-          </FormHelperText>
-        </FormControl>
+                  https://huggingface.co/docs/hub/security-tokens
+                </a>
+              </FormHelperText>
+            </FormControl>
+          </>
+        )}{' '}
         <Divider sx={{ mt: 2, mb: 2 }} />{' '}
         <Typography level="title-lg" marginBottom={2}>
           Application:
