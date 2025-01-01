@@ -8,8 +8,10 @@ export default function ColorSchemeToggle() {
   return (
     <IconButton
       variant="plain"
-      onClick={() => {
-        setMode(mode === 'light' ? 'dark' : 'light');
+      onClick={async () => {
+        const isDarkMode = await window.darkMode.toggle();
+        console.log('Dark mode is now', isDarkMode ? 'on' : 'off');
+        setMode(isDarkMode ? 'dark' : 'light');
       }}
     >
       {mode === 'light' ? <SunIcon /> : <MoonIcon />}

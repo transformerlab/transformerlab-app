@@ -99,3 +99,8 @@ contextBridge.exposeInMainWorld('sshClient', {
 contextBridge.exposeInMainWorld('autoUpdater', {
   onMessage: (data) => ipcRenderer.on('autoUpdater', data),
 });
+
+contextBridge.exposeInMainWorld('darkMode', {
+  toggle: () => ipcRenderer.invoke('dark-mode:toggle'),
+  system: () => ipcRenderer.invoke('dark-mode:system'),
+});

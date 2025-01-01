@@ -10,7 +10,14 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  shell,
+  ipcMain,
+  dialog,
+  nativeTheme,
+} from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import Store from 'electron-store';
@@ -182,6 +189,19 @@ const startListeningToServerLog = async () => {
     currentlySubscribed = false;
   });
 };
+
+ipcMain.handle('dark-mode:toggle', () => {
+  if (nativeTheme.shouldUseDarkColors) {
+    nativeTheme.themeSource = 'light';
+  } else {
+    nativeTheme.themeSource = 'dark';
+  }
+  return nativeTheme.shouldUseDarkColors;
+});
+
+ipcMain.handle('dark-mode:system', () => {
+  nativeTheme.themeSource = 'system';
+});
 
 startListeningToServerLog();
 

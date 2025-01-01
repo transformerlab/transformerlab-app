@@ -131,6 +131,10 @@ spinning gradient border effect */
   color: rgb(77, 64, 75) !important;
 }
 
+html[data-joy-color-scheme='dark'] .FirstSidebar_Content .Mui-disabled {
+  color: rgb(157, 147, 155) !important;
+}
+
 /* Color for sidebar icons */
 .FirstSidebar_Content .Mui-disabled .MuiListItemDecorator-root {
   color: rgb(156, 144, 144) !important;
