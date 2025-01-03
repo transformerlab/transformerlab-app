@@ -46,16 +46,27 @@ export default function GettingStartedModal({ open, setOpen, server }) {
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
       <ModalDialog sx={{ gap: 0 }}>
-        <Stack direction="row" alignItems="flex-start">
-          <DialogTitle>Transformer Lab Setup</DialogTitle>
-          <ModalClose variant="plain" sx={{ m: 1 }} />
-          <div>
-            <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
-              Get started by downloading a small model from the <BoxesIcon />{' '}
-              Model Zoo. <b>{recommendedModel(cpu, os, device)}</b> could be a
-              great starting point for your {typeOfComputer(cpu, os, device)}.
-            </Typography>
-          </div>
+        <DialogTitle>Transformer Lab Setup</DialogTitle>
+        <ModalClose variant="plain" sx={{ m: 1 }} />
+        <hr />
+        <Stack>
+          <Typography>
+            To get started building with TransformerLab you will need to
+            download a foundation model. 
+            You can either start by using one of the following recommended
+            small models, or you can skip this and download your own model
+            from the <BoxesIcon />{' '} Model Zoo.
+          </Typography>
+          <hr />
+          <Typography level="body-lg" sx={{ fontSize: '20px' }} mb={2}>
+            <b>Recommended Starting Models for {typeOfComputer(cpu, os, device)}:</b>
+          </Typography>
+          <Typography level="body-lg" sx={{ fontSize: '16px' }} mb={2}>
+            {recommendedModel(cpu, os, device)} <b>(Recommended)</b>
+          </Typography>
+          <Typography level="body-lg" sx={{ fontSize: '16px' }} mb={2}>
+            Tiny Llama 1.1B
+          </Typography>
         </Stack>
       </ModalDialog>
     </Modal>
