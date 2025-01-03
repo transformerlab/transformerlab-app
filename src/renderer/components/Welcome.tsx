@@ -1,4 +1,5 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
+import { useState } from 'react';
 
 import { Button, Sheet, Stack, Typography } from '@mui/joy';
 
@@ -17,6 +18,8 @@ import {
 import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
+
+import GettingStartedModal from './GettingStartedModal';
 
 function LogoComponent() {
   return (
@@ -54,6 +57,8 @@ function typeOfComputer(cpu, os, device) {
 }
 
 export default function Welcome() {
+  const [ open, setOpen ] = useState<boolean>(false);
+
   const { server, isLoading, isError } = useServerStats();
 
   const navigate = useNavigate();
@@ -63,6 +68,14 @@ export default function Welcome() {
   const device = server?.device;
 
   return (
+    <>
+
+    <GettingStartedModal
+        open={open}
+        setOpen={setOpen}
+        server={server}
+    />
+
     <Sheet
       sx={{
         overflow: 'hidden',
@@ -156,5 +169,7 @@ export default function Welcome() {
         </div>
       </div>
     </Sheet>
+
+    </>
   );
 }
