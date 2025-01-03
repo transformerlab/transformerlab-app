@@ -216,7 +216,6 @@
     ],
     "extraFiles": [],
     "afterSign": ".erb/scripts/notarize.js",
-    "darkModeSupport": true,
     "mac": {
       "target": {
         "target": "default",
