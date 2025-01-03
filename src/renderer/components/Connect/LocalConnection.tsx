@@ -16,7 +16,7 @@ import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 import LargeTooltip from './LargeTooltip';
 import LogViewer from './LogViewer';
 import { BsFillFileEarmarkPersonFill } from 'react-icons/bs';
-import { error } from 'console';
+import { error, log } from 'console';
 
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
@@ -43,14 +43,18 @@ function setIntervalXTimes(
 }
 
 const Steps = [
-  'CHECK_IF_INSTALLED',
-  'CHECK_VERSION',
-  'CHECK_IF_CONDA_INSTALLED',
-  'CHECK_IF_CONDA_ENVIRONMENT_EXISTS',
-  'CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED',
-  'CHECK_IF_SERVER_RUNNING_ON_PORT_8000',
-  'CHECK_FOR_IMPORTANT_PLUGINS',
+  'CHECK_IF_INSTALLED', //0
+  'CHECK_VERSION', //1
+  'CHECK_IF_CONDA_INSTALLED', //2
+  'CHECK_IF_CONDA_ENVIRONMENT_EXISTS', //3
+  'CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED', //4
+  'CHECK_IF_SERVER_RUNNING_ON_PORT_8000', //5
+  'CHECK_FOR_IMPORTANT_PLUGINS', //6
 ];
+
+function logStep(step) {
+  console.log('useEffect Active Step: ' + step + ': ' + Steps[step]);
+}
 
 function InstallStep({ children = <></>, thisStep, title, activeStep }) {
   return (
@@ -114,7 +118,7 @@ function InstallStepper({ setServer }) {
     if (activeStep !== Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000'))
       return;
 
-    console.log('useEffect Active Step: ' + activeStep);
+    logStep(activeStep);
 
     if (server && !serverError) {
       console.log('The server is up; I think things are good');
@@ -134,7 +138,7 @@ function InstallStepper({ setServer }) {
     if (activeStep !== Steps.indexOf('CHECK_IF_INSTALLED')) return;
     if (!userRequestedInstall) return;
 
-    console.log('useEffect Active Step: ' + activeStep);
+    logStep(activeStep);
 
     (async () => {
       // First check if there are any system requirement issues
@@ -174,8 +178,7 @@ function InstallStepper({ setServer }) {
     if (activeStep !== Steps.indexOf('CHECK_VERSION')) return;
     if (!userRequestedInstall) return;
 
-    console.log('useEffect Active Step: ' + activeStep);
-
+    logStep(activeStep);
     (async () => {
       const ver = await window.electron.ipcRenderer.invoke(
         'server:checkLocalVersion'
@@ -214,7 +217,7 @@ function InstallStepper({ setServer }) {
     if (activeStep !== Steps.indexOf('CHECK_IF_CONDA_INSTALLED')) return;
     if (!userRequestedInstall) return;
 
-    console.log('useEffect Active Step: ' + activeStep);
+    logStep(activeStep);
 
     (async () => {
       const condaExists = await window.electron.ipcRenderer.invoke(
@@ -238,7 +241,7 @@ function InstallStepper({ setServer }) {
       return;
     if (!userRequestedInstall) return;
 
-    console.log('useEffect Active Step: ' + activeStep);
+    logStep(activeStep);
 
     (async () => {
       setInstallStatus('pending');
@@ -265,7 +268,7 @@ function InstallStepper({ setServer }) {
       return;
     if (!userRequestedInstall) return;
 
-    console.log('useEffect Active Step: ' + activeStep);
+    logStep(activeStep);
 
     (async () => {
       const ipcResponse = await window.electron.ipcRenderer.invoke(
@@ -303,7 +306,7 @@ function InstallStepper({ setServer }) {
     if (activeStep !== Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')) return;
     if (!userRequestedInstall) return;
 
-    console.log('useEffect Active Step: ' + activeStep);
+    logStep(activeStep);
 
     (async () => {
       const p = await fetch(
