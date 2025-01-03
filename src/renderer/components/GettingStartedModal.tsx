@@ -1,8 +1,10 @@
 import {
+  Button,
   DialogTitle,
   Modal,
   ModalClose,
   ModalDialog,
+  Radio,
   Stack,
   Typography,
 } from '@mui/joy';
@@ -61,13 +63,42 @@ export default function GettingStartedModal({ open, setOpen, server }) {
           <Typography level="body-lg" sx={{ fontSize: '20px' }} mb={2}>
             <b>Recommended Starting Models for {typeOfComputer(cpu, os, device)}:</b>
           </Typography>
-          <Typography level="body-lg" sx={{ fontSize: '16px' }} mb={2}>
-            {recommendedModel(cpu, os, device)} <b>(Recommended)</b>
-          </Typography>
-          <Typography level="body-lg" sx={{ fontSize: '16px' }} mb={2}>
-            Tiny Llama 1.1B
-          </Typography>
+
+          <tbody>
+            <tr>
+              <td>
+                <input
+                  type="radio"
+                  name="download_initial_model"
+                  value="default"
+                  checked={true}
+                />
+                {recommendedModel(cpu, os, device)}
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <input
+                  type="radio"
+                  name="download_initial_model"
+                  value="tinyllama-1.1B"
+                />
+                Tiny Llama 1.1B
+              </td>
+            </tr>
+          </tbody>
         </Stack>
+        <Button
+            color="neutral"
+            startDecorator={null}
+        >
+            Download selected model
+        </Button>
+        <Button
+            variant="plain"
+        >
+            Skip for now
+        </Button>
       </ModalDialog>
     </Modal>
   );
