@@ -1737,7 +1737,7 @@ export async function downloadPlugin(pluginId: string) {
 }
 
 const fetchAndGetErrorStatus = async (url) => {
-  // console.log('🛎️fetching', url);
+  console.log('🛎️fetching', url);
 
   const res = await fetch(url);
 
@@ -1764,7 +1764,7 @@ export function useCheckLocalConnection() {
 
   // Poll every 2 seconds
   const options = {
-    refreshInterval: 1000,
+    refreshInterval: 500,
     refreshWhenOffline: true,
     refreshWhenHidden: true,
   };
