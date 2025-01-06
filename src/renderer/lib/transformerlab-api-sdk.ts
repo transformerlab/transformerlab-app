@@ -1767,6 +1767,9 @@ export function useCheckLocalConnection() {
     refreshInterval: 500,
     refreshWhenOffline: true,
     refreshWhenHidden: true,
+    shouldRetryOnError: true,
+    errorRetryInterval: 500,
+    errorRetrayCount: 1000,
   };
 
   // eslint-disable-next-line prefer-const
