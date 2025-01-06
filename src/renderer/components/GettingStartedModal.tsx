@@ -101,6 +101,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
           </Button>
           <Button
             variant="plain"
+            onClick={() => setOpen(false)}
           >
             Skip for now
           </Button>
