@@ -65,7 +65,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
           </Typography>
 
           <tbody>
-            <tr>
+            <tr sx={{ gap: 0 }}>
               <td>
                 <input
                   type="radio"
@@ -74,6 +74,9 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                   checked={true}
                 />
                 {recommendedModel(cpu, os, device)}
+                <Typography level="body-sm" textColor="text.tertiary">
+                    A good model for your machine's architecture.
+                </Typography>
               </td>
             </tr>
             <tr>
@@ -84,21 +87,24 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                   value="tinyllama-1.1B"
                 />
                 Tiny Llama 1.1B
+                <Typography level="body-sm" textColor="text.tertiary">
+                    A popular small model based on Llama architecture.
+                </Typography>
               </td>
             </tr>
           </tbody>
-        </Stack>
-        <Button
+          <Button
             color="neutral"
             startDecorator={null}
-        >
+          >
             Download selected model
-        </Button>
-        <Button
+          </Button>
+          <Button
             variant="plain"
-        >
+          >
             Skip for now
-        </Button>
+          </Button>
+        </Stack>
       </ModalDialog>
     </Modal>
   );
