@@ -1,9 +1,9 @@
 import { Box, Button, Sheet } from '@mui/joy';
 import { useEffect, useRef } from 'react';
 
-import 'xterm/css/xterm.css';
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
+import '@xterm/xterm/css/xterm.css';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 
 export default function LogViewer({}) {
   const terminalRef = useRef(null);

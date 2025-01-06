@@ -1,10 +1,10 @@
 import { Button, DialogTitle, Drawer, Sheet } from '@mui/joy';
 import { useEffect, useRef, useState } from 'react';
 
-import { Terminal } from 'xterm';
-import { FitAddon } from 'xterm-addon-fit';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 
-import 'xterm/css/xterm.css';
+import '@xterm/xterm/css/xterm.css';
 
 export default function XtermJSDrawer({
   sshConnection,
