@@ -48,16 +48,19 @@ export default function GettingStartedModal({ open, setOpen, server }) {
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
       <ModalDialog sx={{ gap: 0 }}>
-        <DialogTitle>Transformer Lab Setup</DialogTitle>
+        <DialogTitle>Download your first LLM!</DialogTitle>
         <ModalClose variant="plain" sx={{ m: 1 }} />
         <hr />
         <Stack>
-          <Typography>
-            To get started building with TransformerLab you will need to
-            download a foundation model. 
-            You can either start by using one of the following recommended
-            small models, or you can skip this and download your own model
-            from the <BoxesIcon />{' '} Model Zoo.
+          <Typography level="body-sm">
+            You need a starting model to build with Transformer Lab.
+          </Typography>
+          <Typography level="body-sm">
+            An easy way to start is to download one of the following 
+            recommended small models.
+            You can also skip this and go to the <BoxesIcon size="12px" />{' '} Model Zoo
+            where you can download your own model, or import from 
+            elsewhere on your system.
           </Typography>
           <hr />
           <Typography level="body-lg" sx={{ fontSize: '20px' }} mb={2}>
