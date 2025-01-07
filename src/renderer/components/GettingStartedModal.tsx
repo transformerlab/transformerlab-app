@@ -4,8 +4,8 @@ import {
   Modal,
   ModalClose,
   ModalDialog,
-  Radio,
   Stack,
+  Table,
   Typography,
 } from '@mui/joy';
 
@@ -53,7 +53,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
         <hr />
         <Stack>
           <Typography level="body-sm">
-            You need a starting model to build with Transformer Lab.
+            You need to install a model to build with Transformer Lab.
           </Typography>
           <Typography level="body-sm">
             An easy way to start is to download one of the following 
@@ -67,8 +67,15 @@ export default function GettingStartedModal({ open, setOpen, server }) {
             <b>Recommended Starting Models for {typeOfComputer(cpu, os, device)}:</b>
           </Typography>
 
-          <tbody>
-            <tr sx={{ gap: 0 }}>
+          <Table
+            sx={{
+              ['&.MuiTable-root']: {
+                paddingBottom: '16px', 
+                borderCollapse: 'separate'
+              }
+            }}
+          >
+            <tr>
               <td>
                 <input
                   type="radio"
@@ -76,9 +83,9 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                   value="default"
                   checked={true}
                 />
-                {recommendedModel(cpu, os, device)}
+                {recommendedModel(cpu, os, device)} (recommended)
                 <Typography level="body-sm" textColor="text.tertiary">
-                    A good model for your machine's architecture.
+                    A great starting model for your machine's capabilities. (~1GB)
                 </Typography>
               </td>
             </tr>
@@ -87,15 +94,28 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                 <input
                   type="radio"
                   name="download_initial_model"
-                  value="tinyllama-1.1B"
+                  value="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
                 />
-                Tiny Llama 1.1B
+                Tiny Llama 1.1B Chat
                 <Typography level="body-sm" textColor="text.tertiary">
-                    A popular small model based on Llama architecture.
+                    A popular small model based on Llama architecture. (~2GB)
                 </Typography>
               </td>
             </tr>
-          </tbody>
+            <tr>
+              <td>
+                <input
+                  type="radio"
+                  name="download_initial_model"
+                  value="Qwen/Qwen2.5-1.5B-Instruct"
+                />
+                Qwen2.5-1.5B-Instruct
+                <Typography level="body-sm" textColor="text.tertiary">
+                    A slightly larger model with better performance. (~3GB)
+                </Typography>
+              </td>
+            </tr>
+          </Table>
           <Button
             color="neutral"
             startDecorator={null}
