@@ -35,6 +35,7 @@ import {
   checkDependencies,
   checkIfCondaBinExists,
   getLogFilePath,
+  isPlatformWindows,
 } from './util';
 
 import installExtension, {
@@ -147,7 +148,16 @@ const startListeningToServerLog = async () => {
     }
     fs.writeFileSync(logFile, '');
   }
-  let tail = new Tail(logFile);
+
+  let tailOptions = {};
+
+  // If we are on windows, the engine runs in WSL2 but the app runs in Windows so
+  // iNotify doesn't work. We need to use polling.
+  if (isPlatformWindows()) {
+    tailOptions = { useWatchFile: true, fsWatchOptions: { interval: 500 } };
+  }
+
+  let tail = new Tail(logFile, tailOptions);
 
   let currentlySubscribed = false;
 
@@ -167,7 +177,7 @@ const startListeningToServerLog = async () => {
     }
 
     currentlySubscribed = true;
-    tail = new Tail(logFile);
+    tail = new Tail(logFile, tailOptions);
 
     tail.on('line', function (data) {
       // console.log('main.js: line', data);
