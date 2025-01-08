@@ -144,7 +144,9 @@ const startListeningToServerLog = async () => {
   let options = {};
 
   // if this is windows, we start FileWatcher with option.usePolling = true, otherwise we use the default
-  // and don't provide options:
+  // and don't provide options.
+  // This is because in Windows, the engine runs in WSL2 but the app that watches the logs is running in Windows
+  // and they can't communicate using iNotify directly. (So we poll only in this situation)
   if (isPlatformWindows()) {
     options = { usePolling: true };
   }
