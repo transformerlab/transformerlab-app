@@ -35,7 +35,7 @@ import {
   checkDependencies,
   checkIfCondaBinExists,
   getLogFilePath,
-  isPlatformWindows
+  isPlatformWindows,
 } from './util';
 
 import installExtension, {
@@ -139,7 +139,7 @@ const startListeningToServerLog = async () => {
   // Now listen to the log file and send updates to the renderer
   const logFile = await getLogFilePath();
 
-  console.log(`🤡 Asking Chokidar to start`);
+  // console.log(`🤡 Asking Chokidar to start`);
 
   let options = {};
 
@@ -151,8 +151,6 @@ const startListeningToServerLog = async () => {
 
   const watcher = new FileWatcher(logFile, options);
 
-  let currentlySubscribed = false;
-
   ipcMain.on('serverLog:startListening', async (event) => {
     console.log('main.js: start listening to log');
     event.reply(
@@ -160,32 +158,10 @@ const startListeningToServerLog = async () => {
       '**Connecting to Terminal Output from Transformer Engine**'
     );
     watcher.start();
-    currentlySubscribed = true;
 
     watcher.on('update', (data) => {
       event.reply('serverLog:update', data);
     });
-
-    // if (!tail.isWatching) {
-    //   tail.watch();
-    // }
-    // console.log('logFile', logFile);
-    // if (currentlySubscribed) {
-    //   console.log('already watching');
-    //   return;
-    // }
-
-    // currentlySubscribed = true;
-    // tail = new Tail(logFile);
-
-    // tail.on('line', function (data) {
-    //   // console.log('main.js: line', data);
-    //   event.reply('serverLog:update', data);
-    // });
-
-    // tail.on('error', function (error) {
-    //   console.log('ERROR: ', error);
-    // });
   });
 
   ipcMain.on('serverLog:stopListening', async (event) => {
@@ -195,7 +171,6 @@ const startListeningToServerLog = async () => {
       '**Disconnecting Terminal Output from Transformer Engine**'
     );
     watcher.stop();
-    currentlySubscribed = false;
   });
 };
 
