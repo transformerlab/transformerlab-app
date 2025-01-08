@@ -35,14 +35,14 @@ import {
   checkDependencies,
   checkIfCondaBinExists,
   getLogFilePath,
+  isPlatformWindows
 } from './util';
 
 import installExtension, {
   REACT_DEVELOPER_TOOLS,
 } from 'electron-devtools-installer';
 
-const fs = require('fs');
-const Tail = require('tail').Tail;
+import FileWatcher from './file-watcher';
 
 // ////////////
 // STORAGE
@@ -138,16 +138,18 @@ console.log('setting up listening to log file');
 const startListeningToServerLog = async () => {
   // Now listen to the log file and send updates to the renderer
   const logFile = await getLogFilePath();
-  //create the file if it doesn't exist:
-  if (!fs.existsSync(logFile)) {
-    // first make the directory:
-    const logDir = path.dirname(logFile);
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
-    }
-    fs.writeFileSync(logFile, '');
+
+  console.log(`🤡 Asking Chokidar to start`);
+
+  let options = {};
+
+  // if this is windows, we start FileWatcher with option.usePolling = true, otherwise we use the default
+  // and don't provide options:
+  if (isPlatformWindows()) {
+    options = { usePolling: true };
   }
-  let tail = new Tail(logFile);
+
+  const watcher = new FileWatcher(logFile, options);
 
   let currentlySubscribed = false;
 
@@ -157,26 +159,33 @@ const startListeningToServerLog = async () => {
       'serverLog:update',
       '**Connecting to Terminal Output from Transformer Engine**'
     );
-    if (!tail.isWatching) {
-      tail.watch();
-    }
-    console.log('logFile', logFile);
-    if (currentlySubscribed) {
-      console.log('already watching');
-      return;
-    }
-
+    watcher.start();
     currentlySubscribed = true;
-    tail = new Tail(logFile);
 
-    tail.on('line', function (data) {
-      // console.log('main.js: line', data);
+    watcher.on('update', (data) => {
       event.reply('serverLog:update', data);
     });
 
-    tail.on('error', function (error) {
-      console.log('ERROR: ', error);
-    });
+    // if (!tail.isWatching) {
+    //   tail.watch();
+    // }
+    // console.log('logFile', logFile);
+    // if (currentlySubscribed) {
+    //   console.log('already watching');
+    //   return;
+    // }
+
+    // currentlySubscribed = true;
+    // tail = new Tail(logFile);
+
+    // tail.on('line', function (data) {
+    //   // console.log('main.js: line', data);
+    //   event.reply('serverLog:update', data);
+    // });
+
+    // tail.on('error', function (error) {
+    //   console.log('ERROR: ', error);
+    // });
   });
 
   ipcMain.on('serverLog:stopListening', async (event) => {
@@ -185,7 +194,7 @@ const startListeningToServerLog = async () => {
       'serverLog:update',
       '**Disconnecting Terminal Output from Transformer Engine**'
     );
-    tail.unwatch();
+    watcher.stop();
     currentlySubscribed = false;
   });
 };

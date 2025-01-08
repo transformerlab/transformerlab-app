@@ -15,7 +15,7 @@ const transformerLabDir = path.join(transformerLabRootDir, 'src');
 var localServer: typeof ChildProcess = null;
 
 // Standardize how we decide if app is running on windows
-function isPlatformWindows() {
+export function isPlatformWindows() {
   return process.platform == 'win32';
 }
 
