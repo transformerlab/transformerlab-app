@@ -27,7 +27,9 @@ import {
 import { SiNvidia } from 'react-icons/si';
 
 import { BsGpuCard } from 'react-icons/bs';
-import { FaComputer } from 'react-icons/fa6';
+import { FaComputer, FaW } from 'react-icons/fa6';
+import { FaWindows } from "react-icons/fa6";
+import { FaLinux } from "react-icons/fa6";
 
 import { formatBytes } from 'renderer/lib/utils';
 
@@ -188,7 +190,8 @@ export default function Computer() {
               </Grid>
               <Grid xs={3}>
                 <ComputerCard icon={<LayoutIcon />} title="Operating System">
-                  {server?.platform}
+                { server?.platform.includes('microsoft') && (<FaWindows />) }
+                {server?.platform}
                 </ComputerCard>
               </Grid>
               <Grid xs={3}>
