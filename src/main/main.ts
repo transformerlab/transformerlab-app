@@ -35,14 +35,14 @@ import {
   checkDependencies,
   checkIfCondaBinExists,
   getLogFilePath,
-  isPlatformWindows,
 } from './util';
 
 import installExtension, {
   REACT_DEVELOPER_TOOLS,
 } from 'electron-devtools-installer';
 
-import FileWatcher from './file-watcher';
+const fs = require('fs');
+const Tail = require('tail').Tail;
 
 // ////////////
 // STORAGE
@@ -138,20 +138,18 @@ console.log('setting up listening to log file');
 const startListeningToServerLog = async () => {
   // Now listen to the log file and send updates to the renderer
   const logFile = await getLogFilePath();
-
-  // console.log(`🤡 Asking Chokidar to start`);
-
-  let options = {};
-
-  // if this is windows, we start FileWatcher with option.usePolling = true, otherwise we use the default
-  // and don't provide options.
-  // This is because in Windows, the engine runs in WSL2 but the app that watches the logs is running in Windows
-  // and they can't communicate using iNotify directly. (So we poll only in this situation)
-  if (isPlatformWindows()) {
-    options = { usePolling: true };
+  //create the file if it doesn't exist:
+  if (!fs.existsSync(logFile)) {
+    // first make the directory:
+    const logDir = path.dirname(logFile);
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    fs.writeFileSync(logFile, '');
   }
+  let tail = new Tail(logFile);
 
-  const watcher = new FileWatcher(logFile, options);
+  let currentlySubscribed = false;
 
   ipcMain.on('serverLog:startListening', async (event) => {
     console.log('main.js: start listening to log');
@@ -159,10 +157,25 @@ const startListeningToServerLog = async () => {
       'serverLog:update',
       '**Connecting to Terminal Output from Transformer Engine**'
     );
-    watcher.start();
+    if (!tail.isWatching) {
+      tail.watch();
+    }
+    console.log('logFile', logFile);
+    if (currentlySubscribed) {
+      console.log('already watching');
+      return;
+    }
 
-    watcher.on('update', (data) => {
+    currentlySubscribed = true;
+    tail = new Tail(logFile);
+
+    tail.on('line', function (data) {
+      // console.log('main.js: line', data);
       event.reply('serverLog:update', data);
+    });
+
+    tail.on('error', function (error) {
+      console.log('ERROR: ', error);
     });
   });
 
@@ -172,7 +185,8 @@ const startListeningToServerLog = async () => {
       'serverLog:update',
       '**Disconnecting Terminal Output from Transformer Engine**'
     );
-    watcher.stop();
+    tail.unwatch();
+    currentlySubscribed = false;
   });
 };
 
