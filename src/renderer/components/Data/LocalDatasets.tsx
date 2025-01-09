@@ -12,13 +12,9 @@ import {
   Sheet,
   CircularProgress,
   FormLabel,
-  Typography
+  Typography,
 } from '@mui/joy';
-import {
-  PlusIcon,
-  SearchIcon,
-  StoreIcon,
- } from 'lucide-react';
+import { PlusIcon, SearchIcon, StoreIcon } from 'lucide-react';
 import { Link as ReactRouterLink } from 'react-router-dom';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -129,20 +125,16 @@ export default function LocalDatasets() {
             ))}
 
           {data?.length === 0 && (
-              <Typography
-                level="body-lg"
-                justifyContent="center"
-                margin={5}
-              >
-                You do not have any datasets on your local machine. You can
-                download a dataset by going to the{' '}
-                <ReactRouterLink to="/data">
-                  <StoreIcon />
-                  Dataset Store
-                </ReactRouterLink>
-                .
-              </Typography>
-            )}
+            <Typography level="body-lg" justifyContent="center" margin={5}>
+              You do not have any datasets on your local machine. You can
+              download a dataset by going to the{' '}
+              <ReactRouterLink to="/data">
+                <StoreIcon />
+                Dataset Store
+              </ReactRouterLink>
+              .
+            </Typography>
+          )}
         </Grid>
       </Sheet>
 
