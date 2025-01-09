@@ -16,7 +16,9 @@ import {
     BoxesIcon,
   } from 'lucide-react';
 
-
+import {
+    formatBytes,
+} from '../lib/utils';
 import * as chatAPI from '../lib/transformerlab-api-sdk';
 
 function recommendedStartingModel(cpu : string, os : string, device : string) {
@@ -104,7 +106,8 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                 />
                 {recommended_model.name} (recommended)
                 <Typography level="body-sm" textColor="text.tertiary">
-                    A great starting model for your machine's capabilities. ({recommended_model.size_of_model_in_mb})
+                    A great starting model for your machine's capabilities.
+                    ({formatBytes(recommended_model.size_of_model_in_mb*1024*1024)})
                 </Typography>
               </td>
             </tr>
