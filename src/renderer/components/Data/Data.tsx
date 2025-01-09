@@ -27,10 +27,16 @@ export default function Data() {
             &nbsp; Dataset Store
           </Tab>
         </TabList>
-        <TabPanel value={0} sx={{ overflow: 'auto' }}>
+        <TabPanel
+          value={0}
+          sx={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        >
           <LocalDatasets />
         </TabPanel>
-        <TabPanel value={1} sx={{ overflow: 'auto' }}>
+        <TabPanel
+          value={1}
+          sx={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        >
           <DataStore />
         </TabPanel>
       </Tabs>

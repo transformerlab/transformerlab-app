@@ -46,7 +46,6 @@ export default function DataStore() {
         }}
       >
         <FormControl sx={{ flex: 2 }} size="sm">
-          <FormLabel>&nbsp;</FormLabel>
           <Input
             placeholder="Search"
             value={searchText}
