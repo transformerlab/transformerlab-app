@@ -19,6 +19,7 @@ import {
 import {
     formatBytes,
 } from '../lib/utils';
+import DownloadProgressBox from './Shared/DownloadProgressBox';
 import * as chatAPI from '../lib/transformerlab-api-sdk';
 
 function recommendedStartingModel(cpu : string, os : string, device : string) {
@@ -136,6 +137,12 @@ export default function GettingStartedModal({ open, setOpen, server }) {
               </td>
             </tr>
           </Table>
+
+          {currentlyDownloading && <DownloadProgressBox
+            jobId={-1}
+            assetName={currentlyDownloading}
+          />}
+
           <Button
             color="neutral"
             startDecorator={null}
