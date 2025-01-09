@@ -57,7 +57,7 @@ function typeOfComputer(cpu, os, device) {
 }
 
 export default function Welcome() {
-  const [ open, setOpen ] = useState<boolean>(false);
+  const [ modelDownloadModalOpen, setModelDownloadModalOpen ] = useState<boolean>(false);
 
   const { server, isLoading, isError } = useServerStats();
 
@@ -71,8 +71,8 @@ export default function Welcome() {
     <>
 
     <DownloadFirstModelModal
-        open={open}
-        setOpen={setOpen}
+        open={modelDownloadModalOpen}
+        setOpen={setModelDownloadModalOpen}
         server={server}
     />
 
