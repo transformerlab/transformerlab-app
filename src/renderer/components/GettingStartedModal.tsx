@@ -16,6 +16,9 @@ import {
     BoxesIcon,
   } from 'lucide-react';
 
+
+import * as chatAPI from '../lib/transformerlab-api-sdk';
+
 function recommendedModel(cpu : string, os : string, device : string) {
     if (!cpu || !os || !device) return '';
   
@@ -127,18 +130,28 @@ export default function GettingStartedModal({ open, setOpen, server }) {
             disabled={
                 currentlyDownloading != null
               }
-            onClick={() => {
-                setCurrentlyDownloading("modelname");
-                //setOpen(false);
+            onClick={async () => {
+                const initial_model_id = document.getElementsByName('download_initial_model')[0].value;
+                setCurrentlyDownloading(initial_model_id);
+
+                // Try downloading the model
+                const response = await chatAPI.downloadModelFromHuggingFace(initial_model_id);
+                if (response?.status == 'error') {
+                    alert('Download failed!\n' + response.message);
+                }
+
+                // download complete
+                setCurrentlyDownloading(null);
+                setOpen(false);
             }}
           >
-            Download selected model
+            {currentlyDownloading ? 'Downloading' : 'Download selected model'}
           </Button>
           <Button
             variant="plain"
             onClick={() => setOpen(false)}
           >
-            {currentlyDownloading ? 'Cancel' : 'Skip for now'}
+            {currentlyDownloading ? 'Continue without waiting' : 'Skip for now'}
           </Button>
         </Stack>
       </ModalDialog>
