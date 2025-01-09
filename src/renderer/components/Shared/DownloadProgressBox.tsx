@@ -10,6 +10,7 @@ import {
 import {
     formatBytes,
 } from '../../lib/utils';
+import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
 const fetcher = (url) => fetch(url).then((res) => res.json());

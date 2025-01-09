@@ -11,7 +11,6 @@ import {
   Typography,
 } from '@mui/joy';
 
-
 import {
     BoxesIcon,
   } from 'lucide-react';
