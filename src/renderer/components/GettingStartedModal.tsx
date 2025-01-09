@@ -48,6 +48,8 @@ export default function GettingStartedModal({ open, setOpen, server }) {
   const os = server?.os;
   const device = server?.device;
 
+  const recommended_model = recommendedModel(cpu, os, device);
+
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
       <ModalDialog sx={{ gap: 0 }}>
@@ -83,9 +85,9 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                 <input
                   type="radio"
                   name="download_initial_model"
-                  value="default"
+                  value={recommended_model}
                 />
-                {recommendedModel(cpu, os, device)} (recommended)
+                {recommended_model} (recommended)
                 <Typography level="body-sm" textColor="text.tertiary">
                     A great starting model for your machine's capabilities. (~1GB)
                 </Typography>
