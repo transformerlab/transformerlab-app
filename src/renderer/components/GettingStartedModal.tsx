@@ -60,6 +60,7 @@ function recommendedStartingModel(cpu : string, os : string, device : string) {
 
 export default function GettingStartedModal({ open, setOpen, server }) {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
+  const [jobId, setJobId] = useState(null);
 
   const cpu = server?.cpu;
   const os = server?.os;
@@ -139,7 +140,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
           </Table>
 
           {currentlyDownloading && <DownloadProgressBox
-            jobId={-1}
+            jobId={jobId}
             assetName={currentlyDownloading}
           />}
 
@@ -152,6 +153,14 @@ export default function GettingStartedModal({ open, setOpen, server }) {
             onClick={async () => {
                 const initial_model_id = document.getElementsByName('download_initial_model')[0].value;
                 setCurrentlyDownloading(initial_model_id);
+                setJobId(-1);
+
+                // Create a new job and record the ID of the job so we can track download progress
+                const job_response = await fetch(
+                  chatAPI.Endpoints.Jobs.Create()
+                );
+                const newJobId = await job_response.json();
+                setJobId(newJobId);
 
                 // Try downloading the model
                 const response = await chatAPI.downloadModelFromHuggingFace(initial_model_id);
