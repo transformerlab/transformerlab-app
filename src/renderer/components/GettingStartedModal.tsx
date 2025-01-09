@@ -81,7 +81,6 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                   type="radio"
                   name="download_initial_model"
                   value="default"
-                  checked={true}
                 />
                 {recommendedModel(cpu, os, device)} (recommended)
                 <Typography level="body-sm" textColor="text.tertiary">
