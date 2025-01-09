@@ -19,7 +19,7 @@ import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
-import GettingStartedModal from './GettingStartedModal';
+import DownloadFirstModelModal from './GettingStartedModal';
 
 function LogoComponent() {
   return (
@@ -70,7 +70,7 @@ export default function Welcome() {
   return (
     <>
 
-    <GettingStartedModal
+    <DownloadFirstModelModal
         open={open}
         setOpen={setOpen}
         server={server}

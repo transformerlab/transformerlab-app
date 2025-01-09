@@ -58,7 +58,7 @@ function recommendedStartingModel(cpu : string, os : string, device : string) {
     return `${cpu} based ${os} computer with ${device} support`;
   }
 
-export default function GettingStartedModal({ open, setOpen, server }) {
+export default function DownloadFirstModelModal({ open, setOpen, server }) {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [jobId, setJobId] = useState(null);
 
