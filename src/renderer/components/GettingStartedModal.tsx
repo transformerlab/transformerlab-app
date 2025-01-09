@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import {
   Button,
   DialogTitle,
@@ -40,6 +42,7 @@ function recommendedModel(cpu : string, os : string, device : string) {
   }
 
 export default function GettingStartedModal({ open, setOpen, server }) {
+  const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
 
   const cpu = server?.cpu;
   const os = server?.os;
@@ -118,6 +121,13 @@ export default function GettingStartedModal({ open, setOpen, server }) {
           <Button
             color="neutral"
             startDecorator={null}
+            disabled={
+                currentlyDownloading != null
+              }
+            onClick={() => {
+                setCurrentlyDownloading("modelname");
+                //setOpen(false);
+            }}
           >
             Download selected model
           </Button>
@@ -125,7 +135,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
             variant="plain"
             onClick={() => setOpen(false)}
           >
-            Skip for now
+            {currentlyDownloading ? 'Cancel' : 'Skip for now'}
           </Button>
         </Stack>
       </ModalDialog>
