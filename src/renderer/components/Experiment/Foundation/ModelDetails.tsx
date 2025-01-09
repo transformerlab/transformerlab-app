@@ -15,6 +15,8 @@ import {
   DialogContent,
   CircularProgress,
   DialogTitle,
+  AspectRatio,
+  Skeleton,
 } from '@mui/joy';
 import useSWR from 'swr';
 
@@ -52,7 +54,7 @@ export default function ModelDetails({
   const [huggingfaceModelCardData, setHuggingfaceModelCardData] = useState({});
   const [huggingfaceUploadDialog, setHuggingfaceUploadDialog] = useState(false);
   const [isUploadLoading, setIsUploadLoading] = useState(false);
-  const [modelDetailsData, setModelDetailsData] = useState({});
+  const [modelDetailsData, setModelDetailsData] = useState({ logo: 'loading' });
   const { models, isError, isLoading, mutate } = useModelStatus();
 
   const huggingfaceId = experimentInfo?.config?.foundation;
@@ -122,17 +124,26 @@ export default function ModelDetails({
   return (
     <>
       <Stack direction="row" sx={{ minHeight: '300px' }}>
-        <img
-          src={modelDetailsData?.logo || placeholderLogo}
-          alt=""
-          style={{
-            float: 'left',
-            margin: '0px 40px 0px 0px',
-            width: '300px',
-            objectFit: 'contain',
-            borderRadius: '20px',
-          }}
-        />
+        <AspectRatio
+          variant="plain"
+          ratio="4/4"
+          sx={{ width: 400, pr: 3, borderRadius: 'md' }}
+          objectFit="cover"
+        >
+          <Skeleton loading={modelDetailsData?.logo == 'loading'}>
+            <img
+              src={
+                modelDetailsData?.logo == 'loading'
+                  ? placeholderLogo
+                  : modelDetailsData?.logo
+                  ? modelDetailsData?.logo
+                  : placeholderLogo
+              }
+              alt=""
+              style={{}}
+            />
+          </Skeleton>
+        </AspectRatio>
         <Box
           sx={{
             display: 'flex',
