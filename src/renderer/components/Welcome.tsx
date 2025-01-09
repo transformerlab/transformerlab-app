@@ -19,7 +19,7 @@ import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
-import DownloadFirstModelModal from './GettingStartedModal';
+import DownloadFirstModelModal from './DownloadFirstModelModal';
 
 function LogoComponent() {
   return (
