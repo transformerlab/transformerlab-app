@@ -11,7 +11,7 @@ import {
     formatBytes,
 } from '../../lib/utils';
 
-export default function CurrentDownloadBox({ jobId, assetName }) {
+export default function DownloadProgressBox({ jobId, assetName }) {
 
   const modelDownloadProgress = false;
 
