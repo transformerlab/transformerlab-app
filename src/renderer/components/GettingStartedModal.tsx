@@ -19,23 +19,34 @@ import {
 
 import * as chatAPI from '../lib/transformerlab-api-sdk';
 
-function recommendedModel(cpu : string, os : string, device : string) {
-    if (!cpu || !os || !device) return '';
+function recommendedStartingModel(cpu : string, os : string, device : string) {
   
     if (cpu == 'arm64' && os == 'Darwin') {
-      return 'Llama-3.2-1B-Instruct-4bit (MLX)';
+        return {
+            id: 'mlx-community/Llama-3.2-1B-Instruct-4bit',
+            name: "Llama 3.2 1B Instruct (MLX 4bit)",
+            size_of_model_in_mb: 671.82
+        };
     }
   
     if (device == 'cuda') {
-      return 'Tiny Llama';
+        return {
+            id: 'TinyLlama/TinyLlama-1.1B-Chat-v1.0',
+            name: "Tiny Llama 1.1B Chat",
+            size_of_model_in_mb: 2100.43
+          }
     }
   
-    return 'GGUF models';
-    // return `${cpu}, ${os}, ${device}`;
+    // Default recommendation model
+    return {
+        id: 'bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q6_K.gguf',
+        name: "LLama 3.2 1B Instruct GGUF - Q6_K",
+        size_of_model_in_mb: 1044
+      }
   }
   
   function typeOfComputer(cpu : string, os : string, device : string) {
-    if (!cpu || !os || !device) return '';
+    if (!cpu || !os || !device) return 'Unknown architecture';
   
     if (cpu == 'arm64' && os == 'Darwin') {
       return 'Apple Silicon Mac';
@@ -51,7 +62,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
   const os = server?.os;
   const device = server?.device;
 
-  const recommended_model = recommendedModel(cpu, os, device);
+  const recommended_model = recommendedStartingModel(cpu, os, device);
 
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
@@ -88,12 +99,12 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                 <input
                   type="radio"
                   name="download_initial_model"
-                  value={recommended_model}
+                  value={recommended_model.id}
                   defaultChecked
                 />
-                {recommended_model} (recommended)
+                {recommended_model.name} (recommended)
                 <Typography level="body-sm" textColor="text.tertiary">
-                    A great starting model for your machine's capabilities. (~1GB)
+                    A great starting model for your machine's capabilities. ({recommended_model.size_of_model_in_mb})
                 </Typography>
               </td>
             </tr>
@@ -106,7 +117,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                 />
                 Tiny Llama 1.1B Chat
                 <Typography level="body-sm" textColor="text.tertiary">
-                    A popular small model based on Llama architecture. (~2GB)
+                    A popular small model based on Llama architecture. (2.05GB)
                 </Typography>
               </td>
             </tr>
