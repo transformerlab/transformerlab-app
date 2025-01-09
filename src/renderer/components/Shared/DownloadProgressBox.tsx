@@ -11,9 +11,18 @@ import {
     formatBytes,
 } from '../../lib/utils';
 
+import useSWR from 'swr';
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function DownloadProgressBox({ jobId, assetName }) {
 
-  const modelDownloadProgress = false;
+  const { data: modelDownloadProgress } = useSWR(
+    assetName && jobId != '-1'
+            ? chatAPI.Endpoints.Jobs.Get(jobId)
+            : null,
+        fetcher,
+    { refreshInterval: 2000 }
+  );
 
   return (
     <>
