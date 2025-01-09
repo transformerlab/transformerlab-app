@@ -146,9 +146,11 @@ export default function DatasetCard({
                       throw new Error(response_json.message);
                     }
                     setInstalling(null);
+                    parentMutate();
                   })
                   .catch((error) => {
                     setInstalling(null);
+                    parentMutate();
                     alert('Download failed:\n' + error);
                   });
               }}
