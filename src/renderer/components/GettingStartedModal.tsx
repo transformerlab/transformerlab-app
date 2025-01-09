@@ -69,25 +69,23 @@ export default function GettingStartedModal({ open, setOpen, server }) {
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
       <ModalDialog sx={{ gap: 0 }}>
-        <DialogTitle>Download your first LLM!</DialogTitle>
+        <DialogTitle>Download your first language model!</DialogTitle>
         <ModalClose variant="plain" sx={{ m: 1 }} />
         <hr />
         <Stack>
           <Typography level="body-sm">
-            You need to install a model to build with Transformer Lab.
+            You need a foundation model to build with Transformer Lab.
           </Typography>
           <Typography level="body-sm">
-            An easy way to start is to download one of the following 
-            recommended small models.
-            You can also skip this and go to the <BoxesIcon size="12px" />{' '} Model Zoo
-            where you can download your own model, or import from 
-            elsewhere on your system.
+            We recommend starting with one of the following small models.
+            You can also skip this and go to the <BoxesIcon size="12px" />{' '}
+            <b>Model Zoo</b> where you can download your own model, 
+            or import from elsewhere on your system.
           </Typography>
           <hr />
-          <Typography level="body-lg" sx={{ fontSize: '20px' }} mb={2}>
-            <b>Recommended Starting Models for {typeOfComputer(cpu, os, device)}:</b>
+          <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+            <b>Recommended Starting Models</b>
           </Typography>
-
           <Table
             sx={{
               ['&.MuiTable-root']: {
@@ -104,7 +102,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                   value={recommended_model.id}
                   defaultChecked
                 />
-                {recommended_model.name} (recommended)
+                <b>{recommended_model.name} (<i>recommended</i>)</b>
                 <Typography level="body-sm" textColor="text.tertiary">
                     A great starting model for your machine's capabilities.
                     ({formatBytes(recommended_model.size_of_model_in_mb*1024*1024)})
@@ -118,7 +116,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                   name="download_initial_model"
                   value="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
                 />
-                Tiny Llama 1.1B Chat
+                <b>Tiny Llama 1.1B Chat</b>
                 <Typography level="body-sm" textColor="text.tertiary">
                     A popular small model based on Llama architecture. (2.05GB)
                 </Typography>
@@ -131,7 +129,7 @@ export default function GettingStartedModal({ open, setOpen, server }) {
                   name="download_initial_model"
                   value="Qwen/Qwen2.5-1.5B-Instruct"
                 />
-                Qwen2.5-1.5B-Instruct
+                <b>Qwen2.5-1.5B-Instruct</b>
                 <Typography level="body-sm" textColor="text.tertiary">
                     A slightly larger model with better performance. (~3GB)
                 </Typography>
