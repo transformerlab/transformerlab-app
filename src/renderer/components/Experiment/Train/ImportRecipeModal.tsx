@@ -114,7 +114,15 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
           msg += "Download model " + response.model.path
         }
         if (!response.dataset.downloaded) {
-          msg += "Download dataset " + response.dataset.path
+          msg += "Download dataset " + response.dataset.path;
+          fetch(chatAPI.Endpoints.Dataset.Download(response.dataset.path))
+            .then((response) => {
+            if (!response.ok) {
+                console.log(response);
+                throw new Error(`HTTP Status: ${response.status}`);
+              }
+              return response.json();
+            })
         }
         if (msg) {
           const alert_msg = "Warning: To use this recipe you will need to: " + msg
