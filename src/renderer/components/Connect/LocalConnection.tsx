@@ -110,7 +110,11 @@ function InstallStepper({ setServer }) {
   const [checkIfServerRunning, setCheckIfServerRunning] = useState(0);
 
   const [thinking, setThinking] = useState(false);
-  const { server, error: serverError } = useCheckLocalConnection();
+  const {
+    server,
+    error: serverError,
+    mutate: mutateLocalConnectionCheck,
+  } = useCheckLocalConnection();
 
   // This useEffect will be triggered on every server update -- we use this to check
   // if the server is running on port 8000 and if so, display the Connect button
@@ -575,6 +579,18 @@ function InstallStepper({ setServer }) {
     tryToConnect();
   };
 
+  const logTriggerStrings = ['Uvicorn running on'];
+  const logTriggerFunction = (data) => {
+    console.log('Log Trigger String Happened: ' + data);
+    if (data.includes('Uvicorn running on')) {
+      // call with a 150ms delay just to give the server some time to start up
+      setTimeout(() => {
+        mutateLocalConnectionCheck();
+      }, 150);
+    }
+  };
+  // This function is called if specific strings in the Log are sent
+
   return (
     <Sheet
       sx={{
@@ -683,7 +699,10 @@ function InstallStepper({ setServer }) {
             height: '100%',
           }}
         >
-          <LogViewer />
+          <LogViewer
+            triggerStrings={logTriggerStrings}
+            triggerFunction={logTriggerFunction}
+          />
         </Sheet>
       )}
     </Sheet>

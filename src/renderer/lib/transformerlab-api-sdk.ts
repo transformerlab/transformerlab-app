@@ -1769,14 +1769,15 @@ export function useCheckLocalConnection() {
     refreshWhenHidden: true,
     shouldRetryOnError: true,
     errorRetryInterval: 500,
-    errorRetrayCount: 1000,
+    errorRetryCount: 1000,
   };
 
   // eslint-disable-next-line prefer-const
-  let { data, error } = useSWR(url, fetchAndGetErrorStatus, options);
+  let { data, error, mutate } = useSWR(url, fetchAndGetErrorStatus, options);
 
   return {
     server: data,
     error: error,
+    mutate: mutate,
   };
 }

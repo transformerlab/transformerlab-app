@@ -5,7 +5,10 @@ import '@xterm/xterm/css/xterm.css';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 
-export default function LogViewer({}) {
+export default function LogViewer({
+  triggerStrings = [],
+  triggerFunction = () => {},
+}) {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;
 
@@ -44,6 +47,15 @@ export default function LogViewer({}) {
         // append data to the log-viewer div
         if (term != null) {
           term.writeln(`${data}`);
+        }
+
+        // Go through each trigger string and see if it is in the data
+        if (triggerStrings.length > 0) {
+          for (let i = 0; i < triggerStrings.length; i++) {
+            if (data.includes(triggerStrings[i])) {
+              triggerFunction(data);
+            }
+          }
         }
       });
       window.addEventListener('resize', handleResize);
