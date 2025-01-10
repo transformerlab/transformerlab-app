@@ -33,9 +33,9 @@ function recommendedStartingModel(cpu : string, os : string, device : string) {
   
     if (device == 'cuda') {
         return {
-            id: 'TinyLlama/TinyLlama-1.1B-Chat-v1.0',
-            name: "Tiny Llama 1.1B Chat",
-            size_of_model_in_mb: 2100.43
+            id: 'unsloth/Llama-3.2-1B-Instruct',
+            name: "Llama 3.2 1B Instruct",
+            size_of_model_in_mb: 2365.86
           }
     }
   
