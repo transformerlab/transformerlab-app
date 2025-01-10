@@ -519,6 +519,37 @@ export default function TrainLoRA({ experimentInfo }) {
                                         .humanize()}
                                     </>
                                   )}
+                                <br />
+                                {job?.status == 'COMPLETE' &&
+                                  (job?.job_data?.completion_status ? (
+                                    <>
+                                      Final Training Status:{' '}
+                                      {job?.job_data?.completion_status ==
+                                      'success' ? (
+                                        <Typography
+                                          level="body-sm"
+                                          color="success"
+                                        >
+                                          Success:{' '}
+                                          {job?.job_data?.completion_details}
+                                        </Typography>
+                                      ) : (
+                                        <Typography
+                                          level="body-sm"
+                                          color="danger"
+                                        >
+                                          Success:{' '}
+                                          {job?.job_data?.completion_details}
+                                        </Typography>
+                                      )}
+                                    </>
+                                  ) : (
+                                    /* If we don't have a status, assume it failed */
+                                    <Typography level="body-sm" color="neutral">
+                                      No job completion status. Training may
+                                      have failed. View output for details
+                                    </Typography>
+                                  ))}
                               </>
                             </Stack>
                           )}
