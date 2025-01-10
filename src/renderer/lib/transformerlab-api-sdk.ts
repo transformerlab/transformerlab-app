@@ -977,7 +977,7 @@ Endpoints.Dataset = {
   Info: (datasetId: string) => API_URL() + 'data/info?dataset_id=' + datasetId,
   Preview: (
     datasetId: string,
-    split: string = 'test',
+    split: string = '',
     offset: number = 0,
     limit: number = 10
   ) =>

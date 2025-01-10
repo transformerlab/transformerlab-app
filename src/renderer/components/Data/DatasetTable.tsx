@@ -30,7 +30,8 @@ const DatasetTable = ({ datasetId }) => {
   let pageSize = 10; //Set the number of rows per page
   const offset = (pageNumber - 1) * pageSize; //Calculate current row number to start from
 
-  const [split, setSplit] = useState('train'); //Set the default split to display
+  const [split, setSplit] = useState(''); //Set the default split to display
+  const [showingSplit, setShowingSplit] = useState(''); // We use this to show the user what split is shown without triggering a re-call of the data
 
   //Set the pagination for the dataset
   const setPagination = (totalRows, rowsPerPage) => {
@@ -53,6 +54,11 @@ const DatasetTable = ({ datasetId }) => {
       setDatasetLen(data.data['len']);
       setPagination(data.data['len'], pageSize);
     }
+
+    // set the split in the UI if no split is set:
+    if (data && data.data && split === '') {
+      setShowingSplit(data.data?.['splits'][0]);
+    }
   }, [data, pageSize, datasetLen]);
   return (
     <>
@@ -62,7 +68,7 @@ const DatasetTable = ({ datasetId }) => {
         >
           <Typography level="title-md">Split:</Typography>
           <Select
-            value={split}
+            value={split == '' ? showingSplit : split}
             sx={{ minWidth: '200px' }}
             onChange={(e, newValue) => {
               if (!newValue) return;
