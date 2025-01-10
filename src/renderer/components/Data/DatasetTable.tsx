@@ -13,6 +13,7 @@ import {
   FormLabel,
   LinearProgress,
   Typography,
+  Skeleton,
 } from '@mui/joy';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -62,7 +63,7 @@ const DatasetTable = ({ datasetId }) => {
   }, [data, pageSize, datasetLen]);
   return (
     <>
-      {data?.data?.['splits'] && (
+      {data?.data?.['splits'] ? (
         <FormControl
           sx={{ flexDirection: 'row', gap: 2, alignItems: 'baseline' }}
         >
@@ -90,9 +91,30 @@ const DatasetTable = ({ datasetId }) => {
             Total rows in this split: {datasetLen}
           </Typography>
         </FormControl>
+      ) : (
+        <Skeleton
+          variant="rectangular"
+          width={200}
+          height="3em"
+          sx={{ mb: 2 }}
+          loading={isLoading}
+        />
       )}
       <Box sx={{ overflow: 'auto', height: '100%' }}>
-        {isLoading && <LinearProgress />}
+        {isLoading && (
+          <>
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton
+                key={index}
+                variant="rectangular"
+                width="100%"
+                height="2em"
+                sx={{ mb: 1 }}
+                loading={isLoading}
+              />
+            ))}
+          </>
+        )}
         {data?.status == 'error' && (
           <Alert color="danger">{data?.message}</Alert>
         )}
