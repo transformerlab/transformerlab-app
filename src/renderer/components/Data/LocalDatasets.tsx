@@ -84,7 +84,6 @@ export default function LocalDatasets() {
         }}
       >
         <FormControl sx={{ flex: 2 }} size="sm">
-          <FormLabel>&nbsp;</FormLabel>
           <Input
             placeholder="Search"
             value={searchText}
@@ -137,7 +136,6 @@ export default function LocalDatasets() {
           )}
         </Grid>
       </Sheet>
-
       <Box
         sx={{
           justifyContent: 'space-between',
