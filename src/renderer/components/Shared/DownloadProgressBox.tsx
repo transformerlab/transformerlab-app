@@ -8,6 +8,7 @@ import {
 } from '@mui/joy';
 
 import {
+    clamp,
     formatBytes,
 } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
