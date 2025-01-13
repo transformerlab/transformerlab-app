@@ -16,6 +16,7 @@ import { formatBytes } from 'renderer/lib/utils';
 import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
+import TinyMLXLogo from './Shared/TinyMLXLogo';
 
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
@@ -81,23 +82,56 @@ function StatsBar({ connection, setConnection }) {
     }
   }, [isError]);
 
-  function showVRAM() {
+  function showGPU() {
+    if (server?.os == 'Darwin' && server?.cpu == 'arm64') {
+      return (
+        <span>
+          {' '}
+          <TinyMLXLogo />
+        </span>
+      );
+    }
+
     return (
-      <Stack gap={0} direction="row">
-        VRAM:
-        <div style={{ width: '60px', textAlign: 'center' }}>
-          <div style={{ width: '60px', position: 'absolute', opacity: 0.6 }}>
-            <Sparklines height={20} width={60} data={cs.gpu}>
-              <SparklinesLine color="var(--joy-palette-danger-500)" />
-            </Sparklines>
-          </div>
-          {Math.round(cs.gpu[cs.gpu.length - 1])}%
-        </div>{' '}
-      </Stack>
+      <Tooltip
+        title={showDetailedVRAM()}
+        placement="top"
+        arrow
+        sx={{ fontSize: 12 }}
+        variant="outlined"
+      >
+        <span>
+          <Stack gap={0} direction="row">
+            VRAM:
+            <div style={{ width: '60px', textAlign: 'center' }}>
+              <div
+                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
+              >
+                <Sparklines height={20} width={60} data={cs.gpu}>
+                  <SparklinesLine color="var(--joy-palette-danger-500)" />
+                </Sparklines>
+              </div>
+              {Math.round(cs.gpu[cs.gpu.length - 1])}%
+            </div>{' '}
+            GPU:{' '}
+            {server?.gpu?.map((gpu, index) => (
+              <PercentWithColoredBackgroundMeter
+                key={index}
+                percent={Math.round(gpu?.utilization)}
+              />
+            ))}
+          </Stack>
+        </span>
+      </Tooltip>
     );
   }
 
   function showDetailedVRAM() {
+    // if gpu?.total_memory == 'n/a" then quit:
+    if (gpu?.[0]?.total_memory === 'n/a') {
+      return ' ';
+    }
+
     return (
       <>
         {server?.gpu?.map((gpuDetail, index) => (
@@ -256,22 +290,7 @@ function StatsBar({ connection, setConnection }) {
               </div>
               {Math.round(cs.mem[cs.mem.length - 1])}%
             </div>
-            <Tooltip
-              title={showDetailedVRAM()}
-              placement="top"
-              arrow
-              sx={{ fontSize: 12 }}
-              variant="outlined"
-            >
-              <span>{showVRAM()}</span>
-            </Tooltip>
-            GPU:{' '}
-            {server?.gpu?.map((gpu, index) => (
-              <PercentWithColoredBackgroundMeter
-                key={index}
-                percent={Math.round(gpu?.utilization)}
-              />
-            ))}
+            {showGPU()}
           </span>
         </div>
       )}
