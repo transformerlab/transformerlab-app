@@ -29,13 +29,7 @@ export default function DownloadProgressBox({ jobId, assetName }) {
     <>
       {jobId && (
         <Box>
-          {/* <Typography level="title-md" sx={{ mt: 2 }}>
-            Downloading
-          </Typography> */}
           <Stack>
-            {/* Download Progress: {JSON.stringify(modelDownloadProgress)}
-            Currently Downloading: {JSON.stringify(currentlyDownloading)}&nbsp;
-            Job: {JSON.stringify(jobId)} */}
             <Sheet
               variant="soft"
               color="warning"
@@ -82,9 +76,6 @@ export default function DownloadProgressBox({ jobId, assetName }) {
               )}
             </Sheet>
           </Stack>
-          {/* downloadprogress: {JSON.stringify(modelDownloadProgress)} - currdown:{' '}
-          {JSON.stringify(currentlyDownloading)} - jobid:{' '}
-          {JSON.stringify(jobId)} */}
         </Box>
       )}
     </>
