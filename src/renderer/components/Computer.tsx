@@ -11,7 +11,11 @@ import {
   Input,
   LinearProgress,
   Stack,
+  Tab,
   Table,
+  TabList,
+  TabPanel,
+  Tabs,
   Typography,
 } from '@mui/joy';
 
@@ -76,181 +80,178 @@ export default function Computer() {
   );
 
   return (
-    <Sheet
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-        paddingBottom: '10px',
-        height: '100%',
-        overflowY: 'scroll',
-        overflowX: 'hidden',
-        paddingTop: '1rem',
-      }}
-    >
-      {server && (
-        <>
-          {/* {JSON.stringify(server)} */}
-          <Typography level="h2" paddingBottom={3}>
-            Server Information
-          </Typography>
-          <Sheet className="OrderTableContainer">
-            <Grid container spacing={2} sx={{}}>
-              <Grid xs={2}>
-                <ComputerCard
-                  icon={<FaComputer />}
-                  title="Machine"
-                  description={`${server.os} - ${server.name}`}
-                >
-                  <StatRow title="CPU" value={server?.cpu_percent + '%'} />
-                  <StatRow title="Cores" value={server?.cpu_count} />
-                </ComputerCard>
-              </Grid>
-              <Grid xs={4}>
-                <ComputerCard
-                  icon={<BsGpuCard />}
-                  title={'GPU Specs (' + server.gpu?.length + ')'}
-                  image={undefined}
-                >
-                  {server.gpu?.map((g, i) => {
-                    return (
-                      <Box mb={2}>
-                        <Typography level="title-md">GPU # {i}</Typography>
-                        {g.name.includes('NVIDIA') ? (
-                          <SiNvidia color="#76B900" />
-                        ) : (
-                          '🔥'
-                        )}
-                        &nbsp;
-                        {g.name}
-                        <StatRow
-                          title="Total VRAM"
-                          value={formatBytes(g?.total_memory)}
-                        />
-                        <StatRow
-                          title="Available"
-                          value={formatBytes(g?.free_memory)}
-                        />
-                        {g.total_memory !== 'n/a' && (
-                          <>
-                            <StatRow
-                              title="Used"
-                              value={
-                                <>
-                                  {Math.round(
-                                    (g?.used_memory / g?.total_memory) * 100
-                                  )}
-                                  %
-                                  <LinearProgress
-                                    determinate
-                                    value={
+    <Tabs sx={{ height: '100%', overflow: 'hidden' }}>
+      <TabList>
+        <Tab>Server Information</Tab>
+        <Tab>Python Libraries</Tab>
+      </TabList>
+      <TabPanel value={0}>
+        {server && (
+          <>
+            {/* {JSON.stringify(server)} */}
+            <Typography level="h2" paddingBottom={3}>
+              Server Information
+            </Typography>
+            <Sheet className="OrderTableContainer">
+              <Grid container spacing={2} sx={{}}>
+                <Grid xs={2}>
+                  <ComputerCard
+                    icon={<FaComputer />}
+                    title="Machine"
+                    description={`${server.os} - ${server.name}`}
+                  >
+                    <StatRow title="CPU" value={server?.cpu_percent + '%'} />
+                    <StatRow title="Cores" value={server?.cpu_count} />
+                  </ComputerCard>
+                </Grid>
+                <Grid xs={4}>
+                  <ComputerCard
+                    icon={<BsGpuCard />}
+                    title={'GPU Specs (' + server.gpu?.length + ')'}
+                    image={undefined}
+                  >
+                    {server.gpu?.map((g, i) => {
+                      return (
+                        <Box mb={2}>
+                          <Typography level="title-md">GPU # {i}</Typography>
+                          {g.name.includes('NVIDIA') ? (
+                            <SiNvidia color="#76B900" />
+                          ) : (
+                            '🔥'
+                          )}
+                          &nbsp;
+                          {g.name}
+                          <StatRow
+                            title="Total VRAM"
+                            value={formatBytes(g?.total_memory)}
+                          />
+                          <StatRow
+                            title="Available"
+                            value={formatBytes(g?.free_memory)}
+                          />
+                          {g.total_memory !== 'n/a' && (
+                            <>
+                              <StatRow
+                                title="Used"
+                                value={
+                                  <>
+                                    {Math.round(
                                       (g?.used_memory / g?.total_memory) * 100
-                                    }
-                                    variant="solid"
-                                    sx={{ minWidth: '50px' }}
-                                  />
-                                </>
-                              }
-                            />
-                          </>
-                        )}
-                      </Box>
-                    );
-                  })}
-                </ComputerCard>
-              </Grid>
-              <Grid xs={3}>
-                <ComputerCard icon={<ZapIcon />} title="Acceleration">
-                  <StatRow
-                    title="GPU"
-                    value={server.gpu?.length === 0 ? '❌' : '✅'}
-                  />
-                  <StatRow
-                    title="CUDA"
-                    value={server?.device === 'cuda' ? '✅ ' : '❌'}
-                  />
-                  <StatRow title="CUDA Version" value={server?.cuda_version} />{' '}
-                  <StatRow
-                    title="Python MPS"
-                    value={server?.device === 'mps' ? '✅ ' : '❌'}
-                  />{' '}
-                  <StatRow
-                    title="Flash Attention"
-                    value={
-                      server?.flash_attn_version &&
-                      server?.flash_attn_version != 'n/a'
-                        ? '✅'
-                        : '❌'
-                    }
-                  />
-                  <StatRow
-                    title="Flash Attn Version"
-                    value={server?.flash_attn_version}
-                  />
-                </ComputerCard>
-              </Grid>
-              <Grid xs={3}>
-                <ComputerCard icon={<LayoutIcon />} title="Operating System">
-                  {server?.platform.includes('microsoft') && <FaWindows />}
-                  {server?.platform}
-                </ComputerCard>
-              </Grid>
-              <Grid xs={3}>
-                <ComputerCard icon={<MemoryStickIcon />} title="Memory">
-                  <>
+                                    )}
+                                    %
+                                    <LinearProgress
+                                      determinate
+                                      value={
+                                        (g?.used_memory / g?.total_memory) * 100
+                                      }
+                                      variant="solid"
+                                      sx={{ minWidth: '50px' }}
+                                    />
+                                  </>
+                                }
+                              />
+                            </>
+                          )}
+                        </Box>
+                      );
+                    })}
+                  </ComputerCard>
+                </Grid>
+                <Grid xs={3}>
+                  <ComputerCard icon={<ZapIcon />} title="Acceleration">
                     <StatRow
-                      title="Total"
-                      value={formatBytes(server.memory?.total)}
+                      title="GPU"
+                      value={server.gpu?.length === 0 ? '❌' : '✅'}
                     />
                     <StatRow
-                      title="Available"
-                      value={formatBytes(server.memory?.available)}
+                      title="CUDA"
+                      value={server?.device === 'cuda' ? '✅ ' : '❌'}
+                    />
+                    <StatRow
+                      title="CUDA Version"
+                      value={server?.cuda_version}
+                    />{' '}
+                    <StatRow
+                      title="Python MPS"
+                      value={server?.device === 'mps' ? '✅ ' : '❌'}
+                    />{' '}
+                    <StatRow
+                      title="Flash Attention"
+                      value={
+                        server?.flash_attn_version &&
+                        server?.flash_attn_version != 'n/a'
+                          ? '✅'
+                          : '❌'
+                      }
+                    />
+                    <StatRow
+                      title="Flash Attn Version"
+                      value={server?.flash_attn_version}
+                    />
+                  </ComputerCard>
+                </Grid>
+                <Grid xs={3}>
+                  <ComputerCard icon={<LayoutIcon />} title="Operating System">
+                    {server?.platform.includes('microsoft') && <FaWindows />}
+                    {server?.platform}
+                  </ComputerCard>
+                </Grid>
+                <Grid xs={3}>
+                  <ComputerCard icon={<MemoryStickIcon />} title="Memory">
+                    <>
+                      <StatRow
+                        title="Total"
+                        value={formatBytes(server.memory?.total)}
+                      />
+                      <StatRow
+                        title="Available"
+                        value={formatBytes(server.memory?.available)}
+                      />
+                      <StatRow
+                        title="Percent"
+                        value={server.memory?.percent + '%'}
+                      />
+                    </>
+                  </ComputerCard>
+                </Grid>
+                <Grid xs={3}>
+                  <ComputerCard title="Disk" icon={<DatabaseIcon />}>
+                    <StatRow
+                      title="Total"
+                      value={formatBytes(server.disk?.total)}
+                    />
+                    <StatRow
+                      title="Used"
+                      value={formatBytes(server.disk?.used)}
+                    />
+                    <StatRow
+                      title="Free"
+                      value={formatBytes(server.disk?.free)}
                     />
                     <StatRow
                       title="Percent"
-                      value={server.memory?.percent + '%'}
+                      value={
+                        <>
+                          {server.disk?.percent}%
+                          <LinearProgress
+                            determinate
+                            value={server.disk?.percent}
+                            variant="solid"
+                            sx={{ minWidth: '50px' }}
+                          />
+                        </>
+                      }
                     />
-                  </>
-                </ComputerCard>
+                  </ComputerCard>
+                </Grid>
+                <Grid xs={3}>
+                  <ComputerCard icon={<FaPython />} title="Python Version">
+                    {server.python_version}
+                  </ComputerCard>
+                </Grid>
               </Grid>
-              <Grid xs={3}>
-                <ComputerCard title="Disk" icon={<DatabaseIcon />}>
-                  <StatRow
-                    title="Total"
-                    value={formatBytes(server.disk?.total)}
-                  />
-                  <StatRow
-                    title="Used"
-                    value={formatBytes(server.disk?.used)}
-                  />
-                  <StatRow
-                    title="Free"
-                    value={formatBytes(server.disk?.free)}
-                  />
-                  <StatRow
-                    title="Percent"
-                    value={
-                      <>
-                        {server.disk?.percent}%
-                        <LinearProgress
-                          determinate
-                          value={server.disk?.percent}
-                          variant="solid"
-                          sx={{ minWidth: '50px' }}
-                        />
-                      </>
-                    }
-                  />
-                </ComputerCard>
-              </Grid>
-              <Grid xs={3}>
-                <ComputerCard icon={<FaPython />} title="Python Version">
-                  {server.python_version}
-                </ComputerCard>
-              </Grid>
-            </Grid>
 
-            {/* <h3>System Properties in Electron</h3>
+              {/* <h3>System Properties in Electron</h3>
 
           <Button onClick={getSystemProperties}>
             Print all System Properties
@@ -258,54 +259,75 @@ export default function Computer() {
 
           <br />
           <pre id="info" style={{ whiteSpace: 'pre-wrap' }} /> */}
-          </Sheet>
-        </>
-      )}
-      <Sheet sx={{ height: '800px' }}>
-        <Typography level="h2" paddingTop={2}>
-          Installed Python Libraries
-        </Typography>
-        <Typography level="title-sm" paddingBottom={0}>
-          Conda Environment: {server?.conda_environment} @{' '}
-          {server?.conda_prefix}
-        </Typography>
-        <FormControl size="sm" sx={{ width: '400px' }}>
-          <Input
-            placeholder="Search"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            startDecorator={<SearchIcon />}
-          />
-        </FormControl>
-        {pythonLibraries && (
-          <>
-            <Sheet sx={{ overflow: 'auto', width: 'fit-content' }}>
-              <Table borderAxis="both" sx={{ width: 'auto' }}>
-                <thead>
-                  <tr>
-                    <th>Library</th>
-                    <th>Version</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pythonLibraries
-                    .filter((lib) =>
-                      lib.name.toLowerCase().includes(searchText.toLowerCase())
-                    )
-                    .map((lib) => {
-                      return (
-                        <tr>
-                          <td>{lib.name}</td>
-                          <td>{lib.version}</td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </Table>
             </Sheet>
           </>
-        )}
-      </Sheet>
-    </Sheet>
+        )}{' '}
+      </TabPanel>
+      <TabPanel
+        value={1}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          overflow: 'hidden',
+        }}
+      >
+        <Sheet
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden',
+            gap: '1rem',
+          }}
+        >
+          <Typography level="h2" paddingTop={2}>
+            Installed Python Libraries
+          </Typography>
+          <Typography level="title-sm" paddingBottom={0}>
+            Conda Environment: {server?.conda_environment} @{' '}
+            {server?.conda_prefix}
+          </Typography>
+          <FormControl size="sm" sx={{ width: '400px' }}>
+            <Input
+              placeholder="Search"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              startDecorator={<SearchIcon />}
+            />
+          </FormControl>
+          {pythonLibraries && (
+            <>
+              <Sheet sx={{ overflow: 'auto', width: 'fit-content' }}>
+                <Table borderAxis="both" sx={{ width: 'auto' }}>
+                  <thead>
+                    <tr>
+                      <th>Library</th>
+                      <th>Version</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pythonLibraries
+                      .filter((lib) =>
+                        lib.name
+                          .toLowerCase()
+                          .includes(searchText.toLowerCase())
+                      )
+                      .map((lib) => {
+                        return (
+                          <tr>
+                            <td>{lib.name}</td>
+                            <td>{lib.version}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </Table>
+              </Sheet>
+            </>
+          )}
+        </Sheet>
+      </TabPanel>
+    </Tabs>
   );
 }
