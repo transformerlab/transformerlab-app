@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 
 export default function OutputTerminal({}) {
   useEffect(() => {
-    var source = new EventSource('http://pop-os:8000/stream-logs');
+    var source = new EventSource('http://pop-os:8338/stream-logs');
     source.onmessage = function (event) {
       var logs = document.getElementById('logs');
       logs.innerHTML += event.data + '<br>';

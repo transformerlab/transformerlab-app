@@ -48,7 +48,7 @@ const Steps = [
   'CHECK_IF_CONDA_INSTALLED', //2
   'CHECK_IF_CONDA_ENVIRONMENT_EXISTS', //3
   'CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED', //4
-  'CHECK_IF_SERVER_RUNNING_ON_PORT_8000', //5
+  'CHECK_IF_SERVER_RUNNING_ON_PORT_8338', //5
   'CHECK_FOR_IMPORTANT_PLUGINS', //6
 ];
 
@@ -117,22 +117,22 @@ function InstallStepper({ setServer }) {
   } = useCheckLocalConnection();
 
   // This useEffect will be triggered on every server update -- we use this to check
-  // if the server is running on port 8000 and if so, display the Connect button
+  // if the server is running on port 8338 and if so, display the Connect button
   useEffect(() => {
-    if (activeStep !== Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000'))
+    if (activeStep !== Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8338'))
       return;
 
     logStep(activeStep);
 
     if (server && !serverError) {
       console.log('The server is up; I think things are good');
-      setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1);
+      setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8338') + 1);
       setThinking(false);
       return;
     } else {
       console.log('we are on step 6 and the server is not up');
       if (userRequestedInstall) {
-        stepsFunctions[Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')]();
+        stepsFunctions[Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8338')]();
       }
     }
   }, [server, activeStep, userRequestedInstall]);
@@ -314,7 +314,7 @@ function InstallStepper({ setServer }) {
 
     (async () => {
       const p = await fetch(
-        'http://localhost:8000/plugins/list_missing_plugins_for_current_platform'
+        'http://localhost:8338/plugins/list_missing_plugins_for_current_platform'
       );
       const json = await p.json();
       setMissingPlugins(json);
@@ -331,7 +331,7 @@ function InstallStepper({ setServer }) {
   }, [activeStep, userRequestedInstall]);
 
   function tryToConnect() {
-    const fullServer = 'http://' + 'localhost' + ':' + '8000' + '/';
+    const fullServer = 'http://' + 'localhost' + ':' + '8338' + '/';
     window.TransformerLab = {};
     window.TransformerLab.API_URL = fullServer;
     setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
@@ -345,7 +345,7 @@ function InstallStepper({ setServer }) {
     // before starting the process, check one more time if it is running
     if (server && !serverError) {
       setThinking(false);
-      setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000') + 1);
+      setActiveStep(Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8338') + 1);
       return;
     }
 
@@ -534,7 +534,7 @@ function InstallStepper({ setServer }) {
   async function checkForPlugins() {
     setInstallingPlugins(true);
     await fetch(
-      'http://localhost:8000/plugins/install_missing_plugins_for_current_platform'
+      'http://localhost:8338/plugins/install_missing_plugins_for_current_platform'
     );
     setInstallingPlugins(false);
     setMissingPlugins([]);
@@ -565,7 +565,7 @@ function InstallStepper({ setServer }) {
       await installDependencies();
       setThinking(false);
     };
-  stepsFunctions[Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')] =
+  stepsFunctions[Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8338')] =
     async () => {
       await runServer();
       // don't run set thinking -- server needs to be polled
@@ -661,8 +661,8 @@ function InstallStepper({ setServer }) {
               activeStep={activeStep}
             ></InstallStep>
             <InstallStep
-              thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8000')}
-              title="Check if the Transformer Lab Engine is Running Locally on Port 8000"
+              thisStep={Steps.indexOf('CHECK_IF_SERVER_RUNNING_ON_PORT_8338')}
+              title="Check if the Transformer Lab Engine is Running Locally on Port 8338"
               activeStep={activeStep}
             ></InstallStep>
             <InstallStep

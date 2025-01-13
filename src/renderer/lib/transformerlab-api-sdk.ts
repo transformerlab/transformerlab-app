@@ -1760,7 +1760,7 @@ const fetchAndGetErrorStatus = async (url) => {
  * Check your localhost to see if the server is active
  */
 export function useCheckLocalConnection() {
-  const url = 'http://localhost:8000/' + 'server/info';
+  const url = 'http://localhost:8338/' + 'server/info';
 
   // Poll every 2 seconds
   const options = {

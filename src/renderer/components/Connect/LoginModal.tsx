@@ -212,7 +212,7 @@ export default function LoginModal({
                 </FormControl>
                 <FormControl>
                   <FormLabel>Server Port</FormLabel>
-                  <Input required defaultValue="8000" placeholder="8000" />
+                  <Input required defaultValue="8338" placeholder="8338" />
                 </FormControl>
                 <Button
                   type="submit"
@@ -313,7 +313,7 @@ export default function LoginModal({
 
                 setTerminalDrawerOpen(true);
 
-                const fullServer = 'http://' + host + ':' + '8000' + '/';
+                const fullServer = 'http://' + host + ':' + '8338' + '/';
 
                 window.TransformerLab = {};
                 window.TransformerLab.API_URL = fullServer;
@@ -373,12 +373,12 @@ export default function LoginModal({
                 <FormControl>
                   <Checkbox
                     name="create_reverse_tunnel"
-                    label="Create reverse tunnel on port 8000"
+                    label="Create reverse tunnel on port 8338"
                     defaultChecked
                   />
                   <FormHelperText>
-                    This will create a reverse tunnel connecting localhost:8000
-                    → remote_host:8000, creating a secure connection to the API
+                    This will create a reverse tunnel connecting localhost:8338
+                    → remote_host:8338, creating a secure connection to the API
                     without opening additional ports.
                   </FormHelperText>
                 </FormControl>
@@ -435,7 +435,7 @@ export default function LoginModal({
                             setTerminalDrawerOpen(true);
 
                             const fullServer =
-                              'http://' + connection.host + ':' + '8000' + '/';
+                              'http://' + connection.host + ':' + '8338' + '/';
 
                             window.TransformerLab = {};
                             window.TransformerLab.API_URL = fullServer;
