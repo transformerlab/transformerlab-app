@@ -85,7 +85,7 @@ function StatsBar({ connection, setConnection }) {
   function showGPU() {
     if (server?.os == 'Darwin' && server?.cpu == 'arm64') {
       return (
-        <span>
+        <span style={{ opacity: 0.6 }}>
           {' '}
           <TinyMLXLogo />
         </span>
@@ -128,7 +128,7 @@ function StatsBar({ connection, setConnection }) {
 
   function showDetailedVRAM() {
     // if gpu?.total_memory == 'n/a" then quit:
-    if (gpu?.[0]?.total_memory === 'n/a') {
+    if (server?.gpu?.[0]?.total_memory === 'n/a') {
       return ' ';
     }
 
