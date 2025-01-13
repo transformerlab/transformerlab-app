@@ -17,7 +17,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function DownloadProgressBox({ jobId, assetName }) {
 
-  const { data: modelDownloadProgress } = useSWR(
+  const { data: downloadProgress } = useSWR(
     assetName && jobId != '-1'
             ? chatAPI.Endpoints.Jobs.Get(jobId)
             : null,
@@ -39,11 +39,11 @@ export default function DownloadProgressBox({ jobId, assetName }) {
                 Downloading
                 <Chip variant="soft">{assetName}</Chip>
                 {' - '}
-                {modelDownloadProgress?.job_data?.total_size_of_model_in_mb >
+                {downloadProgress?.job_data?.total_size_of_model_in_mb >
                   0 && (
                   <>
                     {clamp(
-                      Number.parseFloat(modelDownloadProgress?.progress),
+                      Number.parseFloat(downloadProgress?.progress),
                       0,
                       100
                     ).toFixed(0)}
@@ -51,7 +51,7 @@ export default function DownloadProgressBox({ jobId, assetName }) {
                   </>
                 )}
                 <>
-                  {modelDownloadProgress?.job_data?.downloaded != 0
+                  {downloadProgress?.job_data?.downloaded != 0
                     ? formatBytes(
                         modelDownloadProgress?.job_data?.downloaded *
                           1024 *
@@ -61,13 +61,13 @@ export default function DownloadProgressBox({ jobId, assetName }) {
                   ↓
                 </>
               </Typography>
-              {modelDownloadProgress?.progress !== -1 && (
+              {downloadProgress?.progress !== -1 && (
                 <>
-                  {modelDownloadProgress?.job_data?.total_size_of_model_in_mb >
+                  {downloadProgress?.job_data?.total_size_of_model_in_mb >
                   0 ? (
                     <LinearProgress
                       determinate
-                      value={clamp(modelDownloadProgress?.progress, 0, 100)}
+                      value={clamp(downloadProgress?.progress, 0, 100)}
                     />
                   ) : (
                     <LinearProgress />
