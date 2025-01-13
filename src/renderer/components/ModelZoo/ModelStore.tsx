@@ -106,7 +106,7 @@ export default function ModelStore() {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [modelDetailsId, setModelDetailsId] = useState(null);
   const [searchText, setSearchText] = useState('');
-  const [filters, setFilters] = useState({archived: false});
+  const [filters, setFilters] = useState({ archived: false });
   const navigate = useNavigate();
 
   const {
@@ -130,10 +130,10 @@ export default function ModelStore() {
 
   // check if we have a Hugging Face access token
   const { data: hftoken } = useSWR(
-      chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
-      fetcher
+    chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
+    fetcher
   );
-  const isHFAccessTokenSet = (hftoken && hftoken.length > 0);
+  const isHFAccessTokenSet = hftoken && hftoken.length > 0;
 
   // On page load, check if there are any models currently being downloaded, and if so,
   // Record the jobID and model Name
@@ -165,7 +165,7 @@ export default function ModelStore() {
   const renderFilters = () => (
     <>
       <FormControl size="sm">
-      <FormLabel>Status</FormLabel>
+        <FormLabel>Status</FormLabel>
         <Select
           placeholder="Hide Archived"
           slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
@@ -378,16 +378,16 @@ export default function ModelStore() {
                   <td>
                     <Typography level="title-md" marginLeft={2}>
                       {row.new && (
-                        <Chip
-                          variant="outlined"
-                          size="sm"
-                          color="success"
-                        >
+                        <Chip variant="outlined" size="sm" color="success">
                           NEW!
                         </Chip>
                       )}
                       {row.name}&nbsp;
-                      <a href={getModelHuggingFaceURL(row)} target="_blank">
+                      <a
+                        href={getModelHuggingFaceURL(row)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         {row.gated ? (
                           <Chip
                             variant="outlined"
@@ -400,15 +400,12 @@ export default function ModelStore() {
                         ) : (
                           <ExternalLinkIcon size="14px" />
                         )}
-                        {row.tags && row.tags.map((tag) => (
-                          <Chip
-                            variant="outlined"
-                            size="sm"
-                            color="success"
-                          >
-                            {tag}
-                          </Chip>
-                        ))}
+                        {row.tags &&
+                          row.tags.map((tag) => (
+                            <Chip variant="outlined" size="sm" color="success">
+                              {tag}
+                            </Chip>
+                          ))}
                       </a>
                     </Typography>
                   </td>
