@@ -53,7 +53,7 @@ export default function DownloadProgressBox({ jobId, assetName }) {
                 <>
                   {downloadProgress?.job_data?.downloaded != 0
                     ? formatBytes(
-                        modelDownloadProgress?.job_data?.downloaded *
+                        downloadProgress?.job_data?.downloaded *
                           1024 *
                           1024
                       )
