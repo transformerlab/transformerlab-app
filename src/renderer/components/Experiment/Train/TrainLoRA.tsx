@@ -46,6 +46,8 @@ import ImportRecipeModal from './ImportRecipeModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import CurrentDownloadBox from 'renderer/components/currentDownloadBox';
+import DownloadProgressBox from 'renderer/components/Shared/DownloadProgressBox';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -102,6 +104,9 @@ export default function TrainLoRA({ experimentInfo }) {
   const [templateID, setTemplateID] = useState('-1');
   const [currentPlugin, setCurrentPlugin] = useState('');
 
+  const [jobId, setJobId] = useState(null);
+  const [downloadingModelName, setDownloadingModelName] = useState(null);
+
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.GET_TRAINING_TEMPLATE_URL(),
     fetcher
@@ -117,6 +122,20 @@ export default function TrainLoRA({ experimentInfo }) {
   } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('TRAIN', ''), fetcher, {
     refreshInterval: 2000,
   });
+
+  useEffect(() => {
+      fetch(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'))
+        .then(async (response) => {
+          const jobs = await response.json();
+          if (jobs.length) {
+            setJobId(jobs[0]?.id);
+            setDownloadingModelName(jobs[0]?.job_data.model)
+          }
+        })
+        .catch((e) => {
+          console.log(e);
+        });
+    }, []);
 
   //Fetch available training plugins
   const {
@@ -173,6 +192,7 @@ export default function TrainLoRA({ experimentInfo }) {
           overflow: 'hidden',
         }}
       >
+        <DownloadProgressBox jobId={jobId} assetName={downloadingModelName}/>
         {/* <Typography level="h1">Train</Typography> */}
         <Stack direction="row" justifyContent="space-between" gap={2}>
           <Typography level="title-md" startDecorator={<GraduationCapIcon />}>
