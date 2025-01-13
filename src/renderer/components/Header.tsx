@@ -17,6 +17,7 @@ import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 import TinyMLXLogo from './Shared/TinyMLXLogo';
+import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
 
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
@@ -100,7 +101,7 @@ function StatsBar({ connection, setConnection }) {
         sx={{ fontSize: 12 }}
         variant="outlined"
       >
-        <span>
+        <span id="hoo">
           <Stack gap={0} direction="row">
             VRAM:
             <div style={{ width: '60px', textAlign: 'center' }}>
@@ -120,7 +121,12 @@ function StatsBar({ connection, setConnection }) {
                 percent={Math.round(gpu?.utilization)}
               />
             ))}
+            <span style={{ display: 'flex', alignItems: 'center' }}>
+          {server?.device == 'cuda' && (
+            <TinyNVIDIALogo/>
+          )}</span>
           </Stack>
+
         </span>
       </Tooltip>
     );
@@ -363,6 +369,7 @@ function PercentWithColoredBackgroundMeter({ percent }) {
         justifyContent: 'center',
         minWidth: '38px',
         padding: '12px 0px 12px 5px',
+        marginRight: '3px',
         height: '20px',
         backgroundColor:
           percent > 80
