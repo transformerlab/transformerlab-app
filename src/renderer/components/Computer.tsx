@@ -28,8 +28,8 @@ import { SiNvidia } from 'react-icons/si';
 
 import { BsGpuCard } from 'react-icons/bs';
 import { FaComputer, FaW } from 'react-icons/fa6';
-import { FaWindows } from "react-icons/fa6";
-import { FaLinux } from "react-icons/fa6";
+import { FaWindows } from 'react-icons/fa6';
+import { FaLinux } from 'react-icons/fa6';
 
 import { formatBytes } from 'renderer/lib/utils';
 
@@ -83,7 +83,8 @@ export default function Computer() {
         gap: '1rem',
         paddingBottom: '10px',
         height: '100%',
-        overflow: 'hidden',
+        overflowY: 'scroll',
+        overflowX: 'hidden',
         paddingTop: '1rem',
       }}
     >
@@ -190,8 +191,8 @@ export default function Computer() {
               </Grid>
               <Grid xs={3}>
                 <ComputerCard icon={<LayoutIcon />} title="Operating System">
-                { server?.platform.includes('microsoft') && (<FaWindows />) }
-                {server?.platform}
+                  {server?.platform.includes('microsoft') && <FaWindows />}
+                  {server?.platform}
                 </ComputerCard>
               </Grid>
               <Grid xs={3}>
@@ -260,48 +261,51 @@ export default function Computer() {
           </Sheet>
         </>
       )}
-      <Typography level="h2" paddingTop={2}>
-        Installed Python Libraries
-      </Typography>
-      <Typography level="title-sm" paddingBottom={0}>
-        Conda Environment: {server?.conda_environment} @ {server?.conda_prefix}
-      </Typography>
-      <FormControl size="sm" sx={{ width: '400px' }}>
-        <Input
-          placeholder="Search"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          startDecorator={<SearchIcon />}
-        />
-      </FormControl>
-      {pythonLibraries && (
-        <>
-          <Sheet sx={{ overflow: 'auto', width: 'fit-content' }}>
-            <Table borderAxis="both" sx={{ width: 'auto' }}>
-              <thead>
-                <tr>
-                  <th>Library</th>
-                  <th>Version</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pythonLibraries
-                  .filter((lib) =>
-                    lib.name.toLowerCase().includes(searchText.toLowerCase())
-                  )
-                  .map((lib) => {
-                    return (
-                      <tr>
-                        <td>{lib.name}</td>
-                        <td>{lib.version}</td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </Table>
-          </Sheet>
-        </>
-      )}
+      <Sheet sx={{ height: '800px' }}>
+        <Typography level="h2" paddingTop={2}>
+          Installed Python Libraries
+        </Typography>
+        <Typography level="title-sm" paddingBottom={0}>
+          Conda Environment: {server?.conda_environment} @{' '}
+          {server?.conda_prefix}
+        </Typography>
+        <FormControl size="sm" sx={{ width: '400px' }}>
+          <Input
+            placeholder="Search"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            startDecorator={<SearchIcon />}
+          />
+        </FormControl>
+        {pythonLibraries && (
+          <>
+            <Sheet sx={{ overflow: 'auto', width: 'fit-content' }}>
+              <Table borderAxis="both" sx={{ width: 'auto' }}>
+                <thead>
+                  <tr>
+                    <th>Library</th>
+                    <th>Version</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pythonLibraries
+                    .filter((lib) =>
+                      lib.name.toLowerCase().includes(searchText.toLowerCase())
+                    )
+                    .map((lib) => {
+                      return (
+                        <tr>
+                          <td>{lib.name}</td>
+                          <td>{lib.version}</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </Table>
+            </Sheet>
+          </>
+        )}
+      </Sheet>
     </Sheet>
   );
 }
