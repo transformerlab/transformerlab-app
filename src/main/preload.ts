@@ -103,4 +103,7 @@ contextBridge.exposeInMainWorld('autoUpdater', {
 contextBridge.exposeInMainWorld('darkMode', {
   toggle: () => ipcRenderer.invoke('dark-mode:toggle'),
   system: () => ipcRenderer.invoke('dark-mode:system'),
+  setMode: (value) => ipcRenderer.invoke('dark-mode:set', value),
+  onUpdate: (callback) =>
+    ipcRenderer.on('dark-mode:updated', (_event, value) => callback(value)),
 });

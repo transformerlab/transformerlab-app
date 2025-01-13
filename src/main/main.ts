@@ -200,18 +200,40 @@ const startListeningToServerLog = async () => {
   });
 };
 
-ipcMain.handle('dark-mode:toggle', () => {
-  if (nativeTheme.shouldUseDarkColors) {
-    nativeTheme.themeSource = 'light';
-  } else {
-    nativeTheme.themeSource = 'dark';
-  }
-  return nativeTheme.shouldUseDarkColors;
+/***********************
+ * DARK MODE stuff
+ ***********************/
+// Listn to nativeTheme update change from the OS:
+nativeTheme.on('updated', () => {
+  console.log('nativeTheme updated', nativeTheme.shouldUseDarkColors);
+  mainWindow?.webContents.send(
+    'dark-mode:updated',
+    nativeTheme.shouldUseDarkColors
+  );
 });
+
+// ipcMain.handle('dark-mode:toggle', () => {
+//   console.log('dark-mode:toggle');
+//   console.log(nativeTheme);
+//   if (nativeTheme.shouldUseDarkColors) {
+//     nativeTheme.themeSource = 'light';
+//   } else {
+//     nativeTheme.themeSource = 'dark';
+//   }
+//   return nativeTheme.shouldUseDarkColors;
+// });
+
+// ipcMain.handle('dark-mode:set', (_event, shouldUseDarkColors) => {
+//   console.log('dark-mode:set', shouldUseDarkColors);
+//   nativeTheme.themeSource = shouldUseDarkColors ? 'dark' : 'light';
+// });
 
 ipcMain.handle('dark-mode:system', () => {
   nativeTheme.themeSource = 'system';
 });
+/***********************
+ * DARK MODE stuff END
+ ***********************/
 
 startListeningToServerLog();
 
