@@ -125,23 +125,15 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
             });
         }
         if (!response.model.downloaded) {
-          msg += "\n Download model " + response.model.path + ", please go to the model zoo to download it";
-          // fetch(chatAPI.downloadModelFromHuggingFace(response.model.path))
-          // .then((response) => {
-          //   if (!response.ok) {
-          //     console.log(response);
-          //     throw new Error(`HTTP Status: ${response.status}`);
-          //   }
-          //   return response.json();
-          // })
-          // .then((response_json) => {
-          //   if (response_json?.status == 'error') {
-          //     throw new Error(response_json.message);
-          //   }
-          // })
-          //   .catch((error) => {
-          //     alert('Download failed:\n' + error);
-          //   });
+          msg += "\n Download model " + response.model.path + ", this will be done automatically";
+          chatAPI.downloadModelFromHuggingFace(response.model.path)
+          .then((response) => {
+            if (response.status == "error") {
+              console.log(response);
+              throw new Error(`${response.message}`);
+            }
+            return response;
+          })
         }
         if (msg) {
           const alert_msg = "Warning: To use this recipe you will need to: " + msg
