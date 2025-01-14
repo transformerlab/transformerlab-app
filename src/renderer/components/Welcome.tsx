@@ -5,7 +5,6 @@ import { Button, Sheet, Stack, Typography } from '@mui/joy';
 
 import labImage from '../img/lab.jpg';
 
-import flaskLogo from '../img/flask.png';
 import {
   ArrowRightCircleIcon,
   BoxesIcon,
@@ -20,16 +19,7 @@ import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 import DownloadFirstModelModal from './DownloadFirstModelModal';
-
-function LogoComponent() {
-  return (
-    <img
-      src={flaskLogo}
-      width="38"
-      style={{ verticalAlign: 'middle', marginBottom: '10px' }}
-    />
-  );
-}
+import HexLogo from './Shared/HexLogo';
 
 function recommendedModel(cpu, os, device) {
   if (!cpu || !os || !device) return '';
@@ -57,7 +47,8 @@ function typeOfComputer(cpu, os, device) {
 }
 
 export default function Welcome() {
-  const [ modelDownloadModalOpen, setModelDownloadModalOpen ] = useState<boolean>(false);
+  const [modelDownloadModalOpen, setModelDownloadModalOpen] =
+    useState<boolean>(false);
 
   const { server, isLoading, isError } = useServerStats();
 
@@ -69,74 +60,75 @@ export default function Welcome() {
 
   return (
     <>
-
-    <DownloadFirstModelModal
+      <DownloadFirstModelModal
         open={modelDownloadModalOpen}
         setOpen={setModelDownloadModalOpen}
         server={server}
-    />
+      />
 
-    <Sheet
-      sx={{
-        overflow: 'hidden',
-        height: 'calc(100% - 1em)',
-        backgroundImage: `url("${labImage}")`,
-        backgroundRepeat: 'no-repeat',
-        backgroundSize: 'cover',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-        gap: 3,
-      }}
-    >
-      <div
-        style={{
-          backgroundColor: 'var(--joy-palette-background-surface)',
-          opacity: '0.85',
-          padding: '2rem',
+      <Sheet
+        sx={{
+          overflow: 'hidden',
+          height: 'calc(100% - 1em)',
+          backgroundImage: `url("${labImage}")`,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'cover',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
+          gap: 3,
         }}
       >
-        <Typography level="h1" color="neutral">
-          <LogoComponent />
-          Transformer Lab
-        </Typography>
-        <Typography level="h1" sx={{ fontSize: '48px' }} mb={2}>
-          Let's start your next Experiment! 🤓
-        </Typography>
-        <div>
-          <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
-            Get started by downloading a small model from the <BoxesIcon />{' '}
-            Model Zoo. <b>{recommendedModel(cpu, os, device)}</b> could be a
-            great starting point for your {typeOfComputer(cpu, os, device)}.
-            After downloading a model, you can:
-          </Typography>
-          <Stack
-            direction="column"
-            justifyContent="flex-start"
-            alignItems="flex-start"
-            spacing={2}
+        <div
+          style={{
+            backgroundColor: 'var(--joy-palette-background-surface)',
+            opacity: '0.85',
+            padding: '2rem',
+          }}
+        >
+          <Typography
+            level="h1"
+            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
           >
-            <ul>
-              <li>
-                <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                  <b>Run it</b> by clicking on <LayersIcon /> Foundation then
-                  press <PlayCircleIcon /> Run{' '}
-                </Typography>
-              </li>
-              <li>
-                <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                  Once a model is running, you can <b>Chat</b> with it by
-                  clicking on <MessageCircleIcon /> Interact
-                </Typography>
-              </li>
-              <li>
-                <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                  <b>Fine tune</b> a model by clicking on <GraduationCapIcon />{' '}
-                  Train
-                </Typography>
-              </li>
-            </ul>
-            {/* <Button
+            <HexLogo width={40} height={40} /> Transformer Lab
+          </Typography>
+          <Typography level="h1" sx={{ fontSize: '48px' }} mb={2}>
+            Let's start your next Experiment! 🤓
+          </Typography>
+          <div>
+            <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
+              Get started by downloading a small model from the <BoxesIcon />{' '}
+              Model Zoo. <b>{recommendedModel(cpu, os, device)}</b> could be a
+              great starting point for your {typeOfComputer(cpu, os, device)}.
+              After downloading a model, you can:
+            </Typography>
+            <Stack
+              direction="column"
+              justifyContent="flex-start"
+              alignItems="flex-start"
+              spacing={2}
+            >
+              <ul>
+                <li>
+                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                    <b>Run it</b> by clicking on <LayersIcon /> Foundation then
+                    press <PlayCircleIcon /> Run{' '}
+                  </Typography>
+                </li>
+                <li>
+                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                    Once a model is running, you can <b>Chat</b> with it by
+                    clicking on <MessageCircleIcon /> Interact
+                  </Typography>
+                </li>
+                <li>
+                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
+                    <b>Fine tune</b> a model by clicking on{' '}
+                    <GraduationCapIcon /> Train
+                  </Typography>
+                </li>
+              </ul>
+              {/* <Button
               endDecorator={<ArrowRightCircleIcon />}
               size="lg"
               onClick={() => {
@@ -145,31 +137,30 @@ export default function Welcome() {
             >
               Chat 💬 with it
             </Button> */}
-            {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
+              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
               Start 🔬 with a pre-built recipe
             </Button> */}
-            {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
+              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
               Train 🧑🏽‍🎓 a new model from scratch
             </Button> */}
-            {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
+              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
               Fine tune 🎵 it
             </Button> */}
-          </Stack>
-          <Typography level="body-lg" mt={2} sx={{ fontSize: '24px' }}>
-            Watch our{' '}
-            <a href="https://transformerlab.ai/docs/intro" target="_blank">
-              Getting Started Video
-            </a>
-            , or access our{' '}
-            <a href="https://transformerlab.ai/docs/intro" target="_blank">
-              full documentation
-            </a>{' '}
-            for more ideas!
-          </Typography>
+            </Stack>
+            <Typography level="body-lg" mt={2} sx={{ fontSize: '24px' }}>
+              Watch our{' '}
+              <a href="https://transformerlab.ai/docs/intro" target="_blank">
+                Getting Started Video
+              </a>
+              , or access our{' '}
+              <a href="https://transformerlab.ai/docs/intro" target="_blank">
+                full documentation
+              </a>{' '}
+              for more ideas!
+            </Typography>
+          </div>
         </div>
-      </div>
-    </Sheet>
-
+      </Sheet>
     </>
   );
 }
