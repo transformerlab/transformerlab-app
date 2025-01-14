@@ -538,7 +538,7 @@ export default function TrainLoRA({ experimentInfo }) {
                                           level="body-sm"
                                           color="danger"
                                         >
-                                          Success:{' '}
+                                          Failure:{' '}
                                           {job?.job_data?.completion_details}
                                         </Typography>
                                       )}
