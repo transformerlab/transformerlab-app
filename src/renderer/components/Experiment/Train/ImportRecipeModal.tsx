@@ -110,11 +110,30 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
         alert("Warning: This recipe does not have an associated dataset")
       } else {
         let msg = "";
-        if (!response.model.downloaded) {
-          msg += "Download model " + response.model.path
-        }
         if (!response.dataset.downloaded) {
-          msg += "Download dataset " + response.dataset.path
+          msg += "\n Download dataset " + response.dataset.path + ", this will be done automatically";
+          fetch(chatAPI.Endpoints.Dataset.Download(response.dataset.path))
+            .then((response) => {
+            if (!response.ok) {
+                console.log(response);
+                throw new Error(`HTTP Status: ${response.status}`);
+              }
+              return response.json();
+            })
+            .catch((error) => {
+              alert('Download failed:\n' + error);
+            });
+        }
+        if (!response.model.downloaded) {
+          msg += "\n Download model " + response.model.path + ", this will be done automatically";
+          chatAPI.downloadModelFromHuggingFace(response.model.path)
+          .then((response) => {
+            if (response.status == "error") {
+              console.log(response);
+              throw new Error(`${response.message}`);
+            }
+            return response;
+          })
         }
         if (msg) {
           const alert_msg = "Warning: To use this recipe you will need to: " + msg

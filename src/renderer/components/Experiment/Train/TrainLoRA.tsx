@@ -46,6 +46,8 @@ import ImportRecipeModal from './ImportRecipeModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import CurrentDownloadBox from 'renderer/components/currentDownloadBox';
+import DownloadProgressBox from 'renderer/components/Shared/DownloadProgressBox';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -115,6 +117,15 @@ export default function TrainLoRA({ experimentInfo }) {
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
   } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('TRAIN', ''), fetcher, {
+    refreshInterval: 2000,
+  });
+
+  const {
+    data: downloadJobs,
+    error: downloadJobsError,
+    isLoading: downloadJobsIsLoading,
+    mutate: downloadJobsMutate,
+  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'), fetcher, {
     refreshInterval: 2000,
   });
 
