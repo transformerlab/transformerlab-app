@@ -185,7 +185,9 @@ export default function TrainLoRA({ experimentInfo }) {
           overflow: 'hidden',
         }}
       >
-        <DownloadProgressBox jobId={downloadJobs[0]?.id} assetName={downloadJobs[0]?.job_data.model}/>
+        { !downloadJobsIsLoading &&
+          <DownloadProgressBox jobId={downloadJobs[0]?.id} assetName={downloadJobs[0]?.job_data.model}/>
+        }
         {/* <Typography level="h1">Train</Typography> */}
         <Stack direction="row" justifyContent="space-between" gap={2}>
           <Typography level="title-md" startDecorator={<GraduationCapIcon />}>
