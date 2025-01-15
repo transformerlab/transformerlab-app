@@ -92,7 +92,7 @@ export default function App() {
           width: '100dvw',
           overflow: 'hidden',
           gridTemplateColumns: '220px 1fr',
-          gridTemplateRows: logsDrawerOpen ? '60px 5fr 300px' : '60px 5fr 80px',
+          gridTemplateRows: logsDrawerOpen ? '60px 5fr 308px' : '60px 5fr 80px',
           gridTemplateAreas: `
               "sidebar header"
               "sidebar main"

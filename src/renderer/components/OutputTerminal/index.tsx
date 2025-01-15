@@ -35,7 +35,7 @@ const OutputTerminal = ({}) => {
 
     isProcessing = true;
     const line = lineQueue.shift()!;
-    term?.writeln(line.replace(/\n$/, ''));
+    term?.write(line.replace(/\n$/, '\r\n'));
     if (terminalRef.current) {
       terminalRef.current.scrollIntoView({ behavior: 'smooth' });
     }
