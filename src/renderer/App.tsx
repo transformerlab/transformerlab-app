@@ -92,9 +92,7 @@ export default function App() {
           width: '100dvw',
           overflow: 'hidden',
           gridTemplateColumns: '220px 1fr',
-          gridTemplateRows: logsDrawerOpen
-            ? '60px 5fr 300px'
-            : '60px 5fr 120px',
+          gridTemplateRows: logsDrawerOpen ? '60px 5fr 300px' : '60px 5fr 80px',
           gridTemplateAreas: `
               "sidebar header"
               "sidebar main"
@@ -155,9 +153,24 @@ export default function App() {
             sx={{ padding: 0, margin: 0, minHeight: 0 }}
             onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
           >
-            {logsDrawerOpen ? <ChevronDownIcon /> : <ChevronUpIcon />}
+            {logsDrawerOpen ? (
+              <ChevronDownIcon size="18px" />
+            ) : (
+              <ChevronUpIcon size="18px" />
+            )}
           </IconButton>
-          <OutputTerminal />
+          <Box
+            sx={{
+              height: '100%',
+              overflow: 'hidden',
+              border: logsDrawerOpen ? '10px solid #444' : '0',
+              padding: logsDrawerOpen ? '6px' : '0',
+              backgroundColor: '#000',
+              width: '100%',
+            }}
+          >
+            <OutputTerminal />{' '}
+          </Box>
         </Box>
         <LoginModal
           setServer={setConnection}

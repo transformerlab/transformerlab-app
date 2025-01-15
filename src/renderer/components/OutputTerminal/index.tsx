@@ -93,26 +93,15 @@ const OutputTerminal = ({}) => {
   }, [chatAPI.Endpoints.ServerInfo.StreamLog()]);
 
   return (
-    <Box
+    <Sheet
       sx={{
-        height: '100%',
-        overflow: 'hidden',
-        border: '10px solid #444',
-        padding: '6px',
+        overflow: 'auto',
         backgroundColor: '#000',
-        width: '100%',
+        color: '#aaa',
+        height: '100%',
       }}
-    >
-      <Sheet
-        sx={{
-          overflow: 'auto',
-          backgroundColor: '#000',
-          color: '#aaa',
-          height: '100%',
-        }}
-        ref={terminalRef}
-      ></Sheet>
-    </Box>
+      ref={terminalRef}
+    ></Sheet>
   );
 };
 
