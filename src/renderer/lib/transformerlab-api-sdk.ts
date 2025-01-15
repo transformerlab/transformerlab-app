@@ -1133,6 +1133,7 @@ Endpoints.Recipes = {
 Endpoints.ServerInfo = {
   Get: () => API_URL() + 'server/info',
   PythonLibraries: () => API_URL() + 'server/python_libraries',
+  StreamLog: () => API_URL() + 'server/stream_log',
 };
 
 export function GET_TRAINING_TEMPLATE_URL() {

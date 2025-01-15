@@ -3,8 +3,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import { useEffect, useRef, useState } from 'react';
 
-import useSWRSubscription from 'swr/subscription';
-import type { SWRSubscriptionOptions } from 'swr/subscription';
+import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 const TERMINAL_SPEED = 100; //ms between adding each line (create an animation effect)
 
@@ -57,7 +56,7 @@ export default function OutputTerminal({}) {
     window.addEventListener('resize', handleResize);
 
     const eventSource = new EventSource(
-      'http://localhost:8338/server/stream_log'
+      chatAPI.Endpoints.ServerInfo.StreamLog()
     );
     eventSource.onmessage = (event) => {
       if (term !== null) {
