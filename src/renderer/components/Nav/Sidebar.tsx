@@ -22,6 +22,7 @@ import {
   FolderSearch2Icon,
   TextIcon,
   RectangleEllipsisIcon,
+  LogsIcon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
@@ -39,7 +40,8 @@ import ColorSchemeToggle from './ColorSchemeToggle';
 export default function Sidebar({
   experimentInfo,
   setExperimentId,
-  setDrawerOpen,
+  logsDrawerOpen,
+  setLogsDrawerOpen,
 }) {
   const { models, isError, isLoading } = useModelStatus();
   const { outdatedPluginsCount } = usePluginStatus(experimentInfo);
@@ -267,6 +269,14 @@ export default function Sidebar({
           <Tooltip title="Settings">
             <IconButton variant="plain" onClick={() => navigate('/settings')}>
               <SettingsIcon strokeWidth={1} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Logs">
+            <IconButton
+              variant="plain"
+              onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+            >
+              <LogsIcon strokeWidth={1} />
             </IconButton>
           </Tooltip>
         </ButtonGroup>

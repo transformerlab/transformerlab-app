@@ -15,6 +15,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
 import XtermJSDrawer from './components/Connect/XtermJS';
+import OutputTerminal from './components/OutputTerminal';
 // import OutputTerminal from './components/OutputTerminal';
 // import AutoUpdateModal from './components/AutoUpdateModal';
 
@@ -27,7 +28,7 @@ export default function App() {
 
   const [sshConnection, setSSHConnection] = useState(null);
 
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
 
   useEffect(() => {
     async function getSavedExperimentId() {
@@ -84,13 +85,18 @@ export default function App() {
           width: '100dvw',
           overflow: 'hidden',
           gridTemplateColumns: '220px 1fr',
-          gridTemplateRows: '60px 5fr 0fr',
-          gridTemplateAreas: `
+          gridTemplateRows: logsDrawerOpen ? '60px 5fr 1fr' : '60px 5fr 0.01fr',
+          gridTemplateAreas: logsDrawerOpen
+            ? `
+              "sidebar header"
+              "sidebar main"
+              "sidebar footer"
+              `
+            : `
               "sidebar header"
               "sidebar main"
               "sidebar footer"
               `,
-
           // backgroundColor: (theme) => theme.vars.palette.background.surface,
         })}
       >
@@ -105,7 +111,8 @@ export default function App() {
         <Sidebar
           experimentInfo={experimentInfo}
           setExperimentId={setExperimentId}
-          setDrawerOpen={setDrawerOpen}
+          logsDrawerOpen={logsDrawerOpen}
+          setLogsDrawerOpen={setLogsDrawerOpen}
         />
         <Box
           sx={{
@@ -130,19 +137,19 @@ export default function App() {
             experimentInfoMutate={experimentInfoMutate}
           />
         </Box>
-        {/* <OutputTerminal /> */}
+        <OutputTerminal />
         <LoginModal
           setServer={setConnection}
           connection={connection}
-          setTerminalDrawerOpen={setDrawerOpen}
+          setTerminalDrawerOpen={setLogsDrawerOpen}
           setSSHConnection={setSSHConnection}
         />
       </Box>
-      <XtermJSDrawer
+      {/* <XtermJSDrawer
         sshConnection={sshConnection}
         drawerOpen={drawerOpen}
         setDrawerOpen={setDrawerOpen}
-      />
+      /> */}
     </CssVarsProvider>
   );
 }
