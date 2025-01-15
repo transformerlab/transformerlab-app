@@ -1323,6 +1323,8 @@ Endpoints.Experiment = {
     'plugins/delete_plugin?pluginId=' +
     pluginId,
   GetOutputFromJob: (jobId: string) => API_URL() + `train/job/${jobId}/output`,
+  StreamOutputFromJob: (jobId: string) =>
+    API_URL() + `train/job/${jobId}/stream_output`,
 };
 
 Endpoints.Jobs = {

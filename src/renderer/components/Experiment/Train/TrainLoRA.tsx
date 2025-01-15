@@ -46,6 +46,7 @@ import ImportRecipeModal from './ImportRecipeModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -156,7 +157,7 @@ export default function TrainLoRA({ experimentInfo }) {
         currentTensorboard={currentTensorboardForModal}
         setCurrentTensorboard={setCurrentTensorboardForModal}
       />
-      <ViewOutputModal
+      <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
       />

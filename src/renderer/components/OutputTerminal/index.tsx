@@ -4,8 +4,6 @@ import { Terminal } from '@xterm/xterm';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { Sheet } from '@mui/joy';
 
-const TERMINAL_SPEED = 100; //ms between adding each line (create an animation effect)
-
 // Debounce function
 const debounce = (func: Function, wait: number) => {
   let timeout: NodeJS.Timeout;
@@ -17,6 +15,7 @@ const debounce = (func: Function, wait: number) => {
 
 const OutputTerminal = ({
   logEndpoint = chatAPI.Endpoints.ServerInfo.StreamLog(),
+  lineAnimationDelay = 100,
 }) => {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;
@@ -44,7 +43,7 @@ const OutputTerminal = ({
 
     setTimeout(() => {
       processQueue();
-    }, TERMINAL_SPEED); // 100ms delay between each line
+    }, lineAnimationDelay); // 100ms delay between each line
   };
 
   const addLinesOneByOne = (lines: string[]) => {
