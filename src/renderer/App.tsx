@@ -23,6 +23,7 @@ import {
   Icon,
 } from 'lucide-react';
 import { IconButton } from '@mui/joy';
+import { log } from 'node:console';
 // import OutputTerminal from './components/OutputTerminal';
 // import AutoUpdateModal from './components/AutoUpdateModal';
 
@@ -92,7 +93,7 @@ export default function App() {
           width: '100dvw',
           overflow: 'hidden',
           gridTemplateColumns: '220px 1fr',
-          gridTemplateRows: logsDrawerOpen ? '60px 5fr 308px' : '60px 5fr 80px',
+          gridTemplateRows: logsDrawerOpen ? '60px 5fr 308px' : '60px 5fr 18px',
           gridTemplateAreas: `
               "sidebar header"
               "sidebar main"
@@ -143,7 +144,7 @@ export default function App() {
             gridArea: 'footer',
             display: 'flex',
             flexDirection: 'column',
-            height: '100%',
+            height: logsDrawerOpen ? '100%' : '18px',
             width: '100%',
             overflow: 'hidden',
             alignItems: 'flex-end',
@@ -161,7 +162,7 @@ export default function App() {
           </IconButton>
           <Box
             sx={{
-              height: '100%',
+              height: logsDrawerOpen ? '100%' : '0px',
               overflow: 'hidden',
               border: logsDrawerOpen ? '10px solid #444' : '0',
               padding: logsDrawerOpen ? '6px' : '0',
