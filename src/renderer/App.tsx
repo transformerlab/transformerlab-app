@@ -85,14 +85,8 @@ export default function App() {
           width: '100dvw',
           overflow: 'hidden',
           gridTemplateColumns: '220px 1fr',
-          gridTemplateRows: logsDrawerOpen ? '60px 5fr 1fr' : '60px 5fr 0.01fr',
-          gridTemplateAreas: logsDrawerOpen
-            ? `
-              "sidebar header"
-              "sidebar main"
-              "sidebar footer"
-              `
-            : `
+          gridTemplateRows: logsDrawerOpen ? '60px 5fr 1fr' : '60px 5fr 0.5fr',
+          gridTemplateAreas: `
               "sidebar header"
               "sidebar main"
               "sidebar footer"
@@ -145,11 +139,6 @@ export default function App() {
           setSSHConnection={setSSHConnection}
         />
       </Box>
-      {/* <XtermJSDrawer
-        sshConnection={sshConnection}
-        drawerOpen={drawerOpen}
-        setDrawerOpen={setDrawerOpen}
-      /> */}
     </CssVarsProvider>
   );
 }

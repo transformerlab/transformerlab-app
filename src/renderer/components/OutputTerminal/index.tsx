@@ -1,13 +1,12 @@
-import { Box, Sheet } from '@mui/joy';
+import { useEffect, useRef } from 'react';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
-import { useEffect, useRef, useState } from 'react';
-
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { Box, Sheet } from '@mui/joy';
 
 const TERMINAL_SPEED = 100; //ms between adding each line (create an animation effect)
 
-export default function OutputTerminal({}) {
+const OutputTerminal = ({}) => {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;
   let lineQueue: string[] = [];
@@ -15,11 +14,11 @@ export default function OutputTerminal({}) {
 
   const fitAddon = new FitAddon();
 
-  function handleResize() {
+  const handleResize = () => {
     fitAddon.fit();
-  }
+  };
 
-  function processQueue() {
+  const processQueue = () => {
     if (lineQueue.length === 0) {
       isProcessing = false;
       return;
@@ -35,14 +34,14 @@ export default function OutputTerminal({}) {
     setTimeout(() => {
       processQueue();
     }, TERMINAL_SPEED); // 100ms delay between each line
-  }
+  };
 
-  function addLinesOneByOne(lines: string[]) {
+  const addLinesOneByOne = (lines: string[]) => {
     lineQueue = lineQueue.concat(lines);
     if (!isProcessing) {
       processQueue();
     }
-  }
+  };
 
   useEffect(() => {
     term = new Terminal({
@@ -53,7 +52,13 @@ export default function OutputTerminal({}) {
     if (terminalRef.current) term.open(terminalRef.current);
     fitAddon.fit();
 
-    window.addEventListener('resize', handleResize);
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+
+    if (terminalRef.current) {
+      resizeObserver.observe(terminalRef.current);
+    }
 
     const eventSource = new EventSource(
       chatAPI.Endpoints.ServerInfo.StreamLog()
@@ -71,8 +76,18 @@ export default function OutputTerminal({}) {
     return () => {
       eventSource.close();
       term?.dispose();
-      window.removeEventListener('resize', handleResize);
+      if (terminalRef.current) {
+        resizeObserver.unobserve(terminalRef.current);
+      }
+      resizeObserver.disconnect();
     };
+  }, [chatAPI.Endpoints.ServerInfo.StreamLog()]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      handleResize();
+    }, 1000);
+    return () => clearTimeout(timeoutId);
   });
 
   return (
@@ -97,4 +112,6 @@ export default function OutputTerminal({}) {
       ></Sheet>
     </Box>
   );
-}
+};
+
+export default OutputTerminal;
