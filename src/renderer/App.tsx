@@ -16,6 +16,13 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import XtermJSDrawer from './components/Connect/XtermJS';
 import OutputTerminal from './components/OutputTerminal';
+import {
+  ChevronDown,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  Icon,
+} from 'lucide-react';
+import { IconButton } from '@mui/joy';
 // import OutputTerminal from './components/OutputTerminal';
 // import AutoUpdateModal from './components/AutoUpdateModal';
 
@@ -85,7 +92,9 @@ export default function App() {
           width: '100dvw',
           overflow: 'hidden',
           gridTemplateColumns: '220px 1fr',
-          gridTemplateRows: logsDrawerOpen ? '60px 5fr 1fr' : '60px 5fr 0.5fr',
+          gridTemplateRows: logsDrawerOpen
+            ? '60px 5fr 300px'
+            : '60px 5fr 120px',
           gridTemplateAreas: `
               "sidebar header"
               "sidebar main"
@@ -131,7 +140,25 @@ export default function App() {
             experimentInfoMutate={experimentInfoMutate}
           />
         </Box>
-        <OutputTerminal />
+        <Box
+          sx={{
+            gridArea: 'footer',
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            width: '100%',
+            overflow: 'hidden',
+            alignItems: 'flex-end',
+          }}
+        >
+          <IconButton
+            sx={{ padding: 0, margin: 0, minHeight: 0 }}
+            onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+          >
+            {logsDrawerOpen ? <ChevronDownIcon /> : <ChevronUpIcon />}
+          </IconButton>
+          <OutputTerminal />
+        </Box>
         <LoginModal
           setServer={setConnection}
           connection={connection}

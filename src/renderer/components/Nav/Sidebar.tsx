@@ -271,14 +271,14 @@ export default function Sidebar({
               <SettingsIcon strokeWidth={1} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Logs">
+          {/* <Tooltip title="Logs">
             <IconButton
               variant="plain"
               onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
             >
               <LogsIcon strokeWidth={1} />
             </IconButton>
-          </Tooltip>
+          </Tooltip> */}
         </ButtonGroup>
       </List>
     </Sheet>

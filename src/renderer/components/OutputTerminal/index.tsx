@@ -6,6 +6,15 @@ import { Box, Sheet } from '@mui/joy';
 
 const TERMINAL_SPEED = 100; //ms between adding each line (create an animation effect)
 
+// Debounce function
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+};
+
 const OutputTerminal = ({}) => {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;
@@ -14,9 +23,9 @@ const OutputTerminal = ({}) => {
 
   const fitAddon = new FitAddon();
 
-  const handleResize = () => {
+  const handleResize = debounce(() => {
     fitAddon.fit();
-  };
+  }, 300);
 
   const processQueue = () => {
     if (lineQueue.length === 0) {
@@ -83,22 +92,15 @@ const OutputTerminal = ({}) => {
     };
   }, [chatAPI.Endpoints.ServerInfo.StreamLog()]);
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      handleResize();
-    }, 1000);
-    return () => clearTimeout(timeoutId);
-  });
-
   return (
     <Box
       sx={{
-        gridArea: 'footer',
         height: '100%',
         overflow: 'hidden',
         border: '10px solid #444',
         padding: '6px',
         backgroundColor: '#000',
+        width: '100%',
       }}
     >
       <Sheet
