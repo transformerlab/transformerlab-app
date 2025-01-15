@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { Box, Sheet } from '@mui/joy';
+import { Sheet } from '@mui/joy';
 
 const TERMINAL_SPEED = 100; //ms between adding each line (create an animation effect)
 
@@ -15,7 +15,9 @@ const debounce = (func: Function, wait: number) => {
   };
 };
 
-const OutputTerminal = ({}) => {
+const OutputTerminal = ({
+  logEndpoint = chatAPI.Endpoints.ServerInfo.StreamLog(),
+}) => {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;
   let lineQueue: string[] = [];
@@ -69,9 +71,7 @@ const OutputTerminal = ({}) => {
       resizeObserver.observe(terminalRef.current);
     }
 
-    const eventSource = new EventSource(
-      chatAPI.Endpoints.ServerInfo.StreamLog()
-    );
+    const eventSource = new EventSource(logEndpoint);
     eventSource.onmessage = (event) => {
       if (term !== null) {
         const lines = JSON.parse(event.data);
@@ -90,7 +90,7 @@ const OutputTerminal = ({}) => {
       }
       resizeObserver.disconnect();
     };
-  }, [chatAPI.Endpoints.ServerInfo.StreamLog()]);
+  }, [logEndpoint]);
 
   return (
     <Sheet
