@@ -589,6 +589,24 @@ function InstallStepper({ setServer }) {
   };
   // This function is called if specific strings in the Log are sent
 
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [intervalId, setIntervalId] = useState(null);
+
+  useEffect(() => {
+    let id;
+    if (userRequestedInstall) {
+      id = setInterval(() => {
+        setElapsedTime((prevTime) => prevTime + 1);
+      }, 1000);
+      setIntervalId(id);
+    } else {
+      clearInterval(intervalId);
+      setElapsedTime(0);
+    }
+
+    return () => clearInterval(id);
+  }, [userRequestedInstall]);
+
   return (
     <Sheet
       sx={{
@@ -683,6 +701,9 @@ function InstallStepper({ setServer }) {
             <CircularProgress sx={{ marginRight: 1 }} />
           )}
           {userRequestedInstall ? 'Connecting...' : 'Connect'}
+          {userRequestedInstall && (
+            <span style={{ marginLeft: '10px' }}>{elapsedTime}s</span>
+          )}
         </Button>
       </Sheet>
 
