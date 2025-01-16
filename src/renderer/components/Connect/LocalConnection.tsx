@@ -15,8 +15,6 @@ import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
 import LargeTooltip from './LargeTooltip';
 import LogViewer from './LogViewer';
-import { BsFillFileEarmarkPersonFill } from 'react-icons/bs';
-import { error, log } from 'console';
 
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
