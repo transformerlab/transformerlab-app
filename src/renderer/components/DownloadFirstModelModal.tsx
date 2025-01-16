@@ -64,8 +64,13 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
   const cpu = server?.cpu;
   const os = server?.os;
   const device = server?.device;
-
   const recommended_model = recommendedStartingModel(cpu, os, device);
+
+  // Track selected model
+  const [selectedModel, setSelectedModel] = useState(recommended_model.id);
+  const onOptionChange = e => {
+    setSelectedModel(e.target.value);
+  }
 
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
@@ -101,6 +106,7 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
                   type="radio"
                   name="download_initial_model"
                   value={recommended_model.id}
+                  onChange={onOptionChange}
                   defaultChecked
                 />
                 <b>{recommended_model.name} (<i>recommended</i>)</b>
@@ -116,6 +122,7 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
                   type="radio"
                   name="download_initial_model"
                   value="TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+                  onChange={onOptionChange}
                 />
                 <b>Tiny Llama 1.1B Chat</b>
                 <Typography level="body-sm" textColor="text.tertiary">
@@ -129,6 +136,7 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
                   type="radio"
                   name="download_initial_model"
                   value="Qwen/Qwen2.5-1.5B-Instruct"
+                  onChange={onOptionChange}
                 />
                 <b>Qwen2.5-1.5B-Instruct</b>
                 <Typography level="body-sm" textColor="text.tertiary">
@@ -150,8 +158,7 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
                 currentlyDownloading != null
               }
             onClick={async () => {
-                const initial_model_id = document.getElementsByName('download_initial_model')[0].value;
-                setCurrentlyDownloading(initial_model_id);
+                setCurrentlyDownloading(selectedModel);
                 setJobId(-1);
 
                 // Create a new job and record the ID of the job so we can track download progress
@@ -162,7 +169,7 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
                 setJobId(newJobId);
 
                 // Try downloading the model
-                const response = await chatAPI.downloadModelFromGallery(initial_model_id, newJobId);
+                const response = await chatAPI.downloadModelFromGallery(selectedModel, newJobId);
                 if (response?.status == 'error') {
                     alert('Download failed!\n' + response.message);
                 }
