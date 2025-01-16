@@ -2,14 +2,16 @@ import {
   Alert,
   Button,
   CircularProgress,
+  Modal,
   Sheet,
+  Snackbar,
   Step,
   StepIndicator,
   Stepper,
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { CheckCircle2, InfoIcon } from 'lucide-react';
+import { CheckCircle2, InfoIcon, TimerIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
@@ -617,6 +619,38 @@ function InstallStepper({ setServer }) {
         gap: 1,
       }}
     >
+      {elapsedTime > 15 && (
+        <Alert
+          sx={{
+            background: 'var(--joy-palette-primary-100)',
+            color: 'var(--joy-palette-primary-800)',
+            opacity: 0.9,
+            position: 'absolute',
+            float: 'left',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1000,
+          }}
+          startDecorator={<TimerIcon />}
+        >
+          <Typography level="body-sm">
+            The initial setup process may take a few minutes as it sets up a
+            Python ML workspace on your computer. Subsequent connections will be
+            much faster.
+            {elapsedTime > 25 && (
+              <>
+                <br />
+                <br />
+                If it appears like nothing is happening for a while, check the
+                terminal for any potential errors. You can safely close the the
+                application and start it again if things appear stuck for more
+                than a minute.
+              </>
+            )}
+          </Typography>
+        </Alert>
+      )}
       <Sheet
         sx={{
           display: 'flex',
