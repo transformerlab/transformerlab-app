@@ -162,7 +162,7 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
                 setJobId(newJobId);
 
                 // Try downloading the model
-                const response = await chatAPI.downloadModelFromHuggingFace(initial_model_id);
+                const response = await chatAPI.downloadModelFromGallery(initial_model_id, newJobId);
                 if (response?.status == 'error') {
                     alert('Download failed!\n' + response.message);
                 }
