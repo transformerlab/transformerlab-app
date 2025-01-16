@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useState } from 'react';
-import useSWRImmutable from 'swr';
+import useSWR from 'swr';
 
 import { Button, Sheet, Stack, Typography } from '@mui/joy';
 
@@ -53,7 +53,7 @@ export default function Welcome() {
 
   // Check number of downloaded models
   let model_count = 0;
-  const { data: modelCountResponse } = useSWRImmutable(
+  const { data: modelCountResponse } = useSWR(
     chatAPI.Endpoints.Models.CountDownloaded(),
     fetcher
   );
@@ -63,7 +63,7 @@ export default function Welcome() {
 
   // Open DownloadFirstModelModal if the user has no models
   const [modelDownloadModalOpen, setModelDownloadModalOpen] =
-    useState<boolean>(model_count == 0);
+    useState<boolean>(false);
 
   const { server, isLoading, isError } = chatAPI.useServerStats();
 
