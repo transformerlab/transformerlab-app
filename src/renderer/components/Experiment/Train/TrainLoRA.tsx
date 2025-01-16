@@ -47,6 +47,8 @@ import ImportRecipeModal from './ImportRecipeModal';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
+import CurrentDownloadBox from 'renderer/components/currentDownloadBox';
+import DownloadProgressBox from 'renderer/components/Shared/DownloadProgressBox';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -119,6 +121,15 @@ export default function TrainLoRA({ experimentInfo }) {
     refreshInterval: 2000,
   });
 
+  const {
+    data: downloadJobs,
+    error: downloadJobsError,
+    isLoading: downloadJobsIsLoading,
+    mutate: downloadJobsMutate,
+  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'), fetcher, {
+    refreshInterval: 2000,
+  });
+
   //Fetch available training plugins
   const {
     data: pluginsData,
@@ -174,6 +185,9 @@ export default function TrainLoRA({ experimentInfo }) {
           overflow: 'hidden',
         }}
       >
+        { !downloadJobsIsLoading &&
+          <DownloadProgressBox jobId={downloadJobs[0]?.id} assetName={downloadJobs[0]?.job_data.model}/>
+        }
         {/* <Typography level="h1">Train</Typography> */}
         <Stack direction="row" justifyContent="space-between" gap={2}>
           <Typography level="title-md" startDecorator={<GraduationCapIcon />}>
