@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useState } from 'react';
+import useSWRImmutable from 'swr';
 
 import { Button, Sheet, Stack, Typography } from '@mui/joy';
 
@@ -14,12 +15,14 @@ import {
   PlayCircle,
   PlayCircleIcon,
 } from 'lucide-react';
-import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 import DownloadFirstModelModal from './DownloadFirstModelModal';
 import HexLogo from './Shared/HexLogo';
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function recommendedModel(cpu, os, device) {
   if (!cpu || !os || !device) return '';
@@ -47,10 +50,22 @@ function typeOfComputer(cpu, os, device) {
 }
 
 export default function Welcome() {
-  const [modelDownloadModalOpen, setModelDownloadModalOpen] =
-    useState<boolean>(false);
 
-  const { server, isLoading, isError } = useServerStats();
+  // Check number of downloaded models
+  let model_count = 0;
+  const { data: modelCountResponse } = useSWRImmutable(
+    chatAPI.Endpoints.Models.CountDownloaded(),
+    fetcher
+  );
+  if (modelCountResponse && modelCountResponse!.data) {
+    model_count = modelCountResponse!.data;
+  }
+
+  // Open DownloadFirstModelModal if the user has no models
+  const [modelDownloadModalOpen, setModelDownloadModalOpen] =
+    useState<boolean>(model_count == 0);
+
+  const { server, isLoading, isError } = chatAPI.useServerStats();
 
   const navigate = useNavigate();
 
