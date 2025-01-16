@@ -148,6 +148,7 @@ export default function App() {
             width: '100%',
             overflow: 'hidden',
             alignItems: 'flex-end',
+            backgroundColor: 'var(--joy-palette-background-level3)',
           }}
         >
           <IconButton
