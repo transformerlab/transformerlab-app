@@ -1017,6 +1017,7 @@ Endpoints.Dataset = {
 
 Endpoints.Models = {
   LocalList: () => API_URL() + 'model/list',
+  CountDownloaded:  () => API_URL() + 'model/count_downloaded',
   Gallery: () => API_URL() + 'model/gallery',
   GetPeftsForModel: () => API_URL() + 'model/pefts',
   UploadModelToHuggingFace: (
