@@ -16,6 +16,7 @@ const debounce = (func: Function, wait: number) => {
 const OutputTerminal = ({
   logEndpoint = chatAPI.Endpoints.ServerInfo.StreamLog(),
   lineAnimationDelay = 100,
+  initialMessage = '',
 }) => {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;
@@ -69,6 +70,8 @@ const OutputTerminal = ({
     if (terminalRef.current) {
       resizeObserver.observe(terminalRef.current);
     }
+
+    term?.writeln(initialMessage);
 
     const eventSource = new EventSource(logEndpoint);
     eventSource.onmessage = (event) => {

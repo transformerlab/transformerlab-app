@@ -171,7 +171,7 @@ export default function App() {
               width: '100%',
             }}
           >
-            <OutputTerminal />{' '}
+            <OutputTerminal initialMessage="** Running a Model will Display Output Here **" />
           </Box>
         </Box>
         <LoginModal
