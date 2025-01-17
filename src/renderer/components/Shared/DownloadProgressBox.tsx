@@ -19,7 +19,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function DownloadProgressBox({ jobId, assetName }) {
 
   const { data: downloadProgress } = useSWR(
-    assetName && jobId != '-1'
+    jobId && jobId != '-1'
             ? chatAPI.Endpoints.Jobs.Get(jobId)
             : null,
         fetcher,
