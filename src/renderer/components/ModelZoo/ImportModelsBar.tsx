@@ -13,8 +13,10 @@ import { PlusIcon } from 'lucide-react';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import ImportModelsModal from './ImportModelsModal';
 
-export default function ImportModelsBar({}) {
-    const [downloadingModel, setDownloadingModel] = useState(null);
+// Needs to share currentlyDownloading with ModelsStore
+// If you start a download on one it should stop you from starting on the other
+// Also this is how the import bar tells teh model store to show a download progress bar
+export default function ImportModelsBar({ currentlyDownloading, setCurrentlyDownloading }) {
     const [importModelsModalOpen, setImportModelsModalOpen] = useState(false);
 
     return (
@@ -56,7 +58,7 @@ export default function ImportModelsBar({}) {
                       // only download if valid model is entered
                       if (model) {
                         // this triggers UI changes while download is in progress
-                        setDownloadingModel(model);
+                        setCurrentlyDownloading(model);
 
                         // Try downloading the model
                         const response = await chatAPI.downloadModelFromHuggingFace(model);
@@ -65,17 +67,18 @@ export default function ImportModelsBar({}) {
                         }
 
                         // download complete
-                        setDownloadingModel(null);
+                        setCurrentlyDownloading(null);
+                        //modelGalleryMutate();
                       }
                     }}
                 startDecorator={
-                  downloadingModel ? (
+                  currentlyDownloading ? (
                     <CircularProgress size="sm" thickness={2} />
                   ) : (
                     ""
                   )}
                   >
-                  {downloadingModel ? (
+                  {currentlyDownloading ? (
                     "Downloading"
                   ) : (
                     "Download 🤗 Model"
@@ -83,7 +86,7 @@ export default function ImportModelsBar({}) {
                   </Button>
                 }
                 sx={{ width: '500px' }}
-                disabled={downloadingModel}
+                disabled={currentlyDownloading}
               />
             </FormControl>
             <Button
