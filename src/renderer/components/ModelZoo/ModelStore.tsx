@@ -117,7 +117,7 @@ export default function ModelStore() {
   } = useSWR(chatAPI.Endpoints.Models.Gallery(), fetcher);
 
   const { data: modelDownloadProgress } = useSWR(
-    currentlyDownloading && jobId && jobId != '-1'
+    jobId && jobId != '-1'
       ? chatAPI.Endpoints.Jobs.Get(jobId)
       : null,
     fetcher,
@@ -606,8 +606,8 @@ export default function ModelStore() {
         </Table>
       </Sheet>
       <ImportModelsBar
-        currentlyDownloading={currentlyDownloading}
-        setCurrentlyDownloading={setCurrentlyDownloading}
+        jobId={jobId}
+        setJobId={setJobId}
       />
     </Sheet>
   );
