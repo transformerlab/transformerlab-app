@@ -742,14 +742,22 @@ export async function getAvailableModels() {
   return result;
 }
 
-export async function downloadModelFromHuggingFace(modelName: string) {
+export async function downloadModelFromHuggingFace(
+  modelName: string,
+  job_id = null
+) {
+  console.log(encodeURIComponent(modelName));
+
+  let requestString = `${API_URL()}model/download_from_huggingface?model=${encodeURIComponent(
+    modelName
+  )}`;
+  if (job_id) {
+    requestString += `&job_id=${job_id}`;
+  }
+
   let result = {};
   try {
-    const response = await fetch(
-      `${API_URL()}model/download_from_huggingface?model=${encodeURIComponent(
-        modelName
-      )}`
-    );
+    const response = await fetch(requestString);
     result = await response.json();
 
     // Error during fetch
