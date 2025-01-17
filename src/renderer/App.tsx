@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
@@ -20,10 +20,12 @@ import {
   ChevronDown,
   ChevronDownIcon,
   ChevronUpIcon,
+  EllipsisIcon,
   Icon,
 } from 'lucide-react';
 import { IconButton } from '@mui/joy';
 import { log } from 'node:console';
+import DraggableElipsis from './components/Shared/DraggableEllipsis';
 // import OutputTerminal from './components/OutputTerminal';
 // import AutoUpdateModal from './components/AutoUpdateModal';
 
@@ -37,6 +39,7 @@ export default function App() {
   const [sshConnection, setSSHConnection] = useState(null);
 
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
+  const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
 
   useEffect(() => {
     async function getSavedExperimentId() {
@@ -81,6 +84,24 @@ export default function App() {
     mutate: experimentInfoMutate,
   } = useSWR(chatAPI.GET_EXPERIMENT_URL(experimentId), fetcher);
 
+  const onOutputDrawerDrag = useCallback((pos) => {
+    const ypos = pos.y;
+    // calculate how far from the bottom of the screen that ypos is:
+    let bottom = window.innerHeight - ypos;
+
+    // now clamp the height so it is between 0 and the screen height - 200px
+    // (200px is the minimum height of the logs drawer)
+    if (bottom < 120) {
+      bottom = 120;
+    }
+    if (bottom > window.innerHeight / 2) {
+      bottom = window.innerHeight / 2;
+    }
+
+    // now set the height of the logs drawer to be that distance
+    setLogsDrawerHeight(bottom);
+  }, []);
+
   return (
     <CssVarsProvider disableTransitionOnChange theme={customTheme}>
       <CssBaseline />
@@ -93,12 +114,14 @@ export default function App() {
           width: '100dvw',
           overflow: 'hidden',
           gridTemplateColumns: '220px 1fr',
-          gridTemplateRows: logsDrawerOpen ? '60px 5fr 308px' : '60px 5fr 18px',
+          gridTemplateRows: logsDrawerOpen
+            ? `60px 5fr ${logsDrawerHeight}px`
+            : '60px 5fr 18px',
           gridTemplateAreas: `
-              "sidebar header"
-              "sidebar main"
-              "sidebar footer"
-              `,
+          "sidebar header"
+          "sidebar main"
+          "sidebar footer"
+          `,
           // backgroundColor: (theme) => theme.vars.palette.background.surface,
         })}
       >
@@ -147,20 +170,33 @@ export default function App() {
             height: logsDrawerOpen ? '100%' : '18px',
             width: '100%',
             overflow: 'hidden',
-            alignItems: 'flex-end',
+            alignItems: 'stretch',
             backgroundColor: 'var(--joy-palette-background-level3)',
           }}
         >
-          <IconButton
-            sx={{ padding: 0, margin: 0, minHeight: 0 }}
-            onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              height: '18px',
+            }}
           >
-            {logsDrawerOpen ? (
-              <ChevronDownIcon size="18px" />
-            ) : (
-              <ChevronUpIcon size="18px" />
-            )}
-          </IconButton>
+            <div>&nbsp;</div>
+            <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
+            <IconButton
+              sx={{ padding: 0, margin: 0, minHeight: 0 }}
+              onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+            >
+              {logsDrawerOpen ? (
+                <>
+                  <ChevronDownIcon size="18px" />
+                </>
+              ) : (
+                <ChevronUpIcon size="18px" />
+              )}
+            </IconButton>
+          </div>
           <Box
             sx={{
               height: logsDrawerOpen ? '100%' : '0px',
