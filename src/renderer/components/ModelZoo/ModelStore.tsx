@@ -489,7 +489,7 @@ export default function ModelStore() {
                         <Button
                           size="sm"
                           disabled={
-                            row.downloaded || currentlyDownloading !== null
+                            row.downloaded || jobId !== null
                           }
                           onClick={async () => {
                             setJobId(-1);
