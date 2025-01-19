@@ -35,7 +35,9 @@ export default function ImportModelsModal({ open, setOpen}) {
         error: modelsError,
         isLoading: isLoading,
     } = useSWR(
-        chatAPI.Endpoints.Models.SearchForLocalUninstalledModels(modelFolder),
+        !open
+          ? null
+          : chatAPI.Endpoints.Models.SearchForLocalUninstalledModels(modelFolder),
         fetcher
     );
     const models = modelsData?.data;
@@ -278,12 +280,12 @@ export default function ImportModelsModal({ open, setOpen}) {
               {isLoading && (
                 <tr>
                   <td colSpan={5}>
-                    <CircularProgress color="primary" />
                     <Typography
                         level="body-lg"
                         justifyContent="center"
                         margin={5}
                     >
+                      <CircularProgress color="primary" />
                       Scanning for models...
                   </Typography>
                   </td>
@@ -292,7 +294,6 @@ export default function ImportModelsModal({ open, setOpen}) {
               {modelsError && (
                 <tr>
                   <td colSpan={5}>
-                    <CircularProgress color="primary" />
                     <Typography
                         level="body-lg"
                         justifyContent="center"
