@@ -228,7 +228,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                 </tr>
               </thead>
               <tbody>
-                {!isLoading && models?.length > 0 && models.map((row) => (
+                {!isLoading && !modelsError && models?.length > 0 && models.map((row) => (
                 <tr key={row.id}>
                   <td>
                   <Typography ml={2} fontWeight="lg">
@@ -262,7 +262,7 @@ export default function ImportModelsModal({ open, setOpen}) {
                   </td>
                 </tr>
               ))}
-              {!isLoading && models?.length === 0 && (
+              {!isLoading && !modelsError && models?.length === 0 && (
                 <tr>
                   <td colSpan={5}>
                     <Typography
@@ -278,13 +278,27 @@ export default function ImportModelsModal({ open, setOpen}) {
               {isLoading && (
                 <tr>
                   <td colSpan={5}>
-                    <CircularProgress color="primary" /> 
+                    <CircularProgress color="primary" />
                     <Typography
                         level="body-lg"
                         justifyContent="center"
                         margin={5}
                     >
                       Scanning for models...
+                  </Typography>
+                  </td>
+                </tr>
+              )}
+              {modelsError && (
+                <tr>
+                  <td colSpan={5}>
+                    <CircularProgress color="primary" />
+                    <Typography
+                        level="body-lg"
+                        justifyContent="center"
+                        margin={5}
+                    >
+                      Error scanning for models.
                   </Typography>
                   </td>
                 </tr>
