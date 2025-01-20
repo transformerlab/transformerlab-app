@@ -13,8 +13,10 @@ import { PlusIcon } from 'lucide-react';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import ImportModelsModal from './ImportModelsModal';
 
-export default function ImportModelsBar({}) {
-    const [downloadingModel, setDownloadingModel] = useState(null);
+// Needs to share jobId with ModelsStore
+// If you start a download on one it should stop you from starting on the other
+// Also this is how the import bar tells teh model store to show a download progress bar
+export default function ImportModelsBar({ jobId, setJobId }) {
     const [importModelsModalOpen, setImportModelsModalOpen] = useState(false);
 
     return (
@@ -55,27 +57,42 @@ export default function ImportModelsBar({}) {
 
                       // only download if valid model is entered
                       if (model) {
-                        // this triggers UI changes while download is in progress
-                        setDownloadingModel(model);
+                        setJobId(-1);
+                        try {
+                          const jobResponse = await fetch(
+                            chatAPI.Endpoints.Jobs.Create()
+                          );
+                          const newJobId = await jobResponse.json();
+                          setJobId(newJobId);
 
-                        // Try downloading the model
-                        const response = await chatAPI.downloadModelFromHuggingFace(model);
-                        if (response?.status == 'error') {
-                          alert('Download failed!\n' + response.message);
+                          // Try downloading the model
+                          const response = await chatAPI.downloadModelFromHuggingFace(
+                            model,
+                            newJobId
+                          );
+                          console.log(response);
+                          if (response?.status == 'error') {
+                            alert('Download failed!\n' + response.message);
+                          }
+
+                          // download complete
+                          setJobId(null);
+
+                        } catch (e) {
+                          setJobId(null);
+                          console.log(e);
+                          return alert('Failed to download');
                         }
-
-                        // download complete
-                        setDownloadingModel(null);
                       }
                     }}
                 startDecorator={
-                  downloadingModel ? (
+                  jobId ? (
                     <CircularProgress size="sm" thickness={2} />
                   ) : (
                     ""
                   )}
                   >
-                  {downloadingModel ? (
+                  {jobId ? (
                     "Downloading"
                   ) : (
                     "Download 🤗 Model"
@@ -83,7 +100,7 @@ export default function ImportModelsBar({}) {
                   </Button>
                 }
                 sx={{ width: '500px' }}
-                disabled={downloadingModel}
+                disabled={jobId != null}
               />
             </FormControl>
             <Button

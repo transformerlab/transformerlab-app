@@ -742,14 +742,22 @@ export async function getAvailableModels() {
   return result;
 }
 
-export async function downloadModelFromHuggingFace(modelName: string) {
+export async function downloadModelFromHuggingFace(
+  modelName: string,
+  job_id = null
+) {
+  console.log(encodeURIComponent(modelName));
+
+  let requestString = `${API_URL()}model/download_from_huggingface?model=${encodeURIComponent(
+    modelName
+  )}`;
+  if (job_id) {
+    requestString += `&job_id=${job_id}`;
+  }
+
   let result = {};
   try {
-    const response = await fetch(
-      `${API_URL()}model/download_from_huggingface?model=${encodeURIComponent(
-        modelName
-      )}`
-    );
+    const response = await fetch(requestString);
     result = await response.json();
 
     // Error during fetch
@@ -1017,6 +1025,7 @@ Endpoints.Dataset = {
 
 Endpoints.Models = {
   LocalList: () => API_URL() + 'model/list',
+  CountDownloaded:  () => API_URL() + 'model/count_downloaded',
   Gallery: () => API_URL() + 'model/gallery',
   GetPeftsForModel: () => API_URL() + 'model/pefts',
   UploadModelToHuggingFace: (
@@ -1133,6 +1142,7 @@ Endpoints.Recipes = {
 Endpoints.ServerInfo = {
   Get: () => API_URL() + 'server/info',
   PythonLibraries: () => API_URL() + 'server/python_libraries',
+  StreamLog: () => API_URL() + 'server/stream_log',
 };
 
 export function GET_TRAINING_TEMPLATE_URL() {
@@ -1322,6 +1332,8 @@ Endpoints.Experiment = {
     'plugins/delete_plugin?pluginId=' +
     pluginId,
   GetOutputFromJob: (jobId: string) => API_URL() + `train/job/${jobId}/output`,
+  StreamOutputFromJob: (jobId: string) =>
+    API_URL() + `train/job/${jobId}/stream_output`,
 };
 
 Endpoints.Jobs = {

@@ -109,16 +109,51 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
       } else if (!response.dataset || ! response.dataset.path) {
         alert("Warning: This recipe does not have an associated dataset")
       } else {
-        let msg = "";
-        if (!response.model.downloaded) {
-          msg += "Download model " + response.model.path
-        }
+        let msg = "Warning: To use this recipe you will need to download the following:";
+        let shouldDownload = false;
+
         if (!response.dataset.downloaded) {
-          msg += "Download dataset " + response.dataset.path
+          msg += "\n- Dataset: " + response.dataset.path;
+          shouldDownload = true;
         }
-        if (msg) {
-          const alert_msg = "Warning: To use this recipe you will need to: " + msg
-          alert(alert_msg);
+        if (!response.model.downloaded) {
+          msg += "\n- Model: " + response.model.path;
+          shouldDownload = true;
+        }
+
+        if (shouldDownload) {
+          msg += "\n\nDo you want to download these now?";
+          if (confirm(msg)) { // Use confirm() to get Accept/Cancel
+            if (!response.dataset.downloaded) {
+              fetch(chatAPI.Endpoints.Dataset.Download(response.dataset.path))
+                .then((response) => {
+                  if (!response.ok) {
+                    console.log(response);
+                    throw new Error(`HTTP Status: ${response.status}`);
+                  }
+                  return response.json();
+                })
+                .catch((error) => {
+                  alert('Dataset download failed:\n' + error);
+                });
+            }
+            if (!response.model.downloaded) {
+              chatAPI.downloadModelFromHuggingFace(response.model.path)
+                .then((response) => {
+                  if (response.status == "error") {
+                    console.log(response);
+                    throw new Error(`${response.message}`);
+                  }
+                  return response;
+                })
+                .catch((error) => {
+                  alert('Model download failed:\n' + error);
+                });
+            }
+          } else {
+            // User pressed Cancel
+            alert("Downloads cancelled. This recipe might not work correctly.");
+          }
         }
       }
     }

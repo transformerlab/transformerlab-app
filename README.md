@@ -2,10 +2,10 @@
 <br />
 <div align="center">
   <a href="https://github.com/transformerlab/transformerlab-app">
-    <img src="https://transformerlab.ai/img/flask.svg" alt="Logo" width="80" height="80">
+    <img src="https://transformerlab.ai/img/logo2.svg" alt="Logo" width="80" height="80">
   </a>
 
-  <h1 align="center" style="color: rgb(68, 73, 80); letter-spacing: -1px">Transformer Lab</h1>
+  <h1 align="center" style="color: rgb(16, 16, 18); letter-spacing: -1px">Transformer Lab</h1>
 
   <p align="center">
     Download, interact, and finetune models locally.

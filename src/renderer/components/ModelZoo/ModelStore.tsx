@@ -117,7 +117,7 @@ export default function ModelStore() {
   } = useSWR(chatAPI.Endpoints.Models.Gallery(), fetcher);
 
   const { data: modelDownloadProgress } = useSWR(
-    currentlyDownloading && jobId != '-1'
+    jobId && jobId != '-1'
       ? chatAPI.Endpoints.Jobs.Get(jobId)
       : null,
     fetcher,
@@ -489,7 +489,7 @@ export default function ModelStore() {
                         <Button
                           size="sm"
                           disabled={
-                            row.downloaded || currentlyDownloading !== null
+                            row.downloaded || jobId !== null
                           }
                           onClick={async () => {
                             setJobId(-1);
@@ -605,7 +605,10 @@ export default function ModelStore() {
           </tbody>
         </Table>
       </Sheet>
-      <ImportModelsBar />
+      <ImportModelsBar
+        jobId={jobId}
+        setJobId={setJobId}
+      />
     </Sheet>
   );
 }

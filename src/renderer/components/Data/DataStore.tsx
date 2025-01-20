@@ -28,7 +28,14 @@ export default function DataStore() {
   if (error) return 'An error has occurred.';
   if (isLoading) return <LinearProgress />;
   return (
-    <>
+    <Sheet
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        height: '100%',
+      }}
+    >
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
@@ -86,6 +93,6 @@ export default function DataStore() {
             ))}
         </Grid>
       </Sheet>
-    </>
+    </Sheet>
   );
 }

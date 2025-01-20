@@ -50,7 +50,7 @@ export default function PluginCard({
       <Card
         variant="outlined"
         sx={{
-          minHeight: '320px',
+          minHeight: '250px',
           overflow: 'hidden',
         }}
       >

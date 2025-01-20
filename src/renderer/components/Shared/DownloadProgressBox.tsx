@@ -8,6 +8,7 @@ import {
 } from '@mui/joy';
 
 import {
+    clamp,
     formatBytes,
 } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -18,7 +19,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function DownloadProgressBox({ jobId, assetName }) {
 
   const { data: downloadProgress } = useSWR(
-    assetName && jobId != '-1'
+    jobId && jobId != '-1'
             ? chatAPI.Endpoints.Jobs.Get(jobId)
             : null,
         fetcher,
@@ -53,7 +54,7 @@ export default function DownloadProgressBox({ jobId, assetName }) {
                 <>
                   {downloadProgress?.job_data?.downloaded != 0
                     ? formatBytes(
-                        modelDownloadProgress?.job_data?.downloaded *
+                        downloadProgress?.job_data?.downloaded *
                           1024 *
                           1024
                       )

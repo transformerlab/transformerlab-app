@@ -2,21 +2,21 @@ import {
   Alert,
   Button,
   CircularProgress,
+  Modal,
   Sheet,
+  Snackbar,
   Step,
   StepIndicator,
   Stepper,
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { CheckCircle2, InfoIcon } from 'lucide-react';
+import { CheckCircle2, InfoIcon, TimerIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCheckLocalConnection } from 'renderer/lib/transformerlab-api-sdk';
 
 import LargeTooltip from './LargeTooltip';
 import LogViewer from './LogViewer';
-import { BsFillFileEarmarkPersonFill } from 'react-icons/bs';
-import { error, log } from 'console';
 
 // Runs a callback every delay milliseconds, up to repetitions times.
 // If the callback returns true, the interval is cleared.
@@ -325,6 +325,7 @@ function InstallStepper({ setServer }) {
       } else {
         if (userRequestedInstall) {
           stepsFunctions[Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')]();
+          stepsFunctions[Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1](); // This connects and closes the window
         }
       }
     })();
@@ -571,11 +572,13 @@ function InstallStepper({ setServer }) {
       // don't run set thinking -- server needs to be polled
     };
   stepsFunctions[Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS')] = async () => {
+    console.log(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS'));
     await checkForPlugins();
     setThinking(false);
   };
   // The following is the a fake step: we are done so we just connect
   stepsFunctions[7] = async () => {
+    console.log('entering step 7');
     tryToConnect();
   };
 
@@ -591,6 +594,24 @@ function InstallStepper({ setServer }) {
   };
   // This function is called if specific strings in the Log are sent
 
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [intervalId, setIntervalId] = useState(null);
+
+  useEffect(() => {
+    let id;
+    if (userRequestedInstall) {
+      id = setInterval(() => {
+        setElapsedTime((prevTime) => prevTime + 1);
+      }, 1000);
+      setIntervalId(id);
+    } else {
+      clearInterval(intervalId);
+      setElapsedTime(0);
+    }
+
+    return () => clearInterval(id);
+  }, [userRequestedInstall]);
+
   return (
     <Sheet
       sx={{
@@ -601,6 +622,47 @@ function InstallStepper({ setServer }) {
         gap: 1,
       }}
     >
+      {elapsedTime > 15 && (
+        <Alert
+          sx={{
+            background: 'var(--joy-palette-primary-100)',
+            color: 'var(--joy-palette-primary-800)',
+            opacity: 0.9,
+            position: 'absolute',
+            float: 'left',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1000,
+          }}
+          startDecorator={<TimerIcon />}
+        >
+          <Typography level="body-sm">
+            The initial setup process may take a few minutes as it sets up a
+            Python ML workspace on your computer. Subsequent connections will be
+            much faster.
+            {elapsedTime > 25 && (
+              <>
+                <br />
+                <br />
+                If it appears like nothing is happening for a while, check the
+                terminal for any potential errors. You can safely close the the
+                application and start it again if things appear stuck for more
+                than a couple minutes.
+                <br />
+                <br />
+                One place where the Python conda installer pauses is when you
+                see "more hidden" on the bottom of the screen. This can take a
+                few minutes.
+                <br />
+                <br />
+                The other part takes takes a while is when you see "Installing
+                collected packages"
+              </>
+            )}
+          </Typography>
+        </Alert>
+      )}
       <Sheet
         sx={{
           display: 'flex',
@@ -620,6 +682,8 @@ function InstallStepper({ setServer }) {
             This panel starts up and connects to the Transformer Lab Engine on
             your local machine. If you have access to a separate computer with a
             powerful GPU, use "Connect to Remote Engine" instead.
+            {/* Active step:{' '}
+            {activeStep} */}
           </Typography>
         </Alert>
         {installStatus === 'error' && (
@@ -685,6 +749,9 @@ function InstallStepper({ setServer }) {
             <CircularProgress sx={{ marginRight: 1 }} />
           )}
           {userRequestedInstall ? 'Connecting...' : 'Connect'}
+          {userRequestedInstall && (
+            <span style={{ marginLeft: '10px' }}>{elapsedTime}s</span>
+          )}
         </Button>
       </Sheet>
 
