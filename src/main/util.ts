@@ -24,6 +24,8 @@ export function isPlatformWindows() {
 // On Windows, we use the home directory on WSL file system.
 // This outputs how to access the WSL file system homedir from Windows.
 async function getWSLHomeDir() {
+  // We do not have to change the default encoding because this command
+  // is run on linux, not windows, so we get utf-8
   const { stdout, stderr } = await awaitExec('wsl wslpath -w ~');
   if (stderr) console.error(`stderr: ${stderr}`);
   const homedir = stdout.trim();
@@ -71,6 +73,45 @@ export async function checkForMissingSystemRequirements() {
         if (stderr) return stderr;
       } catch (error) {
         return 'TransformerLab API requires WSL to run on Windows.';
+      }
+
+      try {
+        // Let's call `wsl --status` and see what the default
+        // version and distro of wsl is:
+        // We must use encoding = utf16le because that is the default for powershell
+        // according to https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-7.4
+        // There is a potential for a bug here if the user changed their powershell encoding.
+        const { stdout, stderr } = await awaitExec('wsl --status', { encoding: 'utf16le' });
+        if (stderr) return stderr;
+
+
+        //Read the output. The output looks like this:
+        //Default Distribution: Ubuntu
+        //Default Version: 2
+        //So parse out the distro and version:
+        const lines = stdout.split('\n');
+        let distro = '';
+        let version = '';
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes('Default Distribution:')) {
+            distro = lines[i].split(': ')[1];
+          }
+          if (lines[i].includes('Default Version:')) {
+            version = lines[i].split(': ')[1];
+          }
+        }
+        distro = distro.trim();
+        version = version.trim();
+        // Now print out the distro and version:
+        console.log(`WSL distro: ${distro}`);
+        console.log(`WSL version: ${version}`);
+
+        // Check if the distro is set to Ubuntu and the version is 2
+        if (distro != 'Ubuntu' || version != '2') {
+          return `WSL distro must be set to Ubuntu and version 2. Please run 'wsl --set-version Ubuntu 2'.`;
+        }
+      } catch (error) {
+        return 'WSL is not enabled. Please enable WSL and install a distro.';
       }
 
       try {
