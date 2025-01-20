@@ -59,6 +59,18 @@ export default function DownloadProgressBox({ jobId, assetName }) {
                           1024
                       )
                     : 'Download Starting'}
+
+                  {downloadProgress?.job_data?.total_size_of_model_in_mb >
+                    0 && (
+                    <>
+                    {'/'}
+                    {formatBytes(
+                      downloadProgress?.job_data?.total_size_of_model_in_mb
+                      * 1024
+                      * 1024
+                    )}
+                    </>
+                  )}
                   ↓
                 </>
               </Typography>
