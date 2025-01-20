@@ -534,17 +534,12 @@ function InstallStepper({ setServer }) {
 
   async function checkForPlugins() {
     setInstallingPlugins(true);
-    console.log('Startign to check for plugins');
     await fetch(
       'http://localhost:8338/plugins/install_missing_plugins_for_current_platform'
     );
-    console.log('call to check for plugins has returned');
     setInstallingPlugins(false);
     setMissingPlugins([]);
-    const nextStep = Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1;
-    console.log(nextStep);
     setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
-    console.log('setting active step to: ' + Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1)
   }
 
   var stepsFunctions: (() => Promise<void>)[] = [];
@@ -583,7 +578,7 @@ function InstallStepper({ setServer }) {
   };
   // The following is the a fake step: we are done so we just connect
   stepsFunctions[7] = async () => {
-    console.log('entering step 7')
+    console.log('entering step 7');
     tryToConnect();
   };
 
@@ -656,10 +651,13 @@ function InstallStepper({ setServer }) {
                 than a couple minutes.
                 <br />
                 <br />
-                One place where the Python conda installer pauses is when you see "more hidden" on the bottom of the screen. This can take a few minutes.
+                One place where the Python conda installer pauses is when you
+                see "more hidden" on the bottom of the screen. This can take a
+                few minutes.
                 <br />
                 <br />
-                The other part takes takes a while is when you see "Installing collected packages"
+                The other part takes takes a while is when you see "Installing
+                collected packages"
               </>
             )}
           </Typography>
@@ -684,7 +682,8 @@ function InstallStepper({ setServer }) {
             This panel starts up and connects to the Transformer Lab Engine on
             your local machine. If you have access to a separate computer with a
             powerful GPU, use "Connect to Remote Engine" instead.
-            Active step: {activeStep}
+            {/* Active step:{' '}
+            {activeStep} */}
           </Typography>
         </Alert>
         {installStatus === 'error' && (
