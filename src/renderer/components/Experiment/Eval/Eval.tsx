@@ -260,6 +260,9 @@ export default function Eval({
         <Typography level="h1" mb={1}>
           Evaluate
         </Typography>
+        <Alert color="neutral" sx={{ mb: 2 }}>
+          This feature is still in development. We could use your help!
+        </Alert>
         {plugins?.length === 0 ? (
           <Alert color="danger">
             No Evaluation Scripts available, please install an evaluator plugin.
@@ -285,7 +288,7 @@ export default function Eval({
           <thead>
             <tr>
               <th>Evaluator</th>
-              <th>&nbsp;</th>
+              <th style={{ width: '80px' }}>&nbsp;</th>
               <th>Tasks</th>
               <th>Plugin</th>
               <th style={{ textAlign: 'right' }}>&nbsp;</th>
@@ -310,7 +313,7 @@ export default function Eval({
                         Edit
                       </Button>
                     </td>
-                    <td>
+                    <td style={{ overflow: 'hidden' }}>
                       {evaluations?.script_parameters?.task}&nbsp;
                       <FileTextIcon size={14} />
                     </td>
