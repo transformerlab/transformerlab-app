@@ -79,6 +79,12 @@ export default function App() {
     window.storage.set(`experimentId.${connectionWithoutDots}`, experimentId);
   }, [experimentId]);
 
+  useEffect(() => {
+    if (logsDrawerOpen) {
+      setLogsDrawerHeight(200);
+    }
+  }, [logsDrawerOpen]);
+
   // Fetch the experiment info, if the experimentId changes
   const {
     data: experimentInfo,
