@@ -201,7 +201,11 @@ export default function App() {
             }}
           >
             <div>&nbsp;</div>
-            <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
+            {logsDrawerOpen ? (
+              <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
+            ) : (
+              <>&nbsp;</>
+            )}
             <IconButton
               sx={{ padding: 0, margin: 0, minHeight: 0 }}
               onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
