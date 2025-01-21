@@ -173,6 +173,8 @@ export default function LocalDatasets() {
                           if (response_json?.status == 'error') {
                             throw new Error(response_json.message);
                           }
+                          // now mutate:
+                          mutate();
                           setDownloadingDataset(null);
                         })
                         .catch((error) => {
