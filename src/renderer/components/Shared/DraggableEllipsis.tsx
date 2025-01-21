@@ -45,7 +45,7 @@ export default function DraggableEllipsis({ notifyOnMove = (pos) => {} }) {
         // left: isDragging ? position.x : 'auto',
         // top: isDragging ? position.y : 'auto',
         cursor: isDragging ? 'grabbing' : 'grab',
-        zIndex: 3000,
+        zIndex: 1100,
         height: '100%',
       }}
     >
