@@ -297,7 +297,7 @@ export default function Eval({
               listEvals(experimentInfo?.config?.evaluations)?.map(
                 (evaluations) => (
                   <tr key={evaluations.name}>
-                    <td>{evaluations.name}</td>
+                    <td style={{ overflow: 'hidden' }}>{evaluations.name}</td>
                     <td>
                       <Button
                         variant="soft"
