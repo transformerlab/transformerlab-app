@@ -32,6 +32,10 @@ a {
   opacity: 1;
 }
 
+td {
+  overflow: hidden;
+}
+
 .uppy-StatusBar-actionBtn {
   background-color: var(--joy-palette-primary-600) !important;
   color: var(--joy-palette-primary-100) !important;
