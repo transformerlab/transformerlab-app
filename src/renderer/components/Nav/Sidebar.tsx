@@ -42,6 +42,7 @@ export default function Sidebar({
   setExperimentId,
   logsDrawerOpen,
   setLogsDrawerOpen,
+  themeSetter,
 }) {
   const { models, isError, isLoading } = useModelStatus();
   const { outdatedPluginsCount } = usePluginStatus(experimentInfo);
@@ -245,7 +246,7 @@ export default function Sidebar({
         </ListItem> */}
         <Divider sx={{ my: 2 }} />
         <ButtonGroup sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          <ColorSchemeToggle />
+          <ColorSchemeToggle themeSetter={themeSetter} />
           <a
             href="https://github.com/transformerlab/transformerlab-app/"
             target="_blank"

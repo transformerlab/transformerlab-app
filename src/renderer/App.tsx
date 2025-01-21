@@ -8,6 +8,7 @@ import MainAppPanel from './components/MainAppPanel';
 import Header from './components/Header';
 
 import customTheme from './lib/theme';
+import secretPurpleTheme from './lib/secretPurpleTheme';
 
 import './styles.css';
 import LoginModal from './components/Connect/LoginModal';
@@ -40,6 +41,8 @@ export default function App() {
 
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
+
+  const [theme, setTheme] = useState(customTheme);
 
   useEffect(() => {
     async function getSavedExperimentId() {
@@ -102,8 +105,16 @@ export default function App() {
     setLogsDrawerHeight(bottom);
   }, []);
 
+  function themeSetter(name: string) {
+    if (name === 'purple') {
+      setTheme(secretPurpleTheme);
+    } else {
+      setTheme(customTheme);
+    }
+  }
+
   return (
-    <CssVarsProvider disableTransitionOnChange theme={customTheme}>
+    <CssVarsProvider disableTransitionOnChange theme={theme}>
       <CssBaseline />
       <Box
         component="main"
@@ -138,6 +149,7 @@ export default function App() {
           setExperimentId={setExperimentId}
           logsDrawerOpen={logsDrawerOpen}
           setLogsDrawerOpen={setLogsDrawerOpen}
+          themeSetter={themeSetter}
         />
         <Box
           sx={{
