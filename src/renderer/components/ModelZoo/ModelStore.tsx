@@ -125,6 +125,8 @@ export default function ModelStore() {
     { refreshInterval: 2000 }
   );
 
+
+
   // Creating a separate object to get useEffect for download jobs to work
   // useEffect needs it to be the exact same object, not just the same values
   const obj = useMemo(() => ({ currentlyDownloading }), [currentlyDownloading]);
@@ -134,7 +136,14 @@ export default function ModelStore() {
     chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
     fetcher
   );
-  const isHFAccessTokenSet = hftoken && hftoken.length > 0;
+
+  const { data: canLogInToHuggingFace } = useSWR(chatAPI.Endpoints.Models.HuggingFaceLogin(), fetcher);
+
+  // Set isHFAccessTokenSet to true if message in canLogInToHuggingFace is 'OK'
+  const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
+
+
+  // const isHFAccessTokenSet = hftoken && hftoken.length > 0;
 
   // On page load, check if there are any models currently being downloaded, and if so,
   // Record the jobID and model Name
@@ -413,9 +422,9 @@ export default function ModelStore() {
                           onClick={() => {
                             const confirm_result = confirm(
                               'To access gated Hugging Face models you must first:\r\r' +
-                                '1. Create a READ access token in your Hugging Face account.\r\r' +
-                                '2. Enter the token on the Transformer Lab Settings page.\r\r' +
-                                'Click OK to go to Settings.'
+                              '1. Create a READ access token in your Hugging Face account.\r\r' +
+                              '2. Enter the token on the Transformer Lab Settings page.\r\r' +
+                              'Click OK to go to Settings.'
                             );
                             if (confirm_result) {
                               navigate('/settings');
@@ -509,8 +518,8 @@ export default function ModelStore() {
                                     {formatBytes(
                                       modelDownloadProgress?.job_data
                                         ?.downloaded *
-                                        1024 *
-                                        1024
+                                      1024 *
+                                      1024
                                     )}
                                     {/* {modelDownloadProgress?.job_data} */}
                                     <ArrowDownIcon size="18px" />
