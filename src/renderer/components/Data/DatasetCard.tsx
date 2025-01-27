@@ -88,8 +88,12 @@ export default function DatasetCard({
                 color="neutral"
                 variant="outlined"
                 onClick={async () => {
-                  await fetch(chatAPI.Endpoints.Dataset.Delete(name));
-                  parentMutate();
+                  if (
+                    confirm('Are you sure you want to delete this dataset?')
+                  ) {
+                    await fetch(chatAPI.Endpoints.Dataset.Delete(name));
+                    parentMutate();
+                  }
                 }}
               >
                 <Trash2Icon />
