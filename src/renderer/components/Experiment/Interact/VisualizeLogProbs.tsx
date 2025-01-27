@@ -1,4 +1,5 @@
 import {
+  Alert,
   Button,
   CircularProgress,
   IconButton,
@@ -8,7 +9,12 @@ import {
   Textarea,
   Typography,
 } from '@mui/joy';
-import { SendIcon, StopCircle } from 'lucide-react';
+import {
+  ConstructionIcon,
+  LightbulbIcon,
+  SendIcon,
+  StopCircle,
+} from 'lucide-react';
 import { useRef, useState } from 'react';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
@@ -185,6 +191,14 @@ export default function CompletionsPage({
           justifyContent: 'space-between',
         }}
       >
+        <Alert
+          color="neutral"
+          variant="outlined"
+          startDecorator={<ConstructionIcon />}
+        >
+          This feature is currently in developement. It only works with on Apple
+          Silicon using the MLX inference engine.
+        </Alert>
         <Input
           name="starting-text"
           placeholder="Enter text to complete here"
