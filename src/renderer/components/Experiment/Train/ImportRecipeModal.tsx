@@ -35,6 +35,17 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
 
   const recipes = recipesData;
 
+
+  const {
+    data: pluginsData,
+    error: pluginsError,
+    isLoading: pluginsLoading,
+  } = useSWR(chatAPI.Endpoints.Plugins.List(), fetcher);
+
+  const installedPlugins = pluginsData
+    ? pluginsData.map(plugin => plugin.uniqueId)
+    : [];
+
   // For any variables that need to be reset on close
   const handleClose = () => {
     mutate();
@@ -225,6 +236,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                       <td>
                         <Button
                           size="sm"
+                          disabled = {!(installedPlugins.includes(row.training?.plugin))}
                           onClick={() => {
                             const recipe_text = YAML.stringify(row);
                             uploadRecipe(row.metadata?.name, recipe_text);
