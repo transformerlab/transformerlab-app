@@ -52,7 +52,7 @@ Transformer Lab is proud to be supported by Mozilla through the <a href="https:/
 Transformer Lab allows you to:
 
 - 💕 **One-click Download Hundreds of Popular Models**:
-  - Llama3, Phi3, Mistral, Mixtral, Gemma, Command-R, and dozens more
+  - DeepSeek, Llama3, Qwen, Phi4, Gemma, Mistral, Mixtral, Command-R, and dozens more
 - ⬇ **Download any LLM from Huggingface**
 - 🎶 **Finetune / Train Across Different Hardware**
   - Finetune using MLX on Apple Silicon
