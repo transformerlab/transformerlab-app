@@ -2,10 +2,10 @@
 <br />
 <div align="center">
   <a href="https://github.com/transformerlab/transformerlab-app">
-    <img src="https://transformerlab.ai/img/logo2.svg" alt="Logo" width="80" height="80">
+    <img src="./assets/transformer-lab-logo-on-white.svg" alt="Logo" width="100%" height="80">
   </a>
 
-  <h1 align="center" style="color: rgb(16, 16, 18); letter-spacing: -1px">Transformer Lab</h1>
+  <!-- <h1 align="center" style="color: rgb(16, 16, 18); letter-spacing: -1px">Transformer Lab</h1> -->
 
   <p align="center">
     100% Open Source Toolkit for Large Language Models: Train, Tune, Chat on your own Machine
@@ -26,7 +26,7 @@
     <a href="https://twitter.com/transformerlab">Follow on Twitter</a>
   </p>
   <p align="center">
-   Note: Transformer Lab is actively being worked on. Please join our Discord or follow us on Twitter for updates. Questions, feedback and contributions are highly valued!</p>
+   Note: Transformer Lab is actively being developed. Please join our Discord or follow us on Twitter for updates. Questions, feedback and contributions are highly valued!</p>
 </div>
 
 <!-- ABOUT THE PROJECT -->
