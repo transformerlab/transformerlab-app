@@ -298,6 +298,96 @@ function CustomSelect<
   );
 }
 
+/* Below I create a simpler version of customselect that doesn't use MUI. We do this because for VERY VERY large option lists, MUI chokes.
+This is more performant but less nice looking */
+function CustomSelectSimple<
+  T = any,
+  S extends StrictRJSFSchema = RJSFSchema,
+  F extends FormContextType = any
+>({
+  schema,
+  id,
+  name, // remove this from textFieldProps
+  options,
+  label,
+  hideLabel,
+  required,
+  disabled,
+  placeholder,
+  readonly,
+  value,
+  multiple,
+  autofocus,
+  onChange,
+  onBlur,
+  onFocus,
+  rawErrors = [],
+  registry,
+  uiSchema,
+  hideError,
+  formContext,
+  ...textFieldProps
+}: WidgetProps<T, S, F>) {
+  const { enumOptions, enumDisabled, emptyValue: optEmptyVal } = options;
+
+  multiple = typeof multiple === 'undefined' ? false : !!multiple;
+
+  const emptyValue = multiple ? [] : '';
+  const isEmpty =
+    typeof value === 'undefined' ||
+    (multiple && value.length < 1) ||
+    (!multiple && value === emptyValue);
+
+  const _onChange = ({ target: { value } }: ChangeEvent<{ value: string }>) =>
+    onChange(enumOptionsValueForIndex<S>(value, enumOptions, optEmptyVal));
+  const _onBlur = ({ target: { value } }: FocusEvent<HTMLInputElement>) =>
+    onBlur(id, enumOptionsValueForIndex<S>(value, enumOptions, optEmptyVal));
+  const _onFocus = ({ target: { value } }: FocusEvent<HTMLInputElement>) =>
+    onFocus(id, enumOptionsValueForIndex<S>(value, enumOptions, optEmptyVal));
+  const selectedIndexes = enumOptionsIndexForValue<S>(
+    value,
+    enumOptions,
+    multiple
+  );
+
+  // set a default value for the field if it's not multi-select and value is set
+  const defaultValue = !isEmpty && !multiple ? value : emptyValue;
+
+  return (
+    <>
+      <select
+        name={id}
+        id={id}
+        required={required}
+        disabled={disabled}
+        defaultValue={String(defaultValue)}
+      >
+        {Array.isArray(enumOptions) &&
+          enumOptions.map(({ value, label }, i: number) => {
+            const disabled: boolean =
+              Array.isArray(enumDisabled) && enumDisabled.indexOf(value) !== -1;
+
+            // selectedIndexes is an array if multiple is set, or an integer (or undefined) if not multiple
+            const selected: boolean = multiple
+              ? Array.isArray(selectedIndexes) &&
+                selectedIndexes.indexOf(i) !== -1
+              : i == selectedIndexes;
+            return (
+              <option
+                key={i}
+                value={String(label)}
+                disabled={disabled}
+                label={label}
+              >
+                {label}
+              </option>
+            );
+          })}
+      </select>
+    </>
+  );
+}
+
 function CustomFieldTemplate(props: FieldTemplateProps) {
   const {
     id,
@@ -328,7 +418,7 @@ function CustomFieldTemplate(props: FieldTemplateProps) {
 
 const widgets: RegistryWidgetsType = {
   RangeWidget: CustomRange,
-  SelectWidget: CustomSelect,
+  SelectWidget: CustomSelectSimple,
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -356,7 +446,13 @@ export default function DynamicPluginForm({
   //Using use effect here to update the config data when the data or config changes
   React.useEffect(() => {
     if (config && data) {
-      let parsedData = JSON.parse(data); //Parsing data for easy access to parameters
+      let parsedData;
+      try {
+        parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+      } catch (e) {
+        console.error('Error parsing data', e);
+        parsedData = '';
+      }
       //Iterating through the config object and updating the default values in the data
       Object.keys(config).forEach((key) => {
         if (
@@ -370,7 +466,7 @@ export default function DynamicPluginForm({
       //Schema takes in data as a JSON string
       setConfigData(JSON.stringify(parsedData));
     } else if (data) {
-      setConfigData(data);  //Setting the config data to the data if there is no config
+      setConfigData(data); //Setting the config data to the data if there is no config
     }
   }, [plugin, experimentInfo, config, data]);
 
@@ -387,7 +483,7 @@ export default function DynamicPluginForm({
       {plugin && configData ? (
         <Form
           tagName="div"
-          className="pure-form pure-form-stacked"
+          className="pure-form pure-form-stacked dynamic-plugin-form"
           schema={schema?.JSONSchema}
           uiSchema={schema?.uiSchema}
           validator={validator}
