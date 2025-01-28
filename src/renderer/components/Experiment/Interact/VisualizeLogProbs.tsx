@@ -189,6 +189,9 @@ export default function CompletionsPage({
           paddingBottom: '10px',
           height: '100%',
           justifyContent: 'space-between',
+          overflow: 'hidden',
+          textWrap: 'wrap',
+          overflowWrap: 'break-word',
         }}
       >
         <Alert
