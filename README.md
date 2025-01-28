@@ -10,6 +10,8 @@
   <p align="center">
     100% Open Source Toolkit for Large Language Models: Train, Tune, Chat on your own Machine
     <br />
+    <a href="https://transformerlab.ai/docs/download/"><strong>Download</strong></a>
+    ·
     <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
     <br />
     <br />
