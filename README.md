@@ -35,7 +35,7 @@
 
 ## About The Project
 
-![Product Screen Shot](assets/screenshot.png)
+![Product Screen Shot](assets/transformerlab-demo-jan2025.gif)
 
 Transformer Lab is an app that allows anyone to experiment with Large Language Models.
 
