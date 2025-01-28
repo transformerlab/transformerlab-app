@@ -45,7 +45,13 @@ export default function TrainingModalDataTab({
     fetcher
   );
 
-  const parsedData = data ? JSON.parse(data) : null;
+  let parsedData;
+  try {
+    parsedData = data ? JSON.parse(data) : null;
+  } catch (e) {
+    console.error('Error parsing data', e);
+    parsedData = '';
+  }
   return (
     <Box
       sx={{

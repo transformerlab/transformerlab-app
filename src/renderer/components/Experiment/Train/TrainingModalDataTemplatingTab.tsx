@@ -49,8 +49,14 @@ function TrainingModalDataTemplatingTab({
   );
 
   const [debouncedTemplate] = useDebounce(template, 3000);
+  let parsedData;
 
-  const parsedData = data ? JSON.parse(data) : null;
+  try {
+    parsedData = data ? JSON.parse(data) : null;
+  } catch (e) {
+    console.error('Error parsing data', e);
+    parsedData = '';
+  }
 
   function PreviewSection() {
     return (
