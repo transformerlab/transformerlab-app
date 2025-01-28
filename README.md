@@ -8,7 +8,7 @@
   <h1 align="center" style="color: rgb(16, 16, 18); letter-spacing: -1px">Transformer Lab</h1>
 
   <p align="center">
-    Download, interact, and finetune models locally.
+    100% Open Source Toolkit for Large Language Models: Train, Tune, Chat on your own Machine
     <br />
     <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
     <br />
