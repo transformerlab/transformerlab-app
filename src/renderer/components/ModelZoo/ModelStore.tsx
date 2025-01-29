@@ -3,7 +3,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import {
-  Checkbox,
   FormControl,
   FormLabel,
   Input,
@@ -16,9 +15,7 @@ import {
   Link,
   Box,
   Button,
-  CircularProgress,
   LinearProgress,
-  Stack,
 } from '@mui/joy';
 import {
   ArrowDownIcon,
@@ -118,14 +115,10 @@ export default function ModelStore() {
   } = useSWR(chatAPI.Endpoints.Models.Gallery(), fetcher);
 
   const { data: modelDownloadProgress } = useSWR(
-    jobId && jobId != '-1'
-      ? chatAPI.Endpoints.Jobs.Get(jobId)
-      : null,
+    jobId && jobId != '-1' ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
     fetcher,
     { refreshInterval: 2000 }
   );
-
-
 
   // Creating a separate object to get useEffect for download jobs to work
   // useEffect needs it to be the exact same object, not just the same values
@@ -137,11 +130,13 @@ export default function ModelStore() {
     fetcher
   );
 
-  const { data: canLogInToHuggingFace } = useSWR(chatAPI.Endpoints.Models.HuggingFaceLogin(), fetcher);
+  const { data: canLogInToHuggingFace } = useSWR(
+    chatAPI.Endpoints.Models.HuggingFaceLogin(),
+    fetcher
+  );
 
   // Set isHFAccessTokenSet to true if message in canLogInToHuggingFace is 'OK'
   const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
-
 
   // const isHFAccessTokenSet = hftoken && hftoken.length > 0;
 
@@ -229,10 +224,7 @@ export default function ModelStore() {
         overflow: 'hidden',
       }}
     >
-      <DownloadProgressBox
-        jobId={jobId}
-        assetName={currentlyDownloading}
-      />
+      <DownloadProgressBox jobId={jobId} assetName={currentlyDownloading} />
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
@@ -276,288 +268,295 @@ export default function ModelStore() {
           height: '100%',
         }}
       >
-        <Table
-          aria-labelledby="tableTitle"
-          stickyHeader
-          hoverRow
-          sx={{
-            '--TableCell-headBackground': (theme) =>
-              theme.vars.palette.background.level1,
-            '--Table-headerUnderlineThickness': '1px',
-            '--TableRow-hoverBackground': (theme) =>
-              theme.vars.palette.background.level1,
-          }}
-        >
-          <thead>
-            <tr>
-              <th style={{ width: 200, padding: 12 }}>
-                <Link
-                  underline="none"
-                  color="primary"
-                  component="button"
-                  onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
-                  fontWeight="lg"
-                  endDecorator={<ArrowDownIcon />}
-                  sx={{
-                    '& svg': {
-                      transition: '0.2s',
-                      transform:
-                        order === 'desc' ? 'rotate(0deg)' : 'rotate(180deg)',
-                    },
-                  }}
-                >
-                  Name
-                </Link>
-              </th>
-
-              <th style={{ width: 100, padding: 12 }}>License</th>
-              <th style={{ width: 100, padding: 12 }}>Engine</th>
-              <th style={{ width: 60, padding: 12 }}>Size</th>
-              <th style={{ width: 20, padding: 12 }}> </th>
-              <th style={{ width: 80, padding: 12 }}> </th>
-            </tr>
-          </thead>
-          <tbody>
-            {modelGalleryData &&
-              stableSort(
-                filterByFilters(modelGalleryData, searchText, filters),
-                getComparator(order, 'name')
-              ).map((row) => (
-                <tr key={row.uniqueID}>
-                  <td>
-                    <Typography level="title-md" marginLeft={2}>
-                      {row.new && (
-                        <Chip variant="outlined" size="sm" color="success">
-                          NEW!
-                        </Chip>
-                      )}
-                      {row.name}&nbsp;
-                      <a
-                        href={getModelHuggingFaceURL(row)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {row.gated ? (
-                          <Chip
-                            variant="outlined"
-                            size="sm"
-                            endDecorator={<LockKeyholeIcon size="13px" />}
-                            color="warning"
-                          >
-                            Gated
-                          </Chip>
-                        ) : (
-                          <ExternalLinkIcon size="14px" />
-                        )}
-                        {row.tags &&
-                          row.tags.map((tag) => (
-                            <Chip variant="outlined" size="sm" color="success">
-                              {tag}
-                            </Chip>
-                          ))}
-                      </a>
-                    </Typography>
-                  </td>
-                  <td>
-                    <Chip
-                      variant="soft"
-                      size="sm"
-                      startDecorator={
-                        {
-                          GPL: <CheckIcon />,
-                          'Apache 2.0': <GraduationCapIcon />,
-                          CC: <CreativeCommonsIcon />,
-                        }[row.license]
-                      }
-                      color={
-                        {
-                          GPL: 'success',
-                          'Apache 2.0': 'neutral',
-                          CC: 'success',
-                        }[row.license]
-                      }
-                    >
-                      {row.license}
-                    </Chip>
-                  </td>
-                  <td
-                    style={{
-                      overflow: 'hidden',
-                      color:
-                        row.architecture == 'GGUF'
-                          ? 'var(--joy-palette-success-800)'
-                          : '',
+        {modelGalleryIsLoading ? (
+          <LinearProgress />
+        ) : (
+          <Table
+            aria-labelledby="tableTitle"
+            stickyHeader
+            hoverRow
+            sx={{
+              '--TableCell-headBackground': (theme) =>
+                theme.vars.palette.background.level1,
+              '--Table-headerUnderlineThickness': '1px',
+              '--TableRow-hoverBackground': (theme) =>
+                theme.vars.palette.background.level1,
+            }}
+          >
+            <thead>
+              <tr>
+                <th style={{ width: 200, padding: 12 }}>
+                  <Link
+                    underline="none"
+                    color="primary"
+                    component="button"
+                    onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
+                    fontWeight="lg"
+                    endDecorator={<ArrowDownIcon />}
+                    sx={{
+                      '& svg': {
+                        transition: '0.2s',
+                        transform:
+                          order === 'desc' ? 'rotate(0deg)' : 'rotate(180deg)',
+                      },
                     }}
                   >
-                    {row.architecture == 'MLX' && (
-                      <>
-                        <TinyMLXLogo />
-                        &nbsp;
-                      </>
-                    )}
-                    {row.architecture}
-                  </td>
+                    Name
+                  </Link>
+                </th>
 
-                  <td>
-                    {row?.size_of_model_in_mb &&
-                      formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
-                  </td>
-
-                  <td style={{ textAlign: 'right' }}>
-                    <InfoIcon
-                      onClick={() => {
-                        setModelDetailsId(row.uniqueID);
-                      }}
-                    />
-                  </td>
-
-                  <td style={{ textAlign: 'right' }}>
-                    {
-                      // Don't display Download Button if gated model and no access token
-                      row?.gated && !isHFAccessTokenSet ? (
-                        <Button
-                          size="sm"
-                          endDecorator={<LockKeyholeIcon />}
-                          color="warning"
-                          onClick={() => {
-                            const confirm_result = confirm(
-                              'To access gated Hugging Face models you must first:\r\r' +
-                              '1. Create a READ access token in your Hugging Face account.\r\r' +
-                              '2. Enter the token on the Transformer Lab Settings page.\r\r' +
-                              'Click OK to go to Settings.'
-                            );
-                            if (confirm_result) {
-                              navigate('/settings');
-                            }
-                          }}
+                <th style={{ width: 100, padding: 12 }}>License</th>
+                <th style={{ width: 100, padding: 12 }}>Engine</th>
+                <th style={{ width: 60, padding: 12 }}>Size</th>
+                <th style={{ width: 20, padding: 12 }}> </th>
+                <th style={{ width: 80, padding: 12 }}> </th>
+              </tr>
+            </thead>
+            <tbody>
+              {modelGalleryData &&
+                stableSort(
+                  filterByFilters(modelGalleryData, searchText, filters),
+                  getComparator(order, 'name')
+                ).map((row) => (
+                  <tr key={row.uniqueID}>
+                    <td>
+                      <Typography level="title-md" marginLeft={2}>
+                        {row.new && (
+                          <Chip variant="outlined" size="sm" color="success">
+                            NEW!
+                          </Chip>
+                        )}
+                        {row.name}&nbsp;
+                        <a
+                          href={getModelHuggingFaceURL(row)}
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
-                          Unlock
-                        </Button>
-                      ) : (
-                        // Otherwise display regular Download button
-                        <Button
-                          size="sm"
-                          disabled={
-                            row.downloaded || jobId !== null
-                          }
-                          onClick={async () => {
-                            setJobId(-1);
-                            setCurrentlyDownloading(row.name);
-                            try {
-                              let response = await fetch(
-                                chatAPI.Endpoints.Jobs.Create()
+                          {row.gated ? (
+                            <Chip
+                              variant="outlined"
+                              size="sm"
+                              endDecorator={<LockKeyholeIcon size="13px" />}
+                              color="warning"
+                            >
+                              Gated
+                            </Chip>
+                          ) : (
+                            <ExternalLinkIcon size="14px" />
+                          )}
+                          {row.tags &&
+                            row.tags.map((tag) => (
+                              <Chip
+                                variant="outlined"
+                                size="sm"
+                                color="success"
+                              >
+                                {tag}
+                              </Chip>
+                            ))}
+                        </a>
+                      </Typography>
+                    </td>
+                    <td>
+                      <Chip
+                        variant="soft"
+                        size="sm"
+                        startDecorator={
+                          {
+                            GPL: <CheckIcon />,
+                            'Apache 2.0': <GraduationCapIcon />,
+                            CC: <CreativeCommonsIcon />,
+                          }[row.license]
+                        }
+                        color={
+                          {
+                            GPL: 'success',
+                            'Apache 2.0': 'neutral',
+                            CC: 'success',
+                          }[row.license]
+                        }
+                      >
+                        {row.license}
+                      </Chip>
+                    </td>
+                    <td
+                      style={{
+                        overflow: 'hidden',
+                        color:
+                          row.architecture == 'GGUF'
+                            ? 'var(--joy-palette-success-800)'
+                            : '',
+                      }}
+                    >
+                      {row.architecture == 'MLX' && (
+                        <>
+                          <TinyMLXLogo />
+                          &nbsp;
+                        </>
+                      )}
+                      {row.architecture}
+                    </td>
+
+                    <td>
+                      {row?.size_of_model_in_mb &&
+                        formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                    </td>
+
+                    <td style={{ textAlign: 'right' }}>
+                      <InfoIcon
+                        onClick={() => {
+                          setModelDetailsId(row.uniqueID);
+                        }}
+                      />
+                    </td>
+
+                    <td style={{ textAlign: 'right' }}>
+                      {
+                        // Don't display Download Button if gated model and no access token
+                        row?.gated && !isHFAccessTokenSet ? (
+                          <Button
+                            size="sm"
+                            endDecorator={<LockKeyholeIcon />}
+                            color="warning"
+                            onClick={() => {
+                              const confirm_result = confirm(
+                                'To access gated Hugging Face models you must first:\r\r' +
+                                  '1. Create a READ access token in your Hugging Face account.\r\r' +
+                                  '2. Enter the token on the Transformer Lab Settings page.\r\r' +
+                                  'Click OK to go to Settings.'
                               );
-                              const newJobId = await response.json();
-                              setJobId(newJobId);
-                              response = await downloadModelFromGallery(
-                                row?.uniqueID,
-                                newJobId
-                              );
-                              if (response?.status == 'error') {
-                                setCurrentlyDownloading(null);
-                                setJobId(null);
-                                return alert(
-                                  `Failed to download:\n${response.message}`
-                                );
-                              } else if (response?.status == 'unauthorized') {
-                                setCurrentlyDownloading(null);
-                                setJobId(null);
-                                const confirm_text = `${response.message}\n\nPress OK to open the model agreement.`;
-                                if (confirm(confirm_text)) {
-                                  window
-                                    .open(getModelHuggingFaceURL(row), '_blank')
-                                    ?.focus();
-                                }
+                              if (confirm_result) {
+                                navigate('/settings');
                               }
-                              setCurrentlyDownloading(null);
-                              setJobId(null);
-                              modelGalleryMutate();
-                            } catch (e) {
-                              setCurrentlyDownloading(null);
-                              setJobId(null);
-                              console.log(e);
-                              return alert('Failed to download');
-                            }
-                          }}
-                          startDecorator={
-                            jobId && currentlyDownloading == row.name ? (
-                              <>
-                                {row?.size_of_model_in_mb ? (
-                                  <>
-                                    <LinearProgress
-                                      determinate
-                                      value={clamp(
-                                        modelDownloadProgress?.progress,
-                                        0,
-                                        100
-                                      )}
-                                      sx={{ width: '100px' }}
-                                      variant="solid"
-                                    />
-                                    &nbsp;&nbsp;
-                                    {modelDownloadProgress?.progress !== -1 && (
-                                      <>
-                                        {clamp(
-                                          Number.parseFloat(
-                                            modelDownloadProgress?.progress
-                                          ),
+                            }}
+                          >
+                            Unlock
+                          </Button>
+                        ) : (
+                          // Otherwise display regular Download button
+                          <Button
+                            size="sm"
+                            disabled={row.downloaded || jobId !== null}
+                            onClick={async () => {
+                              setJobId(-1);
+                              setCurrentlyDownloading(row.name);
+                              try {
+                                let response = await fetch(
+                                  chatAPI.Endpoints.Jobs.Create()
+                                );
+                                const newJobId = await response.json();
+                                setJobId(newJobId);
+                                response = await downloadModelFromGallery(
+                                  row?.uniqueID,
+                                  newJobId
+                                );
+                                if (response?.status == 'error') {
+                                  setCurrentlyDownloading(null);
+                                  setJobId(null);
+                                  return alert(
+                                    `Failed to download:\n${response.message}`
+                                  );
+                                } else if (response?.status == 'unauthorized') {
+                                  setCurrentlyDownloading(null);
+                                  setJobId(null);
+                                  const confirm_text = `${response.message}\n\nPress OK to open the model agreement.`;
+                                  if (confirm(confirm_text)) {
+                                    window
+                                      .open(
+                                        getModelHuggingFaceURL(row),
+                                        '_blank'
+                                      )
+                                      ?.focus();
+                                  }
+                                }
+                                setCurrentlyDownloading(null);
+                                setJobId(null);
+                                modelGalleryMutate();
+                              } catch (e) {
+                                setCurrentlyDownloading(null);
+                                setJobId(null);
+                                console.log(e);
+                                return alert('Failed to download');
+                              }
+                            }}
+                            startDecorator={
+                              jobId && currentlyDownloading == row.name ? (
+                                <>
+                                  {row?.size_of_model_in_mb ? (
+                                    <>
+                                      <LinearProgress
+                                        determinate
+                                        value={clamp(
+                                          modelDownloadProgress?.progress,
                                           0,
                                           100
-                                        ).toFixed(0)}
-                                        %
-                                      </>
-                                    )}
-                                  </>
-                                ) : (
-                                  <>
-                                    <LinearProgress
-                                      sx={{ width: '40px' }}
-                                      variant="solid"
-                                    />
-                                    &nbsp;&nbsp;
-                                    {formatBytes(
-                                      modelDownloadProgress?.job_data
-                                        ?.downloaded *
-                                      1024 *
-                                      1024
-                                    )}
-                                    {/* {modelDownloadProgress?.job_data} */}
-                                    <ArrowDownIcon size="18px" />
-                                  </>
-                                )}
-                              </>
-                            ) : (
+                                        )}
+                                        sx={{ width: '100px' }}
+                                        variant="solid"
+                                      />
+                                      &nbsp;&nbsp;
+                                      {modelDownloadProgress?.progress !==
+                                        -1 && (
+                                        <>
+                                          {clamp(
+                                            Number.parseFloat(
+                                              modelDownloadProgress?.progress
+                                            ),
+                                            0,
+                                            100
+                                          ).toFixed(0)}
+                                          %
+                                        </>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      <LinearProgress
+                                        sx={{ width: '40px' }}
+                                        variant="solid"
+                                      />
+                                      &nbsp;&nbsp;
+                                      {formatBytes(
+                                        modelDownloadProgress?.job_data
+                                          ?.downloaded *
+                                          1024 *
+                                          1024
+                                      )}
+                                      {/* {modelDownloadProgress?.job_data} */}
+                                      <ArrowDownIcon size="18px" />
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                ''
+                              )
+                            }
+                            endDecorator={
+                              jobId && currentlyDownloading == row.name ? (
+                                ''
+                              ) : row.downloaded ? (
+                                <CheckIcon size="18px" />
+                              ) : (
+                                <DownloadIcon size="18px" />
+                              )
+                            }
+                          >
+                            {jobId && currentlyDownloading == row.name ? (
                               ''
-                            )
-                          }
-                          endDecorator={
-                            jobId && currentlyDownloading == row.name ? (
-                              ''
-                            ) : row.downloaded ? (
-                              <CheckIcon size="18px" />
                             ) : (
-                              <DownloadIcon size="18px" />
-                            )
-                          }
-                        >
-                          {jobId && currentlyDownloading == row.name ? (
-                            ''
-                          ) : (
-                            <>Download{row.downloaded ? 'ed' : ''}</>
-                          )}
-                        </Button>
-                      )
-                    }
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </Table>
+                              <>Download{row.downloaded ? 'ed' : ''}</>
+                            )}
+                          </Button>
+                        )
+                      }
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </Table>
+        )}
       </Sheet>
-      <ImportModelsBar
-        jobId={jobId}
-        setJobId={setJobId}
-      />
+      <ImportModelsBar jobId={jobId} setJobId={setJobId} />
     </Sheet>
   );
 }
