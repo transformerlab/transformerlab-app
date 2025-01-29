@@ -1,11 +1,9 @@
-<!-- PROJECT LOGO -->
-<br />
 <div align="center">
-  <a href="https://github.com/transformerlab/transformerlab-app">
-    <img src="./assets/transformer-lab-logo-on-white.svg" alt="Logo" width="100%" height="80">
-  </a>
-
-  <!-- <h1 align="center" style="color: rgb(16, 16, 18); letter-spacing: -1px">Transformer Lab</h1> -->
+  <a href="https://transformerlab.ai"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/Transformer-Lab_Logo_Black.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/Transformer-Lab_Logo.svg">
+    <img alt="transformer lab logo" src="./assets/Transformer-Lab_Logo.svg" style="max-width: 100%;">
+  </picture></a>
 
   <p align="center">
     100% Open Source Toolkit for Large Language Models: Train, Tune, Chat on your own Machine
