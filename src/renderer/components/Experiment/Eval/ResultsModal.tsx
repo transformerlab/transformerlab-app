@@ -1,4 +1,10 @@
-import { DialogContent, DialogTitle, Modal, ModalDialog } from '@mui/joy';
+import {
+  DialogContent,
+  DialogTitle,
+  Modal,
+  ModalClose,
+  ModalDialog,
+} from '@mui/joy';
 import { useEffect, useState } from 'react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
@@ -40,6 +46,7 @@ export default function ResultsModal({
           maxHeight: '80vh',
         }}
       >
+        <ModalClose />
         <DialogTitle>Results from: {evaluator}</DialogTitle>
         <DialogContent
           sx={{ backgroundColor: '#222', color: '#ddd', padding: 2 }}
