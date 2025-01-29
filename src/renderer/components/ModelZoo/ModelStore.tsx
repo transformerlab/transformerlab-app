@@ -322,8 +322,13 @@ export default function ModelStore() {
                     <td>
                       <Typography level="title-md" marginLeft={2}>
                         {row.new && (
-                          <Chip variant="outlined" size="sm" color="success">
-                            NEW!
+                          <Chip
+                            variant="outlined"
+                            size="sm"
+                            color="warning"
+                            sx={{ marginRight: '0.2rem' }}
+                          >
+                            New!
                           </Chip>
                         )}
                         {row.name}&nbsp;
