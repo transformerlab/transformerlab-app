@@ -90,15 +90,15 @@ export default function PluginGallery({ experimentInfo }) {
       </Box>
       <Sheet
         className="OrderTableContainer"
-        variant="outlined"
+        variant="plain"
         sx={{
           width: '100%',
           height: '100%',
-          borderRadius: 'md',
           flex: 1,
-          overflow: 'auto',
+          overflowY: 'auto',
+          overflowX: 'hidden',
           minHeight: 0,
-          padding: 2,
+          paddingRight: 2,
         }}
       >
         <Grid container spacing={2} sx={{ flexGrow: 1 }}>
