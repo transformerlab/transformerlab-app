@@ -4,6 +4,7 @@ import CardContent from '@mui/joy/CardContent';
 import Typography from '@mui/joy/Typography';
 import {
   ArrowRightFromLineIcon,
+  Divide,
   DownloadIcon,
   FolderSearch2Icon,
   GraduationCapIcon,
@@ -13,7 +14,15 @@ import {
 } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { ButtonGroup, CardActions, Chip, CircularProgress } from '@mui/joy';
+import {
+  AspectRatio,
+  Box,
+  ButtonGroup,
+  CardActions,
+  Chip,
+  CircularProgress,
+  Divider,
+} from '@mui/joy';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -47,15 +56,12 @@ export default function PluginCard({
 
   return (
     <>
-      <Card
-        variant="outlined"
-        sx={{
-          minHeight: '250px',
-          overflow: 'hidden',
-        }}
-      >
-        <CardContent orientation="vertical">
-          <>
+      <Card orientation="horizontal" sx={{ height: '100%' }}>
+        <CardContent
+          orientation="vertical"
+          sx={{ justifyContent: 'space-between' }}
+        >
+          <Box>
             {/* {JSON.stringify(plugin)} */}
             <Typography
               level="title-lg"
@@ -86,16 +92,18 @@ export default function PluginCard({
             </Typography>
 
             <Typography level="body-md">{plugin.description}</Typography>
-          </>
-        </CardContent>
-
-        <CardActions
-          buttonFlex="0 1 120px"
-          sx={{ flexWrap: 'wrap', justifyContent: 'flex-end' }}
-        >
-          {!download && (
-            <>
-              {/* <Button
+          </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              mt: 1,
+              justifyContent: 'flex-end',
+            }}
+          >
+            {!download && (
+              <>
+                {/* <Button
                 color="neutral"
                 variant="outlined"
                 onClick={async () => {
@@ -105,74 +113,77 @@ export default function PluginCard({
               >
                 <Trash2Icon />
               </Button> */}
-              <Link
-                to={'/projects/plugins/' + plugin.uniqueId}
-                style={{ textDecoration: 'none', color: 'white' }}
-                state={plugin}
-              >
-                <Button variant="plain" color="primary" sx={{ ml: 'auto' }}>
-                  Edit
+                <Link
+                  to={'/projects/plugins/' + plugin.uniqueId}
+                  style={{ textDecoration: 'none', color: 'white' }}
+                  state={plugin}
+                >
+                  <Button variant="plain" color="primary" sx={{ ml: 'auto' }}>
+                    Edit
+                  </Button>
+                </Link>
+              </>
+            )}
+            {!download && (
+              <>
+                <Button
+                  variant="plain"
+                  color="danger"
+                  onClick={async () => {
+                    if (
+                      confirm('Are you sure you want to delete this plugin?')
+                    ) {
+                      await fetch(
+                        chatAPI.Endpoints.Experiment.DeletePlugin(
+                          experimentInfo?.id,
+                          plugin?.uniqueId
+                        )
+                      );
+                      parentMutate();
+                    }
+                  }}
+                >
+                  Delete
                 </Button>
-              </Link>
-            </>
-          )}
-          {!download && (
-            <>
-              <Button
-                variant="plain"
-                color="danger"
-                onClick={async () => {
-                  if (confirm('Are you sure you want to delete this plugin?')) {
-                    await fetch(
-                      chatAPI.Endpoints.Experiment.DeletePlugin(
-                        experimentInfo?.id,
-                        plugin?.uniqueId
-                      )
-                    );
-                    parentMutate();
-                  }
-                }}
-              >
-                Delete
-              </Button>
-            </>
-          )}
-          <Button
-            variant={plugin?.installed ? 'plain' : 'solid'}
-            size="sm"
-            color="primary"
-            aria-label="Download"
-            onClick={async () => {
-              setInstalling(plugin.uniqueId);
-              await fetch(
-                chatAPI.Endpoints.Experiment.InstallPlugin(
-                  experimentInfo?.id,
-                  plugin.uniqueId
-                )
-              );
-              setInstalling(null);
-              parentMutate();
-            }}
-          >
-            {installing == plugin.uniqueId && (
-              <>
-                <CircularProgress />
-                &nbsp;
               </>
             )}
-            {plugin?.installed == true ? (
-              <>
-                Reinstall&nbsp;
-                <RotateCcwIcon size={16} />
-              </>
-            ) : (
-              <>
-                Install &nbsp;
-                <DownloadIcon size={16} />
-              </>
-            )}
-          </Button>
-        </CardActions>
+            <Button
+              variant={plugin?.installed ? 'outlined' : 'solid'}
+              size="sm"
+              color="primary"
+              aria-label="Download"
+              onClick={async () => {
+                setInstalling(plugin.uniqueId);
+                await fetch(
+                  chatAPI.Endpoints.Experiment.InstallPlugin(
+                    experimentInfo?.id,
+                    plugin.uniqueId
+                  )
+                );
+                setInstalling(null);
+                parentMutate();
+              }}
+            >
+              {installing == plugin.uniqueId && (
+                <>
+                  <CircularProgress />
+                  &nbsp;
+                </>
+              )}
+              {plugin?.installed == true ? (
+                <>
+                  Reinstall&nbsp;
+                  <RotateCcwIcon size={16} />
+                </>
+              ) : (
+                <>
+                  Install &nbsp;
+                  <DownloadIcon size={16} />
+                </>
+              )}
+            </Button>
+          </Box>
+        </CardContent>
       </Card>
     </>
   );
