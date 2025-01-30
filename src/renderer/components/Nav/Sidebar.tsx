@@ -23,6 +23,7 @@ import {
   TextIcon,
   RectangleEllipsisIcon,
   LogsIcon,
+  SquareStackIcon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
@@ -164,6 +165,16 @@ export default function Sidebar({
             !experimentInfo?.name || !experimentInfo?.config?.foundation
           }
         />
+        {experimentInfo?.name == 'dev' && (
+          <SubNavItem
+            title="Generate"
+            path="/projects/generate"
+            icon={<SquareStackIcon />}
+            disabled={
+              !experimentInfo?.name || !experimentInfo?.config?.foundation
+            }
+          />
+        )}
         <SubNavItem
           title="Evaluate"
           path="/projects/eval"

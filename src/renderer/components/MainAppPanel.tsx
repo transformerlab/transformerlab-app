@@ -28,6 +28,7 @@ import TransformerLabSettings from './TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
 import { useState } from 'react';
+import Generate from './Experiment/Generate/Generate';
 
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
@@ -219,6 +220,10 @@ export default function MainAppPanel({
       <Route
         path="/projects/export"
         element={<Export experimentInfo={experimentInfo} />}
+      />
+      <Route
+        path="/projects/generate"
+        element={<Generate experimentInfo={experimentInfo} />}
       />
       <Route
         path="/projects/plugins"
