@@ -103,10 +103,10 @@ export default function Eval({
     isLoading: pluginsIsLoading,
   } = useSWR(
     experimentInfo?.id &&
-      chatAPI.Endpoints.Experiment.ListScriptsOfType(
-        experimentInfo?.id,
-        'evaluator'
-      ),
+    chatAPI.Endpoints.Experiment.ListScriptsOfType(
+      experimentInfo?.id,
+      'evaluator'
+    ),
     fetcher
   );
 
@@ -138,7 +138,7 @@ export default function Eval({
           method: 'POST',
           body: value,
         }
-      ).then(() => {});
+      ).then(() => { });
     }
   }
 
@@ -232,8 +232,11 @@ export default function Eval({
 
                 /* The way evals are defined right now, they need a unique name. This is a hack
                   until we have a better solution */
+                /* Adding a hack to not store the commercial_api_key in the evaluation name if there is one */
+                const formJsonCopy = { ...formJson }
+                delete formJsonCopy.commercial_api_key;
                 const nameOfThisEvaluation =
-                  selectedPlugin + '_' + JSON.stringify(formJson);
+                  selectedPlugin + '_' + JSON.stringify(formJsonCopy);
                 addEvaluation(selectedPlugin, nameOfThisEvaluation, formJson);
                 setOpen(false);
               }}
