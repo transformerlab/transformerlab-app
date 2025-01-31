@@ -56,13 +56,24 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.setTheme('my-theme');
 }
 
-function evaluationRun(
+async function evaluationRun(
   experimentId: string,
   plugin: string,
   evaluator: string
 ) {
-  fetch(
-    chatAPI.Endpoints.Experiment.RunEvaluation(experimentId, plugin, evaluator)
+  // fetch(
+  //   chatAPI.Endpoints.Experiment.RunEvaluation(experimentId, plugin, evaluator)
+  // );
+  await fetch(
+    chatAPI.Endpoints.Jobs.Create(
+      experimentId,
+      'EVAL',
+      'QUEUED',
+      JSON.stringify({
+        plugin: plugin,
+        evaluator: evaluator,
+      })
+    )
   );
 }
 
@@ -319,8 +330,8 @@ export default function Eval({
                       <Button
                         startDecorator={<PlayIcon />}
                         variant="soft"
-                        onClick={() =>
-                          evaluationRun(
+                        onClick={async () =>
+                          await evaluationRun(
                             experimentInfo.id,
                             evaluations.plugin,
                             evaluations.name
