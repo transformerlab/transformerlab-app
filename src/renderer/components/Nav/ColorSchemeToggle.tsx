@@ -8,10 +8,10 @@ export default function ColorSchemeToggle({ themeSetter }) {
   const { mode, setMode } = useColorScheme();
   const [count, setCount] = useState(0);
 
-  window.darkMode.onUpdate((isDarkMode) => {
-    console.log('Dark mode is now', isDarkMode ? 'on' : 'off');
-    // setMode(isDarkMode ? 'dark' : 'light');
-  });
+  // window.darkMode.onUpdate((isDarkMode) => {
+  //   console.log('Dark mode is now', isDarkMode ? 'on' : 'off');
+  //   // setMode(isDarkMode ? 'dark' : 'light');
+  // });
 
   return (
     <IconButton
