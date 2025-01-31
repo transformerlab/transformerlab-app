@@ -28,7 +28,7 @@ import { IconButton } from '@mui/joy';
 import { log } from 'node:console';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 // import OutputTerminal from './components/OutputTerminal';
-// import AutoUpdateModal from './components/AutoUpdateModal';
+import AutoUpdateModal from './components/AutoUpdateModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -142,7 +142,6 @@ export default function App() {
           // backgroundColor: (theme) => theme.vars.palette.background.surface,
         })}
       >
-        {/* <AutoUpdateModal /> */}
         <Header
           connection={connection}
           setConnection={setConnection}
@@ -232,12 +231,14 @@ export default function App() {
             <OutputTerminal initialMessage="** Running a Model will Display Output Here **" />
           </Box>
         </Box>
+
         <LoginModal
           setServer={setConnection}
           connection={connection}
           setTerminalDrawerOpen={setLogsDrawerOpen}
           setSSHConnection={setSSHConnection}
         />
+        <AutoUpdateModal />
       </Box>
     </CssVarsProvider>
   );

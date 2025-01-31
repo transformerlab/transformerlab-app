@@ -262,7 +262,7 @@ class AppUpdater {
   constructor() {
     log.transports.file.level = 'info';
     autoUpdater.logger = log;
-    autoUpdater.checkForUpdates();
+    //autoUpdater.checkForUpdates();
   }
 }
 
@@ -402,12 +402,12 @@ function sendStatusToWindow(text) {
 }
 
 autoUpdater.on('checking-for-update', () => {
-  console.log('main.js: Checking for update...');
+  console.log('🔄 main.js: Checking for update...');
   sendStatusToWindow('Checking for update...');
 });
 autoUpdater.on('update-available', (info) => {
-  console.log('main.js: Update available...');
-  // sendStatusToWindow('Update available.');
+  console.log('🔄 main.js: Update available...');
+  sendStatusToWindow('Update available.');
 
   dialog
     .showMessageBox({
@@ -427,8 +427,8 @@ autoUpdater.on('update-available', (info) => {
     });
 });
 autoUpdater.on('update-not-available', (info) => {
-  console.log('main.js: Update not available...');
-  // sendStatusToWindow('Update not available.');
+  console.log('🔄 main.js: Update not available...');
+  sendStatusToWindow('Update not available.');
   // dialog.showMessageBox({
   //   title: 'No Updates',
   //   message: 'Current version is up-to-date.',
@@ -437,8 +437,8 @@ autoUpdater.on('update-not-available', (info) => {
   // updater = null;
 });
 autoUpdater.on('error', (err) => {
-  console.log('main.js: Error in auto-updater. ' + err);
-  // sendStatusToWindow('main.js: Error in auto-updater. ' + err);
+  console.log('🔄 main.js: Error in auto-updater. ' + err);
+  sendStatusToWindow('Update Error');
 });
 autoUpdater.on('download-progress', (progressObj) => {
   let log_message = 'Download speed: ' + progressObj.bytesPerSecond;
@@ -453,7 +453,7 @@ autoUpdater.on('download-progress', (progressObj) => {
   sendStatusToWindow(log_message);
 });
 autoUpdater.on('update-downloaded', (info) => {
-  console.log('main.js: Update downloaded...');
+  console.log('🔄 main.js: Update downloaded...');
   // sendStatusToWindow('Update downloaded');
   dialog
     .showMessageBox({
@@ -463,6 +463,15 @@ autoUpdater.on('update-downloaded', (info) => {
     .then(() => {
       setImmediate(() => autoUpdater.quitAndInstall());
     });
+});
+
+ipcMain.handle('autoUpdater:requestUpdate', () => {
+  console.log('🔄 main.js: Requesting update...');
+  if (autoUpdater.isUpdaterActive()) {
+    autoUpdater.checkForUpdates();
+  } else {
+    sendStatusToWindow('Update not available.');
+  }
 });
 
 app

@@ -98,6 +98,8 @@ contextBridge.exposeInMainWorld('sshClient', {
 
 contextBridge.exposeInMainWorld('autoUpdater', {
   onMessage: (data) => ipcRenderer.on('autoUpdater', data),
+  removeAllListeners: () => ipcRenderer.removeAllListeners('autoUpdater'),
+  requestUpdate: () => ipcRenderer.invoke('autoUpdater:requestUpdate'),
 });
 
 contextBridge.exposeInMainWorld('darkMode', {
