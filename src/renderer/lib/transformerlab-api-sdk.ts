@@ -1025,7 +1025,7 @@ Endpoints.Dataset = {
 
 Endpoints.Models = {
   LocalList: () => API_URL() + 'model/list',
-  CountDownloaded:  () => API_URL() + 'model/count_downloaded',
+  CountDownloaded: () => API_URL() + 'model/count_downloaded',
   Gallery: () => API_URL() + 'model/gallery',
   GetPeftsForModel: () => API_URL() + 'model/pefts',
   UploadModelToHuggingFace: (
@@ -1063,6 +1063,10 @@ Endpoints.Models = {
     API_URL() + 'model/import_from_local_path?model_path=' + modelPath,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
+  SetOpenAIKey: () => API_URL() + 'model/set_openai_api_key',
+  SetAnthropicKey: () => API_URL() + 'model/set_anthropic_api_key',
+  CheckOpenAIAPIKey: () => API_URL() + 'model/check_openai_api_key',
+  CheckAnthropicAPIKey: () => API_URL() + 'model/check_anthropic_api_key',
 };
 
 Endpoints.Plugins = {
@@ -1249,9 +1253,9 @@ Endpoints.Experiment = {
   DeleteConversation: (experimentId: string, conversationId: string) =>
     FULL_PATH(
       'experiment/' +
-        experimentId +
-        '/conversations/delete?conversation_id=' +
-        conversationId
+      experimentId +
+      '/conversations/delete?conversation_id=' +
+      conversationId
     ),
   InstallPlugin: (experimentId: string, pluginId: string) =>
     API_URL() +
@@ -1276,10 +1280,10 @@ Endpoints.Experiment = {
   ) =>
     FULL_PATH(
       'experiment/' +
-        experimentId +
-        '/plugins/list?type=' +
-        type +
-        (filter ? '&filter=' + filter : '')
+      experimentId +
+      '/plugins/list?type=' +
+      type +
+      (filter ? '&filter=' + filter : '')
     ),
   ScriptListFiles: (experimentId: string, id: string) =>
     API_URL() + 'experiment/' + experimentId + '/plugins/' + id + '/list_files',
@@ -1553,16 +1557,16 @@ export async function activateWorker(
   try {
     response = await fetch(
       API_URL() +
-        'server/worker_start?model_name=' +
-        model +
-        '&adaptor=' +
-        adaptorName +
-        '&engine=' +
-        engine +
-        '&experiment_id=' +
-        experimentId +
-        '&parameters=' +
-        paramsJSON
+      'server/worker_start?model_name=' +
+      model +
+      '&adaptor=' +
+      adaptorName +
+      '&engine=' +
+      engine +
+      '&experiment_id=' +
+      experimentId +
+      '&parameters=' +
+      paramsJSON
     );
     const result = await response.json();
     return result;

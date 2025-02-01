@@ -24,7 +24,8 @@ import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function TransformerLabSettings({}) {
+
+export default function TransformerLabSettings({ }) {
   const [showPassword, setShowPassword] = React.useState(false);
   const {
     data: hftoken,
@@ -129,6 +130,45 @@ export default function TransformerLabSettings({}) {
             </FormControl>
           </>
         )}{' '}
+        <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
+          <FormLabel>OpenAI API Key</FormLabel>
+          <Input name="openaiKey" type="password" />
+          <Button
+            onClick={async () => {
+              const token = document.getElementsByName('openaiKey')[0].value;
+              await fetch(chatAPI.Endpoints.Config.Set('OPENAI_API_KEY', token));
+              await fetch(chatAPI.Endpoints.Models.SetOpenAIKey());
+              const response = await fetch(chatAPI.Endpoints.Models.CheckOpenAIAPIKey());
+              const result = await response.json();
+              if (result.message === "OK") {
+                alert("Successfully set OpenAI API Key");
+              }
+            }}
+
+            sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
+          >
+            Save
+          </Button>
+        </FormControl>
+        <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
+          <FormLabel>Anthropic API Key</FormLabel>
+          <Input name="anthropicKey" type="password" />
+          <Button
+            onClick={async () => {
+              const token = document.getElementsByName('anthropicKey')[0].value;
+              await fetch(chatAPI.Endpoints.Config.Set('ANTHROPIC_API_KEY', token));
+              await fetch(chatAPI.Endpoints.Models.SetAnthropicKey());
+              const response = await fetch(chatAPI.Endpoints.Models.CheckAnthropicAPIKey());
+              const result = await response.json();
+              if (result.message === "OK") {
+                alert("Successfully set Anthropic API Key");
+              }
+            }}
+            sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
+          >
+            Save
+          </Button>
+        </FormControl>
         <Divider sx={{ mt: 2, mb: 2 }} />{' '}
         <Typography level="title-lg" marginBottom={2}>
           Application:
