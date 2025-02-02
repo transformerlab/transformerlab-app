@@ -49,7 +49,7 @@ import { FaRegFileAlt } from 'react-icons/fa';
 
 import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
-import { Alert, Stack } from '@mui/joy';
+import { Alert, CircularProgress, Stack } from '@mui/joy';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -96,7 +96,7 @@ function stableSort<T>(
   return stabilizedThis?.map((el) => el[0]);
 }
 
-function RowMenu({ experimentInfo, filename, mutate }) {
+function RowMenu({ experimentInfo, filename, mutate, row }) {
   return (
     <Dropdown>
       <MenuButton
@@ -106,8 +106,8 @@ function RowMenu({ experimentInfo, filename, mutate }) {
         <MoreHorizRoundedIcon size="16px" />
       </MenuButton>
       <Menu size="sm" sx={{ minWidth: 140 }}>
-        <MenuItem>Edit</MenuItem>
-        <MenuItem disabled>Rename</MenuItem>
+        <MenuItem disabled>Size: {formatBytes(row?.size)}</MenuItem>
+        {/* <MenuItem disabled>Rename</MenuItem> */}
         <Divider />
         <MenuItem
           color="danger"
@@ -142,6 +142,8 @@ export default function Documents({ experimentInfo }) {
 
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
 
+  const [loading, setLoading] = React.useState(false);
+
   const {
     data: rows,
     isLoading,
@@ -155,7 +157,6 @@ export default function Documents({ experimentInfo }) {
     })
       .then((response) => {
         if (response.ok) {
-          mutate();
           return response.json();
         } else {
           throw new Error('File upload failed');
@@ -163,6 +164,8 @@ export default function Documents({ experimentInfo }) {
       })
       .then((data) => {
         console.log('Server response:', data);
+        setLoading(false);
+        mutate();
       })
       .catch((error) => {
         console.error('Error uploading file:', error);
@@ -218,7 +221,10 @@ export default function Documents({ experimentInfo }) {
           justifyContent: 'space-between',
         }}
       >
-        <FormLabel>Documents:</FormLabel>
+        <FormLabel>
+          {loading && <CircularProgress size="sm" />}
+          Documents:
+        </FormLabel>
         <IconButton
           color="primary"
           variant="plain"
@@ -234,6 +240,7 @@ export default function Documents({ experimentInfo }) {
               for (const file of files) {
                 formData.append('files', file);
               }
+              setLoading(true);
               await uploadFiles(formData);
             };
             input.click();
@@ -311,6 +318,7 @@ export default function Documents({ experimentInfo }) {
           for (const file of acceptedFiles) {
             formData.append('files', file);
           }
+          setLoading(true);
           await uploadFiles(formData);
         }}
         onDragEnter={() => {
@@ -422,10 +430,10 @@ export default function Documents({ experimentInfo }) {
                     </th>
                     {/* <th style={{ padding: '12px 6px' }}>Date</th> */}
                     {/* <th style={{ padding: '12px 6px' }}>Type</th>{' '} */}
-                    <th style={{ height: '10px' }}>
+                    {/* <th style={{ height: '10px' }}>
                       <Typography color="neutral">Size</Typography>
-                    </th>
-                    <th style={{ height: '10px', width: '20px' }}> </th>
+                    </th> */}
+                    <th style={{ height: '10px', width: '70px' }}> </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -491,13 +499,13 @@ export default function Documents({ experimentInfo }) {
                           {row?.type}
                         </Chip>
                       </td> */}
-                      <td>
+                      {/* <td>
                         {row?.size && (
                           <Typography level="body-xs" color="neutral">
                             {formatBytes(row?.size)}
                           </Typography>
                         )}
-                      </td>
+                      </td> */}
                       <td>
                         <Box
                           sx={{
@@ -520,6 +528,7 @@ export default function Documents({ experimentInfo }) {
                             experimentInfo={experimentInfo}
                             filename={row?.name}
                             mutate={mutate}
+                            row={row}
                           />
                         </Box>
                       </td>
