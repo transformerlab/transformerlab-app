@@ -32,14 +32,7 @@ const EvalJobsTable = () => {
   }, []);
 
   return (
-    <Sheet
-      sx={{
-        overflow: 'hidden',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
+    <>
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
@@ -93,7 +86,7 @@ const EvalJobsTable = () => {
         <pre>{JSON.stringify(jobs, null, 2)}</pre>
       </Box> */}
       </Sheet>
-    </Sheet>
+    </>
   );
 };
 

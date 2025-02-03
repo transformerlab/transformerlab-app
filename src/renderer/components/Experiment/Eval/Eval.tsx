@@ -272,9 +272,9 @@ export default function Eval({
             </form>
           </ModalDialog>
         </Modal>
-        <Typography level="h1" mb={1}>
+        {/* <Typography level="h1" mb={1}>
           Evaluate
-        </Typography>
+        </Typography> */}
         <Typography level="h2" mb={1}>
           Tasks
         </Typography>
@@ -284,8 +284,13 @@ export default function Eval({
           </Alert>
         ) : (
           <Dropdown>
-            <MenuButton startDecorator={<PlusCircleIcon />} variant="soft">
-              Add Evaluation Task
+            <MenuButton
+              startDecorator={<PlusCircleIcon />}
+              variant="soft"
+              color="success"
+              sx={{ width: 'fit-content', mb: 1 }}
+            >
+              Add Task
             </MenuButton>
             <Menu>
               {plugins?.map((row) => (
@@ -299,89 +304,112 @@ export default function Eval({
             </Menu>
           </Dropdown>
         )}
-        <Table aria-label="basic table">
-          <thead>
-            <tr>
-              <th>Evaluator</th>
-              <th style={{ width: '80px' }}>&nbsp;</th>
-              <th>Tasks</th>
-              <th>Plugin</th>
-              <th style={{ textAlign: 'right' }}>&nbsp;</th>
-              <th style={{ textAlign: 'right' }}>&nbsp;</th>
-            </tr>
-          </thead>
-          <tbody>
-            {listEvals(experimentInfo?.config?.evaluations) &&
-              listEvals(experimentInfo?.config?.evaluations)?.map(
-                (evaluations) => (
-                  <tr key={evaluations.name}>
-                    <td style={{ overflow: 'hidden' }}>{evaluations.name}</td>
-                    <td>
-                      <Button
-                        variant="soft"
-                        onClick={() => {
-                          setSelectedPlugin(evaluations.plugin);
-                          setCurrentEvaluator(evaluations.name);
-                          setEditModalOpen(true);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                    </td>
-                    <td style={{ overflow: 'hidden' }}>
-                      {evaluations?.script_parameters?.task}&nbsp;
-                      <FileTextIcon size={14} />
-                    </td>
-                    <td>{evaluations.plugin}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      {' '}
-                      <Button
-                        startDecorator={<PlayIcon />}
-                        variant="soft"
-                        onClick={async () =>
-                          await evaluationRun(
-                            experimentInfo.id,
-                            evaluations.plugin,
-                            evaluations.name
-                          )
-                        }
-                      >
-                        Evaluate
-                      </Button>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Stack direction="row">
+        <Sheet
+          variant="soft"
+          color="primary"
+          sx={{
+            overflow: 'auto',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+          }}
+        >
+          <Table aria-label="basic table" stickyHeader>
+            <thead>
+              <tr>
+                <th>Evaluator</th>
+                <th style={{ width: '80px' }}>&nbsp;</th>
+                <th>Tasks</th>
+                <th>Plugin</th>
+                <th style={{ textAlign: 'right' }}>&nbsp;</th>
+                <th style={{ textAlign: 'right' }}>&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody>
+              {listEvals(experimentInfo?.config?.evaluations) &&
+                listEvals(experimentInfo?.config?.evaluations)?.map(
+                  (evaluations) => (
+                    <tr key={evaluations.name}>
+                      <td style={{ overflow: 'hidden' }}>{evaluations.name}</td>
+                      <td>
                         <Button
-                          variant="plain"
+                          variant="soft"
                           onClick={() => {
-                            setCurrentEvaluator(evaluations.name);
                             setSelectedPlugin(evaluations.plugin);
-                            setResultsModalOpen(true);
+                            setCurrentEvaluator(evaluations.name);
+                            setEditModalOpen(true);
                           }}
                         >
-                          View Results
+                          Edit
                         </Button>
-                        <IconButton
-                          onClick={async () => {
-                            await fetch(
-                              chatAPI.Endpoints.Experiment.DeleteEval(
-                                experimentInfo.id,
-                                evaluations.name
-                              )
-                            );
-                            experimentInfoMutate();
-                          }}
+                      </td>
+                      <td style={{ overflow: 'hidden' }}>
+                        {evaluations?.script_parameters?.task}&nbsp;
+                        <FileTextIcon size={14} />
+                      </td>
+                      <td>{evaluations.plugin}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {' '}
+                        <Button
+                          startDecorator={<PlayIcon />}
+                          variant="soft"
+                          onClick={async () =>
+                            await evaluationRun(
+                              experimentInfo.id,
+                              evaluations.plugin,
+                              evaluations.name
+                            )
+                          }
                         >
-                          <XSquareIcon />
-                        </IconButton>
-                      </Stack>
-                    </td>
-                  </tr>
-                )
-              )}
-          </tbody>
-        </Table>
-        <EvalJobsTable experimentInfo={experimentInfo} />
+                          Evaluate
+                        </Button>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <Stack direction="row">
+                          <Button
+                            variant="plain"
+                            onClick={() => {
+                              setCurrentEvaluator(evaluations.name);
+                              setSelectedPlugin(evaluations.plugin);
+                              setResultsModalOpen(true);
+                            }}
+                          >
+                            View Results
+                          </Button>
+                          <IconButton
+                            onClick={async () => {
+                              await fetch(
+                                chatAPI.Endpoints.Experiment.DeleteEval(
+                                  experimentInfo.id,
+                                  evaluations.name
+                                )
+                              );
+                              experimentInfoMutate();
+                            }}
+                          >
+                            <XSquareIcon />
+                          </IconButton>
+                        </Stack>
+                      </td>
+                    </tr>
+                  )
+                )}
+            </tbody>
+          </Table>
+        </Sheet>
+        <Sheet
+          sx={{
+            overflow: 'hidden',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            pt: 2,
+          }}
+        >
+          <EvalJobsTable />
+        </Sheet>
       </Sheet>
     </>
   );
