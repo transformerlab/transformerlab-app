@@ -126,9 +126,13 @@ export default function TrainLoRA({ experimentInfo }) {
     error: downloadJobsError,
     isLoading: downloadJobsIsLoading,
     mutate: downloadJobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'), fetcher, {
-    refreshInterval: 2000,
-  });
+  } = useSWR(
+    chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'),
+    fetcher,
+    {
+      refreshInterval: 2000,
+    }
+  );
 
   //Fetch available training plugins
   const {
@@ -185,9 +189,12 @@ export default function TrainLoRA({ experimentInfo }) {
           overflow: 'hidden',
         }}
       >
-        { !downloadJobsIsLoading &&
-          <DownloadProgressBox jobId={downloadJobs[0]?.id} assetName={downloadJobs[0]?.job_data.model}/>
-        }
+        {!downloadJobsIsLoading && (
+          <DownloadProgressBox
+            jobId={downloadJobs[0]?.id}
+            assetName={downloadJobs[0]?.job_data.model}
+          />
+        )}
         {/* <Typography level="h1">Train</Typography> */}
         <Stack direction="row" justifyContent="space-between" gap={2}>
           <Typography level="title-md" startDecorator={<GraduationCapIcon />}>
@@ -271,8 +278,10 @@ export default function TrainLoRA({ experimentInfo }) {
               <th width="125px">Name</th>
               {/* <th>Description</th> */}
               <th width="150px">Plugin</th>
-              <th width="400px">Config</th>
-              <th style={{ textAlign: 'right' }}>&nbsp;</th>
+              <th>Config</th>
+              <th style={{ textAlign: 'right' }} width="250px">
+                &nbsp;
+              </th>
             </thead>
             <tbody>
               {isLoading && (
@@ -310,7 +319,11 @@ export default function TrainLoRA({ experimentInfo }) {
                         <td style={{ overflow: 'hidden' }}>
                           {formatTemplateConfig(row[5])}
                         </td>
-                        <td style={{}}>
+                        <td
+                          style={{
+                            overflow: 'visible',
+                          }}
+                        >
                           <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
                             <LoRATrainingRunButton
                               initialMessage="Queue"
