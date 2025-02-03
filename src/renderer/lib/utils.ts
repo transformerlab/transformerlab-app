@@ -201,3 +201,13 @@ export function useTraceUpdate(props) {
     prev.current = props;
   });
 }
+
+export function jobChipColor(status: string): string {
+  if (status === 'COMPLETE') return 'var(--joy-palette-success-200)';
+  if (status === 'QUEUED') return 'var(--joy-palette-warning-200)';
+  if (status === 'FAILED') return 'var(--joy-palette-danger-200)';
+  if (status == 'STOPPED') return 'var(--joy-palette-warning-200)';
+  if (status == 'RUNNING') return 'rgb(225,237,233)';
+
+  return 'var(--joy-palette-neutral-200)';
+}

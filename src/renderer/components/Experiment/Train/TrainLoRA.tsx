@@ -49,6 +49,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import CurrentDownloadBox from 'renderer/components/currentDownloadBox';
 import DownloadProgressBox from 'renderer/components/Shared/DownloadProgressBox';
+import { jobChipColor } from 'renderer/lib/utils';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -69,16 +70,6 @@ function formatTemplateConfig(config): ReactElement {
     </>
   );
   return r;
-}
-
-function jobChipColor(status: string): string {
-  if (status === 'COMPLETE') return 'var(--joy-palette-success-200)';
-  if (status === 'QUEUED') return 'var(--joy-palette-warning-200)';
-  if (status === 'FAILED') return 'var(--joy-palette-danger-200)';
-  if (status == 'STOPPED') return 'var(--joy-palette-warning-200)';
-  if (status == 'RUNNING') return 'rgb(225,237,233)';
-
-  return 'var(--joy-palette-neutral-200)';
 }
 
 function formatJobConfig(c): ReactElement {

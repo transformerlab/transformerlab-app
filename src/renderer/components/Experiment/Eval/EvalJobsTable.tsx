@@ -15,6 +15,7 @@ import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { jobChipColor } from 'renderer/lib/utils';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -65,7 +66,14 @@ const EvalJobsTable = () => {
                   {job?.job_data?.evaluator}
                 </td>
                 <td>
-                  <Chip>{job.status}</Chip>
+                  <Chip
+                    sx={{
+                      backgroundColor: jobChipColor(job.status),
+                      color: 'var(--joy-palette-neutral-800)',
+                    }}
+                  >
+                    {job.status}
+                  </Chip>
                   <br />
                   Progress: {job?.progress}
                 </td>
