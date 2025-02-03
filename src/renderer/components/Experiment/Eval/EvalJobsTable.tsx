@@ -45,7 +45,7 @@ const EvalJobsTable = () => {
           <thead>
             <tr>
               <th width="50px">Id</th>
-              <th>Status</th>
+              <th>Eval</th>
               <th>Progress</th>
               <th>Started At</th>
               <th>Finished At</th>
