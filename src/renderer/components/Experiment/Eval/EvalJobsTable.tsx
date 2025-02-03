@@ -23,6 +23,41 @@ dayjs.extend(duration);
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
+function RenderScore({ score }) {
+  if (score === undefined) {
+    return <Chip color="warning">Not available</Chip>;
+  }
+  if (score === null) {
+    return <Chip color="danger">Failed</Chip>;
+  }
+
+  let scoreArray = [];
+  try {
+    scoreArray = JSON.parse(score);
+  } catch {
+    return <Chip color="danger">Failed</Chip>;
+  }
+
+  // if scoreArray is not an array, return the score as a string
+  if (!Array.isArray(scoreArray)) {
+    return JSON.stringify(scoreArray);
+  }
+
+  return scoreArray.map((score, idx) => (
+    <>
+      <Chip
+        key={idx}
+        color="success"
+        variant="outlined"
+        sx={{ marginRight: '4px' }}
+      >
+        {score?.type}: {score?.score}
+      </Chip>
+      <br />
+    </>
+  ));
+}
+
 const EvalJobsTable = () => {
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
 
@@ -53,7 +88,7 @@ const EvalJobsTable = () => {
               <th width="50px">Id</th>
               <th>Eval</th>
               <th>Progress</th>
-              <th>Started</th>
+              <th>Score</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -69,7 +104,7 @@ const EvalJobsTable = () => {
                 <td>
                   <JobProgress job={job} />
                 </td>
-                <td>
+                {/* <td>
                   Started:&nbsp;
                   {String(dayjs(job?.created_at).fromNow())}
                   <br />
@@ -79,6 +114,9 @@ const EvalJobsTable = () => {
                       dayjs(job?.updated_at).diff(dayjs(job?.created_at))
                     )
                     .humanize()}
+                </td> */}
+                <td>
+                  <RenderScore score={job?.job_data?.score} />
                 </td>
                 <td>
                   <ButtonGroup variant="soft">
