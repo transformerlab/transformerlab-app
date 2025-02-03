@@ -39,6 +39,7 @@ import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 import ResultsModal from './ResultsModal';
 import DynamicPluginForm from '../DynamicPluginForm';
+import EvalJobsTable from './EvalJobsTable.tsx';
 const parseTmTheme = require('monaco-themes').parseTmTheme;
 
 function listEvals(evalString) {
@@ -114,10 +115,10 @@ export default function Eval({
     isLoading: pluginsIsLoading,
   } = useSWR(
     experimentInfo?.id &&
-    chatAPI.Endpoints.Experiment.ListScriptsOfType(
-      experimentInfo?.id,
-      'evaluator'
-    ),
+      chatAPI.Endpoints.Experiment.ListScriptsOfType(
+        experimentInfo?.id,
+        'evaluator'
+      ),
     fetcher
   );
 
@@ -149,7 +150,7 @@ export default function Eval({
           method: 'POST',
           body: value,
         }
-      ).then(() => { });
+      ).then(() => {});
     }
   }
 
@@ -164,7 +165,14 @@ export default function Eval({
 
   return (
     <>
-      <Sheet>
+      <Sheet
+        sx={{
+          overflow: 'hidden',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
         {/* Plugins:
         {JSON.stringify(plugins)} */}
         <ResultsModal
@@ -267,17 +275,17 @@ export default function Eval({
         <Typography level="h1" mb={1}>
           Evaluate
         </Typography>
-        <Alert color="neutral" sx={{ mb: 2 }}>
-          This feature is still in development. We could use your help!
-        </Alert>
+        <Typography level="h2" mb={1}>
+          Tasks
+        </Typography>
         {plugins?.length === 0 ? (
           <Alert color="danger">
             No Evaluation Scripts available, please install an evaluator plugin.
           </Alert>
         ) : (
           <Dropdown>
-            <MenuButton startDecorator={<PlusCircleIcon />} variant="solid">
-              Add Evaluation
+            <MenuButton startDecorator={<PlusCircleIcon />} variant="soft">
+              Add Evaluation Task
             </MenuButton>
             <Menu>
               {plugins?.map((row) => (
@@ -373,6 +381,7 @@ export default function Eval({
               )}
           </tbody>
         </Table>
+        <EvalJobsTable experimentInfo={experimentInfo} />
       </Sheet>
     </>
   );
