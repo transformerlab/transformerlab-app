@@ -1,12 +1,14 @@
 import {
   Box,
   Button,
+  IconButton,
   ButtonGroup,
   Chip,
   Sheet,
   Table,
   Typography,
 } from '@mui/joy';
+import { Trash2Icon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
@@ -30,6 +32,7 @@ function RenderScore({ score }) {
   if (score === null) {
     return <Chip color="danger">Failed</Chip>;
   }
+
 
   let scoreArray = [];
   try {
@@ -127,6 +130,16 @@ const EvalJobsTable = () => {
                     >
                       View Output
                     </Button>
+                    <IconButton variant="plain">
+                      <Trash2Icon
+                        onClick={async () => {
+                          await fetch(
+                            chatAPI.Endpoints.Jobs.Delete(job?.id)
+                          );
+                          jobsMutate();
+                        }}
+                      />
+                    </IconButton>
                   </ButtonGroup>
                 </td>
               </tr>
