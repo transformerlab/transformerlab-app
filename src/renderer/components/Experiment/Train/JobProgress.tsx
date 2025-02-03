@@ -78,7 +78,7 @@ export default function JobProgress({ job }) {
             {job?.status == 'COMPLETE' &&
               (job?.job_data?.completion_status ? (
                 <>
-                  Final Training Status:{' '}
+                  Final Status:{' '}
                   {job?.job_data?.completion_status == 'success' ? (
                     <Typography level="body-sm" color="success">
                       Success: {job?.job_data?.completion_details}
@@ -92,8 +92,8 @@ export default function JobProgress({ job }) {
               ) : (
                 /* If we don't have a status, assume it failed */
                 <Typography level="body-sm" color="neutral">
-                  No job completion status. Training may have failed. View
-                  output for details
+                  No job completion status. Task may have failed. View output
+                  for details
                 </Typography>
               ))}
           </>
