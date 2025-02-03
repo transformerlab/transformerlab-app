@@ -13,6 +13,12 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
+var duration = require('dayjs/plugin/duration');
+dayjs.extend(duration);
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 const EvalJobsTable = () => {
@@ -45,8 +51,7 @@ const EvalJobsTable = () => {
               <th width="50px">Id</th>
               <th>Eval</th>
               <th>Progress</th>
-              <th>Started At</th>
-              <th>Finished At</th>
+              <th>Started</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -64,8 +69,17 @@ const EvalJobsTable = () => {
                   <br />
                   Progress: {job?.progress}
                 </td>
-                <td>{String(dayjs(job?.created_at))}</td>
-                <td>{String(dayjs(job?.updated_at))}</td>
+                <td>
+                  Started:&nbsp;
+                  {String(dayjs(job?.created_at).fromNow())}
+                  <br />
+                  Completed in:&nbsp;
+                  {dayjs
+                    .duration(
+                      dayjs(job?.updated_at).diff(dayjs(job?.created_at))
+                    )
+                    .humanize()}
+                </td>
                 <td>
                   <ButtonGroup variant="soft">
                     <Button
