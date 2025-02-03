@@ -276,7 +276,7 @@ export default function Eval({
                             )
                           }
                         >
-                          Evaluate
+                          Queue
                         </Button>
                       </td>
                       <td style={{ textAlign: 'right' }}>
@@ -308,7 +308,7 @@ export default function Eval({
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            flex: 1,
+            flex: 2,
             pt: 2,
           }}
         >
