@@ -1253,9 +1253,9 @@ Endpoints.Experiment = {
   DeleteConversation: (experimentId: string, conversationId: string) =>
     FULL_PATH(
       'experiment/' +
-      experimentId +
-      '/conversations/delete?conversation_id=' +
-      conversationId
+        experimentId +
+        '/conversations/delete?conversation_id=' +
+        conversationId
     ),
   InstallPlugin: (experimentId: string, pluginId: string) =>
     API_URL() +
@@ -1280,10 +1280,10 @@ Endpoints.Experiment = {
   ) =>
     FULL_PATH(
       'experiment/' +
-      experimentId +
-      '/plugins/list?type=' +
-      type +
-      (filter ? '&filter=' + filter : '')
+        experimentId +
+        '/plugins/list?type=' +
+        type +
+        (filter ? '&filter=' + filter : '')
     ),
   ScriptListFiles: (experimentId: string, id: string) =>
     API_URL() + 'experiment/' + experimentId + '/plugins/' + id + '/list_files',
@@ -1336,8 +1336,10 @@ Endpoints.Experiment = {
     'plugins/delete_plugin?pluginId=' +
     pluginId,
   GetOutputFromJob: (jobId: string) => API_URL() + `train/job/${jobId}/output`,
-  StreamOutputFromJob: (jobId: string) =>
+  StreamOutputFromTrainingJob: (jobId: string) =>
     API_URL() + `train/job/${jobId}/stream_output`,
+  StreamOutputFromJob: (jobId: string) =>
+    API_URL() + `jobs/${jobId}/stream_output`,
 };
 
 Endpoints.Jobs = {
@@ -1557,16 +1559,16 @@ export async function activateWorker(
   try {
     response = await fetch(
       API_URL() +
-      'server/worker_start?model_name=' +
-      model +
-      '&adaptor=' +
-      adaptorName +
-      '&engine=' +
-      engine +
-      '&experiment_id=' +
-      experimentId +
-      '&parameters=' +
-      paramsJSON
+        'server/worker_start?model_name=' +
+        model +
+        '&adaptor=' +
+        adaptorName +
+        '&engine=' +
+        engine +
+        '&experiment_id=' +
+        experimentId +
+        '&parameters=' +
+        paramsJSON
     );
     const result = await response.json();
     return result;

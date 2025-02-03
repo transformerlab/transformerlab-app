@@ -7,15 +7,16 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
+import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 const EvalJobsTable = () => {
-  const [state, setState] = useState(null);
+  const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
 
   const {
     data: jobs,
@@ -39,9 +40,13 @@ const EvalJobsTable = () => {
         flexDirection: 'column',
       }}
     >
+      <ViewOutputModalStreaming
+        jobId={viewOutputFromJob}
+        setJobId={setViewOutputFromJob}
+      />
       <Typography level="h2">Executions</Typography>
       <Sheet sx={{ overflowY: 'scroll' }}>
-        <Table>
+        <Table stickyHeader>
           <thead>
             <tr>
               <th width="50px">Id</th>
@@ -70,7 +75,13 @@ const EvalJobsTable = () => {
                 <td>{String(dayjs(job?.updated_at))}</td>
                 <td>
                   <ButtonGroup>
-                    <Button>View Output</Button>
+                    <Button
+                      onClick={() => {
+                        setViewOutputFromJob(job?.id);
+                      }}
+                    >
+                      View Output
+                    </Button>
                     <Button>Cancel</Button>
                   </ButtonGroup>
                 </td>

@@ -24,7 +24,7 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
           }}
         >
           <OutputTerminal
-            logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromTrainingJob(
+            logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
               jobId
             )}
             lineAnimationDelay={5}
