@@ -67,7 +67,7 @@ const EvalJobsTable = () => {
                 <td>{String(dayjs(job?.created_at))}</td>
                 <td>{String(dayjs(job?.updated_at))}</td>
                 <td>
-                  <ButtonGroup>
+                  <ButtonGroup variant="soft">
                     <Button
                       onClick={() => {
                         setViewOutputFromJob(job?.id);
@@ -75,7 +75,6 @@ const EvalJobsTable = () => {
                     >
                       View Output
                     </Button>
-                    <Button>Cancel</Button>
                   </ButtonGroup>
                 </td>
               </tr>

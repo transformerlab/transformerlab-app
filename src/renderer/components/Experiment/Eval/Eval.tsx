@@ -32,12 +32,10 @@ import {
   FileTextIcon,
   PlayIcon,
   PlusCircleIcon,
+  Trash2Icon,
   XSquareIcon,
 } from 'lucide-react';
 
-import { Editor } from '@monaco-editor/react';
-import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
-import ResultsModal from './ResultsModal';
 import DynamicPluginForm from '../DynamicPluginForm';
 import EvalJobsTable from './EvalJobsTable.tsx';
 const parseTmTheme = require('monaco-themes').parseTmTheme;
@@ -48,13 +46,6 @@ function listEvals(evalString) {
     result = JSON.parse(evalString);
   }
   return result;
-}
-
-function setTheme(editor: any, monaco: any) {
-  const themeData = parseTmTheme(fairyflossTheme);
-
-  monaco.editor.defineTheme('my-theme', themeData);
-  monaco.editor.setTheme('my-theme');
 }
 
 async function evaluationRun(
@@ -102,11 +93,7 @@ export default function Eval({
   experimentInfoMutate,
 }) {
   const [open, setOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [resultsModalOpen, setResultsModalOpen] = useState(false);
-
   const [selectedPlugin, setSelectedPlugin] = useState('');
-
   const [currentEvaluator, setCurrentEvaluator] = useState('');
 
   const {
@@ -122,25 +109,8 @@ export default function Eval({
     fetcher
   );
 
-  const editorRef = useRef(null);
-
-  async function handleEditorDidMount(editor, monaco) {
-    if (editor) {
-      editorRef.current = editor;
-      const response = await fetch(
-        chatAPI.Endpoints.Experiment.GetPlugin(
-          experimentInfo.id,
-          selectedPlugin
-        )
-      );
-      const text = await response.json();
-      editor.setValue(text);
-    }
-    setTheme(editor, monaco);
-  }
-
   async function saveFile() {
-    const value = editorRef?.current?.getValue();
+    // const value = editorRef?.current?.getValue();
 
     if (value) {
       // Use fetch to post the value to the server
@@ -175,64 +145,7 @@ export default function Eval({
       >
         {/* Plugins:
         {JSON.stringify(plugins)} */}
-        <ResultsModal
-          open={resultsModalOpen}
-          setOpen={setResultsModalOpen}
-          experimentInfo={experimentInfo}
-          plugin={selectedPlugin}
-          evaluator={currentEvaluator}
-        ></ResultsModal>
-        <Modal open={editModalOpen} onClose={() => setEditModalOpen(false)}>
-          <ModalDialog>
-            <ModalClose onClick={() => setEditModalOpen(false)} />
-            <DialogTitle>
-              Edit Evaluator Script - {currentEvaluator}
-            </DialogTitle>
-            <DialogContent>
-              <Sheet
-                color="neutral"
-                sx={{
-                  p: 3,
-                  backgroundColor: '#ddd',
-                }}
-              >
-                <Editor
-                  height="600px"
-                  width="60vw"
-                  defaultLanguage="python"
-                  theme="my-theme"
-                  options={{
-                    minimap: {
-                      enabled: false,
-                    },
-                    fontSize: 18,
-                    cursorStyle: 'block',
-                    wordWrap: 'on',
-                  }}
-                  onMount={handleEditorDidMount}
-                />
-              </Sheet>
-            </DialogContent>
-            <Box
-              sx={{
-                mt: 1,
-                display: 'flex',
-                gap: 1,
-                flexDirection: { xs: 'column', sm: 'row-reverse' },
-              }}
-            >
-              {/* <Button sx={{ width: '120px' }}>Save</Button>
-              <Button
-                sx={{ width: '120px' }}
-                color="danger"
-                variant="soft"
-                onClick={() => setEditModalOpen(false)}
-              >
-                Cancel
-              </Button> */}
-            </Box>
-          </ModalDialog>
-        </Modal>
+
         <Modal open={open} onClose={() => setOpen(false)}>
           <ModalDialog>
             <ModalClose onClick={() => setOpen(false)} />
@@ -333,7 +246,7 @@ export default function Eval({
                     <tr key={evaluations.name}>
                       <td style={{ overflow: 'hidden' }}>{evaluations.name}</td>
                       <td>
-                        <Button
+                        {/* <Button
                           variant="soft"
                           onClick={() => {
                             setSelectedPlugin(evaluations.plugin);
@@ -342,7 +255,7 @@ export default function Eval({
                           }}
                         >
                           Edit
-                        </Button>
+                        </Button> */}
                       </td>
                       <td style={{ overflow: 'hidden' }}>
                         {evaluations?.script_parameters?.task}&nbsp;
@@ -354,6 +267,7 @@ export default function Eval({
                         <Button
                           startDecorator={<PlayIcon />}
                           variant="soft"
+                          color="success"
                           onClick={async () =>
                             await evaluationRun(
                               experimentInfo.id,
@@ -367,16 +281,6 @@ export default function Eval({
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <Stack direction="row">
-                          <Button
-                            variant="plain"
-                            onClick={() => {
-                              setCurrentEvaluator(evaluations.name);
-                              setSelectedPlugin(evaluations.plugin);
-                              setResultsModalOpen(true);
-                            }}
-                          >
-                            View Results
-                          </Button>
                           <IconButton
                             onClick={async () => {
                               await fetch(
@@ -388,7 +292,7 @@ export default function Eval({
                               experimentInfoMutate();
                             }}
                           >
-                            <XSquareIcon />
+                            <Trash2Icon />
                           </IconButton>
                         </Stack>
                       </td>
