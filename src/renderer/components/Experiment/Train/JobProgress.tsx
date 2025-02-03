@@ -58,9 +58,10 @@ export default function JobProgress({ job }) {
                 : ' - ' + Number.parseFloat(job.progress).toFixed(1) + '%'}
             </Chip>
             {job?.job_data?.start_time && (
-              <>Started: {dayjs(job?.job_data?.start_time).fromNow()}</>
+              <>
+                Started: {dayjs(job?.job_data?.start_time).fromNow()} <br />
+              </>
             )}
-            <br />
             {job?.job_data?.end_time && job?.job_data?.end_time && (
               <>
                 Completed in:{' '}
@@ -70,10 +71,10 @@ export default function JobProgress({ job }) {
                       dayjs(job?.job_data?.start_time)
                     )
                   )
-                  .humanize()}
+                  .humanize()}{' '}
+                <br />
               </>
             )}
-            <br />
             {job?.status == 'COMPLETE' &&
               (job?.job_data?.completion_status ? (
                 <>
