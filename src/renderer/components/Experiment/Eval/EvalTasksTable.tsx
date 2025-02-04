@@ -1,4 +1,4 @@
-import { Button, IconButton, Stack, Table } from '@mui/joy';
+import { Button, ButtonGroup, IconButton, Stack, Table } from '@mui/joy';
 import { FileTextIcon, PlayIcon, Trash2Icon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
@@ -41,10 +41,8 @@ export default function EvalTasksTable({
         <thead>
           <tr>
             <th>Evaluator</th>
-            <th style={{ width: '80px' }}>&nbsp;</th>
             <th>Tasks</th>
             <th>Plugin</th>
-            <th style={{ textAlign: 'right' }}>&nbsp;</th>
             <th style={{ textAlign: 'right' }}>&nbsp;</th>
           </tr>
         </thead>
@@ -54,41 +52,35 @@ export default function EvalTasksTable({
               (evaluations) => (
                 <tr key={evaluations.name}>
                   <td style={{ overflow: 'hidden' }}>{evaluations.name}</td>
-                  <td>
-                    {/* <Button
-                      variant="soft"
-                      onClick={() => {
-                        setSelectedPlugin(evaluations.plugin);
-                        setCurrentEvaluator(evaluations.name);
-                        setEditModalOpen(true);
-                      }}
-                    >
-                      Edit
-                    </Button> */}
-                  </td>
                   <td style={{ overflow: 'hidden' }}>
                     {evaluations?.script_parameters?.task}&nbsp;
                     <FileTextIcon size={14} />
                   </td>
                   <td>{evaluations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>
-                    <Button
-                      startDecorator={<PlayIcon />}
-                      variant="soft"
-                      color="success"
-                      onClick={async () =>
-                        await evaluationRun(
-                          experimentInfo.id,
-                          evaluations.plugin,
-                          evaluations.name
-                        )
-                      }
-                    >
-                      Queue
-                    </Button>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <Stack direction="row">
+                    <ButtonGroup variant="soft">
+                      <Button
+                        startDecorator={<PlayIcon />}
+                        variant="soft"
+                        color="success"
+                        onClick={async () =>
+                          await evaluationRun(
+                            experimentInfo.id,
+                            evaluations.plugin,
+                            evaluations.name
+                          )
+                        }
+                      >
+                        Queue
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          alert('not yet implemented');
+                        }}
+                      >
+                        Edit
+                      </Button>
                       <IconButton
                         onClick={async () => {
                           await fetch(
@@ -102,7 +94,7 @@ export default function EvalTasksTable({
                       >
                         <Trash2Icon />
                       </IconButton>
-                    </Stack>
+                    </ButtonGroup>
                   </td>
                 </tr>
               )
