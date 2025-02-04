@@ -369,11 +369,8 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                 sx={{
                   '--TableCell-headBackground':
                     'var(--joy-palette-background-level1)',
-                  '--Table-headerUnderlineThickness': '1px',
                   '--TableRow-hoverBackground':
                     'var(--joy-palette-background-level1)',
-                  '--TableCell-paddingY': '4px',
-                  '--TableCell-paddingX': '8px',
                 }}
               >
                 <thead>
@@ -407,7 +404,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                         sx={{ verticalAlign: 'text-bottom' }}
                       />
                     </th> */}
-                    <th style={{ height: '10px' }}>
+                    <th style={{ paddingLeft: '1rem' }}>
                       <Link
                         underline="none"
                         color="primary"
@@ -430,15 +427,9 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                     </th>
                     {fullPage && (
                       <>
-                        <th style={{ padding: '12px 6px', width: '200px' }}>
-                          Date
-                        </th>
-                        <th style={{ padding: '12px 6px', width: '120px' }}>
-                          Type
-                        </th>{' '}
-                        <th style={{ width: '130px' }}>
-                          <Typography color="neutral">Size</Typography>
-                        </th>
+                        <th style={{ width: '200px' }}>Date</th>
+                        <th style={{ width: '120px' }}>Type</th>
+                        <th style={{ width: '130px' }}>Size</th>
                       </>
                     )}
 
@@ -475,11 +466,8 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                           sx={{ verticalAlign: 'text-bottom' }}
                         />
                       </td> */}
-                      <td>
-                        <Typography
-                          level="body-xs"
-                          sx={{ paddingLeft: '12px' }}
-                        >
+                      <td style={{ paddingLeft: '1rem' }}>
+                        <Typography level="body-xs" sx={{}}>
                           {row?.name}
                         </Typography>
                       </td>
