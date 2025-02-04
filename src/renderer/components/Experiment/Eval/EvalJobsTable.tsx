@@ -33,7 +33,6 @@ function RenderScore({ score }) {
     return <Chip color="danger">Failed</Chip>;
   }
 
-
   let scoreArray = [];
   try {
     scoreArray = JSON.parse(score);
@@ -54,7 +53,7 @@ function RenderScore({ score }) {
         variant="outlined"
         sx={{ marginRight: '4px' }}
       >
-        {score?.type}: {score?.score}
+        {score?.type}: {score?.score.toFixed(5)}
       </Chip>
       <br />
     </>
@@ -83,7 +82,7 @@ const EvalJobsTable = () => {
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
       />
-      <Typography level="h2">Executions</Typography>
+      <Typography level="h3">Executions</Typography>
       <Sheet sx={{ overflowY: 'scroll' }}>
         <Table stickyHeader>
           <thead>
@@ -133,9 +132,7 @@ const EvalJobsTable = () => {
                     <IconButton variant="plain">
                       <Trash2Icon
                         onClick={async () => {
-                          await fetch(
-                            chatAPI.Endpoints.Jobs.Delete(job?.id)
-                          );
+                          await fetch(chatAPI.Endpoints.Jobs.Delete(job?.id));
                           jobsMutate();
                         }}
                       />

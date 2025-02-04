@@ -103,10 +103,10 @@ export default function Eval({
     isLoading: pluginsIsLoading,
   } = useSWR(
     experimentInfo?.id &&
-    chatAPI.Endpoints.Experiment.ListScriptsOfType(
-      experimentInfo?.id,
-      'evaluator'
-    ),
+      chatAPI.Endpoints.Experiment.ListScriptsOfType(
+        experimentInfo?.id,
+        'evaluator'
+      ),
     fetcher
   );
 
@@ -121,7 +121,7 @@ export default function Eval({
           method: 'POST',
           body: value,
         }
-      ).then(() => { });
+      ).then(() => {});
     }
   }
 
@@ -134,8 +134,7 @@ export default function Eval({
     return 'No experiment selected';
   }
 
-  console.log("ExperimentInfo", experimentInfo);
-
+  console.log('ExperimentInfo', experimentInfo);
 
   return (
     <>
@@ -172,13 +171,13 @@ export default function Eval({
                 if (formJson.run_name) {
                   nameOfThisEvaluation = formJson.run_name;
                 } else {
-                  nameOfThisEvaluation = selectedPlugin + '_' + generateFriendlyName();
+                  nameOfThisEvaluation =
+                    selectedPlugin + '_' + generateFriendlyName();
                 }
                 addEvaluation(selectedPlugin, nameOfThisEvaluation, formJson);
                 setOpen(false);
               }}
             >
-
               <Stack spacing={2}>
                 <FormControl>
                   <FormLabel>Evaluation Plugin Template:</FormLabel>
@@ -196,8 +195,8 @@ export default function Eval({
         {/* <Typography level="h1" mb={1}>
           Evaluate
         </Typography> */}
-        <Typography level="h2" mb={1}>
-          Tasks
+        <Typography level="h3" mb={1}>
+          Evaluation Tasks
         </Typography>
         {plugins?.length === 0 ? (
           <Alert color="danger">
