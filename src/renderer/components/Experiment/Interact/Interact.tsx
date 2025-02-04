@@ -764,12 +764,12 @@ export default function Chat({
           >
             <Option value="chat">Chat</Option>
             <Option value="completion">Completion</Option>
+            <Option value="rag">Query Docs (RAG)</Option>
             <Option value="tools">Tool Calling</Option>
             <Option value="template">Templated Prompt</Option>
             <Option value="embeddings">Embeddings</Option>
             <Option value="tokenize">Tokenize</Option>
             <Option value="logprobs">Visualize Logprobs</Option>
-            <Option value="rag">Query Documents</Option>
             <Option value="batched">Batched Query</Option>
           </Select>
         </FormControl>
