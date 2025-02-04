@@ -439,7 +439,7 @@ export default function Documents({ experimentInfo }) {
                 <tbody>
                   {rows?.length == 0 && (
                     <tr>
-                      <td colSpan={3} style={{ padding: '2rem' }}>
+                      <td colSpan={2} style={{ padding: '2rem' }}>
                         Drag and drop documents here to query their contents.
                       </td>
                     </tr>
