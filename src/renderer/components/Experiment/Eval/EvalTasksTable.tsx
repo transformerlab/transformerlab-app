@@ -13,6 +13,28 @@ function listEvals(evalString) {
   return result;
 }
 
+function formatTemplateConfig(script_parameters): ReactElement {
+  // const c = JSON.parse(script_parameters);
+
+  // Remove the author/full path from the model name for cleanliness
+  // const short_model_name = c.model_name.split('/').pop();
+  // Set main_task as either or the metric name from the script parameters
+  const main_task = script_parameters.metrics ? script_parameters.metrics : script_parameters.task;
+  const dataset_name = script_parameters.dataset_name? script_parameters.dataset_name : 'N/A';
+
+
+  const r = (
+    <>
+      <b>Metric/Task:</b> {main_task} <br />
+      <b>Dataset:</b> {dataset_name} <FileTextIcon size={14} />
+      <br />
+      {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
+      {/* {JSON.stringify(c)} */}
+    </>
+  );
+  return r;
+}
+
 async function evaluationRun(
   experimentId: string,
   plugin: string,
@@ -43,6 +65,7 @@ export default function EvalTasksTable({
   const [currentPlugin, setCurrentPlugin] = useState('');
   const [currentEvalName, setCurrentEvalName] = useState('');
 
+
   return (
     <>
       <EditEvalModal
@@ -70,8 +93,9 @@ export default function EvalTasksTable({
                 <tr key={evaluations.name}>
                   <td style={{ overflow: 'hidden' }}>{evaluations.name}</td>
                   <td style={{ overflow: 'hidden' }}>
-                    {evaluations?.script_parameters?.task}&nbsp;
-                    <FileTextIcon size={14} />
+                    {formatTemplateConfig(evaluations.script_parameters)}
+                    {/* {evaluations?.script_parameters?.task}&nbsp; */}
+                    {/* <FileTextIcon size={14} /> */}
                   </td>
                   <td>{evaluations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>
