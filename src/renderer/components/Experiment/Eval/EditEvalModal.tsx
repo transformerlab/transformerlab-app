@@ -25,6 +25,7 @@ import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import AvailableFieldsImage from 'renderer/img/show-available-fields.png';
 
 import { generateFriendlyName } from 'renderer/lib/utils';
+import exp from 'node:constants';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
@@ -97,6 +98,9 @@ export default function TrainingModalLoRA({
             if (evalConfig) {
               setConfig(evalConfig.script_parameters);
             }
+            if (!nameInput && evalConfig?.script_parameters.run_name) {
+              setNameInput(evalConfig.script_parameters.run_name);
+            }
           }
         } catch (error) {
           console.error('Failed to parse evaluations JSON string:', error);
@@ -104,6 +108,9 @@ export default function TrainingModalLoRA({
       }
     }
   }, [experimentInfo, currentEvalName, pluginId]);
+
+  console.log('Experiment Info:', experimentInfo);
+  console.log("Current Eval Name:", currentEvalName);
 
   // Function to check if any key in the config contains the word "dataset"
   const hasDatasetKey = (config: any) => {
@@ -164,6 +171,19 @@ export default function TrainingModalLoRA({
       </Stack>
     );
   }
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const formJson = Object.fromEntries((formData as any).entries());
+    try {
+      const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalName, formJson)
+      alert(JSON.stringify(formJson, null, 2));
+      console.log('Edit Evaluation Result:', result);
+      onClose();
+    } catch (error) {
+      console.error('Failed to edit evaluation:', error);
+    }
+  };
 
   return (
     <Modal open={open}>
@@ -186,15 +206,20 @@ export default function TrainingModalLoRA({
             height: '100%',
             justifyContent: 'space-between',
           }}
-          onSubmit={(event: FormEvent<HTMLFormElement>) => {
-            event.preventDefault();
-            const formData = new FormData(event.currentTarget);
-            const formJson = Object.fromEntries((formData as any).entries());
+          // onSubmit={(event: FormEvent<HTMLFormElement>) => {
+          //   event.preventDefault();
+          //   const formData = new FormData(event.currentTarget);
+          //   const formJson = Object.fromEntries((formData as any).entries());
 
-            setNameInput(generateFriendlyName());
-            alert(JSON.stringify(formJson, null, 2));
-            onClose();
-          }}
+          //   setNameInput(generateFriendlyName());
+          //   // Set the run name in formJson as template name
+          //   // formJson.run_name = formJson.template_name;
+          //   // 
+          //   // alert(JSON.stringify(formJson, null, 2));
+          //   const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalName, formJson)
+          //   onClose();
+          // }}
+          onSubmit={handleSubmit}
         >
           <Tabs
             aria-label="evaluation Template Tabs"

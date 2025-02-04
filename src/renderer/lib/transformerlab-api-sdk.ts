@@ -1253,9 +1253,9 @@ Endpoints.Experiment = {
   DeleteConversation: (experimentId: string, conversationId: string) =>
     FULL_PATH(
       'experiment/' +
-        experimentId +
-        '/conversations/delete?conversation_id=' +
-        conversationId
+      experimentId +
+      '/conversations/delete?conversation_id=' +
+      conversationId
     ),
   InstallPlugin: (experimentId: string, pluginId: string) =>
     API_URL() +
@@ -1280,10 +1280,10 @@ Endpoints.Experiment = {
   ) =>
     FULL_PATH(
       'experiment/' +
-        experimentId +
-        '/plugins/list?type=' +
-        type +
-        (filter ? '&filter=' + filter : '')
+      experimentId +
+      '/plugins/list?type=' +
+      type +
+      (filter ? '&filter=' + filter : '')
     ),
   ScriptListFiles: (experimentId: string, id: string) =>
     API_URL() + 'experiment/' + experimentId + '/plugins/' + id + '/list_files',
@@ -1440,6 +1440,29 @@ export async function EXPERIMENT_ADD_EVALUATION(
   return result;
 }
 
+export async function EXPERIMENT_EDIT_EVALUATION(
+  id: string,
+  evalName: string,
+  scriptParameters: any
+) {
+  const newPlugin = {
+    evalName: evalName,
+    script_parameters: scriptParameters,
+  };
+
+  const response = await fetch(API_URL() + 'experiment/' + id + '/evals/edit', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(newPlugin),
+  });
+  const result = await response.json();
+  return result;
+}
+
+
 export function CREATE_EXPERIMENT_URL(name: string) {
   return API_URL() + 'experiment/create?name=' + name;
 }
@@ -1559,16 +1582,16 @@ export async function activateWorker(
   try {
     response = await fetch(
       API_URL() +
-        'server/worker_start?model_name=' +
-        model +
-        '&adaptor=' +
-        adaptorName +
-        '&engine=' +
-        engine +
-        '&experiment_id=' +
-        experimentId +
-        '&parameters=' +
-        paramsJSON
+      'server/worker_start?model_name=' +
+      model +
+      '&adaptor=' +
+      adaptorName +
+      '&engine=' +
+      engine +
+      '&experiment_id=' +
+      experimentId +
+      '&parameters=' +
+      paramsJSON
     );
     const result = await response.json();
     return result;
