@@ -133,7 +133,7 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Documents({ experimentInfo }) {
+export default function Documents({ experimentInfo, fullPage = false }) {
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
@@ -428,12 +428,21 @@ export default function Documents({ experimentInfo }) {
                         File Name
                       </Link>
                     </th>
-                    {/* <th style={{ padding: '12px 6px' }}>Date</th> */}
-                    {/* <th style={{ padding: '12px 6px' }}>Type</th>{' '} */}
-                    {/* <th style={{ height: '10px' }}>
-                      <Typography color="neutral">Size</Typography>
-                    </th> */}
-                    <th style={{ height: '10px', width: '70px' }}> </th>
+                    {fullPage && (
+                      <>
+                        <th style={{ padding: '12px 6px', width: '200px' }}>
+                          Date
+                        </th>
+                        <th style={{ padding: '12px 6px', width: '120px' }}>
+                          Type
+                        </th>{' '}
+                        <th style={{ width: '130px' }}>
+                          <Typography color="neutral">Size</Typography>
+                        </th>
+                      </>
+                    )}
+
+                    <th style={{ width: '70px' }}> </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -474,38 +483,43 @@ export default function Documents({ experimentInfo }) {
                           {row?.name}
                         </Typography>
                       </td>
-                      {/* <td>
-                        <Typography level="body-xs">{row?.date}</Typography>
-                      </td> */}
-                      {/* <td>
-                        <Chip
-                          variant="soft"
-                          size="sm"
-                          startDecorator={
-                            {
-                              '.txt': <FaRegFileAlt />,
-                              '.pdf': <FaRegFilePdf />,
-                              '.jsonl': <LuFileJson />,
-                            }[row?.type]
-                          }
-                          color={
-                            {
-                              '.txt': 'success',
-                              '.pdf': 'neutral',
-                              '.jsonl': 'danger',
-                            }[row?.type] as ColorPaletteProp
-                          }
-                        >
-                          {row?.type}
-                        </Chip>
-                      </td> */}
-                      {/* <td>
-                        {row?.size && (
-                          <Typography level="body-xs" color="neutral">
-                            {formatBytes(row?.size)}
-                          </Typography>
-                        )}
-                      </td> */}
+                      {fullPage && (
+                        <>
+                          <td>
+                            <Typography level="body-xs">{row?.date}</Typography>
+                          </td>
+                          <td>
+                            <Chip
+                              variant="soft"
+                              size="sm"
+                              startDecorator={
+                                {
+                                  '.txt': <FaRegFileAlt />,
+                                  '.pdf': <FaRegFilePdf />,
+                                  '.jsonl': <LuFileJson />,
+                                }[row?.type]
+                              }
+                              color={
+                                {
+                                  '.txt': 'success',
+                                  '.pdf': 'neutral',
+                                  '.jsonl': 'danger',
+                                }[row?.type] as ColorPaletteProp
+                              }
+                            >
+                              {row?.type}
+                            </Chip>
+                          </td>
+                          <td>
+                            {row?.size && (
+                              <Typography level="body-xs" color="neutral">
+                                {formatBytes(row?.size)}
+                              </Typography>
+                            )}
+                          </td>
+                        </>
+                      )}
+
                       <td>
                         <Box
                           sx={{

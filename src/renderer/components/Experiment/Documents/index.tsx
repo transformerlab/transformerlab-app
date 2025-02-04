@@ -12,7 +12,7 @@ export default function BigDocumentsPage({ experimentInfo }) {
         pb: 2,
       }}
     >
-      <Documents experimentInfo={experimentInfo} />
+      <Documents experimentInfo={experimentInfo} fullPage />
     </Sheet>
   );
 }
