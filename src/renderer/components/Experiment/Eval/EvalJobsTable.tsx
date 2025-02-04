@@ -8,7 +8,7 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
-import { Trash2Icon } from 'lucide-react';
+import { ChartColumnBigIcon, FileDigitIcon, Trash2Icon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
@@ -47,13 +47,17 @@ function RenderScore({ score }) {
 
   return scoreArray.map((score, idx) => (
     <>
+      {' '}
       <Chip
         key={idx}
         color="success"
         variant="outlined"
         sx={{ marginRight: '4px' }}
       >
-        {score?.type}: {score?.score.toFixed(5)}
+        <span style={{ display: 'flex', alignItems: 'center' }}>
+          <ChartColumnBigIcon size="14px" style={{ marginRight: '3px' }} />{' '}
+          {score?.type}: {score?.score.toFixed(5)}
+        </span>
       </Chip>
       <br />
     </>
