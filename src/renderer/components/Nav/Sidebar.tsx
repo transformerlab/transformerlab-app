@@ -24,6 +24,7 @@ import {
   RectangleEllipsisIcon,
   LogsIcon,
   SquareStackIcon,
+  FileIcon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
@@ -181,13 +182,12 @@ export default function Sidebar({
           icon={<HelpCircleIcon />}
           disabled={!experimentInfo?.name}
         />
-        {/* <SubNavItem
+        <SubNavItem
           title="Documents"
           path="/projects/documents"
           icon={<FileIcon />}
           disabled={!experimentInfo?.name}
-          counter={outdatedPluginsCount}
-        /> */}
+        />
         <SubNavItem
           title="Notes"
           path="/projects/notes"
