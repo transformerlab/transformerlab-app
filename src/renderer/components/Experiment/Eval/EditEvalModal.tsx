@@ -199,7 +199,7 @@ export default function TrainingModalLoRA({
                 />
               </>
             </TabPanel>
-            <TabPanel value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
