@@ -65,8 +65,54 @@ export default function TrainingModalLoRA({
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [config, setConfig] = useState({});
+  const [hasDatasetKey, setHasDatasetKey] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
+
+  useEffect(() => {
+    setNameInput(generateFriendlyName());
+  }, []);
+
+  const { data, error, isLoading, mutate } = useSWR(
+    experimentInfo?.id &&
+      pluginId &&
+      chatAPI.Endpoints.Experiment.ScriptGetFile(
+        experimentInfo?.id,
+        pluginId,
+        'index.json'
+      ),
+    fetcher
+  );
+
+useEffect(() => {
+    if (data) {
+    let parsedData;
+    try {
+        parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+        // Set config as a JSON object with keys of the parameters and values of the default values
+        let tempconfig = {};
+        if (parsedData && parsedData.parameters) {
+            tempconfig = Object.fromEntries(
+            Object.entries(parsedData.parameters).map(([key, value]) => [
+            key,
+            value.default,
+            ])
+        );
+        }
+        setConfig(tempconfig);
+        // Set hasDataset to true in the parsed data, the dataset key is `true`
+        if (parsedData && parsedData.dataset) {
+            setHasDatasetKey(true);
+        }
+
+
+    } catch (e) {
+        console.error('Error parsing data', e);
+        parsedData = '';
+    }
+    }
+    }, [pluginId, experimentInfo, config, data]);
+
 
   // Fetch available datasets from the API
   const {
@@ -99,9 +145,6 @@ export default function TrainingModalLoRA({
             if (evalConfig) {
               setConfig(evalConfig.script_parameters);
             }
-            if (!nameInput && evalConfig?.script_parameters.run_name) {
-              setNameInput(evalConfig.script_parameters.run_name);
-            }
           }
         } catch (error) {
           console.error('Failed to parse evaluations JSON string:', error);
@@ -110,10 +153,16 @@ export default function TrainingModalLoRA({
     }
   }, [experimentInfo, currentEvalName, pluginId]);
 
-  // Function to check if any key in the config contains the word "dataset"
-  const hasDatasetKey = (config: any) => {
-    return Object.keys(config).some(key => key.toLowerCase().includes('dataset'));
-  };
+//   console.log('Experiment Info:', experimentInfo);
+//   console.log("Current Eval Name:", currentEvalName);
+//   console.log("Plugin ID:", pluginId);
+//   console.log("Config:", config);
+//   console.log("EXP CONFIG", experimentInfo?.config);
+
+//   // Function to check if any key in the config contains the word "dataset"
+//   const hasDatasetKey = (config: any) => {
+//     return Object.keys(config).some(key => key.toLowerCase().includes('dataset'));
+//   };
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -171,8 +220,15 @@ export default function TrainingModalLoRA({
     const formData = new FormData(event.currentTarget);
     const formJson = Object.fromEntries((formData as any).entries());
     try {
-      const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalName, formJson)
-      // alert(JSON.stringify(formJson, null, 2));
+      if (!formJson.run_name) {
+        formJson.run_name = formJson.template_name;
+      }
+      // Remove the template_name key from a formJson object
+      const template_name = formJson.template_name;
+      delete formJson.template_name;
+
+      const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(experimentInfo?.id, template_name, pluginId, formJson);
+    //   alert(JSON.stringify(formJson, null, 2));
       onClose();
     } catch (error) {
       console.error('Failed to edit evaluation:', error);
@@ -212,7 +268,7 @@ export default function TrainingModalLoRA({
               <Tab>Introduction</Tab>
               <Tab>Name</Tab>
               <Tab>Plugin Config</Tab>
-              {hasDatasetKey(config) && <Tab>Dataset</Tab>}
+              {hasDatasetKey && <Tab>Dataset</Tab>}
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
               <PluginIntroduction
@@ -227,10 +283,9 @@ export default function TrainingModalLoRA({
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
-                config={config}
               />
             </TabPanel>
-            {hasDatasetKey(config) && (<TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            {hasDatasetKey && (<TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <>
                 <TrainingModalDataTab
                   datasetsIsLoading={datasetsIsLoading}

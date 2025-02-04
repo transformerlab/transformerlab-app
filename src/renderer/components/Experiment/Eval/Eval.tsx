@@ -29,6 +29,9 @@ import { generateFriendlyName } from 'renderer/lib/utils';
 import DynamicPluginForm from '../DynamicPluginForm';
 import EvalJobsTable from './EvalJobsTable.tsx';
 import EvalTasksTable from './EvalTasksTable';
+import NewEvalModal from './NewEvalModal';
+
+
 
 function getTemplateParametersForPlugin(pluginName, plugins) {
   if (!pluginName || !plugins) {
@@ -109,13 +112,9 @@ export default function Eval({
         {/* Plugins:
         {JSON.stringify(plugins)} */}
 
-        <Modal open={open} onClose={() => setOpen(false)}>
+        {/* <Modal open={open} onClose={() => setOpen(false)}>
           <ModalDialog>
             <ModalClose onClick={() => setOpen(false)} />
-            {/* <DialogTitle>Add Evalation</DialogTitle> */}
-            {/* <DialogContent>
-              Select an evaluation to add to this experiment.
-            </DialogContent> */}
             <form
               onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
                 event.preventDefault();
@@ -123,10 +122,6 @@ export default function Eval({
                 const formJson = Object.fromEntries(
                   (formData as any).entries()
                 );
-                // alert(JSON.stringify(formJson));
-
-                /* The way evals are defined right now, they need a unique name. This is a hack
-                  until we have a better solution */
                 let nameOfThisEvaluation;
                 if (formJson.run_name) {
                   nameOfThisEvaluation = formJson.run_name;
@@ -151,7 +146,16 @@ export default function Eval({
               </Stack>
             </form>
           </ModalDialog>
-        </Modal>
+        </Modal> */}
+             <NewEvalModal
+                open={open}
+                onClose={() => {
+                  setOpen(false);
+                }}
+                experimentInfo={experimentInfo}
+                pluginId={selectedPlugin}
+                currentEvalName={''}
+              />
         {/* <Typography level="h1" mb={1}>
           Evaluate
         </Typography> */}
