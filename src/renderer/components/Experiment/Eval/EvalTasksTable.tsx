@@ -74,7 +74,10 @@ export default function EvalTasksTable({
                   </td>
                   <td>{evaluations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>
-                    <ButtonGroup variant="soft">
+                    <ButtonGroup
+                      variant="soft"
+                      sx={{ justifyContent: 'flex-end' }}
+                    >
                       <Button
                         startDecorator={<PlayIcon />}
                         variant="soft"

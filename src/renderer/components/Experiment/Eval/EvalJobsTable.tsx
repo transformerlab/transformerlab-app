@@ -125,7 +125,10 @@ const EvalJobsTable = () => {
                   <RenderScore score={job?.job_data?.score} />
                 </td>
                 <td>
-                  <ButtonGroup variant="soft">
+                  <ButtonGroup
+                    variant="soft"
+                    sx={{ justifyContent: 'flex-end' }}
+                  >
                     <Button
                       onClick={() => {
                         setViewOutputFromJob(job?.id);

@@ -63,7 +63,7 @@ export default function TrainingModalDataTab({
     >
       {/* <pre>{JSON.stringify(templateData, null, 2)}</pre> */}
       <FormControl>
-        <FormLabel>Training Dataset</FormLabel>
+        <FormLabel>Dataset</FormLabel>
 
         <Select
           placeholder={datasetsIsLoading ? 'Loading...' : 'Select Dataset'}

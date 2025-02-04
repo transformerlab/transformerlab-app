@@ -22,8 +22,6 @@ import {
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
 
-import AvailableFieldsImage from 'renderer/img/show-available-fields.png';
-
 import { generateFriendlyName } from 'renderer/lib/utils';
 import exp from 'node:constants';
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -93,7 +91,9 @@ export default function TrainingModalLoRA({
           const evaluations = JSON.parse(evaluationsStr);
           if (Array.isArray(evaluations)) {
             const evalConfig = evaluations.find(
-              (evalItem: any) => evalItem.name === currentEvalName && evalItem.plugin === pluginId
+              (evalItem: any) =>
+                evalItem.name === currentEvalName &&
+                evalItem.plugin === pluginId
             );
             if (evalConfig) {
               setConfig(evalConfig.script_parameters);
@@ -126,9 +126,6 @@ export default function TrainingModalLoRA({
     : experimentInfo?.config?.foundation;
 
   // Set config to the plugin config if it is available based on currentEvalName within experiment info
-
-
-
 
   function TrainingModalFirstTab() {
     return (
