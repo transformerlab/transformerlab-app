@@ -1,6 +1,9 @@
 import { Button, ButtonGroup, IconButton, Stack, Table } from '@mui/joy';
 import { FileTextIcon, PlayIcon, Trash2Icon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import EditEvalModal from './EditEvalModal';
+import { useState } from 'react';
+import useSWR from 'swr';
 
 function listEvals(evalString) {
   let result = [];
@@ -35,8 +38,19 @@ export default function EvalTasksTable({
   experimentInfo,
   experimentInfoMutate,
 }) {
+  const [open, setOpen] = useState(false);
+  const [currentPlugin, setCurrentPlugin] = useState('');
+
   return (
     <>
+      <EditEvalModal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+        experimentInfo={experimentInfo}
+        pluginId={currentPlugin}
+      />
       <Table aria-label="basic table" stickyHeader>
         <thead>
           <tr>
@@ -76,7 +90,8 @@ export default function EvalTasksTable({
                       <Button
                         variant="outlined"
                         onClick={() => {
-                          alert('not yet implemented');
+                          setOpen(true);
+                          setCurrentPlugin(evaluations?.plugin);
                         }}
                       >
                         Edit
