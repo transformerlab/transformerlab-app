@@ -596,10 +596,13 @@ function InstallStepper({ setServer }) {
 
   const [elapsedTime, setElapsedTime] = useState(0);
   const [intervalId, setIntervalId] = useState(null);
+  const [dismissItsTakingAWhileModal, setDismissItsTakingAWhileModal] =
+    useState(false);
 
   useEffect(() => {
     let id;
     if (userRequestedInstall) {
+      setDismissItsTakingAWhileModal(false);
       id = setInterval(() => {
         setElapsedTime((prevTime) => prevTime + 1);
       }, 1000);
@@ -622,7 +625,7 @@ function InstallStepper({ setServer }) {
         gap: 1,
       }}
     >
-      {elapsedTime > 15 && (
+      {elapsedTime > 15 && !dismissItsTakingAWhileModal && (
         <Alert
           sx={{
             background: 'var(--joy-palette-primary-100)',
@@ -634,6 +637,7 @@ function InstallStepper({ setServer }) {
             top: '50%',
             transform: 'translate(-50%, -50%)',
             zIndex: 1000,
+            flexDirection: 'column',
           }}
           startDecorator={<TimerIcon />}
         >
@@ -656,8 +660,17 @@ function InstallStepper({ setServer }) {
                 few minutes.
                 <br />
                 <br />
-                The other part takes takes a while is when you see "Installing
+                The other part that takes a while is when you see "Installing
                 collected packages"
+                <br />
+                <br />
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  onClick={() => setDismissItsTakingAWhileModal(true)}
+                >
+                  Dismiss
+                </Button>
               </>
             )}
           </Typography>
