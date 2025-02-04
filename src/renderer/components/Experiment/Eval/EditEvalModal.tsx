@@ -105,6 +105,11 @@ export default function TrainingModalLoRA({
     }
   }, [experimentInfo, currentEvalName, pluginId]);
 
+  // Function to check if any key in the config contains the word "dataset"
+  const hasDatasetKey = (config: any) => {
+    return Object.keys(config).some(key => key.toLowerCase().includes('dataset'));
+  };
+
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
   }
@@ -200,8 +205,8 @@ export default function TrainingModalLoRA({
             <TabList>
               <Tab>Introduction</Tab>
               <Tab>Name</Tab>
-              <Tab>Dataset</Tab>
               <Tab>Plugin Config</Tab>
+              {hasDatasetKey(config) && <Tab>Dataset</Tab>}
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
               <PluginIntroduction
@@ -213,6 +218,13 @@ export default function TrainingModalLoRA({
               <TrainingModalFirstTab />
             </TabPanel>
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <DynamicPluginForm
+                experimentInfo={experimentInfo}
+                plugin={pluginId}
+                config={config}
+              />
+            </TabPanel>
+            {hasDatasetKey(config) && (<TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <>
                 <TrainingModalDataTab
                   datasetsIsLoading={datasetsIsLoading}
@@ -228,13 +240,7 @@ export default function TrainingModalLoRA({
                 />
               </>
             </TabPanel>
-            <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-              <DynamicPluginForm
-                experimentInfo={experimentInfo}
-                plugin={pluginId}
-                config={config}
-              />
-            </TabPanel>
+            )}
           </Tabs>
           <Stack spacing={2} direction="row" justifyContent="flex-end">
             <Button color="danger" variant="soft" onClick={() => onClose()}>
