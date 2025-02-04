@@ -53,12 +53,14 @@ export default function TrainingModalLoRA({
   onClose,
   experimentInfo,
   pluginId,
+  currentEvalName,
 }: {
   open: boolean;
   onClose: () => void;
   experimentInfo: any;
   template_id?: string;
   pluginId: string;
+  currentEvalName: string;
 }) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
@@ -81,6 +83,28 @@ export default function TrainingModalLoRA({
       return chatAPI.Endpoints.Dataset.Info(selectedDataset);
     }, fetcher);
 
+  // Set config to the plugin config if it is available based on currentEvalName within experiment info
+  useEffect(() => {
+    if (experimentInfo && currentEvalName && pluginId) {
+      const evaluationsStr = experimentInfo.config?.evaluations;
+      if (typeof evaluationsStr === 'string') {
+        try {
+          const evaluations = JSON.parse(evaluationsStr);
+          if (Array.isArray(evaluations)) {
+            const evalConfig = evaluations.find(
+              (evalItem: any) => evalItem.name === currentEvalName && evalItem.plugin === pluginId
+            );
+            if (evalConfig) {
+              setConfig(evalConfig.script_parameters);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to parse evaluations JSON string:', error);
+        }
+      }
+    }
+  }, [experimentInfo, currentEvalName, pluginId]);
+
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
   }
@@ -88,6 +112,11 @@ export default function TrainingModalLoRA({
   const currentModel = experimentInfo?.config?.foundation_filename
     ? experimentInfo?.config?.foundation_filename
     : experimentInfo?.config?.foundation;
+
+  // Set config to the plugin config if it is available based on currentEvalName within experiment info
+
+
+
 
   function TrainingModalFirstTab() {
     return (

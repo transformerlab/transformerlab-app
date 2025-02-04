@@ -40,6 +40,7 @@ export default function EvalTasksTable({
 }) {
   const [open, setOpen] = useState(false);
   const [currentPlugin, setCurrentPlugin] = useState('');
+  const [currentEvalName, setCurrentEvalName] = useState('');
 
   return (
     <>
@@ -50,6 +51,7 @@ export default function EvalTasksTable({
         }}
         experimentInfo={experimentInfo}
         pluginId={currentPlugin}
+        currentEvalName={currentEvalName}
       />
       <Table aria-label="basic table" stickyHeader>
         <thead>
@@ -92,6 +94,7 @@ export default function EvalTasksTable({
                         onClick={() => {
                           setOpen(true);
                           setCurrentPlugin(evaluations?.plugin);
+                          setCurrentEvalName(evaluations.name);
                         }}
                       >
                         Edit
