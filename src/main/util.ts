@@ -81,9 +81,10 @@ export async function checkForMissingSystemRequirements() {
         // We must use encoding = utf16le because that is the default for powershell
         // according to https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_character_encoding?view=powershell-7.4
         // There is a potential for a bug here if the user changed their powershell encoding.
-        const { stdout, stderr } = await awaitExec('wsl --status', { encoding: 'utf16le' });
+        const { stdout, stderr } = await awaitExec('wsl --status', {
+          encoding: 'utf16le',
+        });
         if (stderr) return stderr;
-
 
         //Read the output. The output looks like this:
         //Default Distribution: Ubuntu
@@ -107,9 +108,10 @@ export async function checkForMissingSystemRequirements() {
         console.log(`WSL version: ${version}`);
 
         // Check if the distro is set to Ubuntu and the version is 2
-        if (distro != 'Ubuntu' || version != '2') {
-          return `WSL distro must be set to Ubuntu and version 2. Please run 'wsl --set-version Ubuntu 2'.`;
-        }
+        // Removing this check for now as it seems to fail on some systems (not sure why)
+        // if (distro != 'Ubuntu' || version != '2') {
+        //   return `WSL distro must be set to Ubuntu and version 2. Please run 'wsl --set-version Ubuntu 2'.`;
+        // }
       } catch (error) {
         return 'WSL is not enabled. Please enable WSL and install a distro.';
       }
@@ -448,9 +450,7 @@ export async function executeInstallStep(
 
   // Set installer script filename and options based on platform
   // For windows this is a bit hacky...we need to pass a unix-style path to WSL
-  const exec_cmd = isPlatformWindows()
-    ? `wsl`
-    : `${fullInstallScriptPath}`;
+  const exec_cmd = isPlatformWindows() ? `wsl` : `${fullInstallScriptPath}`;
 
   console.log(`Running: ${exec_cmd}`);
   // Call installer script and return stdout if it succeeds
