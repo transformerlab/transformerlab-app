@@ -69,19 +69,12 @@ export default function EvalTasksTable({
 
   return (
     <>
-        <EvalModal
-        open={open}
-        onClose={() => {
-          setOpen(false);
-        }}
-        experimentInfo={experimentInfo}
-        pluginId={currentPlugin}
-        currentEvalName={currentEvalName}
-      />
-      <Table aria-label="basic table" stickyHeader>
+      <Table aria-label="basic table" stickyHeader sx={{}}>
         <thead>
           <tr>
-            <th width="200px">Name</th>
+            <th width="200px" style={{ paddingLeft: '1rem' }}>
+              Name
+            </th>
             <th>Tasks</th>
             <th>Plugin</th>
             <th style={{ textAlign: 'right' }}>&nbsp;</th>
@@ -92,7 +85,9 @@ export default function EvalTasksTable({
             listEvals(experimentInfo?.config?.evaluations)?.map(
               (evaluations) => (
                 <tr key={evaluations.name}>
-                  <td style={{ overflow: 'hidden' }}>{evaluations.name}</td>
+                  <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
+                    {evaluations.name}
+                  </td>
                   <td style={{ overflow: 'hidden' }}>
                     {formatTemplateConfig(evaluations.script_parameters)}
                     {/* {evaluations?.script_parameters?.task}&nbsp; */}
