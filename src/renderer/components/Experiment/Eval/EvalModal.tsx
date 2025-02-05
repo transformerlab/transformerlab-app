@@ -265,7 +265,7 @@ export default function TrainingModalLoRA({
         const template_name = formJson.template_name;
         delete formJson.template_name;
         const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(experimentInfo?.id, template_name, pluginId, formJson);
-        alert(JSON.stringify(formJson, null, 2));
+        // alert(JSON.stringify(formJson, null, 2));
         setNameInput(generateFriendlyName());
         onClose();
             }
