@@ -49,39 +49,40 @@ export default function DatasetCard({
         dataset_id={name}
         setOpen={setDatasetInfoModalOpen}
       />
-      <Card variant="outlined" sx={{}}>
-        <div>
-          <Typography
-            level="h4"
-            sx={{ mb: 0.5, height: '60px', overflow: 'clip' }}
-            startDecorator={<FileTextIcon />}
-          >
-            <b>{name}</b>&nbsp;
-            {location === 'huggingfacehub' && ' 🤗'}
-            {location === 'local' && ' (local)'}
-          </Typography>
-          <div style={{ height: '80px', overflow: 'clip' }}>
-            <Typography
-              level="body-sm"
-              sx={{
-                overflow: 'auto',
-                mt: 2,
-                mb: 2,
-              }}
-            >
-              {description}
-            </Typography>
-          </div>
-        </div>
-        <CardContent orientation="horizontal">
+      <Card variant="outlined" sx={{ height: '100%' }}>
+        <CardContent
+          orientation="vertical"
+          sx={{ justifyContent: 'space-between' }}
+        >
           <div>
-            <Typography level="body3">Total size:</Typography>
-            <Typography fontSize="lg" fontWeight="lg">
+            <Typography
+              level="title-lg"
+              sx={{ mb: 2, overflow: 'clip' }}
+              startDecorator={<FileTextIcon />}
+            >
+              <b>{name}</b>&nbsp;
+              {location === 'huggingfacehub' && ' 🤗'}
+              {location === 'local' && ' '}
+            </Typography>
+            <div style={{ overflow: 'clip' }}>
+              <Typography
+                level="body-sm"
+                sx={{
+                  overflow: 'auto',
+                }}
+              >
+                {description}
+              </Typography>
+            </div>
+          </div>
+          <div>
+            <Typography level="body-md">Total size:</Typography>
+            <Typography fontSize="sm" fontWeight="bold">
               {size === -1 ? 'Unknown' : formatBytes(size)}
             </Typography>
           </div>
         </CardContent>
-        <CardContent orientation="horizontal">
+        <CardContent orientation="horizontal" sx={{ alignItems: 'flex-end' }}>
           {downloaded && local && (
             <>
               <Button
