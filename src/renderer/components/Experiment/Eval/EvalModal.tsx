@@ -103,8 +103,9 @@ export default function TrainingModalLoRA({
 
   useEffect(() => {
     if (open) {
+      if (!currentEvalName) {
       setNameInput(generateFriendlyName());
-    }
+    }}
   }, [open]);
 
   useEffect(() => {
@@ -125,6 +126,7 @@ export default function TrainingModalLoRA({
                 const datasetKeyExists = Object.keys(evalConfig.script_parameters).some(key => key.toLowerCase().includes('dataset'));
                 setHasDatasetKey(datasetKeyExists);
               }
+              setNameInput(evalConfig?.name);
               if (!nameInput && evalConfig?.script_parameters.run_name) {
                 setNameInput(evalConfig.script_parameters.run_name);
               }
