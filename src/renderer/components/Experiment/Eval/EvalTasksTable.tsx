@@ -1,7 +1,7 @@
 import { Button, ButtonGroup, IconButton, Stack, Table } from '@mui/joy';
 import { FileTextIcon, PlayIcon, Trash2Icon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import EditEvalModal from './EditEvalModal';
+import EvalModal from './EvalModal';
 import { useState } from 'react';
 import useSWR from 'swr';
 
@@ -68,7 +68,7 @@ export default function EvalTasksTable({
 
   return (
     <>
-      <EditEvalModal
+      <EvalModal
         open={open}
         onClose={() => {
           setOpen(false);

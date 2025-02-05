@@ -48,6 +48,7 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
   );
 }
 
+
 export default function TrainingModalLoRA({
   open,
   onClose,
@@ -60,11 +61,12 @@ export default function TrainingModalLoRA({
   experimentInfo: any;
   template_id?: string;
   pluginId: string;
-  currentEvalName: string;
+  currentEvalName?: string; // Optional incase of new evaluation
 }) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [config, setConfig] = useState({});
+  const [hasDatasetKey, setHasDatasetKey] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
 
@@ -75,6 +77,17 @@ export default function TrainingModalLoRA({
     isLoading: datasetsIsLoading,
   } = useSWR(chatAPI.Endpoints.Dataset.LocalList(), fetcher);
 
+  const { data, error, isLoading, mutate } = useSWR(
+    experimentInfo?.id &&
+      pluginId &&
+      chatAPI.Endpoints.Experiment.ScriptGetFile(
+        experimentInfo?.id,
+        pluginId,
+        'index.json'
+      ),
+    fetcher
+  );
+
   const { data: currentDatasetInfo, isLoading: currentDatasetInfoIsLoading } =
     useSWR(() => {
       if (selectedDataset === null) {
@@ -83,37 +96,103 @@ export default function TrainingModalLoRA({
       return chatAPI.Endpoints.Dataset.Info(selectedDataset);
     }, fetcher);
 
-  // Set config to the plugin config if it is available based on currentEvalName within experiment info
   useEffect(() => {
-    if (experimentInfo && currentEvalName && pluginId) {
-      const evaluationsStr = experimentInfo.config?.evaluations;
-      if (typeof evaluationsStr === 'string') {
-        try {
-          const evaluations = JSON.parse(evaluationsStr);
-          if (Array.isArray(evaluations)) {
-            const evalConfig = evaluations.find(
-              (evalItem: any) =>
-                evalItem.name === currentEvalName &&
-                evalItem.plugin === pluginId
-            );
-            if (evalConfig) {
-              setConfig(evalConfig.script_parameters);
+    if (open) { // Reset the name input when the modal is opened
+      setNameInput(generateFriendlyName());
+    }}, []);
+
+  // Set config to the plugin config if it is available based on currentEvalName within experiment info
+  // useEffect(() => {
+  //   if (experimentInfo && currentEvalName && pluginId) {
+  //     const evaluationsStr = experimentInfo.config?.evaluations;
+  //     if (typeof evaluationsStr === 'string') {
+  //       try {
+  //         const evaluations = JSON.parse(evaluationsStr);
+  //         if (Array.isArray(evaluations)) {
+  //           const evalConfig = evaluations.find(
+  //             (evalItem: any) =>
+  //               evalItem.name === currentEvalName &&
+  //               evalItem.plugin === pluginId
+  //           );
+  //           if (evalConfig) {
+  //             setConfig(evalConfig.script_parameters);
+  //             const datasetKeyExists = Object.keys(config).some(key => key.toLowerCase().includes('dataset'));
+  //             setHasDatasetKey(datasetKeyExists);
+  //           }
+  //           if (!nameInput && evalConfig?.script_parameters.run_name) {
+  //             setNameInput(evalConfig.script_parameters.run_name);
+  //           }
+  //         }
+  //       } catch (error) {
+  //         console.error('Failed to parse evaluations JSON string:', error);
+  //       }
+  //     }
+  //   }
+
+  // }, [experimentInfo, currentEvalName, pluginId]);
+  useEffect(() => {
+    if (experimentInfo && pluginId) {
+      if (currentEvalName) {
+        const evaluationsStr = experimentInfo.config?.evaluations;
+        if (typeof evaluationsStr === 'string') {
+          try {
+            const evaluations = JSON.parse(evaluationsStr);
+            if (Array.isArray(evaluations)) {
+              const evalConfig = evaluations.find(
+                (evalItem: any) =>
+                  evalItem.name === currentEvalName &&
+                  evalItem.plugin === pluginId
+              );
+              if (evalConfig) {
+                setConfig(evalConfig.script_parameters);
+                const datasetKeyExists = Object.keys(evalConfig.script_parameters).some(key => key.toLowerCase().includes('dataset'));
+                setHasDatasetKey(datasetKeyExists);
+              }
+              if (!nameInput && evalConfig?.script_parameters.run_name) {
+                setNameInput(evalConfig.script_parameters.run_name);
+              }
             }
-            if (!nameInput && evalConfig?.script_parameters.run_name) {
-              setNameInput(evalConfig.script_parameters.run_name);
-            }
+          } catch (error) {
+            console.error('Failed to parse evaluations JSON string:', error);
           }
-        } catch (error) {
-          console.error('Failed to parse evaluations JSON string:', error);
         }
+      } else {
+        // Logic when currentEvalName is not provided
+        // const defaultConfig = {}; // Replace with your default config logic
+        // setConfig(defaultConfig);
+        // const datasetKeyExists = Object.keys(defaultConfig).some(key => key.toLowerCase().includes('dataset'));
+        // setHasDatasetKey(datasetKeyExists);
+        if (data) {
+          setNameInput(generateFriendlyName())
+          let parsedData;
+          try {
+              parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+              // Set config as a JSON object with keys of the parameters and values of the default values
+              let tempconfig = {};
+              if (parsedData && parsedData.parameters) {
+                  tempconfig = Object.fromEntries(
+                  Object.entries(parsedData.parameters).map(([key, value]) => [
+                  key,
+                  value.default,
+                  ])
+              );
+              }
+              setConfig(tempconfig);
+              // Set hasDataset to true in the parsed data, the dataset key is `true`
+              if (parsedData && parsedData.dataset) {
+                  setHasDatasetKey(true);
+              }
+
+
+          } catch (e) {
+              console.error('Error parsing data', e);
+              parsedData = '';
+          }
+          }
       }
     }
-  }, [experimentInfo, currentEvalName, pluginId]);
+  }, [experimentInfo, pluginId, currentEvalName, nameInput, data]);
 
-  // Function to check if any key in the config contains the word "dataset"
-  const hasDatasetKey = (config: any) => {
-    return Object.keys(config).some(key => key.toLowerCase().includes('dataset'));
-  };
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -171,9 +250,35 @@ export default function TrainingModalLoRA({
     const formData = new FormData(event.currentTarget);
     const formJson = Object.fromEntries((formData as any).entries());
     try {
-      const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalName, formJson)
-      // alert(JSON.stringify(formJson, null, 2));
-      onClose();
+      if (!formJson.run_name) {
+        formJson.run_name = formJson.template_name;
+      }
+
+      // Run when the currentEvalName is provided
+      if (currentEvalName) {
+        const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(
+          experimentInfo?.id,
+          currentEvalName,
+          formJson
+        );
+        setNameInput(generateFriendlyName());
+        onClose();
+        return;
+      }
+      else {
+        const template_name = formJson.template_name;
+        delete formJson.template_name;
+        const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(experimentInfo?.id, template_name, pluginId, formJson);
+            //   alert(JSON.stringify(formJson, null, 2));
+        setNameInput(generateFriendlyName());
+        onClose();
+            }
+          // };
+      // }
+      // const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalName, formJson)
+      // // alert(JSON.stringify(formJson, null, 2));
+      // setNameInput(generateFriendlyName());
+      // onClose();
     } catch (error) {
       console.error('Failed to edit evaluation:', error);
     }
@@ -212,7 +317,7 @@ export default function TrainingModalLoRA({
               <Tab>Introduction</Tab>
               <Tab>Name</Tab>
               <Tab>Plugin Config</Tab>
-              {hasDatasetKey(config) && <Tab>Dataset</Tab>}
+              {hasDatasetKey && <Tab>Dataset</Tab>}
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
               <PluginIntroduction
@@ -230,7 +335,7 @@ export default function TrainingModalLoRA({
                 config={config}
               />
             </TabPanel>
-            {hasDatasetKey(config) && (<TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            {hasDatasetKey && (<TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <>
                 <TrainingModalDataTab
                   datasetsIsLoading={datasetsIsLoading}

@@ -20,7 +20,8 @@ import { PlusCircleIcon } from 'lucide-react';
 
 import EvalJobsTable from './EvalJobsTable.tsx';
 import EvalTasksTable from './EvalTasksTable';
-import NewEvalModal from './NewEvalModal';
+// import NewEvalModal from './NewEvalModal';
+import EvalModal from './EvalModal';
 
 function getTemplateParametersForPlugin(pluginName, plugins) {
   if (!pluginName || !plugins) {
@@ -136,14 +137,13 @@ export default function Eval({
             </form>
           </ModalDialog>
         </Modal> */}
-        <NewEvalModal
+        <EvalModal
           open={open}
           onClose={() => {
             setOpen(false);
           }}
           experimentInfo={experimentInfo}
           pluginId={selectedPlugin}
-          currentEvalName={''}
         />
         <Stack
           direction="row"
