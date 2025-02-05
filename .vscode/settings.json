@@ -12,9 +12,9 @@
     "typescriptreact"
   ],
 
-  "javascript.validate.enable": false,
-  "javascript.format.enable": false,
-  "typescript.format.enable": false,
+  "javascript.validate.enable": true,
+  "javascript.format.enable": true,
+  "typescript.format.enable": true,
 
   "search.exclude": {
     ".git": true,
@@ -26,5 +26,7 @@
     "test/**/__snapshots__": true,
     "package-lock.json": true,
     "*.{css,sass,scss}.d.ts": true
-  }
+  },
+  "editor.formatOnSave": true,
+  "prettier.enable": true
 }
