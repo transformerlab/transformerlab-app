@@ -33,6 +33,7 @@ export default function TrainingModalDataTab({
   injectIntoTemplate,
   experimentInfo,
   pluginId,
+  displayMessage,
 }) {
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
@@ -64,7 +65,6 @@ export default function TrainingModalDataTab({
       {/* <pre>{JSON.stringify(templateData, null, 2)}</pre> */}
       <FormControl>
         <FormLabel>Dataset</FormLabel>
-
         <Select
           placeholder={datasetsIsLoading ? 'Loading...' : 'Select Dataset'}
           variant="soft"
@@ -79,6 +79,7 @@ export default function TrainingModalDataTab({
             </Option>
           ))}
         </Select>
+        <FormHelperText>{displayMessage}</FormHelperText>
       </FormControl>
       {parsedData?.training_data_instructions && (
         <Alert color="warning" sx={{ mt: 2 }}>

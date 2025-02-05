@@ -69,6 +69,7 @@ export default function TrainingModalLoRA({
   const [hasDatasetKey, setHasDatasetKey] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
+  const [datasetDisplayMessage, setDatasetDisplayMessage] = useState('');
 
   // Fetch available datasets from the API
   const {
@@ -125,6 +126,9 @@ export default function TrainingModalLoRA({
                 setConfig(evalConfig.script_parameters);
                 const datasetKeyExists = Object.keys(evalConfig.script_parameters).some(key => key.toLowerCase().includes('dataset'));
                 setHasDatasetKey(datasetKeyExists);
+                if (evalConfig.script_parameters.dataset_display_message && evalConfig.script_parameters.dataset_display_message.length > 0) {
+                  setDatasetDisplayMessage(evalConfig.script_parameters.dataset_display_message);
+              }
               }
               setNameInput(evalConfig?.name);
               if (!nameInput && evalConfig?.script_parameters.run_name) {
@@ -147,7 +151,7 @@ export default function TrainingModalLoRA({
           try {
               parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
               // Set config as a JSON object with keys of the parameters and values of the default values
-              let tempconfig = {};
+              let tempconfig: { [key: string]: any } = {};
               if (parsedData && parsedData.parameters) {
                   tempconfig = Object.fromEntries(
                   Object.entries(parsedData.parameters).map(([key, value]) => [
@@ -155,6 +159,14 @@ export default function TrainingModalLoRA({
                   value.default,
                   ])
               );
+              if (parsedData && parsedData.dataset) {
+                setHasDatasetKey(true);
+                // Check if the dataset display message string length is greater than 0
+                if (parsedData.dataset_display_message && parsedData.dataset_display_message.length > 0) {
+                    setDatasetDisplayMessage(parsedData.dataset_display_message);
+                    // Add dataset display message to the config parameters
+                }
+            }
               }
               setConfig(tempconfig);
               // Set hasDataset to true in the parsed data, the dataset key is `true`
@@ -162,9 +174,6 @@ export default function TrainingModalLoRA({
               // if (tempconfig && Object.keys(tempconfig).length > 0) {
               //   setNameInput(generateFriendlyName());
               // }
-              if (parsedData && parsedData.dataset) {
-                  setHasDatasetKey(true);
-              }
 
 
           } catch (e) {
@@ -232,6 +241,10 @@ export default function TrainingModalLoRA({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const formJson = Object.fromEntries((formData as any).entries());
+    // Add an extra field in formJson for datasetDisplayMessage
+    if (datasetDisplayMessage.length > 0) {
+      formJson.dataset_display_message = datasetDisplayMessage;
+    }
     try {
       if (!formJson.run_name) {
         formJson.run_name = formJson.template_name;
@@ -252,7 +265,7 @@ export default function TrainingModalLoRA({
         const template_name = formJson.template_name;
         delete formJson.template_name;
         const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(experimentInfo?.id, template_name, pluginId, formJson);
-            //   alert(JSON.stringify(formJson, null, 2));
+        alert(JSON.stringify(formJson, null, 2));
         setNameInput(generateFriendlyName());
         onClose();
             }
@@ -331,6 +344,7 @@ export default function TrainingModalLoRA({
                   injectIntoTemplate={null}
                   experimentInfo={experimentInfo}
                   pluginId={pluginId}
+                  displayMessage={datasetDisplayMessage}
                 />
               </>
             </TabPanel>
