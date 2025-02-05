@@ -104,6 +104,7 @@ export default function Eval({
           open={open}
           onClose={() => {
             setOpen(false);
+            setCurrentEvalName('');
           }}
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
@@ -166,7 +167,6 @@ export default function Eval({
             setCurrentPlugin={setCurrentPlugin}
             setCurrentEvalName={setCurrentEvalName}
             setOpen={setOpen}
-
           />
         </Sheet>
         <Sheet

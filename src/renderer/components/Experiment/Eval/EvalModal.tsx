@@ -112,7 +112,7 @@ export default function EvalModal({
 
   useEffect(() => {
     if (experimentInfo && pluginId) {
-      if (currentEvalName) {
+      if (currentEvalName && currentEvalName !== '') {
         const evaluationsStr = experimentInfo.config?.evaluations;
         if (typeof evaluationsStr === 'string') {
           try {
@@ -149,11 +149,7 @@ export default function EvalModal({
           }
         }
       } else {
-        // Logic when currentEvalName is not provided
-        // const defaultConfig = {}; // Replace with your default config logic
-        // setConfig(defaultConfig);
-        // const datasetKeyExists = Object.keys(defaultConfig).some(key => key.toLowerCase().includes('dataset'));
-        // setHasDatasetKey(datasetKeyExists);
+
         if (data) {
           let parsedData;
           try {
@@ -259,7 +255,7 @@ export default function EvalModal({
       }
 
       // Run when the currentEvalName is provided
-      if (currentEvalName) {
+      if (currentEvalName && currentEvalName !== '') {
         const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(
           experimentInfo?.id,
           currentEvalName,
