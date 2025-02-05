@@ -96,40 +96,17 @@ export default function TrainingModalLoRA({
       return chatAPI.Endpoints.Dataset.Info(selectedDataset);
     }, fetcher);
 
-  useEffect(() => {
-    if (open) { // Reset the name input when the modal is opened
-      setNameInput(generateFriendlyName());
-    }}, []);
-
-  // Set config to the plugin config if it is available based on currentEvalName within experiment info
   // useEffect(() => {
-  //   if (experimentInfo && currentEvalName && pluginId) {
-  //     const evaluationsStr = experimentInfo.config?.evaluations;
-  //     if (typeof evaluationsStr === 'string') {
-  //       try {
-  //         const evaluations = JSON.parse(evaluationsStr);
-  //         if (Array.isArray(evaluations)) {
-  //           const evalConfig = evaluations.find(
-  //             (evalItem: any) =>
-  //               evalItem.name === currentEvalName &&
-  //               evalItem.plugin === pluginId
-  //           );
-  //           if (evalConfig) {
-  //             setConfig(evalConfig.script_parameters);
-  //             const datasetKeyExists = Object.keys(config).some(key => key.toLowerCase().includes('dataset'));
-  //             setHasDatasetKey(datasetKeyExists);
-  //           }
-  //           if (!nameInput && evalConfig?.script_parameters.run_name) {
-  //             setNameInput(evalConfig.script_parameters.run_name);
-  //           }
-  //         }
-  //       } catch (error) {
-  //         console.error('Failed to parse evaluations JSON string:', error);
-  //       }
-  //     }
-  //   }
+  //   if (open) { // Reset the name input when the modal is opened
+  //     setNameInput(generateFriendlyName());
+  //   }}, []);
 
-  // }, [experimentInfo, currentEvalName, pluginId]);
+  useEffect(() => {
+    if (open) {
+      setNameInput(generateFriendlyName());
+    }
+  }, [open]);
+
   useEffect(() => {
     if (experimentInfo && pluginId) {
       if (currentEvalName) {
@@ -163,7 +140,7 @@ export default function TrainingModalLoRA({
         // const datasetKeyExists = Object.keys(defaultConfig).some(key => key.toLowerCase().includes('dataset'));
         // setHasDatasetKey(datasetKeyExists);
         if (data) {
-          setNameInput(generateFriendlyName())
+
           let parsedData;
           try {
               parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
@@ -179,6 +156,10 @@ export default function TrainingModalLoRA({
               }
               setConfig(tempconfig);
               // Set hasDataset to true in the parsed data, the dataset key is `true`
+              // If tempconfig is not an empty object
+              // if (tempconfig && Object.keys(tempconfig).length > 0) {
+              //   setNameInput(generateFriendlyName());
+              // }
               if (parsedData && parsedData.dataset) {
                   setHasDatasetKey(true);
               }
