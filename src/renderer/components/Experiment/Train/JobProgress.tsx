@@ -78,7 +78,7 @@ export default function JobProgress({ job }) {
             {job?.status == 'COMPLETE' &&
               (job?.job_data?.completion_status ? (
                 <>
-                  Final Status:{' '}
+                  {/* Final Status:{' '} */}
                   {job?.job_data?.completion_status == 'success' ? (
                     <Typography level="body-sm" color="success">
                       Success: {job?.job_data?.completion_details}
