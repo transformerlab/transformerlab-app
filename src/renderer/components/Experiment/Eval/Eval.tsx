@@ -47,8 +47,9 @@ export default function Eval({
   experimentInfoMutate,
 }) {
   const [open, setOpen] = useState(false);
-  const [selectedPlugin, setSelectedPlugin] = useState('');
   const [currentEvaluator, setCurrentEvaluator] = useState('');
+  const [currentPlugin, setCurrentPlugin] = useState('');
+  const [currentEvalName, setCurrentEvalName] = useState('');
 
   const {
     data: plugins,
@@ -79,15 +80,13 @@ export default function Eval({
   }
 
   function openModalForPLugin(pluginId) {
-    setSelectedPlugin(pluginId);
+    setCurrentPlugin(pluginId);
     setOpen(true);
   }
 
   if (!experimentInfo) {
     return 'No experiment selected';
   }
-
-  console.log('ExperimentInfo', experimentInfo);
 
   return (
     <>
@@ -101,42 +100,6 @@ export default function Eval({
       >
         {/* Plugins:
         {JSON.stringify(plugins)} */}
-
-        {/* <Modal open={open} onClose={() => setOpen(false)}>
-          <ModalDialog>
-            <ModalClose onClick={() => setOpen(false)} />
-            <form
-              onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
-                event.preventDefault();
-                const formData = new FormData(event.currentTarget);
-                const formJson = Object.fromEntries(
-                  (formData as any).entries()
-                );
-                let nameOfThisEvaluation;
-                if (formJson.run_name) {
-                  nameOfThisEvaluation = formJson.run_name;
-                } else {
-                  nameOfThisEvaluation =
-                    selectedPlugin + '_' + generateFriendlyName();
-                }
-                addEvaluation(selectedPlugin, nameOfThisEvaluation, formJson);
-                setOpen(false);
-              }}
-            >
-              <Stack spacing={2}>
-                <FormControl>
-                  <FormLabel>Evaluation Plugin Template:</FormLabel>
-                  <Input readOnly variant="soft" value={selectedPlugin} />
-                </FormControl>
-                <DynamicPluginForm
-                  experimentInfo={experimentInfo}
-                  plugin={selectedPlugin}
-                />
-                <Button type="submit">Submit</Button>
-              </Stack>
-            </form>
-          </ModalDialog>
-        </Modal> */}
         <EvalModal
           open={open}
           onClose={() => {
@@ -144,7 +107,8 @@ export default function Eval({
           }}
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
-          pluginId={selectedPlugin}
+          pluginId={currentPlugin}
+          currentEvalName={currentEvalName}
         />
         <Stack
           direction="row"
@@ -199,6 +163,10 @@ export default function Eval({
           <EvalTasksTable
             experimentInfo={experimentInfo}
             experimentInfoMutate={experimentInfoMutate}
+            setCurrentPlugin={setCurrentPlugin}
+            setCurrentEvalName={setCurrentEvalName}
+            setOpen={setOpen}
+
           />
         </Sheet>
         <Sheet

@@ -104,7 +104,7 @@ export default function EvalModal({
 
   useEffect(() => {
     if (open) {
-      if (!currentEvalName) {
+      if (!currentEvalName || currentEvalName === '') {
         setNameInput(generateFriendlyName());
       }
     }

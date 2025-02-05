@@ -59,13 +59,14 @@ async function evaluationRun(
   );
 }
 
+
 export default function EvalTasksTable({
   experimentInfo,
   experimentInfoMutate,
+  setCurrentPlugin,
+  setCurrentEvalName,
+  setOpen,
 }) {
-  const [open, setOpen] = useState(false);
-  const [currentPlugin, setCurrentPlugin] = useState('');
-  const [currentEvalName, setCurrentEvalName] = useState('');
 
   return (
     <>
