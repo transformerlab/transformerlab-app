@@ -31,8 +31,6 @@ import EvalJobsTable from './EvalJobsTable.tsx';
 import EvalTasksTable from './EvalTasksTable';
 import NewEvalModal from './NewEvalModal';
 
-
-
 function getTemplateParametersForPlugin(pluginName, plugins) {
   if (!pluginName || !plugins) {
     return [];
@@ -147,18 +145,15 @@ export default function Eval({
             </form>
           </ModalDialog>
         </Modal> */}
-             <NewEvalModal
-                open={open}
-                onClose={() => {
-                  setOpen(false);
-                }}
-                experimentInfo={experimentInfo}
-                pluginId={selectedPlugin}
-                currentEvalName={''}
-              />
-        {/* <Typography level="h1" mb={1}>
-          Evaluate
-        </Typography> */}
+        <NewEvalModal
+          open={open}
+          onClose={() => {
+            setOpen(false);
+          }}
+          experimentInfo={experimentInfo}
+          pluginId={selectedPlugin}
+          currentEvalName={''}
+        />
         <Typography level="h3" mb={1}>
           Evaluation Tasks
         </Typography>
