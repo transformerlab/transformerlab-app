@@ -19,9 +19,12 @@ function formatTemplateConfig(script_parameters): ReactElement {
   // Remove the author/full path from the model name for cleanliness
   // const short_model_name = c.model_name.split('/').pop();
   // Set main_task as either or the metric name from the script parameters
-  const main_task = script_parameters.metrics ? script_parameters.metrics : script_parameters.task;
-  const dataset_name = script_parameters.dataset_name? script_parameters.dataset_name : 'N/A';
-
+  const main_task = script_parameters.metrics
+    ? script_parameters.metrics
+    : script_parameters.task;
+  const dataset_name = script_parameters.dataset_name
+    ? script_parameters.dataset_name
+    : 'N/A';
 
   const r = (
     <>
@@ -56,7 +59,6 @@ async function evaluationRun(
   );
 }
 
-
 export default function EvalTasksTable({
   experimentInfo,
   experimentInfoMutate,
@@ -64,7 +66,6 @@ export default function EvalTasksTable({
   const [open, setOpen] = useState(false);
   const [currentPlugin, setCurrentPlugin] = useState('');
   const [currentEvalName, setCurrentEvalName] = useState('');
-
 
   return (
     <>
@@ -80,7 +81,7 @@ export default function EvalTasksTable({
       <Table aria-label="basic table" stickyHeader>
         <thead>
           <tr>
-            <th>Evaluator</th>
+            <th width="200px">Name</th>
             <th>Tasks</th>
             <th>Plugin</th>
             <th style={{ textAlign: 'right' }}>&nbsp;</th>
