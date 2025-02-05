@@ -1,7 +1,6 @@
 import { useState, FormEvent, useEffect } from 'react';
 import useSWR from 'swr';
 
-
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -48,17 +47,18 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
   );
 }
 
-
-export default function TrainingModalLoRA({
+export default function EvalModal({
   open,
   onClose,
   experimentInfo,
+  experimentInfoMutate,
   pluginId,
   currentEvalName,
 }: {
   open: boolean;
   onClose: () => void;
   experimentInfo: any;
+  experimentInfoMutate: () => void;
   template_id?: string;
   pluginId: string;
   currentEvalName?: string; // Optional incase of new evaluation
@@ -105,8 +105,9 @@ export default function TrainingModalLoRA({
   useEffect(() => {
     if (open) {
       if (!currentEvalName) {
-      setNameInput(generateFriendlyName());
-    }}
+        setNameInput(generateFriendlyName());
+      }
+    }
   }, [open]);
 
   useEffect(() => {
@@ -124,11 +125,19 @@ export default function TrainingModalLoRA({
               );
               if (evalConfig) {
                 setConfig(evalConfig.script_parameters);
-                const datasetKeyExists = Object.keys(evalConfig.script_parameters).some(key => key.toLowerCase().includes('dataset'));
+                const datasetKeyExists = Object.keys(
+                  evalConfig.script_parameters
+                ).some((key) => key.toLowerCase().includes('dataset'));
                 setHasDatasetKey(datasetKeyExists);
-                if (evalConfig.script_parameters.dataset_display_message && evalConfig.script_parameters.dataset_display_message.length > 0) {
-                  setDatasetDisplayMessage(evalConfig.script_parameters.dataset_display_message);
-              }
+                if (
+                  evalConfig.script_parameters.dataset_display_message &&
+                  evalConfig.script_parameters.dataset_display_message.length >
+                    0
+                ) {
+                  setDatasetDisplayMessage(
+                    evalConfig.script_parameters.dataset_display_message
+                  );
+                }
               }
               setNameInput(evalConfig?.name);
               if (!nameInput && evalConfig?.script_parameters.run_name) {
@@ -146,45 +155,44 @@ export default function TrainingModalLoRA({
         // const datasetKeyExists = Object.keys(defaultConfig).some(key => key.toLowerCase().includes('dataset'));
         // setHasDatasetKey(datasetKeyExists);
         if (data) {
-
           let parsedData;
           try {
-              parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
-              // Set config as a JSON object with keys of the parameters and values of the default values
-              let tempconfig: { [key: string]: any } = {};
-              if (parsedData && parsedData.parameters) {
-                  tempconfig = Object.fromEntries(
-                  Object.entries(parsedData.parameters).map(([key, value]) => [
+            parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+            // Set config as a JSON object with keys of the parameters and values of the default values
+            let tempconfig: { [key: string]: any } = {};
+            if (parsedData && parsedData.parameters) {
+              tempconfig = Object.fromEntries(
+                Object.entries(parsedData.parameters).map(([key, value]) => [
                   key,
                   value.default,
-                  ])
+                ])
               );
               if (parsedData && parsedData.dataset) {
                 setHasDatasetKey(true);
                 // Check if the dataset display message string length is greater than 0
-                if (parsedData.dataset_display_message && parsedData.dataset_display_message.length > 0) {
-                    setDatasetDisplayMessage(parsedData.dataset_display_message);
-                    // Add dataset display message to the config parameters
+                if (
+                  parsedData.dataset_display_message &&
+                  parsedData.dataset_display_message.length > 0
+                ) {
+                  setDatasetDisplayMessage(parsedData.dataset_display_message);
+                  // Add dataset display message to the config parameters
                 }
-            }
               }
-              setConfig(tempconfig);
-              // Set hasDataset to true in the parsed data, the dataset key is `true`
-              // If tempconfig is not an empty object
-              // if (tempconfig && Object.keys(tempconfig).length > 0) {
-              //   setNameInput(generateFriendlyName());
-              // }
-
-
+            }
+            setConfig(tempconfig);
+            // Set hasDataset to true in the parsed data, the dataset key is `true`
+            // If tempconfig is not an empty object
+            // if (tempconfig && Object.keys(tempconfig).length > 0) {
+            //   setNameInput(generateFriendlyName());
+            // }
           } catch (e) {
-              console.error('Error parsing data', e);
-              parsedData = '';
+            console.error('Error parsing data', e);
+            parsedData = '';
           }
-          }
+        }
       }
     }
   }, [experimentInfo, pluginId, currentEvalName, nameInput, data]);
-
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -258,18 +266,22 @@ export default function TrainingModalLoRA({
           formJson
         );
         setNameInput(generateFriendlyName());
-        onClose();
-        return;
-      }
-      else {
+      } else {
         const template_name = formJson.template_name;
         delete formJson.template_name;
-        const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(experimentInfo?.id, template_name, pluginId, formJson);
+        const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(
+          experimentInfo?.id,
+          template_name,
+          pluginId,
+          formJson
+        );
         // alert(JSON.stringify(formJson, null, 2));
         setNameInput(generateFriendlyName());
-        onClose();
-            }
-          // };
+      }
+      experimentInfoMutate();
+      onClose();
+
+      // };
       // }
       // const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalName, formJson)
       // // alert(JSON.stringify(formJson, null, 2));
@@ -331,23 +343,24 @@ export default function TrainingModalLoRA({
                 config={config}
               />
             </TabPanel>
-            {hasDatasetKey && (<TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-              <>
-                <TrainingModalDataTab
-                  datasetsIsLoading={datasetsIsLoading}
-                  datasets={datasets}
-                  selectedDataset={selectedDataset}
-                  setSelectedDataset={setSelectedDataset}
-                  currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
-                  currentDatasetInfo={currentDatasetInfo}
-                  templateData={null}
-                  injectIntoTemplate={null}
-                  experimentInfo={experimentInfo}
-                  pluginId={pluginId}
-                  displayMessage={datasetDisplayMessage}
-                />
-              </>
-            </TabPanel>
+            {hasDatasetKey && (
+              <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+                <>
+                  <TrainingModalDataTab
+                    datasetsIsLoading={datasetsIsLoading}
+                    datasets={datasets}
+                    selectedDataset={selectedDataset}
+                    setSelectedDataset={setSelectedDataset}
+                    currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
+                    currentDatasetInfo={currentDatasetInfo}
+                    templateData={null}
+                    injectIntoTemplate={null}
+                    experimentInfo={experimentInfo}
+                    pluginId={pluginId}
+                    displayMessage={datasetDisplayMessage}
+                  />
+                </>
+              </TabPanel>
             )}
           </Tabs>
           <Stack spacing={2} direction="row" justifyContent="flex-end">

@@ -143,6 +143,7 @@ export default function Eval({
             setOpen(false);
           }}
           experimentInfo={experimentInfo}
+          experimentInfoMutate={experimentInfoMutate}
           pluginId={selectedPlugin}
         />
         <Stack
