@@ -7,15 +7,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import Sheet from '@mui/joy/Sheet';
 
 import {
-  Button,
   Typography,
-  Modal,
-  ModalDialog,
-  ModalClose,
-  Stack,
-  FormControl,
-  FormLabel,
-  Input,
   Option,
   Dropdown,
   MenuButton,
@@ -24,9 +16,7 @@ import {
   Alert,
 } from '@mui/joy';
 import { PlusCircleIcon } from 'lucide-react';
-import { generateFriendlyName } from 'renderer/lib/utils';
 
-import DynamicPluginForm from '../DynamicPluginForm';
 import EvalJobsTable from './EvalJobsTable.tsx';
 import EvalTasksTable from './EvalTasksTable';
 import NewEvalModal from './NewEvalModal';
