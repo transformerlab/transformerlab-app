@@ -69,6 +69,15 @@ export default function EvalTasksTable({
 
   return (
     <>
+        <EvalModal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+        experimentInfo={experimentInfo}
+        pluginId={currentPlugin}
+        currentEvalName={currentEvalName}
+      />
       <Table aria-label="basic table" stickyHeader>
         <thead>
           <tr>
