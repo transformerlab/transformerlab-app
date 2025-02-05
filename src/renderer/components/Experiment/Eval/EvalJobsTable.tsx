@@ -95,7 +95,7 @@ const EvalJobsTable = () => {
               <th>Eval</th>
               <th>Progress</th>
               <th>Score</th>
-              <th>Actions</th>
+              <th>&nbsp;</th>
             </tr>
           </thead>
           <tbody>
