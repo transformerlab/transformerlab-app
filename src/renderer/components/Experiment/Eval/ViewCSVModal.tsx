@@ -9,6 +9,18 @@ import {
   Table,
 } from '@mui/joy';
 
+function formatColumnNames(name) {
+  return name
+    .replace(/([A-Z])/g, ' $1') // Convert Camel Case to spaced
+    .replace(/^./, (str) => str.toUpperCase()) // Capitalize first letter
+    .replace(/_/g, ' '); // Replace underscores with spaces
+}
+
+function heatedColor(value) {
+  const h = value * 240;
+  return `hsla(${h}, 100%, 50%, 0.3)`;
+}
+
 const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
   const [report, setReport] = useState({});
 
@@ -32,12 +44,14 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
           Additional Output from Job: {jobId}
         </Typography>
         {/* {JSON.stringify(report)} */}
-        <Box sx={{ overflow: 'auto', height: 'calc(100% - 48px)' }}>
+        <Box sx={{ overflow: 'auto' }}>
           <Table stickyHeader>
             <thead>
               <tr>
                 {report?.header &&
-                  report?.header.map((col) => <th key={col}>{col}</th>)}
+                  report?.header.map((col) => (
+                    <th key={col}>{formatColumnNames(col)}</th>
+                  ))}
               </tr>
             </thead>
             <tbody>
@@ -45,7 +59,30 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
                 report?.body.map((row, i) => (
                   <tr key={i}>
                     {row.map((col, j) => (
-                      <td key={j}>{col}</td>
+                      <td key={j}>
+                        {report?.header[j] === 'score' ? (
+                          <div
+                            style={{
+                              backgroundColor: heatedColor(col),
+                              height: '100%',
+                              padding: '0 5px',
+                              fontWeight: 'bold',
+                            }}
+                          >
+                            {parseFloat(col).toFixed(6)}
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              height: '100%',
+                              padding: '0 5px',
+                              maxHeight: '100px',
+                            }}
+                          >
+                            {col}
+                          </div>
+                        )}
+                      </td>
                     ))}
                   </tr>
                 ))}
