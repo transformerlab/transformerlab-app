@@ -14,6 +14,8 @@ import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
+import ViewCSVModal from './ViewCSVModal';
+
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -64,8 +66,18 @@ function RenderScore({ score }) {
   ));
 }
 
+
+
 const EvalJobsTable = () => {
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
+  const [openCSVModal, setOpenCSVModal] = useState(false);
+  const [currentJobId, setCurrentJobId] = useState('');
+
+const fetchCSV = async (jobId) => {
+      const response = await fetch(chatAPI.Endpoints.Experiment.StreamAdditionalDetails(jobId));
+      const text = await response.text();
+      return text;
+    };
 
   const {
     data: jobs,
@@ -76,12 +88,23 @@ const EvalJobsTable = () => {
     refreshInterval: 2000,
   });
 
+  const handleOpenCSVModal = (jobId) => {
+    setCurrentJobId(jobId);
+    setOpenCSVModal(true);
+  };
+
   useEffect(() => {
     // Component did mount logic here
   }, []);
 
   return (
     <>
+      <ViewCSVModal
+        open={openCSVModal}
+        onClose={() => setOpenCSVModal(false)}
+        jobId={currentJobId}
+        fetchCSV={fetchCSV}
+      />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
@@ -123,6 +146,13 @@ const EvalJobsTable = () => {
                 </td> */}
                 <td>
                   <RenderScore score={job?.job_data?.score} />
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    onClick={() => handleOpenCSVModal(job?.id)}
+                  >
+                    View CSV
+                  </Button>
                 </td>
                 <td>
                   <ButtonGroup
