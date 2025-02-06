@@ -1341,7 +1341,7 @@ Endpoints.Experiment = {
   StreamOutputFromJob: (jobId: string) =>
     API_URL() + `jobs/${jobId}/stream_output`,
   StreamAdditionalDetails : (jobId: string) =>
-    API_URL() + `jobs/${jobId}/stream_additional_details`,
+    API_URL() + `jobs/${jobId}/get_additional_details`,
 };
 
 Endpoints.Jobs = {
