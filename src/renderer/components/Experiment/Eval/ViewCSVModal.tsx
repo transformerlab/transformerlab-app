@@ -6,15 +6,20 @@ import {
   IconButton,
   ModalClose,
   ModalDialog,
+  Table,
 } from '@mui/joy';
 
 const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
-  const [csvText, setCsvText] = useState('');
+  const [report, setReport] = useState({});
 
   useEffect(() => {
     if (open && jobId) {
       fetchCSV(jobId).then((data) => {
-        setCsvText(data);
+        try {
+          setReport(JSON.parse(data));
+        } catch (e) {
+          setReport({ header: ['Error'], body: [[data]] });
+        }
       });
     }
   }, [open, jobId, fetchCSV]);
@@ -26,8 +31,26 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
         <Typography level="h4" mb={2}>
           Additional Output from Job: {jobId}
         </Typography>
-        <Box>
-          <pre>{csvText}</pre>
+        {/* {JSON.stringify(report)} */}
+        <Box sx={{ overflow: 'auto', height: 'calc(100% - 48px)' }}>
+          <Table stickyHeader>
+            <thead>
+              <tr>
+                {report?.header &&
+                  report?.header.map((col) => <th key={col}>{col}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {report?.body &&
+                report?.body.map((row, i) => (
+                  <tr key={i}>
+                    {row.map((col, j) => (
+                      <td key={j}>{col}</td>
+                    ))}
+                  </tr>
+                ))}
+            </tbody>
+          </Table>
         </Box>
       </ModalDialog>
     </Modal>
