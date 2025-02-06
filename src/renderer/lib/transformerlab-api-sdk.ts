@@ -1195,12 +1195,32 @@ Endpoints.Experiment = {
       plugin_name
     );
   },
+  GetGenerationPlugin: (id: string, plugin_name: string) => {
+    return (
+      API_URL() +
+      'experiment/' +
+      id +
+      '/generations/get_evaluation_plugin_file_contents?plugin_name=' +
+      plugin_name
+    );
+  },
   RunEvaluation: (id: string, pluginName: string, evalName: string) => {
     return (
       API_URL() +
       'experiment/' +
       id +
       '/evals/run_evaluation_script?eval_name=' +
+      evalName +
+      '&plugin_name=' +
+      pluginName
+    );
+  },
+  RunGeneration: (id: string, pluginName: string, evalName: string) => {
+    return (
+      API_URL() +
+      'experiment/' +
+      id +
+      '/generations/run_generation_script?generation_name=' +
       evalName +
       '&plugin_name=' +
       pluginName
@@ -1213,6 +1233,13 @@ Endpoints.Experiment = {
     '/evals/delete' +
     '?eval_name=' +
     evalName,
+  DeleteGeneration: (experimentId: string, evalName: string) =>
+      API_URL() +
+      'experiment/' +
+      experimentId +
+      '/generations/delete' +
+      '?generation_name=' +
+      evalName,
   GetEvalOutput: (experimentId: string, eval_name: string) =>
     API_URL() +
     'experiment/' +
@@ -1220,6 +1247,13 @@ Endpoints.Experiment = {
     '/evals/get_output' +
     '?eval_name=' +
     eval_name,
+  GetGenerationOutput: (experimentId: string, eval_name: string) =>
+      API_URL() +
+      'experiment/' +
+      experimentId +
+      '/generations/get_output' +
+      '?eval_name=' +
+      eval_name,
   RunExport: (
     id: string,
     pluginName: string,
@@ -1453,6 +1487,52 @@ export async function EXPERIMENT_EDIT_EVALUATION(
   };
 
   const response = await fetch(API_URL() + 'experiment/' + id + '/evals/edit', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(newPlugin),
+  });
+  const result = await response.json();
+  return result;
+}
+
+export async function EXPERIMENT_ADD_GENERATION(
+  id: string,
+  name: string,
+  pluginId: string,
+  scriptParameters: any
+) {
+  const newPlugin = {
+    name: name,
+    plugin: pluginId,
+    script_parameters: scriptParameters,
+  };
+
+  const response = await fetch(API_URL() + 'experiment/' + id + '/generations/add', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(newPlugin),
+  });
+  const result = await response.json();
+  return result;
+}
+
+export async function EXPERIMENT_EDIT_GENERATION(
+  id: string,
+  evalName: string,
+  scriptParameters: any
+) {
+  const newPlugin = {
+    evalName: evalName,
+    script_parameters: scriptParameters,
+  };
+
+  const response = await fetch(API_URL() + 'experiment/' + id + '/generations/edit', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

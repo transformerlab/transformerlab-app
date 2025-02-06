@@ -12,6 +12,7 @@ import PluginDetails from './Plugins/PluginDetails';
 
 import Computer from './Computer';
 import Eval from './Experiment/Eval/Eval';
+import Generate from './Experiment/Generate/Generate'
 import Export from './Experiment/Export/Export';
 import Api from './Experiment/Api';
 import Settings from './Experiment/Settings';
@@ -123,6 +124,20 @@ export default function MainAppPanel({
     experimentInfoMutate();
   }
 
+  async function experimentAddGeneration(
+    pluginName: string,
+    localName: string,
+    script_template_parameters: any = {}
+  ) {
+    await chatAPI.EXPERIMENT_ADD_GENERATION(
+      experimentInfo?.id,
+      localName,
+      pluginName,
+      script_template_parameters
+    );
+    experimentInfoMutate();
+  }
+
   async function setRagEngine(name: string, rag_settings: any = {}) {
     await fetch(
       chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
@@ -203,6 +218,16 @@ export default function MainAppPanel({
           <Eval
             experimentInfo={experimentInfo}
             addEvaluation={experimentAddEvaluation}
+            experimentInfoMutate={experimentInfoMutate}
+          />
+        }
+      />
+      <Route
+        path="/projects/generate"
+        element={
+          <Generate
+            experimentInfo={experimentInfo}
+            addGeneration={experimentAddGeneration}
             experimentInfoMutate={experimentInfoMutate}
           />
         }
