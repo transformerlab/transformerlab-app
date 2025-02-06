@@ -41,7 +41,7 @@ export default function PluginGallery({ experimentInfo }) {
             setFilters({ ...filters, type: newValue });
           }}
         >
-          {['All', 'trainer', 'evaluator', 'loader', 'exporter', 'rag'].map(
+          {['All', 'generator', 'trainer', 'evaluator', 'loader', 'exporter', 'rag'].map(
             (type) => (
               <Option value={type}>
                 <Chip>{type}</Chip>
