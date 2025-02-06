@@ -7,15 +7,20 @@ import {
   Sheet,
   Table,
   Typography,
+  Link,
 } from '@mui/joy';
-import { ChartColumnBigIcon, FileDigitIcon, Trash2Icon } from 'lucide-react';
+import {
+  ChartColumnBigIcon,
+  FileDigitIcon,
+  Grid3X3Icon,
+  Trash2Icon,
+} from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCSVModal from './ViewCSVModal';
-
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -49,7 +54,6 @@ function RenderScore({ score }) {
 
   return scoreArray.map((score, idx) => (
     <>
-      {' '}
       <Chip
         key={idx}
         color="success"
@@ -66,18 +70,18 @@ function RenderScore({ score }) {
   ));
 }
 
-
-
 const EvalJobsTable = () => {
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
 
-const fetchCSV = async (jobId) => {
-      const response = await fetch(chatAPI.Endpoints.Experiment.StreamAdditionalDetails(jobId));
-      const text = await response.text();
-      return text;
-    };
+  const fetchCSV = async (jobId) => {
+    const response = await fetch(
+      chatAPI.Endpoints.Experiment.StreamAdditionalDetails(jobId)
+    );
+    const text = await response.text();
+    return text;
+  };
 
   const {
     data: jobs,
@@ -146,13 +150,17 @@ const fetchCSV = async (jobId) => {
                 </td> */}
                 <td>
                   <RenderScore score={job?.job_data?.score} />
-                  <Button
-                    variant="outlined"
-                    size="sm"
-                    onClick={() => handleOpenCSVModal(job?.id)}
-                  >
-                    View CSV
-                  </Button>
+                  {job?.job_data?.additional_output_path && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => handleOpenCSVModal(job?.id)}
+                      sx={{ mt: 1 }}
+                      // startDecorator={<Grid3X3Icon size="14px" />}
+                    >
+                      Detailed Report
+                    </Button>
+                  )}
                 </td>
                 <td>
                   <ButtonGroup
