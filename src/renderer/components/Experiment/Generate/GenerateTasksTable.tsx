@@ -18,17 +18,19 @@ function formatTemplateConfig(script_parameters): ReactElement {
   // Remove the author/full path from the model name for cleanliness
   // const short_model_name = c.model_name.split('/').pop();
   // Set main_task as either or the metric name from the script parameters
-  const main_task = script_parameters.metrics
-    ? script_parameters.metrics
-    : script_parameters.task;
-  const dataset_name = script_parameters.dataset_name
-    ? script_parameters.dataset_name
-    : 'N/A';
+  const main_task = script_parameters.generation_type;
+  // Only keep the first 3 words of the main task
+
+  // Set docs_file_name as script parameters docs or N/A depending upon main task and if it has the words 'docs'  in it
+  const docs_file_name =
+    main_task && main_task.toLowerCase().includes('docs')
+      ? script_parameters.docs || 'N/A'
+      : 'N/A';
 
   const r = (
     <>
-      <b>Metric/Task:</b> {main_task} <br />
-      <b>Dataset:</b> {dataset_name} <FileTextIcon size={14} />
+      <b>Generation Type:</b> {main_task} <br />
+      <b>Dataset:</b> {docs_file_name} <FileTextIcon size={14} />
       <br />
       {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
       {/* {JSON.stringify(c)} */}

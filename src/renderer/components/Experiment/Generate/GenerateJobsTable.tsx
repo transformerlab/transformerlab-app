@@ -14,7 +14,6 @@ import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
-import ViewCSVModal from './ViewCSVModal';
 
 
 import dayjs from 'dayjs';
@@ -73,12 +72,6 @@ const GenerateJobsTable = () => {
   const [openCSVModal, setOpenCSVModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
 
-const fetchCSV = async (jobId) => {
-      const response = await fetch(chatAPI.Endpoints.Experiment.StreamAdditionalDetails(jobId));
-      const text = await response.text();
-      return text;
-    };
-
   const {
     data: jobs,
     error: jobsError,
@@ -88,23 +81,12 @@ const fetchCSV = async (jobId) => {
     refreshInterval: 2000,
   });
 
-  const handleOpenCSVModal = (jobId) => {
-    setCurrentJobId(jobId);
-    setOpenCSVModal(true);
-  };
-
   useEffect(() => {
     // Component did mount logic here
   }, []);
 
   return (
     <>
-      <ViewCSVModal
-        open={openCSVModal}
-        onClose={() => setOpenCSVModal(false)}
-        jobId={currentJobId}
-        fetchCSV={fetchCSV}
-      />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
@@ -117,7 +99,7 @@ const fetchCSV = async (jobId) => {
               <th width="50px">Id</th>
               <th>Generation</th>
               <th>Progress</th>
-              <th>Score</th>
+              {/* <th>Score</th> */}
               <th>&nbsp;</th>
             </tr>
           </thead>
@@ -144,7 +126,7 @@ const fetchCSV = async (jobId) => {
                     )
                     .humanize()}
                 </td> */}
-                <td>
+                {/* <td>
                   <RenderScore score={job?.job_data?.score} />
                   <Button
                     variant="outlined"
@@ -153,7 +135,7 @@ const fetchCSV = async (jobId) => {
                   >
                     View CSV
                   </Button>
-                </td>
+                </td> */}
                 <td>
                   <ButtonGroup
                     variant="soft"

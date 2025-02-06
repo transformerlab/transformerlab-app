@@ -42,7 +42,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Generate({
   experimentInfo,
-  addEvaluation,
+  addGeneration,
   experimentInfoMutate,
 }) {
   const [open, setOpen] = useState(false);
@@ -86,6 +86,7 @@ export default function Generate({
   if (!experimentInfo) {
     return 'No experiment selected';
   }
+  console.log('Experiment Info:', experimentInfo);
 
   return (
     <>
@@ -118,7 +119,7 @@ export default function Generate({
           alignItems="flex-end"
         >
           <Typography level="h3" mb={1}>
-            Evaluation Tasks
+            Generation Tasks
           </Typography>
           {plugins?.length === 0 ? (
             <Alert color="danger">
