@@ -146,7 +146,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
 
   const [showFolderModal, setShowFolderModal] = React.useState(false);
-  const [folderName, setFolderName] = React.useState('');
+  const [newFolderName, setNewFolderName] = React.useState('');
 
   const [loading, setLoading] = React.useState(false);
 
@@ -156,7 +156,10 @@ export default function Documents({ experimentInfo, fullPage = false }) {
     data: rows,
     isLoading,
     mutate,
-  } = useSWR(chatAPI.Endpoints.Documents.List(experimentInfo?.id), fetcher);
+  } = useSWR(
+    chatAPI.Endpoints.Documents.List(experimentInfo?.id, currentFolder),
+    fetcher
+  );
 
   const uploadFiles = async (formData) => {
     fetch(chatAPI.Endpoints.Documents.Upload(experimentInfo?.id), {
@@ -418,15 +421,15 @@ export default function Documents({ experimentInfo, fullPage = false }) {
           <Input
             size="sm"
             placeholder="Folder name"
-            value={folderName}
-            onChange={(e) => setFolderName(e.target.value)}
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
           />
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button
               color="primary"
               onClick={() => {
                 setLoading(true);
-                createFolder(folderName);
+                createFolder(newFolderName);
                 setLoading(false);
                 setShowFolderModal(false);
               }}
@@ -458,7 +461,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                   setCurrentFolder('');
                 }}
               >
-                ../
+                .. /
               </Link>{' '}
               {currentFolder} /
             </>
@@ -494,6 +497,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
             </MenuItem>
             <MenuItem
               onClick={() => {
+                setNewFolderName('');
                 setShowFolderModal(true);
               }}
             >
