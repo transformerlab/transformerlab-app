@@ -161,11 +161,14 @@ export default function Documents({ experimentInfo, fullPage = false }) {
     fetcher
   );
 
-  const uploadFiles = async (formData) => {
-    fetch(chatAPI.Endpoints.Documents.Upload(experimentInfo?.id), {
-      method: 'POST',
-      body: formData,
-    })
+  const uploadFiles = async (currentFolder, formData) => {
+    fetch(
+      chatAPI.Endpoints.Documents.Upload(experimentInfo?.id, currentFolder),
+      {
+        method: 'POST',
+        body: formData,
+      }
+    )
       .then((response) => {
         if (response.ok) {
           return response.json();
@@ -485,7 +488,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                     formData.append('files', file);
                   }
                   setLoading(true);
-                  await uploadFiles(formData);
+                  await uploadFiles(currentFolder, formData);
                 };
                 input.click();
               }}
@@ -579,7 +582,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
             formData.append('files', file);
           }
           setLoading(true);
-          await uploadFiles(formData);
+          await uploadFiles(currentFolder, formData);
         }}
         onDragEnter={() => {
           setDropzoneActive(true);
