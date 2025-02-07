@@ -85,7 +85,7 @@ export default function GenerateTasksTable({
             <th width="200px" style={{ paddingLeft: '1rem' }}>
               Name
             </th>
-            <th>Tasks</th>
+            <th>Details</th>
             <th>Plugin</th>
             <th style={{ textAlign: 'right' }}>&nbsp;</th>
           </tr>
