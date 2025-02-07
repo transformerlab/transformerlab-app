@@ -1100,6 +1100,12 @@ Endpoints.Documents = {
     experimentId +
     '/documents/delete/' +
     document_name,
+  CreateFolder: (experimentId: string, folderName: string) => 
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/documents/create_folder?name=' +
+    folderName,
 };
 
 Endpoints.Rag = {

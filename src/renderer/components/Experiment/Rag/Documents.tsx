@@ -144,6 +144,9 @@ export default function Documents({ experimentInfo, fullPage = false }) {
 
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
 
+  const [showFolderModal, setShowFolderModal] = React.useState(false);
+  const [folderName, setFolderName] = React.useState('');
+
   const [loading, setLoading] = React.useState(false);
 
   const {
@@ -173,6 +176,199 @@ export default function Documents({ experimentInfo, fullPage = false }) {
         console.error('Error uploading file:', error);
       });
   };
+
+  const createFolder = async (name: string) => {
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Documents.CreateFolder(experimentInfo?.id, name),
+        {
+          method: 'POST',
+        }
+      );
+      if (!response.ok) {
+        throw new Error('Folder creation failed');
+      }
+      const data = await response.json();
+      console.log('Server response:', data);
+      setLoading(false);
+      mutate();
+    } catch (error) {
+      console.error('Error creating folder:', error);
+    }
+  };
+
+  function drawFile(row) {
+    return (
+      <tr key={row?.name}>
+        {/* <td style={{ textAlign: 'center', width: 120 }}>
+                        <Checkbox
+                          size="sm"
+                          checked={selected.includes(row?.name)}
+                          color={
+                            selected.includes(row?.name) ? 'primary' : undefined
+                          }
+                          onChange={(event) => {
+                            setSelected((ids) =>
+                              event.target.checked
+                                ? ids.concat(row?.name)
+                                : ids.filter((itemId) => itemId !== row?.name)
+                            );
+                          }}
+                          slotProps={{
+                            checkbox: { sx: { textAlign: 'left' } },
+                          }}
+                          sx={{ verticalAlign: 'text-bottom' }}
+                        />
+                      </td> */}
+        <td style={{ paddingLeft: '1rem' }}>
+          <Typography level="body-xs" sx={{}}>
+            {row?.name}
+          </Typography>
+        </td>
+        {fullPage && (
+          <>
+            <td>
+              <Typography level="body-xs">{row?.date}</Typography>
+            </td>
+            <td>
+              <Chip
+                variant="soft"
+                size="sm"
+                startDecorator={
+                  {
+                    '.txt': <FaRegFileAlt />,
+                    '.pdf': <FaRegFilePdf />,
+                    '.jsonl': <LuFileJson />,
+                  }[row?.type]
+                }
+                color={
+                  {
+                    '.txt': 'success',
+                    '.pdf': 'neutral',
+                    '.jsonl': 'danger',
+                  }[row?.type] as ColorPaletteProp
+                }
+              >
+                {row?.type}
+              </Chip>
+            </td>
+            <td>
+              {row?.size && (
+                <Typography level="body-xs" color="neutral">
+                  {formatBytes(row?.size)}
+                </Typography>
+              )}
+            </td>
+          </>
+        )}
+
+        <td>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <Button
+              variant="plain"
+              size="sm"
+              style={{ fontSize: '11px' }}
+              onClick={() => {
+                setPreviewFile(row?.name);
+              }}
+            >
+              <EyeIcon size="16px" />
+            </Button>
+            <RowMenu
+              experimentInfo={experimentInfo}
+              filename={row?.name}
+              mutate={mutate}
+              row={row}
+            />
+          </Box>
+        </td>
+      </tr>
+    );
+  }
+
+  function drawFolder(row) {
+    return (
+      <tr key={row?.name}>
+        <td style={{ paddingLeft: '1rem' }}>
+          <Typography
+            level="body-xs"
+            sx={{ display: 'flex', alignItems: 'center' }}
+          >
+            <FolderIcon
+              size="16px"
+              style={{ marginRight: '1rem' }}
+              color="var(--joy-palette-success-400)"
+            />
+
+            {row?.name}
+          </Typography>
+        </td>
+        {fullPage && (
+          <>
+            <td>
+              <Typography level="body-xs">{row?.date}</Typography>
+            </td>
+            <td>
+              <Chip
+                variant="soft"
+                size="sm"
+                startDecorator={
+                  {
+                    '.txt': <FaRegFileAlt />,
+                    '.pdf': <FaRegFilePdf />,
+                    '.jsonl': <LuFileJson />,
+                  }[row?.type]
+                }
+                color={
+                  {
+                    '.txt': 'success',
+                    '.pdf': 'neutral',
+                    '.jsonl': 'danger',
+                  }[row?.type] as ColorPaletteProp
+                }
+              >
+                {row?.type}
+              </Chip>
+            </td>
+            <td>
+              {row?.size == 0 ? (
+                <></>
+              ) : (
+                row?.size &&
+                row?.size != 0 && (
+                  <Typography level="body-xs" color="neutral">
+                    {formatBytes(row?.size)}
+                  </Typography>
+                )
+              )}
+            </td>
+          </>
+        )}
+        <td>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <RowMenu
+              experimentInfo={experimentInfo}
+              filename={row?.name}
+              mutate={mutate}
+              row={row}
+            />
+          </Box>
+        </td>
+      </tr>
+    );
+  }
 
   const renderFilters = () => (
     <React.Fragment>
@@ -212,6 +408,31 @@ export default function Documents({ experimentInfo, fullPage = false }) {
           ></iframe>
         </ModalDialog>
       </Modal>
+      <Modal open={showFolderModal} onClose={() => setShowFolderModal(false)}>
+        <ModalDialog>
+          <ModalClose />
+          <Typography level="title-lg">Create Folder</Typography>
+          <Input
+            size="sm"
+            placeholder="Folder name"
+            value={folderName}
+            onChange={(e) => setFolderName(e.target.value)}
+          />
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              color="primary"
+              onClick={() => {
+                setLoading(true);
+                createFolder(folderName);
+                setLoading(false);
+                setShowFolderModal(false);
+              }}
+            >
+              Create
+            </Button>
+          </Box>
+        </ModalDialog>
+      </Modal>
       <Box
         sx={{
           display: 'flex',
@@ -227,7 +448,6 @@ export default function Documents({ experimentInfo, fullPage = false }) {
           {loading && <CircularProgress size="sm" />}
           Documents:
         </FormLabel>
-
         <Dropdown>
           <MenuButton variant="plain" size="sm">
             <PlusCircleIcon style={{ strokeWidth: '1.5px' }} />
@@ -256,7 +476,11 @@ export default function Documents({ experimentInfo, fullPage = false }) {
               </ListItemDecorator>
               Upload File
             </MenuItem>
-            <MenuItem disabled>
+            <MenuItem
+              onClick={() => {
+                setShowFolderModal(true);
+              }}
+            >
               <ListItemDecorator>
                 <FolderIcon size="16px" />
               </ListItemDecorator>
@@ -460,98 +684,9 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                       </td>
                     </tr>
                   )}
-                  {stableSort(rows, getComparator(doc, 'id'))?.map((row) => (
-                    <tr key={row?.name}>
-                      {/* <td style={{ textAlign: 'center', width: 120 }}>
-                        <Checkbox
-                          size="sm"
-                          checked={selected.includes(row?.name)}
-                          color={
-                            selected.includes(row?.name) ? 'primary' : undefined
-                          }
-                          onChange={(event) => {
-                            setSelected((ids) =>
-                              event.target.checked
-                                ? ids.concat(row?.name)
-                                : ids.filter((itemId) => itemId !== row?.name)
-                            );
-                          }}
-                          slotProps={{
-                            checkbox: { sx: { textAlign: 'left' } },
-                          }}
-                          sx={{ verticalAlign: 'text-bottom' }}
-                        />
-                      </td> */}
-                      <td style={{ paddingLeft: '1rem' }}>
-                        <Typography level="body-xs" sx={{}}>
-                          {row?.name}
-                        </Typography>
-                      </td>
-                      {fullPage && (
-                        <>
-                          <td>
-                            <Typography level="body-xs">{row?.date}</Typography>
-                          </td>
-                          <td>
-                            <Chip
-                              variant="soft"
-                              size="sm"
-                              startDecorator={
-                                {
-                                  '.txt': <FaRegFileAlt />,
-                                  '.pdf': <FaRegFilePdf />,
-                                  '.jsonl': <LuFileJson />,
-                                }[row?.type]
-                              }
-                              color={
-                                {
-                                  '.txt': 'success',
-                                  '.pdf': 'neutral',
-                                  '.jsonl': 'danger',
-                                }[row?.type] as ColorPaletteProp
-                              }
-                            >
-                              {row?.type}
-                            </Chip>
-                          </td>
-                          <td>
-                            {row?.size && (
-                              <Typography level="body-xs" color="neutral">
-                                {formatBytes(row?.size)}
-                              </Typography>
-                            )}
-                          </td>
-                        </>
-                      )}
-
-                      <td>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'flex-end',
-                          }}
-                        >
-                          <Button
-                            variant="plain"
-                            size="sm"
-                            style={{ fontSize: '11px' }}
-                            onClick={() => {
-                              setPreviewFile(row?.name);
-                            }}
-                          >
-                            <EyeIcon size="16px" />
-                          </Button>
-                          <RowMenu
-                            experimentInfo={experimentInfo}
-                            filename={row?.name}
-                            mutate={mutate}
-                            row={row}
-                          />
-                        </Box>
-                      </td>
-                    </tr>
-                  ))}
+                  {stableSort(rows, getComparator(doc, 'id'))?.map((row) =>
+                    row?.type === 'folder' ? drawFolder(row) : drawFile(row)
+                  )}
                 </tbody>
               </Table>
             </Sheet>
