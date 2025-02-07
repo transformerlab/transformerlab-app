@@ -1084,16 +1084,16 @@ Endpoints.Config = {
 };
 
 Endpoints.Documents = {
-  List: (experimentId: string) =>
-    API_URL() + 'experiment/' + experimentId + '/documents/list',
+  List: (experimentId: string, currentFolder: string = '') =>
+    API_URL() + 'experiment/' + experimentId + '/documents/list?folder=' + currentFolder,
   Open: (experimentId: string, document_name: string) =>
     API_URL() +
     'experiment/' +
     experimentId +
     '/documents/open/' +
     document_name,
-  Upload: (experimentId: string) =>
-    API_URL() + 'experiment/' + experimentId + '/documents/upload',
+  Upload: (experimentId: string, currentFolder: string = '') =>
+    API_URL() + 'experiment/' + experimentId + '/documents/upload?folder=' + currentFolder,
   Delete: (experimentId: string, document_name: string) =>
     API_URL() +
     'experiment/' +

@@ -26,6 +26,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import Dropdown from '@mui/joy/Dropdown';
 
 import {
+  CornerLeftUpIcon,
   EyeIcon,
   FileTextIcon,
   FileUpIcon,
@@ -145,21 +146,29 @@ export default function Documents({ experimentInfo, fullPage = false }) {
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
 
   const [showFolderModal, setShowFolderModal] = React.useState(false);
-  const [folderName, setFolderName] = React.useState('');
+  const [newFolderName, setNewFolderName] = React.useState('');
 
   const [loading, setLoading] = React.useState(false);
+
+  const [currentFolder, setCurrentFolder] = React.useState('');
 
   const {
     data: rows,
     isLoading,
     mutate,
-  } = useSWR(chatAPI.Endpoints.Documents.List(experimentInfo?.id), fetcher);
+  } = useSWR(
+    chatAPI.Endpoints.Documents.List(experimentInfo?.id, currentFolder),
+    fetcher
+  );
 
-  const uploadFiles = async (formData) => {
-    fetch(chatAPI.Endpoints.Documents.Upload(experimentInfo?.id), {
-      method: 'POST',
-      body: formData,
-    })
+  const uploadFiles = async (currentFolder, formData) => {
+    fetch(
+      chatAPI.Endpoints.Documents.Upload(experimentInfo?.id, currentFolder),
+      {
+        method: 'POST',
+        body: formData,
+      }
+    )
       .then((response) => {
         if (response.ok) {
           return response.json();
@@ -294,7 +303,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
 
   function drawFolder(row) {
     return (
-      <tr key={row?.name}>
+      <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
             level="body-xs"
@@ -415,15 +424,15 @@ export default function Documents({ experimentInfo, fullPage = false }) {
           <Input
             size="sm"
             placeholder="Folder name"
-            value={folderName}
-            onChange={(e) => setFolderName(e.target.value)}
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
           />
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
             <Button
               color="primary"
               onClick={() => {
                 setLoading(true);
-                createFolder(folderName);
+                createFolder(newFolderName);
                 setLoading(false);
                 setShowFolderModal(false);
               }}
@@ -444,10 +453,23 @@ export default function Documents({ experimentInfo, fullPage = false }) {
           justifyContent: 'space-between',
         }}
       >
-        <FormLabel>
+        <div>
           {loading && <CircularProgress size="sm" />}
-          Documents:
-        </FormLabel>
+          {currentFolder == '' ? (
+            '/'
+          ) : (
+            <>
+              <Link
+                onClick={() => {
+                  setCurrentFolder('');
+                }}
+              >
+                .. /
+              </Link>{' '}
+              {currentFolder} /
+            </>
+          )}
+        </div>
         <Dropdown>
           <MenuButton variant="plain" size="sm">
             <PlusCircleIcon style={{ strokeWidth: '1.5px' }} />
@@ -466,7 +488,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                     formData.append('files', file);
                   }
                   setLoading(true);
-                  await uploadFiles(formData);
+                  await uploadFiles(currentFolder, formData);
                 };
                 input.click();
               }}
@@ -478,6 +500,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
             </MenuItem>
             <MenuItem
               onClick={() => {
+                setNewFolderName('');
                 setShowFolderModal(true);
               }}
             >
@@ -559,7 +582,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
             formData.append('files', file);
           }
           setLoading(true);
-          await uploadFiles(formData);
+          await uploadFiles(currentFolder, formData);
         }}
         onDragEnter={() => {
           setDropzoneActive(true);
