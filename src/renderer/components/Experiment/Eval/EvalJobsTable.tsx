@@ -151,15 +151,13 @@ const EvalJobsTable = () => {
                 <td>
                   <RenderScore score={job?.job_data?.score} />
                   {job?.job_data?.additional_output_path && (
-                    <Button
-                      size="sm"
-                      variant="plain"
+                    <Link
                       onClick={() => handleOpenCSVModal(job?.id)}
-                      sx={{ mt: 1 }}
-                      // startDecorator={<Grid3X3Icon size="14px" />}
+                      sx={{ mt: 1, ml: 1 }}
+                      startDecorator={<Grid3X3Icon size="14px" />}
                     >
                       Detailed Report
-                    </Button>
+                    </Link>
                   )}
                 </td>
                 <td>
