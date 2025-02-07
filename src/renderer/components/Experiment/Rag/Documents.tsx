@@ -294,7 +294,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
 
   function drawFolder(row) {
     return (
-      <tr key={row?.name}>
+      <tr key={row?.name} onDoubleClick={() => alert('Double clicked')}>
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
             level="body-xs"
