@@ -1376,6 +1376,8 @@ Endpoints.Experiment = {
     API_URL() + `jobs/${jobId}/stream_output`,
   StreamAdditionalDetails : (jobId: string) =>
     API_URL() + `jobs/${jobId}/get_additional_details`,
+  GetGeneratedDataset : (jobId: string) =>
+    API_URL() + `jobs/${jobId}/get_generated_dataset`,
 };
 
 Endpoints.Jobs = {

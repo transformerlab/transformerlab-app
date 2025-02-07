@@ -299,12 +299,12 @@ export default function GenerateModal({
     <Modal open={open}>
       <ModalDialog
         sx={{
-          width: '70dvw',
+          width: '80dvw',
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
           top: '5dvh',
           overflow: 'auto',
-          maxHeight: '70dvh',
-          minHeight: '60dvh',
+          maxHeight: '90dvh',
+          minHeight: '70dvh',
           height: '100%',
         }}
       >

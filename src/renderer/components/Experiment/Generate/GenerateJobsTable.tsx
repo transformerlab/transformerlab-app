@@ -7,13 +7,15 @@ import {
   Sheet,
   Table,
   Typography,
+  Link
 } from '@mui/joy';
-import { ChartColumnBigIcon, FileDigitIcon, Trash2Icon } from 'lucide-react';
+import { ChartColumnBigIcon, FileDigitIcon, Trash2Icon,  Grid3X3Icon,} from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
+import ViewCSVModal from './ViewCSVModal';
 
 
 import dayjs from 'dayjs';
@@ -85,11 +87,32 @@ const GenerateJobsTable = () => {
     // Component did mount logic here
   }, []);
 
+  const handleOpenCSVModal = (jobId) => {
+    setCurrentJobId(jobId);
+    setOpenCSVModal(true);
+  };
+
+  const fetchGenerateCSV = async (jobId) => {
+      const response = await fetch(
+        chatAPI.Endpoints.Experiment.GetGeneratedDataset(jobId)
+      );
+      const text = await response.text();
+      return text;
+    };
+
+
+
   return (
     <>
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
+      />
+      <ViewCSVModal
+        open={openCSVModal}
+        onClose={() => setOpenCSVModal(false)}
+        jobId={currentJobId}
+        fetchCSV={fetchGenerateCSV}
       />
       <Typography level="h3">Executions</Typography>
       <Sheet sx={{ overflowY: 'scroll' }}>
@@ -99,7 +122,7 @@ const GenerateJobsTable = () => {
               <th width="50px">Id</th>
               <th>Generation</th>
               <th>Progress</th>
-              {/* <th>Score</th> */}
+              <th>Dataset</th>
               <th>&nbsp;</th>
             </tr>
           </thead>
@@ -126,16 +149,17 @@ const GenerateJobsTable = () => {
                     )
                     .humanize()}
                 </td> */}
-                {/* <td>
-                  <RenderScore score={job?.job_data?.score} />
-                  <Button
-                    variant="outlined"
-                    size="sm"
-                    onClick={() => handleOpenCSVModal(job?.id)}
-                  >
-                    View CSV
-                  </Button>
-                </td> */}
+                <td>
+                  {/* <RenderScore score={job?.job_data?.score} /> */}
+                  <Link
+                      onClick={() => handleOpenCSVModal(job?.id)}
+                      sx={{ mt: 1, ml: 1 }}
+                      startDecorator={<Grid3X3Icon size="14px" />}
+                    >
+                      Dataset Preview
+                    </Link>
+                </td>
+
                 <td>
                   <ButtonGroup
                     variant="soft"
