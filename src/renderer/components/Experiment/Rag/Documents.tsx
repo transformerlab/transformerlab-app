@@ -28,6 +28,8 @@ import Dropdown from '@mui/joy/Dropdown';
 import {
   EyeIcon,
   FileTextIcon,
+  FileUpIcon,
+  FolderIcon,
   PlusCircleIcon,
   RotateCcwIcon,
   SearchIcon,
@@ -49,7 +51,7 @@ import { FaRegFileAlt } from 'react-icons/fa';
 
 import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
-import { Alert, CircularProgress, Stack } from '@mui/joy';
+import { Alert, CircularProgress, ListItemDecorator, Stack } from '@mui/joy';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -225,29 +227,43 @@ export default function Documents({ experimentInfo, fullPage = false }) {
           {loading && <CircularProgress size="sm" />}
           Documents:
         </FormLabel>
-        <IconButton
-          color="primary"
-          variant="plain"
-          size="sm"
-          onClick={() => {
-            var input = document.createElement('input');
-            input.type = 'file';
-            input.multiple = true;
-            input.onchange = async (e) => {
-              let files = Array.from(input.files);
-              console.log(files);
-              const formData = new FormData();
-              for (const file of files) {
-                formData.append('files', file);
-              }
-              setLoading(true);
-              await uploadFiles(formData);
-            };
-            input.click();
-          }}
-        >
-          <PlusCircleIcon style={{ strokeWidth: '1.5px' }} />
-        </IconButton>
+
+        <Dropdown>
+          <MenuButton variant="plain" size="sm">
+            <PlusCircleIcon style={{ strokeWidth: '1.5px' }} />
+          </MenuButton>
+          <Menu>
+            <MenuItem
+              onClick={() => {
+                var input = document.createElement('input');
+                input.type = 'file';
+                input.multiple = true;
+                input.onchange = async (e) => {
+                  let files = Array.from(input.files);
+                  console.log(files);
+                  const formData = new FormData();
+                  for (const file of files) {
+                    formData.append('files', file);
+                  }
+                  setLoading(true);
+                  await uploadFiles(formData);
+                };
+                input.click();
+              }}
+            >
+              <ListItemDecorator>
+                <FileUpIcon size="16px" />
+              </ListItemDecorator>
+              Upload File
+            </MenuItem>
+            <MenuItem disabled>
+              <ListItemDecorator>
+                <FolderIcon size="16px" />
+              </ListItemDecorator>
+              Folder
+            </MenuItem>
+          </Menu>
+        </Dropdown>
       </Box>
       <Sheet
         className="SearchAndFilters-mobile"
