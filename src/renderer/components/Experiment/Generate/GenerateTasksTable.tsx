@@ -19,6 +19,7 @@ function formatTemplateConfig(script_parameters): ReactElement {
   // const short_model_name = c.model_name.split('/').pop();
   // Set main_task as either or the metric name from the script parameters
   const main_task = script_parameters.generation_type;
+  let docs_file_name_actual = '';
   // Only keep the first 3 words of the main task
 
   // Set docs_file_name as script parameters docs or N/A depending upon main task and if it has the words 'docs'  in it
@@ -26,17 +27,24 @@ function formatTemplateConfig(script_parameters): ReactElement {
     main_task && main_task.toLowerCase().includes('docs')
       ? script_parameters.docs || 'N/A'
       : 'N/A';
+  const is_docs = docs_file_name !== 'N/A';
+  if (is_docs) {
+    docs_file_name_actual = script_parameters.docs.split('/').pop();
+  }
+  const generation_model = script_parameters.generation_model? script_parameters.generation_model : 'N/A';
 
-  const r = (
+  return (
     <>
-      <b>Generation Type:</b> {main_task} <br />
-      <b>Dataset:</b> {docs_file_name} <FileTextIcon size={14} />
-      <br />
-      {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
-      {/* {JSON.stringify(c)} */}
+      <b>Type:</b> {main_task} <br />
+      <b>Model:</b> {generation_model} <br />
+      {is_docs && (
+        <>
+          <b>Docs:</b> {docs_file_name_actual} <FileTextIcon size={14} />
+          <br />
+        </>
+      )}
     </>
   );
-  return r;
 }
 
 async function evaluationRun(

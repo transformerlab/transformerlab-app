@@ -75,8 +75,6 @@ export default function GenerateModal({
   const [currentTab, setCurrentTab] = useState(0);
   const [contextInput, setContextInput] = useState('');
   const [datasetDisplayMessage, setDatasetDisplayMessage] = useState('');
-  const [selectedEnum, setSelectedEnum] = useState(null);
-
 
 
   // Fetch available datasets from the API
@@ -121,7 +119,6 @@ export default function GenerateModal({
   useEffect(() => {
     if (experimentInfo && pluginId) {
       if (currentEvalName && currentEvalName !== '') {
-        console.log("COMING IN HERE BUT WHY")
         const evaluationsStr = experimentInfo.config?.generations;
         if (typeof evaluationsStr === 'string') {
           try {
@@ -149,13 +146,17 @@ export default function GenerateModal({
                 setHasContextKey(contextKeyExists);
 
                 if (docsKeyExists && evalConfig.script_parameters.docs.length > 0) {
-                  setSelectedFiles(evalConfig.script_parameters.docs.split(',').map((path) => ({ path })));
+                  // const docstemp = evalConfig.script_parameters.docs.split(',').map((path) => ({ path }));
+                  const docPaths = evalConfig.script_parameters.docs.split(',');
+                  const docFiles = docPaths.map((path) => new File([], path));
+                  setSelectedFiles(docFiles);
                   delete evalConfig.script_parameters.docs;
                   setConfig(evalConfig.script_parameters)
 
                 }
                 else if (contextKeyExists && evalConfig.script_parameters.context.length > 0) {
-                  setContextInput(evalConfig.script_parameters.context);
+                  const context = evalConfig.script_parameters.context;
+                  setContextInput(context);
                   delete evalConfig.script_parameters.context;
                   setConfig(evalConfig.script_parameters)
                 }
@@ -224,7 +225,6 @@ export default function GenerateModal({
                 setHasDocumentsKey(docsKeyExists);
               }
             }
-            console.log("tempconfig", tempconfig);
             setConfig(tempconfig);
             // Set hasDataset to true in the parsed data, the dataset key is `true`
             // If tempconfig is not an empty object
@@ -374,6 +374,8 @@ export default function GenerateModal({
         formJson.generation_type = 'scratch';
       }
 
+      console.log("EDITED FORM JSON", formJson);
+
       // Run when the currentEvalName is provided
       if (currentEvalName && currentEvalName !== '') {
         const result = await chatAPI.EXPERIMENT_EDIT_GENERATION(
@@ -382,6 +384,8 @@ export default function GenerateModal({
           formJson
         );
         setNameInput(generateFriendlyName());
+        setContextInput('');
+        setSelectedFiles([]);
       } else {
         const template_name = formJson.template_name;
         delete formJson.template_name;

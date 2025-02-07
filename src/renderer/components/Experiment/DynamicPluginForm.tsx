@@ -109,8 +109,6 @@ function BaseInputTemplate(props: BaseInputTemplateProps) {
 
 function getSchema(data) {
   if (data) {
-    console.log('Getting new schema from plugin');
-    console.log(data);
     let parsedData = JSON.parse(data);
     let schemaParameters = parsedData.parameters;
     let requiredParameters = [];
@@ -453,9 +451,6 @@ export default function DynamicPluginForm({
         console.error('Error parsing data', e);
         parsedData = '';
       }
-      console.log("INSIDE PLUGIN FORM")
-      console.log("PARSED DATA", parsedData)
-      console.log("CONFIG", config)
       //Iterating through the config object and updating the default values in the data
       Object.keys(config).forEach((key) => {
         if (
