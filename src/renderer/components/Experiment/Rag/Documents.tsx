@@ -26,6 +26,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import Dropdown from '@mui/joy/Dropdown';
 
 import {
+  CornerLeftUpIcon,
   EyeIcon,
   FileTextIcon,
   FileUpIcon,
@@ -148,6 +149,8 @@ export default function Documents({ experimentInfo, fullPage = false }) {
   const [folderName, setFolderName] = React.useState('');
 
   const [loading, setLoading] = React.useState(false);
+
+  const [currentFolder, setCurrentFolder] = React.useState('');
 
   const {
     data: rows,
@@ -294,7 +297,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
 
   function drawFolder(row) {
     return (
-      <tr key={row?.name} onDoubleClick={() => alert('Double clicked')}>
+      <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
             level="body-xs"
@@ -444,10 +447,23 @@ export default function Documents({ experimentInfo, fullPage = false }) {
           justifyContent: 'space-between',
         }}
       >
-        <FormLabel>
+        <div>
           {loading && <CircularProgress size="sm" />}
-          Documents:
-        </FormLabel>
+          {currentFolder == '' ? (
+            '/'
+          ) : (
+            <>
+              <Link
+                onClick={() => {
+                  setCurrentFolder('');
+                }}
+              >
+                ../
+              </Link>{' '}
+              {currentFolder} /
+            </>
+          )}
+        </div>
         <Dropdown>
           <MenuButton variant="plain" size="sm">
             <PlusCircleIcon style={{ strokeWidth: '1.5px' }} />
