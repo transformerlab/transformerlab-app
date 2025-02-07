@@ -453,6 +453,9 @@ export default function DynamicPluginForm({
         console.error('Error parsing data', e);
         parsedData = '';
       }
+      console.log("INSIDE PLUGIN FORM")
+      console.log("PARSED DATA", parsedData)
+      console.log("CONFIG", config)
       //Iterating through the config object and updating the default values in the data
       Object.keys(config).forEach((key) => {
         if (
@@ -461,6 +464,12 @@ export default function DynamicPluginForm({
           key in parsedData.parameters
         ) {
           parsedData.parameters[key].default = config[key];
+        }
+      });
+      // if key is in parsedData.parameters but not in config then delete the key from parsedData.parameters
+      Object.keys(parsedData.parameters).forEach((key) => {
+        if (!(key in config)) {
+          delete parsedData.parameters[key];
         }
       });
       //Schema takes in data as a JSON string

@@ -18,6 +18,7 @@ import {
   TabPanel,
   Tabs,
   Sheet,
+  Textarea,
 } from '@mui/joy';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
@@ -67,8 +68,12 @@ export default function GenerateModal({
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [config, setConfig] = useState({});
   const [hasDatasetKey, setHasDatasetKey] = useState(false);
+  const [hasDocumentsKey, setHasDocumentsKey] = useState(false);
+  const [hasContextKey, setHasContextKey] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
+  const [contextInput, setContextInput] = useState('');
   const [datasetDisplayMessage, setDatasetDisplayMessage] = useState('');
   const [selectedEnum, setSelectedEnum] = useState(null);
 
@@ -116,6 +121,7 @@ export default function GenerateModal({
   useEffect(() => {
     if (experimentInfo && pluginId) {
       if (currentEvalName && currentEvalName !== '') {
+        console.log("COMING IN HERE BUT WHY")
         const evaluationsStr = experimentInfo.config?.generations;
         if (typeof evaluationsStr === 'string') {
           try {
@@ -131,7 +137,28 @@ export default function GenerateModal({
                 const datasetKeyExists = Object.keys(
                   evalConfig.script_parameters
                 ).some((key) => key.toLowerCase().includes('dataset'));
+                const docsKeyExists = Object.keys(
+                  evalConfig.script_parameters
+                ).some((key) => key.toLowerCase().includes('docs'));
+                const contextKeyExists = Object.keys(
+                  evalConfig.script_parameters
+                ).some((key) => key.toLowerCase().includes('context'));
+
                 setHasDatasetKey(datasetKeyExists);
+                setHasDocumentsKey(docsKeyExists);
+                setHasContextKey(contextKeyExists);
+
+                if (docsKeyExists && evalConfig.script_parameters.docs.length > 0) {
+                  setSelectedFiles(evalConfig.script_parameters.docs.split(',').map((path) => ({ path })));
+                  delete evalConfig.script_parameters.docs;
+                  setConfig(evalConfig.script_parameters)
+
+                }
+                else if (contextKeyExists && evalConfig.script_parameters.context.length > 0) {
+                  setContextInput(evalConfig.script_parameters.context);
+                  delete evalConfig.script_parameters.context;
+                  setConfig(evalConfig.script_parameters)
+                }
                 if (
                   evalConfig.script_parameters.dataset_display_message &&
                   evalConfig.script_parameters.dataset_display_message.length >
@@ -177,7 +204,27 @@ export default function GenerateModal({
                   // Add dataset display message to the config parameters
                 }
               }
+              // Check if parsed data parameters has a key that includes 'docs'
+              if (parsedData && parsedData.parameters) {
+                const docsKeyExists = Object.keys(parsedData.parameters).some(
+                  (key) => key.toLowerCase().includes('docs')
+                );
+                if (docsKeyExists) {
+                  // Delete the parameter key that includes 'docs' from the config
+                  delete tempconfig[Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('docs'))];
+                }
+                const contextKeyExists = Object.keys(parsedData.parameters).some(
+                  (key) => key.toLowerCase().includes('context')
+                );
+                if (contextKeyExists) {
+                  // Delete the parameter key that includes 'context' from the config
+                  delete tempconfig[Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('context'))];
+                }
+                setHasContextKey(contextKeyExists);
+                setHasDocumentsKey(docsKeyExists);
+              }
             }
+            console.log("tempconfig", tempconfig);
             setConfig(tempconfig);
             // Set hasDataset to true in the parsed data, the dataset key is `true`
             // If tempconfig is not an empty object
@@ -244,6 +291,63 @@ export default function GenerateModal({
       </Stack>
     );
   }
+
+  function DocsTab() {
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files) {
+        setSelectedFiles(Array.from(event.target.files));
+      }
+    };
+
+    return (
+      <Stack spacing={2}>
+        <FormControl>
+          <FormLabel>Upload Documents</FormLabel>
+          <Input
+            type="file"
+            multiple={true}
+            onChange={handleFileChange}
+            name="docs"
+          />
+          <FormHelperText>
+            Select multiple documents to upload
+          </FormHelperText>
+        </FormControl>
+        {selectedFiles.length > 0 && (
+          <Stack spacing={1} mt={2}>
+            <FormLabel>Selected Documents:</FormLabel>
+            {selectedFiles.map((file, index) => (
+              <Sheet key={index} variant="outlined" p={1}>
+                {file.name}
+              </Sheet>
+            ))}
+          </Stack>
+        )}
+      </Stack>
+    );
+  }
+
+  function ContextTab({contextInput, setContextInput}) {
+
+    return (
+      <Stack spacing={2}>
+        <FormControl>
+          <FormLabel>Context</FormLabel>
+          <Textarea
+            minRows={5}
+            value={contextInput}
+            onChange={(e) => setContextInput(e.target.value)}
+            name="context"
+            style={{ width: '100%' }}
+          />
+          <FormHelperText>
+            Provide context for the generation task
+          </FormHelperText>
+        </FormControl>
+      </Stack>
+    );
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -255,6 +359,19 @@ export default function GenerateModal({
     try {
       if (!formJson.run_name) {
         formJson.run_name = formJson.template_name;
+      }
+      // Add the selected file paths to the formJson as comma separated string
+      if (hasDocumentsKey && selectedFiles.length > 0) {
+        formJson.docs = selectedFiles.map((file) => file.path).join(',');
+        formJson.generation_type = 'docs';
+      }
+      // Add context to the formJson
+      else if (hasContextKey && contextInput.length > 0) {
+        formJson.context = contextInput;
+        formJson.generation_type = 'context';
+      }
+      else {
+        formJson.generation_type = 'scratch';
       }
 
       // Run when the currentEvalName is provided
@@ -328,6 +445,8 @@ export default function GenerateModal({
               <Tab>Introduction</Tab>
               <Tab>Name</Tab>
               <Tab>Plugin Config</Tab>
+              {hasDocumentsKey && <Tab>Documents</Tab>}
+              {hasContextKey && <Tab>Context</Tab>}
               {hasDatasetKey && <Tab>Dataset</Tab>}
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
@@ -346,8 +465,18 @@ export default function GenerateModal({
                 config={config}
               />
             </TabPanel>
-            {hasDatasetKey && (
+            {hasDocumentsKey && (
               <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+                <DocsTab />
+              </TabPanel>
+            )}
+            {hasContextKey && (
+              <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+                <ContextTab contextInput={contextInput} setContextInput={setContextInput} />
+              </TabPanel>
+            )}
+            {hasDatasetKey && (
+              <TabPanel value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
                 <>
                   <TrainingModalDataTab
                     datasetsIsLoading={datasetsIsLoading}
