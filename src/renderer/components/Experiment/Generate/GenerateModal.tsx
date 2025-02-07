@@ -22,6 +22,7 @@ import {
 } from '@mui/joy';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
+import PickADocumentMenu from '../Rag/PickADocumentMenu';
 
 import { generateFriendlyName } from 'renderer/lib/utils';
 import exp from 'node:constants';
@@ -70,7 +71,8 @@ export default function GenerateModal({
   const [hasDatasetKey, setHasDatasetKey] = useState(false);
   const [hasDocumentsKey, setHasDocumentsKey] = useState(false);
   const [hasContextKey, setHasContextKey] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  const [selectedFileNames, setSelectedFileNames] = useState<string[]>([]);
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
   const [contextInput, setContextInput] = useState('');
@@ -110,8 +112,11 @@ export default function GenerateModal({
 
   useEffect(() => {
     if (open) {
+      setSelectedFiles([]);
+      setSelectedFileNames([]);
       if (!currentEvalName || currentEvalName === '') {
         setNameInput(generateFriendlyName());
+
       }
     }
   }, [open]);
@@ -148,8 +153,10 @@ export default function GenerateModal({
                 if (docsKeyExists && evalConfig.script_parameters.docs.length > 0) {
                   // const docstemp = evalConfig.script_parameters.docs.split(',').map((path) => ({ path }));
                   const docPaths = evalConfig.script_parameters.docs.split(',');
-                  const docFiles = docPaths.map((path) => new File([], path));
-                  setSelectedFiles(docFiles);
+                  const docNames = evalConfig.script_parameters.doc_names.split(',');
+                  // const docFiles = docPaths.map((path) => new File([], path));
+                  setSelectedFiles(docPaths);
+                  setSelectedFileNames(docNames);
                   delete evalConfig.script_parameters.docs;
                   setConfig(evalConfig.script_parameters)
 
@@ -292,40 +299,71 @@ export default function GenerateModal({
     );
   }
 
-  function DocsTab() {
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      if (event.target.files) {
-        setSelectedFiles(Array.from(event.target.files));
-      }
-    };
+  // function DocsTab() {
+  //   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //     if (event.target.files) {
+  //       setSelectedFiles(Array.from(event.target.files));
+  //     }
+  //   };
+
+  //   return (
+  //     <Stack spacing={2}>
+  //       <FormControl>
+  //         <FormLabel>Upload Documents</FormLabel>
+  //         <Input
+  //           type="file"
+  //           multiple={true}
+  //           onChange={handleFileChange}
+  //           name="docs"
+  //         />
+  //         <FormHelperText>
+  //           Select multiple documents to upload
+  //         </FormHelperText>
+  //       </FormControl>
+  //       {selectedFiles.length > 0 && (
+  //         <Stack spacing={1} mt={2}>
+  //           <FormLabel>Selected Documents:</FormLabel>
+  //           {selectedFiles.map((file, index) => (
+  //             <Sheet key={index} variant="outlined" p={1}>
+  //               {file.name}
+  //             </Sheet>
+  //           ))}
+  //         </Stack>
+  //       )}
+  //     </Stack>
+  //   );
+  // }
+
+  function DocsTab({ experimentInfo }) {
 
     return (
       <Stack spacing={2}>
         <FormControl>
-          <FormLabel>Upload Documents</FormLabel>
-          <Input
-            type="file"
-            multiple={true}
-            onChange={handleFileChange}
-            name="docs"
+          <FormLabel>Pick Documents</FormLabel>
+          <PickADocumentMenu
+            experimentInfo={experimentInfo}
+            showFoldersOnly={false}
+            setSelectedFiles={setSelectedFiles}
+            setSelectedFileNames={setSelectedFileNames}
           />
-          <FormHelperText>
-            Select multiple documents to upload
-          </FormHelperText>
+          <FormHelperText>Select documents to upload</FormHelperText>
         </FormControl>
-        {selectedFiles.length > 0 && (
-          <Stack spacing={1} mt={2}>
-            <FormLabel>Selected Documents:</FormLabel>
-            {selectedFiles.map((file, index) => (
-              <Sheet key={index} variant="outlined" p={1}>
-                {file.name}
-              </Sheet>
-            ))}
-          </Stack>
-        )}
+        {selectedFileNames.length > 0 && (
+        <Stack spacing={1} mt={2}>
+          <FormLabel>Selected Documents:</FormLabel>
+          {selectedFileNames.map((file, index) => (
+            <Sheet key={index} variant="outlined" p={1}>
+              {file}
+            </Sheet>
+          ))}
+        </Stack>
+      )}
       </Stack>
     );
   }
+
+
+
 
   function ContextTab({contextInput, setContextInput}) {
 
@@ -361,8 +399,13 @@ export default function GenerateModal({
         formJson.run_name = formJson.template_name;
       }
       // Add the selected file paths to the formJson as comma separated string
+      // if (hasDocumentsKey && selectedFiles.length > 0) {
+      //   formJson.docs = selectedFiles.map((file) => file.path).join(',');
+      //   formJson.generation_type = 'docs';
+      // }
       if (hasDocumentsKey && selectedFiles.length > 0) {
-        formJson.docs = selectedFiles.map((file) => file.path).join(',');
+        formJson.docs = selectedFiles.join(',');;
+        formJson.doc_names = selectedFileNames.join(',');
         formJson.generation_type = 'docs';
       }
       // Add context to the formJson
@@ -386,6 +429,7 @@ export default function GenerateModal({
         setNameInput(generateFriendlyName());
         setContextInput('');
         setSelectedFiles([]);
+        setSelectedFileNames([]);
       } else {
         const template_name = formJson.template_name;
         delete formJson.template_name;
@@ -471,8 +515,14 @@ export default function GenerateModal({
             </TabPanel>
             {hasDocumentsKey && (
               <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-                <DocsTab />
+                <DocsTab
+                experimentInfo={experimentInfo}
+                />
+                {/* <PickADocumentMenu
+                  experimentInfo={experimentInfo}
+                  /> */}
               </TabPanel>
+              // <DocsTab />
             )}
             {hasContextKey && (
               <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
