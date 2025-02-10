@@ -1,5 +1,11 @@
-import { Button, CircularProgress } from '@mui/joy';
-import { PlayCircleIcon, StopCircleIcon } from 'lucide-react';
+import { Alert, Button, CircularProgress, Typography } from '@mui/joy';
+import {
+  InfoIcon,
+  PlayCircleIcon,
+  Plug2Icon,
+  StopCircleIcon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
@@ -9,6 +15,8 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
+
+import { Link } from 'react-router-dom';
 
 function removeServerFromEndOfString(str) {
   if (str == null) {
@@ -187,7 +195,23 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      <Engine />
+      {isPossibleToRunAModel() ? (
+        <Engine />
+      ) : (
+        <Alert startDecorator={<TriangleAlertIcon />} color="warning" size="lg">
+          <Typography>
+            You do not have an installed Inference Engine that is compatible
+            with this model. Go to{' '}
+            <Link to="/projects/plugins">
+              <Plug2Icon size="15px" />
+              Plugins
+            </Link>{' '}
+            and install an Inference Engine. <b>FastChat Server</b> is a good
+            default for systems with a GPU. <b>Apple MLX Server</b> is the best
+            default for MacOS with Apple Silicon.
+          </Typography>
+        </Alert>
+      )}
       <InferenceEngineModal
         showModal={showRunSettings}
         setShowModal={setShowRunSettings}
