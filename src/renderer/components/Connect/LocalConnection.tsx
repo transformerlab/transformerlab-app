@@ -382,6 +382,12 @@ function InstallStepper({ setServer }) {
           setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED') + 1);
           return true;
         }
+        setErrorMessage('Failed to download Transformer Lab');
+        setInstallStatus('error');
+        setThinking(false);
+        setUserRequestedInstall(false);
+        setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
+
         return false;
       },
       () => {

@@ -2,6 +2,7 @@
 import { URL } from 'url';
 import path from 'path';
 import { log } from 'console';
+import { dialog } from 'electron';
 const fs = require('fs');
 const os = require('os');
 const { spawn, exec, ChildProcess } = require('child_process');
@@ -269,6 +270,7 @@ export async function installLocalServer() {
       options,
       (error, stdout, stderr) => {
         if (error) {
+          dialog.showMessageBox({message: `Failed to download Transformer Lab ${error}`});
           console.error(`exec error: ${error}`);
           return;
         }
