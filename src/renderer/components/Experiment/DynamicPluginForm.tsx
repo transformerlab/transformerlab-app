@@ -458,16 +458,18 @@ export default function DynamicPluginForm({
           parsedData.parameters &&
           key in parsedData.parameters
         ) {
+          if (parsedData.parameters[key].enum) {
+          // Set the enum array such that config[key] is the first element
+          const enumArray = parsedData.parameters[key].enum;
+          let index = enumArray.indexOf(config[key]);
+          if (index > 0) {
+            enumArray.unshift(enumArray.splice(index, 1)[0]);
+          }
+          parsedData.parameters[key].enum = enumArray;
           parsedData.parameters[key].default = config[key];
         }
+        }
       });
-      // if (parsedData.type === 'generator' || parsedData.type === 'evaluator') {
-      //   Object.keys(parsedData.parameters).forEach((key) => {
-      //     if (!(key in config)) {
-      //       delete parsedData.parameters[key];
-      //     }
-      //   });
-      // }
       // Delete all keys in parsedData.parameters that start with tflabcustomui_
       Object.keys(parsedData.parameters).forEach((key) => {
         if (key.startsWith('tflabcustomui_')) {
@@ -483,6 +485,7 @@ export default function DynamicPluginForm({
   }, [plugin, experimentInfo, config, data]);
 
   const schema = useMemo(() => getSchema(configData), [configData]);
+  console.log("SCHEMA", schema);
   /* Below we wait for "configData" to be sure that defaults are set before rendering
   if we don't do this, then the form is rendered twice and Select elements will not
   honour the second settings for default Value */
