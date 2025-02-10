@@ -193,13 +193,6 @@ export default function Sidebar({
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
-          title="Plugins"
-          path="/projects/plugins"
-          icon={<PlugIcon />}
-          disabled={!experimentInfo?.name}
-          counter={outdatedPluginsCount}
-        />
-        <SubNavItem
           title="Settings"
           path="/projects/settings"
           icon={<SlidersIcon />}
@@ -214,6 +207,13 @@ export default function Sidebar({
           path="/zoo"
           icon={<BoxesIcon />}
           disabled={false}
+        />
+        <SubNavItem
+          title="Plugins"
+          path="/projects/plugins"
+          icon={<PlugIcon />}
+          disabled={!experimentInfo?.name}
+          counter={outdatedPluginsCount}
         />
         <SubNavItem
           title="Training Data"
