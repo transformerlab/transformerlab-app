@@ -108,6 +108,9 @@ export default function EvalModal({
         setNameInput(generateFriendlyName());
       }
     }
+    else {
+      setNameInput('');
+    }
   }, [open]);
 
   useEffect(() => {
@@ -141,11 +144,14 @@ export default function EvalModal({
                 if (hasDatasetKey && evalConfig.script_parameters.dataset_name.length > 0) {
                   setSelectedDataset(evalConfig.script_parameters.dataset_name);
                 }
+                if (!nameInput && evalConfig?.name.length > 0) {
+                  setNameInput(evalConfig.name);
+                }
               }
-              setNameInput(evalConfig?.name);
-              if (!nameInput && evalConfig?.script_parameters.run_name) {
-                setNameInput(evalConfig.script_parameters.run_name);
-              }
+              // setNameInput(evalConfig?.name);
+              // if (!nameInput && evalConfig?.script_parameters.run_name) {
+              //   setNameInput(evalConfig.script_parameters.run_name);
+              // }
             }
           } catch (error) {
             console.error('Failed to parse evaluations JSON string:', error);
@@ -263,7 +269,7 @@ export default function EvalModal({
           currentEvalName,
           formJson
         );
-        setNameInput(generateFriendlyName());
+        setNameInput('');
       } else {
         const template_name = formJson.template_name;
         delete formJson.template_name;

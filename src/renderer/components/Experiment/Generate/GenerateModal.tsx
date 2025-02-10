@@ -118,6 +118,9 @@ export default function GenerateModal({
         setNameInput(generateFriendlyName());
 
       }
+      else {
+        setNameInput('');
+      }
     }
   }, [open]);
 
@@ -176,11 +179,20 @@ export default function GenerateModal({
                     evalConfig.script_parameters._dataset_display_message
                   );
                 }
+                if (hasDatasetKey && evalConfig.script_parameters.dataset_name.length > 0) {
+                  setSelectedDataset(evalConfig.script_parameters.dataset_name);
+                }
+                if (!nameInput && evalConfig?.name.length > 0) {
+                  setNameInput(evalConfig.name);
+                }
               }
-              setNameInput(evalConfig?.name);
-              if (!nameInput && evalConfig?.script_parameters.run_name) {
-                setNameInput(evalConfig.script_parameters.run_name);
-              }
+              // if (nameInput !== '' && evalConfig?.name) {
+              //   setNameInput(evalConfig?.name);
+              // }
+              // setNameInput(evalConfig?.name);
+              // if (!nameInput && evalConfig?.script_parameters.run_name) {
+              //   setNameInput(evalConfig.script_parameters.run_name);
+              // }
             }
           } catch (error) {
             console.error('Failed to parse evaluations JSON string:', error);
@@ -299,41 +311,6 @@ export default function GenerateModal({
     );
   }
 
-  // function DocsTab() {
-  //   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //     if (event.target.files) {
-  //       setSelectedFiles(Array.from(event.target.files));
-  //     }
-  //   };
-
-  //   return (
-  //     <Stack spacing={2}>
-  //       <FormControl>
-  //         <FormLabel>Upload Documents</FormLabel>
-  //         <Input
-  //           type="file"
-  //           multiple={true}
-  //           onChange={handleFileChange}
-  //           name="docs"
-  //         />
-  //         <FormHelperText>
-  //           Select multiple documents to upload
-  //         </FormHelperText>
-  //       </FormControl>
-  //       {selectedFiles.length > 0 && (
-  //         <Stack spacing={1} mt={2}>
-  //           <FormLabel>Selected Documents:</FormLabel>
-  //           {selectedFiles.map((file, index) => (
-  //             <Sheet key={index} variant="outlined" p={1}>
-  //               {file.name}
-  //             </Sheet>
-  //           ))}
-  //         </Stack>
-  //       )}
-  //     </Stack>
-  //   );
-  // }
-
   function DocsTab({ experimentInfo }) {
 
     return (
@@ -361,9 +338,6 @@ export default function GenerateModal({
       </Stack>
     );
   }
-
-
-
 
   function ContextTab({contextInput, setContextInput}) {
 
@@ -417,7 +391,6 @@ export default function GenerateModal({
         formJson.generation_type = 'scratch';
       }
 
-      console.log("EDITED FORM JSON", formJson);
 
       // Run when the currentEvalName is provided
       if (currentEvalName && currentEvalName !== '') {
@@ -433,10 +406,10 @@ export default function GenerateModal({
       } else {
         const template_name = formJson.template_name;
         delete formJson.template_name;
-        console.log('formJson', formJson);
-        console.log("experimentInfo?.id", experimentInfo?.id);
-        console.log("template_name", template_name);
-        console.log("pluginId", pluginId);
+        // console.log('formJson', formJson);
+        // console.log("experimentInfo?.id", experimentInfo?.id);
+        // console.log("template_name", template_name);
+        // console.log("pluginId", pluginId);
         const result = await chatAPI.EXPERIMENT_ADD_GENERATION(
           experimentInfo?.id,
           template_name,
