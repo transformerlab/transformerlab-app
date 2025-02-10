@@ -461,13 +461,19 @@ export default function DynamicPluginForm({
           parsedData.parameters[key].default = config[key];
         }
       });
-      if (parsedData.type === 'generator' || parsedData.type === 'evaluator') {
-        Object.keys(parsedData.parameters).forEach((key) => {
-          if (!(key in config)) {
-            delete parsedData.parameters[key];
-          }
-        });
-      }
+      // if (parsedData.type === 'generator' || parsedData.type === 'evaluator') {
+      //   Object.keys(parsedData.parameters).forEach((key) => {
+      //     if (!(key in config)) {
+      //       delete parsedData.parameters[key];
+      //     }
+      //   });
+      // }
+      // Delete all keys in parsedData.parameters that start with tflabcustomui_
+      Object.keys(parsedData.parameters).forEach((key) => {
+        if (key.startsWith('tflabcustomui_')) {
+          delete parsedData.parameters[key];
+        }
+      });
       // if key is in parsedData.parameters but not in config then delete the key from parsedData.parameters
       //Schema takes in data as a JSON string
       setConfigData(JSON.stringify(parsedData));

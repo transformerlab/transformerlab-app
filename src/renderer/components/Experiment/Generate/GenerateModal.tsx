@@ -168,12 +168,12 @@ export default function GenerateModal({
                   setConfig(evalConfig.script_parameters)
                 }
                 if (
-                  evalConfig.script_parameters.dataset_display_message &&
-                  evalConfig.script_parameters.dataset_display_message.length >
+                  evalConfig.script_parameters._dataset_display_message &&
+                  evalConfig.script_parameters._dataset_display_message.length >
                     0
                 ) {
                   setDatasetDisplayMessage(
-                    evalConfig.script_parameters.dataset_display_message
+                    evalConfig.script_parameters._dataset_display_message
                   );
                 }
               }
@@ -205,28 +205,28 @@ export default function GenerateModal({
                 setHasDatasetKey(true);
                 // Check if the dataset display message string length is greater than 0
                 if (
-                  parsedData.dataset_display_message &&
-                  parsedData.dataset_display_message.length > 0
+                  parsedData._dataset_display_message &&
+                  parsedData._dataset_display_message.length > 0
                 ) {
-                  setDatasetDisplayMessage(parsedData.dataset_display_message);
+                  setDatasetDisplayMessage(parsedData._dataset_display_message);
                   // Add dataset display message to the config parameters
                 }
               }
               // Check if parsed data parameters has a key that includes 'docs'
               if (parsedData && parsedData.parameters) {
                 const docsKeyExists = Object.keys(parsedData.parameters).some(
-                  (key) => key.toLowerCase().includes('docs')
+                  (key) => key.toLowerCase().includes('tflabcustomui_docs')
                 );
                 if (docsKeyExists) {
                   // Delete the parameter key that includes 'docs' from the config
-                  delete tempconfig[Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('docs'))];
+                  delete tempconfig[Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('tflabcustomui_docs'))];
                 }
                 const contextKeyExists = Object.keys(parsedData.parameters).some(
-                  (key) => key.toLowerCase().includes('context')
+                  (key) => key.toLowerCase().includes('tflabcustomui_context')
                 );
                 if (contextKeyExists) {
                   // Delete the parameter key that includes 'context' from the config
-                  delete tempconfig[Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('context'))];
+                  delete tempconfig[Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('tflabcustomui_context'))];
                 }
                 setHasContextKey(contextKeyExists);
                 setHasDocumentsKey(docsKeyExists);
@@ -392,7 +392,7 @@ export default function GenerateModal({
     const formJson = Object.fromEntries((formData as any).entries());
     // Add an extra field in formJson for datasetDisplayMessage
     if (datasetDisplayMessage.length > 0) {
-      formJson.dataset_display_message = datasetDisplayMessage;
+      formJson._dataset_display_message = datasetDisplayMessage;
     }
     try {
       if (!formJson.run_name) {
