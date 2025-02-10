@@ -462,11 +462,6 @@ export default function DynamicPluginForm({
         }
       });
       // if key is in parsedData.parameters but not in config then delete the key from parsedData.parameters
-      Object.keys(parsedData.parameters).forEach((key) => {
-        if (!(key in config)) {
-          delete parsedData.parameters[key];
-        }
-      });
       //Schema takes in data as a JSON string
       setConfigData(JSON.stringify(parsedData));
     } else if (data) {
