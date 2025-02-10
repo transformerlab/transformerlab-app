@@ -85,6 +85,90 @@ export default function RunModelButton({
     })();
   }, [experimentInfo]);
 
+  function Engine() {
+    return (
+      <>
+        {models === null ? (
+          <>
+            <Button
+              startDecorator={
+                jobId === -1 ? (
+                  <CircularProgress size="sm" thickness={2} />
+                ) : (
+                  <PlayCircleIcon />
+                )
+              }
+              color="success"
+              size="lg"
+              sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
+              onClick={async (e) => {
+                if (inferenceSettings?.inferenceEngine === null) {
+                  setShowRunSettings(!showRunSettings);
+                  return;
+                }
+
+                setJobId(-1);
+
+                const inferenceEngine = inferenceSettings?.inferenceEngine;
+
+                const response = await activateWorker(
+                  experimentInfo?.config?.foundation,
+                  experimentInfo?.config?.foundation_filename,
+                  experimentInfo?.config?.adaptor,
+                  inferenceEngine,
+                  inferenceSettings,
+                  experimentInfo?.id
+                );
+                if (response?.status == 'error') {
+                  alert(`Failed to start model:\n${response?.message}`);
+                  setJobId(null);
+                  return;
+                }
+                const job_id = response?.job_id;
+                setJobId(job_id);
+                mutate();
+              }}
+              disabled={!isPossibleToRunAModel()}
+            >
+              {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
+            </Button>
+          </>
+        ) : (
+          <Button
+            onClick={async () => {
+              await killWorker();
+              setJobId(null);
+            }}
+            startDecorator={
+              models?.length == 0 ? (
+                <CircularProgress size="sm" thickness={2} />
+              ) : (
+                <StopCircleIcon />
+              )
+            }
+            color="success"
+            size="lg"
+            sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
+          >
+            Stop
+          </Button>
+        )}
+        <Button
+          variant="plain"
+          onClick={() => setShowRunSettings(!showRunSettings)}
+          disabled={models?.length > 0 || jobId == -1}
+        >
+          using{' '}
+          {removeServerFromEndOfString(
+            inferenceSettings?.inferenceEngineFriendlyName
+          ) ||
+            inferenceSettings?.inferenceEngine ||
+            'Engine'}
+        </Button>
+      </>
+    );
+  }
+
   return (
     <div
       style={{
@@ -103,83 +187,7 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {models === null ? (
-        <>
-          <Button
-            startDecorator={
-              jobId === -1 ? (
-                <CircularProgress size="sm" thickness={2} />
-              ) : (
-                <PlayCircleIcon />
-              )
-            }
-            color="success"
-            size="lg"
-            sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
-            onClick={async (e) => {
-              if (inferenceSettings?.inferenceEngine === null) {
-                setShowRunSettings(!showRunSettings);
-                return;
-              }
-
-              setJobId(-1);
-
-              const inferenceEngine = inferenceSettings?.inferenceEngine;
-
-              const response = await activateWorker(
-                experimentInfo?.config?.foundation,
-                experimentInfo?.config?.foundation_filename,
-                experimentInfo?.config?.adaptor,
-                inferenceEngine,
-                inferenceSettings,
-                experimentInfo?.id
-              );
-              if (response?.status == 'error') {
-                alert(`Failed to start model:\n${response?.message}`);
-                setJobId(null);
-                return;
-              }
-              const job_id = response?.job_id;
-              setJobId(job_id);
-              mutate();
-            }}
-            disabled={!isPossibleToRunAModel()}
-          >
-            {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
-          </Button>
-        </>
-      ) : (
-        <Button
-          onClick={async () => {
-            await killWorker();
-            setJobId(null);
-          }}
-          startDecorator={
-            models?.length == 0 ? (
-              <CircularProgress size="sm" thickness={2} />
-            ) : (
-              <StopCircleIcon />
-            )
-          }
-          color="success"
-          size="lg"
-          sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
-        >
-          Stop
-        </Button>
-      )}
-      <Button
-        variant="plain"
-        onClick={() => setShowRunSettings(!showRunSettings)}
-        disabled={models?.length > 0 || jobId == -1}
-      >
-        using{' '}
-        {removeServerFromEndOfString(
-          inferenceSettings?.inferenceEngineFriendlyName
-        ) ||
-          inferenceSettings?.inferenceEngine ||
-          'Engine'}
-      </Button>
+      <Engine />
       <InferenceEngineModal
         showModal={showRunSettings}
         setShowModal={setShowRunSettings}
