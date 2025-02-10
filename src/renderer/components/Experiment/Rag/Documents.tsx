@@ -456,7 +456,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
         <div>
           {loading && <CircularProgress size="sm" />}
           {currentFolder == '' ? (
-            '/'
+            'Documents'
           ) : (
             <>
               <Link
@@ -464,7 +464,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                   setCurrentFolder('');
                 }}
               >
-                .. /
+                Documents /
               </Link>{' '}
               {currentFolder} /
             </>
@@ -503,6 +503,7 @@ export default function Documents({ experimentInfo, fullPage = false }) {
                 setNewFolderName('');
                 setShowFolderModal(true);
               }}
+              disabled={currentFolder !== ''}
             >
               <ListItemDecorator>
                 <FolderIcon size="16px" />
