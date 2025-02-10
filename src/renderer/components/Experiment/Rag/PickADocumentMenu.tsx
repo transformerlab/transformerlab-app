@@ -6,61 +6,6 @@ import { FolderIcon, Check } from 'lucide-react';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-interface FolderChildrenProps {
-  experimentId: string;
-  folderId: string;
-  toggleSelect: (id: string, filePath: string, fileName: string) => void;
-  selectedIds: Set<string>;
-}
-
-function FolderChildren({ experimentId, folderId, toggleSelect, selectedIds }: FolderChildrenProps) {
-  const { data, isLoading } = useSWR(
-    chatAPI.Endpoints.Documents.List(experimentId, folderId),
-    fetcher
-  );
-
-  if (isLoading) {
-    return <Typography sx={{ ml: 4 }}>Loading...</Typography>;
-  }
-  if (!data || data.length === 0) {
-    return <Typography sx={{ ml: 4 }}>No documents</Typography>;
-  }
-  return (
-    <Box sx={{ ml: 4 }}>
-      {data.map((child: any, idx: number) => {
-        const childId = child.id ? child.id.toString() : `child-index-${idx}`;
-        const isFolder = child?.type === 'folder';
-        return (
-          <Box
-            key={childId}
-            onClick={!isFolder ? () => toggleSelect(childId, child?.path || '', child?.name || 'Unknown') : undefined}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              p: 1,
-              my: 0.5,
-              borderRadius: 'sm',
-              cursor: !isFolder ? 'pointer' : 'default',
-              backgroundColor: !isFolder && selectedIds.has(childId)
-                ? 'primary.softHoverBg'
-                : 'transparent',
-              '&:hover': !isFolder ? { backgroundColor: 'primary.softHoverBg' } : undefined,
-            }}
-          >
-            {isFolder && <FolderIcon size="14px" />}
-            <Typography ml={isFolder ? 1 : 0}>
-              {child?.name || 'Unnamed'}
-            </Typography>
-            {!isFolder && selectedIds.has(childId) && (
-              <Check size="16px" style={{ marginLeft: 'auto', color: 'green' }} />
-            )}
-          </Box>
-        );
-      })}
-    </Box>
-  );
-}
-
 interface PickADocumentMenuProps {
   experimentInfo: any;
   showFoldersOnly?: boolean;
@@ -79,26 +24,12 @@ export default function PickADocumentMenu({
     fetcher
   );
 
-  // State for expanded folders (by unique id)
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
-
-  // State for selected non-folder items (by unique id)
+  // State for selected items (by unique id)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const toggleExpand = (id: string) => {
-    const newExpanded = new Set(expandedFolders);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedFolders(newExpanded);
-  };
-
   const toggleSelect = (id: string, filePath: string, fileName: string) => {
-    const isSelected = selectedIds.has(id);
     const newSelected = new Set(selectedIds);
-    if (isSelected) {
+    if (selectedIds.has(id)) {
       newSelected.delete(id);
       setSelectedFiles((prevFiles) => prevFiles.filter((path) => path !== filePath));
       setSelectedFileNames((prevNames) => prevNames.filter((name) => name !== fileName));
@@ -125,14 +56,7 @@ export default function PickADocumentMenu({
           return (
             <Box key={uniqueId}>
               <Box
-                onClick={() => {
-                  if (isFolder) {
-                    toggleExpand(uniqueId);
-                  } else {
-                    // We use row.path for file identifier; adjust if necessary.
-                    toggleSelect(uniqueId, row?.path || '', row?.name || '');
-                  }
-                }}
+                onClick={() => toggleSelect(uniqueId, row?.path || '', row?.name || '')}
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
@@ -140,13 +64,7 @@ export default function PickADocumentMenu({
                   my: 0.5,
                   borderRadius: 'sm',
                   cursor: 'pointer',
-                  backgroundColor: isFolder
-                    ? expandedFolders.has(uniqueId)
-                      ? 'primary.softHoverBg'
-                      : 'transparent'
-                    : selectedIds.has(uniqueId)
-                    ? 'primary.softHoverBg'
-                    : 'transparent',
+                  backgroundColor: selectedIds.has(uniqueId) ? 'primary.softHoverBg' : 'transparent',
                   '&:hover': { backgroundColor: 'primary.softHoverBg' },
                 }}
               >
@@ -154,13 +72,10 @@ export default function PickADocumentMenu({
                 <Typography ml={isFolder ? 1 : 0}>
                   {row?.name || 'Unnamed'}
                 </Typography>
-                {!isFolder && selectedIds.has(uniqueId) && (
+                {selectedIds.has(uniqueId) && (
                   <Check size="16px" style={{ marginLeft: 'auto', color: 'green' }} />
                 )}
               </Box>
-              {isFolder && expandedFolders.has(uniqueId) && (
-                <FolderChildren experimentId={experimentInfo?.id} folderId={uniqueId} toggleSelect={toggleSelect} selectedIds={selectedIds} />
-              )}
             </Box>
           );
         })
