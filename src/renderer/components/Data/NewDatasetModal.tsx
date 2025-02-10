@@ -34,7 +34,7 @@ export default function DatasetDetailsModal({ open, setOpen }) {
   //   setNewDatasetName('');
   // }, [open]);
   const { data, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.LocalList(),
+    chatAPI.Endpoints.Dataset.LocalList(false),
     fetcher
   );
   //Resetting state variables

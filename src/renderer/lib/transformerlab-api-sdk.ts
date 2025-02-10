@@ -980,6 +980,7 @@ function convertSlashInUrl(url: string) {
   return url.replace(/\//g, '~~~');
 }
 
+
 Endpoints.Dataset = {
   Gallery: () => API_URL() + 'data/gallery',
   Info: (datasetId: string) => API_URL() + 'data/info?dataset_id=' + datasetId,
@@ -1018,7 +1019,8 @@ Endpoints.Dataset = {
   Create: (datasetId: string) => API_URL() + 'data/new?dataset_id=' + datasetId,
   Download: (datasetId: string) =>
     API_URL() + 'data/download?dataset_id=' + datasetId,
-  LocalList: () => API_URL() + 'data/list',
+  LocalList: (generated: boolean = true) => API_URL() + 'data/list?generated=' + generated,
+  GeneratedList: () => API_URL() + 'data/generated_datasets_list',
   FileUpload: (datasetId: string) =>
     API_URL() + 'data/fileupload?dataset_id=' + datasetId,
 };
@@ -1100,7 +1102,7 @@ Endpoints.Documents = {
     experimentId +
     '/documents/delete/' +
     document_name,
-  CreateFolder: (experimentId: string, folderName: string) => 
+  CreateFolder: (experimentId: string, folderName: string) =>
     API_URL() +
     'experiment/' +
     experimentId +

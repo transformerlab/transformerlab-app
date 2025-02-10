@@ -39,13 +39,13 @@ export function filterByFiltersDatasetID(data, searchText = '', filters = {}) {
     return false;
   });
 }
-export default function LocalDatasets() {
+export default function GeneratedDatasets() {
   const [searchText, setSearchText] = useState('');
-  const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
-  const [downloadingDataset, setDownloadingDataset] = useState(null);
+  // const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
+  // const [downloadingDataset, setDownloadingDataset] = useState(null);
 
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.LocalList(false),
+    chatAPI.Endpoints.Dataset.GeneratedList(),
     fetcher
   );
 
@@ -63,10 +63,10 @@ export default function LocalDatasets() {
         height: '100%',
       }}
     >
-      <NewDatasetModal
+      {/* <NewDatasetModal
         open={newDatasetModalOpen}
         setOpen={setNewDatasetModalOpen}
-      />
+      /> */}
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
@@ -125,18 +125,18 @@ export default function LocalDatasets() {
 
           {data?.length === 0 && (
             <Typography level="body-lg" justifyContent="center" margin={5}>
-              You do not have any datasets on your local machine. You can
-              download a dataset by going to the{' '}
-              <ReactRouterLink to="/data">
+              You do not have any generated datasets. You can
+              download a dataset by going to the Generate Tab in an experiment.
+              {/* <ReactRouterLink to="/generate">
                 <StoreIcon />
-                Dataset Store
+                Generated Tab
               </ReactRouterLink>
-              .
+              . */}
             </Typography>
           )}
         </Grid>
       </Sheet>
-      <Box
+      {/* <Box
         sx={{
           justifyContent: 'space-between',
           display: 'flex',
@@ -198,7 +198,7 @@ export default function LocalDatasets() {
             />
           </FormControl>
           <>
-            <Button
+            {/* <Button
               size="sm"
               sx={{ height: '30px' }}
               endDecorator={<PlusIcon />}
@@ -207,10 +207,10 @@ export default function LocalDatasets() {
               }}
             >
               New
-            </Button>
-          </>
+            </Button> */}
+          {/* </>
         </>
-      </Box>
+      </Box> */}
     </Sheet>
   );
 }

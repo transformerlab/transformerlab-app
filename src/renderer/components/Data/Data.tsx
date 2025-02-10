@@ -5,6 +5,7 @@ import { StoreIcon } from 'lucide-react';
 
 import DataStore from './DataStore';
 import LocalDatasets from './LocalDatasets';
+import GeneratedDatasets from './GeneratedDatasets'
 
 export default function Data() {
   return (
@@ -22,6 +23,7 @@ export default function Data() {
       >
         <TabList>
           <Tab>Local Datasets</Tab>
+          <Tab>Generated Datasets</Tab>
           <Tab>
             <StoreIcon color="grey" />
             &nbsp; Dataset Store
@@ -31,6 +33,9 @@ export default function Data() {
           <LocalDatasets />
         </TabPanel>
         <TabPanel value={1} sx={{ overflow: 'hidden' }}>
+          <GeneratedDatasets />
+        </TabPanel>
+        <TabPanel value={2} sx={{ overflow: 'hidden' }}>
           <DataStore />
         </TabPanel>
       </Tabs>
