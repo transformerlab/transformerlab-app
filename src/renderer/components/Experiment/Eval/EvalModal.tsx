@@ -130,13 +130,16 @@ export default function EvalModal({
                 ).some((key) => key.toLowerCase().includes('dataset'));
                 setHasDatasetKey(datasetKeyExists);
                 if (
-                  evalConfig.script_parameters.dataset_display_message &&
-                  evalConfig.script_parameters.dataset_display_message.length >
+                  evalConfig.script_parameters._dataset_display_message &&
+                  evalConfig.script_parameters._dataset_display_message.length >
                     0
                 ) {
                   setDatasetDisplayMessage(
-                    evalConfig.script_parameters.dataset_display_message
+                    evalConfig.script_parameters._dataset_display_message
                   );
+                }
+                if (hasDatasetKey && evalConfig.script_parameters.dataset_name.length > 0) {
+                  setSelectedDataset(evalConfig.script_parameters.dataset_name);
                 }
               }
               setNameInput(evalConfig?.name);
@@ -162,14 +165,14 @@ export default function EvalModal({
                   value.default,
                 ])
               );
-              if (parsedData && parsedData.dataset) {
+              if (parsedData && parsedData._dataset) {
                 setHasDatasetKey(true);
                 // Check if the dataset display message string length is greater than 0
                 if (
-                  parsedData.dataset_display_message &&
-                  parsedData.dataset_display_message.length > 0
+                  parsedData._dataset_display_message &&
+                  parsedData._dataset_display_message.length > 0
                 ) {
-                  setDatasetDisplayMessage(parsedData.dataset_display_message);
+                  setDatasetDisplayMessage(parsedData._dataset_display_message);
                   // Add dataset display message to the config parameters
                 }
               }
@@ -246,7 +249,7 @@ export default function EvalModal({
     const formJson = Object.fromEntries((formData as any).entries());
     // Add an extra field in formJson for datasetDisplayMessage
     if (datasetDisplayMessage.length > 0) {
-      formJson.dataset_display_message = datasetDisplayMessage;
+      formJson._dataset_display_message = datasetDisplayMessage;
     }
     try {
       if (!formJson.run_name) {
