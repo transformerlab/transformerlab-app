@@ -242,6 +242,22 @@ export function killLocalServer() {
   });
 }
 
+export async function checkIfCurlInstalled() {
+  try {
+    const { stdout, stderr } = await awaitExec('curl --version');
+    if (stderr) {
+      console.error(`stderr: ${stderr}`);
+      return false;
+    }
+    console.log(`stdout: ${stdout}`);
+    return true;
+  }
+  catch (error) {
+    console.error(`Failed to check if curl is installed: ${error}`);
+    return false;
+  }
+}
+
 export async function installLocalServer() {
   console.log('Installing local server');
 
@@ -257,6 +273,14 @@ export async function installLocalServer() {
   // We can download the API in one line for linux/mac
   // but it's a little more complicated for windows, so call a bat file
   console.log('Platform:' + process.platform);
+
+  // First check if curl is installed on the client machine:
+  const curlInstalled = await checkIfCurlInstalled();
+  if (!curlInstalled) {
+    dialog.showMessageBox({message: 'Curl is not installed. Please install curl and try again.'});
+    return;
+  }
+
   const download_cmd = `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
   const installScriptCommand = isPlatformWindows()
     ? `wsl ` + download_cmd
