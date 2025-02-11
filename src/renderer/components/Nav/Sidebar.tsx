@@ -212,7 +212,7 @@ export default function Sidebar({
           title="Plugins"
           path="/projects/plugins"
           icon={<PlugIcon />}
-          disabled={!experimentInfo?.name}
+          disabled={false}
           counter={outdatedPluginsCount}
         />
         <SubNavItem
