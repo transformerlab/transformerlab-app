@@ -13,26 +13,34 @@ function listEvals(evalString) {
   return result;
 }
 
+
 function formatTemplateConfig(script_parameters): ReactElement {
   // const c = JSON.parse(script_parameters);
 
   // Remove the author/full path from the model name for cleanliness
   // const short_model_name = c.model_name.split('/').pop();
   // Set main_task as either or the metric name from the script parameters
-  const main_task = script_parameters.metrics
-    ? script_parameters.metrics
-    : script_parameters.task;
+  const main_task = script_parameters.tasks
   const dataset_name = script_parameters.dataset_name
     ? script_parameters.dataset_name
     : 'N/A';
+  const judge_model = script_parameters.judge_model? script_parameters.judge_model : 'N/A';
+  const is_model = judge_model !== 'N/A';
+  const is_dataset = dataset_name !== 'N/A';
+
 
   const r = (
     <>
-      <b>Metric/Task:</b> {main_task} <br />
-      <b>Dataset:</b> {dataset_name} <FileTextIcon size={14} />
-      <br />
-      {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
-      {/* {JSON.stringify(c)} */}
+      <b>Metrics/Tasks:</b> {main_task} <br />
+      {is_dataset && (<><b>Dataset:</b> {dataset_name} <FileTextIcon size={14} />
+      <br /></>)}
+      {is_model && (
+        <>
+          <b>Model:</b> {judge_model}
+          <br />
+        </>
+      )}
+
     </>
   );
   return r;

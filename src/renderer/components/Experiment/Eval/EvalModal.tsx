@@ -18,6 +18,7 @@ import {
   TabPanel,
   Tabs,
   Sheet,
+  Checkbox,
 } from '@mui/joy';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
@@ -70,6 +71,8 @@ export default function EvalModal({
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
   const [datasetDisplayMessage, setDatasetDisplayMessage] = useState('');
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [taskOptions, setTaskOptions] = useState<string[]>([]);
 
   // Fetch available datasets from the API
   const {
@@ -102,6 +105,7 @@ export default function EvalModal({
   //     setNameInput(generateFriendlyName());
   //   }}, []);
 
+
   useEffect(() => {
     if (open) {
       if (!currentEvalName || currentEvalName === '') {
@@ -110,6 +114,9 @@ export default function EvalModal({
     }
     else {
       setNameInput('');
+      setHasDatasetKey(false);
+      setTaskOptions([]);
+      setSelectedTasks([]);
     }
   }, [open]);
 
@@ -141,6 +148,21 @@ export default function EvalModal({
                     evalConfig.script_parameters._dataset_display_message
                   );
                 }
+                const tasksKeyExists = Object.keys(evalConfig.script_parameters).some(
+                  (key) => key.toLowerCase().includes('tasks')
+                );
+                if (tasksKeyExists) {
+                  setSelectedTasks(evalConfig.script_parameters.tasks.split(','));
+                  let parsedData;
+                  parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+                  const tasksColumnName = Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('tflabcustomui_tasks'));
+                  const tempTaskOptions = parsedData.parameters[tasksColumnName].enum;
+                  // console.log('tempTaskOptions:', tempTaskOptions);
+                  setTaskOptions(tempTaskOptions);
+                  delete evalConfig.script_parameters.tasks;
+                  setConfig(evalConfig.script_parameters);
+                }
+
                 if (hasDatasetKey && evalConfig.script_parameters.dataset_name.length > 0) {
                   setSelectedDataset(evalConfig.script_parameters.dataset_name);
                 }
@@ -148,7 +170,6 @@ export default function EvalModal({
                   setNameInput(evalConfig.name);
                 }
               }
-              // setNameInput(evalConfig?.name);
               // if (!nameInput && evalConfig?.script_parameters.run_name) {
               //   setNameInput(evalConfig.script_parameters.run_name);
               // }
@@ -182,6 +203,18 @@ export default function EvalModal({
                   // Add dataset display message to the config parameters
                 }
               }
+               // Check if parsed data parameters has a key that includes 'docs'
+               if (parsedData && parsedData.parameters) {
+                const tasksKeyExists = Object.keys(parsedData.parameters).some(
+                  (key) => key.toLowerCase().includes('tflabcustomui_tasks')
+                );
+                if (tasksKeyExists) {
+                  const tasksColumnName = Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('tflabcustomui_tasks'));
+                  const tempTaskOptions = parsedData.parameters[tasksColumnName].enum;
+                  // console.log('tempTaskOptions:', tempTaskOptions);
+                  setTaskOptions(tempTaskOptions);
+                  delete tempconfig[tasksColumnName];
+                }
             }
             setConfig(tempconfig);
             // Set hasDataset to true in the parsed data, the dataset key is `true`
@@ -189,7 +222,8 @@ export default function EvalModal({
             // if (tempconfig && Object.keys(tempconfig).length > 0) {
             //   setNameInput(generateFriendlyName());
             // }
-          } catch (e) {
+          }
+         } catch (e) {
             console.error('Error parsing data', e);
             parsedData = '';
           }
@@ -249,6 +283,34 @@ export default function EvalModal({
       </Stack>
     );
   }
+
+  function TasksTab(options) {
+    const taskOptions = options.options
+
+    const handleToggleTask = (option: string) => {
+      if (selectedTasks.includes(option)) {
+        setSelectedTasks(selectedTasks.filter((t) => t !== option));
+      } else {
+        setSelectedTasks([...selectedTasks, option]);
+      }
+    };
+
+    return (
+      <Stack spacing={2}>
+      {taskOptions.map((option) => (
+        <FormControl key={option}>
+        <Checkbox
+          checked={selectedTasks.includes(option)}
+          onChange={() => handleToggleTask(option)}
+          label={option}
+        />
+        </FormControl>
+      ))}
+      </Stack>
+    );
+  }
+
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -256,6 +318,9 @@ export default function EvalModal({
     // Add an extra field in formJson for datasetDisplayMessage
     if (datasetDisplayMessage.length > 0) {
       formJson._dataset_display_message = datasetDisplayMessage;
+    }
+    if (selectedTasks.length > 0) {
+      formJson.tasks = selectedTasks.join(',');
     }
     try {
       if (!formJson.run_name) {
@@ -270,7 +335,11 @@ export default function EvalModal({
           formJson
         );
         setNameInput('');
+        setHasDatasetKey(false);
+        setTaskOptions([]);
+        setSelectedTasks([]);
       } else {
+        console.log('formJson:', formJson);
         const template_name = formJson.template_name;
         delete formJson.template_name;
         const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(
@@ -281,6 +350,9 @@ export default function EvalModal({
         );
         // alert(JSON.stringify(formJson, null, 2));
         setNameInput(generateFriendlyName());
+        setHasDatasetKey(false);
+        setTaskOptions([]);
+        setSelectedTasks([]);
       }
       experimentInfoMutate();
       onClose();
@@ -328,6 +400,7 @@ export default function EvalModal({
             <TabList>
               <Tab>Introduction</Tab>
               <Tab>Name</Tab>
+              <Tab>Tasks</Tab>
               <Tab>Plugin Config</Tab>
               {hasDatasetKey && <Tab>Dataset</Tab>}
             </TabList>
@@ -341,6 +414,9 @@ export default function EvalModal({
               <TrainingModalFirstTab />
             </TabPanel>
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TasksTab  options={taskOptions}/>
+            </TabPanel>
+            <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
@@ -348,7 +424,7 @@ export default function EvalModal({
               />
             </TabPanel>
             {hasDatasetKey && (
-              <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TabPanel value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
                 <>
                   <TrainingModalDataTab
                     datasetsIsLoading={datasetsIsLoading}
