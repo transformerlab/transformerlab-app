@@ -116,9 +116,9 @@ export async function sendAndReceiveStreaming(
 ) {
   let shortModelName = currentModel.split('/').slice(-1)[0];
 
-  if (currentAdaptor && currentAdaptor !== '') {
-    shortModelName = currentAdaptor;
-  }
+  // if (currentAdaptor && currentAdaptor !== '') {
+  //   shortModelName = currentAdaptor;
+  // }
 
   let messages = [];
   messages.push({ role: 'system', content: systemMessage });
@@ -280,9 +280,9 @@ export async function sendCompletion(
     model = currentModel.split('/').slice(-1)[0];
   }
 
-  if (adaptor && adaptor !== '') {
-    model = adaptor;
-  }
+  // if (adaptor && adaptor !== '') {
+  //   model = adaptor;
+  // }
 
   //console.log('model', model);
 
@@ -444,9 +444,9 @@ export async function sendCompletionReactWay(
     model = currentModel.split('/').slice(-1)[0];
   }
 
-  if (adaptor && adaptor !== '') {
-    model = adaptor;
-  }
+  // if (adaptor && adaptor !== '') {
+  //   model = adaptor;
+  // }
 
   const stream = true;
 
@@ -613,9 +613,9 @@ export async function sendBatchedCompletion(
     model = currentModel.split('/').slice(-1)[0];
   }
 
-  if (adaptor && adaptor !== '') {
-    model = adaptor;
-  }
+  // if (adaptor && adaptor !== '') {
+  //   model = adaptor;
+  // }
 
   const data = {
     model: model,
@@ -673,9 +673,9 @@ export async function sendBatchedChat(
     model = currentModel.split('/').slice(-1)[0];
   }
 
-  if (adaptor && adaptor !== '') {
-    model = adaptor;
-  }
+  // if (adaptor && adaptor !== '') {
+  //   model = adaptor;
+  // }
 
   const data = {
     model: model,
