@@ -1382,6 +1382,8 @@ Endpoints.Experiment = {
     API_URL() + `train/job/${jobId}/stream_output`,
   StreamOutputFromJob: (jobId: string) =>
     API_URL() + `jobs/${jobId}/stream_output`,
+  StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
+    API_URL() + `jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
   StreamAdditionalDetails : (jobId: string) =>
     API_URL() + `jobs/${jobId}/get_additional_details`,
   GetGeneratedDataset : (jobId: string) =>

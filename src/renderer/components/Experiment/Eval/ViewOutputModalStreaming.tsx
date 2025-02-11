@@ -7,12 +7,26 @@ import OutputTerminal from 'renderer/components/OutputTerminal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ViewOutputModalStreaming({ jobId, setJobId }) {
+interface ViewOutputModalStreamingProps {
+  jobId: number;
+  setJobId: (id: number) => void;
+  fileName?: string | null;
+  setFileName: (value: string) => void;
+}
+
+export default function ViewOutputModalStreaming({ jobId, setJobId, fileName,  setFileName}: ViewOutputModalStreamingProps) {
+  const logEndpoint = fileName !== ''
+  ? chatAPI.Endpoints.Experiment.StreamDetailedJSONReportFromJob(jobId, fileName)
+  : chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
+  const title_sentence = fileName !== '' ? 'Detailed Report for Job' : 'Output from Job';
+
   return (
-    <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
+    <Modal open={jobId != -1} onClose={() => {setJobId(-1);
+      setFileName('');
+    }}>
       <ModalDialog sx={{ width: '80vw', height: '80vh' }}>
         <ModalClose />
-        <Typography level="title-lg">Output from job: {jobId}</Typography>
+        <Typography level="title-lg"> {title_sentence} {jobId}</Typography>
         <Box
           sx={{
             height: '100%',
@@ -24,9 +38,7 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
           }}
         >
           <OutputTerminal
-            logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-              jobId
-            )}
+            logEndpoint={logEndpoint}
             lineAnimationDelay={5}
           />
         </Box>

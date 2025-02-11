@@ -74,6 +74,7 @@ const EvalJobsTable = () => {
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
+  const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
 
   const fetchCSV = async (jobId) => {
     const response = await fetch(
@@ -112,6 +113,8 @@ const EvalJobsTable = () => {
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
+        setFileName={setFileNameForDetailedReport}
+        fileName={fileNameForDetailedReport}
       />
       <Typography level="h3">Executions</Typography>
       <Sheet sx={{ overflowY: 'scroll' }}>
@@ -151,6 +154,7 @@ const EvalJobsTable = () => {
                 <td>
                   <RenderScore score={job?.job_data?.score} />
                   {job?.job_data?.additional_output_path && (
+                  job.job_data.additional_output_path.toLowerCase().endsWith('.csv') ? (
                     <Link
                       onClick={() => handleOpenCSVModal(job?.id)}
                       sx={{ mt: 1, ml: 1 }}
@@ -158,7 +162,19 @@ const EvalJobsTable = () => {
                     >
                       Detailed Report
                     </Link>
-                  )}
+                  ) : (
+                    <Link
+                      onClick={() => {
+                        setFileNameForDetailedReport(job?.job_data?.additional_output_path);
+                        setViewOutputFromJob(job?.id);
+                      }}
+                      sx={{ mt: 1, ml: 1 }}
+                      startDecorator={<Grid3X3Icon size="14px" />}
+                    >
+                      Detailed Report
+                    </Link>
+                  )
+                )}
                 </td>
                 <td>
                   <ButtonGroup
