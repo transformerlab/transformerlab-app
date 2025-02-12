@@ -6,6 +6,8 @@ import { jobChipColor } from 'renderer/lib/utils';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
 
 export default function JobProgress({ job }) {
   return (
