@@ -7,6 +7,7 @@ import {
   ModalClose,
   ModalDialog,
   Table,
+  Button,
 } from '@mui/joy';
 
 function formatColumnNames(name) {
@@ -20,6 +21,7 @@ function heatedColor(value) {
   const h = value * 240;
   return `hsla(${h}, 100%, 50%, 0.3)`;
 }
+
 
 const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
   const [report, setReport] = useState({});
@@ -36,13 +38,72 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
     }
   }, [open, jobId, fetchCSV]);
 
+  const generateHTMLContent = () => {
+    let html = `<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Report for Job: ${jobId}</title>
+    <style>
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #999; padding: 0.5rem; text-align: left; }
+    </style>
+  </head>
+  <body>
+    <h4>Additional Output from Job: ${jobId}</h4>`;
+    if (report?.header) {
+      html += `<table>
+        <thead>
+          <tr>`;
+      report.header.forEach((header) => {
+        html += `<th>${formatColumnNames(header)}</th>`;
+      });
+      html += `</tr>
+        </thead>`;
+    }
+    if (report?.body) {
+      html += `<tbody>`;
+      report.body.forEach((row) => {
+        html += `<tr>`;
+        row.forEach((col, j) => {
+          if (report.header[j] === 'score') {
+            html += `<td style="background-color: ${heatedColor(col)}; font-weight: bold;">${parseFloat(col).toFixed(6)}</td>`;
+          } else {
+            html += `<td>${col}</td>`;
+          }
+        });
+        html += `</tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+    html += `</body></html>`;
+    return html;
+  };
+
+  const handleDownload = () => {
+    const htmlContent = generateHTMLContent();
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `report_${jobId}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ width: '90vw', height: '90vh' }}>
+      <ModalDialog sx={{ width: '90vw', height: '90vh' , pt: 5}}>
         <ModalClose />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography level="h4" mb={2}>
           Additional Output from Job: {jobId}
         </Typography>
+        <Button onClick={handleDownload} variant="outlined">
+            Download Report
+          </Button>
+          </Box>
         {/* {JSON.stringify(report)} */}
         <Box sx={{ overflow: 'auto' }}>
           <Table stickyHeader>

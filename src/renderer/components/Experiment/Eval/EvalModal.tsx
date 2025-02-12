@@ -330,7 +330,7 @@ export default function EvalModal({
 
     return (
       <Stack spacing={2}>
-        <FormLabel>Evaluation Tasks</FormLabel>
+        <FormLabel>Select Evaluation Tasks</FormLabel>
         <Input
           placeholder="Search tasks..."
           value={searchText}
