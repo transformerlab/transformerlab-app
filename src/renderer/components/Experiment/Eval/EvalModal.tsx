@@ -284,8 +284,41 @@ export default function EvalModal({
     );
   }
 
-  function TasksTab(options) {
-    const taskOptions = options.options
+  // function TasksTab(options) {
+  //   const taskOptions = options.options
+
+  //   const handleToggleTask = (option: string) => {
+  //     if (selectedTasks.includes(option)) {
+  //       setSelectedTasks(selectedTasks.filter((t) => t !== option));
+  //     } else {
+  //       setSelectedTasks([...selectedTasks, option]);
+  //     }
+  //   };
+
+  //   return (
+  //     <Stack spacing={2}>
+  //       <FormLabel>Evaluation Tasks</FormLabel>
+  //     {taskOptions.map((option) => (
+  //       <FormControl key={option}>
+  //       <Checkbox
+  //         checked={selectedTasks.includes(option)}
+  //         onChange={() => handleToggleTask(option)}
+  //         label={option}
+  //       />
+  //       </FormControl>
+  //     ))}
+  //     </Stack>
+  //   );
+  // }
+
+  function TasksTab( options) {
+    const [searchText, setSearchText] = useState("");
+    const taskOptions = options.options;
+
+    // Filter task options based on search text
+    const filteredTaskOptions = taskOptions.filter((option) =>
+      option.toLowerCase().includes(searchText.toLowerCase())
+    );
 
     const handleToggleTask = (option: string) => {
       if (selectedTasks.includes(option)) {
@@ -297,18 +330,27 @@ export default function EvalModal({
 
     return (
       <Stack spacing={2}>
-      {taskOptions.map((option) => (
-        <FormControl key={option}>
-        <Checkbox
-          checked={selectedTasks.includes(option)}
-          onChange={() => handleToggleTask(option)}
-          label={option}
+        <FormLabel>Evaluation Tasks</FormLabel>
+        <Input
+          placeholder="Search tasks..."
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          size="sm"
         />
-        </FormControl>
-      ))}
+        {filteredTaskOptions.map((option) => (
+          <FormControl key={option}>
+            <Checkbox
+              checked={selectedTasks.includes(option)}
+              onChange={() => handleToggleTask(option)}
+              label={option}
+            />
+          </FormControl>
+        ))}
       </Stack>
     );
   }
+
+
 
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -414,7 +456,9 @@ export default function EvalModal({
               <TrainingModalFirstTab />
             </TabPanel>
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-              <TasksTab  options={taskOptions}/>
+              <TasksTab
+              options={taskOptions}
+              />
             </TabPanel>
             <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
