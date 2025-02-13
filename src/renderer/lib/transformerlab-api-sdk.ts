@@ -1064,7 +1064,7 @@ Endpoints.Models = {
   ImportFromLocalPath: (modelPath: string) =>
     API_URL() + 'model/import_from_local_path?model_path=' + modelPath,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
-  Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
+  Delete: (modelId: string, deleteFromDisk: boolean = false) => API_URL() + 'model/delete?model_id=' + modelId + '&delete_from_disk=' + deleteFromDisk,
   SetOpenAIKey: () => API_URL() + 'model/set_openai_api_key',
   SetAnthropicKey: () => API_URL() + 'model/set_anthropic_api_key',
   CheckOpenAIAPIKey: () => API_URL() + 'model/check_openai_api_key',

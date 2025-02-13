@@ -261,10 +261,22 @@ const LocalModelsTable = ({
                                     "'?"
                                 )
                               ) {
-                                await fetch(
-                                  chatAPI.Endpoints.Models.Delete(row.model_id)
+                                if (
+                                  confirm(
+                                    "Do you also want to delete this model at its source?"
+                                  )
+                                ){
+                                  await fetch(
+                                    chatAPI.Endpoints.Models.Delete(row.model_id, true)
                                 );
                                 mutateModels();
+                                }
+                                else{
+                                  await fetch(
+                                    chatAPI.Endpoints.Models.Delete(row.model_id, false)
+                                );
+                                mutateModels();
+                                }
                               }
                             }}
                           />

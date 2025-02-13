@@ -102,6 +102,7 @@ export default function ModelStore() {
   // and it is -1 if a download has been initiated but it hasn't started yet
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
+  const [canceling, setCanceling] = useState(false);
   const [modelDetailsId, setModelDetailsId] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({ archived: false });
@@ -223,8 +224,52 @@ export default function ModelStore() {
         flexDirection: 'column',
         overflow: 'hidden',
       }}
-    >
-      <DownloadProgressBox jobId={jobId} assetName={currentlyDownloading} />
+      >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          margin: '0.5rem 0 1rem 0',
+          width: '100%',
+        }}
+      >
+        <Box sx={{ flexGrow: 1, marginRight: '1rem' }}>
+          <DownloadProgressBox jobId={jobId} assetName={currentlyDownloading} />
+        </Box>
+        {jobId && (
+          <Button
+            variant="outlined"
+            size="sm"
+            color="danger"
+            disabled={canceling}
+            onClick={async () => {
+              setCanceling(true);
+              try {
+                let response = await fetch(chatAPI.Endpoints.Jobs.Stop(jobId));
+                if (response.ok) {
+                  setJobId(null);
+                  setCurrentlyDownloading(null);
+                } else {
+                  console.error('Failed to cancel download:', response);
+                  alert('Failed to cancel download');
+                  setCanceling(false);
+                }
+              } catch (error) {
+                console.error('Error canceling download:', error);
+                alert('Error canceling download');
+                setCanceling(false);
+              }
+            }}
+            sx={{
+              marginLeft: '1rem',
+              fontSize: '0.75rem',
+              padding: '0.25rem 0.5rem',
+            }}
+          >
+            {canceling ? 'Stopping..' : 'Cancel Download'}
+          </Button>
+        )}
+      </Box>
       <Box
         className="SearchAndFilters-tabletUp"
         sx={{
@@ -444,6 +489,7 @@ export default function ModelStore() {
                             size="sm"
                             disabled={row.downloaded || jobId !== null}
                             onClick={async () => {
+                              setCanceling(false)
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
                               try {
@@ -459,6 +505,9 @@ export default function ModelStore() {
                                 if (response?.status == 'error') {
                                   setCurrentlyDownloading(null);
                                   setJobId(null);
+                                  if (canceling) {
+                                    return alert('Download canceled successfully!');
+                                  }
                                   return alert(
                                     `Failed to download:\n${response.message}`
                                   );
