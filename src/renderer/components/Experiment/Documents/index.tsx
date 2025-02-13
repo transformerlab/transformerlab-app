@@ -12,7 +12,8 @@ export default function BigDocumentsPage({ experimentInfo }) {
         pb: 2,
       }}
     >
-      <Documents experimentInfo={experimentInfo} fullPage />
+      <Documents experimentInfo={experimentInfo} fullPage  additionalMessage/>
     </Sheet>
   );
 }
+

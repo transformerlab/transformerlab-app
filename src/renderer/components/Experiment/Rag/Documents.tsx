@@ -136,7 +136,7 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Documents({ experimentInfo, fullPage = false }) {
+export default function Documents({ experimentInfo, fullPage = false, additionalMessage = false }) {
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
@@ -732,6 +732,11 @@ export default function Documents({ experimentInfo, fullPage = false }) {
           Reindex
         </TinyButton>
       </Stack>
+      {additionalMessage && (
+        <Typography level="body-xs" mt={1}>
+          A RAG Plugin needs to be installed to index the documents
+        </Typography>
+      )}
     </>
   );
 }
