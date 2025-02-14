@@ -22,6 +22,7 @@ import {
   Slider,
   Stack,
   Option,
+  Autocomplete
 } from '@mui/joy';
 import { useMemo } from 'react';
 
@@ -386,6 +387,71 @@ function CustomSelectSimple<
   );
 }
 
+function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any>(
+  props: WidgetProps<T, S, F>
+) {
+  const {
+    id,
+    value,
+    required,
+    disabled,
+    readonly,
+    autofocus,
+    onChange,
+    options,
+    schema,
+    multiple,
+  } = props;
+  console.log("OPTIONS", options);
+  const { enumOptions } = options;
+
+
+  console.log("ENUM OPTIONS", enumOptions);
+
+  // Default multiple is true.
+  const _multiple = typeof multiple === 'undefined' ? true : !!multiple;
+  // Determine default value.
+  const defaultValue = _multiple ? [] : '';
+  // Use the provided value or fallback to default.
+  const currentValue = value !== undefined ? value : defaultValue;
+
+  // Map enumOptions into objects with label and value.
+  const processedOptionsValues = enumOptions.map((opt) =>
+    typeof opt === 'object' ? opt.value : opt
+  );
+  // Create processedOptions array as an array of all values in enumOptions
+
+  return (
+    <>
+      <Autocomplete
+        multiple={_multiple}
+        id={id}
+        placeholder={schema.title || ''}
+        options={processedOptionsValues}
+        getOptionLabel={(option) => option}
+        value={currentValue}
+        onChange={(event, newValue) => {
+          onChange(newValue);
+        }}
+        disabled={disabled || readonly}
+        autoFocus={autofocus}
+      />
+      {/* Hidden input to capture the value on form submission */}
+      <input
+        type="hidden"
+        name={id}
+        value={
+          _multiple
+            ? Array.isArray(currentValue)
+              ? currentValue.join(',')
+              : currentValue
+            : currentValue
+        }
+      />
+    </>
+  );
+}
+
 function CustomFieldTemplate(props: FieldTemplateProps) {
   const {
     id,
@@ -417,6 +483,7 @@ function CustomFieldTemplate(props: FieldTemplateProps) {
 const widgets: RegistryWidgetsType = {
   RangeWidget: CustomRange,
   SelectWidget: CustomSelectSimple,
+  AutoCompleteWidget: CustomAutocompleteWidget,
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());

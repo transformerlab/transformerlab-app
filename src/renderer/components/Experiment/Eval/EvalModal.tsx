@@ -18,7 +18,6 @@ import {
   TabPanel,
   Tabs,
   Sheet,
-  Checkbox,
 } from '@mui/joy';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
@@ -71,8 +70,6 @@ export default function EvalModal({
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
   const [datasetDisplayMessage, setDatasetDisplayMessage] = useState('');
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
-  const [taskOptions, setTaskOptions] = useState<string[]>([]);
 
   // Fetch available datasets from the API
   const {
@@ -115,8 +112,6 @@ export default function EvalModal({
     else {
       setNameInput('');
       setHasDatasetKey(false);
-      setTaskOptions([]);
-      setSelectedTasks([]);
     }
   }, [open]);
 
@@ -152,14 +147,7 @@ export default function EvalModal({
                   (key) => key.toLowerCase().includes('tasks')
                 );
                 if (tasksKeyExists) {
-                  setSelectedTasks(evalConfig.script_parameters.tasks.split(','));
-                  let parsedData;
-                  parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
-                  const tasksColumnName = Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('tflabcustomui_tasks'));
-                  const tempTaskOptions = parsedData.parameters[tasksColumnName].enum;
-                  // console.log('tempTaskOptions:', tempTaskOptions);
-                  setTaskOptions(tempTaskOptions);
-                  delete evalConfig.script_parameters.tasks;
+                  evalConfig.script_parameters.tasks = evalConfig.script_parameters.tasks.split(',');
                   setConfig(evalConfig.script_parameters);
                 }
 
@@ -203,19 +191,7 @@ export default function EvalModal({
                   // Add dataset display message to the config parameters
                 }
               }
-               // Check if parsed data parameters has a key that includes 'docs'
-               if (parsedData && parsedData.parameters) {
-                const tasksKeyExists = Object.keys(parsedData.parameters).some(
-                  (key) => key.toLowerCase().includes('tflabcustomui_tasks')
-                );
-                if (tasksKeyExists) {
-                  const tasksColumnName = Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('tflabcustomui_tasks'));
-                  const tempTaskOptions = parsedData.parameters[tasksColumnName].enum;
-                  // console.log('tempTaskOptions:', tempTaskOptions);
-                  setTaskOptions(tempTaskOptions);
-                  delete tempconfig[tasksColumnName];
-                }
-            }
+
             setConfig(tempconfig);
             // Set hasDataset to true in the parsed data, the dataset key is `true`
             // If tempconfig is not an empty object
@@ -284,73 +260,6 @@ export default function EvalModal({
     );
   }
 
-  // function TasksTab(options) {
-  //   const taskOptions = options.options
-
-  //   const handleToggleTask = (option: string) => {
-  //     if (selectedTasks.includes(option)) {
-  //       setSelectedTasks(selectedTasks.filter((t) => t !== option));
-  //     } else {
-  //       setSelectedTasks([...selectedTasks, option]);
-  //     }
-  //   };
-
-  //   return (
-  //     <Stack spacing={2}>
-  //       <FormLabel>Evaluation Tasks</FormLabel>
-  //     {taskOptions.map((option) => (
-  //       <FormControl key={option}>
-  //       <Checkbox
-  //         checked={selectedTasks.includes(option)}
-  //         onChange={() => handleToggleTask(option)}
-  //         label={option}
-  //       />
-  //       </FormControl>
-  //     ))}
-  //     </Stack>
-  //   );
-  // }
-
-  function TasksTab( options) {
-    const [searchText, setSearchText] = useState("");
-    const taskOptions = options.options;
-
-    // Filter task options based on search text
-    const filteredTaskOptions = taskOptions.filter((option) =>
-      option.toLowerCase().includes(searchText.toLowerCase())
-    );
-
-    const handleToggleTask = (option: string) => {
-      if (selectedTasks.includes(option)) {
-        setSelectedTasks(selectedTasks.filter((t) => t !== option));
-      } else {
-        setSelectedTasks([...selectedTasks, option]);
-      }
-    };
-
-    return (
-      <Stack spacing={2}>
-        <FormLabel>Select Evaluation Tasks</FormLabel>
-        <Input
-          placeholder="Search tasks..."
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          size="sm"
-        />
-        {filteredTaskOptions.map((option) => (
-          <FormControl key={option}>
-            <Checkbox
-              checked={selectedTasks.includes(option)}
-              onChange={() => handleToggleTask(option)}
-              label={option}
-            />
-          </FormControl>
-        ))}
-      </Stack>
-    );
-  }
-
-
 
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -360,9 +269,6 @@ export default function EvalModal({
     // Add an extra field in formJson for datasetDisplayMessage
     if (datasetDisplayMessage.length > 0) {
       formJson._dataset_display_message = datasetDisplayMessage;
-    }
-    if (selectedTasks.length > 0) {
-      formJson.tasks = selectedTasks.join(',');
     }
     try {
       if (!formJson.run_name) {
@@ -378,8 +284,6 @@ export default function EvalModal({
         );
         setNameInput('');
         setHasDatasetKey(false);
-        setTaskOptions([]);
-        setSelectedTasks([]);
       } else {
         console.log('formJson:', formJson);
         const template_name = formJson.template_name;
@@ -393,8 +297,6 @@ export default function EvalModal({
         // alert(JSON.stringify(formJson, null, 2));
         setNameInput(generateFriendlyName());
         setHasDatasetKey(false);
-        setTaskOptions([]);
-        setSelectedTasks([]);
       }
       experimentInfoMutate();
       onClose();
@@ -442,7 +344,6 @@ export default function EvalModal({
             <TabList>
               <Tab>Introduction</Tab>
               <Tab>Name</Tab>
-              <Tab>Tasks</Tab>
               <Tab>Plugin Config</Tab>
               {hasDatasetKey && <Tab>Dataset</Tab>}
             </TabList>
@@ -456,11 +357,6 @@ export default function EvalModal({
               <TrainingModalFirstTab />
             </TabPanel>
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-              <TasksTab
-              options={taskOptions}
-              />
-            </TabPanel>
-            <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
@@ -468,7 +364,7 @@ export default function EvalModal({
               />
             </TabPanel>
             {hasDatasetKey && (
-              <TabPanel value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
                 <>
                   <TrainingModalDataTab
                     datasetsIsLoading={datasetsIsLoading}
