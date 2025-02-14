@@ -1388,6 +1388,8 @@ Endpoints.Experiment = {
     API_URL() + `jobs/${jobId}/get_additional_details?task=${task}`,
   GetGeneratedDataset : (jobId: string) =>
     API_URL() + `jobs/${jobId}/get_generated_dataset`,
+  GetPlotJSON: (jobId: string) =>
+    API_URL() + `jobs/${jobId}/get_figure_json`,
 };
 
 Endpoints.Jobs = {

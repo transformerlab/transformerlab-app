@@ -21,6 +21,7 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCSVModal from './ViewCSVModal';
+import ViewPlotModal from './ViewPlotModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -73,6 +74,7 @@ function RenderScore({ score }) {
 const EvalJobsTable = () => {
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
+  const [openPlotModal, setOpenPlotModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
   const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
 
@@ -98,6 +100,11 @@ const EvalJobsTable = () => {
     setOpenCSVModal(true);
   };
 
+  const handleOpenPlotModal = (jobId) => {
+    setCurrentJobId(jobId);
+    setOpenPlotModal(true);
+  };
+
   useEffect(() => {
     // Component did mount logic here
   }, []);
@@ -109,6 +116,11 @@ const EvalJobsTable = () => {
         onClose={() => setOpenCSVModal(false)}
         jobId={currentJobId}
         fetchCSV={fetchCSV}
+      />
+      <ViewPlotModal
+        open={openPlotModal}
+        onClose={() => setOpenPlotModal(false)}
+        jobId={currentJobId}
       />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
@@ -175,7 +187,18 @@ const EvalJobsTable = () => {
                     </Link>
                   )
                 )}
+                  {job?.job_data?.plot_data_path && (
+                    <Link
+                      onClick={() => handleOpenPlotModal(job?.id)}
+                      sx={{ mt: 1, ml: 1 }}
+                      startDecorator={<Grid3X3Icon size="14px" />}
+                    >
+                      View Figure
+                    </Link>
+                  )}
                 </td>
+
+
                 <td>
                   <ButtonGroup
                     variant="soft"
