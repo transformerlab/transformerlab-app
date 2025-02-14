@@ -108,7 +108,7 @@ export default function PluginCard({
                 <Trash2Icon />
               </Button> */}
                 <Link
-                  to={'/projects/plugins/' + plugin.uniqueId}
+                  to={'/plugins/' + plugin.uniqueId}
                   style={{ textDecoration: 'none', color: 'white' }}
                   state={plugin}
                 >

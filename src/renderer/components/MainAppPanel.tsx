@@ -251,14 +251,14 @@ export default function MainAppPanel({
         element={<Generate experimentInfo={experimentInfo} />}
       />
       <Route
-        path="/projects/plugins"
+        path="/plugins"
         element={<Plugins experimentInfo={experimentInfo} />}
       />
       <Route
-        path="/projects/plugins/:pluginName"
+        path="/plugins/:pluginName"
         element={<PluginDetails experimentInfo={experimentInfo} />}
       />
-      <Route path="/projects/api" element={<Api />} />
+      <Route path="/api" element={<Api />} />
       <Route
         path="/projects/settings"
         element={

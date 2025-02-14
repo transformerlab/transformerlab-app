@@ -210,7 +210,7 @@ export default function Sidebar({
         />
         <SubNavItem
           title="Plugins"
-          path="/projects/plugins"
+          path="/plugins"
           icon={<PlugIcon />}
           counter={outdatedPluginsCount}
         />
@@ -222,7 +222,7 @@ export default function Sidebar({
         />
         <SubNavItem
           title="API"
-          path="/projects/api"
+          path="/api"
           icon={<CodeIcon />}
           disabled={!experimentInfo?.name}
         />

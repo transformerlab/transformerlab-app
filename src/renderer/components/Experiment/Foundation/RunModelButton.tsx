@@ -202,7 +202,7 @@ export default function RunModelButton({
           <Typography>
             You do not have an installed Inference Engine that is compatible
             with this model. Go to{' '}
-            <Link to="/projects/plugins">
+            <Link to="/plugins">
               <Plug2Icon size="15px" />
               Plugins
             </Link>{' '}

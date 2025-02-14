@@ -237,7 +237,7 @@ export default function PluginDetails({ experimentInfo }) {
         <Typography level="h2" mt={1}>
           Plugin Editor
         </Typography>
-        <Link to="/projects/plugins">
+        <Link to="/plugins">
           <Button variant="outlined" endDecorator={<XIcon />}>
             Close
           </Button>
