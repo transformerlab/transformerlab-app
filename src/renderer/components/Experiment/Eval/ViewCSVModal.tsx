@@ -10,6 +10,8 @@ import {
   Button,
 } from '@mui/joy';
 
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
 function formatColumnNames(name) {
   return name
     .replace(/([A-Z])/g, ' $1') // Convert Camel Case to spaced
@@ -38,54 +40,16 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
     }
   }, [open, jobId, fetchCSV]);
 
-  const generateHTMLContent = () => {
-    let html = `<html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Report for Job: ${jobId}</title>
-    <style>
-      table { border-collapse: collapse; width: 100%; }
-      th, td { border: 1px solid #999; padding: 0.5rem; text-align: left; }
-    </style>
-  </head>
-  <body>
-    <h4>Additional Output from Job: ${jobId}</h4>`;
-    if (report?.header) {
-      html += `<table>
-        <thead>
-          <tr>`;
-      report.header.forEach((header) => {
-        html += `<th>${formatColumnNames(header)}</th>`;
-      });
-      html += `</tr>
-        </thead>`;
-    }
-    if (report?.body) {
-      html += `<tbody>`;
-      report.body.forEach((row) => {
-        html += `<tr>`;
-        row.forEach((col, j) => {
-          if (report.header[j] === 'score') {
-            html += `<td style="background-color: ${heatedColor(col)}; font-weight: bold;">${parseFloat(col).toFixed(6)}</td>`;
-          } else {
-            html += `<td>${col}</td>`;
-          }
-        });
-        html += `</tr>`;
-      });
-      html += `</tbody></table>`;
-    }
-    html += `</body></html>`;
-    return html;
-  };
 
-  const handleDownload = () => {
-    const htmlContent = generateHTMLContent();
-    const blob = new Blob([htmlContent], { type: 'text/html' });
+  const handleDownload = async () => {
+    const response = await fetch(
+      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId, 'download')
+    );
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `report_${jobId}.html`;
+    link.download = `report_${jobId}.csv`; // Adjust extension if necessary
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

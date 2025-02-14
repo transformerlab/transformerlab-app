@@ -1384,8 +1384,8 @@ Endpoints.Experiment = {
     API_URL() + `jobs/${jobId}/stream_output`,
   StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
     API_URL() + `jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
-  StreamAdditionalDetails : (jobId: string) =>
-    API_URL() + `jobs/${jobId}/get_additional_details`,
+  GetAdditionalDetails : (jobId: string, task: string = "view") =>
+    API_URL() + `jobs/${jobId}/get_additional_details?task=${task}`,
   GetGeneratedDataset : (jobId: string) =>
     API_URL() + `jobs/${jobId}/get_generated_dataset`,
 };

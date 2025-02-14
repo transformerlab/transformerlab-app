@@ -78,7 +78,7 @@ const EvalJobsTable = () => {
 
   const fetchCSV = async (jobId) => {
     const response = await fetch(
-      chatAPI.Endpoints.Experiment.StreamAdditionalDetails(jobId)
+      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId)
     );
     const text = await response.text();
     return text;
