@@ -14,6 +14,7 @@ import {
   LinearProgress,
   Typography,
   Skeleton,
+  Tooltip,
 } from '@mui/joy';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -144,9 +145,35 @@ const DatasetTable = ({ datasetId }) => {
                           verticalAlign: 'top',
                         }}
                       >
-                        {typeof data.data['columns'][key][rowIndex] === 'string'
-                          ? data.data['columns'][key][rowIndex]
-                          : JSON.stringify(data.data['columns'][key][rowIndex])}
+                        <Tooltip
+                          title={
+                            typeof data.data['columns'][key][rowIndex] ===
+                            'string'
+                              ? data.data['columns'][key][rowIndex]
+                              : JSON.stringify(
+                                  data.data['columns'][key][rowIndex]
+                                )
+                          }
+                          sx={{ maxWidth: '400px' }}
+                          arrow
+                          variant="solid"
+                          color="primary"
+                        >
+                          <div
+                            style={{
+                              maxHeight: '150px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {typeof data.data['columns'][key][rowIndex] ===
+                            'string'
+                              ? data.data['columns'][key][rowIndex]
+                              : JSON.stringify(
+                                  data.data['columns'][key][rowIndex]
+                                )}
+                          </div>
+                        </Tooltip>
                       </td>
                     ))}
                   </tr>
