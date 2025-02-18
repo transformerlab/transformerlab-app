@@ -102,14 +102,12 @@ export default function EvalModal({
   //     setNameInput(generateFriendlyName());
   //   }}, []);
 
-
   useEffect(() => {
     if (open) {
       if (!currentEvalName || currentEvalName === '') {
         setNameInput(generateFriendlyName());
       }
-    }
-    else {
+    } else {
       setNameInput('');
       setHasDatasetKey(false);
     }
@@ -143,15 +141,19 @@ export default function EvalModal({
                     evalConfig.script_parameters._dataset_display_message
                   );
                 }
-                const tasksKeyExists = Object.keys(evalConfig.script_parameters).some(
-                  (key) => key.toLowerCase().includes('tasks')
-                );
+                const tasksKeyExists = Object.keys(
+                  evalConfig.script_parameters
+                ).some((key) => key.toLowerCase().includes('tasks'));
                 if (tasksKeyExists) {
-                  evalConfig.script_parameters.tasks = evalConfig.script_parameters.tasks.split(',');
+                  evalConfig.script_parameters.tasks =
+                    evalConfig.script_parameters.tasks.split(',');
                   setConfig(evalConfig.script_parameters);
                 }
 
-                if (hasDatasetKey && evalConfig.script_parameters.dataset_name.length > 0) {
+                if (
+                  hasDatasetKey &&
+                  evalConfig.script_parameters.dataset_name.length > 0
+                ) {
                   setSelectedDataset(evalConfig.script_parameters.dataset_name);
                 }
                 if (!nameInput && evalConfig?.name.length > 0) {
@@ -192,14 +194,14 @@ export default function EvalModal({
                 }
               }
 
-            setConfig(tempconfig);
-            // Set hasDataset to true in the parsed data, the dataset key is `true`
-            // If tempconfig is not an empty object
-            // if (tempconfig && Object.keys(tempconfig).length > 0) {
-            //   setNameInput(generateFriendlyName());
-            // }
-          }
-         } catch (e) {
+              setConfig(tempconfig);
+              // Set hasDataset to true in the parsed data, the dataset key is `true`
+              // If tempconfig is not an empty object
+              // if (tempconfig && Object.keys(tempconfig).length > 0) {
+              //   setNameInput(generateFriendlyName());
+              // }
+            }
+          } catch (e) {
             console.error('Error parsing data', e);
             parsedData = '';
           }
@@ -259,8 +261,6 @@ export default function EvalModal({
       </Stack>
     );
   }
-
-
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -353,10 +353,18 @@ export default function EvalModal({
                 pluginId={pluginId}
               />
             </TabPanel>
-            <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel
+              value={1}
+              sx={{ p: 2, overflow: 'auto', maxWidth: '500px' }}
+              keepMounted
+            >
               <TrainingModalFirstTab />
             </TabPanel>
-            <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel
+              value={2}
+              sx={{ p: 2, overflow: 'auto', maxWidth: '700px' }}
+              keepMounted
+            >
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
