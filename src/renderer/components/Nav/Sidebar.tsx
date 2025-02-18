@@ -203,17 +203,7 @@ export default function Sidebar({
         <Divider sx={{ marginBottom: 2 }} />
 
         <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
-        <SubNavItem
-          title="Plugins"
-          path="/plugins"
-          icon={<PlugIcon />}
-          counter={outdatedPluginsCount}
-        />
-        <SubNavItem
-          title="Training Data"
-          path="/data"
-          icon={<FileTextIcon />}
-        />
+        <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
         <SubNavItem
           title="API"
           path="/api"
@@ -221,6 +211,12 @@ export default function Sidebar({
           disabled={!experimentInfo?.name}
         />
         <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
+        <SubNavItem
+          title="Plugins"
+          path="/plugins"
+          icon={<PlugIcon />}
+          counter={outdatedPluginsCount}
+        />
         <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
 
         {/* <ListItem>
