@@ -166,14 +166,14 @@ export default function Sidebar({
             !experimentInfo?.name || !experimentInfo?.config?.foundation
           }
         />
-          <SubNavItem
-            title="Generate"
-            path="/projects/generate"
-            icon={<SquareStackIcon />}
-            disabled={
-              !experimentInfo?.name || !experimentInfo?.config?.foundation
-            }
-          />
+        <SubNavItem
+          title="Generate"
+          path="/projects/generate"
+          icon={<SquareStackIcon />}
+          disabled={
+            !experimentInfo?.name || !experimentInfo?.config?.foundation
+          }
+        />
         <SubNavItem
           title="Evaluate"
           path="/projects/eval"
@@ -202,12 +202,7 @@ export default function Sidebar({
       <List sx={{ justifyContent: 'flex-end' }}>
         <Divider sx={{ marginBottom: 2 }} />
 
-        <SubNavItem
-          title="Model Zoo"
-          path="/zoo"
-          icon={<BoxesIcon />}
-          disabled={false}
-        />
+        <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
         <SubNavItem
           title="Plugins"
           path="/plugins"
@@ -218,7 +213,6 @@ export default function Sidebar({
           title="Training Data"
           path="/data"
           icon={<FileTextIcon />}
-          disabled={false}
         />
         <SubNavItem
           title="API"
@@ -226,18 +220,8 @@ export default function Sidebar({
           icon={<CodeIcon />}
           disabled={!experimentInfo?.name}
         />
-        <SubNavItem
-          title="Logs"
-          path="/logs"
-          icon={<TextIcon />}
-          disabled={false}
-        />
-        <SubNavItem
-          title="Computer"
-          path="/computer"
-          icon={<MonitorIcon />}
-          disabled={false}
-        />
+        <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
+        <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
 
         {/* <ListItem>
           <ListItemButton
