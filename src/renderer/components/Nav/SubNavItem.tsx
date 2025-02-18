@@ -17,7 +17,7 @@ const SubNavItem = ({
   title: string;
   path: string;
   icon: ReactElement;
-  disabled: boolean;
+  disabled?: boolean;
   counter?: number | null;
 }) => {
   const navigate = useNavigate();
