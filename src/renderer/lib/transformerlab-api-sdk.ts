@@ -125,6 +125,7 @@ export async function sendAndReceiveStreaming(
   messages = messages.concat(texts);
   const data = {
     model: shortModelName,
+    adaptor: currentAdaptor,
     stream: true, // For streaming responses
     messages,
     temperature,
@@ -288,6 +289,7 @@ export async function sendCompletion(
 
   const data = {
     model: model,
+    adaptor: adaptor,
     stream: true, // For streaming responses
     prompt: text,
     temperature,
@@ -454,6 +456,7 @@ export async function sendCompletionReactWay(
 
   const data = {
     model: model,
+    adaptor: adaptor,
     stream: stream, // For streaming responses
     prompt: text,
     temperature,
@@ -619,6 +622,7 @@ export async function sendBatchedCompletion(
 
   const data = {
     model: model,
+    adaptor: adaptor,
     stream: false,
     prompt: text,
     temperature,
@@ -679,6 +683,7 @@ export async function sendBatchedChat(
 
   const data = {
     model: model,
+    adaptor: adaptor,
     stream: false,
     messages: text,
     temperature,
