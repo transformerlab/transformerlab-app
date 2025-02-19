@@ -5,7 +5,7 @@ import HexLogoSpinner from './Shared/HexLogoSpinner';
 
 export default function AutoUpdateModal({}) {
   const [open, setOpen] = React.useState<boolean>(true);
-  const [message, setMessage] = React.useState<string>('');
+  const [message, setMessage] = React.useState<string>('Looking for updates');
 
   useEffect(() => {
     window.autoUpdater.requestUpdate();
@@ -32,7 +32,12 @@ export default function AutoUpdateModal({}) {
     <Modal
       open={open}
       onClose={() => setOpen(false)}
-      sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10000,
+      }}
     >
       <Sheet
         variant="outlined"
@@ -46,6 +51,7 @@ export default function AutoUpdateModal({}) {
           textAlign: 'center',
         }}
       >
+        <ModalClose />
         <Typography level="h4" sx={{ mb: 4 }}>
           Auto Update
         </Typography>

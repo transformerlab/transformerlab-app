@@ -231,14 +231,13 @@ export default function App() {
             <OutputTerminal initialMessage="** Running a Model will Display Output Here **" />
           </Box>
         </Box>
-
+        <AutoUpdateModal />
         <LoginModal
           setServer={setConnection}
           connection={connection}
           setTerminalDrawerOpen={setLogsDrawerOpen}
           setSSHConnection={setSSHConnection}
         />
-        <AutoUpdateModal />
       </Box>
     </CssVarsProvider>
   );
