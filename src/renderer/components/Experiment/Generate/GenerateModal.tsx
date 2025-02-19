@@ -213,7 +213,7 @@ export default function GenerateModal({
                   value.default,
                 ])
               );
-              if (parsedData && parsedData.dataset) {
+              if (parsedData && parsedData._dataset) {
                 setHasDatasetKey(true);
                 // Check if the dataset display message string length is greater than 0
                 if (
@@ -258,6 +258,7 @@ export default function GenerateModal({
       }
     }
   }, [experimentInfo, pluginId, currentEvalName, nameInput, data]);
+
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -503,7 +504,7 @@ export default function GenerateModal({
               </TabPanel>
             )}
             {hasDatasetKey && (
-              <TabPanel value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
                 <>
                   <TrainingModalDataTab
                     datasetsIsLoading={datasetsIsLoading}
