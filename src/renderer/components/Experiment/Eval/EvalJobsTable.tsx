@@ -187,7 +187,7 @@ const EvalJobsTable = () => {
                     </Link>
                   )
                 )}
-                  {job?.job_data?.plot_data_path && (
+                  {/* {job?.job_data?.plot_data_path && (
                     <Link
                       onClick={() => handleOpenPlotModal(job?.id)}
                       sx={{ mt: 1, ml: 1 }}
@@ -195,7 +195,7 @@ const EvalJobsTable = () => {
                     >
                       View Figure
                     </Link>
-                  )}
+                  )} */}
                 </td>
 
 
