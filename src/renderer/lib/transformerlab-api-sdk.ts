@@ -689,6 +689,7 @@ export async function sendBatchedChat(
     temperature,
     max_tokens: maxTokens,
     top_p: topP,
+    inference_url: `${INFERENCE_SERVER_URL()}v1/chat/completions`,
   };
 
   if (stopString) {
@@ -698,31 +699,53 @@ export async function sendBatchedChat(
   let result;
   let results = [];
 
-  // for each array element in text, send a request
-  for (let i = 0; i < text.length; i++) {
-    const message = text[i];
-    data.messages = message;
-    let response;
-    try {
-      response = await fetch(`${INFERENCE_SERVER_URL()}v1/chat/completions`, {
-        method: 'POST', // or 'PUT'
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        throw new Error(`Server responded with status ${response.status}`);
-      }
-    } catch (error) {
-      console.log('There was an error', error);
-      return null;
-    }
+  // // for each array element in text, send a request
+  // for (let i = 0; i < text.length; i++) {
+  //   const message = text[i];
+  //   data.messages = message;
+  //   let response;
+  //   try {
+  //     response = await fetch(`${INFERENCE_SERVER_URL()}v1/chat/completions`, {
+  //       method: 'POST', // or 'PUT'
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         accept: 'application/json',
+  //       },
+  //       body: JSON.stringify(data),
+  //     });
+  //     if (!response.ok) {
+  //       throw new Error(`Server responded with status ${response.status}`);
+  //     }
+  //   } catch (error) {
+  //     console.log('There was an error', error);
+  //     return null;
+  //   }
 
-    result = await response.json();
-    results.push(result);
+  //   result = await response.json();
+  //   results.push(result);
+
+  // }
+  // console.log("RESULTS", results);
+  let response;
+  const batchedChatUrl = `${API_URL()}batched_prompts/batch_predict`;
+  try {
+    response = await fetch(batchedChatUrl, {
+      method: 'POST', // or 'PUT'
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      throw new Error(`Server responded with status ${response.status}`);
+    }
+  } catch (error) {
+    console.log('There was an error', error);
+    return null;
   }
+
+  results = await response.json();
 
   return results;
 }
