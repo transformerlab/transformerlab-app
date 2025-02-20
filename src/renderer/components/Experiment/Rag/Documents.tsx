@@ -234,7 +234,11 @@ export default function Documents({
                         />
                       </td> */}
         <td style={{ paddingLeft: '1rem' }}>
-          <Typography level="body-xs" sx={{}}>
+          <Typography
+            level="body-xs"
+            sx={{ display: 'flex', alignItems: 'center' }}
+          >
+            <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
             {row?.name}
           </Typography>
         </td>
@@ -267,11 +271,7 @@ export default function Documents({
             </td>
             <td>
               {row?.size && (
-                <Typography
-                  level="body-xs"
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
+                <Typography level="body-xs" color="neutral">
                   {formatBytes(row?.size)}
                 </Typography>
               )}
