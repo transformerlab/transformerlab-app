@@ -1,39 +1,41 @@
 import React from 'react';
 import { Modal, ModalDialog, ModalClose, Box, Typography } from '@mui/joy';
+import Chart from './Chart';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-interface ViewPlotModalProps {
-  isOpen: boolean;
-  imageUrl: string;
-  onClose: () => void;
+function parseJSON(score) {
+  try {
+    return JSON.parse(score);
+  } catch {
+    return [];
+  }
 }
 
-const ViewPlotModal: React.FC<ViewPlotModalProps> = ({ open, onClose, jobId }) => {
-  const [plotData, setPlotData] = React.useState<string | null>(null);
-
-  const fetchPlot = async (jobId: string) => {
-    const response = await fetch(chatAPI.Endpoints.Experiment.GetPlotJSON(jobId));
-    const jsonResponse = await response.json();
-    return JSON.stringify(jsonResponse);
-  };
-
-  React.useEffect(() => {
-    if (jobId) {
-      fetchPlot(jobId).then(setPlotData);
-    }
-  }, [jobId]);
+export default function ViewPlotModal({ open, onClose, jobId, score }) {
+  if (!jobId) {
+    return <></>;
+  }
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ width: '90vw', height: '90vh', pt: 5, position: 'relative' }}>
+      <ModalDialog
+        sx={{ width: '90vw', height: '90vh', pt: 5, position: 'relative' }}
+      >
         <ModalClose />
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}
+        >
           <Typography level="h4" mb={2}>
-            Figure Preview
+            Chart
           </Typography>
           <Box
             sx={{
-              maxWidth: '100%',
+              width: '100%',
+              maxWidth: '800px',
               maxHeight: '80vh',
               overflowY: 'auto',
               borderRadius: '8px',
@@ -41,12 +43,10 @@ const ViewPlotModal: React.FC<ViewPlotModalProps> = ({ open, onClose, jobId }) =
               p: 2,
             }}
           >
-            {plotData}
+            <Chart metrics={parseJSON(score)} />
           </Box>
         </Box>
       </ModalDialog>
     </Modal>
   );
-};
-
-export default ViewPlotModal;
+}

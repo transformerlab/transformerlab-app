@@ -11,6 +11,7 @@ import {
 } from '@mui/joy';
 import {
   ChartColumnBigIcon,
+  ChartColumnIncreasingIcon,
   FileDigitIcon,
   Grid3X3Icon,
   Trash2Icon,
@@ -76,7 +77,9 @@ const EvalJobsTable = () => {
   const [openCSVModal, setOpenCSVModal] = useState(false);
   const [openPlotModal, setOpenPlotModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
-  const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
+  const [currentScore, setCurrentScore] = useState('');
+  const [fileNameForDetailedReport, setFileNameForDetailedReport] =
+    useState('');
 
   const fetchCSV = async (jobId) => {
     const response = await fetch(
@@ -100,8 +103,9 @@ const EvalJobsTable = () => {
     setOpenCSVModal(true);
   };
 
-  const handleOpenPlotModal = (jobId) => {
+  const handleOpenPlotModal = (jobId, score) => {
     setCurrentJobId(jobId);
+    setCurrentScore(score);
     setOpenPlotModal(true);
   };
 
@@ -121,6 +125,7 @@ const EvalJobsTable = () => {
         open={openPlotModal}
         onClose={() => setOpenPlotModal(false)}
         jobId={currentJobId}
+        score={currentScore}
       />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
@@ -165,39 +170,43 @@ const EvalJobsTable = () => {
                 </td> */}
                 <td>
                   <RenderScore score={job?.job_data?.score} />
-                  {job?.job_data?.additional_output_path && (
-                  job.job_data.additional_output_path.toLowerCase().endsWith('.csv') ? (
+                  {job?.job_data?.additional_output_path &&
+                    (job.job_data.additional_output_path
+                      .toLowerCase()
+                      .endsWith('.csv') ? (
+                      <Link
+                        onClick={() => handleOpenCSVModal(job?.id)}
+                        sx={{ mt: 1, ml: 1 }}
+                        startDecorator={<Grid3X3Icon size="14px" />}
+                      >
+                        Detailed Report
+                      </Link>
+                    ) : (
+                      <Link
+                        onClick={() => {
+                          setFileNameForDetailedReport(
+                            job?.job_data?.additional_output_path
+                          );
+                          setViewOutputFromJob(job?.id);
+                        }}
+                        sx={{ mt: 1, ml: 1 }}
+                        startDecorator={<Grid3X3Icon size="14px" />}
+                      >
+                        Detailed Report
+                      </Link>
+                    ))}
+                  {job?.job_data?.plot_data_path && (
                     <Link
-                      onClick={() => handleOpenCSVModal(job?.id)}
+                      onClick={() =>
+                        handleOpenPlotModal(job?.id, job?.job_data?.score)
+                      }
                       sx={{ mt: 1, ml: 1 }}
-                      startDecorator={<Grid3X3Icon size="14px" />}
+                      startDecorator={<ChartColumnIncreasingIcon size="14px" />}
                     >
-                      Detailed Report
+                      Chart
                     </Link>
-                  ) : (
-                    <Link
-                      onClick={() => {
-                        setFileNameForDetailedReport(job?.job_data?.additional_output_path);
-                        setViewOutputFromJob(job?.id);
-                      }}
-                      sx={{ mt: 1, ml: 1 }}
-                      startDecorator={<Grid3X3Icon size="14px" />}
-                    >
-                      Detailed Report
-                    </Link>
-                  )
-                )}
-                  {/* {job?.job_data?.plot_data_path && (
-                    <Link
-                      onClick={() => handleOpenPlotModal(job?.id)}
-                      sx={{ mt: 1, ml: 1 }}
-                      startDecorator={<Grid3X3Icon size="14px" />}
-                    >
-                      View Figure
-                    </Link>
-                  )} */}
+                  )}
                 </td>
-
 
                 <td>
                   <ButtonGroup
