@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { ResponsiveLine } from '@nivo/line';
 import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveRadar } from '@nivo/radar';
-import { Select, Option } from '@mui/joy';
+import { Select, Option, FormControl } from '@mui/joy';
 
 const Chart = ({ metrics }) => {
-  const [chartType, setChartType] = useState('line');
+  const [chartType, setChartType] = useState('bar');
 
   const handleChartTypeChange = (event, newValue) => {
     setChartType(newValue);
@@ -40,13 +40,15 @@ const Chart = ({ metrics }) => {
   }));
 
   return (
-    <div>
-      <Select value={chartType} onChange={handleChartTypeChange}>
-        <Option value="line">Line</Option>
-        <Option value="bar">Bar</Option>
-        <Option value="radar">Radar</Option>
-      </Select>
-      <div style={{ height: 400 }}>
+    <>
+      <FormControl sx={{ width: 200 }}>
+        <Select value={chartType} onChange={handleChartTypeChange}>
+          <Option value="bar">Bar</Option>
+          <Option value="line">Line</Option>
+          <Option value="radar">Radar</Option>
+        </Select>
+      </FormControl>
+      <div style={{ height: 400, width: '100%' }}>
         {chartType === 'line' && (
           <ResponsiveLine
             data={lineData}
@@ -104,6 +106,8 @@ const Chart = ({ metrics }) => {
               legendPosition: 'middle',
               legendOffset: -40,
             }}
+            colors={{ scheme: 'nivo' }}
+            colorBy="indexValue"
           />
         )}
         {chartType === 'radar' && (
@@ -123,10 +127,13 @@ const Chart = ({ metrics }) => {
             blendMode="multiply"
             animate={true}
             motionConfig="wobbly"
+            enableDotLabel={true}
+            dotLabel="value"
+            dotLabelYOffset={-12}
           />
         )}
       </div>
-    </div>
+    </>
   );
 };
 

@@ -27,6 +27,8 @@ export default function ViewPlotModal({ open, onClose, jobId, score }) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
+            width: '100%',
+            height: '100%',
           }}
         >
           <Typography level="h4" mb={2}>
@@ -35,6 +37,7 @@ export default function ViewPlotModal({ open, onClose, jobId, score }) {
           <Box
             sx={{
               width: '100%',
+              height: '100%',
               maxWidth: '800px',
               maxHeight: '80vh',
               overflowY: 'auto',
