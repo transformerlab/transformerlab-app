@@ -25,6 +25,7 @@ import {
   LogsIcon,
   SquareStackIcon,
   FileIcon,
+  ChartColumnIncreasingIcon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
@@ -177,7 +178,7 @@ export default function Sidebar({
         <SubNavItem
           title="Evaluate"
           path="/projects/eval"
-          icon={<HelpCircleIcon />}
+          icon={<ChartColumnIncreasingIcon />}
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
