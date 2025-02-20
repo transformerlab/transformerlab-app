@@ -227,15 +227,12 @@ export default function ModelStore() {
       >
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
+          position: 'relative',
           margin: '0.5rem 0 1rem 0',
           width: '100%',
         }}
       >
-        <Box sx={{ flexGrow: 1, marginRight: '1rem' }}>
-          <DownloadProgressBox jobId={jobId} assetName={currentlyDownloading} />
-        </Box>
+        <DownloadProgressBox jobId={jobId} assetName={currentlyDownloading} />
         {jobId && (
           <Button
             variant="outlined"
@@ -261,7 +258,9 @@ export default function ModelStore() {
               }
             }}
             sx={{
-              marginLeft: '1rem',
+              position: 'absolute',
+              top: '1rem',
+              right: '1rem',
               fontSize: '0.75rem',
               padding: '0.25rem 0.5rem',
             }}
