@@ -156,6 +156,12 @@ export default function Documents({
 
   const [currentFolder, setCurrentFolder] = React.useState('');
 
+  React.useEffect(() => {
+    if (!additionalMessage) {
+      setCurrentFolder('rag');
+    }
+  }, [additionalMessage]);
+
   const {
     data: rows,
     isLoading,
@@ -464,7 +470,8 @@ export default function Documents({
             <>
               <Link
                 onClick={() => {
-                  setCurrentFolder('');
+                  additionalMessage? setCurrentFolder('') :
+                  setCurrentFolder('rag');
                 }}
               >
                 Documents /
@@ -735,11 +742,11 @@ export default function Documents({
           Reindex
         </TinyButton>
       </Stack>
-      {/* {additionalMessage && (
+      {additionalMessage && (
         <Typography level="body-xs" mt={1}>
-          A RAG Plugin needs to be installed to index the documents
+          Documents for RAG should be uploaded in a folder called "rag" and only those will be indexed for RAG.
         </Typography>
-      )} */}
+      )}
     </>
   );
 }

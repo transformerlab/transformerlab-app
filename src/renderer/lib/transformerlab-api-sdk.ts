@@ -1143,12 +1143,13 @@ Endpoints.Rag = {
     experimentId: string,
     model_name: string,
     query: string,
-    settings: string
+    settings: string,
+    ragFolder: string = 'rag'
   ) =>
     API_URL() +
-    `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}`,
-  ReIndex: (experimentId: string) =>
-    API_URL() + `experiment/${experimentId}/rag/reindex`,
+    `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}&rag_folder=${ragFolder}`,
+  ReIndex: (experimentId: string, folderName: string = "rag") =>
+    API_URL() + `experiment/${experimentId}/rag/reindex&folder=${folderName}`,
 };
 
 Endpoints.Prompts = {
