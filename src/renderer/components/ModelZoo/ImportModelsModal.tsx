@@ -223,10 +223,10 @@ export default function ImportModelsModal({ open, setOpen }) {
             >
               <thead>
                 <tr>
-                  <th style={{ width: 20, padding: 12 }}> </th>
+                  <th style={{ width: 40, maxWidth: 40, padding: 12 }}> </th>
                   <th style={{ width: 175, padding: 12 }}>Model ID</th>
                   <th style={{ width: 100, padding: 12 }}>Source</th>
-                  <th style={{ width: 200, padding: 12 }}>Status</th>
+                  <th style={{ width: 150, padding: 12 }}>Status</th>
                 </tr>
               </thead>
               <tbody>
