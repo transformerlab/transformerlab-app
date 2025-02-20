@@ -136,7 +136,11 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Documents({ experimentInfo, fullPage = false, additionalMessage = false }) {
+export default function Documents({
+  experimentInfo,
+  fullPage = false,
+  additionalMessage = false,
+}) {
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
@@ -230,7 +234,11 @@ export default function Documents({ experimentInfo, fullPage = false, additional
                         />
                       </td> */}
         <td style={{ paddingLeft: '1rem' }}>
-          <Typography level="body-xs" sx={{}}>
+          <Typography
+            level="body-xs"
+            sx={{ display: 'flex', alignItems: 'center' }}
+          >
+            <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
             {row?.name}
           </Typography>
         </td>
@@ -309,12 +317,7 @@ export default function Documents({ experimentInfo, fullPage = false, additional
             level="body-xs"
             sx={{ display: 'flex', alignItems: 'center' }}
           >
-            <FolderIcon
-              size="16px"
-              style={{ marginRight: '1rem' }}
-              color="var(--joy-palette-success-400)"
-            />
-
+            <FolderIcon size="16px" style={{ marginRight: '0.5rem' }} />
             {row?.name}
           </Typography>
         </td>
