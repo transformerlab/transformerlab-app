@@ -402,14 +402,21 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
     schema,
     multiple,
   } = props;
-  console.log("OPTIONS", options);
   const { enumOptions } = options;
 
 
-  console.log("ENUM OPTIONS", enumOptions);
-
   // Default multiple is true.
-  const _multiple = typeof multiple === 'undefined' ? true : !!multiple;
+  // const _multiple = typeof multiple === 'undefined' ? true : !!multiple;
+    // Check both multiple and options.multiple; default is true.
+    // console.log("OPTIONS", options);
+    const _multiple =
+    typeof multiple !== 'undefined'
+      ? Boolean(multiple)
+      : typeof options.multiple !== 'undefined'
+      ? Boolean(options.multiple)
+      : true;
+
+  // console.log("multiple", _multiple);
   // Determine default value.
   const defaultValue = _multiple ? [] : '';
   // Use the provided value or fallback to default.
@@ -525,15 +532,15 @@ export default function DynamicPluginForm({
           parsedData.parameters &&
           key in parsedData.parameters
         ) {
-          if (parsedData.parameters[key].enum) {
-          // Set the enum array such that config[key] is the first element
-          const enumArray = parsedData.parameters[key].enum;
-          let index = enumArray.indexOf(config[key]);
-          if (index > 0) {
-            enumArray.unshift(enumArray.splice(index, 1)[0]);
-          }
-          parsedData.parameters[key].enum = enumArray;
-        }
+        //   if (parsedData.parameters[key].enum) {
+        //   // Set the enum array such that config[key] is the first element
+        //   const enumArray = parsedData.parameters[key].enum;
+        //   let index = enumArray.indexOf(config[key]);
+        //   if (index > 0) {
+        //     enumArray.unshift(enumArray.splice(index, 1)[0]);
+        //   }
+        //   parsedData.parameters[key].enum = enumArray;
+        // }
         parsedData.parameters[key].default = config[key];
         }
       });
