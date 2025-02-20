@@ -727,7 +727,7 @@ export async function sendBatchedChat(
   // }
   // console.log("RESULTS", results);
   let response;
-  const batchedChatUrl = `${API_URL()}batched_prompts/batch_predict`;
+  const batchedChatUrl = `${API_URL()}batch/chat/completions`;
   try {
     response = await fetch(batchedChatUrl, {
       method: 'POST', // or 'PUT'
@@ -1158,10 +1158,10 @@ Endpoints.Prompts = {
 };
 
 Endpoints.BatchedPrompts = {
-  List: () => API_URL() + 'batched_prompts/list',
-  New: () => API_URL() + 'batched_prompts/new',
+  List: () => API_URL() + 'batch/list',
+  New: () => API_URL() + 'batch/new',
   Delete: (promptId: string) =>
-    API_URL() + 'batched_prompts/delete/' + promptId,
+    API_URL() + 'batch/delete/' + promptId,
 };
 
 Endpoints.Tools = {

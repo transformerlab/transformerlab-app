@@ -150,11 +150,13 @@ export default function GenerateModal({
                 ).some((key) => key.toLowerCase().includes('context'));
 
                 setHasDatasetKey(datasetKeyExists);
-                setHasDocumentsKey(docsKeyExists);
-                setHasContextKey(contextKeyExists);
+                // setHasDocumentsKey(docsKeyExists);
+                // setHasContextKey(contextKeyExists);
 
                 if (docsKeyExists && evalConfig.script_parameters.docs.length > 0) {
                   // const docstemp = evalConfig.script_parameters.docs.split(',').map((path) => ({ path }));
+                  setHasContextKey(false);
+                  setHasDocumentsKey(true);
                   const docPaths = evalConfig.script_parameters.docs.split(',');
                   const docNames = evalConfig.script_parameters.doc_names.split(',');
                   // const docFiles = docPaths.map((path) => new File([], path));
@@ -165,6 +167,8 @@ export default function GenerateModal({
 
                 }
                 else if (contextKeyExists && evalConfig.script_parameters.context.length > 0) {
+                  setHasContextKey(true);
+                  setHasDocumentsKey(false);
                   const context = evalConfig.script_parameters.context;
                   setContextInput(context);
                   delete evalConfig.script_parameters.context;
@@ -391,6 +395,8 @@ export default function GenerateModal({
       else {
         formJson.generation_type = 'scratch';
       }
+
+      console.log('formJson', formJson);
 
 
       // Run when the currentEvalName is provided
