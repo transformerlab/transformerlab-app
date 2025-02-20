@@ -735,11 +735,11 @@ export default function Documents({
           Reindex
         </TinyButton>
       </Stack>
-      {additionalMessage && (
+      {/* {additionalMessage && (
         <Typography level="body-xs" mt={1}>
           A RAG Plugin needs to be installed to index the documents
         </Typography>
-      )}
+      )} */}
     </>
   );
 }
