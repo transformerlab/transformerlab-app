@@ -420,7 +420,8 @@ export default function Documents({
           <iframe
             src={chatAPI.Endpoints.Documents.Open(
               experimentInfo?.id,
-              previewFile
+              previewFile,
+              currentFolder
             )}
             style={{ width: '100%', height: '100%' }}
           ></iframe>
