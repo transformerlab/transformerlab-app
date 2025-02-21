@@ -52,6 +52,13 @@ export default function TransformerLabSettings({ }) {
     mutate: canLogInToHuggingFaceMutate,
   } = useSWR(chatAPI.Endpoints.Models.HuggingFaceLogin(), fetcher);
 
+  const {
+    data: wandbLoginStatus,
+    error: wandbLoginStatusError,
+    isLoading: wandbLoginStatusIsLoading,
+    mutate: wandbLoginMutate,
+  } = useSWR(chatAPI.Endpoints.Models.testWandbLogin(), fetcher);
+
   return (
     <>
       <Typography level="h1" marginBottom={3}>
@@ -130,6 +137,25 @@ export default function TransformerLabSettings({ }) {
             </FormControl>
           </>
         )}{' '}
+          {wandbLoginStatus?.message === 'OK' ? (
+          <Alert color="success">Login to Weights &amp; Biases Successful</Alert>
+        ) : (
+          <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
+            <FormLabel>Weights &amp; Biases API Key</FormLabel>
+            <Input name="wandbToken" type="password" />
+            <Button
+              onClick={async () => {
+                const token = document.getElementsByName('wandbToken')[0].value;
+                await fetch(chatAPI.Endpoints.Config.Set('WANDB_API_KEY', token));
+                await fetch(chatAPI.Endpoints.Models.wandbLogin());
+                wandbLoginMutate();
+              }}
+              sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
+            >
+              Save
+            </Button>
+          </FormControl>
+        )}
         <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
           <FormLabel>OpenAI API Key</FormLabel>
           <Input name="openaiKey" type="password" />

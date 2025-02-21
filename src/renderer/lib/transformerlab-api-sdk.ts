@@ -1093,6 +1093,8 @@ Endpoints.Models = {
     API_URL() + 'model/import_from_local_path?model_path=' + modelPath,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
+  wandbLogin: () => API_URL() + 'model/login_to_wandb',
+  testWandbLogin: () => API_URL() + 'model/test_wandb_login',
   SetOpenAIKey: () => API_URL() + 'model/set_openai_api_key',
   SetAnthropicKey: () => API_URL() + 'model/set_anthropic_api_key',
   CheckOpenAIAPIKey: () => API_URL() + 'model/check_openai_api_key',
