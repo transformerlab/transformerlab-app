@@ -1,5 +1,5 @@
 import { Option, Select } from '@mui/joy';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -7,6 +7,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function PickADocumentMenu({
   name,
   experimentInfo,
+  defaultValue = [],
   showFoldersOnly = false,
 }) {
   const {
@@ -16,6 +17,11 @@ export default function PickADocumentMenu({
   } = useSWR(chatAPI.Endpoints.Documents.List(experimentInfo?.id, ''), fetcher);
 
   const [selected, setSelected] = useState([]);
+
+  useEffect(() => {
+    setSelected(defaultValue || []);
+  }, [defaultValue]);
+
 
   function handleChange(event, newValue) {
     console.log(newValue);
