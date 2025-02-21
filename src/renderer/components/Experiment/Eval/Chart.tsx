@@ -108,6 +108,7 @@ const Chart = ({ metrics }) => {
             }}
             colors={{ scheme: 'nivo' }}
             colorBy="indexValue"
+            animate={false}
           />
         )}
         {chartType === 'radar' && (
