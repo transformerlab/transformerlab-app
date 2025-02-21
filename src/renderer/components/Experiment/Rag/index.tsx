@@ -117,7 +117,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
             flexDirection: 'column',
           }}
         >
-          <Documents experimentInfo={experimentInfo} />
+          <Documents experimentInfo={experimentInfo} setFolder="rag" />
         </Box>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Query experimentInfo={experimentInfo} />

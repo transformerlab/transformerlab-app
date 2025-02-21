@@ -140,6 +140,7 @@ export default function Documents({
   experimentInfo,
   fullPage = false,
   additionalMessage = false,
+  fixedFolder = '',
 }) {
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [selected, setSelected] = React.useState<readonly string[]>([]);
@@ -154,13 +155,7 @@ export default function Documents({
 
   const [loading, setLoading] = React.useState(false);
 
-  const [currentFolder, setCurrentFolder] = React.useState('');
-
-  React.useEffect(() => {
-    if (!additionalMessage) {
-      setCurrentFolder('rag');
-    }
-  }, [additionalMessage]);
+  const [currentFolder, setCurrentFolder] = React.useState(fixedFolder);
 
   const {
     data: rows,
@@ -474,10 +469,9 @@ export default function Documents({
           ) : (
             <>
               <Link
+                disabled={fixedFolder !== ''}
                 onClick={() => {
-                  additionalMessage
-                    ? setCurrentFolder('')
-                    : setCurrentFolder('rag');
+                  setCurrentFolder('');
                 }}
               >
                 Documents /
