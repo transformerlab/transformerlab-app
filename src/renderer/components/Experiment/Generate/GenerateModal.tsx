@@ -78,7 +78,6 @@ export default function GenerateModal({
   const [contextInput, setContextInput] = useState('');
   const [datasetDisplayMessage, setDatasetDisplayMessage] = useState('');
 
-
   // Fetch available datasets from the API
   const {
     data: datasets,
@@ -116,9 +115,7 @@ export default function GenerateModal({
       setSelectedFileNames([]);
       if (!currentEvalName || currentEvalName === '') {
         setNameInput(generateFriendlyName());
-
-      }
-      else {
+      } else {
         setNameInput('');
       }
     }
@@ -153,26 +150,31 @@ export default function GenerateModal({
                 // setHasDocumentsKey(docsKeyExists);
                 // setHasContextKey(contextKeyExists);
 
-                if (docsKeyExists && evalConfig.script_parameters.docs.length > 0) {
+                if (
+                  docsKeyExists &&
+                  evalConfig.script_parameters.docs.length > 0
+                ) {
                   // const docstemp = evalConfig.script_parameters.docs.split(',').map((path) => ({ path }));
                   setHasContextKey(false);
                   setHasDocumentsKey(true);
                   const docPaths = evalConfig.script_parameters.docs.split(',');
-                  const docNames = evalConfig.script_parameters.doc_names.split(',');
+                  const docNames =
+                    evalConfig.script_parameters.doc_names.split(',');
                   // const docFiles = docPaths.map((path) => new File([], path));
                   setSelectedFiles(docPaths);
                   setSelectedFileNames(docNames);
                   delete evalConfig.script_parameters.docs;
-                  setConfig(evalConfig.script_parameters)
-
-                }
-                else if (contextKeyExists && evalConfig.script_parameters.context.length > 0) {
+                  setConfig(evalConfig.script_parameters);
+                } else if (
+                  contextKeyExists &&
+                  evalConfig.script_parameters.context.length > 0
+                ) {
                   setHasContextKey(true);
                   setHasDocumentsKey(false);
                   const context = evalConfig.script_parameters.context;
                   setContextInput(context);
                   delete evalConfig.script_parameters.context;
-                  setConfig(evalConfig.script_parameters)
+                  setConfig(evalConfig.script_parameters);
                 }
                 if (
                   evalConfig.script_parameters._dataset_display_message &&
@@ -183,7 +185,10 @@ export default function GenerateModal({
                     evalConfig.script_parameters._dataset_display_message
                   );
                 }
-                if (hasDatasetKey && evalConfig.script_parameters.dataset_name.length > 0) {
+                if (
+                  hasDatasetKey &&
+                  evalConfig.script_parameters.dataset_name.length > 0
+                ) {
                   setSelectedDataset(evalConfig.script_parameters.dataset_name);
                 }
                 if (!nameInput && evalConfig?.name.length > 0) {
@@ -203,7 +208,6 @@ export default function GenerateModal({
           }
         }
       } else {
-
         if (data) {
           let parsedData;
           try {
@@ -235,14 +239,24 @@ export default function GenerateModal({
                 );
                 if (docsKeyExists) {
                   // Delete the parameter key that includes 'docs' from the config
-                  delete tempconfig[Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('tflabcustomui_docs'))];
+                  delete tempconfig[
+                    Object.keys(parsedData.parameters).find((key) =>
+                      key.toLowerCase().includes('tflabcustomui_docs')
+                    )
+                  ];
                 }
-                const contextKeyExists = Object.keys(parsedData.parameters).some(
-                  (key) => key.toLowerCase().includes('tflabcustomui_context')
+                const contextKeyExists = Object.keys(
+                  parsedData.parameters
+                ).some((key) =>
+                  key.toLowerCase().includes('tflabcustomui_context')
                 );
                 if (contextKeyExists) {
                   // Delete the parameter key that includes 'context' from the config
-                  delete tempconfig[Object.keys(parsedData.parameters).find((key) => key.toLowerCase().includes('tflabcustomui_context'))];
+                  delete tempconfig[
+                    Object.keys(parsedData.parameters).find((key) =>
+                      key.toLowerCase().includes('tflabcustomui_context')
+                    )
+                  ];
                 }
                 setHasContextKey(contextKeyExists);
                 setHasDocumentsKey(docsKeyExists);
@@ -262,7 +276,6 @@ export default function GenerateModal({
       }
     }
   }, [experimentInfo, pluginId, currentEvalName, nameInput, data]);
-
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -317,7 +330,6 @@ export default function GenerateModal({
   }
 
   function DocsTab({ experimentInfo }) {
-
     return (
       <Stack spacing={2}>
         <FormControl>
@@ -325,27 +337,26 @@ export default function GenerateModal({
           <PickADocumentMenu
             experimentInfo={experimentInfo}
             showFoldersOnly={false}
-            setSelectedFiles={setSelectedFiles}
-            setSelectedFileNames={setSelectedFileNames}
+            // setSelectedFiles={setSelectedFiles}
+            // setSelectedFileNames={setSelectedFileNames}
           />
           <FormHelperText>Select documents to upload</FormHelperText>
         </FormControl>
         {selectedFileNames.length > 0 && (
-        <Stack spacing={1} mt={2}>
-          <FormLabel>Selected Documents:</FormLabel>
-          {selectedFileNames.map((file, index) => (
-            <Sheet key={index} variant="outlined" p={1}>
-              {file}
-            </Sheet>
-          ))}
-        </Stack>
-      )}
+          <Stack spacing={1} mt={2}>
+            <FormLabel>Selected Documents:</FormLabel>
+            {selectedFileNames.map((file, index) => (
+              <Sheet key={index} variant="outlined" p={1}>
+                {file}
+              </Sheet>
+            ))}
+          </Stack>
+        )}
       </Stack>
     );
   }
 
-  function ContextTab({contextInput, setContextInput}) {
-
+  function ContextTab({ contextInput, setContextInput }) {
     return (
       <Stack spacing={2}>
         <FormControl>
@@ -383,7 +394,7 @@ export default function GenerateModal({
       //   formJson.generation_type = 'docs';
       // }
       if (hasDocumentsKey && selectedFiles.length > 0) {
-        formJson.docs = selectedFiles.join(',');;
+        formJson.docs = selectedFiles.join(',');
         formJson.doc_names = selectedFileNames.join(',');
         formJson.generation_type = 'docs';
       }
@@ -391,13 +402,11 @@ export default function GenerateModal({
       else if (hasContextKey && contextInput.length > 0) {
         formJson.context = contextInput;
         formJson.generation_type = 'context';
-      }
-      else {
+      } else {
         formJson.generation_type = 'scratch';
       }
 
       console.log('formJson', formJson);
-
 
       // Run when the currentEvalName is provided
       if (currentEvalName && currentEvalName !== '') {
@@ -495,9 +504,7 @@ export default function GenerateModal({
             </TabPanel>
             {hasDocumentsKey && (
               <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-                <DocsTab
-                experimentInfo={experimentInfo}
-                />
+                <DocsTab experimentInfo={experimentInfo} />
                 {/* <PickADocumentMenu
                   experimentInfo={experimentInfo}
                   /> */}
@@ -506,7 +513,10 @@ export default function GenerateModal({
             )}
             {hasContextKey && (
               <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-                <ContextTab contextInput={contextInput} setContextInput={setContextInput} />
+                <ContextTab
+                  contextInput={contextInput}
+                  setContextInput={setContextInput}
+                />
               </TabPanel>
             )}
             {hasDatasetKey && (
