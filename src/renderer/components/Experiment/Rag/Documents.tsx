@@ -471,8 +471,9 @@ export default function Documents({
             <>
               <Link
                 onClick={() => {
-                  additionalMessage? setCurrentFolder('') :
-                  setCurrentFolder('rag');
+                  additionalMessage
+                    ? setCurrentFolder('')
+                    : setCurrentFolder('rag');
                 }}
               >
                 Documents /
@@ -712,6 +713,11 @@ export default function Documents({
                   </tr>
                 </thead>
                 <tbody>
+                  {rows?.status == 'error' && (
+                    <tr>
+                      <td colSpan={2}>{rows?.message}</td>
+                    </tr>
+                  )}
                   {rows?.length == 0 && (
                     <tr>
                       <td colSpan={2} style={{ padding: '2rem' }}>
@@ -745,7 +751,8 @@ export default function Documents({
       </Stack>
       {additionalMessage && (
         <Typography level="body-xs" mt={1}>
-          Documents for RAG should be uploaded in a folder called "rag" and only those will be indexed for RAG.
+          Documents for RAG should be uploaded in a folder called "rag" and only
+          those will be indexed for RAG.
         </Typography>
       )}
     </>
