@@ -713,7 +713,7 @@ export default function Documents({
                 <tbody>
                   {rows?.status == 'error' && (
                     <tr>
-                      <td colSpan={2}>{rows?.message}</td>
+                      <td colSpan={2}>{/*rows?.message*/}</td>
                     </tr>
                   )}
                   {rows?.length == 0 && (
