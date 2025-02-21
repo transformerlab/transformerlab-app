@@ -71,8 +71,6 @@ export default function GenerateModal({
   const [hasDatasetKey, setHasDatasetKey] = useState(false);
   const [hasDocumentsKey, setHasDocumentsKey] = useState(false);
   const [hasContextKey, setHasContextKey] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [selectedFileNames, setSelectedFileNames] = useState<string[]>([]);
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
   const [contextInput, setContextInput] = useState('');
@@ -111,8 +109,6 @@ export default function GenerateModal({
 
   useEffect(() => {
     if (open) {
-      setSelectedFiles([]);
-      setSelectedFileNames([]);
       if (!currentEvalName || currentEvalName === '') {
         setNameInput(generateFriendlyName());
       } else {
@@ -154,16 +150,11 @@ export default function GenerateModal({
                   docsKeyExists &&
                   evalConfig.script_parameters.docs.length > 0
                 ) {
-                  // const docstemp = evalConfig.script_parameters.docs.split(',').map((path) => ({ path }));
                   setHasContextKey(false);
                   setHasDocumentsKey(true);
-                  const docPaths = evalConfig.script_parameters.docs.split(',');
-                  const docNames =
-                    evalConfig.script_parameters.doc_names.split(',');
-                  // const docFiles = docPaths.map((path) => new File([], path));
-                  setSelectedFiles(docPaths);
-                  setSelectedFileNames(docNames);
-                  delete evalConfig.script_parameters.docs;
+
+                  evalConfig.script_parameters.docs = evalConfig.script_parameters.docs.split(',');
+
                   setConfig(evalConfig.script_parameters);
                 } else if (
                   contextKeyExists &&
@@ -337,20 +328,11 @@ export default function GenerateModal({
           <PickADocumentMenu
             experimentInfo={experimentInfo}
             showFoldersOnly={false}
-            name="documents"
+            docsArray={config.docs? config.docs : []}
+            name="docs"
           />
           <FormHelperText>Select documents to upload</FormHelperText>
         </FormControl>
-        {selectedFileNames.length > 0 && (
-          <Stack spacing={1} mt={2}>
-            <FormLabel>Selected Documents:</FormLabel>
-            {selectedFileNames.map((file, index) => (
-              <Sheet key={index} variant="outlined" p={1}>
-                {file}
-              </Sheet>
-            ))}
-          </Stack>
-        )}
       </Stack>
     );
   }
@@ -387,14 +369,10 @@ export default function GenerateModal({
       if (!formJson.run_name) {
         formJson.run_name = formJson.template_name;
       }
-      // Add the selected file paths to the formJson as comma separated string
-      // if (hasDocumentsKey && selectedFiles.length > 0) {
-      //   formJson.docs = selectedFiles.map((file) => file.path).join(',');
-      //   formJson.generation_type = 'docs';
-      // }
-      if (hasDocumentsKey && selectedFiles.length > 0) {
-        formJson.docs = selectedFiles.join(',');
-        formJson.doc_names = selectedFileNames.join(',');
+
+      if (hasDocumentsKey && formJson.docs.length > 0) {
+        formJson.docs = JSON.parse(formJson.docs);
+        formJson.docs = formJson.docs.join(',');
         formJson.generation_type = 'docs';
       }
       // Add context to the formJson
@@ -416,15 +394,9 @@ export default function GenerateModal({
         );
         setNameInput(generateFriendlyName());
         setContextInput('');
-        setSelectedFiles([]);
-        setSelectedFileNames([]);
       } else {
         const template_name = formJson.template_name;
         delete formJson.template_name;
-        // console.log('formJson', formJson);
-        // console.log("experimentInfo?.id", experimentInfo?.id);
-        // console.log("template_name", template_name);
-        // console.log("pluginId", pluginId);
         const result = await chatAPI.EXPERIMENT_ADD_GENERATION(
           experimentInfo?.id,
           template_name,
