@@ -337,8 +337,7 @@ export default function GenerateModal({
           <PickADocumentMenu
             experimentInfo={experimentInfo}
             showFoldersOnly={false}
-            // setSelectedFiles={setSelectedFiles}
-            // setSelectedFileNames={setSelectedFileNames}
+            name="documents"
           />
           <FormHelperText>Select documents to upload</FormHelperText>
         </FormControl>
