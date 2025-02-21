@@ -328,7 +328,7 @@ export default function GenerateModal({
           <PickADocumentMenu
             experimentInfo={experimentInfo}
             showFoldersOnly={false}
-            docsArray={config.docs? config.docs : []}
+            defaultValue={config.docs? config.docs : []}
             name="docs"
           />
           <FormHelperText>Select documents to upload</FormHelperText>

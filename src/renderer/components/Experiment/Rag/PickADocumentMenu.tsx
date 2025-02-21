@@ -7,7 +7,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function PickADocumentMenu({
   name,
   experimentInfo,
-  docsArray = [],
+  defaultValue = [],
   showFoldersOnly = false,
 }) {
   const {
@@ -19,8 +19,8 @@ export default function PickADocumentMenu({
   const [selected, setSelected] = useState([]);
 
   useEffect(() => {
-    setSelected(docsArray || []);
-  }, [docsArray]);
+    setSelected(defaultValue || []);
+  }, [defaultValue]);
 
 
   function handleChange(event, newValue) {
