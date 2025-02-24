@@ -71,6 +71,7 @@ export default function GenerateModal({
   const [hasDatasetKey, setHasDatasetKey] = useState(false);
   const [hasDocumentsKey, setHasDocumentsKey] = useState(false);
   const [hasContextKey, setHasContextKey] = useState(false);
+  const [selectedDocs, setSelectedDocs] = useState([]);
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
   const [contextInput, setContextInput] = useState('');
@@ -185,6 +186,8 @@ export default function GenerateModal({
                 if (!nameInput && evalConfig?.name.length > 0) {
                   setNameInput(evalConfig.name);
                 }
+
+                config.docs? setSelectedDocs(config.docs) : [];
               }
               // if (nameInput !== '' && evalConfig?.name) {
               //   setNameInput(evalConfig?.name);
@@ -204,6 +207,7 @@ export default function GenerateModal({
           try {
             parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
             // Set config as a JSON object with keys of the parameters and values of the default values
+            setSelectedDocs([]);
             let tempconfig: { [key: string]: any } = {};
             if (parsedData && parsedData.parameters) {
               tempconfig = Object.fromEntries(
@@ -328,7 +332,9 @@ export default function GenerateModal({
           <PickADocumentMenu
             experimentInfo={experimentInfo}
             showFoldersOnly={false}
-            defaultValue={config.docs? config.docs : []}
+            selected={selectedDocs}
+            onChange={setSelectedDocs}
+            // defaultValue={config.docs? config.docs : []}
             name="docs"
           />
           <FormHelperText>Select documents to upload</FormHelperText>
@@ -336,6 +342,7 @@ export default function GenerateModal({
       </Stack>
     );
   }
+
 
   function ContextTab({ contextInput, setContextInput }) {
     return (

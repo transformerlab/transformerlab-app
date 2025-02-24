@@ -7,7 +7,8 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function PickADocumentMenu({
   name,
   experimentInfo,
-  defaultValue = [],
+  selected,
+  onChange,
   showFoldersOnly = false,
 }) {
   const {
@@ -16,16 +17,15 @@ export default function PickADocumentMenu({
     mutate,
   } = useSWR(chatAPI.Endpoints.Documents.List(experimentInfo?.id, ''), fetcher);
 
-  const [selected, setSelected] = useState([]);
 
-  useEffect(() => {
-    setSelected(defaultValue || []);
-  }, [defaultValue]);
+  // useEffect(() => {
+  //   setSelected(defaultValue || []);
+  // }, [defaultValue]);
 
 
   function handleChange(event, newValue) {
     console.log(newValue);
-    setSelected(newValue);
+    onChange(newValue);
   }
 
   return (
