@@ -388,7 +388,7 @@ function CustomSelectSimple<
 }
 
 function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any>(
-  props: WidgetProps<T, S, F>
+  props: WidgetProps<T, S, F> & {disabledFilter?: string}
 ) {
   const {
     id,
@@ -401,14 +401,12 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
     options,
     schema,
     multiple,
+    disabledFilter,
+    uiSchema,
   } = props;
   const { enumOptions } = options;
 
 
-  // Default multiple is true.
-  // const _multiple = typeof multiple === 'undefined' ? true : !!multiple;
-    // Check both multiple and options.multiple; default is true.
-    // console.log("OPTIONS", options);
     const _multiple =
     typeof multiple !== 'undefined'
       ? Boolean(multiple)
@@ -416,7 +414,11 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
       ? Boolean(options.multiple)
       : true;
 
-  // console.log("multiple", _multiple);
+
+  const _disabledFilter = disabledFilter || uiSchema?.["ui:options"]?.disabledFilter;
+  const isDisabledFilter = _disabledFilter === "generation_model";
+
+
   // Determine default value.
   const defaultValue = _multiple ? [] : '';
   // Use the provided value or fallback to default.
@@ -427,6 +429,43 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
     typeof opt === 'object' ? opt.value : opt
   );
   // Create processedOptions array as an array of all values in enumOptions
+  // When in generation_model mode, fetch API key values via SWR.
+  const { data: openaiConfig } = useSWR(
+   chatAPI.Endpoints.Config.Get('OPENAI_API_KEY'),
+    fetcher
+  );
+  const { data: claudeConfig } = useSWR(
+   chatAPI.Endpoints.Config.Get('ANTHROPIC_API_KEY'),
+    fetcher
+  );
+  const { data: customAPIConfig } = useSWR(
+   chatAPI.Endpoints.Config.Get('CUSTOM_API_KEY'),
+    fetcher
+  );
+
+
+// Create a dictionary mapping each option to its disabled flag.
+const combinedOptions = processedOptionsValues.reduce(
+  (acc: Record<string, { disabled: boolean; info?: string }>, opt) => {
+    const lower = opt.toLowerCase();
+    let disabled = false;
+    if (isDisabledFilter) {
+    if (lower.startsWith('openai')) {
+      disabled = !openaiConfig;
+    } else if (lower.startsWith('claude')) {
+      disabled = !claudeConfig;
+    } else if (lower.startsWith('custom')) {
+      disabled = !customAPIConfig;
+    }
+  }
+    acc[opt] = {
+      disabled,
+      info: disabled ? "Please set the API Key in settings" : "",
+    };
+    return acc;
+  },
+  {}
+);
 
   return (
     <>
@@ -435,7 +474,10 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
         id={id}
         placeholder={schema.title || ''}
         options={processedOptionsValues}
-        getOptionLabel={(option) => option}
+        getOptionLabel={(option) =>
+          option + (combinedOptions[option]?.disabled ? " - " + combinedOptions[option].info : "")
+        }
+        getOptionDisabled={(option) => combinedOptions[option]?.disabled ?? false}
         value={currentValue}
         onChange={(event, newValue) => {
           onChange(newValue);
