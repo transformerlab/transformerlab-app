@@ -31,10 +31,10 @@ const providers: Provider[] = [
         checkKeyEndpoint: () => chatAPI.Endpoints.Models.CheckOpenAIAPIKey(),
     },
     {
-        name: 'Claude',
-        keyName: 'CLAUDE_API_KEY',
-        setKeyEndpoint: () => chatAPI.Endpoints.Models.SetClaudeKey(),
-        checkKeyEndpoint: () => chatAPI.Endpoints.Models.CheckClaudeAPIKey(),
+        name: 'Anthropic',
+        keyName: 'ANTHROPIC_API_KEY',
+        setKeyEndpoint: () => chatAPI.Endpoints.Models.SetAnthropicKey(),
+        checkKeyEndpoint: () => chatAPI.Endpoints.Models.CheckAnthropicAPIKey(),
     },
     {
         name: 'Custom API',
@@ -54,7 +54,7 @@ export default function AIProvidersSettings({ onBack }: AIProvidersSettingsProps
         fetcher
     );
     const { data: claudeApiKey, mutate: mutateClaude } = useSWR(
-        chatAPI.Endpoints.Config.Get('CLAUDE_API_KEY'),
+        chatAPI.Endpoints.Config.Get('ANTHROPIC_API_KEY'),
         fetcher
     );
     const { data: customAPIStatus, mutate: mutateCustom } = useSWR(
@@ -64,7 +64,7 @@ export default function AIProvidersSettings({ onBack }: AIProvidersSettingsProps
 
     const getProviderStatus = (provider: Provider) => {
         if (provider.name === 'OpenAI') return openaiApiKey;
-        if (provider.name === 'Claude') return claudeApiKey;
+        if (provider.name === 'Anthropic') return claudeApiKey;
         if (provider.name === 'Custom API') return customAPIStatus;
         return null;
     };
@@ -104,7 +104,7 @@ export default function AIProvidersSettings({ onBack }: AIProvidersSettingsProps
         await fetch(chatAPI.Endpoints.Config.Set(provider.keyName, ''));
         if (provider.name === 'OpenAI') {
             mutateOpenAI();
-        } else if (provider.name === 'Claude') {
+        } else if (provider.name === 'Anthropic') {
             mutateClaude();
         } else if (provider.name === 'Custom API') {
             mutateCustom();
@@ -131,7 +131,7 @@ export default function AIProvidersSettings({ onBack }: AIProvidersSettingsProps
                     alert(`Successfully connected to ${selectedProvider.name}`);
                     if (selectedProvider.name === 'OpenAI') {
                         mutateOpenAI();
-                    } else if (selectedProvider.name === 'Claude') {
+                    } else if (selectedProvider.name === 'Anthropic') {
                         mutateClaude();
                     } else if (selectedProvider.name === 'Custom API') {
                         mutateCustom();
@@ -275,10 +275,10 @@ export default function AIProvidersSettings({ onBack }: AIProvidersSettingsProps
                             </ol>
                         </Box>
                     )}
-                    {selectedProvider?.name === 'Claude' && (
+                    {selectedProvider?.name === 'Anthropic' && (
                         <Box sx={{ mt: 2 }}>
                             <Typography level="body2">
-                                Steps to get a Claude API Key:
+                                Steps to get a Anthropic API Key:
                             </Typography>
                             <ol>
                                 <li>Visit your Claude provider’s website.</li>

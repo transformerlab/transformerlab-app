@@ -451,11 +451,11 @@ const combinedOptions = processedOptionsValues.reduce(
     let disabled = false;
     if (isDisabledFilter) {
     if (lower.startsWith('openai')) {
-      disabled = !openaiConfig;
+      disabled = !openaiConfig || openaiConfig === '';
     } else if (lower.startsWith('claude')) {
-      disabled = !claudeConfig;
+      disabled = !claudeConfig || claudeConfig === '';
     } else if (lower.startsWith('custom')) {
-      disabled = !customAPIConfig;
+      disabled = !customAPIConfig || customAPIConfig === '';
     }
   }
     acc[opt] = {
