@@ -1008,6 +1008,9 @@ function convertSlashInUrl(url: string) {
   return url.replace(/\//g, '~~~');
 }
 
+Endpoints.Workflows = {
+  List: () => API_URL() + 'workflows/list',
+}
 
 Endpoints.Dataset = {
   Gallery: () => API_URL() + 'data/gallery',
