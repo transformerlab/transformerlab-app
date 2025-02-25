@@ -15,11 +15,11 @@ import {
   FileDigitIcon,
   Grid3X3Icon,
   Trash2Icon,
+  Type,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCSVModal from './ViewCSVModal';
 import ViewPlotModal from './ViewPlotModal';
@@ -32,7 +32,23 @@ dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 
+var utc = require('dayjs/plugin/utc');
+var timezone = require('dayjs/plugin/timezone'); // dependent on utc plugin
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
+
+function getLocalTimeSinceEvent(utcTimestamp) {
+  // Parse the UTC timestamp
+  const eventTime = dayjs.utc(utcTimestamp);
+  // Convert to local timezone
+  const localEventTime = eventTime.local();
+  // Get current local time
+  const currentTime = dayjs();
+  // Calculate the time difference
+  return localEventTime.from(currentTime);
+}
 
 function RenderScore({ score }) {
   if (score === undefined) {
@@ -150,24 +166,20 @@ const EvalJobsTable = () => {
               <tr key={job.id}>
                 <td>{job.id}</td>
                 <td>
-                  {job?.job_data?.plugin}
-                  <br />
-                  {job?.job_data?.evaluator}
+                  <Typography level="title-md">
+                    {job?.job_data?.evaluator}
+                  </Typography>
+                  <Typography level="title-sm">
+                    {job?.job_data?.plugin}
+                  </Typography>
+                  <Typography level="body-sm">
+                    {getLocalTimeSinceEvent(job?.created_at)}
+                  </Typography>
                 </td>
                 <td>
                   <JobProgress job={job} />
                 </td>
-                {/* <td>
-                  Started:&nbsp;
-                  {String(dayjs(job?.created_at).fromNow())}
-                  <br />
-                  Completed in:&nbsp;
-                  {dayjs
-                    .duration(
-                      dayjs(job?.updated_at).diff(dayjs(job?.created_at))
-                    )
-                    .humanize()}
-                </td> */}
+
                 <td>
                   <RenderScore score={job?.job_data?.score} />
                   {job?.job_data?.additional_output_path &&

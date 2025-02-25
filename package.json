@@ -111,6 +111,7 @@
     "@uppy/xhr-upload": "^3.3.2",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
+    "@xyflow/react": "^12.4.4",
     "chokidar": "^4.0.3",
     "command-exists": "^1.2.9",
     "dayjs": "^1.11.11",

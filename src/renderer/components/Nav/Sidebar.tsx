@@ -26,6 +26,7 @@ import {
   SquareStackIcon,
   FileIcon,
   ChartColumnIncreasingIcon,
+  WorkflowIcon,
 } from 'lucide-react';
 
 import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
@@ -133,6 +134,14 @@ export default function Sidebar({
           icon={<MessageCircleIcon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
+        {experimentInfo?.name == 'dev' && (
+          <SubNavItem
+            title="Workflows"
+            path="/projects/workflows"
+            icon={<WorkflowIcon />}
+            disabled={!experimentInfo?.name}
+          />
+        )}
         {/* <SubNavItem
           title="Query Docs"
           path="/projects/rag"

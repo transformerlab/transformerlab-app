@@ -12,7 +12,7 @@ import PluginDetails from './Plugins/PluginDetails';
 
 import Computer from './Computer';
 import Eval from './Experiment/Eval/Eval';
-import Generate from './Experiment/Generate/Generate'
+import Generate from './Experiment/Generate/Generate';
 import Export from './Experiment/Export/Export';
 import Api from './Experiment/Api';
 import Settings from './Experiment/Settings';
@@ -29,7 +29,7 @@ import TransformerLabSettings from './TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
 import { useState } from 'react';
-import Generate from './Experiment/Generate/Generate';
+import Workflows from './Experiment/Workflows';
 
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
@@ -177,6 +177,10 @@ export default function MainAppPanel({
             setAdaptor={setAdaptor}
           />
         }
+      />
+      <Route
+        path="/projects/workflows"
+        element={<Workflows experimentInfo={experimentInfo} />}
       />
       <Route
         path="/projects/prompt"
