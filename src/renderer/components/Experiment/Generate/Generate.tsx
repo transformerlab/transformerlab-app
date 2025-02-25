@@ -68,7 +68,11 @@ export default function Generate({
     if (value) {
       // Use fetch to post the value to the server
       await fetch(
-        chatAPI.Endpoints.Experiment.SavePlugin(project, generationName, 'main.py'),
+        chatAPI.Endpoints.Experiment.SavePlugin(
+          project,
+          generationName,
+          'main.py'
+        ),
         {
           method: 'POST',
           body: value,
@@ -85,7 +89,6 @@ export default function Generate({
   if (!experimentInfo) {
     return 'No experiment selected';
   }
-  console.log('Experiment Info:', experimentInfo);
 
   return (
     <>
@@ -122,8 +125,7 @@ export default function Generate({
           </Typography>
           {plugins?.length === 0 ? (
             <Alert color="danger">
-              No Generator Scripts available, please install a generator
-              plugin.
+              No Generator Scripts available, please install a generator plugin.
             </Alert>
           ) : (
             <Dropdown>
