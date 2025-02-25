@@ -1,20 +1,18 @@
 import {
   Box,
   Button,
-  ButtonGroup,
   List,
   ListItem,
   ListItemButton,
   ListItemContent,
   ListItemDecorator,
   Sheet,
-  Table,
   Typography,
 } from '@mui/joy';
 import { Background, ControlButton, Controls, ReactFlow } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
-import { PlayIcon, PlaySquareIcon, WorkflowIcon } from 'lucide-react';
+import { PlayIcon, WorkflowIcon } from 'lucide-react';
 import { useState } from 'react';
 
 const initialNodes = [
