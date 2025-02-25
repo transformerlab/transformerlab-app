@@ -1010,6 +1010,7 @@ function convertSlashInUrl(url: string) {
 
 Endpoints.Workflows = {
   List: () => API_URL() + 'workflows/list',
+  RunWorkflow: (workflowId: string) => API_URL() + 'workflows/start/' + workflowId,
 }
 
 Endpoints.Dataset = {
