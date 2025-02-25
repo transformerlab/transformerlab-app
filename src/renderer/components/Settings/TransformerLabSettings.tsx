@@ -163,11 +163,11 @@ export default function TransformerLabSettings() {
         )}
         <Divider sx={{ mt: 2, mb: 2 }} />
         <Typography level="title-lg" marginBottom={2}>
-          Providers & Models:
+          AI Providers & Models:
         </Typography>
         {/* Clickable list option */}
         <Button variant="soft" onClick={() => setShowProvidersPage(true)}>
-          AI Providers and Models
+          Set API Keys for AI Providers
         </Button>
 
         <Divider sx={{ mt: 2, mb: 2 }} />
