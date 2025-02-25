@@ -12,7 +12,7 @@ import {
 import { Background, ControlButton, Controls, ReactFlow } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
-import { PlayIcon, WorkflowIcon } from 'lucide-react';
+import { PlayIcon, PlusCircleIcon, WorkflowIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
@@ -63,7 +63,7 @@ const initialEdges = [
   },
 ];
 
-const fetcher = (url : any) => fetch(url).then((res) => res.json());
+const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
 export default function Workflows({ experimentInfo }) {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
@@ -76,20 +76,20 @@ export default function Workflows({ experimentInfo }) {
 
   const workflows = workflowsData;
 
-  function generateNodes(workflow: any){
-    let out : any[] = [];
-    let currentTask = "0";
+  function generateNodes(workflow: any) {
+    let out: any[] = [];
+    let currentTask = '0';
     let position = 0;
 
-    const workflowConfig = JSON.parse(workflow.config);
+    const workflowConfig = JSON.parse(workflow?.config);
     console.log(workflowConfig);
 
-    while (currentTask<workflowConfig.nodes.length) {
+    while (currentTask < workflowConfig.nodes.length) {
       out.push({
         id: currentTask,
         position: { x: 0, y: position },
         data: { label: workflowConfig.nodes[currentTask].name },
-      })
+      });
       position += 100;
       currentTask = workflowConfig.nodes[currentTask].out;
     }
@@ -97,16 +97,15 @@ export default function Workflows({ experimentInfo }) {
     return out;
   }
 
-  function generateEdges(workflow: any){
-    let out : any[] = [];
-    let currentTask = "0";
-    let ids = "0";
+  function generateEdges(workflow: any) {
+    let out: any[] = [];
+    let currentTask = '0';
+    let ids = '0';
 
-    const workflowConfig = JSON.parse(workflow.config);
+    const workflowConfig = JSON.parse(workflow?.config);
     console.log(workflowConfig);
 
-    while (currentTask<workflowConfig.nodes.length) {
-
+    while (currentTask < workflowConfig.nodes.length) {
       out.push({
         id: ids,
         source: currentTask,
@@ -114,7 +113,7 @@ export default function Workflows({ experimentInfo }) {
         markerEnd: {
           type: 'arrow',
         },
-      })
+      });
       ids += 1;
       currentTask = workflowConfig.nodes[currentTask].out;
     }
@@ -149,29 +148,36 @@ export default function Workflows({ experimentInfo }) {
           <Typography level="title-lg" mb={2}>
             Workflows
           </Typography>
-          {workflows &&
           <List>
-            {workflows.map((workflow) => (
-              <ListItem key={workflow.id}>
-                <ListItemButton onClick={() => setSelectedWorkflow(workflow)}>
-                  <ListItemDecorator>
-                    <WorkflowIcon />
-                  </ListItemDecorator>
-                  <ListItemContent>{workflow.name}</ListItemContent>
-                  &rarr;
-                </ListItemButton>
-              </ListItem>
-            ))}
+            {workflows &&
+              workflows?.length > 0 &&
+              workflows?.map((workflow) => (
+                <ListItem key={workflow.id}>
+                  <ListItemButton onClick={() => setSelectedWorkflow(workflow)}>
+                    <ListItemDecorator>
+                      <WorkflowIcon />
+                    </ListItemDecorator>
+                    <ListItemContent>{workflow.name}</ListItemContent>
+                    &rarr;
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            <ListItem>
+              <ListItemButton>
+                <ListItemDecorator>
+                  <PlusCircleIcon />
+                </ListItemDecorator>
+                <ListItemContent>Create New Workflow</ListItemContent>
+              </ListItemButton>
+            </ListItem>
           </List>
-          }
         </Box>
 
-        {selectedWorkflow &&
         <Box flex={3} display="flex" flexDirection="column">
           <Typography level="title-lg" mb={2}>
-            Workflow {selectedWorkflow.name}
+            Workflow {selectedWorkflow?.name}
           </Typography>
-          
+
           <Box
             sx={{
               display: 'flex',
@@ -181,30 +187,36 @@ export default function Workflows({ experimentInfo }) {
               flexDirection: 'row',
             }}
           >
-            <ReactFlow
-              nodes={generateNodes(selectedWorkflow)}
-              edges={generateEdges(selectedWorkflow)}
-              fitView
-              style={{ backgroundColor: '#F7F9FB' }}
-            >
-              <Background color="#96ADE9" />
-              <Controls>
-                <ControlButton
-                  onClick={() => {
-                    alert('hi');
-                  }}
-                >
-                  a
-                </ControlButton>
-              </Controls>
-            </ReactFlow>
+            {selectedWorkflow ? (
+              <ReactFlow
+                nodes={generateNodes(selectedWorkflow)}
+                edges={generateEdges(selectedWorkflow)}
+                fitView
+                style={{ backgroundColor: '#F7F9FB' }}
+              >
+                <Background color="#96ADE9" />
+                <Controls>
+                  <ControlButton
+                    onClick={() => {
+                      alert('hi');
+                    }}
+                  >
+                    *
+                  </ControlButton>
+                </Controls>
+              </ReactFlow>
+            ) : (
+              <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
+                Select Workflow
+              </Box>
+            )}
             <Box pl={2} display="flex" flexDirection="column" gap={1}>
               <Button startDecorator={<PlayIcon />}>Run</Button>
               <Button variant="outlined">Edit</Button>
               <Button variant="outlined">Fight</Button>
             </Box>
           </Box>
-        </Box>}
+        </Box>
       </Sheet>
     </Sheet>
   );
