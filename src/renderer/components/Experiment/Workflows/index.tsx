@@ -17,12 +17,13 @@ import { useState } from 'react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
+import NewWorkflowModal from './NewWorkflowModal';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
 export default function Workflows({ experimentInfo }) {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
-
+  const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const {
     data: workflowsData,
     error: workflowsError,
@@ -86,6 +87,10 @@ export default function Workflows({ experimentInfo }) {
         mb: 3,
       }}
     >
+      <NewWorkflowModal
+        open={newWorkflowModalOpen}
+        setOpen={setNewWorkflowModalOpen}
+      />
       <Typography level="h1">Workflows</Typography>
       <Typography level="body-lg" mb={3}>
         This is where it will all go
@@ -118,11 +123,11 @@ export default function Workflows({ experimentInfo }) {
                 </ListItem>
               ))}
             <ListItem>
-              <ListItemButton>
+              <ListItemButton onClick={() => setNewWorkflowModalOpen(true)}>
                 <ListItemDecorator>
                   <PlusCircleIcon />
                 </ListItemDecorator>
-                <ListItemContent>Create New Workflow</ListItemContent>
+                <ListItemContent>New Workflow</ListItemContent>
               </ListItemButton>
             </ListItem>
           </List>
