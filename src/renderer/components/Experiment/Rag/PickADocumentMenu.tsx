@@ -10,6 +10,7 @@ export default function PickADocumentMenu({
   value,
   onChange,
   defaultValue = [],
+  required = false,
   showFoldersOnly = false,
 }) {
   const {
@@ -24,7 +25,13 @@ export default function PickADocumentMenu({
   }
 
   return (
-    <Select multiple onChange={handleChange} value={value} name={name}>
+    <Select
+      multiple
+      onChange={handleChange}
+      value={value}
+      name={name}
+      required={required}
+    >
       {rows?.map((row) =>
         showFoldersOnly ? (
           row?.type === 'folder' && (

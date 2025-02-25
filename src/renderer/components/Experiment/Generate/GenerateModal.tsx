@@ -305,6 +305,7 @@ export default function GenerateModal({
             value={selectedDocs}
             onChange={setSelectedDocs}
             name="docs"
+            required
           />
           <FormHelperText>Select documents to upload</FormHelperText>
         </FormControl>
