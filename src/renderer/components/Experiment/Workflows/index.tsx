@@ -1,7 +1,20 @@
-import { Box, Button, ButtonGroup, Sheet, Table, Typography } from '@mui/joy';
-import { ReactFlow } from '@xyflow/react';
+import {
+  Box,
+  Button,
+  ButtonGroup,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemContent,
+  ListItemDecorator,
+  Sheet,
+  Table,
+  Typography,
+} from '@mui/joy';
+import { Background, ControlButton, Controls, ReactFlow } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
+import { WorkflowIcon } from 'lucide-react';
 
 const initialNodes = [
   {
@@ -39,7 +52,7 @@ export default function Workflows({ experimentInfo }) {
         flexDirection: 'column',
         height: '100%',
         overflow: 'hidden',
-        pb: 2,
+        mb: 3,
       }}
     >
       <Typography level="h1">Workflows</Typography>
@@ -55,39 +68,60 @@ export default function Workflows({ experimentInfo }) {
           height: '100%',
         }}
       >
-        <Box flex={2}>
+        <Box flex={1}>
           <Typography level="title-lg" mb={2}>
-            List
+            Workflows
           </Typography>
-          <Table>
-            <thead>
-              <tr>
-                <th>Workflow</th>
-                <th>Status</th>
-                <th>&nbsp;</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[1, 2, 3].map((i) => (
-                <tr key={i}>
-                  <td>Workflow {i}</td>
-                  <td>Running</td>
-                  <td>
-                    <ButtonGroup>
-                      <Button>Edit</Button>
-                      <Button>View</Button>
-                    </ButtonGroup>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <List>
+            {[1, 2, 3].map((i) => (
+              <ListItem key={i}>
+                <ListItemButton>
+                  <ListItemDecorator>
+                    <WorkflowIcon />
+                  </ListItemDecorator>
+                  <ListItemContent>Workflow {i}</ListItemContent>
+                  &rarr;
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
         </Box>
-        <Box flex={2}>
+        <Box flex={3} display="flex" flexDirection="column">
           <Typography level="title-lg" mb={2}>
-            Preview
+            Workflow 1
           </Typography>
-          <ReactFlow nodes={initialNodes} edges={initialEdges} />
+          <Box
+            sx={{
+              display: 'flex',
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+              flexDirection: 'row',
+            }}
+          >
+            <ReactFlow
+              nodes={initialNodes}
+              edges={initialEdges}
+              fitView
+              style={{ backgroundColor: '#F7F9FB' }}
+            >
+              <Background color="#96ADE9" />
+              <Controls>
+                <ControlButton
+                  onClick={() => {
+                    alert('hi');
+                  }}
+                >
+                  a
+                </ControlButton>
+              </Controls>
+            </ReactFlow>
+            <Box pl={2} display="flex" flexDirection="column" gap={1}>
+              <Button>Edit</Button>
+              <Button>Run</Button>
+              <Button>Fight</Button>
+            </Box>
+          </Box>
         </Box>
       </Sheet>
     </Sheet>
