@@ -18,7 +18,7 @@ import {
 } from '@mui/joy';
 import { PlusCircleIcon } from 'lucide-react';
 
-import GenerateJobsTable from './GenerateJobsTable.tsx';
+import GenerateJobsTable from './GenerateJobsTable';
 import GenerateTasksTable from './GenerateTasksTable';
 import GenerateModal from './GenerateModal';
 
