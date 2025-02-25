@@ -55,7 +55,7 @@ export default function GenerateModal({
   experimentInfo,
   experimentInfoMutate,
   pluginId,
-  currentEvalName,
+  currentGenerationName,
 }: {
   open: boolean;
   onClose: () => void;
@@ -63,7 +63,7 @@ export default function GenerateModal({
   experimentInfoMutate: () => void;
   template_id?: string;
   pluginId: string;
-  currentEvalName?: string; // Optional incase of new evaluation
+  currentGenerationName?: string; // Optional incase of new generation
 }) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
@@ -103,14 +103,10 @@ export default function GenerateModal({
       return chatAPI.Endpoints.Dataset.Info(selectedDataset);
     }, fetcher);
 
-  // useEffect(() => {
-  //   if (open) { // Reset the name input when the modal is opened
-  //     setNameInput(generateFriendlyName());
-  //   }}, []);
 
   useEffect(() => {
     if (open) {
-      if (!currentEvalName || currentEvalName === '') {
+      if (!currentGenerationName || currentGenerationName === '') {
         setNameInput(generateFriendlyName());
       } else {
         setNameInput('');
@@ -119,89 +115,85 @@ export default function GenerateModal({
   }, [open]);
 
   useEffect(() => {
+    // EDIT GENERATION
     if (experimentInfo && pluginId) {
-      if (currentEvalName && currentEvalName !== '') {
-        const evaluationsStr = experimentInfo.config?.generations;
-        if (typeof evaluationsStr === 'string') {
+      if (currentGenerationName && currentGenerationName !== '') {
+        const generationsStr = experimentInfo.config?.generations;
+        setSelectedDocs([]);
+        if (typeof generationsStr === 'string') {
           try {
-            const evaluations = JSON.parse(evaluationsStr);
-            if (Array.isArray(evaluations)) {
-              const evalConfig = evaluations.find(
-                (evalItem: any) =>
-                  evalItem.name === currentEvalName &&
-                  evalItem.plugin === pluginId
+            const generations = JSON.parse(generationsStr);
+            if (Array.isArray(generations)) {
+              const generationConfig = generations.find(
+                (generationItem: any) =>
+                  generationItem.name === currentGenerationName &&
+                  generationItem.plugin === pluginId
               );
-              if (evalConfig) {
-                setConfig(evalConfig.script_parameters);
+              if (generationConfig) {
+                setConfig(generationConfig.script_parameters);
+
                 const datasetKeyExists = Object.keys(
-                  evalConfig.script_parameters
+                  generationConfig.script_parameters
                 ).some((key) => key.toLowerCase().includes('dataset'));
+
                 const docsKeyExists = Object.keys(
-                  evalConfig.script_parameters
+                  generationConfig.script_parameters
                 ).some((key) => key.toLowerCase().includes('docs'));
+
                 const contextKeyExists = Object.keys(
-                  evalConfig.script_parameters
+                  generationConfig.script_parameters
                 ).some((key) => key.toLowerCase().includes('context'));
 
                 setHasDatasetKey(datasetKeyExists);
-                // setHasDocumentsKey(docsKeyExists);
-                // setHasContextKey(contextKeyExists);
 
                 if (
                   docsKeyExists &&
-                  evalConfig.script_parameters.docs.length > 0
+                  generationConfig.script_parameters.docs.length > 0
                 ) {
                   setHasContextKey(false);
                   setHasDocumentsKey(true);
+                  generationConfig.script_parameters.docs = generationConfig.script_parameters.docs.split(',');
+                  setConfig(generationConfig.script_parameters);
+                  setSelectedDocs(generationConfig.script_parameters.docs);
 
-                  evalConfig.script_parameters.docs = evalConfig.script_parameters.docs.split(',');
-
-                  setConfig(evalConfig.script_parameters);
                 } else if (
                   contextKeyExists &&
-                  evalConfig.script_parameters.context.length > 0
+                  generationConfig.script_parameters.context.length > 0
                 ) {
                   setHasContextKey(true);
                   setHasDocumentsKey(false);
-                  const context = evalConfig.script_parameters.context;
+                  const context = generationConfig.script_parameters.context;
                   setContextInput(context);
-                  delete evalConfig.script_parameters.context;
-                  setConfig(evalConfig.script_parameters);
+                  delete generationConfig.script_parameters.context;
+                  setConfig(generationConfig.script_parameters);
+                }
+
+                if (
+                  hasDatasetKey &&
+                  generationConfig.script_parameters.dataset_name.length > 0
+                ) {
+                  setSelectedDataset(generationConfig.script_parameters.dataset_name);
                 }
                 if (
-                  evalConfig.script_parameters._dataset_display_message &&
-                  evalConfig.script_parameters._dataset_display_message.length >
+                  generationConfig.script_parameters._dataset_display_message &&
+                  generationConfig.script_parameters._dataset_display_message.length >
                     0
                 ) {
                   setDatasetDisplayMessage(
-                    evalConfig.script_parameters._dataset_display_message
+                    generationConfig.script_parameters._dataset_display_message
                   );
                 }
-                if (
-                  hasDatasetKey &&
-                  evalConfig.script_parameters.dataset_name.length > 0
-                ) {
-                  setSelectedDataset(evalConfig.script_parameters.dataset_name);
+                if (!nameInput && generationConfig?.name.length > 0) {
+                  setNameInput(generationConfig.name);
                 }
-                if (!nameInput && evalConfig?.name.length > 0) {
-                  setNameInput(evalConfig.name);
-                }
-
-                config.docs? setSelectedDocs(config.docs) : [];
               }
-              // if (nameInput !== '' && evalConfig?.name) {
-              //   setNameInput(evalConfig?.name);
-              // }
-              // setNameInput(evalConfig?.name);
-              // if (!nameInput && evalConfig?.script_parameters.run_name) {
-              //   setNameInput(evalConfig.script_parameters.run_name);
-              // }
             }
           } catch (error) {
-            console.error('Failed to parse evaluations JSON string:', error);
+            console.error('Failed to parse generations JSON string:', error);
           }
         }
       } else {
+        // CREATE NEW GENERATION
         if (data) {
           let parsedData;
           try {
@@ -216,6 +208,7 @@ export default function GenerateModal({
                   value.default,
                 ])
               );
+              // Logic to set dataset message
               if (parsedData && parsedData._dataset) {
                 setHasDatasetKey(true);
                 // Check if the dataset display message string length is greater than 0
@@ -228,41 +221,20 @@ export default function GenerateModal({
                 }
               }
               // Check if parsed data parameters has a key that includes 'docs'
-              if (parsedData && parsedData.parameters) {
-                const docsKeyExists = Object.keys(parsedData.parameters).some(
-                  (key) => key.toLowerCase().includes('tflabcustomui_docs')
-                );
-                if (docsKeyExists) {
-                  // Delete the parameter key that includes 'docs' from the config
-                  delete tempconfig[
-                    Object.keys(parsedData.parameters).find((key) =>
-                      key.toLowerCase().includes('tflabcustomui_docs')
-                    )
-                  ];
-                }
-                const contextKeyExists = Object.keys(
-                  parsedData.parameters
-                ).some((key) =>
-                  key.toLowerCase().includes('tflabcustomui_context')
-                );
-                if (contextKeyExists) {
-                  // Delete the parameter key that includes 'context' from the config
-                  delete tempconfig[
-                    Object.keys(parsedData.parameters).find((key) =>
-                      key.toLowerCase().includes('tflabcustomui_context')
-                    )
-                  ];
-                }
-                setHasContextKey(contextKeyExists);
-                setHasDocumentsKey(docsKeyExists);
-              }
+              const docsKeyExists = Object.keys(parsedData.parameters).some(
+                (key) => key.toLowerCase().includes('tflabcustomui_docs')
+              );
+
+              const contextKeyExists = Object.keys(
+                parsedData.parameters
+              ).some((key) =>
+                key.toLowerCase().includes('tflabcustomui_context')
+              );
+              setHasContextKey(contextKeyExists);
+              setHasDocumentsKey(docsKeyExists);
             }
             setConfig(tempconfig);
-            // Set hasDataset to true in the parsed data, the dataset key is `true`
-            // If tempconfig is not an empty object
-            // if (tempconfig && Object.keys(tempconfig).length > 0) {
-            //   setNameInput(generateFriendlyName());
-            // }
+
           } catch (e) {
             console.error('Error parsing data', e);
             parsedData = '';
@@ -270,7 +242,7 @@ export default function GenerateModal({
         }
       }
     }
-  }, [experimentInfo, pluginId, currentEvalName, nameInput, data]);
+  }, [experimentInfo, pluginId, currentGenerationName, nameInput, data]);
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -280,7 +252,7 @@ export default function GenerateModal({
     ? experimentInfo?.config?.foundation_filename
     : experimentInfo?.config?.foundation;
 
-  // Set config to the plugin config if it is available based on currentEvalName within experiment info
+  // Set config to the plugin config if it is available based on currentGenerationName within experiment info
 
   function TrainingModalFirstTab() {
     return (
@@ -332,8 +304,9 @@ export default function GenerateModal({
           <PickADocumentMenu
             experimentInfo={experimentInfo}
             showFoldersOnly={false}
-            selected={selectedDocs}
+            value={selectedDocs}
             onChange={setSelectedDocs}
+            defaultValue={config.docs ? config.docs : []}
             // defaultValue={config.docs? config.docs : []}
             name="docs"
           />
@@ -392,11 +365,11 @@ export default function GenerateModal({
 
       console.log('formJson', formJson);
 
-      // Run when the currentEvalName is provided
-      if (currentEvalName && currentEvalName !== '') {
+      // Run when the currentGenerationName is provided
+      if (currentGenerationName && currentGenerationName !== '') {
         const result = await chatAPI.EXPERIMENT_EDIT_GENERATION(
           experimentInfo?.id,
-          currentEvalName,
+          currentGenerationName,
           formJson
         );
         setNameInput(generateFriendlyName());
@@ -416,12 +389,6 @@ export default function GenerateModal({
       experimentInfoMutate();
       onClose();
 
-      // };
-      // }
-      // const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalName, formJson)
-      // // alert(JSON.stringify(formJson, null, 2));
-      // setNameInput(generateFriendlyName());
-      // onClose();
     } catch (error) {
       console.error('Failed to edit generation:', error);
     }
@@ -441,7 +408,7 @@ export default function GenerateModal({
         }}
       >
         <form
-          id="evaluation-form"
+          id="generation-form"
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -451,7 +418,7 @@ export default function GenerateModal({
           onSubmit={handleSubmit}
         >
           <Tabs
-            aria-label="evaluation Template Tabs"
+            aria-label="generation Template Tabs"
             value={currentTab}
             onChange={(event, newValue) => setCurrentTab(newValue)}
             sx={{ borderRadius: 'lg', display: 'flex', overflow: 'hidden' }}

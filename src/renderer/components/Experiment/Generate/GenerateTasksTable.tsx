@@ -4,10 +4,10 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import useSWR from 'swr';
 
-function listEvals(evalString) {
+function listGenerations(generationString) {
   let result = [];
-  if (evalString) {
-    result = JSON.parse(evalString);
+  if (generationString) {
+    result = JSON.parse(generationString);
   }
   return result;
 }
@@ -47,10 +47,10 @@ function formatTemplateConfig(script_parameters): ReactElement {
   );
 }
 
-async function evaluationRun(
+async function generationRun(
   experimentId: string,
   plugin: string,
-  evaluator: string
+  generator: string
 ) {
   // fetch(
   //   chatAPI.Endpoints.Experiment.RunGeneration(experimentId, plugin, evaluator)
@@ -62,7 +62,7 @@ async function evaluationRun(
       'QUEUED',
       JSON.stringify({
         plugin: plugin,
-        generator: evaluator,
+        generator: generator,
       })
     )
   );
@@ -73,7 +73,7 @@ export default function GenerateTasksTable({
   experimentInfo,
   experimentInfoMutate,
   setCurrentPlugin,
-  setCurrentEvalName,
+  setCurrentGenerationName,
   setOpen,
 }) {
 
@@ -91,8 +91,8 @@ export default function GenerateTasksTable({
           </tr>
         </thead>
         <tbody>
-          {listEvals(experimentInfo?.config?.generations) &&
-            listEvals(experimentInfo?.config?.generations)?.map(
+          {listGenerations(experimentInfo?.config?.generations) &&
+            listGenerations(experimentInfo?.config?.generations)?.map(
               (generations) => (
                 <tr key={generations.name}>
                   <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
@@ -114,7 +114,7 @@ export default function GenerateTasksTable({
                         variant="soft"
                         color="success"
                         onClick={async () =>
-                          await evaluationRun(
+                          await generationRun(
                             experimentInfo.id,
                             generations.plugin,
                             generations.name
@@ -128,7 +128,7 @@ export default function GenerateTasksTable({
                         onClick={() => {
                           setOpen(true);
                           setCurrentPlugin(generations?.plugin);
-                          setCurrentEvalName(generations.name);
+                          setCurrentGenerationName(generations.name);
                         }}
                       >
                         Edit
