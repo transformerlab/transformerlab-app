@@ -13,18 +13,18 @@ export default function ResultsModal({
   setOpen,
   experimentInfo,
   plugin,
-  evaluator,
+  generator,
 }) {
   const [resultText, setResultText] = useState('');
   useEffect(() => {
-    if (open && experimentInfo && evaluator) {
+    if (open && experimentInfo && generator) {
       const output_file = `plugins/${plugin}/output.txt`;
       console.log('Fetching results from', output_file);
 
       fetch(
         chatAPI.Endpoints.Experiment.GetGenerationOutput(
           experimentInfo?.id,
-          evaluator
+          generator
         )
       ).then((res) => {
         if (res.ok) {
@@ -47,7 +47,7 @@ export default function ResultsModal({
         }}
       >
         <ModalClose />
-        <DialogTitle>Results from: {evaluator}</DialogTitle>
+        <DialogTitle>Results from: {generator}</DialogTitle>
         <DialogContent
           sx={{ backgroundColor: '#222', color: '#ddd', padding: 2 }}
         >

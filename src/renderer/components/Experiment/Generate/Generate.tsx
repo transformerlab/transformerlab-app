@@ -46,9 +46,8 @@ export default function Generate({
   experimentInfoMutate,
 }) {
   const [open, setOpen] = useState(false);
-  const [currentEvaluator, setCurrentEvaluator] = useState('');
   const [currentPlugin, setCurrentPlugin] = useState('');
-  const [currentEvalName, setCurrentEvalName] = useState('');
+  const [currentGenerationName, setCurrentGenerationName] = useState('');
 
   const {
     data: plugins,
@@ -69,7 +68,7 @@ export default function Generate({
     if (value) {
       // Use fetch to post the value to the server
       await fetch(
-        chatAPI.Endpoints.Experiment.SavePlugin(project, evalName, 'main.py'),
+        chatAPI.Endpoints.Experiment.SavePlugin(project, generationName, 'main.py'),
         {
           method: 'POST',
           body: value,
@@ -104,12 +103,12 @@ export default function Generate({
           open={open}
           onClose={() => {
             setOpen(false);
-            setCurrentEvalName('');
+            setCurrentGenerationName('');
           }}
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
           pluginId={currentPlugin}
-          currentEvalName={currentEvalName}
+          currentGenerationName={currentGenerationName}
         />
         <Stack
           direction="row"
@@ -165,7 +164,7 @@ export default function Generate({
             experimentInfo={experimentInfo}
             experimentInfoMutate={experimentInfoMutate}
             setCurrentPlugin={setCurrentPlugin}
-            setCurrentEvalName={setCurrentEvalName}
+            setCurrentGenerationName={setCurrentGenerationName}
             setOpen={setOpen}
           />
         </Sheet>
