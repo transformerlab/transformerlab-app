@@ -18,51 +18,6 @@ import { useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 
-const initialNodes = [
-  {
-    id: '1',
-    position: { x: 0, y: 0 },
-    data: { label: '1. Generate Synthetic Training Data' },
-  },
-  {
-    id: '2',
-    position: { x: 0, y: 100 },
-    data: { label: '2. Evaluate' },
-  },
-  {
-    id: '3',
-    position: { x: 0, y: 200 },
-    data: { label: '3. Train on Documents' },
-  },
-  {
-    id: '4',
-    position: { x: 0, y: 300 },
-    data: { label: '4. Evaluate' },
-  },
-];
-const initialEdges = [
-  {
-    id: 'e1-2',
-    source: '1',
-    target: '2',
-    markerEnd: { type: 'arrow' },
-  },
-  {
-    id: 'e2-3',
-    source: '2',
-    target: '3',
-    markerEnd: { type: 'arrow' },
-  },
-  {
-    id: 'e3-4',
-    source: '3',
-    target: '4',
-    markerEnd: {
-      type: 'arrow',
-    },
-  },
-];
-
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
 export default function Workflows({ experimentInfo }) {
