@@ -103,7 +103,6 @@ export default function GenerateModal({
       return chatAPI.Endpoints.Dataset.Info(selectedDataset);
     }, fetcher);
 
-
   useEffect(() => {
     if (open) {
       if (!currentGenerationName || currentGenerationName === '') {
@@ -152,10 +151,10 @@ export default function GenerateModal({
                 ) {
                   setHasContextKey(false);
                   setHasDocumentsKey(true);
-                  generationConfig.script_parameters.docs = generationConfig.script_parameters.docs.split(',');
+                  generationConfig.script_parameters.docs =
+                    generationConfig.script_parameters.docs.split(',');
                   setConfig(generationConfig.script_parameters);
                   setSelectedDocs(generationConfig.script_parameters.docs);
-
                 } else if (
                   contextKeyExists &&
                   generationConfig.script_parameters.context.length > 0
@@ -172,12 +171,14 @@ export default function GenerateModal({
                   hasDatasetKey &&
                   generationConfig.script_parameters.dataset_name.length > 0
                 ) {
-                  setSelectedDataset(generationConfig.script_parameters.dataset_name);
+                  setSelectedDataset(
+                    generationConfig.script_parameters.dataset_name
+                  );
                 }
                 if (
                   generationConfig.script_parameters._dataset_display_message &&
-                  generationConfig.script_parameters._dataset_display_message.length >
-                    0
+                  generationConfig.script_parameters._dataset_display_message
+                    .length > 0
                 ) {
                   setDatasetDisplayMessage(
                     generationConfig.script_parameters._dataset_display_message
@@ -225,16 +226,13 @@ export default function GenerateModal({
                 (key) => key.toLowerCase().includes('tflabcustomui_docs')
               );
 
-              const contextKeyExists = Object.keys(
-                parsedData.parameters
-              ).some((key) =>
-                key.toLowerCase().includes('tflabcustomui_context')
+              const contextKeyExists = Object.keys(parsedData.parameters).some(
+                (key) => key.toLowerCase().includes('tflabcustomui_context')
               );
               setHasContextKey(contextKeyExists);
               setHasDocumentsKey(docsKeyExists);
             }
             setConfig(tempconfig);
-
           } catch (e) {
             console.error('Error parsing data', e);
             parsedData = '';
@@ -306,8 +304,6 @@ export default function GenerateModal({
             showFoldersOnly={false}
             value={selectedDocs}
             onChange={setSelectedDocs}
-            defaultValue={config.docs ? config.docs : []}
-            // defaultValue={config.docs? config.docs : []}
             name="docs"
           />
           <FormHelperText>Select documents to upload</FormHelperText>
@@ -315,7 +311,6 @@ export default function GenerateModal({
       </Stack>
     );
   }
-
 
   function ContextTab({ contextInput, setContextInput }) {
     return (
@@ -388,7 +383,6 @@ export default function GenerateModal({
       }
       experimentInfoMutate();
       onClose();
-
     } catch (error) {
       console.error('Failed to edit generation:', error);
     }
