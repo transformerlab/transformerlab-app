@@ -464,8 +464,8 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
 
 type EvaluationField = {
   name: string;
-  regex: string;
-  outputType: 'boolean' | 'number';
+  expression: string;
+  return_type: 'boolean' | 'number';
 };
 
 const CustomEvaluationWidget = (props: WidgetProps<any>) => {
@@ -480,7 +480,7 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
   const handleAddField = () => {
       setEvalMetrics([
           ...evalMetrics,
-          { name: '', regex: '', outputType: 'boolean' }
+          { name: '', expression: '', return_type: 'boolean' }
       ]);
   };
 
@@ -522,18 +522,18 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
                   />
                   <Textarea
                       placeholder="Regular Expression"
-                      value={evaluation.regex}
+                      value={evaluation.expression}
                       onChange={(e) =>
-                          handleFieldChange(index, 'regex', e.target.value)
+                          handleFieldChange(index, 'expression', e.target.value)
                       }
                       disabled={disabled || readonly}
                       style={{ marginBottom: '0.5rem' }}
                   />
                   <Select
                       placeholder="Output Type"
-                      value={evaluation.outputType}
+                      value={evaluation.return_type}
                       onChange={(e, newValue) =>
-                          handleFieldChange(index, 'outputType', newValue as string)
+                          handleFieldChange(index, 'return_type', newValue as string)
                       }
                       disabled={disabled || readonly}
                       style={{ marginBottom: '0.5rem' }}

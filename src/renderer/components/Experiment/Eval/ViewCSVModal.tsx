@@ -75,7 +75,8 @@ function formatEvalData(data) {
 }
 
 function formatArrayOfScores(scores) {
-  const formattedScores = scores.map((score) => {
+  const scoresArray = Array.isArray(scores) ? scores : [scores];
+  const formattedScores = scoresArray.map((score) => {
     const metricName = Object.keys(score)[0];
     const value = Object.values(score)[0];
 
