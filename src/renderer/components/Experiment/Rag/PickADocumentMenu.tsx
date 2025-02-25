@@ -10,6 +10,7 @@ export default function PickADocumentMenu({
   value,
   onChange,
   defaultValue = [],
+  required = false,
   showFoldersOnly = false,
 }) {
   const {
@@ -18,21 +19,19 @@ export default function PickADocumentMenu({
     mutate,
   } = useSWR(chatAPI.Endpoints.Documents.List(experimentInfo?.id, ''), fetcher);
 
-
-  useEffect(() => {
-    if (defaultValue.length > 0) {
-      onChange(defaultValue);
-    }
-  }, [defaultValue]);
-
-
   function handleChange(event, newValue) {
     console.log(newValue);
     onChange(newValue);
   }
 
   return (
-    <Select multiple onChange={handleChange} value={value} name={name}>
+    <Select
+      multiple
+      onChange={handleChange}
+      value={value}
+      name={name}
+      required={required}
+    >
       {rows?.map((row) =>
         showFoldersOnly ? (
           row?.type === 'folder' && (
