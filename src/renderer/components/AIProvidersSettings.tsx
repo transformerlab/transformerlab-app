@@ -183,7 +183,7 @@ export default function AIProvidersSettings({ onBack }: AIProvidersSettingsProps
                                         color: 'success.600'
                                     }}
                                 >
-                                    {hoveredProvider === provider.name ? 'Disconnect' : 'Set up!'}
+                                    {hoveredProvider === provider.name ? 'Disconnect' : 'Connected'}
                                 </Box>
                             ) : (
                                 <Button variant="soft" onClick={() => handleConnectClick(provider)}>
@@ -267,7 +267,7 @@ export default function AIProvidersSettings({ onBack }: AIProvidersSettingsProps
                                         target="_blank"
                                         rel="noreferrer"
                                     >
-                                        OpenAI API Keys
+                                        OpenAI API website
                                     </a>
                                 </li>
                                 <li>Log in to your OpenAI account.</li>
@@ -281,8 +281,15 @@ export default function AIProvidersSettings({ onBack }: AIProvidersSettingsProps
                                 Steps to get a Anthropic API Key:
                             </Typography>
                             <ol>
-                                <li>Visit your Claude provider’s website.</li>
-                                <li>Log in/create an account.</li>
+                                <li>Visit{' '}
+                                    <a
+                                        href="https://console.anthropic.com/settings/keys"
+                                        target="_blank"
+                                        rel="noreferrer"
+                                    >
+                                        Anthropic API Keys Console
+                                    </a></li>
+                                <li>Log in/Create an account.</li>
                                 <li>Follow instructions to generate an API key.</li>
                             </ol>
                         </Box>
