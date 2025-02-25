@@ -425,39 +425,19 @@ function ModelProviderWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F
     {label: 'Local', value: 'Local'}
   ]
 
-// const rawDisabledEnvValues = (() => {
-//   if (disabledEnvValues) {
-//       return safeJSONParse(disabledEnvValues);
-//   }
-//   // Fallback to the uiSchema value if provided.
-//   return safeJSONParse(uiSchema?.["ui:options"]?.disabledEnvValues);
-// })();
+// Keys here are the words in lower case with which the model names start and values are the ENV variables associated to those models
 const disabledEnvMap = {
   "claude": "ANTHROPIC_API_KEY",
   "openai": "OPENAI_API_KEY",
   "custom": "CUSTOM_API_KEY",
 }
-const configKeysInOrder = ["ANTHROPIC_API_KEY", "OPENAI_API", "CUSTOM_API_KEY"];
-
-// Build a mapping and an ordered array of config keys.
-// let disabledEnvMap: Record<string, string> = {};
-// const configKeysInOrder: string[] = [];
-// if (rawDisabledEnvValues && Array.isArray(rawDisabledEnvValues) && rawDisabledEnvValues.length > 0) {
-//   rawDisabledEnvValues.forEach((tuple: any) => {
-//     if (Array.isArray(tuple) && tuple.length >= 2) {
-//       const envKey = tuple[0].toLowerCase();
-//       const configKey = tuple[1];
-//       disabledEnvMap[envKey] = configKey;
-//       configKeysInOrder.push(configKey);
-//     }
-//   });
-// }
+const configKeysInOrder = disabledEnvMap ? Object.values(disabledEnvMap) : [];
 
 
-  // Determine default value.
-  const defaultValue = _multiple ? [] : '';
-  // Use the provided value or fallback to default.
-  const currentValue = value !== undefined ? value : defaultValue;
+// Determine default value.
+const defaultValue = _multiple ? [] : '';
+// Use the provided value or fallback to default.
+const currentValue = value !== undefined ? value : defaultValue;
 
 // For each config key (in order received), call useSWR.
 const configResults = configKeysInOrder.map((key) =>

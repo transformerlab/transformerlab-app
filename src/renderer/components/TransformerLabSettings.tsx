@@ -54,6 +54,13 @@ export default function TransformerLabSettings() {
     mutate: canLogInToHuggingFaceMutate,
   } = useSWR(chatAPI.Endpoints.Models.HuggingFaceLogin(), fetcher);
 
+  const {
+    data: wandbLoginStatus,
+    error: wandbLoginStatusError,
+    isLoading: wandbLoginStatusIsLoading,
+    mutate: wandbLoginMutate,
+  } = useSWR(chatAPI.Endpoints.Models.testWandbLogin(), fetcher);
+
   if (showProvidersPage) {
     return (
       <AIProvidersSettings
@@ -63,12 +70,8 @@ export default function TransformerLabSettings() {
       />
     );
   }
-  const {
-    data: wandbLoginStatus,
-    error: wandbLoginStatusError,
-    isLoading: wandbLoginStatusIsLoading,
-    mutate: wandbLoginMutate,
-  } = useSWR(chatAPI.Endpoints.Models.testWandbLogin(), fetcher);
+
+
 
   return (
     <>
@@ -139,7 +142,7 @@ export default function TransformerLabSettings() {
             </FormControl>
           </>
         )}
-        {/* {wandbLoginStatus?.message === 'OK' ? (
+        {wandbLoginStatus?.message === 'OK' ? (
           <Alert color="success">Login to Weights &amp; Biases Successful</Alert>
         ) : (
           <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
@@ -157,7 +160,7 @@ export default function TransformerLabSettings() {
               Save
             </Button>
           </FormControl>
-        )} */}
+        )}
         <Divider sx={{ mt: 2, mb: 2 }} />
         <Typography level="title-lg" marginBottom={2}>
           Providers & Models:
@@ -166,47 +169,7 @@ export default function TransformerLabSettings() {
         <Button variant="soft" onClick={() => setShowProvidersPage(true)}>
           AI Providers and Models
         </Button>
-        {/* <Divider sx={{ mt: 2, mb: 2 }} />
-        )}{' '}
 
-        <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
-          <FormLabel>OpenAI API Key</FormLabel>
-          <Input name="openaiKey" type="password" />
-          <Button
-            onClick={async () => {
-              const token = document.getElementsByName('openaiKey')[0].value;
-              await fetch(chatAPI.Endpoints.Config.Set('OPENAI_API_KEY', token));
-              await fetch(chatAPI.Endpoints.Models.SetOpenAIKey());
-              const response = await fetch(chatAPI.Endpoints.Models.CheckOpenAIAPIKey());
-              const result = await response.json();
-              if (result.message === 'OK') {
-                alert('Successfully set OpenAI API Key');
-              }
-            }}
-            sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
-          >
-            Save
-          </Button>
-        </FormControl>
-        <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
-          <FormLabel>Anthropic API Key</FormLabel>
-          <Input name="anthropicKey" type="password" />
-          <Button
-            onClick={async () => {
-              const token = document.getElementsByName('anthropicKey')[0].value;
-              await fetch(chatAPI.Endpoints.Config.Set('ANTHROPIC_API_KEY', token));
-              await fetch(chatAPI.Endpoints.Models.SetAnthropicKey());
-              const response = await fetch(chatAPI.Endpoints.Models.CheckAnthropicAPIKey());
-              const result = await response.json();
-              if (result.message === 'OK') {
-                alert('Successfully set Anthropic API Key');
-              }
-            }}
-            sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
-          >
-            Save
-          </Button>
-        </FormControl> */}
         <Divider sx={{ mt: 2, mb: 2 }} />
         <Typography level="title-lg" marginBottom={2}>
           Application:
