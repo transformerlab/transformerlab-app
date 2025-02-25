@@ -14,7 +14,8 @@ import {
 import { Background, ControlButton, Controls, ReactFlow } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
-import { WorkflowIcon } from 'lucide-react';
+import { PlayIcon, PlaySquareIcon, WorkflowIcon } from 'lucide-react';
+import { useState } from 'react';
 
 const initialNodes = [
   {
@@ -39,12 +40,31 @@ const initialNodes = [
   },
 ];
 const initialEdges = [
-  { id: 'e1-2', source: '1', target: '2' },
-  { id: 'e2-3', source: '2', target: '3' },
-  { id: 'e3-4', source: '3', target: '4' },
+  {
+    id: 'e1-2',
+    source: '1',
+    target: '2',
+    markerEnd: { type: 'arrow' },
+  },
+  {
+    id: 'e2-3',
+    source: '2',
+    target: '3',
+    markerEnd: { type: 'arrow' },
+  },
+  {
+    id: 'e3-4',
+    source: '3',
+    target: '4',
+    markerEnd: {
+      type: 'arrow',
+    },
+  },
 ];
 
 export default function Workflows({ experimentInfo }) {
+  const [selectedWorkflow, setSelectedWorkflow] = useState(null);
+
   return (
     <Sheet
       sx={{
@@ -75,7 +95,7 @@ export default function Workflows({ experimentInfo }) {
           <List>
             {[1, 2, 3].map((i) => (
               <ListItem key={i}>
-                <ListItemButton>
+                <ListItemButton onClick={() => setSelectedWorkflow(i)}>
                   <ListItemDecorator>
                     <WorkflowIcon />
                   </ListItemDecorator>
@@ -88,7 +108,7 @@ export default function Workflows({ experimentInfo }) {
         </Box>
         <Box flex={3} display="flex" flexDirection="column">
           <Typography level="title-lg" mb={2}>
-            Workflow 1
+            Workflow {selectedWorkflow}
           </Typography>
           <Box
             sx={{
@@ -117,9 +137,9 @@ export default function Workflows({ experimentInfo }) {
               </Controls>
             </ReactFlow>
             <Box pl={2} display="flex" flexDirection="column" gap={1}>
-              <Button>Edit</Button>
-              <Button>Run</Button>
-              <Button>Fight</Button>
+              <Button startDecorator={<PlayIcon />}>Run</Button>
+              <Button variant="outlined">Edit</Button>
+              <Button variant="outlined">Fight</Button>
             </Box>
           </Box>
         </Box>
