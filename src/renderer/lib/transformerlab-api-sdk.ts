@@ -1089,6 +1089,7 @@ Endpoints.Models = {
     modelSource +
     '&model_id=' +
     modelId,
+
   ImportFromLocalPath: (modelPath: string) =>
     API_URL() + 'model/import_from_local_path?model_path=' + modelPath,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
@@ -1099,6 +1100,8 @@ Endpoints.Models = {
   SetAnthropicKey: () => API_URL() + 'model/set_anthropic_api_key',
   CheckOpenAIAPIKey: () => API_URL() + 'model/check_openai_api_key',
   CheckAnthropicAPIKey: () => API_URL() + 'model/check_anthropic_api_key',
+  SetCustomAPIKey: () => API_URL() + 'model/set_custom_api_key',
+  CheckCustomAPIKey: () => API_URL() + 'model/check_custom_api_key',
 };
 
 Endpoints.Plugins = {

@@ -27,6 +27,7 @@ import {
   Textarea,
 } from '@mui/joy';
 import { useMemo } from 'react';
+import ModelProviderWidget from 'renderer/components/Experiment/Widgets/ModelProviderWidget';
 
 import {
   RegistryWidgetsType,
@@ -389,6 +390,7 @@ function CustomSelectSimple<
   );
 }
 
+
 function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any>(
   props: WidgetProps<T, S, F>
 ) {
@@ -405,7 +407,6 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
     multiple,
   } = props;
   const { enumOptions } = options;
-
 
   // Default multiple is true.
   // const _multiple = typeof multiple === 'undefined' ? true : !!multiple;
@@ -596,6 +597,7 @@ const widgets: RegistryWidgetsType = {
   SelectWidget: CustomSelectSimple,
   AutoCompleteWidget: CustomAutocompleteWidget,
   EvaluationWidget: CustomEvaluationWidget,
+  ModelProviderWidget: ModelProviderWidget
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());

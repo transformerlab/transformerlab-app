@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/anchor-is-valid */
 import * as React from 'react';
 
 import Sheet from '@mui/joy/Sheet';
@@ -22,10 +21,12 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 
+// Import the AIProvidersSettings component.
+import AIProvidersSettings from './AIProvidersSettings';
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-
-export default function TransformerLabSettings({ }) {
+export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
   const {
     data: hftoken,
@@ -37,6 +38,7 @@ export default function TransformerLabSettings({ }) {
     fetcher
   );
   const [showJobsOfType, setShowJobsOfType] = React.useState('NONE');
+  const [showProvidersPage, setShowProvidersPage] = React.useState(false);
 
   const {
     data: jobs,
@@ -59,6 +61,18 @@ export default function TransformerLabSettings({ }) {
     mutate: wandbLoginMutate,
   } = useSWR(chatAPI.Endpoints.Models.testWandbLogin(), fetcher);
 
+  if (showProvidersPage) {
+    return (
+      <AIProvidersSettings
+        onBack={() => {
+          setShowProvidersPage(false);
+        }}
+      />
+    );
+  }
+
+
+
   return (
     <>
       <Typography level="h1" marginBottom={3}>
@@ -69,11 +83,10 @@ export default function TransformerLabSettings({ }) {
         <Typography level="title-lg" marginBottom={2}>
           Huggingface Credentials:
         </Typography>
-        {canLogInToHuggingFace?.message == 'OK' ? (
+        {canLogInToHuggingFace?.message === 'OK' ? (
           <Alert color="success">Login to Huggingface Successful</Alert>
         ) : (
           <>
-            {' '}
             <Alert color="danger" sx={{ mb: 1 }}>
               Login to Huggingface Failed. Please set credentials below.
             </Alert>
@@ -89,12 +102,8 @@ export default function TransformerLabSettings({ }) {
                   endDecorator={
                     <IconButton
                       onClick={() => {
-                        var x = document.getElementsByName('hftoken')[0];
-                        if (x.type === 'text') {
-                          x.type = 'password';
-                        } else {
-                          x.type = 'text';
-                        }
+                        const x = document.getElementsByName('hftoken')[0];
+                        x.type = x.type === 'text' ? 'password' : 'text';
                         setShowPassword(!showPassword);
                       }}
                     >
@@ -106,13 +115,8 @@ export default function TransformerLabSettings({ }) {
               <Button
                 onClick={async () => {
                   const token = document.getElementsByName('hftoken')[0].value;
-                  await fetch(
-                    chatAPI.Endpoints.Config.Set(
-                      'HuggingfaceUserAccessToken',
-                      token
-                    )
-                  );
-                  // Now manually log in to huggingface
+                  await fetch(chatAPI.Endpoints.Config.Set('HuggingfaceUserAccessToken', token));
+                  // Now manually log in to Huggingface
                   await fetch(chatAPI.Endpoints.Models.HuggingFaceLogin());
                   hftokenmutate(token);
                   canLogInToHuggingFaceMutate();
@@ -122,22 +126,23 @@ export default function TransformerLabSettings({ }) {
                 Save
               </Button>
               <FormHelperText>
-                A Huggingface access token is required in order to access
-                certain models and datasets (those marked as "Gated").
+                A Huggingface access token is required in order to access certain
+                models and datasets (those marked as "Gated").
               </FormHelperText>
               <FormHelperText>
-                Documentation here:
+                Documentation here:{' '}
                 <a
                   href="https://huggingface.co/docs/hub/security-tokens"
                   target="_blank"
+                  rel="noreferrer"
                 >
                   https://huggingface.co/docs/hub/security-tokens
                 </a>
               </FormHelperText>
             </FormControl>
           </>
-        )}{' '}
-          {wandbLoginStatus?.message === 'OK' ? (
+        )}
+        {wandbLoginStatus?.message === 'OK' ? (
           <Alert color="success">Login to Weights &amp; Biases Successful</Alert>
         ) : (
           <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
@@ -156,46 +161,16 @@ export default function TransformerLabSettings({ }) {
             </Button>
           </FormControl>
         )}
-        <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
-          <FormLabel>OpenAI API Key</FormLabel>
-          <Input name="openaiKey" type="password" />
-          <Button
-            onClick={async () => {
-              const token = document.getElementsByName('openaiKey')[0].value;
-              await fetch(chatAPI.Endpoints.Config.Set('OPENAI_API_KEY', token));
-              await fetch(chatAPI.Endpoints.Models.SetOpenAIKey());
-              const response = await fetch(chatAPI.Endpoints.Models.CheckOpenAIAPIKey());
-              const result = await response.json();
-              if (result.message === "OK") {
-                alert("Successfully set OpenAI API Key");
-              }
-            }}
+        <Divider sx={{ mt: 2, mb: 2 }} />
+        <Typography level="title-lg" marginBottom={2}>
+          AI Providers & Models:
+        </Typography>
+        {/* Clickable list option */}
+        <Button variant="soft" onClick={() => setShowProvidersPage(true)}>
+          Set API Keys for AI Providers
+        </Button>
 
-            sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
-          >
-            Save
-          </Button>
-        </FormControl>
-        <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
-          <FormLabel>Anthropic API Key</FormLabel>
-          <Input name="anthropicKey" type="password" />
-          <Button
-            onClick={async () => {
-              const token = document.getElementsByName('anthropicKey')[0].value;
-              await fetch(chatAPI.Endpoints.Config.Set('ANTHROPIC_API_KEY', token));
-              await fetch(chatAPI.Endpoints.Models.SetAnthropicKey());
-              const response = await fetch(chatAPI.Endpoints.Models.CheckAnthropicAPIKey());
-              const result = await response.json();
-              if (result.message === "OK") {
-                alert("Successfully set Anthropic API Key");
-              }
-            }}
-            sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
-          >
-            Save
-          </Button>
-        </FormControl>
-        <Divider sx={{ mt: 2, mb: 2 }} />{' '}
+        <Divider sx={{ mt: 2, mb: 2 }} />
         <Typography level="title-lg" marginBottom={2}>
           Application:
         </Typography>
@@ -203,7 +178,7 @@ export default function TransformerLabSettings({ }) {
           variant="soft"
           onClick={() => {
             // find and delete all items in local storage that begin with oneTimePopup:
-            for (var key in localStorage) {
+            for (const key in localStorage) {
               if (key.startsWith('oneTimePopup')) {
                 localStorage.removeItem(key);
               }
@@ -212,7 +187,7 @@ export default function TransformerLabSettings({ }) {
         >
           Reset all Tutorial Popup Screens
         </Button>
-        <Divider sx={{ mt: 2, mb: 2 }} />{' '}
+        <Divider sx={{ mt: 2, mb: 2 }} />
         <Typography level="title-lg" marginBottom={2}>
           View Jobs (debug):{' '}
           <IconButton onClick={() => jobsMutate()}>

@@ -49,6 +49,30 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
   );
 }
 
+/* This function looks at all the generations that are stored in the experiment JSON
+and returns the generation that matches the generationName */
+function getGenerationFromGenerationsArray(generationsStr, generationName) {
+  let thisGeneration = null;
+  console.log(generationName);
+
+  if (typeof generationsStr === 'string') {
+    try {
+      const generations = JSON.parse(generationsStr);
+      console.log('generations:', generations);
+
+      if (Array.isArray(generations)) {
+        thisGeneration = generations.find(
+          (generation) => generation.name === generationName
+        );
+      }
+    } catch (error) {
+      console.error('Failed to parse generations JSON string:', error);
+    }
+  }
+  console.log('thisGeneration', thisGeneration);
+  return thisGeneration;
+}
+
 export default function GenerateModal({
   open,
   onClose,
@@ -119,78 +143,71 @@ export default function GenerateModal({
       if (currentGenerationName && currentGenerationName !== '') {
         const generationsStr = experimentInfo.config?.generations;
         setSelectedDocs([]);
-        if (typeof generationsStr === 'string') {
-          try {
-            const generations = JSON.parse(generationsStr);
-            if (Array.isArray(generations)) {
-              const generationConfig = generations.find(
-                (generationItem: any) =>
-                  generationItem.name === currentGenerationName &&
-                  generationItem.plugin === pluginId
-              );
-              if (generationConfig) {
-                setConfig(generationConfig.script_parameters);
 
-                const datasetKeyExists = Object.keys(
-                  generationConfig.script_parameters
-                ).some((key) => key.toLowerCase().includes('dataset'));
+        if (generationsStr) {
+          const generationConfig = getGenerationFromGenerationsArray(
+            generationsStr,
+            currentGenerationName
+          );
+          if (generationConfig) {
+            setConfig(generationConfig.script_parameters);
 
-                const docsKeyExists = Object.keys(
-                  generationConfig.script_parameters
-                ).some((key) => key.toLowerCase().includes('docs'));
+            const datasetKeyExists = Object.keys(
+              generationConfig.script_parameters
+            ).some((key) => key.toLowerCase().includes('dataset'));
 
-                const contextKeyExists = Object.keys(
-                  generationConfig.script_parameters
-                ).some((key) => key.toLowerCase().includes('context'));
+            const docsKeyExists = Object.keys(
+              generationConfig.script_parameters
+            ).some((key) => key.toLowerCase().includes('docs'));
 
-                setHasDatasetKey(datasetKeyExists);
+            const contextKeyExists = Object.keys(
+              generationConfig.script_parameters
+            ).some((key) => key.toLowerCase().includes('context'));
 
-                if (
-                  docsKeyExists &&
-                  generationConfig.script_parameters.docs.length > 0
-                ) {
-                  setHasContextKey(false);
-                  setHasDocumentsKey(true);
-                  generationConfig.script_parameters.docs =
-                    generationConfig.script_parameters.docs.split(',');
-                  setConfig(generationConfig.script_parameters);
-                  setSelectedDocs(generationConfig.script_parameters.docs);
-                } else if (
-                  contextKeyExists &&
-                  generationConfig.script_parameters.context.length > 0
-                ) {
-                  setHasContextKey(true);
-                  setHasDocumentsKey(false);
-                  const context = generationConfig.script_parameters.context;
-                  setContextInput(context);
-                  delete generationConfig.script_parameters.context;
-                  setConfig(generationConfig.script_parameters);
-                }
+            setHasDatasetKey(datasetKeyExists);
 
-                if (
-                  hasDatasetKey &&
-                  generationConfig.script_parameters.dataset_name.length > 0
-                ) {
-                  setSelectedDataset(
-                    generationConfig.script_parameters.dataset_name
-                  );
-                }
-                if (
-                  generationConfig.script_parameters._dataset_display_message &&
-                  generationConfig.script_parameters._dataset_display_message
-                    .length > 0
-                ) {
-                  setDatasetDisplayMessage(
-                    generationConfig.script_parameters._dataset_display_message
-                  );
-                }
-                if (!nameInput && generationConfig?.name.length > 0) {
-                  setNameInput(generationConfig.name);
-                }
-              }
+            if (
+              docsKeyExists &&
+              generationConfig.script_parameters.docs.length > 0
+            ) {
+              setHasContextKey(false);
+              setHasDocumentsKey(true);
+              generationConfig.script_parameters.docs =
+                generationConfig.script_parameters.docs.split(',');
+              setConfig(generationConfig.script_parameters);
+              setSelectedDocs(generationConfig.script_parameters.docs);
+            } else if (
+              contextKeyExists &&
+              generationConfig.script_parameters.context.length > 0
+            ) {
+              setHasContextKey(true);
+              setHasDocumentsKey(false);
+              const context = generationConfig.script_parameters.context;
+              setContextInput(context);
+              delete generationConfig.script_parameters.context;
+              setConfig(generationConfig.script_parameters);
             }
-          } catch (error) {
-            console.error('Failed to parse generations JSON string:', error);
+
+            if (
+              hasDatasetKey &&
+              generationConfig.script_parameters.dataset_name.length > 0
+            ) {
+              setSelectedDataset(
+                generationConfig.script_parameters.dataset_name
+              );
+            }
+            if (
+              generationConfig.script_parameters._dataset_display_message &&
+              generationConfig.script_parameters._dataset_display_message
+                .length > 0
+            ) {
+              setDatasetDisplayMessage(
+                generationConfig.script_parameters._dataset_display_message
+              );
+            }
+            if (!nameInput && generationConfig?.name.length > 0) {
+              setNameInput(generationConfig.name);
+            }
           }
         }
       } else {
