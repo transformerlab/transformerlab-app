@@ -23,11 +23,10 @@ import {
   Stack,
   Option,
   Autocomplete,
-  Button,
-  Textarea,
 } from '@mui/joy';
 import { useMemo } from 'react';
 import ModelProviderWidget from 'renderer/components/Experiment/Widgets/ModelProviderWidget';
+import CustomEvaluationWidget from './Widgets/CustomEvaluationWidget';
 
 import {
   RegistryWidgetsType,
@@ -462,107 +461,152 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
   );
 }
 
-type EvaluationField = {
-  name: string;
-  expression: string;
-  return_type: 'boolean' | 'number';
-};
+// type EvaluationField = {
+//   name: string;
+//   expression: string;
+//   return_type: 'boolean' | 'number';
+// };
 
-const CustomEvaluationWidget = (props: WidgetProps<any>) => {
-  const { id, value, onChange, disabled, readonly } = props;
-  // If a value exists and is an array, use it to initialize the state.
-  const [evalMetrics, setEvalMetrics] = React.useState<EvaluationField[]>(Array.isArray(value) ? value : []);
+// const CustomEvaluationWidget = (props: WidgetProps<any>) => {
+//   const { id, value, onChange, disabled, readonly } = props;
+//   const valueSent = value;
+//   console.log("Value", valueSent);
 
-  React.useEffect(() => {
-      onChange(evalMetrics);
-  }, [evalMetrics]);
 
-  const handleAddField = () => {
-      setEvalMetrics([
-          ...evalMetrics,
-          { name: '', expression: '', return_type: 'boolean' }
-      ]);
-  };
+//   const parseValue = (val: any): EvaluationField[] => {
+//     if (Array.isArray(val)) {
+//       if (val.every(item => typeof item === "string")) {
+//         // If every element is a string: join them and parse the result.
+//         try {
+//           const joined = val.join(',');
+//           console.log("Joined", joined);
+//           console.log("TYPE", typeof joined);
+//           const parsed = JSON.parse(joined);
+//           console.log("PARSED HERE", parsed);
+//           return Array.isArray(parsed) ? parsed : [];
+//         } catch (err) {
+//           console.error("Error parsing evaluation widget value:", err);
+//           return [];
+//         }
+//       } else {
+//         // If not all elements are strings, assume it's already an array of EvaluationField.
+//         return val;
+//       }
+//     } else if (typeof val === "string") {
+//       try {
+//         return JSON.parse(val);
+//       } catch (err) {
+//         console.error("Error parsing evaluation widget value string:", err);
+//         return [];
+//       }
+//     }
+//     return [];
+//   };
 
-  const handleFieldChange = (
-      index: number,
-      field: keyof EvaluationField,
-      newValue: string
-  ) => {
-      const updated = evalMetrics.map((evaluation, i) =>
-          i === index ? { ...evaluation, [field]: newValue } : evaluation
-      );
-      setEvalMetrics(updated);
-  };
+//   // const parsed = parseValue(value);
 
-  const handleRemoveField = (index: number) => {
-      const updated = evalMetrics.filter((_, i) => i !== index);
-      setEvalMetrics(updated);
-  };
+//   // Initialize state by parsing the incoming value
+//   const [evalMetrics, setEvalMetrics] = React.useState<EvaluationField[]>(parseValue(valueSent));
 
-  return (
-      <div id={id}>
-          {evalMetrics.map((evaluation, index) => (
-              <div
-                  key={index}
-                  style={{
-                      marginBottom: '1rem',
-                      border: '1px solid #ccc',
-                      padding: '0.5rem'
-                  }}
-              >
-                  <Input
-                      placeholder="Evaluation Name"
-                      value={evaluation.name}
-                      onChange={(e) =>
-                          handleFieldChange(index, 'name', e.target.value)
-                      }
-                      disabled={disabled || readonly}
-                      style={{ marginBottom: '0.5rem' }}
-                  />
-                  <Textarea
-                      placeholder="Regular Expression"
-                      value={evaluation.expression}
-                      onChange={(e) =>
-                          handleFieldChange(index, 'expression', e.target.value)
-                      }
-                      disabled={disabled || readonly}
-                      style={{ marginBottom: '0.5rem' }}
-                  />
-                  <Select
-                      placeholder="Output Type"
-                      value={evaluation.return_type}
-                      onChange={(e, newValue) =>
-                          handleFieldChange(index, 'return_type', newValue as string)
-                      }
-                      disabled={disabled || readonly}
-                      style={{ marginBottom: '0.5rem' }}
-                  >
-                      <Option value="boolean">Boolean</Option>
-                      <Option value="number">Number</Option>
-                  </Select>
-                  <Button
-                      onClick={() => handleRemoveField(index)}
-                      disabled={disabled || readonly}
-                      size="sm"
-                      variant="outlined"
-                  >
-                      Remove Field
-                  </Button>
-              </div>
-          ))}
-          <Button
-              onClick={handleAddField}
-              disabled={disabled || readonly}
-              variant="solid"
-          >
-              Add Field
-          </Button>
-          {/* Hidden input to capture the JSON result on form submission */}
-          <input type="hidden" id={id} name={id} value={JSON.stringify(evalMetrics)} />
-      </div>
-  );
-};
+//   // Update state if a new default value is provided
+//   React.useEffect(() => {
+//     const parsed = parseValue(valueSent);
+//     if (JSON.stringify(parsed) !== JSON.stringify(evalMetrics)) {
+//       setEvalMetrics(parsed);
+//     }
+//   }, [value]);
+
+//   // Propagate state changes upstream.
+//   React.useEffect(() => {
+//     onChange(evalMetrics);
+//   }, [evalMetrics]);
+
+//   const handleAddField = () => {
+//     setEvalMetrics([
+//       ...evalMetrics,
+//       { name: '', expression: '', return_type: 'boolean' }
+//     ]);
+//   };
+
+//   const handleFieldChange = (
+//     index: number,
+//     field: keyof EvaluationField,
+//     newValue: string
+//   ) => {
+//     const updated = evalMetrics.map((evaluation, i) =>
+//       i === index ? { ...evaluation, [field]: newValue } : evaluation
+//     );
+//     setEvalMetrics(updated);
+//   };
+
+//   const handleRemoveField = (index: number) => {
+//     const updated = evalMetrics.filter((_, i) => i !== index);
+//     setEvalMetrics(updated);
+//   };
+
+//   return (
+//     <div id={id}>
+//       {evalMetrics.map((evaluation, index) => (
+//         <div
+//           key={index}
+//           style={{
+//             marginBottom: '1rem',
+//             border: '1px solid #ccc',
+//             padding: '0.5rem'
+//           }}
+//         >
+//           <Input
+//             placeholder="Evaluation Name"
+//             value={evaluation.name}
+//             onChange={(e) =>
+//               handleFieldChange(index, 'name', e.target.value)
+//             }
+//             disabled={disabled || readonly}
+//             style={{ marginBottom: '0.5rem' }}
+//           />
+//           <Textarea
+//             placeholder="Regular Expression"
+//             value={evaluation.expression}
+//             onChange={(e) =>
+//               handleFieldChange(index, 'expression', e.target.value)
+//             }
+//             disabled={disabled || readonly}
+//             style={{ marginBottom: '0.5rem' }}
+//           />
+//           <Select
+//             placeholder="Output Type"
+//             value={evaluation.return_type}
+//             onChange={(e, newValue) =>
+//               handleFieldChange(index, 'return_type', newValue as string)
+//             }
+//             disabled={disabled || readonly}
+//             style={{ marginBottom: '0.5rem' }}
+//           >
+//             <Option value="boolean">Boolean</Option>
+//             <Option value="number">Number</Option>
+//           </Select>
+//           <Button
+//             onClick={() => handleRemoveField(index)}
+//             disabled={disabled || readonly}
+//             size="sm"
+//             variant="outlined"
+//           >
+//             Remove Field
+//           </Button>
+//         </div>
+//       ))}
+//       <Button
+//         onClick={handleAddField}
+//         disabled={disabled || readonly}
+//         variant="solid"
+//       >
+//         Add Field
+//       </Button>
+//       {/* Hidden input to capture the JSON result on form submission */}
+//       <input type="hidden" id={id} name={id} value={JSON.stringify(evalMetrics)} />
+//     </div>
+//   );
+// };
 
 function CustomFieldTemplate(props: FieldTemplateProps) {
   const {
