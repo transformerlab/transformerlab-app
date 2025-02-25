@@ -77,6 +77,10 @@ export default function Workflows({ experimentInfo }) {
     return out;
   }
 
+  async function runWorkflow(workflowId: string){
+    await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
+  }
+
   return (
     <Sheet
       sx={{
@@ -170,11 +174,16 @@ export default function Workflows({ experimentInfo }) {
                 Select Workflow
               </Box>
             )}
+            {selectedWorkflow &&
             <Box pl={2} display="flex" flexDirection="column" gap={1}>
-              <Button startDecorator={<PlayIcon />}>Run</Button>
+              {selectedWorkflow.status!="RUNNING" ? (
+                <Button startDecorator={<PlayIcon />} onClick={() => runWorkflow(selectedWorkflow.id)}>Run</Button>
+              ) : (
+                <Button startDecorator={<PlayIcon />} disabled={true}>Running</Button>
+              )}
               <Button variant="outlined">Edit</Button>
               <Button variant="outlined">Fight</Button>
-            </Box>
+            </Box>}
           </Box>
         </Box>
       </Sheet>
