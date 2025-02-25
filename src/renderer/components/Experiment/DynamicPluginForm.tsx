@@ -387,8 +387,8 @@ function CustomSelectSimple<
   );
 }
 
-function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any>(
-  props: WidgetProps<T, S, F> & {disabledFilter?: string; disabledEnvValues?: any }
+function ModelProviderWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any>(
+  props: WidgetProps<T, S, F>
 ) {
   const {
     id,
@@ -401,11 +401,8 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
     options,
     schema,
     multiple,
-    disabledFilter,
-    disabledEnvValues,
-    uiSchema,
   } = props;
-  const { enumOptions } = options;
+  // const { enumOptions } = options;
 
 
     const _multiple =
@@ -416,43 +413,45 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
       : true;
 
 
-  const _disabledFilter = disabledFilter || uiSchema?.["ui:options"]?.disabledFilter;
-  const isDisabledFilter = _disabledFilter === "check_config";
-// Get raw disabledEnvValues from props or uiSchema.
-// const rawDisabledEnvValues = JSON.parse(disabledEnvValues) || JSON.parse(uiSchema?.["ui:options"]?.disabledEnvValues);
-// Inside CustomAutocompleteWidget:
-function safeJSONParse(str: string): any[] {
-  // Convert Python single quotes to JSON double quotes
-  try {
-      const jsonStr = str.replace(/'/g, '"');
-      return JSON.parse(jsonStr);
-  } catch (error) {
-      console.error('Error parsing Python list string', error);
-      return [];
-  }
-}
+  const isDisabledFilter = true;
 
-const rawDisabledEnvValues = (() => {
-  if (disabledEnvValues) {
-      return safeJSONParse(disabledEnvValues);
-  }
-  // Fallback to the uiSchema value if provided.
-  return safeJSONParse(uiSchema?.["ui:options"]?.disabledEnvValues);
-})();
+
+  const enumOptions = [
+    {label: 'Claude 3.5 Haiku', value: 'Claude 3.5 Haiku'},
+    {label: 'Claude 3.5 Sonnet', value: 'Claude 3.5 Sonnet'},
+    {label: 'OpenAI GPT 4o', value: 'OpenAI GPT 4o'},
+    {label: 'OpenAI GPT 4o Mini', value: 'OpenAI GPT 4o Mini'},
+    {label: 'Custom Model API', value: 'Custom Model API'},
+    {label: 'Local', value: 'Local'}
+  ]
+
+// const rawDisabledEnvValues = (() => {
+//   if (disabledEnvValues) {
+//       return safeJSONParse(disabledEnvValues);
+//   }
+//   // Fallback to the uiSchema value if provided.
+//   return safeJSONParse(uiSchema?.["ui:options"]?.disabledEnvValues);
+// })();
+const disabledEnvMap = {
+  "claude": "ANTHROPIC_API_KEY",
+  "openai": "OPENAI_API_KEY",
+  "custom": "CUSTOM_API_KEY",
+}
+const configKeysInOrder = ["ANTHROPIC_API_KEY", "OPENAI_API", "CUSTOM_API_KEY"];
 
 // Build a mapping and an ordered array of config keys.
-let disabledEnvMap: Record<string, string> = {};
-const configKeysInOrder: string[] = [];
-if (rawDisabledEnvValues && Array.isArray(rawDisabledEnvValues) && rawDisabledEnvValues.length > 0) {
-  rawDisabledEnvValues.forEach((tuple: any) => {
-    if (Array.isArray(tuple) && tuple.length >= 2) {
-      const envKey = tuple[0].toLowerCase();
-      const configKey = tuple[1];
-      disabledEnvMap[envKey] = configKey;
-      configKeysInOrder.push(configKey);
-    }
-  });
-}
+// let disabledEnvMap: Record<string, string> = {};
+// const configKeysInOrder: string[] = [];
+// if (rawDisabledEnvValues && Array.isArray(rawDisabledEnvValues) && rawDisabledEnvValues.length > 0) {
+//   rawDisabledEnvValues.forEach((tuple: any) => {
+//     if (Array.isArray(tuple) && tuple.length >= 2) {
+//       const envKey = tuple[0].toLowerCase();
+//       const configKey = tuple[1];
+//       disabledEnvMap[envKey] = configKey;
+//       configKeysInOrder.push(configKey);
+//     }
+//   });
+// }
 
 
   // Determine default value.
@@ -460,10 +459,6 @@ if (rawDisabledEnvValues && Array.isArray(rawDisabledEnvValues) && rawDisabledEn
   // Use the provided value or fallback to default.
   const currentValue = value !== undefined ? value : defaultValue;
 
-  // // Map enumOptions into objects with label and value.
-  // const processedOptionsValues = enumOptions.map((opt) =>
-  //   typeof opt === 'object' ? opt.value : opt
-  // );
 // For each config key (in order received), call useSWR.
 const configResults = configKeysInOrder.map((key) =>
   useSWR(chatAPI.Endpoints.Config.Get(key), fetcher)
@@ -543,6 +538,78 @@ const combinedOptions = processedOptionsValues.reduce(
   );
 }
 
+
+function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any>(
+  props: WidgetProps<T, S, F>
+) {
+  const {
+    id,
+    value,
+    required,
+    disabled,
+    readonly,
+    autofocus,
+    onChange,
+    options,
+    schema,
+    multiple,
+  } = props;
+  const { enumOptions } = options;
+
+  // Default multiple is true.
+  // const _multiple = typeof multiple === 'undefined' ? true : !!multiple;
+    // Check both multiple and options.multiple; default is true.
+    // console.log("OPTIONS", options);
+    const _multiple =
+    typeof multiple !== 'undefined'
+      ? Boolean(multiple)
+      : typeof options.multiple !== 'undefined'
+      ? Boolean(options.multiple)
+      : true;
+
+  // console.log("multiple", _multiple);
+  // Determine default value.
+  const defaultValue = _multiple ? [] : '';
+  // Use the provided value or fallback to default.
+  const currentValue = value !== undefined ? value : defaultValue;
+
+  // Map enumOptions into objects with label and value.
+  const processedOptionsValues = enumOptions.map((opt) =>
+    typeof opt === 'object' ? opt.value : opt
+  );
+  // Create processedOptions array as an array of all values in enumOptions
+
+  return (
+    <>
+      <Autocomplete
+        multiple={_multiple}
+        id={id}
+        placeholder={schema.title || ''}
+        options={processedOptionsValues}
+        getOptionLabel={(option) => option}
+        value={currentValue}
+        onChange={(event, newValue) => {
+          onChange(newValue);
+        }}
+        disabled={disabled || readonly}
+        autoFocus={autofocus}
+      />
+      {/* Hidden input to capture the value on form submission */}
+      <input
+        type="hidden"
+        name={id}
+        value={
+          _multiple
+            ? Array.isArray(currentValue)
+              ? currentValue.join(',')
+              : currentValue
+            : currentValue
+        }
+      />
+    </>
+  );
+}
+
 function CustomFieldTemplate(props: FieldTemplateProps) {
   const {
     id,
@@ -575,6 +642,7 @@ const widgets: RegistryWidgetsType = {
   RangeWidget: CustomRange,
   SelectWidget: CustomSelectSimple,
   AutoCompleteWidget: CustomAutocompleteWidget,
+  ModelProviderWidget: ModelProviderWidget,
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());

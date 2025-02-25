@@ -138,8 +138,8 @@ export default function TransformerLabSettings() {
               </FormHelperText>
             </FormControl>
           </>
-        )}{" "}
-        {wandbLoginStatus?.message === 'OK' ? (
+        )}
+        {/* {wandbLoginStatus?.message === 'OK' ? (
           <Alert color="success">Login to Weights &amp; Biases Successful</Alert>
         ) : (
           <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
@@ -157,7 +157,7 @@ export default function TransformerLabSettings() {
               Save
             </Button>
           </FormControl>
-        )}
+        )} */}
         <Divider sx={{ mt: 2, mb: 2 }} />
         <Typography level="title-lg" marginBottom={2}>
           Providers & Models:

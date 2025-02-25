@@ -25,7 +25,7 @@ import Tokenize from './Experiment/Interact/Tokenize';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExperimentNotes from './Experiment/ExperimentNotes';
-import TransformerLabSettings from './Settings/TransformerLabSettings';
+import TransformerLabSettings from './TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
 import { useState } from 'react';
