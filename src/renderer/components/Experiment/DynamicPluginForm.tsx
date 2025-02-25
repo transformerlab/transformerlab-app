@@ -22,7 +22,9 @@ import {
   Slider,
   Stack,
   Option,
-  Autocomplete
+  Autocomplete,
+  Button,
+  Textarea,
 } from '@mui/joy';
 import { useMemo } from 'react';
 
@@ -459,6 +461,108 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
   );
 }
 
+type EvaluationField = {
+  name: string;
+  regex: string;
+  outputType: 'boolean' | 'number';
+};
+
+const CustomEvaluationWidget = (props: WidgetProps<any>) => {
+  const { id, value, onChange, disabled, readonly } = props;
+  // If a value exists and is an array, use it to initialize the state.
+  const [evalMetrics, setEvalMetrics] = React.useState<EvaluationField[]>(Array.isArray(value) ? value : []);
+
+  React.useEffect(() => {
+      onChange(evalMetrics);
+  }, [evalMetrics]);
+
+  const handleAddField = () => {
+      setEvalMetrics([
+          ...evalMetrics,
+          { name: '', regex: '', outputType: 'boolean' }
+      ]);
+  };
+
+  const handleFieldChange = (
+      index: number,
+      field: keyof EvaluationField,
+      newValue: string
+  ) => {
+      const updated = evalMetrics.map((evaluation, i) =>
+          i === index ? { ...evaluation, [field]: newValue } : evaluation
+      );
+      setEvalMetrics(updated);
+  };
+
+  const handleRemoveField = (index: number) => {
+      const updated = evalMetrics.filter((_, i) => i !== index);
+      setEvalMetrics(updated);
+  };
+
+  return (
+      <div id={id}>
+          {evalMetrics.map((evaluation, index) => (
+              <div
+                  key={index}
+                  style={{
+                      marginBottom: '1rem',
+                      border: '1px solid #ccc',
+                      padding: '0.5rem'
+                  }}
+              >
+                  <Input
+                      placeholder="Evaluation Name"
+                      value={evaluation.name}
+                      onChange={(e) =>
+                          handleFieldChange(index, 'name', e.target.value)
+                      }
+                      disabled={disabled || readonly}
+                      style={{ marginBottom: '0.5rem' }}
+                  />
+                  <Textarea
+                      placeholder="Regular Expression"
+                      value={evaluation.regex}
+                      onChange={(e) =>
+                          handleFieldChange(index, 'regex', e.target.value)
+                      }
+                      disabled={disabled || readonly}
+                      style={{ marginBottom: '0.5rem' }}
+                  />
+                  <Select
+                      placeholder="Output Type"
+                      value={evaluation.outputType}
+                      onChange={(e, newValue) =>
+                          handleFieldChange(index, 'outputType', newValue as string)
+                      }
+                      disabled={disabled || readonly}
+                      style={{ marginBottom: '0.5rem' }}
+                  >
+                      <Option value="boolean">Boolean</Option>
+                      <Option value="number">Number</Option>
+                  </Select>
+                  <Button
+                      onClick={() => handleRemoveField(index)}
+                      disabled={disabled || readonly}
+                      size="sm"
+                      variant="outlined"
+                  >
+                      Remove Field
+                  </Button>
+              </div>
+          ))}
+          <Button
+              onClick={handleAddField}
+              disabled={disabled || readonly}
+              variant="solid"
+          >
+              Add Field
+          </Button>
+          {/* Hidden input to capture the JSON result on form submission */}
+          <input type="hidden" id={id} name={id} value={JSON.stringify(evalMetrics)} />
+      </div>
+  );
+};
+
 function CustomFieldTemplate(props: FieldTemplateProps) {
   const {
     id,
@@ -491,6 +595,7 @@ const widgets: RegistryWidgetsType = {
   RangeWidget: CustomRange,
   SelectWidget: CustomSelectSimple,
   AutoCompleteWidget: CustomAutocompleteWidget,
+  EvaluationWidget: CustomEvaluationWidget,
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
