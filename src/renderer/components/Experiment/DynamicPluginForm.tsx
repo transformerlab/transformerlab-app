@@ -388,7 +388,7 @@ function CustomSelectSimple<
 }
 
 function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any>(
-  props: WidgetProps<T, S, F> & {disabledFilter?: string}
+  props: WidgetProps<T, S, F> & {disabledFilter?: string; disabledEnvValues?: any }
 ) {
   const {
     id,
@@ -402,6 +402,7 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
     schema,
     multiple,
     disabledFilter,
+    disabledEnvValues,
     uiSchema,
   } = props;
   const { enumOptions } = options;
@@ -416,7 +417,42 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
 
 
   const _disabledFilter = disabledFilter || uiSchema?.["ui:options"]?.disabledFilter;
-  const isDisabledFilter = _disabledFilter === "generation_model";
+  const isDisabledFilter = _disabledFilter === "check_config";
+// Get raw disabledEnvValues from props or uiSchema.
+// const rawDisabledEnvValues = JSON.parse(disabledEnvValues) || JSON.parse(uiSchema?.["ui:options"]?.disabledEnvValues);
+// Inside CustomAutocompleteWidget:
+function safeJSONParse(str: string): any[] {
+  // Convert Python single quotes to JSON double quotes
+  try {
+      const jsonStr = str.replace(/'/g, '"');
+      return JSON.parse(jsonStr);
+  } catch (error) {
+      console.error('Error parsing Python list string', error);
+      return [];
+  }
+}
+
+const rawDisabledEnvValues = (() => {
+  if (disabledEnvValues) {
+      return safeJSONParse(disabledEnvValues);
+  }
+  // Fallback to the uiSchema value if provided.
+  return safeJSONParse(uiSchema?.["ui:options"]?.disabledEnvValues);
+})();
+
+// Build a mapping and an ordered array of config keys.
+let disabledEnvMap: Record<string, string> = {};
+const configKeysInOrder: string[] = [];
+if (rawDisabledEnvValues && Array.isArray(rawDisabledEnvValues) && rawDisabledEnvValues.length > 0) {
+  rawDisabledEnvValues.forEach((tuple: any) => {
+    if (Array.isArray(tuple) && tuple.length >= 2) {
+      const envKey = tuple[0].toLowerCase();
+      const configKey = tuple[1];
+      disabledEnvMap[envKey] = configKey;
+      configKeysInOrder.push(configKey);
+    }
+  });
+}
 
 
   // Determine default value.
@@ -424,44 +460,50 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
   // Use the provided value or fallback to default.
   const currentValue = value !== undefined ? value : defaultValue;
 
-  // Map enumOptions into objects with label and value.
-  const processedOptionsValues = enumOptions.map((opt) =>
-    typeof opt === 'object' ? opt.value : opt
-  );
-  // Create processedOptions array as an array of all values in enumOptions
-  // When in generation_model mode, fetch API key values via SWR.
-  const { data: openaiConfig } = useSWR(
-   chatAPI.Endpoints.Config.Get('OPENAI_API_KEY'),
-    fetcher
-  );
-  const { data: claudeConfig } = useSWR(
-   chatAPI.Endpoints.Config.Get('ANTHROPIC_API_KEY'),
-    fetcher
-  );
-  const { data: customAPIConfig } = useSWR(
-   chatAPI.Endpoints.Config.Get('CUSTOM_API_KEY'),
-    fetcher
-  );
+  // // Map enumOptions into objects with label and value.
+  // const processedOptionsValues = enumOptions.map((opt) =>
+  //   typeof opt === 'object' ? opt.value : opt
+  // );
+// For each config key (in order received), call useSWR.
+const configResults = configKeysInOrder.map((key) =>
+  useSWR(chatAPI.Endpoints.Config.Get(key), fetcher)
+);
 
+// Build a mapping of config key to its fetched value.
+const configValues = React.useMemo(() => {
+  const values: Record<string, any> = {};
+  configKeysInOrder.forEach((key, idx) => {
+    values[key] = configResults[idx]?.data;
+  });
+  return values;
+}, [configKeysInOrder, configResults]);
 
-// Create a dictionary mapping each option to its disabled flag.
+// Map enumOptions into string values.
+const processedOptionsValues = enumOptions.map((opt) =>
+  typeof opt === 'object' ? opt.value : opt
+);
+
+// Create a dictionary mapping each option to its disabled flag and message.
 const combinedOptions = processedOptionsValues.reduce(
   (acc: Record<string, { disabled: boolean; info?: string }>, opt) => {
     const lower = opt.toLowerCase();
     let disabled = false;
+    let infoMessage = "";
     if (isDisabledFilter) {
-    if (lower.startsWith('openai')) {
-      disabled = !openaiConfig || openaiConfig === '';
-    } else if (lower.startsWith('claude')) {
-      disabled = !claudeConfig || claudeConfig === '';
-    } else if (lower.startsWith('custom')) {
-      disabled = !customAPIConfig || customAPIConfig === '';
+      // Loop through disabledEnvMap in insertion order.
+      for (const envKey in disabledEnvMap) {
+        if (lower.startsWith(envKey)) {
+          const configKey = disabledEnvMap[envKey];
+          const configVal = configValues[configKey];
+          disabled = !configVal || configVal === '';
+          if (disabled) {
+            infoMessage = `Please set ${configKey} in settings`;
+          }
+          break;
+        }
+      }
     }
-  }
-    acc[opt] = {
-      disabled,
-      info: disabled ? "Please set the API Key in settings" : "",
-    };
+    acc[opt] = { disabled, info: disabled ? infoMessage : "" };
     return acc;
   },
   {}
