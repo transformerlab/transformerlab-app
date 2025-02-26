@@ -6,13 +6,13 @@ import {
   Select,
   Option,
 } from '@mui/joy';
+import { on } from 'node:events';
 
 type EvaluationField = {
   name: string;
   expression: string;
   return_type: string;
 };
-
 
 
 const CustomEvaluationWidget = (props: WidgetProps<any>) => {
@@ -57,18 +57,13 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
     }
   }, [value]);
 
-
-
-  // Propagate state changes upstream.
-  React.useEffect(() => {
-    onChange(evalMetrics);
-  }, [evalMetrics]);
-
   const handleAddField = () => {
-    setEvalMetrics([
+    const updatedMetrics = [
       ...evalMetrics,
       { name: '', expression: '', return_type: 'boolean' }
-    ]);
+    ];
+    setEvalMetrics(updatedMetrics);
+    onChange(updatedMetrics);
   };
 
   const handleFieldChange = (
@@ -80,11 +75,13 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
       i === index ? { ...evaluation, [field]: newValue } : evaluation
     );
     setEvalMetrics(updated);
+    onChange(updated);
   };
 
   const handleRemoveField = (index: number) => {
     const updated = evalMetrics.filter((_, i) => i !== index);
     setEvalMetrics(updated);
+    onChange(updated);
   };
 
   return (
