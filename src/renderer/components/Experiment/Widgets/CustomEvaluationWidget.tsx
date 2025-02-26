@@ -19,7 +19,6 @@ type EvaluationField = {
 const CustomEvaluationWidget = (props: WidgetProps<any>) => {
   const { id, value, onChange, disabled, readonly } = props;
 
-  const [evalMetrics, setEvalMetrics] = React.useState<EvaluationField[]>([]);
 
   // let newValue = value;
   // if (typeof value === 'string') {
@@ -48,6 +47,49 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
   //   }
   // }
   // , [value]);
+
+  const parseValue = (val: any): EvaluationField[] => {
+    if (Array.isArray(val)) {
+      if (val.every(item => typeof item === "string")) {
+        // If every element is a string: join them and parse the result.
+        try {
+          const joined = val.join(',');
+          console.log("Joined", joined);
+          console.log("TYPE", typeof joined);
+          const parsed = JSON.parse(joined);
+          console.log("PARSED HERE", parsed);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch (err) {
+          console.error("Error parsing evaluation widget value:", err);
+          return [];
+        }
+      } else {
+        // If not all elements are strings, assume it's already an array of EvaluationField.
+        return val;
+      }
+    } else if (typeof val === "string") {
+      try {
+        return JSON.parse(val);
+      } catch (err) {
+        console.error("Error parsing evaluation widget value string:", err);
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const [evalMetrics, setEvalMetrics] = React.useState<EvaluationField[]>(parseValue(value));
+
+
+   // Update state if a new default value is provided
+   React.useEffect(() => {
+    const parsed = parseValue(value);
+    if (JSON.stringify(parsed) !== JSON.stringify(evalMetrics) && parsed.length > 0) {
+      setEvalMetrics(parsed);
+    }
+  }, [value]);
+
+
 
   // Propagate state changes upstream.
   React.useEffect(() => {
@@ -97,7 +139,7 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
             disabled={disabled || readonly}
             style={{ marginBottom: '0.5rem' }}
           />
-          <Textarea
+          <textarea
             placeholder="Regular Expression"
             value={evaluation.expression}
             onChange={(e) =>
