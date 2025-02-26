@@ -287,7 +287,7 @@ export default function EvalModal({
       } else {
         console.log('formJson:', formJson);
         const template_name = formJson.template_name;
-        delete formJson.template_name;
+        // delete formJson.template_name;
         const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(
           experimentInfo?.id,
           template_name,
