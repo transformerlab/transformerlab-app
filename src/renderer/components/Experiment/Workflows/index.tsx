@@ -12,18 +12,21 @@ import {
 import { Background, ControlButton, Controls, ReactFlow } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
-import { PlayIcon, PlusCircleIcon, WorkflowIcon } from 'lucide-react';
+import { PlayIcon, PlusCircleIcon, PlusIcon, WorkflowIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import NewWorkflowModal from './NewWorkflowModal';
+import NewNodeModal from './NewNodeModal';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
 export default function Workflows({ experimentInfo }) {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
+  const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
+
   const {
     data: workflowsData,
     error: workflowsError,
@@ -100,6 +103,16 @@ export default function Workflows({ experimentInfo }) {
         }}
         experimentId={experimentInfo?.id}
       />
+      {selectedWorkflow &&
+      <NewNodeModal
+        open={newNodeflowModalOpen}
+        onClose={() => {
+          setNewNodeflowModalOpen(false);
+          mutateWorkflows();
+        }}
+        workflowId={selectedWorkflow?.id}
+      />
+      }
       <Typography level="h1">Workflows</Typography>
       <Typography level="body-lg" mb={3}>
         This is where it will all go
@@ -193,6 +206,12 @@ export default function Workflows({ experimentInfo }) {
                     Running
                   </Button>
                 )}
+                <Button
+                    startDecorator={<PlusIcon />}
+                    onClick={() => setNewNodeflowModalOpen(true)}
+                  >
+                    Add Node
+                </Button>
                 <Button variant="outlined">Edit</Button>
                 <Button variant="outlined">Fight</Button>
               </Box>
