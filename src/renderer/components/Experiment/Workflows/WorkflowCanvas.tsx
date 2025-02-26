@@ -1,4 +1,5 @@
 import { Background, ControlButton, Controls, ReactFlow } from '@xyflow/react';
+import { PlusCircleIcon } from 'lucide-react';
 import React from 'react';
 
 function generateNodes(workflow: any) {
@@ -64,6 +65,11 @@ export default function WorkflowCanvas({ selectedWorkflow }) {
           *
         </ControlButton>
       </Controls>
+      <PlusCircleIcon
+        style={{ position: 'absolute', bottom: '20px', right: '20px' }}
+        strokeWidth={2}
+        size={32}
+      />
     </ReactFlow>
   );
 }
