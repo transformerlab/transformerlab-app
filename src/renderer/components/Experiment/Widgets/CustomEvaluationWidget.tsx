@@ -1,12 +1,6 @@
 import React from 'react';
 import { WidgetProps } from '@rjsf/core';
-import {
-  Button,
-  Input,
-  Select,
-  Option,
-} from '@mui/joy';
-
+import { Button, Input, Select, Option } from '@mui/joy';
 
 type EvaluationField = {
   name: string;
@@ -14,55 +8,44 @@ type EvaluationField = {
   return_type: string;
 };
 
+const parseValue = (val: any): EvaluationField[] => {
+  if (Array.isArray(val)) {
+    if (val.every(item => typeof item === "string")) {
+      // If every element is a string: join them and parse the result.
+      try {
+        const joined = val.join(',');
+        const parsed = JSON.parse(joined);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (err) {
+        console.error("Error parsing evaluation widget value:", err);
+        return [];
+      }
+    } else {
+      // If not all elements are strings, assume it's already an array of EvaluationField.
+      return val;
+    }
+  } else if (typeof val === "string") {
+    try {
+      return JSON.parse(val);
+    } catch (err) {
+      console.error("Error parsing evaluation widget value string:", err);
+      return [];
+    }
+  }
+  return [];
+};
 
 const CustomEvaluationWidget = (props: WidgetProps<any>) => {
   const { id, value, onChange, disabled, readonly } = props;
 
-
-  const parseValue = (val: any): EvaluationField[] => {
-    if (Array.isArray(val)) {
-      if (val.every(item => typeof item === "string")) {
-        // If every element is a string: join them and parse the result.
-        try {
-          const joined = val.join(',');
-          const parsed = JSON.parse(joined);
-          return Array.isArray(parsed) ? parsed : [];
-        } catch (err) {
-          console.error("Error parsing evaluation widget value:", err);
-          return [];
-        }
-      } else {
-        // If not all elements are strings, assume it's already an array of EvaluationField.
-        return val;
-      }
-    } else if (typeof val === "string") {
-      try {
-        return JSON.parse(val);
-      } catch (err) {
-        console.error("Error parsing evaluation widget value string:", err);
-        return [];
-      }
-    }
-    return [];
-  };
-
-  const [evalMetrics, setEvalMetrics] = React.useState<EvaluationField[]>(parseValue(value));
-
-
-   // Update state if a new default value is provided
-   React.useEffect(() => {
-    const parsed = parseValue(value);
-    if (JSON.stringify(parsed) !== JSON.stringify(evalMetrics) && parsed.length > 0) {
-      setEvalMetrics(parsed);
-    }
-  }, [value]);
+  // Directly derive evaluation metrics from the value prop.
+  const evalMetrics: EvaluationField[] = React.useMemo(() => parseValue(value), [value]);
 
   const handleAddField = () => {
     const updatedMetrics = [
       ...evalMetrics,
       { name: '', expression: '', return_type: 'boolean' }
     ];
-    setEvalMetrics(updatedMetrics);
     onChange(updatedMetrics);
   };
 
@@ -74,13 +57,11 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
     const updated = evalMetrics.map((evaluation, i) =>
       i === index ? { ...evaluation, [field]: newValue } : evaluation
     );
-    setEvalMetrics(updated);
     onChange(updated);
   };
 
   const handleRemoveField = (index: number) => {
     const updated = evalMetrics.filter((_, i) => i !== index);
-    setEvalMetrics(updated);
     onChange(updated);
   };
 
@@ -126,7 +107,6 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
             <Option value="number">Number</Option>
             <Option value="contains">Contains</Option>
             <Option value="isequal">IsEqual</Option>
-
           </Select>
           <Button
             onClick={() => handleRemoveField(index)}

@@ -422,7 +422,13 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
   // Determine default value.
   const defaultValue = _multiple ? [] : '';
   // Use the provided value or fallback to default.
-  const currentValue = value !== undefined ? value : defaultValue;
+  let currentValue = value !== undefined ? value : defaultValue;
+
+  // Check if currentValue is an array, if a string, convert it to an array.
+  const isString = typeof currentValue === 'string';
+  if (isString) {
+    currentValue = currentValue.split(',');
+  }
 
   // Map enumOptions into objects with label and value.
   const processedOptionsValues = enumOptions.map((opt) =>
