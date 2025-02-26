@@ -19,44 +19,13 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
   const { id, value, onChange, disabled, readonly } = props;
 
 
-  // let newValue = value;
-  // if (typeof value === 'string') {
-  //   try {
-  //     newValue = [];
-  //   } catch (e) {
-  //     newValue = [];
-  //   }
-
-  // } else if (Array.isArray(value) && value.length > 0) {
-  //   if (typeof value[0] === 'string') {
-  //     newValue = JSON.parse(value.join(','));
-  //   }
-  // }
-
-
-  // console.log("newValue", newValue);
-
-  // Initialize the state as an empty array without using the value prop.
-
-  // console.log("value", value);
-  // // Update the state when the value prop changes.
-  // React.useEffect(() => {
-  //   if (value && JSON.stringify(value) !== JSON.stringify(evalMetrics)) {
-  //     setEvalMetrics(newValue);
-  //   }
-  // }
-  // , [value]);
-
   const parseValue = (val: any): EvaluationField[] => {
     if (Array.isArray(val)) {
       if (val.every(item => typeof item === "string")) {
         // If every element is a string: join them and parse the result.
         try {
           const joined = val.join(',');
-          console.log("Joined", joined);
-          console.log("TYPE", typeof joined);
           const parsed = JSON.parse(joined);
-          console.log("PARSED HERE", parsed);
           return Array.isArray(parsed) ? parsed : [];
         } catch (err) {
           console.error("Error parsing evaluation widget value:", err);
