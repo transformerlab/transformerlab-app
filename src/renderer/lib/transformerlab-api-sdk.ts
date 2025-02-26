@@ -1010,8 +1010,16 @@ function convertSlashInUrl(url: string) {
 
 Endpoints.Workflows = {
   List: () => API_URL() + 'workflows/list',
-  RunWorkflow: (workflowId: string) => API_URL() + 'workflows/start/' + workflowId,
-}
+  CreateEmpty: (name: string, experimentId) =>
+    API_URL() +
+    'workflows/create_empty' +
+    '?name=' +
+    name +
+    '&experiment_id=' +
+    experimentId,
+  RunWorkflow: (workflowId: string) =>
+    API_URL() + 'workflows/start/' + workflowId,
+};
 
 Endpoints.Dataset = {
   Gallery: () => API_URL() + 'data/gallery',
@@ -1051,7 +1059,8 @@ Endpoints.Dataset = {
   Create: (datasetId: string) => API_URL() + 'data/new?dataset_id=' + datasetId,
   Download: (datasetId: string) =>
     API_URL() + 'data/download?dataset_id=' + datasetId,
-  LocalList: (generated: boolean = true) => API_URL() + 'data/list?generated=' + generated,
+  LocalList: (generated: boolean = true) =>
+    API_URL() + 'data/list?generated=' + generated,
   GeneratedList: () => API_URL() + 'data/generated_datasets_list',
   FileUpload: (datasetId: string) =>
     API_URL() + 'data/fileupload?dataset_id=' + datasetId,
@@ -1124,7 +1133,11 @@ Endpoints.Config = {
 
 Endpoints.Documents = {
   List: (experimentId: string, currentFolder: string = '') =>
-    API_URL() + 'experiment/' + experimentId + '/documents/list?folder=' + currentFolder,
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/documents/list?folder=' +
+    currentFolder,
   Open: (experimentId: string, document_name: string, folder: string) =>
     API_URL() +
     'experiment/' +
@@ -1134,7 +1147,11 @@ Endpoints.Documents = {
     '?folder=' +
     folder,
   Upload: (experimentId: string, currentFolder: string = '') =>
-    API_URL() + 'experiment/' + experimentId + '/documents/upload?folder=' + currentFolder,
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/documents/upload?folder=' +
+    currentFolder,
   Delete: (experimentId: string, document_name: string) =>
     API_URL() +
     'experiment/' +
@@ -1159,7 +1176,7 @@ Endpoints.Rag = {
   ) =>
     API_URL() +
     `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}&rag_folder=${ragFolder}`,
-  ReIndex: (experimentId: string, folderName: string = "rag") =>
+  ReIndex: (experimentId: string, folderName: string = 'rag') =>
     API_URL() + `experiment/${experimentId}/rag/reindex&folder=${folderName}`,
 };
 
@@ -1172,8 +1189,7 @@ Endpoints.Prompts = {
 Endpoints.BatchedPrompts = {
   List: () => API_URL() + 'batch/list',
   New: () => API_URL() + 'batch/new',
-  Delete: (promptId: string) =>
-    API_URL() + 'batch/delete/' + promptId,
+  Delete: (promptId: string) => API_URL() + 'batch/delete/' + promptId,
 };
 
 Endpoints.Tools = {
@@ -1282,12 +1298,12 @@ Endpoints.Experiment = {
     '?eval_name=' +
     evalName,
   DeleteGeneration: (experimentId: string, evalName: string) =>
-      API_URL() +
-      'experiment/' +
-      experimentId +
-      '/generations/delete' +
-      '?generation_name=' +
-      evalName,
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/generations/delete' +
+    '?generation_name=' +
+    evalName,
   GetEvalOutput: (experimentId: string, eval_name: string) =>
     API_URL() +
     'experiment/' +
@@ -1296,12 +1312,12 @@ Endpoints.Experiment = {
     '?eval_name=' +
     eval_name,
   GetGenerationOutput: (experimentId: string, eval_name: string) =>
-      API_URL() +
-      'experiment/' +
-      experimentId +
-      '/generations/get_output' +
-      '?eval_name=' +
-      eval_name,
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/generations/get_output' +
+    '?eval_name=' +
+    eval_name,
   RunExport: (
     id: string,
     pluginName: string,
@@ -1335,9 +1351,9 @@ Endpoints.Experiment = {
   DeleteConversation: (experimentId: string, conversationId: string) =>
     FULL_PATH(
       'experiment/' +
-      experimentId +
-      '/conversations/delete?conversation_id=' +
-      conversationId
+        experimentId +
+        '/conversations/delete?conversation_id=' +
+        conversationId
     ),
   InstallPlugin: (experimentId: string, pluginId: string) =>
     API_URL() +
@@ -1362,10 +1378,10 @@ Endpoints.Experiment = {
   ) =>
     FULL_PATH(
       'experiment/' +
-      experimentId +
-      '/plugins/list?type=' +
-      type +
-      (filter ? '&filter=' + filter : '')
+        experimentId +
+        '/plugins/list?type=' +
+        type +
+        (filter ? '&filter=' + filter : '')
     ),
   ScriptListFiles: (experimentId: string, id: string) =>
     API_URL() + 'experiment/' + experimentId + '/plugins/' + id + '/list_files',
@@ -1423,13 +1439,13 @@ Endpoints.Experiment = {
   StreamOutputFromJob: (jobId: string) =>
     API_URL() + `jobs/${jobId}/stream_output`,
   StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
-    API_URL() + `jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
-  GetAdditionalDetails : (jobId: string, task: string = "view") =>
+    API_URL() +
+    `jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
+  GetAdditionalDetails: (jobId: string, task: string = 'view') =>
     API_URL() + `jobs/${jobId}/get_additional_details?task=${task}`,
-  GetGeneratedDataset : (jobId: string) =>
+  GetGeneratedDataset: (jobId: string) =>
     API_URL() + `jobs/${jobId}/get_generated_dataset`,
-  GetPlotJSON: (jobId: string) =>
-    API_URL() + `jobs/${jobId}/get_figure_json`,
+  GetPlotJSON: (jobId: string) => API_URL() + `jobs/${jobId}/get_figure_json`,
 };
 
 Endpoints.Jobs = {
@@ -1564,14 +1580,17 @@ export async function EXPERIMENT_ADD_GENERATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await fetch(API_URL() + 'experiment/' + id + '/generations/add', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    },
-    body: JSON.stringify(newPlugin),
-  });
+  const response = await fetch(
+    API_URL() + 'experiment/' + id + '/generations/add',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(newPlugin),
+    }
+  );
   const result = await response.json();
   return result;
 }
@@ -1586,18 +1605,20 @@ export async function EXPERIMENT_EDIT_GENERATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await fetch(API_URL() + 'experiment/' + id + '/generations/edit', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    },
-    body: JSON.stringify(newPlugin),
-  });
+  const response = await fetch(
+    API_URL() + 'experiment/' + id + '/generations/edit',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(newPlugin),
+    }
+  );
   const result = await response.json();
   return result;
 }
-
 
 export function CREATE_EXPERIMENT_URL(name: string) {
   return API_URL() + 'experiment/create?name=' + name;
@@ -1718,16 +1739,16 @@ export async function activateWorker(
   try {
     response = await fetch(
       API_URL() +
-      'server/worker_start?model_name=' +
-      model +
-      '&adaptor=' +
-      adaptorName +
-      '&engine=' +
-      engine +
-      '&experiment_id=' +
-      experimentId +
-      '&parameters=' +
-      paramsJSON
+        'server/worker_start?model_name=' +
+        model +
+        '&adaptor=' +
+        adaptorName +
+        '&engine=' +
+        engine +
+        '&experiment_id=' +
+        experimentId +
+        '&parameters=' +
+        paramsJSON
     );
     const result = await response.json();
     return result;
