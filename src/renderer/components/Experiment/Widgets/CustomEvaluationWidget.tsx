@@ -108,7 +108,7 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
             style={{ marginBottom: '0.5rem' }}
           />
           <textarea
-            placeholder="Regular Expression"
+            placeholder="Regular Expression/String"
             value={evaluation.expression}
             onChange={(e) =>
               handleFieldChange(index, 'expression', e.target.value)
@@ -127,6 +127,9 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
           >
             <Option value="boolean">Boolean</Option>
             <Option value="number">Number</Option>
+            <Option value="contains">Contains</Option>
+            <Option value="isequal">IsEqual</Option>
+
           </Select>
           <Button
             onClick={() => handleRemoveField(index)}
