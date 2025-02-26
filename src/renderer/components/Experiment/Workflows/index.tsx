@@ -74,7 +74,7 @@ export default function Workflows({ experimentInfo }) {
             setNewNodeflowModalOpen(false);
             mutateWorkflows();
           }}
-          workflowId={selectedWorkflow?.id}
+          selectedWorkflow={selectedWorkflow}
         />
       )}
       <Typography level="h1">Workflows</Typography>
