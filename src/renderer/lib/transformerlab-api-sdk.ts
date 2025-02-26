@@ -1017,6 +1017,13 @@ Endpoints.Workflows = {
     name +
     '&experiment_id=' +
     experimentId,
+  AddNode: (workflowId: string, node: string) =>
+      API_URL() +
+      'workflows/add_node' +
+      '?workflow_id=' +
+      workflowId +
+      '&node=' +
+      node,
   RunWorkflow: (workflowId: string) =>
     API_URL() + 'workflows/start/' + workflowId,
 };
