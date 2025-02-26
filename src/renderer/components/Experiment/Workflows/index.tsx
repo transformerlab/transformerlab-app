@@ -28,6 +28,7 @@ export default function Workflows({ experimentInfo }) {
     data: workflowsData,
     error: workflowsError,
     isLoading: isLoading,
+    mutate: mutateWorkflows,
   } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
 
   const workflows = workflowsData;
@@ -77,7 +78,7 @@ export default function Workflows({ experimentInfo }) {
     return out;
   }
 
-  async function runWorkflow(workflowId: string){
+  async function runWorkflow(workflowId: string) {
     await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
   }
 
@@ -93,7 +94,11 @@ export default function Workflows({ experimentInfo }) {
     >
       <NewWorkflowModal
         open={newWorkflowModalOpen}
-        setOpen={setNewWorkflowModalOpen}
+        onClose={() => {
+          setNewWorkflowModalOpen(false);
+          mutateWorkflows();
+        }}
+        experimentId={experimentInfo?.id}
       />
       <Typography level="h1">Workflows</Typography>
       <Typography level="body-lg" mb={3}>
@@ -174,16 +179,24 @@ export default function Workflows({ experimentInfo }) {
                 Select Workflow
               </Box>
             )}
-            {selectedWorkflow &&
-            <Box pl={2} display="flex" flexDirection="column" gap={1}>
-              {selectedWorkflow.status!="RUNNING" ? (
-                <Button startDecorator={<PlayIcon />} onClick={() => runWorkflow(selectedWorkflow.id)}>Run</Button>
-              ) : (
-                <Button startDecorator={<PlayIcon />} disabled={true}>Running</Button>
-              )}
-              <Button variant="outlined">Edit</Button>
-              <Button variant="outlined">Fight</Button>
-            </Box>}
+            {selectedWorkflow && (
+              <Box pl={2} display="flex" flexDirection="column" gap={1}>
+                {selectedWorkflow.status != 'RUNNING' ? (
+                  <Button
+                    startDecorator={<PlayIcon />}
+                    onClick={() => runWorkflow(selectedWorkflow.id)}
+                  >
+                    Run
+                  </Button>
+                ) : (
+                  <Button startDecorator={<PlayIcon />} disabled={true}>
+                    Running
+                  </Button>
+                )}
+                <Button variant="outlined">Edit</Button>
+                <Button variant="outlined">Fight</Button>
+              </Box>
+            )}
           </Box>
         </Box>
       </Sheet>

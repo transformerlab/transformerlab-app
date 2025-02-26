@@ -1010,7 +1010,7 @@ function convertSlashInUrl(url: string) {
 
 Endpoints.Workflows = {
   List: () => API_URL() + 'workflows/list',
-  CreateEmpty: (name: string, experimentId) =>
+  CreateEmpty: (name: string, experimentId: string) =>
     API_URL() +
     'workflows/create_empty' +
     '?name=' +
