@@ -15,54 +15,39 @@ type EvaluationField = {
 };
 
 
+
 const CustomEvaluationWidget = (props: WidgetProps<any>) => {
   const { id, value, onChange, disabled, readonly } = props;
-  const valueSent = value;
-  console.log("Value", valueSent);
+
+  const [evalMetrics, setEvalMetrics] = React.useState<EvaluationField[]>([]);
+
+  // let newValue = value;
+  // if (typeof value === 'string') {
+  //   try {
+  //     newValue = [];
+  //   } catch (e) {
+  //     newValue = [];
+  //   }
+
+  // } else if (Array.isArray(value) && value.length > 0) {
+  //   if (typeof value[0] === 'string') {
+  //     newValue = JSON.parse(value.join(','));
+  //   }
+  // }
 
 
-  const parseValue = (val: any): EvaluationField[] => {
-    if (Array.isArray(val)) {
-      if (val.every(item => typeof item === "string")) {
-        // If every element is a string: join them and parse the result.
-        try {
-          const joined = val.join(',');
-          console.log("Joined", joined);
-          console.log("TYPE", typeof joined);
-          const parsed = JSON.parse(joined);
-          console.log("PARSED HERE", parsed);
-          return Array.isArray(parsed) ? parsed : [];
-        } catch (err) {
-          console.error("Error parsing evaluation widget value:", err);
-          return [];
-        }
-      } else {
-        // If not all elements are strings, assume it's already an array of EvaluationField.
-        return val;
-      }
-    } else if (typeof val === "string") {
-      try {
-        return JSON.parse(val);
-      } catch (err) {
-        console.error("Error parsing evaluation widget value string:", err);
-        return [];
-      }
-    }
-    return [];
-  };
+  // console.log("newValue", newValue);
 
-  // const parsed = parseValue(value);
+  // Initialize the state as an empty array without using the value prop.
 
-  // Initialize state by parsing the incoming value
-  const [evalMetrics, setEvalMetrics] = React.useState<EvaluationField[]>(parseValue(valueSent));
-
-  // Update state if a new default value is provided
-  React.useEffect(() => {
-    const parsed = parseValue(valueSent);
-    if (JSON.stringify(parsed) !== JSON.stringify(evalMetrics)) {
-      setEvalMetrics(parsed);
-    }
-  }, [value]);
+  // console.log("value", value);
+  // // Update the state when the value prop changes.
+  // React.useEffect(() => {
+  //   if (value && JSON.stringify(value) !== JSON.stringify(evalMetrics)) {
+  //     setEvalMetrics(newValue);
+  //   }
+  // }
+  // , [value]);
 
   // Propagate state changes upstream.
   React.useEffect(() => {
