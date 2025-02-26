@@ -75,6 +75,7 @@ export default function Workflows({ experimentInfo }) {
             mutateWorkflows();
           }}
           selectedWorkflow={selectedWorkflow}
+          experimentInfo={experimentInfo}
         />
       )}
       <Typography level="h1">Workflows</Typography>

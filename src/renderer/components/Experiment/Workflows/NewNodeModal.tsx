@@ -22,7 +22,12 @@ import { node } from 'webpack';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
-export default function NewNodeModal({ open, onClose, selectedWorkflow }) {
+export default function NewNodeModal({
+  open,
+  onClose,
+  selectedWorkflow,
+  experimentInfo,
+}) {
   const [mode, setMode] = useState('OTHER');
 
   console.log(mode);
@@ -33,13 +38,7 @@ export default function NewNodeModal({ open, onClose, selectedWorkflow }) {
     isLoading: isLoading,
   } = useSWR(chatAPI.GET_TRAINING_TEMPLATE_URL(), fetcher);
 
-  const {
-    data: workflowsData,
-    error: workflowsError,
-    isLoading: workflowsIsLoading,
-  } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
-
-  console.log(trainingTemplatesData);
+  const evaluationData = JSON.parse(experimentInfo?.config?.evaluations);
 
   const handleModeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setMode(event.target.outerText);
@@ -72,6 +71,22 @@ export default function NewNodeModal({ open, onClose, selectedWorkflow }) {
                   JSON.stringify(node)
                 )
               );
+            } else if (mode == 'EVAL') {
+              const template = formData.get('evalTemplate') as string;
+              const config = JSON.parse(selectedWorkflow.config);
+              console.log(config);
+              const node = {
+                name: name,
+                type: 'EVAL',
+                out: (config.nodes.length + 1).toString(),
+                template: template,
+              };
+              await fetch(
+                chatAPI.Endpoints.Workflows.AddNode(
+                  selectedWorkflow.id,
+                  JSON.stringify(node)
+                )
+              );
             } else {
               const node = JSON.parse(formData.get('node') as string);
               node.name = name;
@@ -94,6 +109,7 @@ export default function NewNodeModal({ open, onClose, selectedWorkflow }) {
             >
               <Option value="OTHER">OTHER</Option>
               <Option value="TRAIN">TRAIN</Option>
+              <Option value="EVAL">EVAL</Option>
             </Select>
             <FormLabel>Name</FormLabel>
             <Textarea minRows={4} autoFocus required name="name" />
@@ -101,6 +117,12 @@ export default function NewNodeModal({ open, onClose, selectedWorkflow }) {
               <Select name="trainingTemplate">
                 {trainingTemplatesData.map((template) => (
                   <Option value={template[1]}>{template[1]}</Option>
+                ))}
+              </Select>
+            ) : mode == 'EVAL' ? (
+              <Select name="evalTemplate">
+                {evaluationData.map((template) => (
+                  <Option value={template.name}>{template.name}</Option>
                 ))}
               </Select>
             ) : (
