@@ -289,6 +289,10 @@ export default function MainAppPanel({
         path="/zoo/store"
         element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
       />
+      <Route
+        path="/zoo/journey"
+        element={<ModelZoo experimentInfo={experimentInfo} tab="journey" />}
+      />
       <Route path="/data" element={<Data />} />
       <Route
         path="/model-home"
