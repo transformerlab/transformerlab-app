@@ -185,6 +185,14 @@ const LocalModelsTable = ({
                               marginRight: '5px',
                             }}
                           />
+                        ) : (row?.source && row?.source != "transformerlab") ? (
+                          <ArrowRightToLineIcon
+                            color="var(--joy-palette-success-700)"
+                            style={{
+                              verticalAlign: 'middle',
+                              marginRight: '5px',
+                            }}
+                          />
                         ) : (
                           ''
                         )}{' '}
