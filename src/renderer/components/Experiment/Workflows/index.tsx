@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  Divider,
   List,
   ListItem,
   ListItemButton,
@@ -9,7 +10,6 @@ import {
   Sheet,
   Typography,
 } from '@mui/joy';
-import { Background, ControlButton, Controls, ReactFlow } from '@xyflow/react';
 
 import '@xyflow/react/dist/style.css';
 import { PlayIcon, PlusCircleIcon, WorkflowIcon } from 'lucide-react';
@@ -18,6 +18,7 @@ import { useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import NewWorkflowModal from './NewWorkflowModal';
+import WorkflowCanvas from './WorkflowCanvas';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
@@ -32,51 +33,6 @@ export default function Workflows({ experimentInfo }) {
   } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
 
   const workflows = workflowsData;
-
-  function generateNodes(workflow: any) {
-    let out: any[] = [];
-    let currentTask = '0';
-    let position = 0;
-
-    const workflowConfig = JSON.parse(workflow?.config);
-    console.log(workflowConfig);
-
-    while (currentTask < workflowConfig.nodes.length) {
-      out.push({
-        id: currentTask,
-        position: { x: 0, y: position },
-        data: { label: workflowConfig.nodes[currentTask].name },
-      });
-      position += 100;
-      currentTask = workflowConfig.nodes[currentTask].out;
-    }
-
-    return out;
-  }
-
-  function generateEdges(workflow: any) {
-    let out: any[] = [];
-    let currentTask = '0';
-    let ids = '0';
-
-    const workflowConfig = JSON.parse(workflow?.config);
-    console.log(workflowConfig);
-
-    while (currentTask < workflowConfig.nodes.length) {
-      out.push({
-        id: ids,
-        source: currentTask,
-        target: workflowConfig.nodes[currentTask].out,
-        markerEnd: {
-          type: 'arrow',
-        },
-      });
-      ids += 1;
-      currentTask = workflowConfig.nodes[currentTask].out;
-    }
-
-    return out;
-  }
 
   async function runWorkflow(workflowId: string) {
     await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
@@ -131,6 +87,7 @@ export default function Workflows({ experimentInfo }) {
                   </ListItemButton>
                 </ListItem>
               ))}
+            <Divider />
             <ListItem>
               <ListItemButton onClick={() => setNewWorkflowModalOpen(true)}>
                 <ListItemDecorator>
@@ -157,23 +114,7 @@ export default function Workflows({ experimentInfo }) {
             }}
           >
             {selectedWorkflow ? (
-              <ReactFlow
-                nodes={generateNodes(selectedWorkflow)}
-                edges={generateEdges(selectedWorkflow)}
-                fitView
-                style={{ backgroundColor: '#F7F9FB' }}
-              >
-                <Background color="#96ADE9" />
-                <Controls>
-                  <ControlButton
-                    onClick={() => {
-                      alert('hi');
-                    }}
-                  >
-                    *
-                  </ControlButton>
-                </Controls>
-              </ReactFlow>
+              <WorkflowCanvas selectedWorkflow={selectedWorkflow} />
             ) : (
               <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
                 Select Workflow
