@@ -10,7 +10,7 @@ import {
 type EvaluationField = {
   name: string;
   expression: string;
-  return_type: 'boolean' | 'number';
+  return_type: string;
 };
 
 
