@@ -142,7 +142,10 @@ export default function Workflows({ experimentInfo }) {
             }}
           >
             {selectedWorkflow ? (
-              <WorkflowCanvas selectedWorkflow={selectedWorkflow} />
+              <WorkflowCanvas
+                selectedWorkflow={selectedWorkflow}
+                setNewNodeModalOpen={setNewNodeflowModalOpen}
+              />
             ) : (
               <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
                 Select Workflow
@@ -162,15 +165,15 @@ export default function Workflows({ experimentInfo }) {
                     Running
                   </Button>
                 )}
-                <Button
+                {/* <Button
                   startDecorator={<PlusIcon />}
                   onClick={() => setNewNodeflowModalOpen(true)}
                 >
                   Add Node
-                </Button>
-                <Button startDecorator={<PenIcon />} variant="outlined">
+                </Button> */}
+                {/* <Button startDecorator={<PenIcon />} variant="outlined">
                   Edit
-                </Button>
+                </Button> */}
                 <Button startDecorator={<AxeIcon />} variant="outlined">
                   Fight
                 </Button>

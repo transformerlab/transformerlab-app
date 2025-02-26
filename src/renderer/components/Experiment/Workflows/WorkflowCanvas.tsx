@@ -1,3 +1,4 @@
+import { Button } from '@mui/joy';
 import {
   Background,
   ControlButton,
@@ -54,7 +55,7 @@ function generateEdges(workflow: any) {
   return out;
 }
 
-const Flow = ({ selectedWorkflow }) => {
+const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
   const reactFlowInstance = useReactFlow();
   // Use fitView after the component mounts
   useEffect(() => {
@@ -81,6 +82,26 @@ const Flow = ({ selectedWorkflow }) => {
       panOnScroll={false}
       style={{ backgroundColor: '#F7F9FB' }}
     >
+      <Button
+        variant="plain"
+        sx={{
+          zIndex: '1000',
+          position: 'absolute',
+          bottom: '20px',
+          right: '20px',
+        }}
+        startDecorator={
+          <PlusCircleIcon
+            strokeWidth={2}
+            size={32}
+            onClick={() => {
+              setNewNodeModalOpen(true);
+            }}
+          />
+        }
+      >
+        Add Node
+      </Button>
       <Background color="#96ADE9" />
       <Controls>
         <ControlButton
@@ -91,19 +112,23 @@ const Flow = ({ selectedWorkflow }) => {
           *
         </ControlButton>
       </Controls>
-      <PlusCircleIcon
-        style={{ position: 'absolute', bottom: '20px', right: '20px' }}
-        strokeWidth={2}
-        size={32}
-      />
     </ReactFlow>
   );
 };
 
-export default function WorkflowCanvas({ selectedWorkflow }) {
+export default function WorkflowCanvas({
+  selectedWorkflow,
+  setNewNodeModalOpen = () => {},
+}) {
+  if (!selectedWorkflow) {
+    return null;
+  }
   return (
     <ReactFlowProvider>
-      <Flow selectedWorkflow={selectedWorkflow} />
+      <Flow
+        selectedWorkflow={selectedWorkflow}
+        setNewNodeModalOpen={setNewNodeModalOpen}
+      />
     </ReactFlowProvider>
   );
 }
