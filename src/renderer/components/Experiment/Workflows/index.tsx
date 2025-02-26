@@ -32,7 +32,7 @@ import WorkflowCanvas from './WorkflowCanvas';
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
 export default function Workflows({ experimentInfo }) {
-  const [selectedWorkflow, setSelectedWorkflow] = useState(null);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
 
@@ -44,6 +44,10 @@ export default function Workflows({ experimentInfo }) {
   } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
 
   const workflows = workflowsData;
+
+  const selectedWorkflow = workflows?.find(
+    (workflow) => workflow.id === selectedWorkflowId
+  );
 
   async function runWorkflow(workflowId: string) {
     await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
@@ -100,7 +104,9 @@ export default function Workflows({ experimentInfo }) {
               workflows?.length > 0 &&
               workflows?.map((workflow) => (
                 <ListItem key={workflow.id}>
-                  <ListItemButton onClick={() => setSelectedWorkflow(workflow)}>
+                  <ListItemButton
+                    onClick={() => setSelectedWorkflowId(workflow.id)}
+                  >
                     <ListItemDecorator>
                       <WorkflowIcon />
                     </ListItemDecorator>
