@@ -12,7 +12,15 @@ import {
 } from '@mui/joy';
 
 import '@xyflow/react/dist/style.css';
-import { PlayIcon, PlusCircleIcon, PlusIcon, WorkflowIcon } from 'lucide-react';
+import {
+  AxeIcon,
+  PencilIcon,
+  PenIcon,
+  PlayIcon,
+  PlusCircleIcon,
+  PlusIcon,
+  WorkflowIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
@@ -59,16 +67,16 @@ export default function Workflows({ experimentInfo }) {
         }}
         experimentId={experimentInfo?.id}
       />
-      {selectedWorkflow &&
-      <NewNodeModal
-        open={newNodeflowModalOpen}
-        onClose={() => {
-          setNewNodeflowModalOpen(false);
-          mutateWorkflows();
-        }}
-        workflowId={selectedWorkflow?.id}
-      />
-      }
+      {selectedWorkflow && (
+        <NewNodeModal
+          open={newNodeflowModalOpen}
+          onClose={() => {
+            setNewNodeflowModalOpen(false);
+            mutateWorkflows();
+          }}
+          workflowId={selectedWorkflow?.id}
+        />
+      )}
       <Typography level="h1">Workflows</Typography>
       <Typography level="body-lg" mb={3}>
         This is where it will all go
@@ -148,13 +156,17 @@ export default function Workflows({ experimentInfo }) {
                   </Button>
                 )}
                 <Button
-                    startDecorator={<PlusIcon />}
-                    onClick={() => setNewNodeflowModalOpen(true)}
-                  >
-                    Add Node
+                  startDecorator={<PlusIcon />}
+                  onClick={() => setNewNodeflowModalOpen(true)}
+                >
+                  Add Node
                 </Button>
-                <Button variant="outlined">Edit</Button>
-                <Button variant="outlined">Fight</Button>
+                <Button startDecorator={<PenIcon />} variant="outlined">
+                  Edit
+                </Button>
+                <Button startDecorator={<AxeIcon />} variant="outlined">
+                  Fight
+                </Button>
               </Box>
             )}
           </Box>
