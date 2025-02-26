@@ -180,7 +180,6 @@ const EvalJobsTable = () => {
         )}
       </Box>
 
-      <Typography level="h3">Executions</Typography>
       <Sheet sx={{ overflowY: 'scroll' }}>
         <Table stickyHeader>
           <thead>
