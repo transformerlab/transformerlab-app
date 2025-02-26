@@ -5,7 +5,6 @@ import { StoreIcon } from 'lucide-react';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import ModelStore from './ModelStore';
 import LocalModels from './LocalModels';
-import ModelJourney from './ModelJourney';
 import { useNavigate } from 'react-router-dom';
 
 export default function ModelZoo({ experimentInfo, tab = 'store' }) {
@@ -42,7 +41,6 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
             <StoreIcon color="grey" />
             &nbsp; Model Store
           </Tab>
-          <Tab value="journey">Model Journey</Tab>
         </TabList>
         <TabPanel
           value="local"
@@ -65,12 +63,6 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
           sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
           <ModelStore />
-        </TabPanel>
-        <TabPanel
-          value="journey"
-          sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
-        >
-          <ModelJourney />
         </TabPanel>
           </Tabs>
     </Sheet>

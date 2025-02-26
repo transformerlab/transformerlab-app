@@ -64,6 +64,17 @@ export default function CurrentFoundationInfo({
   const [huggingfaceData, setHugggingfaceData] = useState({});
   const huggingfaceId = experimentInfo?.config?.foundation;
 
+  // Sample provenance data – replace with your actual data source.
+  const provenanceData = [
+    { jobId: 3, jobType: 'Train', metadata: { dataset: 'win-wang/Machine_Learning_QA_Collection' }, date: '2024-08-01' },
+    { jobId: 8, jobType: 'Evaluation', metadata: { accuracy: 95.5 }, date: '2024-08-02' },
+    { jobId: 10, jobType: 'Evaluation', metadata: { accuracy: 95.5}, date: '2024-08-03' },
+    { jobId: 11, jobType: 'Train', metadata: { dataset: 'win-wang/Machine_Learning_QA_Collection' }, date: '2024-08-04' },
+    { jobId: 15, jobType: 'Evaluation', metadata: { accuracy: 95.5 }, date: '2024-08-05' },
+    { jobId: 19, jobType: 'Train', metadata: { dataset: 'win-wang/Machine_Learning_QA_Collection' }, date: '2024-08-06' },
+  ];
+
+
   useMemo(() => {
     // This is a local model
     if (experimentInfo?.config?.foundation_filename) {
@@ -114,6 +125,32 @@ export default function CurrentFoundationInfo({
               )}
             </tbody>
           </Table>
+          {/* Model Provenance Table */}
+            <Box mt={4}>
+            <Typography level="h6" mb={1}>
+              Model Provenance
+            </Typography>
+            <Table id="model-provenance-table">
+            <thead>
+              <tr>
+                <th style={{ width: '10%' }}>Job ID</th>
+                <th style={{ width: '15%' }}>Job Type</th>
+                <th style={{ width: '55%' }}>Metadata</th>
+                <th style={{ width: '20%' }}>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {provenanceData.map((row) => (
+                <tr key={row.jobId}>
+                  <td style={{ width: '10%' }}>{row.jobId}</td>
+                  <td style={{ width: '15%' }}>{row.jobType}</td>
+                  <td style={{ width: '55%' }}>{JSON.stringify(row.metadata)}</td>
+                  <td style={{ width: '20%' }}>{row.date}</td>
+                </tr>
+              ))}
+            </tbody>
+            </Table>
+          </Box>
         </Box>
         <Box flex={1}>
           <Typography level="title-lg" marginTop={1} marginBottom={1}>
