@@ -114,6 +114,7 @@ const EvalJobsTable = () => {
     mutate: jobsMutate,
   } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('EVAL', ''), fetcher, {
     refreshInterval: 2000,
+    fallbackData: [],
   });
 
   const handleOpenCSVModal = (jobId) => {
