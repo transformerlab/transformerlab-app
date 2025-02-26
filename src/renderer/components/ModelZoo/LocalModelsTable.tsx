@@ -11,6 +11,7 @@ import {
   Option,
 } from '@mui/joy';
 import {
+  ArrowRightToLineIcon,
   ArrowDownIcon,
   FlaskRoundIcon,
   InfoIcon,
@@ -191,38 +192,38 @@ const LocalModelsTable = ({
                       </Typography>
                     </td>
                     <td>
-                      <Typography style={{overflow: 'hidden'}}>
-                      {' '}
-                      {row?.json_data?.architecture == 'MLX' && (
-                        <>
-                          <TinyMLXLogo />
-                          &nbsp;
-                        </>
-                      )}
-                      {row?.json_data?.architecture == 'GGUF' && (
-                        <>
-                          <img
-                            src="https://avatars.githubusercontent.com/ggerganov"
-                            width="24"
-                            valign="middle"
-                            style={{ borderRadius: '50%' }}
-                          />{' '}
-                          &nbsp;
-                        </>
-                      )}
-                      {[
-                        'FalconForCausalLM',
-                        'Gemma2ForCausalLM',
-                        'GPTBigCodeForCausalLM',
-                        'LlamaForCausalLM',
-                        'MistralForCausalLM',
-                        'Phi3ForCausalLM',
-                        'Qwen2ForCausalLM',
-                        'T5ForConditionalGeneration'
-                      ].includes(row?.json_data?.architecture) && (
-                        <>🤗 &nbsp;</>
-                      )}
-                      {row?.json_data?.architecture}
+                      <Typography style={{ overflow: 'hidden' }}>
+                        {' '}
+                        {row?.json_data?.architecture == 'MLX' && (
+                          <>
+                            <TinyMLXLogo />
+                            &nbsp;
+                          </>
+                        )}
+                        {row?.json_data?.architecture == 'GGUF' && (
+                          <>
+                            <img
+                              src="https://avatars.githubusercontent.com/ggerganov"
+                              width="24"
+                              valign="middle"
+                              style={{ borderRadius: '50%' }}
+                            />{' '}
+                            &nbsp;
+                          </>
+                        )}
+                        {[
+                          'FalconForCausalLM',
+                          'Gemma2ForCausalLM',
+                          'GPTBigCodeForCausalLM',
+                          'LlamaForCausalLM',
+                          'MistralForCausalLM',
+                          'Phi3ForCausalLM',
+                          'Qwen2ForCausalLM',
+                          'T5ForConditionalGeneration'
+                        ].includes(row?.json_data?.architecture) && (
+                            <>🤗 &nbsp;</>
+                          )}
+                        {row?.json_data?.architecture}
                       </Typography>
                     </td>
                     <td>{row?.json_data?.parameters}</td>
@@ -257,8 +258,8 @@ const LocalModelsTable = ({
                               if (
                                 confirm(
                                   "Are you sure you want to delete model '" +
-                                    row.model_id +
-                                    "'?"
+                                  row.model_id +
+                                  "'?"
                                 )
                               ) {
                                 await fetch(
