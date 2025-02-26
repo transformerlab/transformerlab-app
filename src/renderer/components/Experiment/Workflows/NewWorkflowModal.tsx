@@ -3,9 +3,11 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormHelperText,
   FormLabel,
   Input,
   Modal,
+  ModalClose,
   ModalDialog,
   Stack,
   Textarea,
@@ -18,6 +20,7 @@ export default function NewWorkflowModal({ open, setOpen }) {
   return (
     <Modal open={open} onClose={() => setOpen(false)}>
       <ModalDialog>
+        <ModalClose />
         <DialogTitle>Create new workflow</DialogTitle>
         <DialogContent>Fill in the information.</DialogContent>
         <form
@@ -33,7 +36,10 @@ export default function NewWorkflowModal({ open, setOpen }) {
             </FormControl>
             <FormControl>
               <FormLabel>Nodes</FormLabel>
-              <Textarea required minRows={6} />
+              <Textarea minRows={4} />
+              <FormHelperText>
+                Leave Blank to Create an Empty Workflow
+              </FormHelperText>
             </FormControl>
             <Button type="submit">Submit</Button>
           </Stack>
