@@ -1,6 +1,13 @@
-import { Background, ControlButton, Controls, ReactFlow } from '@xyflow/react';
+import {
+  Background,
+  ControlButton,
+  Controls,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+} from '@xyflow/react';
 import { PlusCircleIcon } from 'lucide-react';
-import React from 'react';
+import React, { useEffect } from 'react';
 
 function generateNodes(workflow: any) {
   let out: any[] = [];
@@ -47,12 +54,31 @@ function generateEdges(workflow: any) {
   return out;
 }
 
-export default function WorkflowCanvas({ selectedWorkflow }) {
+const Flow = ({ selectedWorkflow }) => {
+  const reactFlowInstance = useReactFlow();
+  // Use fitView after the component mounts
+  useEffect(() => {
+    // Wait a moment to ensure the flow is rendered before fitting
+    const timer = setTimeout(() => {
+      reactFlowInstance.fitView({
+        includeHiddenNodes: false, // Don't include hidden nodes
+        minZoom: 0.5, // Set minimum zoom level
+        maxZoom: 10, // Set maximum zoom level
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [reactFlowInstance, selectedWorkflow]);
+
   return (
     <ReactFlow
       nodes={generateNodes(selectedWorkflow)}
       edges={generateEdges(selectedWorkflow)}
       fitView
+      zoomOnScroll={false}
+      zoomOnPinch={false}
+      zoomOnDoubleClick={false}
+      panOnScroll={false}
       style={{ backgroundColor: '#F7F9FB' }}
     >
       <Background color="#96ADE9" />
@@ -71,5 +97,13 @@ export default function WorkflowCanvas({ selectedWorkflow }) {
         size={32}
       />
     </ReactFlow>
+  );
+};
+
+export default function WorkflowCanvas({ selectedWorkflow }) {
+  return (
+    <ReactFlowProvider>
+      <Flow selectedWorkflow={selectedWorkflow} />
+    </ReactFlowProvider>
   );
 }
