@@ -103,8 +103,8 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
             disabled={disabled || readonly}
             style={{ marginBottom: '0.5rem' }}
           >
-            <Option value="boolean">Boolean</Option>
-            <Option value="number">Number</Option>
+            <Option value="boolean">Boolean (Regex)</Option>
+            <Option value="number">Number (Regex)</Option>
             <Option value="contains">Contains</Option>
             <Option value="isequal">IsEqual</Option>
           </Select>
