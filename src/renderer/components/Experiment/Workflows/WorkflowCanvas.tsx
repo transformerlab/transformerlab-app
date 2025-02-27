@@ -99,7 +99,7 @@ function generateEdges(workflow: any) {
 
     currentNode.out.forEach((nextId) => {
       out.push({
-        id: ids,
+        id: currentNode.id + nextId,
         source: currentNode.id,
         target: nextId,
         markerEnd: {
