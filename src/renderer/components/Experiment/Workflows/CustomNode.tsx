@@ -1,8 +1,9 @@
+import { Typography } from '@mui/joy';
 import { BuiltInNode, Handle } from '@xyflow/react';
 import { NodeProps, Position } from '@xyflow/system';
-import { CircleXIcon, SquareXIcon, XIcon } from 'lucide-react';
+import { XIcon } from 'lucide-react';
 
-export default function CustomNode({
+export default function memo({
   data,
   isConnectable,
   targetPosition = Position.Top,
@@ -17,6 +18,9 @@ export default function CustomNode({
           cursor: 'pointer',
           borderRadius: '50%',
         }}
+        onClick={() => {
+          alert('delete node');
+        }}
       >
         <XIcon size="12px" />
       </div>
@@ -25,7 +29,9 @@ export default function CustomNode({
         position={targetPosition}
         isConnectable={isConnectable}
       />
-      {data?.label}
+      <Typography level="title-sm">{data?.label}</Typography>
+      <Typography level="body-sm">{data?.jobType}</Typography>
+      <Typography level="body-sm">{data?.template}</Typography>
       <Handle
         type="source"
         position={sourcePosition}
