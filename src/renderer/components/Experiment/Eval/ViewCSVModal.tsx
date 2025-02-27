@@ -19,13 +19,6 @@ function formatColumnNames(name) {
     .replace(/_/g, ' '); // Replace underscores with spaces
 }
 
-function heatedColor(value) {
-  const h = value * 240;
-  return `hsla(${h}, 100%, 50%, 0.3)`;
-}
-
-// This function formats the eval data to combine rows that have the same name
-// based on the first column
 function formatEvalData(data) {
   let header = data?.header;
   let body = data?.body;
@@ -35,8 +28,7 @@ function formatEvalData(data) {
     return formattedData;
   }
 
-  // if the following is not titled this way, then we know
-  // it's not a grouped report from the backend
+  // if not a grouped report from the backend
   if (header[0] !== 'test_case_id') {
     return data;
   }
@@ -52,7 +44,7 @@ function formatEvalData(data) {
       seen.add(row[0]);
       const newRow = [row[0]];
       newRow.push({ [row[1]]: row[2] });
-      // now push the rest of the columns:
+      // push the rest of the columns:
       for (let i = 3; i < row.length; i++) {
         newRow.push(row[i]);
       }
@@ -60,7 +52,7 @@ function formatEvalData(data) {
     } else {
       const index = formattedData.findIndex((r) => r[0] === row[0]);
       let newScore = [];
-      // if formattedData[index][1] is an array, then we need to push to it
+      // if formattedData[index][1] is already an array, use it; otherwise wrap it in one.
       if (Array.isArray(formattedData[index][1])) {
         newScore = formattedData[index][1];
       } else {
@@ -74,54 +66,133 @@ function formatEvalData(data) {
   return { header: header, body: formattedData };
 }
 
-function formatArrayOfScores(scores) {
-  const scoresArray = Array.isArray(scores) ? scores : [scores];
-  const formattedScores = scoresArray.map((score) => {
-    const metricName = Object.keys(score)[0];
-    const value = Object.values(score)[0];
+function heatedColor(value) {
+  // Clamp value between 0 and 1 for hue calculations.
+  const norm = Math.min(Math.max(parseFloat(value), 0), 1);
+  const h = norm * 240;
+  return `hsla(${h}, 100%, 50%, 0.3)`;
+}
 
+// Single helper for rendering scores.
+// It supports a score passed as a single value or as an array of [score, modifier] pairs.
+// For each pair:
+//  - If modifier is 0, no background colour is applied.
+//  - If modifier is -1, colour is computed in reverse: (1 - clampedScore) * 240.
+//  - Otherwise, the normal heatedColor is applied.
+function formatScore(score) {
+  if (Array.isArray(score)) {
     return (
       <Box
         sx={{
-          backgroundColor: heatedColor(parseFloat(value)),
-          padding: '0 5px',
-          fontWeight: 'normal',
-          flex: '1 0 0',
+          display: 'flex',
+          flexDirection: 'row',
+          height: '100%',
           overflow: 'hidden',
         }}
       >
-        {metricName}:<br />
-        {parseFloat(value).toFixed(5)}
+        {score.map((item, idx) => {
+          let parsedItem = item;
+          let metricName = "";
+          let jsonParsed = false;
+          // If the item is an object (but not an array)
+          if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+            // Look for any property that looks like a JSON array string.
+            for (const key in item) {
+              const value = item[key];
+              if (
+                typeof value === "string" &&
+                value.trim().startsWith("[") &&
+                value.trim().endsWith("]")
+              ) {
+                try {
+
+                  parsedItem = JSON.parse(value);
+                  let [score, modifier] = parsedItem
+                  parsedItem = [key, score, modifier];
+                  jsonParsed = true;
+                } catch (e) {
+                  // If parsing fails, keep the original item.
+                }
+                break;
+              }
+            }
+            // If no JSON string was found and there's exactly one key,
+            // assume legacy format: { metricName: [score, modifier] }
+            if (!jsonParsed && Object.keys(item).length === 1) {
+              console.log("item", item);
+              metricName = Object.keys(item)[0];
+              let score = item[metricName];
+              parsedItem = [metricName, score[0], 1];
+            }
+          }
+
+          if (Array.isArray(parsedItem) && parsedItem.length === 3) {
+            const [metricName, rawScore, modifier] = parsedItem;
+            const parsed = parseFloat(rawScore);
+            const clamped = Math.min(Math.max(parsed, 0), 1);
+            let bg;
+            if (modifier === 0) {
+              bg = "inherit";
+            } else if (modifier === -1) {
+              const h = (1 - clamped) * 240;
+              bg = `hsla(${h}, 100%, 50%, 0.3)`;
+            } else {
+              bg = heatedColor(parsed);
+            }
+            return (
+              <Box
+                key={idx}
+                sx={{
+                  backgroundColor: bg,
+                  padding: "0 5px",
+                  fontWeight: "normal",
+                  flex: "1 0 0",
+                  overflow: "hidden",
+                }}
+              >
+                {metricName ? `${metricName}: ${parsed.toFixed(4)}` : parsed.toFixed(4)}
+              </Box>
+            );
+          } else {
+            // Fallback: treat parsedItem as a simple number.
+            const parsed = parseFloat(parsedItem);
+            return (
+              <Box
+                key={idx}
+                sx={{
+                  backgroundColor: heatedColor(parsed),
+                  padding: "0 5px",
+                  fontWeight: "normal",
+                  flex: "1 0 0",
+                  overflow: "hidden",
+                }}
+              >
+                {parsed.toFixed(5)}
+              </Box>
+            );
+          }
+        })}
       </Box>
     );
-  });
-  return formattedScores;
-}
-
-function formatScore(score) {
-  // if score is a number, return it as is
-  if (!isNaN(score)) {
-    return score;
   } else {
-    // if score is a string, try to parse it as a float
-    const parsedScore = parseFloat(score);
-    // if parsedScore is not a number, return the original score
-    if (isNaN(parsedScore)) {
+    // Handle a single score value.
+    const parsed = parseFloat(score);
+    if (!isNaN(parsed)) {
       return (
         <Box
           sx={{
-            display: 'flex',
-            flexDirection: 'row',
-            height: '100%',
-            overflow: 'hidden',
+            backgroundColor: heatedColor(parsed),
+            padding: "0 5px",
+            fontWeight: "normal",
+            flex: "1 0 0",
+            overflow: "hidden",
           }}
         >
-          {formatArrayOfScores(score)}
+          {parsed.toFixed(5)}
         </Box>
       );
-    } else {
-      return parsedScore;
     }
+    return score;
   }
 }
 
@@ -148,7 +219,7 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `report_${jobId}.csv`; // Adjust extension if necessary
+    link.download = `report_${jobId}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -174,13 +245,12 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
             Download Report
           </Button>
         </Box>
-        {/* {JSON.stringify(report)} */}
         <Box sx={{ overflow: 'auto' }}>
           <Table stickyHeader>
             <thead>
               <tr>
                 {report?.header &&
-                  report?.header.map((col) => (
+                  report.header.map((col) => (
                     <th key={col}>{formatColumnNames(col)}</th>
                   ))}
               </tr>
@@ -193,7 +263,6 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
                       {report?.header[j] === 'score' ? (
                         <div
                           style={{
-                            backgroundColor: heatedColor(parseFloat(col)),
                             height: '100%',
                             width: '100%',
                             overflow: 'hidden',
