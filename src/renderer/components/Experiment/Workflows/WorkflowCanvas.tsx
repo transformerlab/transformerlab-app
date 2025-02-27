@@ -85,7 +85,9 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
       zoomOnPinch={false}
       zoomOnDoubleClick={false}
       panOnScroll={false}
-      style={{ backgroundColor: '#F7F9FB' }}
+      style={{
+        backgroundColor: 'var(--joy-palette-background-level1)',
+      }}
     >
       <Button
         onClick={() => {

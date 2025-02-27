@@ -246,7 +246,7 @@ code if we want */
   transition: opacity 0.2s ease-in-out;
   color: rgb(156, 144, 144);
   background-color: rgba(255, 255, 255, 1);
-  border: 1px solid rgb(156, 144, 144);
+  border: 1.5px solid rgb(156, 144, 144);
   height: 14px;
   width: 14px;
   top: -5px;
