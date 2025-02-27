@@ -91,13 +91,15 @@ function RenderScore({ score }) {
   ));
 }
 
+
 const EvalJobsTable = () => {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
   const [openPlotModal, setOpenPlotModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
-  const [currentScore, setCurrentScore] = useState('');
+  const [currentData, setCurrentData] = useState('');
+  const [chart, setChart] = useState(true);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
   const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
 
@@ -119,14 +121,27 @@ const EvalJobsTable = () => {
     fallbackData: [],
   });
 
+    // New function to call CombinedReports via SDK and send data to ViewPlotModal
+    const handleCombinedReports = async () => {
+      try {
+        const data = await chatAPI.COMPARE_EVALS(selected);
+        setCurrentData(JSON.stringify(data));
+        setOpenPlotModal(true);
+        setChart(false);
+        setCurrentJobId('-1');
+      } catch (error) {
+        console.error('Failed to fetch combined reports:', error);
+      }
+    };
+
+
   const handleOpenCSVModal = (jobId) => {
     setCurrentJobId(jobId);
     setOpenCSVModal(true);
   };
 
-  const handleOpenPlotModal = (jobId, score) => {
-    setCurrentJobId(jobId);
-    setCurrentScore(score);
+  const handleOpenPlotModal = (score) => {
+    setCurrentData(score);
     setOpenPlotModal(true);
   };
 
@@ -145,8 +160,9 @@ const EvalJobsTable = () => {
       <ViewPlotModal
         open={openPlotModal}
         onClose={() => setOpenPlotModal(false)}
+        data={currentData}
         jobId={currentJobId}
-        score={currentScore}
+        chart={chart}
       />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
@@ -170,6 +186,8 @@ const EvalJobsTable = () => {
           <Typography
             level="body-sm"
             startDecorator={<ChartColumnIncreasingIcon size="20px" />}
+            // Uncomment this line to enable the combined reports feature
+            // onClick={handleCombinedReports}
             onClick={() => {
               alert('this feature coming soon');
             }}

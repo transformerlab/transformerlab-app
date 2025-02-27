@@ -1551,6 +1551,22 @@ export async function EXPERIMENT_EDIT_EVALUATION(
   return result;
 }
 
+export async function COMPARE_EVALS(jobIds: string[]) {
+  const jobIdsParam = jobIds.join(',');
+  const url = API_URL() + 'evals/compare_evals?job_list=' + jobIdsParam;
+  console.log('url', url);
+  console.log('jobIds', jobIds);
+  const response = await fetch(url, {
+    method: 'GET'
+  });
+  if (!response.ok) {
+    throw new Error('Network response was not ok');
+  }
+  const data = await response.json();
+  console.log('data', data);
+  return data;
+}
+
 export async function EXPERIMENT_ADD_GENERATION(
   id: string,
   name: string,

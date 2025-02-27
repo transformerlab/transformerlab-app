@@ -3,15 +3,15 @@ import { Modal, ModalDialog, ModalClose, Box, Typography } from '@mui/joy';
 import Chart from './Chart';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-function parseJSON(score) {
+function parseJSON(data) {
   try {
-    return JSON.parse(score);
+    return JSON.parse(data);
   } catch {
     return [];
   }
 }
 
-export default function ViewPlotModal({ open, onClose, jobId, score }) {
+export default function ViewPlotModal({ open, onClose, data, jobId, chart = true}) {
   if (!jobId) {
     return <></>;
   }
@@ -46,7 +46,11 @@ export default function ViewPlotModal({ open, onClose, jobId, score }) {
               p: 2,
             }}
           >
-            <Chart metrics={parseJSON(score)} />
+           {chart ? (
+    <Chart metrics={parseJSON(data)} />
+  ) : (
+    <div>{JSON.stringify(parseJSON(data))}</div>
+  )}
           </Box>
         </Box>
       </ModalDialog>
