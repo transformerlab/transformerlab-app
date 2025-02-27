@@ -110,6 +110,7 @@ export default function NewNodeModal({
                 id="mode-select"
                 value={mode}
                 onChange={handleModeChange}
+                required
               >
                 <Option value="TRAIN">TRAIN</Option>
                 <Option value="EVAL">EVAL</Option>
@@ -121,7 +122,7 @@ export default function NewNodeModal({
               {mode == 'TRAIN' && (
                 <>
                   <FormLabel>Training Template</FormLabel>
-                  <Select name="trainingTemplate">
+                  <Select name="trainingTemplate" required>
                     {trainingTemplatesData.map((template) => (
                       <Option value={template[1]}>{template[1]}</Option>
                     ))}
@@ -131,7 +132,7 @@ export default function NewNodeModal({
               {mode == 'EVAL' && (
                 <>
                   <FormLabel>Eval Template</FormLabel>
-                  <Select name="evalTemplate">
+                  <Select name="evalTemplate" required>
                     {evaluationData.map((template) => (
                       <Option value={template.name}>{template.name}</Option>
                     ))}
