@@ -1044,9 +1044,10 @@ Endpoints.Workflows = {
     node,
   EditNodeMetadata: (workflowId: string, nodeId: string, metadata: string) =>
     API_URL() +
-    'workflows/edit_node_metadata/' +
+    'workflows/edit_node_metadata' +
+    '?workflow_id=' +
     workflowId +
-    '?node_id=' +
+    '&node_id=' +
     nodeId +
     '&metadata=' +
     metadata,
