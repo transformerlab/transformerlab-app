@@ -22,13 +22,19 @@ function generateNodes(workflow: any) {
   console.log(workflowConfig);
 
   while (currentTask < workflowConfig.nodes.length) {
-    out.push({
+    const data = {
+      label: workflowConfig.nodes[currentTask].name,
+      jobType: workflowConfig.nodes[currentTask].type,
+      template: workflowConfig.nodes[currentTask].template,
+    };
+    const nextNode = {
       id: currentTask,
       type: 'customNode',
       position: { x: 0, y: position },
-      data: { label: workflowConfig.nodes[currentTask].name },
-    });
-    position += 60;
+      data: data,
+    };
+    out.push(nextNode);
+    position += 120;
     currentTask = workflowConfig.nodes[currentTask].out;
   }
 

@@ -267,3 +267,20 @@ code if we want */
   box-shadow: 0 0 10px var(--joy-palette-primary-400);
   transition: box-shadow 0.2s ease-in-out;
 }
+
+.react-flow__node {
+  /* box-shadow: var(--xy-node-boxshadow-default);
+  border-radius: var(--xy-node-border-radius-default);
+  background-color: var(--xy-node-background-color-default); */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 10px;
+  font-size: 12px;
+  flex-direction: column;
+  /* border: var(--xy-node-border-default);
+  color: var(--xy-node-color, var(--xy-node-color-default)); */
+  overflow: hidden;
+  word-break: break-all;
+}
