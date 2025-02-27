@@ -56,14 +56,13 @@ function generateNodes(workflow: any): any[] {
       metadata: node?.metadata,
     };
     const nextNode = {
-      id: currentTask,
+      id: node.id,
       type: 'customNode',
       position: { x: 0, y: position },
       data: data,
     };
     out.push(nextNode);
     position += 120;
-    currentTask = node.out;
   }
 
   return out;
@@ -98,16 +97,16 @@ function generateEdges(workflow: any) {
   for (let i = 0; i < workflowConfig.nodes.length; i++) {
     const currentNode = workflowConfig.nodes[i];
 
-    out.push({
-      id: ids,
-      source: currentTask,
-      target: currentNode.out,
-      markerEnd: {
-        type: 'arrow',
-      },
+    currentNode.out.forEach((nextId) => {
+      out.push({
+        id: ids,
+        source: currentNode.id,
+        target: nextId,
+        markerEnd: {
+          type: 'arrow',
+        },
+      });
     });
-    ids += 1;
-    currentTask = currentNode.out;
   }
 
   return out;
