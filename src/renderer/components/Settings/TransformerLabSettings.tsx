@@ -206,6 +206,8 @@ export default function TransformerLabSettings() {
           <Option value="DOWNLOAD_MODEL">Download Model</Option>
           <Option value="LOAD_MODEL">Load Model</Option>
           <Option value="TRAIN">Train</Option>
+          <Option value="GENERATE">Generate</Option>
+          <Option value="EVAL">Evaluate</Option>
         </Select>
         {showJobsOfType !== 'NONE' && (
           <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>

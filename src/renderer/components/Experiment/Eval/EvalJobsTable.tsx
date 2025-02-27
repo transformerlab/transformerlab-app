@@ -8,6 +8,7 @@ import {
   Table,
   Typography,
   Link,
+  Checkbox,
 } from '@mui/joy';
 import {
   ChartColumnBigIcon,
@@ -15,11 +16,13 @@ import {
   FileDigitIcon,
   Grid3X3Icon,
   Trash2Icon,
+  LineChartIcon,
   Type,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import TensorboardModal from '../Train/TensorboardModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCSVModal from './ViewCSVModal';
 import ViewPlotModal from './ViewPlotModal';
@@ -89,13 +92,14 @@ function RenderScore({ score }) {
 }
 
 const EvalJobsTable = () => {
+  const [selected, setSelected] = useState<readonly string[]>([]);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
   const [openPlotModal, setOpenPlotModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
   const [currentScore, setCurrentScore] = useState('');
-  const [fileNameForDetailedReport, setFileNameForDetailedReport] =
-    useState('');
+  const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
+  const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
 
   const fetchCSV = async (jobId) => {
     const response = await fetch(
@@ -112,6 +116,7 @@ const EvalJobsTable = () => {
     mutate: jobsMutate,
   } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('EVAL', ''), fetcher, {
     refreshInterval: 2000,
+    fallbackData: [],
   });
 
   const handleOpenCSVModal = (jobId) => {
@@ -149,11 +154,58 @@ const EvalJobsTable = () => {
         setFileName={setFileNameForDetailedReport}
         fileName={fileNameForDetailedReport}
       />
-      <Typography level="h3">Executions</Typography>
+         <TensorboardModal
+              currentTensorboard={currentTensorboardForModal}
+              setCurrentTensorboard={setCurrentTensorboardForModal}
+            />
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+        }}
+      >
+        <Typography level="h3">Executions</Typography>
+        {selected.length > 1 && (
+          <Typography
+            level="body-sm"
+            startDecorator={<ChartColumnIncreasingIcon size="20px" />}
+            onClick={() => {
+              alert('this feature coming soon');
+            }}
+            sx={{ cursor: 'pointer' }}
+          >
+            <>Compare Selected Evals</>
+          </Typography>
+        )}
+      </Box>
+
       <Sheet sx={{ overflowY: 'scroll' }}>
         <Table stickyHeader>
           <thead>
             <tr>
+              <th
+                style={{ width: 48, textAlign: 'center', padding: '6px 6px' }}
+              >
+                <Checkbox
+                  size="sm"
+                  indeterminate={
+                    selected.length > 0 && selected.length !== jobs.length
+                  }
+                  checked={selected.length === jobs.length}
+                  onChange={(event) => {
+                    setSelected(
+                      event.target.checked ? jobs.map((row) => row.id) : []
+                    );
+                  }}
+                  color={
+                    selected.length > 0 || selected.length === jobs.length
+                      ? 'primary'
+                      : undefined
+                  }
+                  sx={{ verticalAlign: 'text-bottom' }}
+                />
+              </th>
               <th width="50px">Id</th>
               <th>Eval</th>
               <th>Progress</th>
@@ -164,6 +216,24 @@ const EvalJobsTable = () => {
           <tbody>
             {jobs?.map((job) => (
               <tr key={job.id}>
+                <td style={{ textAlign: 'center', width: 120 }}>
+                  <Checkbox
+                    size="sm"
+                    checked={selected.includes(job?.id)}
+                    color={selected.includes(job?.id) ? 'primary' : undefined}
+                    onChange={(event) => {
+                      setSelected((ids) =>
+                        event.target.checked
+                          ? ids.concat(job?.id)
+                          : ids.filter((itemId) => itemId !== job?.id)
+                      );
+                    }}
+                    slotProps={{
+                      checkbox: { sx: { textAlign: 'left' } },
+                    }}
+                    sx={{ verticalAlign: 'text-bottom' }}
+                  />
+                </td>
                 <td>{job.id}</td>
                 <td>
                   <Typography level="title-md">
@@ -179,7 +249,6 @@ const EvalJobsTable = () => {
                 <td>
                   <JobProgress job={job} />
                 </td>
-
                 <td>
                   <RenderScore score={job?.job_data?.score} />
                   {job?.job_data?.additional_output_path &&
@@ -219,12 +288,23 @@ const EvalJobsTable = () => {
                     </Link>
                   )}
                 </td>
-
                 <td>
                   <ButtonGroup
                     variant="soft"
                     sx={{ justifyContent: 'flex-end' }}
                   >
+                          {job?.job_data?.tensorboard_output_dir && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => {
+                                setCurrentTensorboardForModal(job?.id);
+                              }}
+                              startDecorator={<LineChartIcon />}
+                            >
+                              Tensorboard
+                            </Button>
+                          )}
                     <Button
                       onClick={() => {
                         setViewOutputFromJob(job?.id);
