@@ -85,6 +85,21 @@ export default function NewNodeModal({
                   JSON.stringify(node)
                 )
               );
+            } else if (mode == 'DOWNLOAD_MODEL') {
+              const model = formData.get('model') as string;
+              const config = JSON.parse(selectedWorkflow.config);
+              console.log(config);
+              const node = {
+                name: name,
+                type: 'DOWNLOAD_MODEL',
+                model: model,
+              };
+              await fetch(
+                chatAPI.Endpoints.Workflows.AddNode(
+                  selectedWorkflow.id,
+                  JSON.stringify(node)
+                )
+              );
             } else {
               const node = JSON.parse(formData.get('node') as string);
               node.name = name;
@@ -112,6 +127,7 @@ export default function NewNodeModal({
                 onChange={handleModeChange}
                 required
               >
+                <Option value="DOWNLOAD_MODEL">DOWNLOAD MODEL</Option>
                 <Option value="TRAIN">TRAIN</Option>
                 <Option value="EVAL">EVAL</Option>
                 <Option value="OTHER">OTHER</Option>
@@ -119,6 +135,12 @@ export default function NewNodeModal({
             </FormControl>
 
             <FormControl>
+              {mode == 'DOWNLOAD_MODEL' && (
+                <>
+                  <FormLabel>Huggingface Model Id</FormLabel>
+                  <Input autoFocus required name="model" />
+                </>
+              )}
               {mode == 'TRAIN' && (
                 <>
                   <FormLabel>Training Template</FormLabel>
