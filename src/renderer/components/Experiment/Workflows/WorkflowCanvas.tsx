@@ -14,18 +14,30 @@ import CustomNode from './CustomNode';
 const nodeTypes = { customNode: CustomNode };
 
 function generateNodes(workflow: any) {
+  const workflowConfig = JSON.parse(workflow?.config);
+
+  if (workflowConfig.nodes.length == 0) {
+    return [];
+  }
+
   let out: any[] = [];
-  let currentTask = '0';
+  let currentTask = workflowConfig.nodes[0].id;
   let position = 0;
 
-  const workflowConfig = JSON.parse(workflow?.config);
   console.log(workflowConfig);
 
-  while (currentTask < workflowConfig.nodes.length) {
+  while (currentTask != 'END') {
+    let currentNode = {};
+    workflowConfig.nodes.forEach((node) => {
+      if (node.id == currentTask) {
+        currentNode = node;
+      }
+    });
+
     const data = {
-      label: workflowConfig.nodes[currentTask].name,
-      jobType: workflowConfig.nodes[currentTask].type,
-      template: workflowConfig.nodes[currentTask].template,
+      label: currentNode.name,
+      jobType: currentNode.type,
+      template: currentNode.template,
     };
     const nextNode = {
       id: currentTask,
@@ -35,31 +47,42 @@ function generateNodes(workflow: any) {
     };
     out.push(nextNode);
     position += 120;
-    currentTask = workflowConfig.nodes[currentTask].out;
+    currentTask = currentNode.out;
   }
 
   return out;
 }
 
 function generateEdges(workflow: any) {
-  let out: any[] = [];
-  let currentTask = '0';
-  let ids = '0';
-
   const workflowConfig = JSON.parse(workflow?.config);
+  if (workflowConfig.nodes.length <= 1) {
+    return [];
+  }
+
+  let out: any[] = [];
+  let currentTask = workflowConfig.nodes[0].id;
+  let ids = workflowConfig.nodes[0].id;
+
   console.log(workflowConfig);
 
-  while (currentTask < workflowConfig.nodes.length) {
+  while (currentTask != 'END') {
+    let currentNode = {};
+    workflowConfig.nodes.forEach((node) => {
+      if (node.id == currentTask) {
+        currentNode = node;
+      }
+    });
+
     out.push({
       id: ids,
       source: currentTask,
-      target: workflowConfig.nodes[currentTask].out,
+      target: currentNode.out,
       markerEnd: {
         type: 'arrow',
       },
     });
     ids += 1;
-    currentTask = workflowConfig.nodes[currentTask].out;
+    currentTask = currentNode.out;
   }
 
   return out;

@@ -62,7 +62,6 @@ export default function NewNodeModal({
               const node = {
                 name: name,
                 type: 'TRAIN',
-                out: (config.nodes.length + 1).toString(),
                 template: template,
               };
               await fetch(
@@ -78,7 +77,6 @@ export default function NewNodeModal({
               const node = {
                 name: name,
                 type: 'EVAL',
-                out: (config.nodes.length + 1).toString(),
                 template: template,
               };
               await fetch(
