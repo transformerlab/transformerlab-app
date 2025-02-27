@@ -50,7 +50,7 @@ export default function LoRATrainingRunButton({
         });
         let modelInLocalList = false;
         models_downloaded.forEach(modelData => {
-          if (modelData.model_id == model) {
+          if (modelData.model_id == model || modelData.local_path === model) {
             modelInLocalList = true;
           }
         });
@@ -85,7 +85,7 @@ export default function LoRATrainingRunButton({
             datasetInLocalList = true;
           }
         });
-        
+
         if(modelInLocalList && datasetInLocalList){
           // Use fetch API to call endpoint
           await fetch(
@@ -108,6 +108,7 @@ export default function LoRATrainingRunButton({
           if (!datasetInLocalList) {
             msg += "\n- Dataset: " + dataset;
           }
+
           if (!modelInLocalList) {
             msg += "\n- Model: " + model;
           }
