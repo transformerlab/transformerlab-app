@@ -40,8 +40,8 @@ export default function NewNodeModal({
 
   const evaluationData = JSON.parse(experimentInfo?.config?.evaluations);
 
-  const handleModeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setMode(event.target.outerText);
+  const handleModeChange = (event: any, newValue: string) => {
+    setMode(newValue);
   };
 
   return (
@@ -113,9 +113,9 @@ export default function NewNodeModal({
                 value={mode}
                 onChange={handleModeChange}
               >
-                <Option value="OTHER">OTHER</Option>
                 <Option value="TRAIN">TRAIN</Option>
                 <Option value="EVAL">EVAL</Option>
+                <Option value="OTHER">OTHER</Option>
               </Select>
             </FormControl>
 
