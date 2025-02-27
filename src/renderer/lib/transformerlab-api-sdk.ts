@@ -1033,6 +1033,15 @@ Endpoints.Workflows = {
     workflowId +
     '&node_id=' +
     nodeId,
+  UpdateNode: (workflowId: string, nodeId: string, node: string) =>
+    API_URL() +
+    'workflows/update_node' +
+    '?workflow_id=' +
+    workflowId +
+    '&node_id=' +
+    nodeId +
+    '&node=' +
+    node,
   RunWorkflow: (workflowId: string) =>
     API_URL() + 'workflows/start/' + workflowId,
 };

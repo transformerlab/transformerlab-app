@@ -10,7 +10,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import { PlusCircleIcon } from 'lucide-react';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import CustomNode from './CustomNode';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { mutate } from 'swr';
@@ -121,12 +121,31 @@ const Flow = ({
     return () => clearTimeout(timer);
   }, [reactFlowInstance, selectedWorkflow]);
 
+  const onNodeDragStop = useCallback(async (event, node) => {
+    // Save all current node positions
+    const allCurrentPositions = nodes.map((n) => ({
+      id: n.id,
+      position: n.position,
+    }));
+
+    // Save to your backend or storage
+    // for (const node of allCurrentPositions) {
+    //   console.log('update node: ' + node?.id);
+    //   await fetch(
+    //     chatAPI.Endpoints.Workflows.UpdateNode(workflowId, node?.id, {
+    //       position: node.position,
+    //     })
+    //   );
+    // }
+  }, []);
+
   return (
     <ReactFlow
       nodes={nodes}
       edges={edges}
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
+      onNodeDragStop={onNodeDragStop}
       nodeTypes={nodeTypes}
       fitView
       zoomOnScroll={false}
