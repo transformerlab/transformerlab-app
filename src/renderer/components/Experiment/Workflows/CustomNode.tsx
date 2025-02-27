@@ -1,6 +1,6 @@
 import { BuiltInNode, Handle } from '@xyflow/react';
 import { NodeProps, Position } from '@xyflow/system';
-import { CircleXIcon, SquareXIcon } from 'lucide-react';
+import { CircleXIcon, SquareXIcon, XIcon } from 'lucide-react';
 
 export default function CustomNode({
   data,
@@ -14,12 +14,11 @@ export default function CustomNode({
         className="custom-node-delete-button"
         style={{
           position: 'absolute',
-          top: -8,
-          right: -8,
           cursor: 'pointer',
+          borderRadius: '50%',
         }}
       >
-        <SquareXIcon size="16px" />
+        <XIcon size="12px" />
       </div>
       <Handle
         type="target"
