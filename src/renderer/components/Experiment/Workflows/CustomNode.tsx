@@ -1,5 +1,5 @@
 import { Typography } from '@mui/joy';
-import { BuiltInNode, Handle } from '@xyflow/react';
+import { BuiltInNode, Handle, useReactFlow } from '@xyflow/react';
 import { NodeProps, Position } from '@xyflow/system';
 import { XIcon } from 'lucide-react';
 
@@ -15,11 +15,18 @@ function chipColorByType(jobType: string) {
 }
 
 export default function memo({
+  id,
   data,
   isConnectable,
   targetPosition = Position.Top,
   sourcePosition = Position.Bottom,
 }: NodeProps<BuiltInNode>) {
+  const { deleteElements } = useReactFlow();
+
+  const handleDelete = () => {
+    deleteElements({ nodes: [{ id }] });
+  };
+
   return (
     <div className="custom-node" style={{ width: '100%' }}>
       <div
@@ -40,7 +47,7 @@ export default function memo({
           borderRadius: '50%',
         }}
         onClick={() => {
-          alert('delete node: ' + data?.id);
+          handleDelete();
         }}
       >
         <XIcon size="12px" />

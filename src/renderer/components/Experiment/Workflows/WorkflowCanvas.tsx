@@ -118,6 +118,11 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
       zoomOnPinch={false}
       zoomOnDoubleClick={false}
       panOnScroll={false}
+      onDelete={({ nodes, edges }) => {
+        for (const node of nodes) {
+          alert('delete node: ' + node?.id);
+        }
+      }}
       style={{
         backgroundColor: 'var(--joy-palette-background-level2)',
       }}
