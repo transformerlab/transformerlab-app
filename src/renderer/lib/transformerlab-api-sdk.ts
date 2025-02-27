@@ -1018,12 +1018,19 @@ Endpoints.Workflows = {
     '&experiment_id=' +
     experimentId,
   AddNode: (workflowId: string, node: string) =>
-      API_URL() +
-      'workflows/add_node' +
-      '?workflow_id=' +
-      workflowId +
-      '&node=' +
-      node,
+    API_URL() +
+    'workflows/add_node' +
+    '?workflow_id=' +
+    workflowId +
+    '&node=' +
+    node,
+  DeleteNode: (workflowId: string, nodeId: string) =>
+    API_URL() +
+    'workflows/delete_node' +
+    '?workflow_id=' +
+    workflowId +
+    '&node_id=' +
+    nodeId,
   RunWorkflow: (workflowId: string) =>
     API_URL() + 'workflows/start/' + workflowId,
 };

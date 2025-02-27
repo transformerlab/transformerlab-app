@@ -10,6 +10,8 @@ import {
 import { PlusCircleIcon } from 'lucide-react';
 import { useEffect } from 'react';
 import CustomNode from './CustomNode';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { mutate } from 'swr';
 
 const nodeTypes = { customNode: CustomNode };
 
@@ -26,22 +28,15 @@ function generateNodes(workflow: any) {
 
   console.log(workflowConfig);
 
-  while (currentTask != 'END') {
-    let currentNode = {};
-    workflowConfig.nodes.forEach((node) => {
-      if (node.id == currentTask) {
-        currentNode = node;
-      }
-    });
-
-    // console.log(currentNode);
-
+  for (let i = 0; i < workflowConfig.nodes.length; i++) {
+    const node = workflowConfig.nodes[i];
+    console.log(node);
     const data = {
-      id: currentNode?.id,
-      label: currentNode.name,
-      jobType: currentNode.type,
-      template: currentNode.template,
-      metadata: currentNode?.metadata,
+      id: node?.id,
+      label: node.name,
+      jobType: node.type,
+      template: node.template,
+      metadata: node?.metadata,
     };
     const nextNode = {
       id: currentTask,
@@ -51,7 +46,7 @@ function generateNodes(workflow: any) {
     };
     out.push(nextNode);
     position += 120;
-    currentTask = currentNode.out;
+    currentTask = node.out;
   }
 
   return out;
@@ -69,13 +64,8 @@ function generateEdges(workflow: any) {
 
   console.log(workflowConfig);
 
-  while (currentTask != 'END') {
-    let currentNode = {};
-    workflowConfig.nodes.forEach((node) => {
-      if (node.id == currentTask) {
-        currentNode = node;
-      }
-    });
+  for (let i = 0; i < workflowConfig.nodes.length; i++) {
+    const currentNode = workflowConfig.nodes[i];
 
     out.push({
       id: ids,
@@ -92,8 +82,14 @@ function generateEdges(workflow: any) {
   return out;
 }
 
-const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
+const Flow = ({
+  selectedWorkflow,
+  setNewNodeModalOpen = (x) => {},
+  mutateWorkflows,
+}) => {
   const reactFlowInstance = useReactFlow();
+
+  const workflowId = selectedWorkflow?.id;
   // Use fitView after the component mounts
   useEffect(() => {
     // Wait a moment to ensure the flow is rendered before fitting
@@ -118,10 +114,14 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
       zoomOnPinch={false}
       zoomOnDoubleClick={false}
       panOnScroll={false}
-      onDelete={({ nodes, edges }) => {
+      onDelete={async ({ nodes, edges }) => {
         for (const node of nodes) {
-          alert('delete node: ' + node?.id);
+          console.log('delete node: ' + node?.id);
+          await fetch(
+            chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id)
+          );
         }
+        mutateWorkflows();
       }}
       style={{
         backgroundColor: 'var(--joy-palette-background-level2)',
@@ -159,6 +159,7 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
 export default function WorkflowCanvas({
   selectedWorkflow,
   setNewNodeModalOpen = () => {},
+  mutateWorkflows,
 }) {
   if (!selectedWorkflow) {
     return null;
@@ -168,6 +169,7 @@ export default function WorkflowCanvas({
       <Flow
         selectedWorkflow={selectedWorkflow}
         setNewNodeModalOpen={setNewNodeModalOpen}
+        mutateWorkflows={mutateWorkflows}
       />
     </ReactFlowProvider>
   );

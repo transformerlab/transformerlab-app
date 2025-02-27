@@ -197,6 +197,7 @@ export default function Workflows({ experimentInfo }) {
               <WorkflowCanvas
                 selectedWorkflow={selectedWorkflow}
                 setNewNodeModalOpen={setNewNodeflowModalOpen}
+                mutateWorkflows={mutateWorkflows}
               />
             ) : (
               <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
