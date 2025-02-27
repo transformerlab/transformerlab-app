@@ -1,10 +1,8 @@
 import {
   Box,
   Button,
-  ButtonGroup,
   Divider,
   Dropdown,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -21,13 +19,9 @@ import '@xyflow/react/dist/style.css';
 import {
   AxeIcon,
   EllipsisIcon,
-  Icon,
-  PencilIcon,
   PenIcon,
   PlayIcon,
   PlusCircleIcon,
-  PlusIcon,
-  Trash2,
   Trash2Icon,
   WorkflowIcon,
 } from 'lucide-react';
@@ -161,15 +155,7 @@ export default function Workflows({ experimentInfo }) {
                   Running
                 </Button>
               )}
-              {/* <Button
-                  startDecorator={<PlusIcon />}
-                  onClick={() => setNewNodeflowModalOpen(true)}
-                >
-                  Add Node
-                </Button> */}
-              {/* <Button startDecorator={<PenIcon />} variant="outlined">
-                  Edit
-                </Button> */}
+
               <Button startDecorator={<AxeIcon />} variant="outlined">
                 Fight
               </Button>
@@ -179,13 +165,16 @@ export default function Workflows({ experimentInfo }) {
                   <EllipsisIcon />
                 </MenuButton>
                 <Menu>
-                  <MenuItem>
+                  <MenuItem onClick={() => alert('not implemented')}>
                     <ListItemDecorator>
                       <PenIcon />
                     </ListItemDecorator>
                     Edit Workflow Name
                   </MenuItem>
-                  <MenuItem color="danger">
+                  <MenuItem
+                    color="danger"
+                    onClick={() => alert('not implemented')}
+                  >
                     <ListItemDecorator>
                       <Trash2Icon />
                     </ListItemDecorator>
