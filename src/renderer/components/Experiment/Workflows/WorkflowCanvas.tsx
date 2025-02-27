@@ -34,10 +34,14 @@ function generateNodes(workflow: any) {
       }
     });
 
+    // console.log(currentNode);
+
     const data = {
+      id: currentNode?.id,
       label: currentNode.name,
       jobType: currentNode.type,
       template: currentNode.template,
+      metadata: currentNode?.metadata,
     };
     const nextNode = {
       id: currentTask,

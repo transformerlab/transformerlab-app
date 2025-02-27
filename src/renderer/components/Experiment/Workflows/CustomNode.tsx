@@ -1,8 +1,7 @@
-import { Chip, Typography } from '@mui/joy';
+import { Typography } from '@mui/joy';
 import { BuiltInNode, Handle } from '@xyflow/react';
 import { NodeProps, Position } from '@xyflow/system';
 import { XIcon } from 'lucide-react';
-import { jobChipColor } from 'renderer/lib/utils';
 
 function chipColorByType(jobType: string) {
   switch (jobType) {
@@ -31,7 +30,7 @@ export default function memo({
           borderRadius: '3px',
         }}
       >
-        <Typography level="body-xs"> {data?.jobType}</Typography>
+        <Typography level="body-xs">{data?.jobType}</Typography>
       </div>
       <div
         className="custom-node-delete-button"
@@ -41,7 +40,7 @@ export default function memo({
           borderRadius: '50%',
         }}
         onClick={() => {
-          alert('delete node');
+          alert('delete node: ' + data?.id);
         }}
       >
         <XIcon size="12px" />
@@ -57,6 +56,7 @@ export default function memo({
       >
         <Typography level="title-md">{data?.label}</Typography>
         <Typography level="body-sm">{data?.template}</Typography>
+        {/* {JSON.stringify(data, null, 2)} */}
       </div>
       <Handle
         type="source"
