@@ -5,6 +5,8 @@ import {
   Controls,
   ReactFlow,
   ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
   useReactFlow,
 } from '@xyflow/react';
 import { PlusCircleIcon } from 'lucide-react';
@@ -15,7 +17,7 @@ import { mutate } from 'swr';
 
 const nodeTypes = { customNode: CustomNode };
 
-function generateNodes(workflow: any) {
+function generateNodes(workflow: any): any[] {
   const workflowConfig = JSON.parse(workflow?.config);
 
   if (workflowConfig.nodes.length == 0) {
@@ -26,11 +28,11 @@ function generateNodes(workflow: any) {
   let currentTask = workflowConfig.nodes[0].id;
   let position = 0;
 
-  console.log(workflowConfig);
+  // console.log(workflowConfig);
 
   for (let i = 0; i < workflowConfig.nodes.length; i++) {
     const node = workflowConfig.nodes[i];
-    console.log(node);
+    // console.log(node);
     const data = {
       id: node?.id,
       label: node.name,
@@ -62,7 +64,7 @@ function generateEdges(workflow: any) {
   let currentTask = workflowConfig.nodes[0].id;
   let ids = workflowConfig.nodes[0].id;
 
-  console.log(workflowConfig);
+  // console.log(workflowConfig);
 
   for (let i = 0; i < workflowConfig.nodes.length; i++) {
     const currentNode = workflowConfig.nodes[i];
@@ -87,9 +89,24 @@ const Flow = ({
   setNewNodeModalOpen = (x) => {},
   mutateWorkflows,
 }) => {
+  const [nodes, setNodes, onNodesChange] = useNodesState(
+    generateNodes(selectedWorkflow)
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    generateEdges(selectedWorkflow)
+  );
+
   const reactFlowInstance = useReactFlow();
 
   const workflowId = selectedWorkflow?.id;
+
+  // The workflow isn't updating when I switch workflows
+  // so I do this hack:
+  useEffect(() => {
+    setNodes(generateNodes(selectedWorkflow));
+    setEdges(generateEdges(selectedWorkflow));
+  }, [selectedWorkflow]);
+
   // Use fitView after the component mounts
   useEffect(() => {
     // Wait a moment to ensure the flow is rendered before fitting
@@ -106,8 +123,10 @@ const Flow = ({
 
   return (
     <ReactFlow
-      nodes={generateNodes(selectedWorkflow)}
-      edges={generateEdges(selectedWorkflow)}
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
       nodeTypes={nodeTypes}
       fitView
       zoomOnScroll={false}
@@ -116,7 +135,7 @@ const Flow = ({
       panOnScroll={false}
       onDelete={async ({ nodes, edges }) => {
         for (const node of nodes) {
-          console.log('delete node: ' + node?.id);
+          // console.log('delete node: ' + node?.id);
           await fetch(
             chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id)
           );
