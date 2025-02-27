@@ -223,3 +223,34 @@ code if we want */
 .react-flow__attribution a {
   display: none;
 }
+
+.react-flow__node-customNode {
+  padding: 10px;
+  border-radius: var(--xy-node-border-radius, var(--xy-node-border-radius-default));
+  width: 150px;
+  font-size: 12px;
+  color: var(--xy-node-color, var(--xy-node-color-default));
+  text-align: center;
+  border: var(--xy-node-border, var(--xy-node-border-default));
+  background-color: var(--xy-node-background-color, var(--xy-node-background-color-default));
+}
+
+.react-flow__node-customNode:hover {
+  /* add a light shadow effect */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.custom-node-delete-button {
+  opacity: 0.0;
+}
+
+.react-flow__node-customNode:hover .custom-node-delete-button {
+  opacity: 1.0;
+  transition: opacity 0.2s ease-in-out;
+  color: rgb(156, 144, 144);
+  background-color: rgba(255, 255, 255, 0.8);
+  height: 15px;
+  width: 15px;
+  border-radius: 30%;
+}

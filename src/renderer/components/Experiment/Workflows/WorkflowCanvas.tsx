@@ -8,7 +8,10 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import { PlusCircleIcon } from 'lucide-react';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
+import CustomNode from './CustomNode';
+
+const nodeTypes = { customNode: CustomNode };
 
 function generateNodes(workflow: any) {
   let out: any[] = [];
@@ -21,10 +24,11 @@ function generateNodes(workflow: any) {
   while (currentTask < workflowConfig.nodes.length) {
     out.push({
       id: currentTask,
+      type: 'customNode',
       position: { x: 0, y: position },
       data: { label: workflowConfig.nodes[currentTask].name },
     });
-    position += 100;
+    position += 60;
     currentTask = workflowConfig.nodes[currentTask].out;
   }
 
@@ -75,6 +79,7 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
     <ReactFlow
       nodes={generateNodes(selectedWorkflow)}
       edges={generateEdges(selectedWorkflow)}
+      nodeTypes={nodeTypes}
       fitView
       zoomOnScroll={false}
       zoomOnPinch={false}
@@ -86,7 +91,7 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
         onClick={() => {
           setNewNodeModalOpen(true);
         }}
-        variant="plain"
+        variant="soft"
         sx={{
           zIndex: '1000',
           position: 'absolute',
