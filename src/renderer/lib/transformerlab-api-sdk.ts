@@ -1017,6 +1017,8 @@ Endpoints.Workflows = {
     name +
     '&experiment_id=' +
     experimentId,
+  DeleteWorkflow: (workflowId: string) =>
+    API_URL() + 'workflows/delete/' + workflowId,
   AddNode: (workflowId: string, node: string) =>
     API_URL() +
     'workflows/add_node' +

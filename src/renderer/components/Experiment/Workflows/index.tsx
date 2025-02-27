@@ -143,45 +143,66 @@ export default function Workflows({ experimentInfo }) {
               Workflow {selectedWorkflow?.name}
             </Typography>
             <Box pl={2} display="flex" flexDirection="row" gap={1}>
-              {selectedWorkflow?.status != 'RUNNING' ? (
-                <Button
-                  startDecorator={<PlayIcon />}
-                  onClick={() => runWorkflow(selectedWorkflow.id)}
-                >
-                  Run
-                </Button>
-              ) : (
-                <Button startDecorator={<PlayIcon />} disabled={true}>
-                  Running
-                </Button>
-              )}
-
-              <Button startDecorator={<AxeIcon />} variant="outlined">
-                Fight
-              </Button>
-
-              <Dropdown>
-                <MenuButton variant="plain">
-                  <EllipsisIcon />
-                </MenuButton>
-                <Menu>
-                  <MenuItem onClick={() => alert('not implemented')}>
-                    <ListItemDecorator>
-                      <PenIcon />
-                    </ListItemDecorator>
-                    Edit Workflow Name
-                  </MenuItem>
-                  <MenuItem
-                    color="danger"
-                    onClick={() => alert('not implemented')}
+              <>
+                {selectedWorkflow?.status != 'RUNNING' ? (
+                  <Button
+                    disabled={!selectedWorkflow}
+                    startDecorator={<PlayIcon />}
+                    onClick={() => runWorkflow(selectedWorkflow.id)}
                   >
-                    <ListItemDecorator>
-                      <Trash2Icon />
-                    </ListItemDecorator>
-                    Delete Workflow
-                  </MenuItem>
-                </Menu>
-              </Dropdown>
+                    Run
+                  </Button>
+                ) : (
+                  <Button startDecorator={<PlayIcon />} disabled>
+                    Running
+                  </Button>
+                )}
+
+                <Button
+                  startDecorator={<AxeIcon />}
+                  variant="outlined"
+                  disabled={!selectedWorkflow}
+                >
+                  Fight
+                </Button>
+
+                <Dropdown>
+                  <MenuButton variant="plain" disabled={!selectedWorkflow}>
+                    <EllipsisIcon />
+                  </MenuButton>
+                  <Menu>
+                    <MenuItem onClick={() => alert('not implemented')}>
+                      <ListItemDecorator>
+                        <PenIcon />
+                      </ListItemDecorator>
+                      Edit Workflow Name
+                    </MenuItem>
+                    <MenuItem
+                      color="danger"
+                      onClick={async () => {
+                        if (
+                          confirm(
+                            'Are you sure you want to delete this workflow?'
+                          )
+                        ) {
+                          await fetch(
+                            chatAPI.Endpoints.Workflows.DeleteWorkflow(
+                              selectedWorkflow?.id
+                            )
+                          );
+                          mutateWorkflows();
+                          setSelectedWorkflowId(null);
+                        }
+                      }}
+                    >
+                      <ListItemDecorator>
+                        <Trash2Icon />
+                      </ListItemDecorator>
+                      Delete Workflow
+                    </MenuItem>
+                  </Menu>
+                </Dropdown>
+              </>
             </Box>
           </Box>
           <Box
