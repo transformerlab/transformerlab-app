@@ -119,7 +119,6 @@ function formatScore(score) {
             // If no JSON string was found and there's exactly one key,
             // assume legacy format: { metricName: [score, modifier] }
             if (!jsonParsed && Object.keys(item).length === 1) {
-              console.log("item", item);
               metricName = Object.keys(item)[0];
               let score = item[metricName];
               parsedItem = [metricName, score[0], 1];
@@ -176,23 +175,47 @@ function formatScore(score) {
     );
   } else {
     // Handle a single score value.
-    const parsed = parseFloat(score);
-    if (!isNaN(parsed)) {
-      return (
-        <Box
-          sx={{
-            backgroundColor: heatedColor(parsed),
-            padding: "0 5px",
-            fontWeight: "normal",
-            flex: "1 0 0",
-            overflow: "hidden",
-          }}
-        >
-          {parsed.toFixed(5)}
-        </Box>
-      );
-    }
-    return score;
+
+// Check legacy format: { metricName: score }
+if (typeof score === "object" && score !== null && Object.keys(score).length === 1) {
+  const metricName = Object.keys(score)[0];
+  const rawScore = score[metricName];
+  const parsed = parseFloat(rawScore);
+  if (!isNaN(parsed)) {
+    return (
+      <Box
+        sx={{
+          backgroundColor: heatedColor(parsed),
+          padding: "0 5px",
+          fontWeight: "normal",
+          flex: "1 0 0",
+          overflow: "hidden",
+        }}
+      >
+        {`${metricName}: ${parsed.toFixed(5)}`}
+      </Box>
+    );
+  }
+  return JSON.stringify(score);
+}
+
+const parsed = parseFloat(score);
+if (!isNaN(parsed)) {
+  return (
+    <Box
+      sx={{
+        backgroundColor: heatedColor(parsed),
+        padding: "0 5px",
+        fontWeight: "normal",
+        flex: "1 0 0",
+        overflow: "hidden",
+      }}
+    >
+      {parsed.toFixed(5)}
+    </Box>
+  );
+}
+return score;
   }
 }
 
