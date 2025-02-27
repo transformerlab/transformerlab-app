@@ -3,12 +3,16 @@ import {
   Button,
   ButtonGroup,
   Divider,
+  Dropdown,
   IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemContent,
   ListItemDecorator,
+  Menu,
+  MenuButton,
+  MenuItem,
   Sheet,
   Typography,
 } from '@mui/joy';
@@ -16,11 +20,14 @@ import {
 import '@xyflow/react/dist/style.css';
 import {
   AxeIcon,
+  EllipsisIcon,
+  Icon,
   PencilIcon,
   PenIcon,
   PlayIcon,
   PlusCircleIcon,
   PlusIcon,
+  Trash2,
   Trash2Icon,
   WorkflowIcon,
 } from 'lucide-react';
@@ -131,10 +138,63 @@ export default function Workflows({ experimentInfo }) {
         </Box>
 
         <Box flex={3} display="flex" flexDirection="column">
-          <Typography level="title-lg" mb={2}>
-            Workflow {selectedWorkflow?.name}
-          </Typography>
+          <Box
+            display="flex"
+            flexDirection="row"
+            alignItems="center"
+            mb={1}
+            justifyContent="space-between"
+          >
+            <Typography level="title-lg">
+              Workflow {selectedWorkflow?.name}
+            </Typography>
+            <Box pl={2} display="flex" flexDirection="row" gap={1}>
+              {selectedWorkflow?.status != 'RUNNING' ? (
+                <Button
+                  startDecorator={<PlayIcon />}
+                  onClick={() => runWorkflow(selectedWorkflow.id)}
+                >
+                  Run
+                </Button>
+              ) : (
+                <Button startDecorator={<PlayIcon />} disabled={true}>
+                  Running
+                </Button>
+              )}
+              {/* <Button
+                  startDecorator={<PlusIcon />}
+                  onClick={() => setNewNodeflowModalOpen(true)}
+                >
+                  Add Node
+                </Button> */}
+              {/* <Button startDecorator={<PenIcon />} variant="outlined">
+                  Edit
+                </Button> */}
+              <Button startDecorator={<AxeIcon />} variant="outlined">
+                Fight
+              </Button>
 
+              <Dropdown>
+                <MenuButton variant="plain">
+                  <EllipsisIcon />
+                </MenuButton>
+                <Menu>
+                  <MenuItem>
+                    <ListItemDecorator>
+                      <PenIcon />
+                    </ListItemDecorator>
+                    Edit Workflow Name
+                  </MenuItem>
+                  <MenuItem color="danger">
+                    <ListItemDecorator>
+                      <Trash2Icon />
+                    </ListItemDecorator>
+                    Delete Workflow
+                  </MenuItem>
+                </Menu>
+              </Dropdown>
+            </Box>
+          </Box>
           <Box
             sx={{
               display: 'flex',
@@ -152,34 +212,6 @@ export default function Workflows({ experimentInfo }) {
             ) : (
               <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
                 Select Workflow
-              </Box>
-            )}
-            {selectedWorkflow && (
-              <Box pl={2} display="flex" flexDirection="column" gap={1}>
-                {selectedWorkflow.status != 'RUNNING' ? (
-                  <Button
-                    startDecorator={<PlayIcon />}
-                    onClick={() => runWorkflow(selectedWorkflow.id)}
-                  >
-                    Run
-                  </Button>
-                ) : (
-                  <Button startDecorator={<PlayIcon />} disabled={true}>
-                    Running
-                  </Button>
-                )}
-                {/* <Button
-                  startDecorator={<PlusIcon />}
-                  onClick={() => setNewNodeflowModalOpen(true)}
-                >
-                  Add Node
-                </Button> */}
-                {/* <Button startDecorator={<PenIcon />} variant="outlined">
-                  Edit
-                </Button> */}
-                <Button startDecorator={<AxeIcon />} variant="outlined">
-                  Fight
-                </Button>
               </Box>
             )}
           </Box>
