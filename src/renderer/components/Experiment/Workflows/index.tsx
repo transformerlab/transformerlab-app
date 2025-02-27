@@ -181,7 +181,9 @@ export default function Workflows({ experimentInfo }) {
                       onClick={async () => {
                         if (
                           confirm(
-                            'Are you sure you want to delete this workflow?'
+                            'Are you sure you want to delete workflow ' +
+                              selectedWorkflow?.name +
+                              '?'
                           )
                         ) {
                           await fetch(
