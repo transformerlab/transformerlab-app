@@ -74,7 +74,7 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
       reactFlowInstance.fitView({
         includeHiddenNodes: false, // Don't include hidden nodes
         minZoom: 0.5, // Set minimum zoom level
-        maxZoom: 10, // Set maximum zoom level
+        maxZoom: 2, // Set maximum zoom level
       });
     }, 100);
 
@@ -92,7 +92,7 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
       zoomOnDoubleClick={false}
       panOnScroll={false}
       style={{
-        backgroundColor: 'var(--joy-palette-background-level1)',
+        backgroundColor: 'var(--joy-palette-background-level2)',
       }}
     >
       <Button
