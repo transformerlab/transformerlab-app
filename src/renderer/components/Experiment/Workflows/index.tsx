@@ -86,9 +86,8 @@ export default function Workflows({ experimentInfo }) {
           experimentInfo={experimentInfo}
         />
       )}
-      <Typography level="h1">Workflows</Typography>
-      <Typography level="body-lg" mb={3}>
-        This is where it will all go
+      <Typography level="h1" mb={1}>
+        Workflows
       </Typography>
       <Sheet
         sx={{
