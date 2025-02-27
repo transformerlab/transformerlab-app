@@ -13,7 +13,6 @@ import { PlusCircleIcon } from 'lucide-react';
 import { useCallback, useEffect } from 'react';
 import CustomNode from './CustomNode';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { mutate } from 'swr';
 
 const nodeTypes = { customNode: CustomNode };
 
@@ -55,10 +54,13 @@ function generateNodes(workflow: any): any[] {
       template: node.template,
       metadata: node?.metadata,
     };
+
+    const savedPosition = node?.metadata?.position || { x: 0, y: position };
+
     const nextNode = {
       id: node.id,
       type: 'customNode',
-      position: { x: 0, y: position },
+      position: savedPosition,
       data: data,
     };
     out.push(nextNode);
@@ -97,6 +99,9 @@ function generateEdges(workflow: any) {
   for (let i = 0; i < workflowConfig.nodes.length; i++) {
     const currentNode = workflowConfig.nodes[i];
 
+    if (!Array.isArray(currentNode.out)) {
+      continue;
+    }
     currentNode.out.forEach((nextId) => {
       out.push({
         id: currentNode.id + nextId,
@@ -150,21 +155,17 @@ const Flow = ({
   }, [reactFlowInstance, selectedWorkflow]);
 
   const onNodeDragStop = useCallback(async (event, node) => {
-    // Save all current node positions
-    const allCurrentPositions = nodes.map((n) => ({
-      id: n.id,
-      position: n.position,
-    }));
-
-    // Save to your backend or storage
-    // for (const node of allCurrentPositions) {
-    //   console.log('update node: ' + node?.id);
-    //   await fetch(
-    //     chatAPI.Endpoints.Workflows.UpdateNode(workflowId, node?.id, {
-    //       position: node.position,
-    //     })
-    //   );
-    // }
+    const metadata = JSON.stringify({
+      position: node.position,
+    });
+    await fetch(
+      chatAPI.Endpoints.Workflows.EditNodeMetadata(
+        workflowId,
+        node?.id,
+        metadata
+      )
+    );
+    mutateWorkflows();
   }, []);
 
   return (
