@@ -1,7 +1,9 @@
 import {
   Box,
   Button,
+  ButtonGroup,
   Divider,
+  IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -19,6 +21,7 @@ import {
   PlayIcon,
   PlusCircleIcon,
   PlusIcon,
+  Trash2Icon,
   WorkflowIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -106,12 +109,12 @@ export default function Workflows({ experimentInfo }) {
                 <ListItem key={workflow.id}>
                   <ListItemButton
                     onClick={() => setSelectedWorkflowId(workflow.id)}
+                    selected={selectedWorkflowId === workflow.id}
                   >
                     <ListItemDecorator>
                       <WorkflowIcon />
                     </ListItemDecorator>
                     <ListItemContent>{workflow.name}</ListItemContent>
-                    &rarr;
                   </ListItemButton>
                 </ListItem>
               ))}
