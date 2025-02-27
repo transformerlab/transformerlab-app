@@ -16,11 +16,13 @@ import {
   FileDigitIcon,
   Grid3X3Icon,
   Trash2Icon,
+  LineChartIcon,
   Type,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import TensorboardModal from '../Train/TensorboardModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCSVModal from './ViewCSVModal';
 import ViewPlotModal from './ViewPlotModal';
@@ -96,8 +98,8 @@ const EvalJobsTable = () => {
   const [openPlotModal, setOpenPlotModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
   const [currentScore, setCurrentScore] = useState('');
-  const [fileNameForDetailedReport, setFileNameForDetailedReport] =
-    useState('');
+  const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
+  const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
 
   const fetchCSV = async (jobId) => {
     const response = await fetch(
@@ -152,6 +154,10 @@ const EvalJobsTable = () => {
         setFileName={setFileNameForDetailedReport}
         fileName={fileNameForDetailedReport}
       />
+         <TensorboardModal
+              currentTensorboard={currentTensorboardForModal}
+              setCurrentTensorboard={setCurrentTensorboardForModal}
+            />
       <Box
         sx={{
           display: 'flex',
@@ -173,6 +179,7 @@ const EvalJobsTable = () => {
           </Typography>
         )}
       </Box>
+
       <Sheet sx={{ overflowY: 'scroll' }}>
         <Table stickyHeader>
           <thead>
@@ -286,6 +293,18 @@ const EvalJobsTable = () => {
                     variant="soft"
                     sx={{ justifyContent: 'flex-end' }}
                   >
+                          {job?.job_data?.tensorboard_output_dir && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => {
+                                setCurrentTensorboardForModal(job?.id);
+                              }}
+                              startDecorator={<LineChartIcon />}
+                            >
+                              Tensorboard
+                            </Button>
+                          )}
                     <Button
                       onClick={() => {
                         setViewOutputFromJob(job?.id);
