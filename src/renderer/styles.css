@@ -262,7 +262,6 @@ code if we want */
 .react-flow__node-customNode:hover .custom-node-delete-button {
   opacity: 1.0;
   transition: opacity 0.2s ease-in-out;
-  color: rgb(156, 144, 144);
   background-color: rgba(255, 255, 255, 1);
   border: 1.5px solid rgb(156, 144, 144);
   height: 14px;
@@ -275,9 +274,8 @@ code if we want */
   border-radius: '50%';
   justify-content: center;
   align-items: center;
-
-  color: var(--joy-palette-danger-400);
-  border-color: var(--joy-palette-danger-400),
+  color: var(--joy-palette-primary-400);
+  border-color: var(--joy-palette-primary-400),
 }
 
 .react-flow__node-customNode:hover {
