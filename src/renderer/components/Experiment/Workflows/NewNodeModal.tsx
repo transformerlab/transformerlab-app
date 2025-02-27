@@ -101,36 +101,53 @@ export default function NewNodeModal({
           }}
         >
           <Stack spacing={2}>
-            <Select
-              labelId="mode-label"
-              id="mode-select"
-              value={mode}
-              onChange={handleModeChange}
-            >
-              <Option value="OTHER">OTHER</Option>
-              <Option value="TRAIN">TRAIN</Option>
-              <Option value="EVAL">EVAL</Option>
-            </Select>
-            <FormLabel>Name</FormLabel>
-            <Textarea minRows={4} autoFocus required name="name" />
-            {mode == 'TRAIN' ? (
-              <Select name="trainingTemplate">
-                {trainingTemplatesData.map((template) => (
-                  <Option value={template[1]}>{template[1]}</Option>
-                ))}
+            <FormControl>
+              <FormLabel>Name</FormLabel>
+              <Input autoFocus required name="name" />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Type</FormLabel>
+              <Select
+                labelId="mode-label"
+                id="mode-select"
+                value={mode}
+                onChange={handleModeChange}
+              >
+                <Option value="OTHER">OTHER</Option>
+                <Option value="TRAIN">TRAIN</Option>
+                <Option value="EVAL">EVAL</Option>
               </Select>
-            ) : mode == 'EVAL' ? (
-              <Select name="evalTemplate">
-                {evaluationData.map((template) => (
-                  <Option value={template.name}>{template.name}</Option>
-                ))}
-              </Select>
-            ) : (
-              <FormControl>
-                <FormLabel>Nodes</FormLabel>
-                <Textarea minRows={4} autoFocus required name="node" />
-              </FormControl>
-            )}
+            </FormControl>
+
+            <FormControl>
+              {mode == 'TRAIN' && (
+                <>
+                  <FormLabel>Training Template</FormLabel>
+                  <Select name="trainingTemplate">
+                    {trainingTemplatesData.map((template) => (
+                      <Option value={template[1]}>{template[1]}</Option>
+                    ))}
+                  </Select>
+                </>
+              )}
+              {mode == 'EVAL' && (
+                <>
+                  <FormLabel>Eval Template</FormLabel>
+                  <Select name="evalTemplate">
+                    {evaluationData.map((template) => (
+                      <Option value={template.name}>{template.name}</Option>
+                    ))}
+                  </Select>
+                </>
+              )}
+              {mode == 'OTHER' && (
+                <>
+                  <FormLabel>Nodes</FormLabel>
+                  <Textarea minRows={4} autoFocus required name="node" />
+                </>
+              )}
+            </FormControl>
+
             <Button type="submit">Submit</Button>
           </Stack>
         </form>
