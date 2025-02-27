@@ -83,6 +83,9 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
       style={{ backgroundColor: '#F7F9FB' }}
     >
       <Button
+        onClick={() => {
+          setNewNodeModalOpen(true);
+        }}
         variant="plain"
         sx={{
           zIndex: '1000',
@@ -90,15 +93,7 @@ const Flow = ({ selectedWorkflow, setNewNodeModalOpen = (x) => {} }) => {
           bottom: '20px',
           right: '20px',
         }}
-        startDecorator={
-          <PlusCircleIcon
-            strokeWidth={2}
-            size={32}
-            onClick={() => {
-              setNewNodeModalOpen(true);
-            }}
-          />
-        }
+        startDecorator={<PlusCircleIcon strokeWidth={2} size={32} />}
       >
         Add Node
       </Button>
