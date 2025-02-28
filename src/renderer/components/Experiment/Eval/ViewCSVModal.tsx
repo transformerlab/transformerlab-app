@@ -147,6 +147,13 @@ function formatScore(score) {
                   fontWeight: "normal",
                   flex: "1 0 0",
                   overflow: "hidden",
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid #ccc"
+
                 }}
               >
                 {metricName ? `${metricName}: ${parsed.toFixed(4)}` : parsed.toFixed(4)}
@@ -164,6 +171,12 @@ function formatScore(score) {
                   fontWeight: "normal",
                   flex: "1 0 0",
                   overflow: "hidden",
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid #ccc",
                 }}
               >
                 {parsed.toFixed(5)}
@@ -190,6 +203,12 @@ if (typeof score === "object" && score !== null && Object.keys(score).length ===
           fontWeight: "normal",
           flex: "1 0 0",
           overflow: "hidden",
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: "1px solid #ccc"
         }}
       >
         {`${metricName}: ${parsed.toFixed(5)}`}
@@ -209,6 +228,7 @@ if (!isNaN(parsed)) {
         fontWeight: "normal",
         flex: "1 0 0",
         overflow: "hidden",
+        border: "1px solid #ccc"
       }}
     >
       {parsed.toFixed(5)}
