@@ -38,7 +38,12 @@ export default function NewNodeModal({
     isLoading: isLoading,
   } = useSWR(chatAPI.GET_TRAINING_TEMPLATE_URL(), fetcher);
 
-  const evaluationData = JSON.parse(experimentInfo?.config?.evaluations);
+  let evaluationData = [];
+  try {
+    evaluationData = JSON.parse(experimentInfo?.config?.evaluations);
+  } catch (error) {
+    console.error('Failed to parse evaluation data:', error);
+  }
 
   const handleModeChange = (event: any, newValue: string) => {
     setMode(newValue);
