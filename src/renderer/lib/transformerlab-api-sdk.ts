@@ -1198,6 +1198,11 @@ Endpoints.ServerInfo = {
   StreamLog: () => API_URL() + 'server/stream_log',
 };
 
+Endpoints.Charts = {
+  CompareEvals: (jobIds: string) =>
+    API_URL() + 'evals/compare_evals?job_list=' + jobIds,
+}
+
 export function GET_TRAINING_TEMPLATE_URL() {
   return API_URL() + 'train/templates';
 }
