@@ -166,6 +166,28 @@ function formatScore(score) {
   }
 }
 
+const convertReportToCSV = (report: { header: any[]; body: any[] }) => {
+  if (!report?.header || !report?.body) return '';
+  const csvRows = [];
+  csvRows.push(report.header.join(','));
+  report.body.forEach((row) => {
+      const csvRow = row
+          .map((cell) => {
+              let cellText = '';
+              if (typeof cell === 'object') {
+                  // Convert objects to a JSON string and escape inner quotes
+                  cellText = JSON.stringify(cell).replace(/"/g, '""');
+              } else {
+                  cellText = cell;
+              }
+              return `"${cellText}"`;
+          })
+          .join(',');
+      csvRows.push(csvRow);
+  });
+  return csvRows.join('\n');
+};
+
 const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) => {
   const [report, setReport] = useState({});
 
@@ -186,7 +208,6 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) =>
 
   } else {
     try {
-      console.log('compareData', compareData);
       setReport(formatEvalData(compareData, true));
     } catch (e) {
       setReport({ header: ['Error'], body: [[compareData]] });
@@ -198,6 +219,8 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) =>
 
 
   const handleDownload = async () => {
+
+    if (!compareData) {
     const response = await fetch(
       chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId, 'download')
     );
@@ -210,7 +233,20 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) =>
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
+  } else {
+    const csvContent = convertReportToCSV(report);
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `detailed_report.csv`; // Adjust extension if necessary
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+};
 
   return (
     <Modal open={open} onClose={onClose}>
