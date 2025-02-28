@@ -264,8 +264,9 @@ code if we want */
   align-items: center;
 }
 
-
-
+path.react-flow__edge-path {
+  stroke-width: 2;
+}
 
 .custom-node-delete-button {
   opacity: 0.0;

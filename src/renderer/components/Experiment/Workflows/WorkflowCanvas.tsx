@@ -80,8 +80,18 @@ function generateEdges(workflow: any) {
         id: currentNode.id + nextId,
         source: currentNode.id,
         target: nextId,
+        animated: false,
+        type: 'bezier',
+        style: {
+          stroke: 'var(--joy-palette-primary-outlinedDisabledColor)',
+          strokeWidth: 2,
+        },
         markerEnd: {
           type: 'arrow',
+          color: 'var(--joy-palette-primary-outlinedDisabledColor)',
+          width: 12,
+          height: 10,
+          strokeWidth: 2,
         },
       });
     });
@@ -156,6 +166,11 @@ const Flow = ({
       onEdgesChange={onEdgesChange}
       onNodeDragStop={onNodeDragStop}
       nodeTypes={nodeTypes}
+      snapToGrid={true}
+      snapGrid={[15, 15]}
+      elementsSelectable={true}
+      nodesDraggable={true}
+      nodesConnectable={true}
       fitView
       zoomOnScroll={false}
       zoomOnPinch={false}
