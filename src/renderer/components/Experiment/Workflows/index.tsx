@@ -170,14 +170,6 @@ export default function Workflows({ experimentInfo }) {
             </Typography>
             <Box pl={2} display="flex" flexDirection="row" gap={1}>
               <>
-                <IconButton
-                  variant="plain"
-                  disabled={!selectedWorkflow}
-                  // startDecorator={<BookOpenIcon />}
-                  onClick={() => setViewCodeMode(!viewCodeMode)}
-                >
-                  {viewCodeMode ? <WorkflowIcon /> : <BracesIcon />}
-                </IconButton>
                 {selectedWorkflow?.status != 'RUNNING' ? (
                   <Button
                     disabled={!selectedWorkflow}
@@ -191,6 +183,14 @@ export default function Workflows({ experimentInfo }) {
                     Running
                   </Button>
                 )}
+                <IconButton
+                  variant="plain"
+                  disabled={!selectedWorkflow}
+                  // startDecorator={<BookOpenIcon />}
+                  onClick={() => setViewCodeMode(!viewCodeMode)}
+                >
+                  {viewCodeMode ? <WorkflowIcon /> : <BracesIcon />}
+                </IconButton>
                 <Dropdown>
                   <MenuButton variant="plain" disabled={!selectedWorkflow}>
                     <EllipsisIcon />
