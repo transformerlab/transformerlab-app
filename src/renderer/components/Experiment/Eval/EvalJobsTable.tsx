@@ -121,10 +121,16 @@ const EvalJobsTable = () => {
     fallbackData: [],
   });
 
-    // New function to call CombinedReports via SDK and send data to ViewPlotModal
     const handleCombinedReports = async () => {
       try {
-        const data = await chatAPI.COMPARE_EVALS(selected);
+        const jobIdsParam = selected.join(',');
+        const compareEvalsUrl = chatAPI.Endpoints.Charts.CompareEvals(jobIdsParam);
+        const response = await fetch(compareEvalsUrl, { method: 'GET' });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        console.log('data', data);
         setCurrentData(JSON.stringify(data));
         setOpenPlotModal(true);
         setChart(false);
@@ -187,10 +193,10 @@ const EvalJobsTable = () => {
             level="body-sm"
             startDecorator={<ChartColumnIncreasingIcon size="20px" />}
             // Uncomment this line to enable the combined reports feature
-            // onClick={handleCombinedReports}
-            onClick={() => {
-              alert('this feature coming soon');
-            }}
+            onClick={handleCombinedReports}
+            // onClick={() => {
+            //   alert('this feature coming soon');
+            // }}
             sx={{ cursor: 'pointer' }}
           >
             <>Compare Selected Evals</>

@@ -1196,6 +1196,11 @@ Endpoints.ServerInfo = {
   StreamLog: () => API_URL() + 'server/stream_log',
 };
 
+Endpoints.Charts = {
+  CompareEvals: (jobIds: string) =>
+    API_URL() + 'evals/compare_evals?job_list=' + jobIds,
+}
+
 export function GET_TRAINING_TEMPLATE_URL() {
   return API_URL() + 'train/templates';
 }
@@ -1549,22 +1554,6 @@ export async function EXPERIMENT_EDIT_EVALUATION(
   });
   const result = await response.json();
   return result;
-}
-
-export async function COMPARE_EVALS(jobIds: string[]) {
-  const jobIdsParam = jobIds.join(',');
-  const url = API_URL() + 'evals/compare_evals?job_list=' + jobIdsParam;
-  console.log('url', url);
-  console.log('jobIds', jobIds);
-  const response = await fetch(url, {
-    method: 'GET'
-  });
-  if (!response.ok) {
-    throw new Error('Network response was not ok');
-  }
-  const data = await response.json();
-  console.log('data', data);
-  return data;
 }
 
 export async function EXPERIMENT_ADD_GENERATION(
