@@ -193,10 +193,10 @@ const EvalJobsTable = () => {
             level="body-sm"
             startDecorator={<ChartColumnIncreasingIcon size="20px" />}
             // Uncomment this line to enable the combined reports feature
-            onClick={handleCombinedReports}
-            // onClick={() => {
-            //   alert('this feature coming soon');
-            // }}
+            // onClick={handleCombinedReports}
+            onClick={() => {
+              alert('this feature coming soon');
+            }}
             sx={{ cursor: 'pointer' }}
           >
             <>Compare Selected Evals</>
