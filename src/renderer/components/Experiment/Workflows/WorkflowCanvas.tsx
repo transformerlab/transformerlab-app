@@ -119,8 +119,12 @@ function generateEdges(workflow: any) {
 
 const Flow = ({
   selectedWorkflow,
-  setNewNodeModalOpen = (x) => {},
+  setNewNodeModalOpen = (x: boolean) => {},
   mutateWorkflows,
+}: {
+  selectedWorkflow: any;
+  setNewNodeModalOpen: (param: boolean) => void;
+  mutateWorkflows: Function;
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(
     generateNodes(selectedWorkflow)
@@ -225,8 +229,12 @@ const Flow = ({
 
 export default function WorkflowCanvas({
   selectedWorkflow,
-  setNewNodeModalOpen = () => {},
+  setNewNodeModalOpen = (x: boolean) => {},
   mutateWorkflows,
+}: {
+  selectedWorkflow: any;
+  setNewNodeModalOpen: (param: boolean) => void;
+  mutateWorkflows: Function;
 }) {
   if (!selectedWorkflow) {
     return null;
