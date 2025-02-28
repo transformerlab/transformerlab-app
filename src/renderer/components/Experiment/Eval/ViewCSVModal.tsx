@@ -26,7 +26,7 @@ function heatedColor(value) {
 
 // This function formats the eval data to combine rows that have the same name
 // based on the first column
-function formatEvalData(data) {
+function formatEvalData(data, compareEvals = false) {
   let header = data?.header;
   let body = data?.body;
   const formattedData: any[] = [];
@@ -41,36 +41,77 @@ function formatEvalData(data) {
     return data;
   }
 
-  // remove the header named "metric_name"
-  if (header[1] === 'metric_name') {
-    header = header.slice(1);
-  }
-
   const seen = new Set();
-  body.forEach((row) => {
-    if (!seen.has(row[0])) {
-      seen.add(row[0]);
-      const newRow = [row[0]];
-      newRow.push({ [row[1]]: row[2] });
-      // now push the rest of the columns:
-      for (let i = 3; i < row.length; i++) {
-        newRow.push(row[i]);
-      }
-      formattedData.push(newRow);
-    } else {
-      const index = formattedData.findIndex((r) => r[0] === row[0]);
-      let newScore = [];
-      // if formattedData[index][1] is an array, then we need to push to it
-      if (Array.isArray(formattedData[index][1])) {
-        newScore = formattedData[index][1];
-      } else {
-        newScore.push(formattedData[index][1]);
-      }
-      newScore.push({ [row[1]]: row[2] });
-      formattedData[index][1] = newScore;
-    }
-  });
 
+  if (compareEvals) {
+    // Ensure the header has at least the expected columns:
+    // test_case_id, metric_name, job_id, evaluator_name, metric_name, score, ...
+    if (header.length < 6) {
+      return data;
+    }
+    // Remove columns: drop the first metric_name (index 1), job_id (index 2), evaluator_name (index 3)
+    // and the metric_name/score pair (indices 4 and 5) will be combined
+    // New header: test_case_id, combined_scores, then any extra columns (starting from index 6)
+    header = [header[0], 'score', ...header.slice(6)];
+
+    body.forEach((row) => {
+      // Sanity check row length
+      if (row.length < 6) return;
+      const testCaseId = row[0];
+      const jobId = row[2];
+      const evaluatorName = row[3];
+      const metricName = row[4];
+      const scoreVal = row[5];
+      const combinedScore = { [`${evaluatorName}-${jobId}-${metricName}`]: scoreVal };
+
+      // Append additional columns after the 6th column, if any
+      const extraColumns = row.slice(6);
+
+      if (!seen.has(testCaseId)) {
+        seen.add(testCaseId);
+        // newRow: [test_case_id, combinedScore, extra columns...]
+        formattedData.push([testCaseId, combinedScore, ...extraColumns]);
+      } else {
+        const index = formattedData.findIndex((r) => r[0] === testCaseId);
+        let newScore = [];
+        if (Array.isArray(formattedData[index][1])) {
+          newScore = formattedData[index][1];
+        } else {
+          newScore.push(formattedData[index][1]);
+        }
+
+        newScore.push(combinedScore);
+        formattedData[index][1] = newScore;
+      }
+    });
+  } else {
+    // original processing: remove "metric_name" if it is header[1]
+    if (header[1] === 'metric_name') {
+      header = header.slice(1);
+    }
+    body.forEach((row) => {
+      if (!seen.has(row[0])) {
+        seen.add(row[0]);
+        const newRow = [row[0]];
+        newRow.push({ [row[1]]: row[2] });
+        for (let i = 3; i < row.length; i++) {
+          newRow.push(row[i]);
+        }
+        console.log("NEW ROW", newRow);
+        formattedData.push(newRow);
+      } else {
+        const index = formattedData.findIndex((r) => r[0] === row[0]);
+        let newScore = [];
+        if (Array.isArray(formattedData[index][1])) {
+          newScore = formattedData[index][1];
+        } else {
+          newScore.push(formattedData[index][1]);
+        }
+        newScore.push({ [row[1]]: row[2] });
+        formattedData[index][1] = newScore;
+      }
+    });
+  }
   return { header: header, body: formattedData };
 }
 
@@ -125,10 +166,14 @@ function formatScore(score) {
   }
 }
 
-const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
+const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) => {
   const [report, setReport] = useState({});
 
+
   useEffect(() => {
+
+    if (!compareData) {
+
     if (open && jobId) {
       fetchCSV(jobId).then((data) => {
         try {
@@ -138,7 +183,19 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
         }
       });
     }
+
+  } else {
+    try {
+      console.log('compareData', compareData);
+      setReport(formatEvalData(compareData, true));
+    } catch (e) {
+      setReport({ header: ['Error'], body: [[compareData]] });
+    }
+
+  }
+
   }, [open, jobId, fetchCSV]);
+
 
   const handleDownload = async () => {
     const response = await fetch(
