@@ -84,7 +84,7 @@ function generateEdges(workflow: any) {
         type: 'bezier',
         style: {
           stroke: 'var(--joy-palette-primary-outlinedDisabledColor)',
-          strokeWidth: 2,
+          strokeWidth: 1.5,
         },
         markerEnd: {
           type: 'arrow',
