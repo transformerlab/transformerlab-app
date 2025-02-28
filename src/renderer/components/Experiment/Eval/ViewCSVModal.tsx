@@ -74,11 +74,7 @@ function heatedColor(value) {
 }
 
 // Single helper for rendering scores.
-// It supports a score passed as a single value or as an array of [score, modifier] pairs.
-// For each pair:
-//  - If modifier is 0, no background colour is applied.
-//  - If modifier is -1, colour is computed in reverse: (1 - clampedScore) * 240.
-//  - Otherwise, the normal heatedColor is applied.
+// It supports a score passed as a single value or as an array of [score, scoreNormalized] pairs.
 function formatScore(score) {
   if (Array.isArray(score)) {
     return (
@@ -107,8 +103,8 @@ function formatScore(score) {
                 try {
 
                   parsedItem = JSON.parse(value);
-                  let [score, modifier] = parsedItem
-                  parsedItem = [key, score, modifier];
+                  let [score, scoreNorm] = parsedItem
+                  parsedItem = [key, score, scoreNorm];
                   jsonParsed = true;
                 } catch (e) {
                   // If parsing fails, keep the original item.
@@ -117,26 +113,26 @@ function formatScore(score) {
               }
             }
             // If no JSON string was found and there's exactly one key,
-            // assume legacy format: { metricName: [score, modifier] }
+            // assume legacy format: { metricName: [score, scoreNormalized] }
             if (!jsonParsed && Object.keys(item).length === 1) {
+
               metricName = Object.keys(item)[0];
               let score = item[metricName];
-              parsedItem = [metricName, score[0], 1];
+              if (Array.isArray(score) && score.length === 1) {
+                parsedItem = [metricName, score[0], score[0]];
+              }
+              parsedItem = [metricName, score, score];
             }
           }
 
           if (Array.isArray(parsedItem) && parsedItem.length === 3) {
-            const [metricName, rawScore, modifier] = parsedItem;
+            const [metricName, rawScore, scoreNormalized] = parsedItem;
             const parsed = parseFloat(rawScore);
-            const clamped = Math.min(Math.max(parsed, 0), 1);
             let bg;
-            if (modifier === 0) {
+            if (scoreNormalized === -1) {
               bg = "inherit";
-            } else if (modifier === -1) {
-              const h = (1 - clamped) * 240;
-              bg = `hsla(${h}, 100%, 50%, 0.3)`;
             } else {
-              bg = heatedColor(parsed);
+              bg = heatedColor(scoreNormalized);
             }
             return (
               <Box
@@ -156,7 +152,7 @@ function formatScore(score) {
 
                 }}
               >
-                {metricName ? `${metricName}: ${parsed.toFixed(4)}` : parsed.toFixed(4)}
+                {metricName ? `${metricName}: ${parsed.toFixed(5)}` : parsed.toFixed(5)}
               </Box>
             );
           } else {
@@ -193,12 +189,23 @@ function formatScore(score) {
 if (typeof score === "object" && score !== null && Object.keys(score).length === 1) {
   const metricName = Object.keys(score)[0];
   const rawScore = score[metricName];
-  const parsed = parseFloat(rawScore);
+  let parsed;
+  let bg;
+  let scoreNormalized;
+  const parsedData = JSON.parse(rawScore);
+  if (!isNaN(parsedData[0])) {
+    [parsed, scoreNormalized] = parsedData;
+    bg = heatedColor(scoreNormalized);
+  } else {
+    parsed = parseFloat(rawScore);
+    bg = heatedColor(parsed);
+  }
+
   if (!isNaN(parsed)) {
     return (
       <Box
         sx={{
-          backgroundColor: heatedColor(parsed),
+          backgroundColor: bg,
           padding: "0 5px",
           fontWeight: "normal",
           flex: "1 0 0",
