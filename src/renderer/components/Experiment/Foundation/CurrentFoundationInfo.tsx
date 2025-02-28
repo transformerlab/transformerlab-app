@@ -66,13 +66,12 @@ export default function CurrentFoundationInfo({
     fetchWithPost
   );
   const [huggingfaceData, setHugggingfaceData] = useState({});
+  const [showProvenance, setShowProvenance] = useState(false);
   const huggingfaceId = experimentInfo?.config?.foundation;
 
-  // Get model ID from experimentInfo (either from model_id or id)
-  const modelId = experimentInfo?.model_id || experimentInfo?.id;
   // Fetch provenance data from your GET endpoint using chatAPI.Endpoints.Models.ModelProvenance()
   const { data: provenance, error: provenanceError } = useSWR(
-    modelId ? chatAPI.Endpoints.Models.ModelProvenance(modelId) : null,
+    chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
     fetcher
   );
 
@@ -128,71 +127,94 @@ export default function CurrentFoundationInfo({
                   )
               )}
             </tbody>
-            </Table>
-          {/* Model Provenance Table */}
+          </Table>
+          {/* Model Provenance Collapsible */}
           <Box mt={4}>
-            <Typography level="h6" mb={1}>
-              Model Provenance
-            </Typography>
-            {provenance ? (
-              <Table id="model-provenance-table">
-                <thead>
-                  <tr>
-                    <th>Job ID</th>
-                    <th>Base Model</th>
-                    <th>Dataset</th>
-                    <th>Params</th>
-                    <th>Output Model</th>
-                    <th>Evals</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {provenance.provenance_chain.map((row) => (
-                    <tr key={row.job_id}>
-                      <td>{row.job_id}</td>
-                      <td>{row.train_model_name}</td>
-                      <td>{row.dataset}</td>
-                      <td>
-                        <Box>
-                          {Object.entries(row.parameters).map(([key, value]) => (
-                            <Typography key={key} level="body2">
-                              {`${key}: ${value}`}
-                            </Typography>
-                          ))}
-                        </Box>
-                      </td>
-                      <td>{row.output_model}</td>
-                      <td>
-                        <Box>
-                          {row.evals && row.evals.length > 0 ? (
-                            row.evals.map((evalItem) => (
-                              <Tooltip
-                                key={evalItem.job_id}
-                                title={
-                                  <pre style={{ margin: 0 }}>
-                                    {JSON.stringify(evalItem, null, 2)}
-                                  </pre>
-                                }
-                              >
-                                <Typography level="body2" sx={{ cursor: 'pointer', mb: 0.5 }}>
-                                  {evalItem.job_id} -{' '}
-                                  {evalItem.template_name || evalItem.evaluator || 'Eval'}
+            <Button
+              variant="soft"
+              onClick={() => setShowProvenance((prev) => !prev)}
+            >
+              Model Provenance {showProvenance ? '▲' : '▼'}
+            </Button>
+            {showProvenance && (
+              <Box
+                sx={{
+                  mt: 2,
+                  overflow: 'auto',
+                  maxHeight: 400,
+                  maxWidth: '100%',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                }}
+              >
+                {provenance ? (
+                  <Table
+                    id="model-provenance-table"
+                    sx={{
+                      tableLayout: 'auto',
+                      minWidth: 600, // Ensure horizontal scroll if needed
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        <th>Job ID</th>
+                        <th>Base Model</th>
+                        <th>Dataset</th>
+                        <th>Params</th>
+                        <th>Output Model</th>
+                        <th>Evals</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {provenance.provenance_chain.map((row) => (
+                        <tr key={row.job_id}>
+                          <td>{row.job_id}</td>
+                          <td>{row.input_model}</td>
+                          <td>{row.dataset}</td>
+                          <td>
+                            <pre>{JSON.stringify(row.parameters, null, 2)}</pre>
+                          </td>
+                          <td>{row.output_model}</td>
+                          <td>
+                            <Box>
+                              {row.evals && row.evals.length > 0 ? (
+                                row.evals.map((evalItem) => (
+                                  <Tooltip
+                                    key={evalItem.job_id}
+                                    title={
+                                      <pre style={{ margin: 0 }}>
+                                        {JSON.stringify(evalItem, null, 2)}
+                                      </pre>
+                                    }
+                                  >
+                                    <Typography
+                                      level="body2"
+                                      sx={{ cursor: 'pointer', mb: 0.5 }}
+                                    >
+                                      {evalItem.job_id} -{' '}
+                                      {evalItem.template_name ||
+                                        evalItem.evaluator ||
+                                        'Eval'}
+                                    </Typography>
+                                  </Tooltip>
+                                ))
+                              ) : (
+                                <Typography level="body2">
+                                  No Evals
                                 </Typography>
-                              </Tooltip>
-                            ))
-                          ) : (
-                            <Typography level="body2">No Evals</Typography>
-                          )}
-                        </Box>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            ) : provenanceError ? (
-              <Typography>Error loading provenance</Typography>
-            ) : (
-              <Typography>Loading Provenance...</Typography>
+                              )}
+                            </Box>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                ) : provenanceError ? (
+                  <Typography>Error loading provenance</Typography>
+                ) : (
+                  <Typography>Loading Provenance...</Typography>
+                )}
+              </Box>
             )}
           </Box>
         </Box>
