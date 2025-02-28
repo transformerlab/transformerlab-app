@@ -172,7 +172,7 @@ const Flow = ({
       nodesDraggable={true}
       nodesConnectable={true}
       fitView
-      zoomOnScroll={false}
+      zoomOnScroll={true}
       zoomOnPinch={false}
       zoomOnDoubleClick={false}
       panOnScroll={false}
@@ -186,7 +186,7 @@ const Flow = ({
         mutateWorkflows();
       }}
       style={{
-        backgroundColor: 'var(--joy-palette-background-level2)',
+        backgroundColor: 'var(--joy-palette-background-surface)',
       }}
     >
       <Button
