@@ -81,7 +81,7 @@ function generateEdges(workflow: any) {
         source: currentNode.id,
         target: nextId,
         animated: false,
-        type: 'bezier',
+        type: 'default',
         style: {
           stroke: 'var(--joy-palette-primary-outlinedDisabledColor)',
           strokeWidth: 1.5,
