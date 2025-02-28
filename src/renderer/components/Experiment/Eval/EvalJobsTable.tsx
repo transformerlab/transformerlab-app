@@ -91,6 +91,57 @@ function RenderScore({ score }) {
   ));
 }
 
+function transformMetrics(
+  data: Array<{
+    metric_name: string;
+    score: number;
+    evaluator_name: string;
+    job_id: string;
+    [key: string]: any;
+  }>
+) {
+  const grouped: {
+    [key: string]: {
+      evaluator_name: string;
+      job_id: string;
+      type: string;
+      sum: number;
+      count: number;
+    };
+  } = {};
+
+  data.forEach((entry) => {
+    // Extract only the fields we care about.
+    let { metric_name, score, evaluator_name, job_id } = entry;
+    if (!metric_name || score === undefined || score === null || !evaluator_name || !job_id) {
+      return;
+    }
+
+    // Use a combined key to group only entries that share evaluator_name, job_id AND metric_name.
+    const key = `${evaluator_name}|${job_id}|${metric_name}`;
+    if (grouped[key]) {
+      grouped[key].sum += score;
+      grouped[key].count += 1;
+    } else {
+      grouped[key] = {
+        evaluator_name,
+        job_id,
+        type: metric_name,
+        sum: score,
+        count: 1,
+      };
+    }
+  });
+
+  // Generate deduplicated list with averaged scores rounded to 5 decimals.
+  return Object.values(grouped).map((item) => ({
+    evaluator: item.evaluator_name,
+    job_id: item.job_id,
+    type: item.type,
+    score: Number((item.sum / item.count).toFixed(5)),
+  }));
+}
+
 
 const EvalJobsTable = () => {
   const [selected, setSelected] = useState<readonly string[]>([]);
@@ -100,6 +151,7 @@ const EvalJobsTable = () => {
   const [currentJobId, setCurrentJobId] = useState('');
   const [currentData, setCurrentData] = useState('');
   const [chart, setChart] = useState(true);
+  const [compareChart, setCompareChart] = useState(false);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
   const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
 
@@ -130,10 +182,13 @@ const EvalJobsTable = () => {
           throw new Error('Network response was not ok');
         }
         const data = await response.json();
-        console.log('data', data);
-        setCurrentData(JSON.stringify(data));
+        const transformedData = transformMetrics(JSON.parse(data));
+
+        setCurrentData(JSON.stringify(transformedData));
+        // setCurrentData(JSON.stringify(data));
         setOpenPlotModal(true);
-        setChart(false);
+        setChart(true);
+        setCompareChart(true);
         setCurrentJobId('-1');
       } catch (error) {
         console.error('Failed to fetch combined reports:', error);
@@ -146,9 +201,12 @@ const EvalJobsTable = () => {
     setOpenCSVModal(true);
   };
 
-  const handleOpenPlotModal = (score) => {
+  const handleOpenPlotModal = (jobId, score) => {
     setCurrentData(score);
     setOpenPlotModal(true);
+    setChart(true);
+    setCompareChart(false);
+    setCurrentJobId(jobId);
   };
 
   useEffect(() => {
@@ -169,6 +227,7 @@ const EvalJobsTable = () => {
         data={currentData}
         jobId={currentJobId}
         chart={chart}
+        compareChart={compareChart}
       />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
