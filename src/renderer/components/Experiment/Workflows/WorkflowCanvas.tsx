@@ -131,19 +131,22 @@ const Flow = ({
     return () => clearTimeout(timer);
   }, [reactFlowInstance, selectedWorkflow]);
 
-  const onNodeDragStop = useCallback(async (event, node) => {
-    const metadata = JSON.stringify({
-      position: node.position,
-    });
-    await fetch(
-      chatAPI.Endpoints.Workflows.EditNodeMetadata(
-        workflowId,
-        node?.id,
-        metadata
-      )
-    );
-    mutateWorkflows();
-  }, []);
+  const onNodeDragStop = useCallback(
+    async (event, node) => {
+      const metadata = JSON.stringify({
+        position: node.position,
+      });
+      await fetch(
+        chatAPI.Endpoints.Workflows.EditNodeMetadata(
+          workflowId,
+          node?.id,
+          metadata
+        )
+      );
+      mutateWorkflows();
+    },
+    [selectedWorkflow]
+  );
 
   return (
     <ReactFlow
@@ -184,7 +187,7 @@ const Flow = ({
         }}
         startDecorator={<PlusCircleIcon strokeWidth={2} size={32} />}
       >
-        Add Node
+        Add Node {workflowId}
       </Button>
       <Background color="#96ADE9" />
       <Controls>
