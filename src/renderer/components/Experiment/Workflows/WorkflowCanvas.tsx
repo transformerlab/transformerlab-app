@@ -202,7 +202,7 @@ const Flow = ({
         }}
         startDecorator={<PlusCircleIcon strokeWidth={2} size={32} />}
       >
-        Add Node {workflowId}
+        Add Node
       </Button>
       <Background color="#96ADE9" />
       <Controls>
