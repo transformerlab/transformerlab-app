@@ -3,6 +3,7 @@
 import Sheet from '@mui/joy/Sheet';
 
 import { Box, Button, IconButton, Stack, Table, Typography } from '@mui/joy';
+import Tooltip from '@mui/joy/Tooltip';
 import { BabyIcon, DotIcon, Trash2Icon, XCircleIcon } from 'lucide-react';
 
 import useSWR from 'swr';
@@ -15,6 +16,9 @@ const fetchWithPost = ({ url, post }) =>
     method: 'POST',
     body: post,
   }).then((res) => res.json());
+
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
 }
@@ -64,16 +68,16 @@ export default function CurrentFoundationInfo({
   const [huggingfaceData, setHugggingfaceData] = useState({});
   const huggingfaceId = experimentInfo?.config?.foundation;
 
-  // Sample provenance data – replace with your actual data source.
-  const provenanceData = [
-    { jobId: 3, jobType: 'Train', metadata: { dataset: 'win-wang/Machine_Learning_QA_Collection' }, date: '2024-08-01' },
-    { jobId: 8, jobType: 'Evaluation', metadata: { accuracy: 95.5 }, date: '2024-08-02' },
-    { jobId: 10, jobType: 'Evaluation', metadata: { accuracy: 95.5}, date: '2024-08-03' },
-    { jobId: 11, jobType: 'Train', metadata: { dataset: 'win-wang/Machine_Learning_QA_Collection' }, date: '2024-08-04' },
-    { jobId: 15, jobType: 'Evaluation', metadata: { accuracy: 95.5 }, date: '2024-08-05' },
-    { jobId: 19, jobType: 'Train', metadata: { dataset: 'win-wang/Machine_Learning_QA_Collection' }, date: '2024-08-06' },
-  ];
+  // Get model ID from experimentInfo (either from model_id or id)
+  const modelId = experimentInfo?.model_id || experimentInfo?.id;
+  // Fetch provenance data from your GET endpoint using chatAPI.Endpoints.Models.ModelProvenance()
+  const { data: provenance, error: provenanceError } = useSWR(
+    modelId ? chatAPI.Endpoints.Models.ModelProvenance(modelId) : null,
+    fetcher
+  );
 
+  console.log('provenance', provenance);
+  console.log('provenanceError', provenanceError);
 
   useMemo(() => {
     // This is a local model
@@ -124,32 +128,72 @@ export default function CurrentFoundationInfo({
                   )
               )}
             </tbody>
-          </Table>
+            </Table>
           {/* Model Provenance Table */}
-            <Box mt={4}>
+          <Box mt={4}>
             <Typography level="h6" mb={1}>
               Model Provenance
             </Typography>
-            <Table id="model-provenance-table">
-            <thead>
-              <tr>
-                <th style={{ width: '10%' }}>Job ID</th>
-                <th style={{ width: '15%' }}>Job Type</th>
-                <th style={{ width: '55%' }}>Metadata</th>
-                <th style={{ width: '20%' }}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {provenanceData.map((row) => (
-                <tr key={row.jobId}>
-                  <td style={{ width: '10%' }}>{row.jobId}</td>
-                  <td style={{ width: '15%' }}>{row.jobType}</td>
-                  <td style={{ width: '55%' }}>{JSON.stringify(row.metadata)}</td>
-                  <td style={{ width: '20%' }}>{row.date}</td>
-                </tr>
-              ))}
-            </tbody>
-            </Table>
+            {provenance ? (
+              <Table id="model-provenance-table">
+                <thead>
+                  <tr>
+                    <th>Job ID</th>
+                    <th>Base Model</th>
+                    <th>Dataset</th>
+                    <th>Params</th>
+                    <th>Output Model</th>
+                    <th>Evals</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {provenance.provenance_chain.map((row) => (
+                    <tr key={row.job_id}>
+                      <td>{row.job_id}</td>
+                      <td>{row.train_model_name}</td>
+                      <td>{row.dataset}</td>
+                      <td>
+                        <Box>
+                          {Object.entries(row.parameters).map(([key, value]) => (
+                            <Typography key={key} level="body2">
+                              {`${key}: ${value}`}
+                            </Typography>
+                          ))}
+                        </Box>
+                      </td>
+                      <td>{row.output_model}</td>
+                      <td>
+                        <Box>
+                          {row.evals && row.evals.length > 0 ? (
+                            row.evals.map((evalItem) => (
+                              <Tooltip
+                                key={evalItem.job_id}
+                                title={
+                                  <pre style={{ margin: 0 }}>
+                                    {JSON.stringify(evalItem, null, 2)}
+                                  </pre>
+                                }
+                              >
+                                <Typography level="body2" sx={{ cursor: 'pointer', mb: 0.5 }}>
+                                  {evalItem.job_id} -{' '}
+                                  {evalItem.template_name || evalItem.evaluator || 'Eval'}
+                                </Typography>
+                              </Tooltip>
+                            ))
+                          ) : (
+                            <Typography level="body2">No Evals</Typography>
+                          )}
+                        </Box>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            ) : provenanceError ? (
+              <Typography>Error loading provenance</Typography>
+            ) : (
+              <Typography>Loading Provenance...</Typography>
+            )}
           </Box>
         </Box>
         <Box flex={1}>
