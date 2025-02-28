@@ -1,4 +1,4 @@
-import { Typography } from '@mui/joy';
+import { Select, Typography, Option } from '@mui/joy';
 import { BuiltInNode, Handle, useReactFlow } from '@xyflow/react';
 import { NodeProps, Position } from '@xyflow/system';
 import { XIcon } from 'lucide-react';
@@ -59,10 +59,32 @@ export default function memo({
       />
       <div
         className="custom-node-content"
-        style={{ overflow: 'hidden', padding: '5px' }}
+        style={{
+          overflow: 'hidden',
+          padding: '5px',
+          width: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '5px',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
         <Typography level="title-md">{data?.label}</Typography>
         <Typography level="body-sm">{data?.template}</Typography>
+        {/* // implement this later: it allows you to change a template
+         <Select
+          value={data?.template}
+          size="sm"
+          variant="plain"
+          sx={{ minHeight: 'unset' }}
+        >
+          <Option value={data?.template}>{data?.template}</Option>
+          <Option value="dog">Dog</Option>
+          <Option value="cat">Cat</Option>
+          <Option value="fish">Fish</Option>
+          <Option value="bird">Bird</Option>
+        </Select> */}
         {/* {JSON.stringify(data, null, 2)} */}
       </div>
       <Handle
