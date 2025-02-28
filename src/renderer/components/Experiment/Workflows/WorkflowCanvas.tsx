@@ -9,13 +9,64 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react';
-import { PlusCircleIcon } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { NetworkIcon, PlusCircleIcon } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect } from 'react';
 import CustomNode from './nodes/CustomNode';
 import StartNode from './nodes/StartNode';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import ELK from 'elkjs/lib/elk.bundled.js';
 
 const nodeTypes = { customNode: CustomNode, startNode: StartNode };
+
+const elk = new ELK();
+
+// Elk has a *huge* amount of options to configure. To see everything you can
+// tweak check out:
+//
+// - https://www.eclipse.org/elk/reference/algorithms.html
+// - https://www.eclipse.org/elk/reference/options.html
+const elkOptions = {
+  'elk.algorithm': 'layered',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '100',
+  'elk.spacing.nodeNode': '80',
+};
+
+const getLayoutedElements = (nodes, edges, options = {}) => {
+  const isHorizontal = options?.['elk.direction'] === 'RIGHT';
+  const graph = {
+    id: 'root',
+    layoutOptions: options,
+    children: nodes.map((node) => ({
+      ...node,
+      // Adjust the target and source handle positions based on the layout
+      // direction.
+      targetPosition: isHorizontal ? 'left' : 'top',
+      sourcePosition: isHorizontal ? 'right' : 'bottom',
+
+      // Use the actual width and height of the node if available.
+      width: node.width || 150,
+      height: node.height || 40,
+    })),
+    edges: edges,
+  };
+
+  return elk
+    .layout(graph)
+    .then((layoutedGraph) => ({
+      nodes: layoutedGraph.children.map((node) => ({
+        ...node,
+        // React Flow expects a position property on the node instead of `x`
+        // and `y` fields.
+        position: { x: node.x, y: node.y },
+        metadata: { ...node.metadata, position: { x: node.x, y: node.y } },
+        width: null, // don't set the width and height of the real nodes
+        height: null, // don't set the width and height of the real nodes
+      })),
+
+      edges: layoutedGraph.edges,
+    }))
+    .catch(console.error);
+};
 
 function generateNodes(workflow: any): any[] {
   const workflowConfig = JSON.parse(workflow?.config);
@@ -141,12 +192,25 @@ const Flow = ({
     return () => clearTimeout(timer);
   }, [reactFlowInstance, selectedWorkflow]);
 
+  function saveNodeMetadata(node) {
+    const metadata = JSON.stringify({
+      position: node.position,
+    });
+    fetch(
+      chatAPI.Endpoints.Workflows.EditNodeMetadata(
+        workflowId,
+        node?.id,
+        metadata
+      )
+    );
+  }
+
   const onNodeDragStop = useCallback(
     async (event, node) => {
       const metadata = JSON.stringify({
         position: node.position,
       });
-      await fetch(
+      fetch(
         chatAPI.Endpoints.Workflows.EditNodeMetadata(
           workflowId,
           node?.id,
@@ -157,6 +221,33 @@ const Flow = ({
     },
     [selectedWorkflow]
   );
+
+  const onLayout = useCallback(
+    ({ direction, useInitialNodes = false }) => {
+      const opts = { 'elk.direction': direction, ...elkOptions };
+      const ns = useInitialNodes ? [] : nodes;
+      const es = useInitialNodes ? [] : edges;
+
+      getLayoutedElements(ns, es, opts).then(
+        ({ nodes: layoutedNodes, edges: layoutedEdges }) => {
+          setNodes(layoutedNodes);
+          setEdges(layoutedEdges);
+
+          // for (const node of layoutedNodes) {
+          //   saveNodeMetadata(node);
+          // }
+          // mutateWorkflows();
+
+          window.requestAnimationFrame(() => reactFlowInstance.fitView());
+        }
+      );
+    },
+    [nodes, edges]
+  );
+  // // Calculate the initial layout on mount.
+  // useLayoutEffect(() => {
+  //   onLayout({ direction: 'DOWN', useInitialNodes: true });
+  // }, []);
 
   return (
     <ReactFlow
@@ -206,12 +297,8 @@ const Flow = ({
       </Button>
       <Background color="#96ADE9" />
       <Controls>
-        <ControlButton
-          onClick={() => {
-            alert('hi');
-          }}
-        >
-          *
+        <ControlButton onClick={() => onLayout({ direction: 'DOWN' })}>
+          <NetworkIcon strokeWidth={2} />
         </ControlButton>
       </Controls>
     </ReactFlow>
