@@ -11,10 +11,11 @@ import {
 } from '@xyflow/react';
 import { PlusCircleIcon } from 'lucide-react';
 import { useCallback, useEffect } from 'react';
-import CustomNode from './CustomNode';
+import CustomNode from './nodes/CustomNode';
+import StartNode from './nodes/StartNode';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
-const nodeTypes = { customNode: CustomNode };
+const nodeTypes = { customNode: CustomNode, startNode: StartNode };
 
 function generateNodes(workflow: any): any[] {
   const workflowConfig = JSON.parse(workflow?.config);
@@ -44,7 +45,7 @@ function generateNodes(workflow: any): any[] {
 
     const nextNode = {
       id: node.id,
-      type: 'customNode',
+      type: node?.type == 'START' ? 'startNode' : 'customNode',
       position: savedPosition,
       data: data,
     };

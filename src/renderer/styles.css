@@ -253,6 +253,18 @@ code if we want */
   border: var(--xy-node-border, var(--xy-node-border-default));
 }
 
+.react-flow__node-startNode {
+  border: 2px solid var(--joy-palette-primary-plainColor);
+  background-color: var(--joy-palette-primary-softBg);
+  border-radius: 20px;
+  width: 80px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+
 
 
 .custom-node-delete-button {
