@@ -235,7 +235,12 @@ if (!isNaN(parsed)) {
         fontWeight: "normal",
         flex: "1 0 0",
         overflow: "hidden",
-        border: "1px solid #ccc"
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "1px solid #ccc",
       }}
     >
       {parsed.toFixed(5)}
