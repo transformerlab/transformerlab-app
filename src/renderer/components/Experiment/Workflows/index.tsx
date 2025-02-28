@@ -18,6 +18,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import {
   AxeIcon,
+  BookOpenIcon,
   EllipsisIcon,
   PenIcon,
   PlayIcon,
@@ -33,12 +34,36 @@ import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
 
+function ShowCode({ code }) {
+  const config = code?.config;
+
+  if (!config) {
+    return <></>;
+  }
+
+  let parsedConfig = {};
+
+  try {
+    parsedConfig = JSON.parse(config);
+  } catch (e) {}
+
+  return (
+    <Box
+      sx={{ width: '100%', backgroundColor: '#F7F9FB', overflow: 'scroll' }}
+      p={4}
+    >
+      <pre>{JSON.stringify(parsedConfig, null, 2)}</pre>
+    </Box>
+  );
+}
+
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
 export default function Workflows({ experimentInfo }) {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
+  const [viewCodeMode, setViewCodeMode] = useState(false);
 
   const {
     data: workflowsData,
@@ -143,6 +168,14 @@ export default function Workflows({ experimentInfo }) {
             </Typography>
             <Box pl={2} display="flex" flexDirection="row" gap={1}>
               <>
+                <Button
+                  variant="plain"
+                  disabled={!selectedWorkflow}
+                  // startDecorator={<BookOpenIcon />}
+                  onClick={() => setViewCodeMode(!viewCodeMode)}
+                >
+                  {viewCodeMode ? 'View Graph' : 'View Code'}
+                </Button>
                 {selectedWorkflow?.status != 'RUNNING' ? (
                   <Button
                     disabled={!selectedWorkflow}
@@ -156,15 +189,6 @@ export default function Workflows({ experimentInfo }) {
                     Running
                   </Button>
                 )}
-
-                <Button
-                  startDecorator={<AxeIcon />}
-                  variant="outlined"
-                  disabled={!selectedWorkflow}
-                >
-                  Fight
-                </Button>
-
                 <Dropdown>
                   <MenuButton variant="plain" disabled={!selectedWorkflow}>
                     <EllipsisIcon />
@@ -216,11 +240,15 @@ export default function Workflows({ experimentInfo }) {
             }}
           >
             {selectedWorkflow ? (
-              <WorkflowCanvas
-                selectedWorkflow={selectedWorkflow}
-                setNewNodeModalOpen={setNewNodeflowModalOpen}
-                mutateWorkflows={mutateWorkflows}
-              />
+              viewCodeMode ? (
+                <ShowCode code={selectedWorkflow} />
+              ) : (
+                <WorkflowCanvas
+                  selectedWorkflow={selectedWorkflow}
+                  setNewNodeModalOpen={setNewNodeflowModalOpen}
+                  mutateWorkflows={mutateWorkflows}
+                />
+              )
             ) : (
               <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
                 Select Workflow
