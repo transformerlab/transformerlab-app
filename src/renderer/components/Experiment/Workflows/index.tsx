@@ -3,6 +3,7 @@ import {
   Button,
   Divider,
   Dropdown,
+  IconButton,
   List,
   ListItem,
   ListItemButton,
@@ -19,6 +20,7 @@ import '@xyflow/react/dist/style.css';
 import {
   AxeIcon,
   BookOpenIcon,
+  BracesIcon,
   EllipsisIcon,
   PenIcon,
   PlayIcon,
@@ -168,14 +170,14 @@ export default function Workflows({ experimentInfo }) {
             </Typography>
             <Box pl={2} display="flex" flexDirection="row" gap={1}>
               <>
-                <Button
+                <IconButton
                   variant="plain"
                   disabled={!selectedWorkflow}
                   // startDecorator={<BookOpenIcon />}
                   onClick={() => setViewCodeMode(!viewCodeMode)}
                 >
-                  {viewCodeMode ? 'View Graph' : 'View Code'}
-                </Button>
+                  {viewCodeMode ? <WorkflowIcon /> : <BracesIcon />}
+                </IconButton>
                 {selectedWorkflow?.status != 'RUNNING' ? (
                   <Button
                     disabled={!selectedWorkflow}
