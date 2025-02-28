@@ -18,21 +18,9 @@ const nodeTypes = { customNode: CustomNode };
 
 function generateNodes(workflow: any): any[] {
   const workflowConfig = JSON.parse(workflow?.config);
-  const fakeStartNode = {
-    id: 'start',
-    type: 'input',
-    position: { x: 0, y: -70 },
-    data: {
-      id: 'start',
-      label: 'Start',
-      jobType: 'start',
-      template: 'start',
-      metadata: {},
-    },
-  };
 
   if (workflowConfig.nodes.length == 0) {
-    return [fakeStartNode];
+    return [];
   }
 
   let out: any[] = [];
@@ -40,9 +28,6 @@ function generateNodes(workflow: any): any[] {
   let position = 0;
 
   // console.log(workflowConfig);
-
-  // Add a fake start node for now -- later the backend will do this
-  out.push(fakeStartNode);
 
   for (let i = 0; i < workflowConfig.nodes.length; i++) {
     const node = workflowConfig.nodes[i];
@@ -73,17 +58,8 @@ function generateNodes(workflow: any): any[] {
 function generateEdges(workflow: any) {
   const workflowConfig = JSON.parse(workflow?.config);
 
-  let fakeStartNodeEdge = {
-    id: '-100',
-    source: 'start',
-    target: null,
-    markerEnd: {
-      type: 'arrow',
-    },
-  };
-
   if (workflowConfig.nodes.length < 1) {
-    return [fakeStartNodeEdge];
+    return [];
   }
 
   let out: any[] = [];
@@ -91,10 +67,6 @@ function generateEdges(workflow: any) {
   let ids = workflowConfig.nodes[0].id;
 
   // console.log(workflowConfig);
-
-  // conect the fake start node to the first node:
-  fakeStartNodeEdge.target = currentTask;
-  out.push(fakeStartNodeEdge);
 
   for (let i = 0; i < workflowConfig.nodes.length; i++) {
     const currentNode = workflowConfig.nodes[i];
