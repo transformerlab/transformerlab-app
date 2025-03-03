@@ -16,7 +16,6 @@ const Chart = ({ metrics, compareChart }) => {
     return <div>No metrics available</div>;
   }
 
-  console.log("METRICS", metrics);
 
   let barData, lineData, radarData;
 

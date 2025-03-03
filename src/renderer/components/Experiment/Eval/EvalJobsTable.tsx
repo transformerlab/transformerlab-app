@@ -185,7 +185,6 @@ const EvalJobsTable = () => {
   const [openPlotModal, setOpenPlotModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
   const [currentData, setCurrentData] = useState('');
-  const [chart, setChart] = useState(true);
   const [compareChart, setCompareChart] = useState(false);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
   const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
@@ -222,7 +221,6 @@ const EvalJobsTable = () => {
 
         setCurrentData(JSON.stringify(transformedData));
         setOpenPlotModal(true);
-        setChart(true);
         setCompareChart(true);
         setCurrentJobId('-1');
       } else if (comparisonType === 'detailed') {
@@ -247,7 +245,6 @@ const EvalJobsTable = () => {
   const handleOpenPlotModal = (jobId, score) => {
     setCurrentData(score);
     setOpenPlotModal(true);
-    setChart(true);
     setCompareChart(false);
     setCurrentJobId(jobId);
   };
@@ -270,7 +267,6 @@ const EvalJobsTable = () => {
         onClose={() => setOpenPlotModal(false)}
         data={currentData}
         jobId={currentJobId}
-        chart={chart}
         compareChart={compareChart}
       />
       <ViewOutputModalStreaming
