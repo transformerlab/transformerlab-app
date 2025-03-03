@@ -75,9 +75,6 @@ export default function CurrentFoundationInfo({
     fetcher
   );
 
-  console.log('provenance', provenance);
-  console.log('provenanceError', provenanceError);
-
   useMemo(() => {
     // This is a local model
     if (experimentInfo?.config?.foundation_filename) {
