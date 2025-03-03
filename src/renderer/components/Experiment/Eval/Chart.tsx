@@ -159,65 +159,60 @@ const Chart = ({ metrics, compareChart }) => {
           />
         )}
 {chartType === 'radar' && compareChart && (
-  <div style={{ position: 'relative', height: '100%', width: '100%' }}>
-    {Array.from(new Set(metrics.map(m => `${m.evaluator}-${m.job_id}`))).map((series, index) => {
-      // Filter radar data for this specific evaluator-job combination
-      const seriesRadarData = metrics
-        .filter(m => `${m.evaluator}-${m.job_id}` === series)
-        .map(metric => ({
-          metric: metric.type,
-          score: metric.score
-        }));
+  <ResponsiveRadar
+    data={(() => {
+      // Group metrics by type
+      const metricsGroupedByType = {};
+      metrics.forEach(metric => {
+        const { type, evaluator, job_id, score } = metric;
+        const seriesKey = `${evaluator}-${job_id}`;
 
-
-      return (
-        <div key={series} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-          <ResponsiveRadar
-            data={seriesRadarData}
-            keys={['score']}
-            indexBy="metric"
-            margin={{ top: 70, right: 80, bottom: 40, left: 80 }}
-            gridShape="circular"
-            gridLabelOffset={36}
-            dotSize={10}
-            dotColor={{ from: 'color' }}
-            dotBorderWidth={2}
-            dotBorderColor={{ from: 'color' }}
-            colors={[`hsl(${index * 30 + 60}, 70%, 50%)`]} // Different color for each series
-            fillOpacity={0.2}
-            blendMode="normal"
-            animate={true}
-            motionConfig="wobbly"
-            enableDotLabel={true}
-            dotLabel="value"
-            dotLabelYOffset={-12}
-            legends={[
-              {
-                anchor: 'top-right',
-                direction: 'column',
-                translateX: 0,
-                translateY: -40,
-                itemWidth: 80,
-                itemHeight: 20,
-                itemTextColor: '#999',
-                symbolSize: 12,
-                symbolShape: 'circle',
-                effects: [
-                  {
-                    on: 'hover',
-                    style: {
-                      itemTextColor: '#000'
-                    }
-                  }
-                ],
-                data: [{ id: series, label: series, color: `hsl(${index * 30 + 60}, 70%, 50%)` }]
-              }
-            ]}
-          />
-        </div>
-      );
-    })}
-  </div>
+        if (!metricsGroupedByType[type]) {
+          metricsGroupedByType[type] = { metric: type };
+        }
+        metricsGroupedByType[type][seriesKey] = score;
+      });
+      return Object.values(metricsGroupedByType);
+    })()}
+    keys={Array.from(new Set(metrics.map(m => `${m.evaluator}-${m.job_id}`)))}
+    indexBy="metric"
+    margin={{ top: 70, right: 170, bottom: 40, left: 80 }}
+    borderColor={{ from: 'color' }}
+    gridShape="circular"
+    gridLabelOffset={36}
+    dotSize={10}
+    dotColor={{ theme: 'background' }}
+    dotBorderWidth={2}
+    colors={{ scheme: 'nivo' }}
+    fillOpacity={0.25}
+    blendMode="multiply"
+    animate={true}
+    motionConfig="wobbly"
+    enableDotLabel={true}
+    dotLabel="value"
+    dotLabelYOffset={-12}
+    legends={[
+      {
+        anchor: 'right',
+        direction: 'column',
+        translateX: 50,
+        translateY: 0,
+        itemWidth: 120,
+        itemHeight: 20,
+        itemTextColor: '#999',
+        symbolSize: 12,
+        symbolShape: 'circle',
+        effects: [
+          {
+            on: 'hover',
+            style: {
+              itemTextColor: '#000'
+            }
+          }
+        ]
+      }
+    ]}
+  />
 )}
 
 {chartType === 'radar' && !compareChart && (
