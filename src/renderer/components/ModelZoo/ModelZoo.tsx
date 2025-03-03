@@ -64,7 +64,7 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
         >
           <ModelStore />
         </TabPanel>
-          </Tabs>
+      </Tabs>
     </Sheet>
   );
 }
