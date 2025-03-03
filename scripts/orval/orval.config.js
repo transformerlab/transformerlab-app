@@ -6,6 +6,11 @@ module.exports = {
       target: './out/',
       httpClient: 'fetch',
       baseUrl: false,
+      mode: 'tags-split',
+      docs: {
+        out: './docs',
+        disableSources: true,
+      },
     },
     hooks: {
       afterAllFilesWrite: 'prettier --write',
