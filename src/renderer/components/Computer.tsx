@@ -46,7 +46,7 @@ import { FaPython } from 'react-icons/fa';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
-    <Card variant="soft">
+    <Card variant="soft" sx={{ maxHeight: '400px', overflowY: 'auto' }}>
       <CardContent>
         <Typography level="title-lg" startDecorator={icon}>
           {title}
