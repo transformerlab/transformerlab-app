@@ -91,15 +91,101 @@ function RenderScore({ score }) {
   ));
 }
 
+function transformMetrics(
+  data: Array<{
+    test_case_id: string;
+    metric_name: string;
+    score: number;
+    evaluator_name: string;
+    job_id: string;
+    [key: string]: any;
+  }>,
+  type: 'summary' | 'detailed' = 'summary'
+) {
+  if (type === 'summary') {
+    const grouped: {
+      [key: string]: {
+        evaluator_name: string;
+        job_id: string;
+        type: string;
+        sum: number;
+        count: number;
+      };
+    } = {};
+
+    data.forEach((entry) => {
+      // Extract only the fields we care about.
+      let { metric_name, score, evaluator_name, job_id } = entry;
+      if (!metric_name || score === undefined || score === null || !evaluator_name || !job_id) {
+        return;
+      }
+
+      // Use a combined key to group only entries that share evaluator_name, job_id AND metric_name.
+      const key = `${evaluator_name}|${job_id}|${metric_name}`;
+      if (grouped[key]) {
+        grouped[key].sum += score;
+        grouped[key].count += 1;
+      } else {
+        grouped[key] = {
+          evaluator_name,
+          job_id,
+          type: metric_name,
+          sum: score,
+          count: 1,
+        };
+      }
+    });
+
+    // Generate deduplicated list with averaged scores rounded to 5 decimals.
+    return Object.values(grouped).map((item) => ({
+      evaluator: item.evaluator_name,
+      job_id: item.job_id,
+      type: item.type,
+      score: Number((item.sum / item.count).toFixed(5)),
+    }));
+  } else if (type === 'detailed') {
+    // For detailed output we are not averaging.
+    // Expected header sequence: test_case_id, metric_name, job_id, evaluator_name, metric_name, score, ...extra
+    // Determine extra keys from the entry (excluding core ones).
+    const extraKeysSet = new Set<string>();
+    data.forEach((entry) => {
+      Object.keys(entry).forEach((k) => {
+        if (!['test_case_id', 'metric_name', 'job_id', 'evaluator_name', 'score'].includes(k)) {
+          extraKeysSet.add(k);
+        }
+      });
+    });
+    const extraKeys = Array.from(extraKeysSet).sort();
+
+    const header = ['test_case_id', 'metric_name', 'job_id', 'evaluator_name', 'metric_name', 'score', ...extraKeys];
+
+    const body = data.map((entry) => {
+      const extraValues = extraKeys.map((key) => entry[key]);
+      return [
+        entry.test_case_id, // using test_case_id instead of job_id
+        entry.metric_name,
+        entry.job_id,
+        entry.evaluator_name,
+        entry.metric_name,
+        entry.score,
+        ...extraValues,
+      ];
+    });
+
+    return { header, body };
+  }
+}
+
 
 const EvalJobsTable = () => {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
+  const [compareData, setCompareData] = useState(null);
   const [openPlotModal, setOpenPlotModal] = useState(false);
   const [currentJobId, setCurrentJobId] = useState('');
   const [currentData, setCurrentData] = useState('');
-  const [chart, setChart] = useState(true);
+  const [compareChart, setCompareChart] = useState(false);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
   const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
 
@@ -121,34 +207,46 @@ const EvalJobsTable = () => {
     fallbackData: [],
   });
 
-    const handleCombinedReports = async () => {
-      try {
-        const jobIdsParam = selected.join(',');
-        const compareEvalsUrl = chatAPI.Endpoints.Charts.CompareEvals(jobIdsParam);
-        const response = await fetch(compareEvalsUrl, { method: 'GET' });
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        console.log('data', data);
-        setCurrentData(JSON.stringify(data));
-        setOpenPlotModal(true);
-        setChart(false);
-        setCurrentJobId('-1');
-      } catch (error) {
-        console.error('Failed to fetch combined reports:', error);
+  const handleCombinedReports = async (comparisonType: 'summary' | 'detailed' = 'summary') => {
+    try {
+      const jobIdsParam = selected.join(',');
+      const compareEvalsUrl = chatAPI.Endpoints.Charts.CompareEvals(jobIdsParam);
+      const response = await fetch(compareEvalsUrl, { method: 'GET' });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
-    };
+      const data = await response.json();
+      if (comparisonType === 'summary') {
+        const transformedData = transformMetrics(JSON.parse(data), "summary");
+
+        setCurrentData(JSON.stringify(transformedData));
+        setOpenPlotModal(true);
+        setCompareChart(true);
+        setCurrentJobId('-1');
+      } else if (comparisonType === 'detailed') {
+          const transformedData = transformMetrics(JSON.parse(data), "detailed");
+
+          setCompareData(transformedData);
+          handleOpenCSVModal('-1');
+
+      }
+    } catch (error) {
+      console.error('Failed to fetch combined reports:', error);
+    }
+  };
 
 
   const handleOpenCSVModal = (jobId) => {
     setCurrentJobId(jobId);
     setOpenCSVModal(true);
+
   };
 
-  const handleOpenPlotModal = (score) => {
+  const handleOpenPlotModal = (jobId, score) => {
     setCurrentData(score);
     setOpenPlotModal(true);
+    setCompareChart(false);
+    setCurrentJobId(jobId);
   };
 
   useEffect(() => {
@@ -162,13 +260,14 @@ const EvalJobsTable = () => {
         onClose={() => setOpenCSVModal(false)}
         jobId={currentJobId}
         fetchCSV={fetchCSV}
+        compareData={compareData}
       />
       <ViewPlotModal
         open={openPlotModal}
         onClose={() => setOpenPlotModal(false)}
         data={currentData}
         jobId={currentJobId}
-        chart={chart}
+        compareChart={compareChart}
       />
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
@@ -189,18 +288,24 @@ const EvalJobsTable = () => {
       >
         <Typography level="h3">Executions</Typography>
         {selected.length > 1 && (
-          <Typography
-            level="body-sm"
-            startDecorator={<ChartColumnIncreasingIcon size="20px" />}
-            // Uncomment this line to enable the combined reports feature
-            onClick={handleCombinedReports}
-            // onClick={() => {
-            //   alert('this feature coming soon');
-            // }}
-            sx={{ cursor: 'pointer' }}
-          >
-            <>Compare Selected Evals</>
-          </Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Typography
+              level="body-sm"
+              startDecorator={<ChartColumnIncreasingIcon size="20px" />}
+              onClick={() => handleCombinedReports('summary')}
+              sx={{ cursor: 'pointer' }}
+            >
+              Compare Selected Evals
+            </Typography>
+            <Typography
+              level="body-sm"
+              startDecorator={<Grid3X3Icon size="20px" />}
+              onClick={() => handleCombinedReports('detailed')}
+              sx={{ cursor: 'pointer' }}
+            >
+              Detailed Comparison
+            </Typography>
+          </Box>
         )}
       </Box>
 

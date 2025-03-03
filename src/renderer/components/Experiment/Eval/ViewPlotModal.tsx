@@ -1,7 +1,5 @@
-import React from 'react';
 import { Modal, ModalDialog, ModalClose, Box, Typography } from '@mui/joy';
 import Chart from './Chart';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 function parseJSON(data) {
   try {
@@ -11,7 +9,7 @@ function parseJSON(data) {
   }
 }
 
-export default function ViewPlotModal({ open, onClose, data, jobId, chart = true}) {
+export default function ViewPlotModal({ open, onClose, data, jobId, compareChart= false}) {
   if (!jobId) {
     return <></>;
   }
@@ -46,11 +44,7 @@ export default function ViewPlotModal({ open, onClose, data, jobId, chart = true
               p: 2,
             }}
           >
-           {chart ? (
-    <Chart metrics={parseJSON(data)} />
-  ) : (
-    <div>{JSON.stringify(parseJSON(data))}</div>
-  )}
+    <Chart metrics={parseJSON(data)} compareChart={compareChart} />
           </Box>
         </Box>
       </ModalDialog>
