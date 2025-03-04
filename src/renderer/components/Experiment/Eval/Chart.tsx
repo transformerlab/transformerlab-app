@@ -23,14 +23,18 @@ const Chart = ({ metrics, compareChart }) => {
 
   // Normalize data structure regardless of compare mode
   // Get all unique metric types and series keys
-  const metricTypes = Array.from(new Set(metrics.map(m => m.type)));
+  const metricTypes = Array.from(new Set(metrics.map((m) => m.type)));
   const seriesKeys = Array.from(
-    new Set(metrics.map(m => compareChart ? `${m.evaluator}-${m.job_id}` : 'score'))
+    new Set(
+      metrics.map((m) =>
+        compareChart ? `${m.evaluator}-${m.job_id}` : 'score',
+      ),
+    ),
   );
 
   // Create a consistent structure for all modes
   const dataMap = {};
-  metrics.forEach(metric => {
+  metrics.forEach((metric) => {
     const { type, evaluator, job_id, score } = metric;
     const seriesKey = compareChart ? `${evaluator}-${job_id}` : 'score';
 
@@ -43,7 +47,7 @@ const Chart = ({ metrics, compareChart }) => {
   const normalizedData = {
     dataPoints: Object.values(dataMap),
     metricTypes,
-    seriesKeys
+    seriesKeys,
   };
 
   // Get transformed data for the right chart type
@@ -53,24 +57,30 @@ const Chart = ({ metrics, compareChart }) => {
     if (chartType === 'line') {
       if (swapAxes) {
         // Series are metric types
-        return metricTypes.map(type => ({
+        return metricTypes.map((type) => ({
           id: type,
-          data: seriesKeys.map(seriesKey => {
-            const matchingPoint = dataPoints.find(p => p.metric === type && p[seriesKey] !== undefined);
-            return {
-              x: seriesKey,
-              y: matchingPoint ? matchingPoint[seriesKey] : null
-            };
-          }).filter(point => point.y !== null)
+          data: seriesKeys
+            .map((seriesKey) => {
+              const matchingPoint = dataPoints.find(
+                (p) => p.metric === type && p[seriesKey] !== undefined,
+              );
+              return {
+                x: seriesKey,
+                y: matchingPoint ? matchingPoint[seriesKey] : null,
+              };
+            })
+            .filter((point) => point.y !== null),
         }));
       } else {
         // Series are evaluators/jobs
-        return seriesKeys.map(seriesKey => ({
+        return seriesKeys.map((seriesKey) => ({
           id: seriesKey,
-          data: dataPoints.map(point => ({
-            x: point.metric,
-            y: point[seriesKey]
-          })).filter(point => point.y !== undefined)
+          data: dataPoints
+            .map((point) => ({
+              x: point.metric,
+              y: point[seriesKey],
+            }))
+            .filter((point) => point.y !== undefined),
         }));
       }
     } else if (chartType === 'bar' || chartType === 'radar') {
@@ -153,7 +163,7 @@ const Chart = ({ metrics, compareChart }) => {
                 symbolSize: 12,
                 symbolShape: 'circle',
                 symbolBorderColor: 'rgba(0, 0, 0, .5)',
-              }
+              },
             ]}
           />
         )}
@@ -165,7 +175,9 @@ const Chart = ({ metrics, compareChart }) => {
             indexBy="metric"
             margin={{ top: 50, right: 130, bottom: 50, left: 60 }}
             padding={0.3}
-            groupMode={normalizedData.seriesKeys.length > 1 ? 'grouped' : 'stacked'}
+            groupMode={
+              normalizedData.seriesKeys.length > 1 ? 'grouped' : 'stacked'
+            }
             axisTop={null}
             axisRight={null}
             axisBottom={{
@@ -210,27 +222,31 @@ const Chart = ({ metrics, compareChart }) => {
             enableDotLabel={true}
             dotLabel="value"
             dotLabelYOffset={-12}
-            legends={normalizedData.seriesKeys.length > 1 ? [
-              {
-                anchor: 'right',
-                direction: 'column',
-                translateX: 50,
-                translateY: 0,
-                itemWidth: 120,
-                itemHeight: 20,
-                itemTextColor: '#999',
-                symbolSize: 12,
-                symbolShape: 'circle',
-                effects: [
-                  {
-                    on: 'hover',
-                    style: {
-                      itemTextColor: '#000'
-                    }
-                  }
-                ]
-              }
-            ] : []}
+            legends={
+              normalizedData.seriesKeys.length > 1
+                ? [
+                    {
+                      anchor: 'right',
+                      direction: 'column',
+                      translateX: 50,
+                      translateY: 0,
+                      itemWidth: 120,
+                      itemHeight: 20,
+                      itemTextColor: '#999',
+                      symbolSize: 12,
+                      symbolShape: 'circle',
+                      effects: [
+                        {
+                          on: 'hover',
+                          style: {
+                            itemTextColor: '#000',
+                          },
+                        },
+                      ],
+                    },
+                  ]
+                : []
+            }
           />
         )}
       </div>
