@@ -312,15 +312,16 @@ export default function EvalModal({
     }
   };
 
+
   return (
     <Modal open={open}>
       <ModalDialog
         sx={{
-          width: '80dvw',
+          width: '95dvw',
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
           top: '5dvh',
           overflow: 'auto',
-          maxHeight: '90dvh',
+          maxHeight: '92dvh',
           minHeight: '70dvh',
           height: '100%',
         }}
@@ -362,7 +363,7 @@ export default function EvalModal({
             </TabPanel>
             <TabPanel
               value={2}
-              sx={{ p: 2, overflow: 'auto', maxWidth: '700px' }}
+              sx={{ p: 2, overflow: 'auto'}}
               keepMounted
             >
               <DynamicPluginForm
