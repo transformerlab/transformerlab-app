@@ -9,7 +9,13 @@ function parseJSON(data) {
   }
 }
 
-export default function ViewPlotModal({ open, onClose, data, jobId, compareChart= false}) {
+export default function ViewPlotModal({
+  open,
+  onClose,
+  data,
+  jobId,
+  compareChart = false,
+}) {
   if (!jobId) {
     return <></>;
   }
@@ -44,7 +50,7 @@ export default function ViewPlotModal({ open, onClose, data, jobId, compareChart
               p: 2,
             }}
           >
-    <Chart metrics={parseJSON(data)} compareChart={compareChart} />
+            <Chart metrics={parseJSON(data)} compareChart={compareChart} />
           </Box>
         </Box>
       </ModalDialog>
