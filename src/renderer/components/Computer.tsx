@@ -76,7 +76,7 @@ export default function Computer() {
 
   const { data: pythonLibraries } = useSWR(
     chatAPI.Endpoints.ServerInfo.PythonLibraries(),
-    fetcher
+    fetcher,
   );
 
   return (
@@ -136,7 +136,7 @@ export default function Computer() {
                                 value={
                                   <>
                                     {Math.round(
-                                      (g?.used_memory / g?.total_memory) * 100
+                                      (g?.used_memory / g?.total_memory) * 100,
                                     )}
                                     %
                                     <LinearProgress
@@ -250,18 +250,9 @@ export default function Computer() {
                   </ComputerCard>
                 </Grid>
               </Grid>
-
-              {/* <h3>System Properties in Electron</h3>
-
-          <Button onClick={getSystemProperties}>
-            Print all System Properties
-          </Button>
-
-          <br />
-          <pre id="info" style={{ whiteSpace: 'pre-wrap' }} /> */}
             </Sheet>
           </>
-        )}{' '}
+        )}
       </TabPanel>
       <TabPanel
         value={1}
@@ -311,7 +302,7 @@ export default function Computer() {
                       .filter((lib) =>
                         lib.name
                           .toLowerCase()
-                          .includes(searchText.toLowerCase())
+                          .includes(searchText.toLowerCase()),
                       )
                       .map((lib) => {
                         return (
