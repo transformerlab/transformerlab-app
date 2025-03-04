@@ -92,8 +92,15 @@ const Chart = ({ metrics, compareChart }) => {
   };
 
   return (
-    <>
-      <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+    <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 8, p: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2,
+          mb: 2,
+          alignItems: 'center',
+        }}
+      >
         <FormControl sx={{ width: 200 }}>
           <Select value={chartType} onChange={handleChartTypeChange}>
             <Option value="bar">Bar</Option>
@@ -117,7 +124,7 @@ const Chart = ({ metrics, compareChart }) => {
         {chartType === 'line' && (
           <ResponsiveLine
             data={getChartData()}
-            margin={{ top: 50, right: 110, bottom: 50, left: 60 }}
+            margin={{ top: 50, right: 200, bottom: 80, left: 60 }}
             xScale={{ type: 'point' }}
             yScale={{
               type: 'linear',
@@ -150,7 +157,7 @@ const Chart = ({ metrics, compareChart }) => {
             pointBorderColor={{ from: 'serieColor' }}
             legends={[
               {
-                anchor: 'bottom-right',
+                anchor: 'top-right',
                 direction: 'column',
                 justify: false,
                 translateX: 100,
@@ -223,12 +230,12 @@ const Chart = ({ metrics, compareChart }) => {
             dotLabel="value"
             dotLabelYOffset={-12}
             legends={
-              normalizedData.seriesKeys.length > 1
+              normalizedData.seriesKeys.length > 0
                 ? [
                     {
-                      anchor: 'right',
+                      anchor: 'top-right',
                       direction: 'column',
-                      translateX: 50,
+                      translateX: -200,
                       translateY: 0,
                       itemWidth: 120,
                       itemHeight: 20,
@@ -250,7 +257,7 @@ const Chart = ({ metrics, compareChart }) => {
           />
         )}
       </div>
-    </>
+    </Box>
   );
 };
 

@@ -35,9 +35,6 @@ export default function ViewPlotModal({
             height: '100%',
           }}
         >
-          <Typography level="h4" mb={2}>
-            Chart
-          </Typography>
           <Box
             sx={{
               width: '100%',
@@ -48,6 +45,9 @@ export default function ViewPlotModal({
               borderRadius: '8px',
               boxShadow: 1,
               p: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
             }}
           >
             <Chart metrics={parseJSON(data)} compareChart={compareChart} />
