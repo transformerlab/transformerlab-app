@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import {
   FilterIcon as FilterAltIcon,
-  ChevronDownIcon as ArrowDropDownIcon,
+  ChevronDownIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
 } from 'lucide-react';
 import useSWR from 'swr';
@@ -133,6 +133,7 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
 }
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
+type Order = 'asc' | 'desc';
 
 export default function Documents({
   experimentInfo,
@@ -142,17 +143,13 @@ export default function Documents({
 }) {
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [open, setOpen] = React.useState(false);
-
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
-
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
-
   const [showFolderModal, setShowFolderModal] = React.useState(false);
   const [newFolderName, setNewFolderName] = React.useState('');
-
   const [loading, setLoading] = React.useState(false);
-
   const [currentFolder, setCurrentFolder] = React.useState(fixedFolder);
+  const [order, setOrder] = React.useState<Order>('asc');
 
   const {
     data: rows,
@@ -631,14 +628,16 @@ export default function Documents({
                         underline="none"
                         color="primary"
                         component="button"
-                        onClick={() => setDoc(doc === 'asc' ? 'desc' : 'asc')}
+                        onClick={() =>
+                          setOrder(order === 'asc' ? 'desc' : 'asc')
+                        }
                         fontWeight="lg"
-                        endDecorator={<ArrowDropDownIcon />}
+                        endDecorator={<ChevronDownIcon />}
                         sx={{
                           '& svg': {
                             transition: '0.2s',
                             transform:
-                              doc === 'desc'
+                              order === 'desc'
                                 ? 'rotate(0deg)'
                                 : 'rotate(180deg)',
                           },
@@ -671,7 +670,7 @@ export default function Documents({
                       </td>
                     </tr>
                   )}
-                  {stableSort(rows, getComparator(doc, 'id'))?.map((row) =>
+                  {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
                     row?.type === 'folder' ? (
                       <Folder row={row} />
                     ) : (
