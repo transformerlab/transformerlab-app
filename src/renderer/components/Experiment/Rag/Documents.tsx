@@ -1,32 +1,34 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import * as React from 'react';
 import { ColorPaletteProp } from '@mui/joy/styles';
-import Avatar from '@mui/joy/Avatar';
-import Box from '@mui/joy/Box';
-import Button from '@mui/joy/Button';
-import Chip from '@mui/joy/Chip';
-import Divider from '@mui/joy/Divider';
-import FormControl from '@mui/joy/FormControl';
-import FormLabel from '@mui/joy/FormLabel';
-import Link from '@mui/joy/Link';
-import Input from '@mui/joy/Input';
-import Modal from '@mui/joy/Modal';
-import ModalDialog from '@mui/joy/ModalDialog';
-import ModalClose from '@mui/joy/ModalClose';
-import Select from '@mui/joy/Select';
-import Option from '@mui/joy/Option';
-import Table from '@mui/joy/Table';
-import Sheet from '@mui/joy/Sheet';
-import Checkbox from '@mui/joy/Checkbox';
-import IconButton, { iconButtonClasses } from '@mui/joy/IconButton';
-import Typography from '@mui/joy/Typography';
-import Menu from '@mui/joy/Menu';
-import MenuButton from '@mui/joy/MenuButton';
-import MenuItem from '@mui/joy/MenuItem';
-import Dropdown from '@mui/joy/Dropdown';
+import {
+  Box,
+  Button,
+  Chip,
+  Divider,
+  FormControl,
+  FormLabel,
+  Link,
+  Input,
+  Modal,
+  ModalDialog,
+  ModalClose,
+  Select,
+  Option,
+  Table,
+  Sheet,
+  IconButton,
+  Typography,
+  Menu,
+  MenuButton,
+  MenuItem,
+  Dropdown,
+  CircularProgress,
+  ListItemDecorator,
+  Stack,
+} from '@mui/joy';
 
 import {
-  CornerLeftUpIcon,
   EyeIcon,
   FileTextIcon,
   FileUpIcon,
@@ -38,8 +40,6 @@ import {
 import {
   FilterIcon as FilterAltIcon,
   ChevronDownIcon as ArrowDropDownIcon,
-  BlocksIcon as BlockIcon,
-  RefreshCcw as AutorenewRoundedIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
 } from 'lucide-react';
 import useSWR from 'swr';
@@ -49,10 +49,8 @@ import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import Dropzone from 'react-dropzone';
 import { FaRegFileAlt } from 'react-icons/fa';
-
 import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
-import { Alert, CircularProgress, ListItemDecorator, Stack } from '@mui/joy';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -143,7 +141,6 @@ export default function Documents({
   fixedFolder = '',
 }) {
   const [doc, setDoc] = React.useState<Doc>('desc');
-  const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
 
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
