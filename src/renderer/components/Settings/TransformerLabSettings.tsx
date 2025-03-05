@@ -102,24 +102,16 @@ export default function TransformerLabSettings() {
           defaultValue={0}
           sx={{
             height: '100%',
-            overflowY: 'hidden',
             display: 'flex',
             flexDirection: 'column',
+            overflow: 'hidden',
           }}
         >
           <TabList>
             <Tab>Settings</Tab>
             <Tab>View Jobs</Tab>
           </TabList>
-          <TabPanel
-            value={0}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              overflowY: 'auto',
-              alignItems: 'flex-start',
-            }}
-          >
+          <TabPanel value={0} style={{ overflow: 'auto' }}>
             {canLogInToHuggingFaceIsLoading && <CircularProgress />}
             <Typography level="title-lg" marginBottom={2}>
               Huggingface Credentials:
@@ -240,7 +232,15 @@ export default function TransformerLabSettings() {
               Reset all Tutorial Popup Screens
             </Button>
           </TabPanel>
-          <TabPanel value={1}>
+          <TabPanel
+            value={1}
+            sx={{
+              overflowY: 'hidden',
+              overflowX: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             <ViewJobsTab />
           </TabPanel>
         </Tabs>
