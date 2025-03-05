@@ -175,7 +175,7 @@ export default function LocalDatasets() {
                       .then((response) => {
                         if (!response.ok) {
                           console.log(response);
-                          setshowConfigNameField(false);
+                          setShowConfigNameField(false);
                           throw new Error(`HTTP Status: ${response.status}`);
                         }
                         return response.json();
@@ -191,7 +191,7 @@ export default function LocalDatasets() {
                         setDownloadingDataset(null);
                         // Check if the error message asks for folder_name and automatically show the config field
                         if (error.message.includes("folder_name")) {
-                          setshowConfigNameField(true);
+                          setShowConfigNameField(true);
                           }
                         alert('Download failed:\n' + error);
                       });
