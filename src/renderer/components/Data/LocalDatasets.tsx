@@ -150,19 +150,24 @@ export default function LocalDatasets() {
               <Input
                 placeholder="Open-Orca/OpenOrca"
                 name="download-dataset-name"
+                // Setting model_id text field to 70% of the width, as they are longer
                 sx={{ flex: 7 }}
               />
               <Input
                 placeholder="Config name"
                 name="download-config-name"
+                // Setting config name text field to 30% of the width, as they are folder names
                 sx={{ flex: 3 }}
               />
               <Button
                 onClick={async (e) => {
                   const dataset = document.getElementsByName('download-dataset-name')[0].value;
                   const configName = document.getElementsByName('download-config-name')[0]?.value;
+                  // only download if valid model is entered
                   if (dataset) {
+                    // this triggers UI changes while download is in progress
                     setDownloadingDataset(dataset);
+                    // Datasets can be very large so do this asynchronously
                     fetch(chatAPI.Endpoints.Dataset.Download(dataset, configName))
                       .then((response) => {
                         if (!response.ok) {
