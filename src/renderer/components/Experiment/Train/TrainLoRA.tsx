@@ -63,7 +63,7 @@ function formatTemplateConfig(config): ReactElement {
 
   const r = (
     <>
-      <b>Model:</b> {short_model_name} <br />
+      {short_model_name && (<><b>Model:</b> {short_model_name} <br /></>)}
       <b>Dataset:</b> {c.dataset_name} <FileTextIcon size={14} />
       <br />
       {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
@@ -232,7 +232,9 @@ export default function TrainLoRA({ experimentInfo }) {
                   }}
                   key={plugin.uniqueId}
                   disabled={
-                    !plugin.model_architectures?.includes(modelArchitecture)
+                    plugin.model_architectures
+                      ? !plugin.model_architectures.includes(modelArchitecture)
+                      : false
                   }
                 >
                   <ListItemDecorator>
@@ -244,7 +246,7 @@ export default function TrainLoRA({ experimentInfo }) {
                       level="body-xs"
                       sx={{ color: 'var(--joy-palette-neutral-400)' }}
                     >
-                      {!plugin.model_architectures?.includes(modelArchitecture)
+                      {plugin.model_architectures && !plugin.model_architectures.includes(modelArchitecture)
                         ? '(Does not support this model architecture)'
                         : ''}
                     </Typography>
