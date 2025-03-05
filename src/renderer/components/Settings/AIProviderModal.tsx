@@ -46,7 +46,12 @@ export default function AIProviderModal({
     const data = new FormData(e.target as HTMLFormElement);
     const apiKey = data.get('apiKey') as string;
     alert(JSON.stringify(Object.fromEntries(data.entries())));
-    saveProvider(selectedProvider!, apiKey);
+    if (!apiKey) {
+      saveProvider(selectedProvider!, JSON.stringify(Object.fromEntries(data.entries())));
+    }
+    else {
+      saveProvider(selectedProvider!, apiKey);
+    }
     setDialogOpen(false);
   };
 
