@@ -99,6 +99,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
   const [order, setOrder] = useState<Order>('asc');
+  const [orderBy, setOrderBy] = useState('name');
   // jobId is null if there is no current download in progress,
   // and it is -1 if a download has been initiated but it hasn't started yet
   const [jobId, setJobId] = useState(null);
@@ -335,9 +336,20 @@ export default function ModelStore() {
                     underline="none"
                     color="primary"
                     component="button"
-                    onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
+                    onClick={() => {
+                      setOrder(order === 'asc' ? 'desc' : 'asc');
+                      setOrderBy('name');
+                    }}
                     fontWeight="lg"
-                    endDecorator={<ChevronUpIcon />}
+                    endDecorator={
+                      <ChevronUpIcon
+                        color={
+                          orderBy == 'name'
+                            ? 'var(--joy-palette-primary-plainColor)'
+                            : 'var(--joy-palette-primary-plainDisabledColor)'
+                        }
+                      />
+                    }
                     sx={{
                       '& svg': {
                         transition: '0.2s',
@@ -352,7 +364,37 @@ export default function ModelStore() {
 
                 <th style={{ width: 100, padding: 12 }}>License</th>
                 <th style={{ width: 100, padding: 12 }}>Engine</th>
-                <th style={{ width: 60, padding: 12 }}>Size</th>
+                <th style={{ width: 60, padding: 12 }}>
+                  {' '}
+                  <Link
+                    underline="none"
+                    color="primary"
+                    component="button"
+                    onClick={() => {
+                      setOrder(order === 'asc' ? 'desc' : 'asc');
+                      setOrderBy('size_of_model_in_mb');
+                    }}
+                    fontWeight="lg"
+                    endDecorator={
+                      <ChevronUpIcon
+                        color={
+                          orderBy == 'size_of_model_in_mb'
+                            ? 'var(--joy-palette-primary-plainColor)'
+                            : 'var(--joy-palette-primary-plainDisabledColor)'
+                        }
+                      />
+                    }
+                    sx={{
+                      '& svg': {
+                        transition: '0.2s',
+                        transform:
+                          order === 'desc' ? 'rotate(0deg)' : 'rotate(180deg)',
+                      },
+                    }}
+                  >
+                    Size
+                  </Link>
+                </th>
                 <th style={{ width: 20, padding: 12 }}> </th>
                 <th style={{ width: 80, padding: 12 }}> </th>
               </tr>
@@ -361,7 +403,7 @@ export default function ModelStore() {
               {modelGalleryData &&
                 stableSort(
                   filterByFilters(modelGalleryData, searchText, filters),
-                  getComparator(order, 'name'),
+                  getComparator(order, orderBy),
                 ).map((row) => (
                   <tr key={row.uniqueID}>
                     <td>
