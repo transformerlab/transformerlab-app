@@ -63,7 +63,7 @@ function formatTemplateConfig(config): ReactElement {
 
   const r = (
     <>
-      <b>Model:</b> {short_model_name} <br />
+      {short_model_name && (<><b>Model:</b> {short_model_name} <br /></>)}
       <b>Dataset:</b> {c.dataset_name} <FileTextIcon size={14} />
       <br />
       {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
