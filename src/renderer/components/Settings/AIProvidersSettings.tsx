@@ -195,6 +195,7 @@ export default function AIProvidersSettings({
                 <Button
                   variant="soft"
                   onClick={() => handleConnectClick(provider)}
+                  sx={{ ml: 1 }}
                 >
                   Set API Key
                 </Button>
