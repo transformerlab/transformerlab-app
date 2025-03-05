@@ -175,6 +175,7 @@ export default function LocalDatasets() {
                       .then((response) => {
                         if (!response.ok) {
                           console.log(response);
+                          setShowConfig(false);
                           throw new Error(`HTTP Status: ${response.status}`);
                         }
                         return response.json();
