@@ -43,7 +43,7 @@ export default function LocalDatasets() {
   const [searchText, setSearchText] = useState('');
   const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
   const [downloadingDataset, setDownloadingDataset] = useState(null);
-  const [showConfig, setShowConfig] = useState(false);
+  const [showConfigNameField, setShowConfigNameField] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.LocalList(false),
@@ -154,10 +154,10 @@ export default function LocalDatasets() {
                 // Setting model_id text field to 70% of the width, as they are longer
                 sx={{ flex: 7 }}
               />
-              {showConfig && (
+              {showConfigNameField && (
                 <Input
                   placeholder="folder_name"
-                  name="download-config-name"
+                  name="dataset-config-name"
                   // Setting config name text field to 30% of the width, as they are folder names
                   sx={{ flex: 3 }}
                 />
@@ -165,7 +165,7 @@ export default function LocalDatasets() {
               <Button
                 onClick={async (e) => {
                   const dataset = document.getElementsByName('download-dataset-name')[0].value;
-                  const configName = showConfig? document.getElementsByName('download-config-name')[0]?.value : undefined;
+                  const configName = showConfigNameField? document.getElementsByName('dataset-config-name')[0]?.value : undefined;
                   // only download if valid model is entered
                   if (dataset) {
                     // this triggers UI changes while download is in progress
@@ -175,7 +175,7 @@ export default function LocalDatasets() {
                       .then((response) => {
                         if (!response.ok) {
                           console.log(response);
-                          setShowConfig(false);
+                          setshowConfigNameField(false);
                           throw new Error(`HTTP Status: ${response.status}`);
                         }
                         return response.json();
@@ -191,7 +191,7 @@ export default function LocalDatasets() {
                         setDownloadingDataset(null);
                         // Check if the error message asks for folder_name and automatically show the config field
                         if (error.message.includes("folder_name")) {
-                          setShowConfig(true);
+                          setshowConfigNameField(true);
                           }
                         alert('Download failed:\n' + error);
                       });
