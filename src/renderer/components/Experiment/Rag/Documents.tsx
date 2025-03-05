@@ -29,6 +29,7 @@ import {
 } from '@mui/joy';
 
 import {
+  ChevronUpIcon,
   EyeIcon,
   FileTextIcon,
   FileUpIcon,
@@ -632,7 +633,7 @@ export default function Documents({
                           setOrder(order === 'asc' ? 'desc' : 'asc')
                         }
                         fontWeight="lg"
-                        endDecorator={<ChevronDownIcon />}
+                        endDecorator={<ChevronUpIcon />}
                         sx={{
                           '& svg': {
                             transition: '0.2s',

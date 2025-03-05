@@ -20,7 +20,7 @@ import {
 import {
   ArrowDownIcon,
   CheckIcon,
-  ChevronDownIcon,
+  ChevronUpIcon,
   CreativeCommonsIcon,
   DownloadIcon,
   ExternalLinkIcon,
@@ -337,7 +337,7 @@ export default function ModelStore() {
                     component="button"
                     onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
                     fontWeight="lg"
-                    endDecorator={<ChevronDownIcon />}
+                    endDecorator={<ChevronUpIcon />}
                     sx={{
                       '& svg': {
                         transition: '0.2s',
