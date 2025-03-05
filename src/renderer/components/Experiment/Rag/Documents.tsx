@@ -211,7 +211,7 @@ export default function Documents({
     }
   };
 
-  function drawFile(row) {
+  function File({ row }) {
     return (
       <tr key={row?.name}>
         {/* <td style={{ textAlign: 'center', width: 120 }}>
@@ -310,7 +310,7 @@ export default function Documents({
     );
   }
 
-  function drawFolder(row) {
+  function Folder({ row }) {
     return (
       <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
         <td style={{ paddingLeft: '1rem' }}>
@@ -724,7 +724,11 @@ export default function Documents({
                     </tr>
                   )}
                   {stableSort(rows, getComparator(doc, 'id'))?.map((row) =>
-                    row?.type === 'folder' ? drawFolder(row) : drawFile(row),
+                    row?.type === 'folder' ? (
+                      <Folder row={row} />
+                    ) : (
+                      <File row={row} />
+                    ),
                   )}
                 </tbody>
               </Table>
