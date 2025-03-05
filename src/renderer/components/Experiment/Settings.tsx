@@ -15,8 +15,6 @@ export default function ExperimentSettings({
 }) {
   const [showJSON, setShowJSON] = useState(false);
 
-  let plugins = experimentInfo?.config?.plugins;
-
   if (!experimentInfo) {
     return null;
   }
@@ -41,26 +39,13 @@ export default function ExperimentSettings({
           {JSON.stringify(experimentInfo, null, 2)}
         </pre>
         <Divider sx={{ mt: 2, mb: 2 }} />
-        <Typography level="title-lg" mb={2}>
-          Scripts&nbsp;
-        </Typography>
-        {plugins &&
-          plugins.map((plugin) => (
-            <>
-              <Chip color="success" size="lg">
-                {plugin}
-              </Chip>
-              &nbsp;
-            </>
-          ))}
-        <Divider sx={{ mt: 2, mb: 2 }} />
         <Button
           color="danger"
           variant="outlined"
           onClick={() => {
             if (
               confirm(
-                'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.'
+                'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
               fetch(chatAPI.DELETE_EXPERIMENT_URL(experimentInfo?.id));

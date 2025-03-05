@@ -20,6 +20,7 @@ import {
 import {
   ArrowDownIcon,
   CheckIcon,
+  ChevronUpIcon,
   CreativeCommonsIcon,
   DownloadIcon,
   ExternalLinkIcon,
@@ -59,10 +60,10 @@ type Order = 'asc' | 'desc';
 
 function getComparator<Key extends keyof any>(
   order: Order,
-  orderBy: Key
+  orderBy: Key,
 ): (
   a: { [key in Key]: number | string },
-  b: { [key in Key]: number | string }
+  b: { [key in Key]: number | string },
 ) => number {
   return order === 'desc'
     ? (a, b) => descendingComparator(a, b, orderBy)
@@ -75,7 +76,7 @@ function getComparator<Key extends keyof any>(
 // with exampleArray.slice().sort(exampleComparator)
 function stableSort<T>(
   array: readonly T[],
-  comparator: (a: T, b: T) => number
+  comparator: (a: T, b: T) => number,
 ) {
   const stabilizedThis = array.map((el, index) => [el, index] as [T, number]);
   stabilizedThis.sort((a, b) => {
@@ -97,7 +98,8 @@ function getModelHuggingFaceURL(model) {
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
-  const [order, setOrder] = useState<Order>('desc');
+  const [order, setOrder] = useState<Order>('asc');
+  const [orderBy, setOrderBy] = useState('name');
   // jobId is null if there is no current download in progress,
   // and it is -1 if a download has been initiated but it hasn't started yet
   const [jobId, setJobId] = useState(null);
@@ -118,7 +120,7 @@ export default function ModelStore() {
   const { data: modelDownloadProgress } = useSWR(
     jobId && jobId != '-1' ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
     fetcher,
-    { refreshInterval: 2000 }
+    { refreshInterval: 2000 },
   );
 
   // Creating a separate object to get useEffect for download jobs to work
@@ -128,12 +130,12 @@ export default function ModelStore() {
   // check if we have a Hugging Face access token
   const { data: hftoken } = useSWR(
     chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
-    fetcher
+    fetcher,
   );
 
   const { data: canLogInToHuggingFace } = useSWR(
     chatAPI.Endpoints.Models.HuggingFaceLogin(),
-    fetcher
+    fetcher,
   );
 
   // Set isHFAccessTokenSet to true if message in canLogInToHuggingFace is 'OK'
@@ -224,7 +226,7 @@ export default function ModelStore() {
         flexDirection: 'column',
         overflow: 'hidden',
       }}
-      >
+    >
       <Box
         sx={{
           position: 'relative',
@@ -334,9 +336,20 @@ export default function ModelStore() {
                     underline="none"
                     color="primary"
                     component="button"
-                    onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
+                    onClick={() => {
+                      setOrder(order === 'asc' ? 'desc' : 'asc');
+                      setOrderBy('name');
+                    }}
                     fontWeight="lg"
-                    endDecorator={<ArrowDownIcon />}
+                    endDecorator={
+                      <ChevronUpIcon
+                        color={
+                          orderBy == 'name'
+                            ? 'var(--joy-palette-primary-plainColor)'
+                            : 'var(--joy-palette-primary-plainDisabledColor)'
+                        }
+                      />
+                    }
                     sx={{
                       '& svg': {
                         transition: '0.2s',
@@ -351,7 +364,37 @@ export default function ModelStore() {
 
                 <th style={{ width: 100, padding: 12 }}>License</th>
                 <th style={{ width: 100, padding: 12 }}>Engine</th>
-                <th style={{ width: 60, padding: 12 }}>Size</th>
+                <th style={{ width: 60, padding: 12 }}>
+                  {' '}
+                  <Link
+                    underline="none"
+                    color="primary"
+                    component="button"
+                    onClick={() => {
+                      setOrder(order === 'asc' ? 'desc' : 'asc');
+                      setOrderBy('size_of_model_in_mb');
+                    }}
+                    fontWeight="lg"
+                    endDecorator={
+                      <ChevronUpIcon
+                        color={
+                          orderBy == 'size_of_model_in_mb'
+                            ? 'var(--joy-palette-primary-plainColor)'
+                            : 'var(--joy-palette-primary-plainDisabledColor)'
+                        }
+                      />
+                    }
+                    sx={{
+                      '& svg': {
+                        transition: '0.2s',
+                        transform:
+                          order === 'desc' ? 'rotate(0deg)' : 'rotate(180deg)',
+                      },
+                    }}
+                  >
+                    Size
+                  </Link>
+                </th>
                 <th style={{ width: 20, padding: 12 }}> </th>
                 <th style={{ width: 80, padding: 12 }}> </th>
               </tr>
@@ -360,7 +403,7 @@ export default function ModelStore() {
               {modelGalleryData &&
                 stableSort(
                   filterByFilters(modelGalleryData, searchText, filters),
-                  getComparator(order, 'name')
+                  getComparator(order, orderBy),
                 ).map((row) => (
                   <tr key={row.uniqueID}>
                     <td>
@@ -473,7 +516,7 @@ export default function ModelStore() {
                                 'To access gated Hugging Face models you must first:\r\r' +
                                   '1. Create a READ access token in your Hugging Face account.\r\r' +
                                   '2. Enter the token on the Transformer Lab Settings page.\r\r' +
-                                  'Click OK to go to Settings.'
+                                  'Click OK to go to Settings.',
                               );
                               if (confirm_result) {
                                 navigate('/settings');
@@ -492,19 +535,19 @@ export default function ModelStore() {
                               setCurrentlyDownloading(row.name);
                               try {
                                 let response = await fetch(
-                                  chatAPI.Endpoints.Jobs.Create()
+                                  chatAPI.Endpoints.Jobs.Create(),
                                 );
                                 const newJobId = await response.json();
                                 setJobId(newJobId);
                                 response = await downloadModelFromGallery(
                                   row?.uniqueID,
-                                  newJobId
+                                  newJobId,
                                 );
                                 if (response?.status == 'error') {
                                   setCurrentlyDownloading(null);
                                   setJobId(null);
                                   return alert(
-                                    `Failed to download:\n${response.message}`
+                                    `Failed to download:\n${response.message}`,
                                   );
                                 } else if (response?.status == 'unauthorized') {
                                   setCurrentlyDownloading(null);
@@ -514,7 +557,7 @@ export default function ModelStore() {
                                     window
                                       .open(
                                         getModelHuggingFaceURL(row),
-                                        '_blank'
+                                        '_blank',
                                       )
                                       ?.focus();
                                   }
@@ -539,7 +582,7 @@ export default function ModelStore() {
                                         value={clamp(
                                           modelDownloadProgress?.progress,
                                           0,
-                                          100
+                                          100,
                                         )}
                                         sx={{ width: '100px' }}
                                         variant="solid"
@@ -550,10 +593,10 @@ export default function ModelStore() {
                                         <>
                                           {clamp(
                                             Number.parseFloat(
-                                              modelDownloadProgress?.progress
+                                              modelDownloadProgress?.progress,
                                             ),
                                             0,
-                                            100
+                                            100,
                                           ).toFixed(0)}
                                           %
                                         </>
@@ -570,7 +613,7 @@ export default function ModelStore() {
                                         modelDownloadProgress?.job_data
                                           ?.downloaded *
                                           1024 *
-                                          1024
+                                          1024,
                                       )}
                                       {/* {modelDownloadProgress?.job_data} */}
                                       <ArrowDownIcon size="18px" />

@@ -1,32 +1,35 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import * as React from 'react';
 import { ColorPaletteProp } from '@mui/joy/styles';
-import Avatar from '@mui/joy/Avatar';
-import Box from '@mui/joy/Box';
-import Button from '@mui/joy/Button';
-import Chip from '@mui/joy/Chip';
-import Divider from '@mui/joy/Divider';
-import FormControl from '@mui/joy/FormControl';
-import FormLabel from '@mui/joy/FormLabel';
-import Link from '@mui/joy/Link';
-import Input from '@mui/joy/Input';
-import Modal from '@mui/joy/Modal';
-import ModalDialog from '@mui/joy/ModalDialog';
-import ModalClose from '@mui/joy/ModalClose';
-import Select from '@mui/joy/Select';
-import Option from '@mui/joy/Option';
-import Table from '@mui/joy/Table';
-import Sheet from '@mui/joy/Sheet';
-import Checkbox from '@mui/joy/Checkbox';
-import IconButton, { iconButtonClasses } from '@mui/joy/IconButton';
-import Typography from '@mui/joy/Typography';
-import Menu from '@mui/joy/Menu';
-import MenuButton from '@mui/joy/MenuButton';
-import MenuItem from '@mui/joy/MenuItem';
-import Dropdown from '@mui/joy/Dropdown';
+import {
+  Box,
+  Button,
+  Chip,
+  Divider,
+  FormControl,
+  FormLabel,
+  Link,
+  Input,
+  Modal,
+  ModalDialog,
+  ModalClose,
+  Select,
+  Option,
+  Table,
+  Sheet,
+  IconButton,
+  Typography,
+  Menu,
+  MenuButton,
+  MenuItem,
+  Dropdown,
+  CircularProgress,
+  ListItemDecorator,
+  Stack,
+} from '@mui/joy';
 
 import {
-  CornerLeftUpIcon,
+  ChevronUpIcon,
   EyeIcon,
   FileTextIcon,
   FileUpIcon,
@@ -37,9 +40,7 @@ import {
 } from 'lucide-react';
 import {
   FilterIcon as FilterAltIcon,
-  ChevronDownIcon as ArrowDropDownIcon,
-  BlocksIcon as BlockIcon,
-  RefreshCcw as AutorenewRoundedIcon,
+  ChevronDownIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
 } from 'lucide-react';
 import useSWR from 'swr';
@@ -49,10 +50,8 @@ import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import Dropzone from 'react-dropzone';
 import { FaRegFileAlt } from 'react-icons/fa';
-
 import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
-import { Alert, CircularProgress, ListItemDecorator, Stack } from '@mui/joy';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
@@ -69,10 +68,10 @@ type Doc = 'asc' | 'desc';
 
 function getComparator<Key extends keyof any>(
   order: Doc,
-  orderBy: Key
+  orderBy: Key,
 ): (
   a: { [key in Key]: number | string },
-  b: { [key in Key]: number | string }
+  b: { [key in Key]: number | string },
 ) => number {
   return order === 'desc'
     ? (a, b) => descendingComparator(a, b, orderBy)
@@ -85,7 +84,7 @@ function getComparator<Key extends keyof any>(
 // with exampleArray.slice().sort(exampleComparator)
 function stableSort<T>(
   array: readonly T[],
-  comparator: (a: T, b: T) => number
+  comparator: (a: T, b: T) => number,
 ) {
   if (!Array.isArray(array)) return [];
   const stabilizedThis = array?.map((el, index) => [el, index] as [T, number]);
@@ -116,7 +115,7 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
           color="danger"
           onClick={() => {
             fetch(
-              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename)
+              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename),
             ).then((response) => {
               if (response.ok) {
                 console.log(response);
@@ -135,6 +134,7 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
 }
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
+type Order = 'asc' | 'desc';
 
 export default function Documents({
   experimentInfo,
@@ -143,19 +143,14 @@ export default function Documents({
   fixedFolder = '',
 }) {
   const [doc, setDoc] = React.useState<Doc>('desc');
-  const [selected, setSelected] = React.useState<readonly string[]>([]);
   const [open, setOpen] = React.useState(false);
-
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
-
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
-
   const [showFolderModal, setShowFolderModal] = React.useState(false);
   const [newFolderName, setNewFolderName] = React.useState('');
-
   const [loading, setLoading] = React.useState(false);
-
   const [currentFolder, setCurrentFolder] = React.useState(fixedFolder);
+  const [order, setOrder] = React.useState<Order>('asc');
 
   const {
     data: rows,
@@ -163,7 +158,7 @@ export default function Documents({
     mutate,
   } = useSWR(
     chatAPI.Endpoints.Documents.List(experimentInfo?.id, currentFolder),
-    fetcher
+    fetcher,
   );
 
   const uploadFiles = async (currentFolder, formData) => {
@@ -172,7 +167,7 @@ export default function Documents({
       {
         method: 'POST',
         body: formData,
-      }
+      },
     )
       .then((response) => {
         if (response.ok) {
@@ -197,7 +192,7 @@ export default function Documents({
         chatAPI.Endpoints.Documents.CreateFolder(experimentInfo?.id, name),
         {
           method: 'POST',
-        }
+        },
       );
       if (!response.ok) {
         throw new Error('Folder creation failed');
@@ -211,32 +206,12 @@ export default function Documents({
     }
   };
 
-  function drawFile(row) {
+  function File({ row }) {
     return (
       <tr key={row?.name}>
-        {/* <td style={{ textAlign: 'center', width: 120 }}>
-                        <Checkbox
-                          size="sm"
-                          checked={selected.includes(row?.name)}
-                          color={
-                            selected.includes(row?.name) ? 'primary' : undefined
-                          }
-                          onChange={(event) => {
-                            setSelected((ids) =>
-                              event.target.checked
-                                ? ids.concat(row?.name)
-                                : ids.filter((itemId) => itemId !== row?.name)
-                            );
-                          }}
-                          slotProps={{
-                            checkbox: { sx: { textAlign: 'left' } },
-                          }}
-                          sx={{ verticalAlign: 'text-bottom' }}
-                        />
-                      </td> */}
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
-            level="body-xs"
+            level="body-sm"
             sx={{ display: 'flex', alignItems: 'center' }}
           >
             <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
@@ -310,12 +285,12 @@ export default function Documents({
     );
   }
 
-  function drawFolder(row) {
+  function Folder({ row }) {
     return (
       <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
-            level="body-xs"
+            level="body-sm"
             sx={{ display: 'flex', alignItems: 'center' }}
           >
             <FolderIcon size="16px" style={{ marginRight: '0.5rem' }} />
@@ -420,7 +395,7 @@ export default function Documents({
             src={chatAPI.Endpoints.Documents.Open(
               experimentInfo?.id,
               previewFile,
-              currentFolder
+              currentFolder,
             )}
             style={{ width: '100%', height: '100%' }}
           ></iframe>
@@ -649,48 +624,21 @@ export default function Documents({
               >
                 <thead>
                   <tr>
-                    {/* <th
-                      style={{
-                        textAlign: 'center',
-                        padding: '12px 6px',
-                      }}
-                    >
-                      <Checkbox
-                        size="sm"
-                        indeterminate={
-                          selected.length > 0 &&
-                          selected.length !== rows?.length
-                        }
-                        checked={selected.length === rows?.length}
-                        onChange={(event) => {
-                          setSelected(
-                            event.target.checked
-                              ? rows?.map((row) => row?.name)
-                              : []
-                          );
-                        }}
-                        color={
-                          selected.length > 0 ||
-                          selected.length === rows?.length
-                            ? 'primary'
-                            : undefined
-                        }
-                        sx={{ verticalAlign: 'text-bottom' }}
-                      />
-                    </th> */}
                     <th style={{ paddingLeft: '1rem' }}>
                       <Link
                         underline="none"
                         color="primary"
                         component="button"
-                        onClick={() => setDoc(doc === 'asc' ? 'desc' : 'asc')}
+                        onClick={() =>
+                          setOrder(order === 'asc' ? 'desc' : 'asc')
+                        }
                         fontWeight="lg"
-                        endDecorator={<ArrowDropDownIcon />}
+                        endDecorator={<ChevronUpIcon />}
                         sx={{
                           '& svg': {
                             transition: '0.2s',
                             transform:
-                              doc === 'desc'
+                              order === 'desc'
                                 ? 'rotate(0deg)'
                                 : 'rotate(180deg)',
                           },
@@ -723,8 +671,12 @@ export default function Documents({
                       </td>
                     </tr>
                   )}
-                  {stableSort(rows, getComparator(doc, 'id'))?.map((row) =>
-                    row?.type === 'folder' ? drawFolder(row) : drawFile(row)
+                  {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
+                    row?.type === 'folder' ? (
+                      <Folder row={row} />
+                    ) : (
+                      <File row={row} />
+                    ),
                   )}
                 </tbody>
               </Table>
