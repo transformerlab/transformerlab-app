@@ -43,6 +43,7 @@ export default function LocalDatasets() {
   const [searchText, setSearchText] = useState('');
   const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
   const [downloadingDataset, setDownloadingDataset] = useState(null);
+  const [showConfig, setShowConfig] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.LocalList(false),
@@ -153,16 +154,18 @@ export default function LocalDatasets() {
                 // Setting model_id text field to 70% of the width, as they are longer
                 sx={{ flex: 7 }}
               />
-              <Input
-                placeholder="Config name"
-                name="download-config-name"
-                // Setting config name text field to 30% of the width, as they are folder names
-                sx={{ flex: 3 }}
-              />
+              {showConfig && (
+                <Input
+                  placeholder="folder_name"
+                  name="download-config-name"
+                  // Setting config name text field to 30% of the width, as they are folder names
+                  sx={{ flex: 3 }}
+                />
+              )}
               <Button
                 onClick={async (e) => {
                   const dataset = document.getElementsByName('download-dataset-name')[0].value;
-                  const configName = document.getElementsByName('download-config-name')[0]?.value;
+                  const configName = showConfig? document.getElementsByName('download-config-name')[0]?.value : undefined;
                   // only download if valid model is entered
                   if (dataset) {
                     // this triggers UI changes while download is in progress
@@ -185,6 +188,10 @@ export default function LocalDatasets() {
                       })
                       .catch((error) => {
                         setDownloadingDataset(null);
+                        // Check if the error message asks for folder_name and automatically show the config field
+                        if (error.message.includes("folder_name")) {
+                          setShowConfig(true);
+                          }
                         alert('Download failed:\n' + error);
                       });
                   }
