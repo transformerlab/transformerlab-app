@@ -69,10 +69,10 @@ type Doc = 'asc' | 'desc';
 
 function getComparator<Key extends keyof any>(
   order: Doc,
-  orderBy: Key
+  orderBy: Key,
 ): (
   a: { [key in Key]: number | string },
-  b: { [key in Key]: number | string }
+  b: { [key in Key]: number | string },
 ) => number {
   return order === 'desc'
     ? (a, b) => descendingComparator(a, b, orderBy)
@@ -85,7 +85,7 @@ function getComparator<Key extends keyof any>(
 // with exampleArray.slice().sort(exampleComparator)
 function stableSort<T>(
   array: readonly T[],
-  comparator: (a: T, b: T) => number
+  comparator: (a: T, b: T) => number,
 ) {
   if (!Array.isArray(array)) return [];
   const stabilizedThis = array?.map((el, index) => [el, index] as [T, number]);
@@ -116,7 +116,7 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
           color="danger"
           onClick={() => {
             fetch(
-              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename)
+              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename),
             ).then((response) => {
               if (response.ok) {
                 console.log(response);
@@ -163,7 +163,7 @@ export default function Documents({
     mutate,
   } = useSWR(
     chatAPI.Endpoints.Documents.List(experimentInfo?.id, currentFolder),
-    fetcher
+    fetcher,
   );
 
   const uploadFiles = async (currentFolder, formData) => {
@@ -172,7 +172,7 @@ export default function Documents({
       {
         method: 'POST',
         body: formData,
-      }
+      },
     )
       .then((response) => {
         if (response.ok) {
@@ -197,7 +197,7 @@ export default function Documents({
         chatAPI.Endpoints.Documents.CreateFolder(experimentInfo?.id, name),
         {
           method: 'POST',
-        }
+        },
       );
       if (!response.ok) {
         throw new Error('Folder creation failed');
@@ -236,7 +236,7 @@ export default function Documents({
                       </td> */}
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
-            level="body-xs"
+            level="body-sm"
             sx={{ display: 'flex', alignItems: 'center' }}
           >
             <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
@@ -315,7 +315,7 @@ export default function Documents({
       <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
-            level="body-xs"
+            level="body-sm"
             sx={{ display: 'flex', alignItems: 'center' }}
           >
             <FolderIcon size="16px" style={{ marginRight: '0.5rem' }} />
@@ -420,7 +420,7 @@ export default function Documents({
             src={chatAPI.Endpoints.Documents.Open(
               experimentInfo?.id,
               previewFile,
-              currentFolder
+              currentFolder,
             )}
             style={{ width: '100%', height: '100%' }}
           ></iframe>
@@ -724,7 +724,7 @@ export default function Documents({
                     </tr>
                   )}
                   {stableSort(rows, getComparator(doc, 'id'))?.map((row) =>
-                    row?.type === 'folder' ? drawFolder(row) : drawFile(row)
+                    row?.type === 'folder' ? drawFolder(row) : drawFile(row),
                   )}
                 </tbody>
               </Table>
