@@ -175,6 +175,7 @@ export default function AIProvidersSettings({
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 p: 2,
+                paddingLeft: 3,
                 borderRadius: '8px',
                 bgcolor: 'neutral.softBg',
               }}
