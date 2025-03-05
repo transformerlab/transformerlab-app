@@ -28,6 +28,7 @@ import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 // Import the AIProvidersSettings component.
 import AIProvidersSettings from './AIProvidersSettings';
 import ViewJobsTab from './ViewJobsTab';
+import { alignBox } from '@nivo/core';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -77,17 +78,48 @@ export default function TransformerLabSettings() {
   }
 
   return (
-    <>
+    <Sheet
+      sx={{
+        width: '100%',
+        height: '100%',
+        overflowY: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <Typography level="h1" marginBottom={1}>
         Transformer Lab Settings
       </Typography>
-      <Sheet sx={{ width: '100%', overflowY: 'auto' }}>
-        <Tabs defaultValue={0}>
+      <Sheet
+        sx={{
+          height: '100%',
+          overflowY: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <Tabs
+          defaultValue={0}
+          sx={{
+            height: '100%',
+            overflowY: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <TabList>
             <Tab>Settings</Tab>
             <Tab>View Jobs</Tab>
           </TabList>
-          <TabPanel value={0}>
+          <TabPanel
+            value={0}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto',
+              alignItems: 'flex-start',
+            }}
+          >
             {canLogInToHuggingFaceIsLoading && <CircularProgress />}
             <Typography level="title-lg" marginBottom={2}>
               Huggingface Credentials:
@@ -213,6 +245,6 @@ export default function TransformerLabSettings() {
           </TabPanel>
         </Tabs>
       </Sheet>
-    </>
+    </Sheet>
   );
 }

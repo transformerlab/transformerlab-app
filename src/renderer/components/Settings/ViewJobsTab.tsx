@@ -40,14 +40,19 @@ export default function ViewJobsTab() {
         <Option value="EVAL">Evaluate</Option>
       </Select>
       {showJobsOfType !== 'NONE' && (
-        <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
+        <Table
+          stickyHeader
+          sx={{ width: '100%', tableLayout: 'auto', overflow: 'scroll' }}
+        >
           <thead>
             <tr>
-              <td>Job ID</td>
-              <td>Job Type</td>
-              <td>Job Status</td>
-              <td>Job Progress</td>
-              <td>Job Data</td>
+              <th>Job ID</th>
+              <th>Job Type</th>
+              <th>Job Status</th>
+              <th>Job Progress</th>
+              <th width="400px" style={{ overflow: 'hidden' }}>
+                Job Data
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -57,7 +62,7 @@ export default function ViewJobsTab() {
                 <td>{job.type}</td>
                 <td>{job.status}</td>
                 <td>{job.progress}</td>
-                <td>
+                <td width="400px">
                   <pre>{JSON.stringify(job.job_data, null, 2)}</pre>
                 </td>
               </tr>
