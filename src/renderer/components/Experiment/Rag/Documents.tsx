@@ -646,35 +646,6 @@ export default function Documents({
               >
                 <thead>
                   <tr>
-                    {/* <th
-                      style={{
-                        textAlign: 'center',
-                        padding: '12px 6px',
-                      }}
-                    >
-                      <Checkbox
-                        size="sm"
-                        indeterminate={
-                          selected.length > 0 &&
-                          selected.length !== rows?.length
-                        }
-                        checked={selected.length === rows?.length}
-                        onChange={(event) => {
-                          setSelected(
-                            event.target.checked
-                              ? rows?.map((row) => row?.name)
-                              : []
-                          );
-                        }}
-                        color={
-                          selected.length > 0 ||
-                          selected.length === rows?.length
-                            ? 'primary'
-                            : undefined
-                        }
-                        sx={{ verticalAlign: 'text-bottom' }}
-                      />
-                    </th> */}
                     <th style={{ paddingLeft: '1rem' }}>
                       <Link
                         underline="none"
