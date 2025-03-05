@@ -232,7 +232,9 @@ export default function TrainLoRA({ experimentInfo }) {
                   }}
                   key={plugin.uniqueId}
                   disabled={
-                    !plugin.model_architectures?.includes(modelArchitecture)
+                    plugin.model_architectures
+                      ? !plugin.model_architectures.includes(modelArchitecture)
+                      : false
                   }
                 >
                   <ListItemDecorator>
@@ -244,7 +246,7 @@ export default function TrainLoRA({ experimentInfo }) {
                       level="body-xs"
                       sx={{ color: 'var(--joy-palette-neutral-400)' }}
                     >
-                      {!plugin.model_architectures?.includes(modelArchitecture)
+                      {plugin.model_architectures && !plugin.model_architectures.includes(modelArchitecture)
                         ? '(Does not support this model architecture)'
                         : ''}
                     </Typography>
