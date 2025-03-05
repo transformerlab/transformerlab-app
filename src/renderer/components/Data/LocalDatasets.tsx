@@ -145,57 +145,50 @@ export default function LocalDatasets() {
         }}
       >
         <>
-          <FormControl>
-            <Input
-              placeholder="Open-Orca/OpenOrca"
-              name="download-dataset-name"
-              endDecorator={
-                <Button
-                  onClick={async (e) => {
-                    const dataset = document.getElementsByName(
-                      'download-dataset-name'
-                    )[0].value;
-                    // only download if valid model is entered
-                    if (dataset) {
-                      // this triggers UI changes while download is in progress
-                      setDownloadingDataset(dataset);
-
-                      // Datasets can be very large so do this asynchronously
-                      fetch(chatAPI.Endpoints.Dataset.Download(dataset))
-                        .then((response) => {
-                          if (!response.ok) {
-                            console.log(response);
-                            throw new Error(`HTTP Status: ${response.status}`);
-                          }
-                          return response.json();
-                        })
-                        .then((response_json) => {
-                          if (response_json?.status == 'error') {
-                            throw new Error(response_json.message);
-                          }
-                          // now mutate:
-                          mutate();
-                          setDownloadingDataset(null);
-                        })
-                        .catch((error) => {
-                          setDownloadingDataset(null);
-                          alert('Download failed:\n' + error);
-                        });
-                    }
-                  }}
-                  startDecorator={
-                    downloadingDataset ? (
-                      <CircularProgress size="sm" thickness={2} />
-                    ) : (
-                      ''
-                    )
+        <FormControl>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Input
+                placeholder="Open-Orca/OpenOrca"
+                name="download-dataset-name"
+                sx={{ flex: 7 }}
+              />
+              <Input
+                placeholder="Config name"
+                name="download-config-name"
+                sx={{ flex: 3 }}
+              />
+              <Button
+                onClick={async (e) => {
+                  const dataset = document.getElementsByName('download-dataset-name')[0].value;
+                  const configName = document.getElementsByName('download-config-name')[0]?.value;
+                  if (dataset) {
+                    setDownloadingDataset(dataset);
+                    fetch(chatAPI.Endpoints.Dataset.Download(dataset, configName))
+                      .then((response) => {
+                        if (!response.ok) {
+                          console.log(response);
+                          throw new Error(`HTTP Status: ${response.status}`);
+                        }
+                        return response.json();
+                      })
+                      .then((response_json) => {
+                        if (response_json?.status == 'error') {
+                          throw new Error(response_json.message);
+                        }
+                        mutate();
+                        setDownloadingDataset(null);
+                      })
+                      .catch((error) => {
+                        setDownloadingDataset(null);
+                        alert('Download failed:\n' + error);
+                      });
                   }
-                >
-                  {downloadingDataset ? 'Downloading' : 'Download 🤗 Dataset'}
-                </Button>
-              }
-              sx={{ width: '500px' }}
-            />
+                }}
+                startDecorator={downloadingDataset ? <CircularProgress size="sm" thickness={2} /> : ''}
+              >
+                {downloadingDataset ? 'Downloading' : 'Download 🤗 Dataset'}
+              </Button>
+            </Box>
           </FormControl>
           <>
             <Button

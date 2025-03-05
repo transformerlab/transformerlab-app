@@ -1048,8 +1048,8 @@ Endpoints.Dataset = {
   Delete: (datasetId: string) =>
     API_URL() + 'data/delete?dataset_id=' + datasetId,
   Create: (datasetId: string) => API_URL() + 'data/new?dataset_id=' + datasetId,
-  Download: (datasetId: string) =>
-    API_URL() + 'data/download?dataset_id=' + datasetId,
+  Download: (datasetId: string, configName?: string) =>
+    API_URL() + 'data/download?dataset_id=' + datasetId + (configName ? '&config_name=' + configName : ''),
   LocalList: (generated: boolean = true) => API_URL() + 'data/list?generated=' + generated,
   GeneratedList: () => API_URL() + 'data/generated_datasets_list',
   FileUpload: (datasetId: string) =>
