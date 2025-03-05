@@ -69,6 +69,25 @@ export default function TrainingModalLoRA({
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
 
+
+  // Fetch training type with useSWR
+  const { data: trainingTypeData } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Experiment.ScriptGetFile(experimentInfo.id, pluginId, 'index.json')
+      : null,
+    fetcher
+  );
+
+  let trainingType = "LoRA";
+  if (trainingTypeData && trainingTypeData !== "undefined" && trainingTypeData.length > 0) {
+
+  trainingType = JSON.parse(trainingTypeData)?.train_type || "LoRA";
+
+  }
+
+
+
+
   // Fetch available datasets from the API
   const {
     data: datasets,
@@ -252,7 +271,7 @@ export default function TrainingModalLoRA({
                 template_id,
                 event.currentTarget.elements['template_name'].value,
                 'Description',
-                'LoRA',
+                trainingType,
                 JSON.stringify(formJson)
               );
               templateMutate(); //Need to mutate template data after updating
@@ -260,7 +279,7 @@ export default function TrainingModalLoRA({
               chatAPI.saveTrainingTemplate(
                 event.currentTarget.elements['template_name'].value,
                 'Description',
-                'LoRA',
+                trainingType,
                 JSON.stringify(formJson)
               );
             }

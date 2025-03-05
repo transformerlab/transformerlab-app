@@ -29,6 +29,7 @@ import {
 } from '@mui/joy';
 
 import {
+  ChevronUpIcon,
   EyeIcon,
   FileTextIcon,
   FileUpIcon,
@@ -39,7 +40,7 @@ import {
 } from 'lucide-react';
 import {
   FilterIcon as FilterAltIcon,
-  ChevronDownIcon as ArrowDropDownIcon,
+  ChevronDownIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
 } from 'lucide-react';
 import useSWR from 'swr';
@@ -133,6 +134,7 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
 }
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
+type Order = 'asc' | 'desc';
 
 export default function Documents({
   experimentInfo,
@@ -142,17 +144,13 @@ export default function Documents({
 }) {
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [open, setOpen] = React.useState(false);
-
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
-
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
-
   const [showFolderModal, setShowFolderModal] = React.useState(false);
   const [newFolderName, setNewFolderName] = React.useState('');
-
   const [loading, setLoading] = React.useState(false);
-
   const [currentFolder, setCurrentFolder] = React.useState(fixedFolder);
+  const [order, setOrder] = React.useState<Order>('asc');
 
   const {
     data: rows,
@@ -211,26 +209,6 @@ export default function Documents({
   function File({ row }) {
     return (
       <tr key={row?.name}>
-        {/* <td style={{ textAlign: 'center', width: 120 }}>
-                        <Checkbox
-                          size="sm"
-                          checked={selected.includes(row?.name)}
-                          color={
-                            selected.includes(row?.name) ? 'primary' : undefined
-                          }
-                          onChange={(event) => {
-                            setSelected((ids) =>
-                              event.target.checked
-                                ? ids.concat(row?.name)
-                                : ids.filter((itemId) => itemId !== row?.name)
-                            );
-                          }}
-                          slotProps={{
-                            checkbox: { sx: { textAlign: 'left' } },
-                          }}
-                          sx={{ verticalAlign: 'text-bottom' }}
-                        />
-                      </td> */}
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
             level="body-sm"
@@ -646,48 +624,21 @@ export default function Documents({
               >
                 <thead>
                   <tr>
-                    {/* <th
-                      style={{
-                        textAlign: 'center',
-                        padding: '12px 6px',
-                      }}
-                    >
-                      <Checkbox
-                        size="sm"
-                        indeterminate={
-                          selected.length > 0 &&
-                          selected.length !== rows?.length
-                        }
-                        checked={selected.length === rows?.length}
-                        onChange={(event) => {
-                          setSelected(
-                            event.target.checked
-                              ? rows?.map((row) => row?.name)
-                              : []
-                          );
-                        }}
-                        color={
-                          selected.length > 0 ||
-                          selected.length === rows?.length
-                            ? 'primary'
-                            : undefined
-                        }
-                        sx={{ verticalAlign: 'text-bottom' }}
-                      />
-                    </th> */}
                     <th style={{ paddingLeft: '1rem' }}>
                       <Link
                         underline="none"
                         color="primary"
                         component="button"
-                        onClick={() => setDoc(doc === 'asc' ? 'desc' : 'asc')}
+                        onClick={() =>
+                          setOrder(order === 'asc' ? 'desc' : 'asc')
+                        }
                         fontWeight="lg"
-                        endDecorator={<ArrowDropDownIcon />}
+                        endDecorator={<ChevronUpIcon />}
                         sx={{
                           '& svg': {
                             transition: '0.2s',
                             transform:
-                              doc === 'desc'
+                              order === 'desc'
                                 ? 'rotate(0deg)'
                                 : 'rotate(180deg)',
                           },
@@ -720,7 +671,7 @@ export default function Documents({
                       </td>
                     </tr>
                   )}
-                  {stableSort(rows, getComparator(doc, 'id'))?.map((row) =>
+                  {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
                     row?.type === 'folder' ? (
                       <Folder row={row} />
                     ) : (

@@ -164,9 +164,7 @@ export default function Sidebar({
           title="Train"
           path="/projects/training"
           icon={<GraduationCapIcon />}
-          disabled={
-            !experimentInfo?.name || !experimentInfo?.config?.foundation
-          }
+          disabled={!experimentInfo?.name}
         />
         <SubNavItem
           title="Export"

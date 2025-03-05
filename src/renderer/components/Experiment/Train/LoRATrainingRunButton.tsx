@@ -49,11 +49,16 @@ export default function LoRATrainingRunButton({
           return false;
         });
         let modelInLocalList = false;
+        if (model === "unknown")
+        {
+          modelInLocalList = true;
+        } else {
         models_downloaded.forEach(modelData => {
           if (modelData.model_id == model || modelData.local_path === model) {
             modelInLocalList = true;
           }
         });
+      }
 
         const datasets_downloaded = await fetch(
           chatAPI.Endpoints.Dataset.LocalList()
