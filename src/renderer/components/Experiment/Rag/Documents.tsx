@@ -211,26 +211,6 @@ export default function Documents({
   function File({ row }) {
     return (
       <tr key={row?.name}>
-        {/* <td style={{ textAlign: 'center', width: 120 }}>
-                        <Checkbox
-                          size="sm"
-                          checked={selected.includes(row?.name)}
-                          color={
-                            selected.includes(row?.name) ? 'primary' : undefined
-                          }
-                          onChange={(event) => {
-                            setSelected((ids) =>
-                              event.target.checked
-                                ? ids.concat(row?.name)
-                                : ids.filter((itemId) => itemId !== row?.name)
-                            );
-                          }}
-                          slotProps={{
-                            checkbox: { sx: { textAlign: 'left' } },
-                          }}
-                          sx={{ verticalAlign: 'text-bottom' }}
-                        />
-                      </td> */}
         <td style={{ paddingLeft: '1rem' }}>
           <Typography
             level="body-sm"
