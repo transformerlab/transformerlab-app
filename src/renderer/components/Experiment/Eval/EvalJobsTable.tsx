@@ -247,7 +247,6 @@ const EvalJobsTable = () => {
     setOpenPlotModal(true);
     setCompareChart(false);
     setCurrentJobId(jobId);
-
   };
 
   useEffect(() => {
