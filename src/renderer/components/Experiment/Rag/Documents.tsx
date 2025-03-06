@@ -98,7 +98,7 @@ function stableSort<T>(
   return stabilizedThis?.map((el) => el[0]);
 }
 
-function RowMenu({ experimentInfo, filename, mutate, row }) {
+function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
   return (
     <Dropdown>
       <MenuButton
@@ -115,7 +115,7 @@ function RowMenu({ experimentInfo, filename, mutate, row }) {
           color="danger"
           onClick={() => {
             fetch(
-              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename),
+              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename, foldername),
             ).then((response) => {
               if (response.ok) {
                 console.log(response);
@@ -276,6 +276,7 @@ export default function Documents({
             <RowMenu
               experimentInfo={experimentInfo}
               filename={row?.name}
+              foldername={currentFolder}
               mutate={mutate}
               row={row}
             />
@@ -349,6 +350,7 @@ export default function Documents({
             <RowMenu
               experimentInfo={experimentInfo}
               filename={row?.name}
+              foldername={currentFolder}
               mutate={mutate}
               row={row}
             />

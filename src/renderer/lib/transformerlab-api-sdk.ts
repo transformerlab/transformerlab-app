@@ -1139,12 +1139,14 @@ Endpoints.Documents = {
     experimentId +
     '/documents/upload?folder=' +
     currentFolder,
-  Delete: (experimentId: string, document_name: string) =>
+  Delete: (experimentId: string, document_name: string, folder: string) =>
     API_URL() +
     'experiment/' +
     experimentId +
-    '/documents/delete/' +
-    document_name,
+    '/documents/delete?document_name=' +
+    document_name +
+    '&folder=' +
+    folder,
   CreateFolder: (experimentId: string, folderName: string) =>
     API_URL() +
     'experiment/' +
