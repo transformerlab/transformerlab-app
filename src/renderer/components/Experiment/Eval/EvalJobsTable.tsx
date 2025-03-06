@@ -257,7 +257,10 @@ const EvalJobsTable = () => {
     <>
       <ViewCSVModal
         open={openCSVModal}
-        onClose={() => setOpenCSVModal(false)}
+        onClose={() => {
+          setOpenCSVModal(false)
+          setCompareData(null)
+        }}
         jobId={currentJobId}
         fetchCSV={fetchCSV}
         compareData={compareData}
