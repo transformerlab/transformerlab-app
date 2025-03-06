@@ -244,9 +244,9 @@ const EvalJobsTable = () => {
 
   const handleOpenPlotModal = (jobId, score) => {
     setCurrentData(score);
+    setCurrentJobId(jobId);
     setOpenPlotModal(true);
     setCompareChart(false);
-    setCurrentJobId(jobId);
   };
 
   useEffect(() => {
@@ -257,7 +257,10 @@ const EvalJobsTable = () => {
     <>
       <ViewCSVModal
         open={openCSVModal}
-        onClose={() => setOpenCSVModal(false)}
+        onClose={() => {
+          setOpenCSVModal(false)
+          setCompareData(null)
+        }}
         jobId={currentJobId}
         fetchCSV={fetchCSV}
         compareData={compareData}

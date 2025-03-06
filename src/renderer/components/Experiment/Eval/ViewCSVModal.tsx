@@ -97,7 +97,6 @@ function formatEvalData(data, compareEvals = false) {
         for (let i = 3; i < row.length; i++) {
           newRow.push(row[i]);
         }
-        console.log("NEW ROW", newRow);
         formattedData.push(newRow);
       } else {
         const index = formattedData.findIndex((r) => r[0] === row[0]);
@@ -192,6 +191,7 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) =>
   const [report, setReport] = useState({});
 
 
+
   useEffect(() => {
 
     if (!compareData) {
@@ -261,7 +261,8 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) =>
           }}
         >
           <Typography level="h4" mb={2}>
-            Additional Output from Job: {jobId}
+          {compareData ? 'Detailed Comparison Report' :
+            `Additional Output from Job: ${jobId}`}
           </Typography>
           <Button onClick={handleDownload} variant="outlined">
             Download Report
