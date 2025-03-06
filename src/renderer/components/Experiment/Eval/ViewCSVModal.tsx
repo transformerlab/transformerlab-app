@@ -191,7 +191,6 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) =>
   const [report, setReport] = useState({});
 
 
-
   useEffect(() => {
 
     if (!compareData) {
