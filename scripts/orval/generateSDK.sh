@@ -7,6 +7,9 @@ if [ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:8338)" != "200" ]; th
   exit 1
 fi
 
+# make a tmp dir:
+mkdir -p ./tmp
+
 # now fetch the openapi spec
 curl -o ./tmp/openapi.json http://localhost:8338/openapi.json
 
