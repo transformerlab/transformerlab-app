@@ -125,6 +125,8 @@ And you can do the above, all through a simple cross-platform GUI.
 
 To build the app yourself, pull this repo, and follow the steps below:
 
+(Please note that the current build doesn't work on Node v23 but it works on v22)
+
 ```bash
 npm install
 ```
