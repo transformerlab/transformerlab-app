@@ -79,7 +79,10 @@ export default function LoginModal({
     const apiStatus = response !== null ? 1 : 0;
     setChecking(false);
     if (apiStatus === 1) {
-      if (!recentConnections.includes(window.TransformerLab.API_URL)) {
+      // TEMP HACK: If window.storage doesn't exist then don't save recent connection
+      // This means it won't work when you are using the app as a cloud app
+      if (window.storage &&
+        !recentConnections.includes(window.TransformerLab.API_URL)) {
         if (recentConnections.length > 4) {
           recentConnections.pop();
         }
