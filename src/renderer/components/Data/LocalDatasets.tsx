@@ -43,6 +43,7 @@ export default function LocalDatasets() {
   const [searchText, setSearchText] = useState('');
   const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
   const [downloadingDataset, setDownloadingDataset] = useState(null);
+  const [showConfigNameField, setShowConfigNameField] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.LocalList(false),
@@ -145,57 +146,62 @@ export default function LocalDatasets() {
         }}
       >
         <>
-          <FormControl>
-            <Input
-              placeholder="Open-Orca/OpenOrca"
-              name="download-dataset-name"
-              endDecorator={
-                <Button
-                  onClick={async (e) => {
-                    const dataset = document.getElementsByName(
-                      'download-dataset-name'
-                    )[0].value;
-                    // only download if valid model is entered
-                    if (dataset) {
-                      // this triggers UI changes while download is in progress
-                      setDownloadingDataset(dataset);
-
-                      // Datasets can be very large so do this asynchronously
-                      fetch(chatAPI.Endpoints.Dataset.Download(dataset))
-                        .then((response) => {
-                          if (!response.ok) {
-                            console.log(response);
-                            throw new Error(`HTTP Status: ${response.status}`);
+        <FormControl>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Input
+                placeholder="Open-Orca/OpenOrca"
+                name="download-dataset-name"
+                // Setting model_id text field to 70% of the width, as they are longer
+                sx={{ flex: 7 }}
+              />
+              {showConfigNameField && (
+                <Input
+                  placeholder="folder_name"
+                  name="dataset-config-name"
+                  // Setting config name text field to 30% of the width, as they are folder names
+                  sx={{ flex: 3 }}
+                />
+              )}
+              <Button
+                onClick={async (e) => {
+                  const dataset = document.getElementsByName('download-dataset-name')[0].value;
+                  const configName = showConfigNameField? document.getElementsByName('dataset-config-name')[0]?.value : undefined;
+                  // only download if valid model is entered
+                  if (dataset) {
+                    // this triggers UI changes while download is in progress
+                    setDownloadingDataset(dataset);
+                    // Datasets can be very large so do this asynchronously
+                    fetch(chatAPI.Endpoints.Dataset.Download(dataset, configName))
+                      .then((response) => {
+                        if (!response.ok) {
+                          console.log(response);
+                          setShowConfigNameField(false);
+                          throw new Error(`HTTP Status: ${response.status}`);
+                        }
+                        return response.json();
+                      })
+                      .then((response_json) => {
+                        if (response_json?.status == 'error') {
+                          throw new Error(response_json.message);
+                        }
+                        mutate();
+                        setDownloadingDataset(null);
+                      })
+                      .catch((error) => {
+                        setDownloadingDataset(null);
+                        // Check if the error message asks for folder_name and automatically show the config field
+                        if (error.message.includes("folder_name")) {
+                          setShowConfigNameField(true);
                           }
-                          return response.json();
-                        })
-                        .then((response_json) => {
-                          if (response_json?.status == 'error') {
-                            throw new Error(response_json.message);
-                          }
-                          // now mutate:
-                          mutate();
-                          setDownloadingDataset(null);
-                        })
-                        .catch((error) => {
-                          setDownloadingDataset(null);
-                          alert('Download failed:\n' + error);
-                        });
-                    }
-                  }}
-                  startDecorator={
-                    downloadingDataset ? (
-                      <CircularProgress size="sm" thickness={2} />
-                    ) : (
-                      ''
-                    )
+                        alert('Download failed:\n' + error);
+                      });
                   }
-                >
-                  {downloadingDataset ? 'Downloading' : 'Download 🤗 Dataset'}
-                </Button>
-              }
-              sx={{ width: '500px' }}
-            />
+                }}
+                startDecorator={downloadingDataset ? <CircularProgress size="sm" thickness={2} /> : ''}
+              >
+                {downloadingDataset ? 'Downloading' : 'Download 🤗 Dataset'}
+              </Button>
+            </Box>
           </FormControl>
           <>
             <Button

@@ -2,47 +2,90 @@ import Button from '@mui/joy/Button';
 import Card from '@mui/joy/Card';
 import CardContent from '@mui/joy/CardContent';
 import Typography from '@mui/joy/Typography';
-import {
-  ArrowRightFromLineIcon,
-  Divide,
-  DownloadIcon,
-  FolderSearch2Icon,
-  GraduationCapIcon,
-  HelpCircleIcon,
-  RocketIcon,
-  RotateCcwIcon,
-} from 'lucide-react';
+import { DownloadIcon, RotateCcwIcon, Type } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import {
-  AspectRatio,
-  Box,
-  ButtonGroup,
-  CardActions,
-  Chip,
-  CircularProgress,
-  Divider,
-} from '@mui/joy';
+import { Box, Chip, CircularProgress, Stack } from '@mui/joy';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
+import TinyMLXLogo from '../Shared/TinyMLXLogo';
+import TinyNVIDIALogo from '../Shared/TinyNVIDIALogo';
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-function getIcon(type: string) {
+const colorArray = [
+  '#e8c1a0',
+  '#C7DFF7',
+  '#f1e15b',
+  '#e8a838',
+  '#61c0bf',
+  '#97e3d5',
+];
+
+function getTint(type: string) {
+  var tint = '';
+
   switch (type) {
     case 'evaluator':
-      return <HelpCircleIcon color="#C21292" />;
+      tint = colorArray[0];
+      break;
     case 'trainer':
-      return <GraduationCapIcon color="#EF4040" />;
+      tint = colorArray[1];
+      break;
     case 'loader':
-      return <RocketIcon color="#FFA732" />;
+      tint = colorArray[2];
+      break;
     case 'exporter':
-      return <ArrowRightFromLineIcon color="#711DB0" />;
+      tint = colorArray[3];
+      break;
     case 'rag':
-      return <FolderSearch2Icon color="skyblue" />;
+      tint = colorArray[4];
+      break;
+    case 'generator':
+      tint = colorArray[5];
+      break;
     default:
-      return null;
+      tint = 'var(--joy-palette-background-surface)';
   }
+
+  // Now mix the Tint color with the background color
+  // so that this works in dark and light mode
+  return (
+    'color-mix(in srgb, ' +
+    tint +
+    ', var(--joy-palette-background-surface) 50%)'
+  );
+}
+
+function mapArchitectureToIcon(arch) {
+  switch (arch) {
+    case 'cuda':
+      return (
+        <>
+          <TinyNVIDIALogo /> CUDA
+        </>
+      );
+    case 'mlx':
+      return <TinyMLXLogo />;
+    default:
+      return (
+        <Chip key={arch} color="primary">
+          {arch}
+        </Chip>
+      );
+  }
+}
+
+function ShowArchitectures({ architectures }) {
+  if (!architectures) return null;
+  return (
+    <>
+      {architectures.map((arch) => (
+        <div key={arch}>{mapArchitectureToIcon(arch)}</div>
+      ))}
+    </>
+  );
 }
 
 export default function PluginCard({
@@ -56,7 +99,13 @@ export default function PluginCard({
 
   return (
     <>
-      <Card orientation="horizontal" sx={{ height: '100%' }}>
+      <Card
+        orientation="horizontal"
+        sx={{
+          height: '100%',
+          backgroundColor: getTint(type),
+        }}
+      >
         <CardContent
           orientation="vertical"
           sx={{ justifyContent: 'space-between' }}
@@ -85,14 +134,45 @@ export default function PluginCard({
               )}
             </Typography>
 
-            <Typography level="body-md">{plugin.description}</Typography>
+            <Typography
+              level="body-sm"
+              sx={{
+                display: '-webkit-box',
+                '-webkit-line-clamp':
+                  '2' /* Number of lines to show before truncating */,
+                '-webkit-box-orient': 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {plugin.description}
+            </Typography>
           </Box>
+          {plugin?.supported_hardware_architectures && (
+            <Box sx={{ mt: 1 }}>
+              <Typography level="title-sm" fontSize="sm">
+                Supported Architectures:
+              </Typography>
+              <Stack
+                flexDirection={'row'}
+                gap={1}
+                sx={{ alignItems: 'center' }}
+              >
+                <ShowArchitectures
+                  architectures={plugin?.supported_hardware_architectures}
+                />
+              </Stack>
+            </Box>
+          )}
+
           <Box
             sx={{
               display: 'flex',
               flexDirection: 'row',
               mt: 1,
               justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: 1,
             }}
           >
             {!download && (
@@ -130,8 +210,8 @@ export default function PluginCard({
                       await fetch(
                         chatAPI.Endpoints.Experiment.DeletePlugin(
                           experimentInfo?.id,
-                          plugin?.uniqueId
-                        )
+                          plugin?.uniqueId,
+                        ),
                       );
                       parentMutate();
                     }
@@ -151,8 +231,8 @@ export default function PluginCard({
                 await fetch(
                   chatAPI.Endpoints.Experiment.InstallPlugin(
                     experimentInfo?.id,
-                    plugin.uniqueId
-                  )
+                    plugin.uniqueId,
+                  ),
                 );
                 setInstalling(null);
                 parentMutate();

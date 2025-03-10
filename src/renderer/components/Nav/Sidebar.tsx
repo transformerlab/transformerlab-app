@@ -6,11 +6,9 @@ import Divider from '@mui/joy/Divider';
 import {
   CodeIcon,
   GraduationCapIcon,
-  HelpCircleIcon,
   LayersIcon,
   MessageCircleIcon,
   SlidersIcon,
-  FileDigitIcon,
   BoxesIcon,
   FileTextIcon,
   MonitorIcon,
@@ -19,10 +17,7 @@ import {
   GithubIcon,
   ArrowRightFromLineIcon,
   PlugIcon,
-  FolderSearch2Icon,
   TextIcon,
-  RectangleEllipsisIcon,
-  LogsIcon,
   SquareStackIcon,
   FileIcon,
   ChartColumnIncreasingIcon,
@@ -164,9 +159,7 @@ export default function Sidebar({
           title="Train"
           path="/projects/training"
           icon={<GraduationCapIcon />}
-          disabled={
-            !experimentInfo?.name || !experimentInfo?.config?.foundation
-          }
+          disabled={!experimentInfo?.name}
         />
         <SubNavItem
           title="Export"

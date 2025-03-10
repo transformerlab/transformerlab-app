@@ -11,6 +11,7 @@ import {
   Option,
   Box,
   Chip,
+  Typography,
 } from '@mui/joy';
 import PluginCard from './PluginCard';
 
@@ -24,7 +25,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function PluginGallery({ experimentInfo }) {
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Plugins.Gallery(),
-    fetcher
+    fetcher,
   );
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
@@ -41,23 +42,44 @@ export default function PluginGallery({ experimentInfo }) {
             setFilters({ ...filters, type: newValue });
           }}
         >
-          {['All', 'generator', 'trainer', 'evaluator', 'loader', 'exporter', 'rag'].map(
-            (type) => (
-              <Option value={type}>
-                <Chip>{type}</Chip>
-              </Option>
-            )
-          )}
+          {[
+            'All',
+            'generator',
+            'trainer',
+            'evaluator',
+            'loader',
+            'exporter',
+            'rag',
+          ].map((type) => (
+            <Option value={type}>
+              <Chip>{type}</Chip>
+            </Option>
+          ))}
         </Select>
       </FormControl>
     </>
   );
+
+  const groupByType = (plugins) => {
+    return plugins.reduce((acc, plugin) => {
+      const { type } = plugin;
+      if (!acc[type]) {
+        acc[type] = [];
+      }
+      acc[type].push(plugin);
+      return acc;
+    }, {});
+  };
 
   if (error)
     return (
       'An error has occurred.' + chatAPI.Endpoints.Plugins.Gallery() + error
     );
   if (isLoading) return <LinearProgress />;
+
+  const filteredPlugins = filterByFilters(data, searchText, filters);
+  const groupedPlugins = groupByType(filteredPlugins);
+
   return (
     <>
       <Box
@@ -101,21 +123,41 @@ export default function PluginGallery({ experimentInfo }) {
           paddingRight: 2,
         }}
       >
-        <Grid container spacing={2} sx={{ flexGrow: 1 }}>
-          {data &&
-            filterByFilters(data, searchText, filters).map((row) => (
-              <Grid xs={4}>
-                <PluginCard
-                  plugin={row}
-                  key={row.id}
-                  type={row.type}
-                  download
-                  experimentInfo={experimentInfo}
-                  parentMutate={mutate}
-                />
-              </Grid>
-            ))}
-        </Grid>
+        {Object.keys(groupedPlugins).map((type) => (
+          <Box key={type} sx={{ mb: 4 }}>
+            <Box
+              sx={{
+                position: 'sticky',
+                top: 0,
+                backgroundColor: 'var(--joy-palette-background-surface)',
+                zIndex: 100,
+              }}
+            >
+              <Typography
+                level="h4"
+                sx={{
+                  mb: 2,
+                  textTransform: 'capitalize',
+                }}
+              >
+                {type} Plugins:
+              </Typography>
+            </Box>
+            <Grid container spacing={2} sx={{ flexGrow: 1 }}>
+              {groupedPlugins[type].map((plugin) => (
+                <Grid xs={4} key={plugin.id}>
+                  <PluginCard
+                    plugin={plugin}
+                    type={plugin.type}
+                    download
+                    experimentInfo={experimentInfo}
+                    parentMutate={mutate}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        ))}
       </Sheet>
     </>
   );

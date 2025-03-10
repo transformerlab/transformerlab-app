@@ -22,10 +22,11 @@ import {
   Slider,
   Stack,
   Option,
-  Autocomplete
+  Autocomplete,
 } from '@mui/joy';
 import { useMemo } from 'react';
 import ModelProviderWidget from 'renderer/components/Experiment/Widgets/ModelProviderWidget';
+import CustomEvaluationWidget from './Widgets/CustomEvaluationWidget';
 
 import {
   RegistryWidgetsType,
@@ -421,7 +422,13 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
   // Determine default value.
   const defaultValue = _multiple ? [] : '';
   // Use the provided value or fallback to default.
-  const currentValue = value !== undefined ? value : defaultValue;
+  let currentValue = value !== undefined ? value : defaultValue;
+
+  // Check if currentValue is an array, if a string, convert it to an array.
+  const isString = typeof currentValue === 'string';
+  if (isString) {
+    currentValue = currentValue.split(',');
+  }
 
   // Map enumOptions into objects with label and value.
   const processedOptionsValues = enumOptions.map((opt) =>
@@ -492,6 +499,7 @@ const widgets: RegistryWidgetsType = {
   RangeWidget: CustomRange,
   SelectWidget: CustomSelectSimple,
   AutoCompleteWidget: CustomAutocompleteWidget,
+  EvaluationWidget: CustomEvaluationWidget,
   ModelProviderWidget: ModelProviderWidget
 };
 

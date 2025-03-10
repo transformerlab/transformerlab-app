@@ -49,11 +49,16 @@ export default function LoRATrainingRunButton({
           return false;
         });
         let modelInLocalList = false;
+        if (model === "unknown")
+        {
+          modelInLocalList = true;
+        } else {
         models_downloaded.forEach(modelData => {
-          if (modelData.model_id == model) {
+          if (modelData.model_id == model || modelData.local_path === model) {
             modelInLocalList = true;
           }
         });
+      }
 
         const datasets_downloaded = await fetch(
           chatAPI.Endpoints.Dataset.LocalList()
@@ -85,7 +90,7 @@ export default function LoRATrainingRunButton({
             datasetInLocalList = true;
           }
         });
-        
+
         if(modelInLocalList && datasetInLocalList){
           // Use fetch API to call endpoint
           await fetch(
@@ -108,6 +113,7 @@ export default function LoRATrainingRunButton({
           if (!datasetInLocalList) {
             msg += "\n- Dataset: " + dataset;
           }
+
           if (!modelInLocalList) {
             msg += "\n- Model: " + model;
           }

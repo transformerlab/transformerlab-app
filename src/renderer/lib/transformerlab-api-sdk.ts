@@ -53,7 +53,7 @@ export async function sendAndReceive(
   temperature: number,
   maxTokens: number,
   topP: number,
-  systemMessage: string
+  systemMessage: string,
 ) {
   const shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -82,7 +82,7 @@ export async function sendAndReceive(
           accept: 'application/json',
         },
         body: JSON.stringify(data),
-      }
+      },
     );
     result = await response.json();
   } catch (error) {
@@ -112,7 +112,7 @@ export async function sendAndReceiveStreaming(
   freqencyPenalty: number,
   systemMessage: string,
   stopString = null,
-  image?: string
+  image?: string,
 ) {
   let shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -231,7 +231,7 @@ export async function sendAndReceiveStreaming(
             document.getElementById('resultText').innerText = finalResult;
             setTimeout(
               () => document.getElementById('endofchat')?.scrollIntoView(),
-              100
+              100,
             );
           }
         }
@@ -270,7 +270,7 @@ export async function sendCompletion(
   useLongModelName = true,
   stopString = null,
   targetElementForStreaming,
-  logprobs = false
+  logprobs = false,
 ) {
   console.log('sent completion request');
   let model = '';
@@ -395,7 +395,7 @@ export async function sendCompletion(
             // document.getElementById('completion-textarea').value = finalResult;
             setTimeout(
               () => document.getElementById('endofchat')?.scrollIntoView(),
-              100
+              100,
             );
           }
         }
@@ -435,7 +435,7 @@ export async function sendCompletionReactWay(
   useLongModelName = true,
   stopString = null,
   updateFunction,
-  logprobs = false
+  logprobs = false,
 ) {
   console.log('sent completion request');
   let model = '';
@@ -568,7 +568,7 @@ export async function sendCompletionReactWay(
           // document.getElementById('completion-textarea').value = finalResult;
           setTimeout(
             () => document.getElementById('endofchat')?.scrollIntoView(),
-            100
+            100,
           );
         }
       }
@@ -607,7 +607,7 @@ export async function sendBatchedCompletion(
   topP: number = 1.0,
   useLongModelName = true,
   stopString = null,
-  repeatTimes = 1
+  repeatTimes = 1,
 ) {
   let model = '';
   if (useLongModelName) {
@@ -668,7 +668,7 @@ export async function sendBatchedChat(
   maxTokens: number = 256,
   topP: number = 1.0,
   useLongModelName = true,
-  stopString = null
+  stopString = null,
 ) {
   let model = '';
   if (useLongModelName) {
@@ -752,7 +752,7 @@ export async function sendBatchedChat(
 
 export async function callTool(
   function_name: String,
-  function_args: Object = {}
+  function_args: Object = {},
 ) {
   const arg_string = JSON.stringify(function_args);
   console.log(`Calling Function: ${function_name}`);
@@ -772,12 +772,12 @@ export async function getAvailableModels() {
 
 export async function downloadModelFromHuggingFace(
   modelName: string,
-  job_id = null
+  job_id = null,
 ) {
   console.log(encodeURIComponent(modelName));
 
   let requestString = `${API_URL()}model/download_from_huggingface?model=${encodeURIComponent(
-    modelName
+    modelName,
   )}`;
   if (job_id) {
     requestString += `&job_id=${job_id}`;
@@ -801,12 +801,12 @@ export async function downloadModelFromHuggingFace(
 
 export async function downloadModelFromGallery(
   galleryID: string,
-  job_id = null
+  job_id = null,
 ) {
   console.log(encodeURIComponent(galleryID));
 
   let requestString = `${API_URL()}model/download_model_from_gallery?gallery_id=${encodeURIComponent(
-    galleryID
+    galleryID,
   )}`;
   if (job_id) {
     requestString += `&job_id=${job_id}`;
@@ -1048,7 +1048,7 @@ Endpoints.Dataset = {
     datasetId: string,
     split: string = '',
     offset: number = 0,
-    limit: number = 10
+    limit: number = 10,
   ) =>
     API_URL() +
     'data/preview?dataset_id=' +
@@ -1063,7 +1063,7 @@ Endpoints.Dataset = {
     datasetId: string,
     template: string,
     offset: number,
-    limit: number
+    limit: number,
   ) =>
     API_URL() +
     'data/preview_with_template?dataset_id=' +
@@ -1077,8 +1077,8 @@ Endpoints.Dataset = {
   Delete: (datasetId: string) =>
     API_URL() + 'data/delete?dataset_id=' + datasetId,
   Create: (datasetId: string) => API_URL() + 'data/new?dataset_id=' + datasetId,
-  Download: (datasetId: string) =>
-    API_URL() + 'data/download?dataset_id=' + datasetId,
+  Download: (datasetId: string, configName?: string) =>
+    API_URL() + 'data/download?dataset_id=' + datasetId + (configName ? '&config_name=' + configName : ''),
   LocalList: (generated: boolean = true) =>
     API_URL() + 'data/list?generated=' + generated,
   GeneratedList: () => API_URL() + 'data/generated_datasets_list',
@@ -1095,7 +1095,7 @@ Endpoints.Models = {
     modelId: string,
     modelName: string,
     organizationName?: string,
-    model_card_data?: object
+    model_card_data?: object,
   ) =>
     API_URL() +
     'model/upload_to_huggingface?model_id=' +
@@ -1112,6 +1112,8 @@ Endpoints.Models = {
     API_URL() + 'model/gallery/' + convertSlashInUrl(modelId),
   ModelDetailsFromFilesystem: (modelId: string) =>
     API_URL() + 'model/details/' + convertSlashInUrl(modelId),
+  ModelProvenance: (modelId: string) =>
+    API_URL() + 'model/provenance/' + convertSlashInUrl(modelId),
   GetLocalHFConfig: (modelId: string) =>
     API_URL() + 'model/get_local_hfconfig?model_id=' + modelId,
   SearchForLocalUninstalledModels: (path: string) =>
@@ -1129,12 +1131,6 @@ Endpoints.Models = {
   Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
   wandbLogin: () => API_URL() + 'model/login_to_wandb',
   testWandbLogin: () => API_URL() + 'model/test_wandb_login',
-  SetOpenAIKey: () => API_URL() + 'model/set_openai_api_key',
-  SetAnthropicKey: () => API_URL() + 'model/set_anthropic_api_key',
-  CheckOpenAIAPIKey: () => API_URL() + 'model/check_openai_api_key',
-  CheckAnthropicAPIKey: () => API_URL() + 'model/check_anthropic_api_key',
-  SetCustomAPIKey: () => API_URL() + 'model/set_custom_api_key',
-  CheckCustomAPIKey: () => API_URL() + 'model/check_custom_api_key',
 };
 
 Endpoints.Plugins = {
@@ -1172,12 +1168,14 @@ Endpoints.Documents = {
     experimentId +
     '/documents/upload?folder=' +
     currentFolder,
-  Delete: (experimentId: string, document_name: string) =>
+  Delete: (experimentId: string, document_name: string, folder: string) =>
     API_URL() +
     'experiment/' +
     experimentId +
-    '/documents/delete/' +
-    document_name,
+    '/documents/delete?document_name=' +
+    document_name +
+    '&folder=' +
+    folder,
   CreateFolder: (experimentId: string, folderName: string) =>
     API_URL() +
     'experiment/' +
@@ -1192,7 +1190,7 @@ Endpoints.Rag = {
     model_name: string,
     query: string,
     settings: string,
-    ragFolder: string = 'rag'
+    ragFolder: string = 'rag',
   ) =>
     API_URL() +
     `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}&rag_folder=${ragFolder}`,
@@ -1233,13 +1231,18 @@ Endpoints.ServerInfo = {
   StreamLog: () => API_URL() + 'server/stream_log',
 };
 
+Endpoints.Charts = {
+  CompareEvals: (jobIds: string) =>
+    API_URL() + 'evals/compare_evals?job_list=' + jobIds,
+};
+
 export function GET_TRAINING_TEMPLATE_URL() {
   return API_URL() + 'train/templates';
 }
 
 export function CREATE_TRAINING_JOB_URL(
   template_id: string,
-  experiment_id: string
+  experiment_id: string,
 ) {
   return (
     API_URL() +
@@ -1342,7 +1345,7 @@ Endpoints.Experiment = {
     id: string,
     pluginName: string,
     pluginArchitecture: string,
-    pluginParams: string
+    pluginParams: string,
   ) => {
     return (
       API_URL() +
@@ -1373,7 +1376,7 @@ Endpoints.Experiment = {
       'experiment/' +
         experimentId +
         '/conversations/delete?conversation_id=' +
-        conversationId
+        conversationId,
     ),
   InstallPlugin: (experimentId: string, pluginId: string) =>
     API_URL() +
@@ -1394,14 +1397,14 @@ Endpoints.Experiment = {
   ListScriptsOfType: (
     experimentId: string,
     type: string,
-    filter: string | null = null
+    filter: string | null = null,
   ) =>
     FULL_PATH(
       'experiment/' +
         experimentId +
         '/plugins/list?type=' +
         type +
-        (filter ? '&filter=' + filter : '')
+        (filter ? '&filter=' + filter : ''),
     ),
   ScriptListFiles: (experimentId: string, id: string) =>
     API_URL() + 'experiment/' + experimentId + '/plugins/' + id + '/list_files',
@@ -1424,7 +1427,7 @@ Endpoints.Experiment = {
   ScriptDeleteFile: (
     experimentId: string,
     pluginId: string,
-    filename: string
+    filename: string,
   ) =>
     API_URL() +
     'experiment/' +
@@ -1475,7 +1478,7 @@ Endpoints.Jobs = {
     experimentId?: string,
     type?: string,
     status?: string,
-    data?: string //Should be JSON
+    data?: string, //Should be JSON
   ) =>
     API_URL() +
     'jobs/create' +
@@ -1494,7 +1497,7 @@ Endpoints.Jobs = {
     name: string,
     description: string,
     type: string,
-    config: Object
+    config: Object,
   ) =>
     API_URL() +
     'jobs/template/update' +
@@ -1525,7 +1528,7 @@ export function GET_EXPERIMENTS_URL() {
 export function GET_EXPERIMENT_UPDATE_CONFIG_URL(
   id: string,
   key: string,
-  value: string | undefined
+  value: string | undefined,
 ) {
   if (value === undefined) {
     value = '';
@@ -1546,7 +1549,7 @@ export async function EXPERIMENT_ADD_EVALUATION(
   id: string,
   name: string,
   pluginId: string,
-  scriptParameters: any
+  scriptParameters: any,
 ) {
   const newPlugin = {
     name: name,
@@ -1569,7 +1572,7 @@ export async function EXPERIMENT_ADD_EVALUATION(
 export async function EXPERIMENT_EDIT_EVALUATION(
   id: string,
   evalName: string,
-  scriptParameters: any
+  scriptParameters: any,
 ) {
   const newPlugin = {
     evalName: evalName,
@@ -1592,7 +1595,7 @@ export async function EXPERIMENT_ADD_GENERATION(
   id: string,
   name: string,
   pluginId: string,
-  scriptParameters: any
+  scriptParameters: any,
 ) {
   const newPlugin = {
     name: name,
@@ -1609,7 +1612,7 @@ export async function EXPERIMENT_ADD_GENERATION(
         accept: 'application/json',
       },
       body: JSON.stringify(newPlugin),
-    }
+    },
   );
   const result = await response.json();
   return result;
@@ -1618,7 +1621,7 @@ export async function EXPERIMENT_ADD_GENERATION(
 export async function EXPERIMENT_EDIT_GENERATION(
   id: string,
   evalName: string,
-  scriptParameters: any
+  scriptParameters: any,
 ) {
   const newPlugin = {
     evalName: evalName,
@@ -1634,7 +1637,7 @@ export async function EXPERIMENT_EDIT_GENERATION(
         accept: 'application/json',
       },
       body: JSON.stringify(newPlugin),
-    }
+    },
   );
   const result = await response.json();
   return result;
@@ -1741,7 +1744,7 @@ export async function activateWorker(
   adaptorName: string = '',
   engine: string | null = 'default',
   parameters: object = {},
-  experimentId: string = ''
+  experimentId: string = '',
 ) {
   let response;
 
@@ -1768,7 +1771,7 @@ export async function activateWorker(
         '&experiment_id=' +
         experimentId +
         '&parameters=' +
-        paramsJSON
+        paramsJSON,
     );
     const result = await response.json();
     return result;
@@ -1797,7 +1800,7 @@ export function activateTransformerLabAPI(): void {
 export async function startFinetune(
   modelName: string,
   adaptorName: string,
-  trainingData: string
+  trainingData: string,
 ) {
   const response = await fetch(
     `${API_URL()}train/finetune_lora?model=${modelName}&adaptor_name=${adaptorName}`,
@@ -1808,7 +1811,7 @@ export async function startFinetune(
         accept: 'application/json',
       },
       body: JSON.stringify(trainingData),
-    }
+    },
   );
   const result = await response.json();
   return result;
@@ -1837,7 +1840,7 @@ export async function saveTrainingTemplate(
   name: string,
   description: string,
   type: string,
-  config: string
+  config: string,
 ) {
   // template_id: str, description: str, type: str, datasets: str, config: str
 
@@ -1855,7 +1858,7 @@ export async function saveTrainingTemplate(
         accept: 'application/json',
       },
       body: JSON.stringify(configBody),
-    }
+    },
   );
   const result = await response.json();
   return result;
@@ -1915,14 +1918,14 @@ export function usePluginStatus(experimentInfo: any) {
     experimentInfo
       ? Endpoints.Experiment.ListScripts(experimentInfo?.id)
       : null,
-    fetcher
+    fetcher,
   );
 
   let outdatedPluginsCount = null;
   if (data) {
     outdatedPluginsCount = data.filter(
       (plugin: any) =>
-        plugin?.gallery_version && plugin?.version != plugin?.gallery_version
+        plugin?.gallery_version && plugin?.version != plugin?.gallery_version,
     ).length;
   }
 
@@ -1948,7 +1951,7 @@ export function useServerStats() {
 
 export async function downloadPlugin(pluginId: string) {
   const response = await fetch(
-    API_URL() + 'plugins/download?plugin_slug=' + pluginId
+    API_URL() + 'plugins/download?plugin_slug=' + pluginId,
   );
   const result = await response.json();
   return result;

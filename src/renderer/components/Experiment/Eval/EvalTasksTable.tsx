@@ -20,7 +20,22 @@ function formatTemplateConfig(script_parameters): ReactElement {
   // Remove the author/full path from the model name for cleanliness
   // const short_model_name = c.model_name.split('/').pop();
   // Set main_task as either or the metric name from the script parameters
-  const main_task = script_parameters.tasks
+  const main_task = (() => {
+
+    let predefined_tasks = script_parameters.predefined_tasks? script_parameters.predefined_tasks : '';
+    if (script_parameters.tasks) {
+      try {
+        const tasksArray = JSON.parse(script_parameters.tasks);
+        if (Array.isArray(tasksArray)) {
+          return tasksArray.map((task) => task.name).join(', ') + predefined_tasks;
+        }
+      } catch (error) {
+        // Invalid JSON; fall back to the original value
+      }
+      return script_parameters.tasks + predefined_tasks;
+    }
+    return script_parameters.tasks + predefined_tasks;
+  })();
   const dataset_name = script_parameters.dataset_name
     ? script_parameters.dataset_name
     : 'N/A';

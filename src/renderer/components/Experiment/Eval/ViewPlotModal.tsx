@@ -1,17 +1,21 @@
-import React from 'react';
 import { Modal, ModalDialog, ModalClose, Box, Typography } from '@mui/joy';
 import Chart from './Chart';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-function parseJSON(score) {
+function parseJSON(data) {
   try {
-    return JSON.parse(score);
+    return JSON.parse(data);
   } catch {
     return [];
   }
 }
 
-export default function ViewPlotModal({ open, onClose, jobId, score }) {
+export default function ViewPlotModal({
+  open,
+  onClose,
+  data,
+  jobId,
+  compareChart = false,
+}) {
   if (!jobId) {
     return <></>;
   }
@@ -31,9 +35,6 @@ export default function ViewPlotModal({ open, onClose, jobId, score }) {
             height: '100%',
           }}
         >
-          <Typography level="h4" mb={2}>
-            Chart
-          </Typography>
           <Box
             sx={{
               width: '100%',
@@ -44,9 +45,12 @@ export default function ViewPlotModal({ open, onClose, jobId, score }) {
               borderRadius: '8px',
               boxShadow: 1,
               p: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
             }}
           >
-            <Chart metrics={parseJSON(score)} />
+            <Chart metrics={parseJSON(data)} compareChart={compareChart} />
           </Box>
         </Box>
       </ModalDialog>
