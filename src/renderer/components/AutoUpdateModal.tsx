@@ -30,7 +30,7 @@ export default function AutoUpdateModal({}) {
 
   return (
     <Modal
-      open={true}
+      open={open}
       onClose={() => setOpen(false)}
       sx={{
         display: 'flex',
