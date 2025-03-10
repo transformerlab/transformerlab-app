@@ -47,9 +47,10 @@ export default function App() {
   useEffect(() => {
     async function getSavedExperimentId() {
       const connectionWithoutDots = connection.replace(/\./g, '-');
-      const experimentId = await window.storage.get(
-        `experimentId.${connectionWithoutDots}`
-      );
+      // TEMP HACK: For now don't try to retrieve experiment ID for web app
+      const experimentId = window.storage
+        ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
+        : 0;
       if (experimentId) {
         setExperimentId(experimentId);
       } else if (connection !== '') {
