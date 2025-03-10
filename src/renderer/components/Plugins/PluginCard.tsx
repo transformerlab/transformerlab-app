@@ -16,7 +16,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 const colorArray = [
   '#e8c1a0',
-  '#f47560',
+  '#C7DFF7',
   '#f1e15b',
   '#e8a838',
   '#61c0bf',
@@ -41,6 +41,9 @@ function getTint(type: string) {
       break;
     case 'rag':
       tint = colorArray[4];
+      break;
+    case 'generator':
+      tint = colorArray[5];
       break;
     default:
       tint = 'var(--joy-palette-background-surface)';
