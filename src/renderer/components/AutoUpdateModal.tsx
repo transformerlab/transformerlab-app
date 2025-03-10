@@ -30,7 +30,7 @@ export default function AutoUpdateModal({}) {
 
   return (
     <Modal
-      open={open}
+      open={true}
       onClose={() => setOpen(false)}
       sx={{
         display: 'flex',
@@ -72,6 +72,10 @@ export default function AutoUpdateModal({}) {
           {message === 'Downloading update...' && <>Downloading Updates...</>}
           {message === 'Update not available.' && <>Update not available.</>}
           {message === 'Update error' && <>Auto Update Error</>}
+        </Typography>
+        <Typography level="body-sm" sx={{ mt: 1 }}>
+          Please note that auto update does not currently work on Windows --
+          please download the app from our website to update.
         </Typography>
       </Sheet>
     </Modal>
