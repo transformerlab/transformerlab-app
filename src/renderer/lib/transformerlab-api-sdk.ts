@@ -1021,38 +1021,24 @@ Endpoints.Workflows = {
     API_URL() + 'workflows/delete/' + workflowId,
   AddNode: (workflowId: string, node: string) =>
     API_URL() +
-    'workflows/add_node' +
-    '?workflow_id=' +
-    workflowId +
-    '&node=' +
+    'workflows/' + workflowId + '/add_node' +
+    '?node=' +
     node,
   DeleteNode: (workflowId: string, nodeId: string) =>
     API_URL() +
-    'workflows/delete_node' +
-    '?workflow_id=' +
-    workflowId +
-    '&node_id=' +
-    nodeId,
+    'workflows/' + workflowId + '/' + nodeId + '/delete_node',
   UpdateNode: (workflowId: string, nodeId: string, node: string) =>
     API_URL() +
-    'workflows/update_node' +
-    '?workflow_id=' +
-    workflowId +
-    '&node_id=' +
-    nodeId +
-    '&node=' +
+    'workflows/' + workflowId + '/' + nodeId + '/update_node' +
+    '?node=' +
     node,
   EditNodeMetadata: (workflowId: string, nodeId: string, metadata: string) =>
     API_URL() +
-    'workflows/edit_node_metadata' +
-    '?workflow_id=' +
-    workflowId +
-    '&node_id=' +
-    nodeId +
-    '&metadata=' +
+    'workflows/' + workflowId + '/' + nodeId + '/edit_node_metadata' +
+    '?metadata=' +
     metadata,
   RunWorkflow: (workflowId: string) =>
-    API_URL() + 'workflows/start/' + workflowId,
+    API_URL() + 'workflows/' + workflowId + '/start',
 };
 
 Endpoints.Dataset = {
