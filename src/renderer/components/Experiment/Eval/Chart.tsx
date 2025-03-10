@@ -84,7 +84,20 @@ const Chart = ({ metrics, compareChart }) => {
         }));
       }
     } else if (chartType === 'bar' || chartType === 'radar') {
-      // Both bar and radar can use the dataPoints directly
+      if (chartType === 'radar') {
+        // For radar charts, replace undefined values with 0
+        return dataPoints.map(point => {
+          const cleanedPoint = { ...point };
+          // Ensure all series keys have valid numeric values
+          seriesKeys.forEach(key => {
+            if (cleanedPoint[key] === undefined) {
+              cleanedPoint[key] = 0;
+            }
+          });
+          return cleanedPoint;
+        });
+      }
+      // For bar charts, use dataPoints directly
       return dataPoints;
     } else {
       return [];
