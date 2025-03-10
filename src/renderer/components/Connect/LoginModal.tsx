@@ -46,6 +46,10 @@ export default function LoginModal({
   const [host, setHost] = useState('');
 
   React.useEffect(() => {
+    // HACK: Make webapp work for now
+    if (!window.storage) {
+      return [];
+    }
     window.storage
       .get('recentConnections')
       .then((result) => {
