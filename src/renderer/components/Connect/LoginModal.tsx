@@ -55,7 +55,7 @@ export default function LoginModal({
 
         return result;
       })
-      .catch(() => {});
+      .catch(() => { });
 
     window.storage
       .get('recentSSHConnections')
@@ -66,7 +66,7 @@ export default function LoginModal({
 
         return result;
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [connection]);
 
   async function checkServer() {
@@ -132,7 +132,7 @@ export default function LoginModal({
           aria-label="Basic tabs"
           defaultValue={0}
           sx={{ overflow: 'hidden', height: '100%' }}
-          onChange={(_event, newValue) => {}}
+          onChange={(_event, newValue) => { }}
         >
           <TabList tabFlex={1}>
             <Tab>Local Engine</Tab>
