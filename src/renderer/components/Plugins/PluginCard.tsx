@@ -85,7 +85,6 @@ function ShowArchitectures({ architectures }) {
   );
 }
 
-
 export default function PluginCard({
   plugin,
   type,
@@ -151,7 +150,11 @@ export default function PluginCard({
               <Typography level="title-sm" fontSize="sm">
                 Supported Architectures:
               </Typography>
-              <Stack flexDirection={'row'} gap={1}>
+              <Stack
+                flexDirection={'row'}
+                gap={1}
+                sx={{ alignItems: 'center' }}
+              >
                 <ShowArchitectures
                   architectures={plugin?.supported_hardware_architectures}
                 />
