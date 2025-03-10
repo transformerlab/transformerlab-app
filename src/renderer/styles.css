@@ -185,7 +185,7 @@ fieldset {
 
 
 textarea {
-  background-color: var(--joy-palette-background-level-1);
+  background-color: var(--joy-palette-background-level1);
   border: 1px solid rgb(209, 213, 219);
   color: var(--joy-palette-text-tertiary);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI";
@@ -194,7 +194,7 @@ textarea {
 }
 
 .xterm-viewport::-webkit-scrollbar {
-  background-color: var(--joy-palette-background-level-1);
+  background-color: var(--joy-palette-background-level1);
 }
 
 .xterm-viewport::-webkit-scrollbar-thumb {
@@ -215,4 +215,84 @@ textarea {
   margin: 0 5px 5px 0;
   font-size: 14px;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
+}
+
+/* React flow asks us not to hide attribution but it is
+MIT licensed so we have the right to modify the source
+code if we want */
+.react-flow__attribution a {
+  display: none;
+}
+
+.react-flow__node {
+  /* box-shadow: var(--xy-node-boxshadow-default);
+  border-radius: var(--xy-node-border-radius-default);
+  background-color: var(--xy-node-background-color-default); */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 10px;
+  font-size: 12px;
+  flex-direction: column;
+  /* border: var(--xy-node-border-default);
+  color: var(--xy-node-color, var(--xy-node-color-default)); */
+  /* overflow: hidden; */
+  word-break: break-all;
+  background-color: var(--joy-palette-background-level1);
+  max-width: 800px;
+}
+
+.react-flow__node-customNode {
+  padding: 0px;
+  border-radius: var(--xy-node-border-radius, var(--xy-node-border-radius-default));
+  font-size: 12px;
+  min-width: 200px;
+  color: var(--xy-node-color, var(--xy-node-color-default));
+  text-align: center;
+  border: var(--xy-node-border, var(--xy-node-border-default));
+}
+
+.react-flow__node-startNode {
+  border: 2px solid var(--joy-palette-primary-plainColor);
+  background-color: var(--joy-palette-primary-softBg);
+  border-radius: 20px;
+  width: 80px;
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+path.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.custom-node-delete-button {
+  opacity: 0.0;
+}
+
+.react-flow__node-customNode:hover .custom-node-delete-button {
+  opacity: 1.0;
+  transition: opacity 0.2s ease-in-out;
+  background-color: rgba(255, 255, 255, 1);
+  border: 1.5px solid rgb(156, 144, 144);
+  height: 14px;
+  width: 14px;
+  top: -5px;
+  right: -5px;
+  padding-left: 0.5px;
+  cursor: 'pointer';
+  display: flex;
+  border-radius: '50%';
+  justify-content: center;
+  align-items: center;
+  color: var(--joy-palette-primary-400);
+  border-color: var(--joy-palette-primary-400),
+}
+
+.react-flow__node-customNode:hover {
+  /* add a light shadow effect */
+  box-shadow: 0 0 10px var(--joy-palette-primary-400);
+  transition: box-shadow 0.2s ease-in-out;
 }

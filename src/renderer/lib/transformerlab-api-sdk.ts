@@ -1010,6 +1010,35 @@ function convertSlashInUrl(url: string) {
 
 Endpoints.Workflows = {
   List: () => API_URL() + 'workflows/list',
+  CreateEmpty: (name: string, experimentId: string) =>
+    API_URL() +
+    'workflows/create_empty' +
+    '?name=' +
+    name +
+    '&experiment_id=' +
+    experimentId,
+  DeleteWorkflow: (workflowId: string) =>
+    API_URL() + 'workflows/delete/' + workflowId,
+  AddNode: (workflowId: string, node: string) =>
+    API_URL() +
+    'workflows/' + workflowId + '/add_node' +
+    '?node=' +
+    node,
+  DeleteNode: (workflowId: string, nodeId: string) =>
+    API_URL() +
+    'workflows/' + workflowId + '/' + nodeId + '/delete_node',
+  UpdateNode: (workflowId: string, nodeId: string, node: string) =>
+    API_URL() +
+    'workflows/' + workflowId + '/' + nodeId + '/update_node' +
+    '?node=' +
+    node,
+  EditNodeMetadata: (workflowId: string, nodeId: string, metadata: string) =>
+    API_URL() +
+    'workflows/' + workflowId + '/' + nodeId + '/edit_node_metadata' +
+    '?metadata=' +
+    metadata,
+  RunWorkflow: (workflowId: string) =>
+    API_URL() + 'workflows/' + workflowId + '/start',
 };
 
 Endpoints.Dataset = {

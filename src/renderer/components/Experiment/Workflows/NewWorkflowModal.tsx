@@ -3,37 +3,54 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormHelperText,
   FormLabel,
   Input,
   Modal,
+  ModalClose,
   ModalDialog,
   Stack,
   Textarea,
 } from '@mui/joy';
 import { useState } from 'react';
 
-export default function NewWorkflowModal({ open, setOpen }) {
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
+export default function NewWorkflowModal({ open, onClose, experimentId }) {
   const [state, setState] = useState(null);
 
   return (
-    <Modal open={open} onClose={() => setOpen(false)}>
+    <Modal open={open} onClose={() => onClose()}>
       <ModalDialog>
+        <ModalClose />
         <DialogTitle>Create new workflow</DialogTitle>
         <DialogContent>Fill in the information.</DialogContent>
         <form
-          onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
+          onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
-            setOpen(false);
+            const formData = new FormData(event.currentTarget);
+            const workflowName = formData.get('name') as string;
+            //const nodes = formData.get('nodes') as string;
+            await fetch(
+              chatAPI.Endpoints.Workflows.CreateEmpty(
+                workflowName,
+                experimentId
+              )
+            );
+            onClose();
           }}
         >
           <Stack spacing={2}>
             <FormControl>
               <FormLabel>Name</FormLabel>
-              <Input autoFocus required />
+              <Input autoFocus required name="name" />
             </FormControl>
             <FormControl>
               <FormLabel>Nodes</FormLabel>
-              <Textarea required minRows={6} />
+              <Textarea minRows={4} name="nodes" />
+              <FormHelperText>
+                Leave Blank to Create an Empty Workflow
+              </FormHelperText>
             </FormControl>
             <Button type="submit">Submit</Button>
           </Stack>
