@@ -14,18 +14,34 @@ import TinyNVIDIALogo from '../Shared/TinyNVIDIALogo';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-function getIcon(type: string) {
+const colorArray = [
+  '#e8c1a0',
+  '#f47560',
+  '#f1e15b',
+  '#e8a838',
+  '#61c0bf',
+  '#97e3d5',
+];
+
+function getTint(type: string) {
+  var tint = '';
+
   switch (type) {
     case 'evaluator':
-      return <HelpCircleIcon color="#C21292" />;
+      tint = colorArray[0];
+      break;
     case 'trainer':
-      return <GraduationCapIcon color="#EF4040" />;
+      tint = colorArray[1];
+      break;
     case 'loader':
-      return <RocketIcon color="#FFA732" />;
+      tint = colorArray[2];
+      break;
     case 'exporter':
-      return <ArrowRightFromLineIcon color="#711DB0" />;
+      tint = colorArray[3];
+      break;
     case 'rag':
-      return <FolderSearch2Icon color="skyblue" />;
+      tint = colorArray[4];
+      break;
     default:
       tint = 'var(--joy-palette-background-surface)';
   }
@@ -69,6 +85,7 @@ function ShowArchitectures({ architectures }) {
   );
 }
 
+
 export default function PluginCard({
   plugin,
   type,
@@ -80,7 +97,13 @@ export default function PluginCard({
 
   return (
     <>
-      <Card orientation="horizontal" sx={{ height: '100%' }}>
+      <Card
+        orientation="horizontal"
+        sx={{
+          height: '100%',
+          backgroundColor: getTint(type),
+        }}
+      >
         <CardContent
           orientation="vertical"
           sx={{ justifyContent: 'space-between' }}
@@ -109,7 +132,19 @@ export default function PluginCard({
               )}
             </Typography>
 
-            <Typography level="body-md">{plugin.description}</Typography>
+            <Typography
+              level="body-sm"
+              sx={{
+                display: '-webkit-box',
+                '-webkit-line-clamp':
+                  '2' /* Number of lines to show before truncating */,
+                '-webkit-box-orient': 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {plugin.description}
+            </Typography>
           </Box>
           {plugin?.supported_hardware_architectures && (
             <Box sx={{ mt: 1 }}>
