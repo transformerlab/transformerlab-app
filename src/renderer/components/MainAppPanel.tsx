@@ -1,6 +1,12 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 
-import { Routes, Route, useNavigate, redirect } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  useNavigate,
+  redirect,
+  useLocation,
+} from 'react-router-dom';
 
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
@@ -28,8 +34,67 @@ import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
-import { useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import Workflows from './Experiment/Workflows';
+import { AnalyticsBrowser } from '@segment/analytics-next';
+import React from 'react';
+
+export const analytics = new AnalyticsBrowser();
+analytics.load({ writeKey: 'UYXFr71CWmsdxDqki5oFXIs2PSR5XGCE' });
+
+// Segment context provider to make analytics available throughout the app
+export const SegmentContext = createContext();
+
+export const SegmentProvider = ({ children }) => {
+  return (
+    <SegmentContext.Provider value={analytics}>
+      {children}
+    </SegmentContext.Provider>
+  );
+};
+
+// Hook to use Segment analytics in components
+export const useAnalytics = () => {
+  return useContext(SegmentContext);
+};
+
+// // Define the app version
+// const APP_VERSION = '1.0.0';
+
+// PageTracker component to track page views
+export const PageTracker = () => {
+  const location = useLocation();
+  const analytics = useAnalytics();
+
+  useEffect(() => {
+    const trackPageView = async () => {
+      // Check for the DO_NOT_TRACK value in localStorage
+      const doNotTrack = await window.storage.get('DO_NOT_TRACK');
+      console.log('XXX DNT: ' + doNotTrack);
+      if (doNotTrack === 'true') {
+        console.log('Do not track is enabled');
+        return;
+      }
+
+      // Track page view when location changes
+      analytics.page({
+        path: location.pathname,
+        url: window.location.href,
+        search: location.search,
+        title: document.title,
+        // context: {
+        //   app: {
+        //     version: APP_VERSION,
+        //   },
+        // },
+      });
+    };
+
+    trackPageView();
+  }, [location, analytics]);
+
+  return null; // This component doesn't render anything
+};
 
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
@@ -68,29 +133,29 @@ export default function MainAppPanel({
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'foundation',
-          model_name
-        )
+          model_name,
+        ),
       );
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'foundation_model_architecture',
-          model?.json_data?.architecture
-        )
+          model?.json_data?.architecture,
+        ),
       );
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'foundation_filename',
-          model_filename
-        )
+          model_filename,
+        ),
       );
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'generationParams',
-          '{"temperature": 0.7, "maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}'
-        )
+          '{"temperature": 0.7, "maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
+        ),
       );
       experimentInfoMutate();
     }
@@ -103,8 +168,8 @@ export default function MainAppPanel({
       chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
         experimentInfo?.id,
         'adaptor',
-        name
-      )
+        name,
+      ),
     ).then((res) => {
       experimentInfoMutate();
     });
@@ -113,13 +178,13 @@ export default function MainAppPanel({
   async function experimentAddEvaluation(
     pluginName: string,
     localName: string,
-    script_template_parameters: any = {}
+    script_template_parameters: any = {},
   ) {
     await chatAPI.EXPERIMENT_ADD_EVALUATION(
       experimentInfo?.id,
       localName,
       pluginName,
-      script_template_parameters
+      script_template_parameters,
     );
     experimentInfoMutate();
   }
@@ -127,13 +192,13 @@ export default function MainAppPanel({
   async function experimentAddGeneration(
     pluginName: string,
     localName: string,
-    script_template_parameters: any = {}
+    script_template_parameters: any = {},
   ) {
     await chatAPI.EXPERIMENT_ADD_GENERATION(
       experimentInfo?.id,
       localName,
       pluginName,
-      script_template_parameters
+      script_template_parameters,
     );
     experimentInfoMutate();
   }
@@ -143,15 +208,15 @@ export default function MainAppPanel({
       chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
         experimentInfo?.id,
         'rag_engine',
-        name
-      )
+        name,
+      ),
     );
     await fetch(
       chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
         experimentInfo?.id,
         'rag_engine_settings',
-        JSON.stringify(rag_settings)
-      )
+        JSON.stringify(rag_settings),
+      ),
     );
     experimentInfoMutate();
   }
@@ -161,142 +226,146 @@ export default function MainAppPanel({
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Welcome />} />
-      <Route
-        path="/projects/notes"
-        element={<ExperimentNotes experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/projects/model"
-        element={
-          <FoundationHome
-            pickAModelMode
-            experimentInfo={experimentInfo}
-            setFoundation={setFoundation}
-            setAdaptor={setAdaptor}
-          />
-        }
-      />
-      <Route
-        path="/projects/workflows"
-        element={<Workflows experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/projects/prompt"
-        element={
-          <Prompt
-            experimentId={experimentInfo?.id}
-            experimentInfo={experimentInfo}
-            experimentInfoMutate={experimentInfoMutate}
-          />
-        }
-      />
-      <Route
-        path="/projects/chat"
-        element={
-          <Interact
-            experimentInfo={experimentInfo}
-            experimentInfoMutate={experimentInfoMutate}
-            setRagEngine={setRagEngine}
-            mode={selectedInteractSubpage}
-            setMode={setSelectedInteractSubpage}
-          />
-        }
-      />
-      <Route
-        path="/projects/embeddings"
-        element={<Embeddings experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/projects/tokenize"
-        element={<Tokenize experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/projects/training"
-        element={<TrainLoRA experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/projects/eval"
-        element={
-          <Eval
-            experimentInfo={experimentInfo}
-            addEvaluation={experimentAddEvaluation}
-            experimentInfoMutate={experimentInfoMutate}
-          />
-        }
-      />
-      <Route
-        path="/projects/generate"
-        element={
-          <Generate
-            experimentInfo={experimentInfo}
-            addGeneration={experimentAddGeneration}
-            experimentInfoMutate={experimentInfoMutate}
-          />
-        }
-      />
-      <Route
-        path="/projects/documents"
-        element={<Documents experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/projects/rag"
-        element={
-          <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
-        }
-      />
-      <Route
-        path="/projects/export"
-        element={<Export experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/projects/generate"
-        element={<Generate experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/plugins"
-        element={<Plugins experimentInfo={experimentInfo} />}
-      />
-      <Route
-        path="/plugins/:pluginName"
-        element={<PluginDetails experimentInfo={experimentInfo} />}
-      />
-      <Route path="/api" element={<Api />} />
-      <Route
-        path="/projects/settings"
-        element={
-          <Settings
-            experimentInfo={experimentInfo}
-            setExperimentId={setExperimentId}
-            experimentInfoMutate={experimentInfoMutate}
-          />
-        }
-      />
-      <Route
-        path="/zoo"
-        element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
-      />
-      <Route
-        path="/zoo/local"
-        element={<ModelZoo experimentInfo={experimentInfo} tab="local" />}
-      />
-      <Route
-        path="/zoo/generated"
-        element={<ModelZoo experimentInfo={experimentInfo} tab="generated" />}
-      />
-      <Route
-        path="/zoo/store"
-        element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
-      />
-      <Route path="/data" element={<Data />} />
-      <Route
-        path="/model-home"
-        element={<ModelHome experimentInfo={experimentInfo} />}
-      />
-      <Route path="/computer" element={<Computer />} />
-      <Route path="/settings" element={<TransformerLabSettings />} />
-      <Route path="/logs" element={<Logs />} />
-    </Routes>
+    <SegmentProvider>
+      {/* Include the PageTracker component to automatically track page views */}
+      <PageTracker />
+      <Routes>
+        <Route path="/" element={<Welcome />} />
+        <Route
+          path="/projects/notes"
+          element={<ExperimentNotes experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/projects/model"
+          element={
+            <FoundationHome
+              pickAModelMode
+              experimentInfo={experimentInfo}
+              setFoundation={setFoundation}
+              setAdaptor={setAdaptor}
+            />
+          }
+        />
+        <Route
+          path="/projects/workflows"
+          element={<Workflows experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/projects/prompt"
+          element={
+            <Prompt
+              experimentId={experimentInfo?.id}
+              experimentInfo={experimentInfo}
+              experimentInfoMutate={experimentInfoMutate}
+            />
+          }
+        />
+        <Route
+          path="/projects/chat"
+          element={
+            <Interact
+              experimentInfo={experimentInfo}
+              experimentInfoMutate={experimentInfoMutate}
+              setRagEngine={setRagEngine}
+              mode={selectedInteractSubpage}
+              setMode={setSelectedInteractSubpage}
+            />
+          }
+        />
+        <Route
+          path="/projects/embeddings"
+          element={<Embeddings experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/projects/tokenize"
+          element={<Tokenize experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/projects/training"
+          element={<TrainLoRA experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/projects/eval"
+          element={
+            <Eval
+              experimentInfo={experimentInfo}
+              addEvaluation={experimentAddEvaluation}
+              experimentInfoMutate={experimentInfoMutate}
+            />
+          }
+        />
+        <Route
+          path="/projects/generate"
+          element={
+            <Generate
+              experimentInfo={experimentInfo}
+              addGeneration={experimentAddGeneration}
+              experimentInfoMutate={experimentInfoMutate}
+            />
+          }
+        />
+        <Route
+          path="/projects/documents"
+          element={<Documents experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/projects/rag"
+          element={
+            <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
+          }
+        />
+        <Route
+          path="/projects/export"
+          element={<Export experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/projects/generate"
+          element={<Generate experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/plugins"
+          element={<Plugins experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/plugins/:pluginName"
+          element={<PluginDetails experimentInfo={experimentInfo} />}
+        />
+        <Route path="/api" element={<Api />} />
+        <Route
+          path="/projects/settings"
+          element={
+            <Settings
+              experimentInfo={experimentInfo}
+              setExperimentId={setExperimentId}
+              experimentInfoMutate={experimentInfoMutate}
+            />
+          }
+        />
+        <Route
+          path="/zoo"
+          element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
+        />
+        <Route
+          path="/zoo/local"
+          element={<ModelZoo experimentInfo={experimentInfo} tab="local" />}
+        />
+        <Route
+          path="/zoo/generated"
+          element={<ModelZoo experimentInfo={experimentInfo} tab="generated" />}
+        />
+        <Route
+          path="/zoo/store"
+          element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
+        />
+        <Route path="/data" element={<Data />} />
+        <Route
+          path="/model-home"
+          element={<ModelHome experimentInfo={experimentInfo} />}
+        />
+        <Route path="/computer" element={<Computer />} />
+        <Route path="/settings" element={<TransformerLabSettings />} />
+        <Route path="/logs" element={<Logs />} />
+      </Routes>
+    </SegmentProvider>
   );
 }
