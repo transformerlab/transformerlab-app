@@ -130,7 +130,7 @@ export default function EvalModal({
                 setConfig(evalConfig.script_parameters);
                 const datasetKeyExists = Object.keys(
                   evalConfig.script_parameters
-                ).some((key) => key.toLowerCase().includes('dataset'));
+                ).some((key) => key.toLowerCase().includes('dataset_name'));
                 setHasDatasetKey(datasetKeyExists);
                 if (
                   evalConfig.script_parameters._dataset_display_message &&
