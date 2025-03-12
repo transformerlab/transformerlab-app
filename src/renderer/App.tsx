@@ -76,6 +76,8 @@ export default function App() {
 
   useEffect(() => {
     if (experimentId == '') return;
+    // TEMP HACK: Don't store the experiment ID until we figure out storage for web app.
+    if (!window.storage) return;
     const connectionWithoutDots = connection.replace(/\./g, '-');
     window.storage.set(`experimentId.${connectionWithoutDots}`, experimentId);
   }, [experimentId]);
