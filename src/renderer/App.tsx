@@ -50,7 +50,7 @@ export default function App() {
       // TEMP HACK: For now don't try to retrieve experiment ID for web app
       const experimentId = window.storage
         ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
-        : 0;
+        : 1;
       if (experimentId) {
         setExperimentId(experimentId);
       } else if (connection !== '') {
