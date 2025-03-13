@@ -126,10 +126,7 @@ export default function LoginModal({
                 /[\s]+/g,
                 ''
               );
-              if (!window.TransformerLab) {
-                console.log("Crap TransfomerLab isn't set yet.");
-                return;
-              }
+
               // eslint-disable-next-line prefer-template
               const fullServer = 'http://' + server + ':' + port + '/';
 
