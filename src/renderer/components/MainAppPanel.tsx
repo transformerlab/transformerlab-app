@@ -70,7 +70,6 @@ export const PageTracker = () => {
     const trackPageView = async () => {
       // Check for the DO_NOT_TRACK value in localStorage
       const doNotTrack = await window.storage.get('DO_NOT_TRACK');
-      console.log('XXX DNT: ' + doNotTrack);
       if (doNotTrack === 'true') {
         console.log('Do not track is enabled');
         return;
