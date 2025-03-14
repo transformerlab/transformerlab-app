@@ -374,9 +374,6 @@ const EvalJobsTable = () => {
                   <Typography level="title-sm">
                     {job?.job_data?.plugin}
                   </Typography>
-                  <Typography level="body-sm">
-                    {getLocalTimeSinceEvent(job?.created_at)}
-                  </Typography>
                 </td>
                 <td>
                   <JobProgress job={job} />
