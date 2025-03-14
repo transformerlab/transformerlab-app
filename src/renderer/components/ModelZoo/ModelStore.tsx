@@ -529,6 +529,8 @@ export default function ModelStore() {
                           // Otherwise display regular Download button
                           <Button
                             size="sm"
+                            variant="soft"
+                            color="success"
                             disabled={row.downloaded || jobId !== null}
                             onClick={async () => {
                               setJobId(-1);
