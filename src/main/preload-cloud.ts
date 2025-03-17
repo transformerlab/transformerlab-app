@@ -21,7 +21,7 @@ const ipcRenderer = {
       setTimeout(() => {
         console.log(`Message sent to ${_channel} with args:`, _args);
         resolve();
-      }, 1000); // Simulate async operation with 1 second delay
+      }, 1); // Simulate async operation with 1 ms delay
     });
   },
   on: (_channel: string, _func: (...args: unknown[]) => void) => {},
@@ -31,33 +31,36 @@ const ipcRenderer = {
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve(`Response from ${_channel}`);
-      }, 1000); // Simulate async operation with 1 second delay
+      }, 1); // Simulate async operation with 1 ms delay
     });
   },
   removeAllListeners: (_channel: string) => {},
 };
 
 // write to the browser window to break the HTML:
-export type Channels =
-  | 'getStoreValue'
-  | 'setStoreValue'
-  | 'deleteStoreValue'
-  | 'openURL'
-  | 'server:checkSystemRequirements'
-  | 'server:checkIfInstalledLocally'
-  | 'server:checkLocalVersion'
-  | 'server:startLocalServer'
-  | 'server:InstallLocally'
-  | 'server:install_conda'
-  | 'server:install_create-conda-environment'
-  | 'server:install_install-dependencies'
-  | 'server:checkIfCondaExists'
-  | 'server:checkIfCondaEnvironmentExists'
-  | 'server:checkIfUvicornExists'
-  | 'server:checkDependencies'
-  | 'serverLog:startListening'
-  | 'serverLog:stopListening'
-  | 'serverLog:update';
+// export type Channels =
+//   | 'getStoreValue'
+//   | 'setStoreValue'
+//   | 'deleteStoreValue'
+//   | 'openURL'
+//   | 'server:checkSystemRequirements'
+//   | 'server:checkIfInstalledLocally'
+//   | 'server:checkLocalVersion'
+//   | 'server:startLocalServer'
+//   | 'server:InstallLocally'
+//   | 'server:install_conda'
+//   | 'server:install_create-conda-environment'
+//   | 'server:install_install-dependencies'
+//   | 'server:checkIfCondaExists'
+//   | 'server:checkIfCondaEnvironmentExists'
+//   | 'server:checkIfUvicornExists'
+//   | 'server:checkDependencies'
+//   | 'serverLog:startListening'
+//   | 'serverLog:stopListening'
+//   | 'serverLog:update';
+
+// actually make the Channels type empty:
+export type Channels = '';
 
 const electronHandler = {
   ipcRenderer: {
@@ -111,18 +114,18 @@ contextBridge.exposeInMainWorld('storage', {
   },
 });
 
-contextBridge.exposeInMainWorld('sshClient', {
-  connect: (data) => ipcRenderer.invoke('ssh:connect', data),
-  data: (data) => ipcRenderer.send('ssh:data', data),
+// contextBridge.exposeInMainWorld('sshClient', {
+//   connect: (data) => ipcRenderer.invoke('ssh:connect', data),
+//   data: (data) => ipcRenderer.send('ssh:data', data),
 
-  onData: (data) => ipcRenderer.on('ssh:data', data),
-  onSSHConnected: (callback) => ipcRenderer.on('ssh:connected', callback),
+//   onData: (data) => ipcRenderer.on('ssh:data', data),
+//   onSSHConnected: (callback) => ipcRenderer.on('ssh:connected', callback),
 
-  removeAllListeners: () => {
-    ipcRenderer.removeAllListeners('ssh:data');
-    ipcRenderer.removeAllListeners('ssh:connected');
-  },
-});
+//   removeAllListeners: () => {
+//     ipcRenderer.removeAllListeners('ssh:data');
+//     ipcRenderer.removeAllListeners('ssh:connected');
+//   },
+// });
 
 contextBridge.exposeInMainWorld('autoUpdater', {
   onMessage: (f) => {
@@ -130,12 +133,4 @@ contextBridge.exposeInMainWorld('autoUpdater', {
   },
   removeAllListeners: () => ipcRenderer.removeAllListeners('autoUpdater'),
   requestUpdate: () => ipcRenderer.invoke('autoUpdater:requestUpdate'),
-});
-
-contextBridge.exposeInMainWorld('darkMode', {
-  toggle: () => ipcRenderer.invoke('dark-mode:toggle'),
-  system: () => ipcRenderer.invoke('dark-mode:system'),
-  setMode: (value) => ipcRenderer.invoke('dark-mode:set', value),
-  onUpdate: (callback) =>
-    ipcRenderer.on('dark-mode:updated', (_event, value) => callback(value)),
 });
