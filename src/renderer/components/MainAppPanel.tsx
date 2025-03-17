@@ -68,10 +68,15 @@ export const PageTracker = () => {
 
   useEffect(() => {
     const trackPageView = async () => {
-      // Check for the DO_NOT_TRACK value in localStorage
-      const doNotTrack = await window.storage.get('DO_NOT_TRACK');
-      if (doNotTrack === 'true') {
-        console.log('Do not track is enabled');
+      try {
+        // Check for the DO_NOT_TRACK value in localStorage
+        const doNotTrack = await window.storage.get('DO_NOT_TRACK');
+        if (doNotTrack === 'true') {
+          console.log('Do not track is enabled');
+          return;
+        }
+      } catch (e) {
+        console.error('Error checking DO_NOT_TRACK:', e);
         return;
       }
 
