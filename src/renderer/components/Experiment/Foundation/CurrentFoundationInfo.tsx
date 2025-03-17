@@ -9,7 +9,8 @@ import { BabyIcon, DotIcon, Trash2Icon, XCircleIcon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const fetchWithPost = ({ url, post }) =>
   fetch(url, {
@@ -68,6 +69,10 @@ export default function CurrentFoundationInfo({
   const [huggingfaceData, setHugggingfaceData] = useState({});
   const [showProvenance, setShowProvenance] = useState(false);
   const huggingfaceId = experimentInfo?.config?.foundation;
+  const [embeddingModel, setEmbeddingModel] = useState(
+    experimentInfo?.config?.embedding_model || "BAAI/bge-base-en-v1.5"
+  );
+  const navigate = useNavigate();
 
   // Fetch provenance data from your GET endpoint using chatAPI.Endpoints.Models.ModelProvenance()
   const { data: provenance, error: provenanceError } = useSWR(
@@ -95,6 +100,22 @@ export default function CurrentFoundationInfo({
     }
   }, [experimentInfo]);
 
+  // Add useEffect to update embeddingModel when experimentInfo changes
+  useEffect(() => {
+    if (experimentInfo?.config?.embedding_model) {
+      setEmbeddingModel(experimentInfo.config.embedding_model);
+    }
+  }, [experimentInfo?.config?.embedding_model]);
+
+  const handleEmbeddingModelClick = () => {
+    navigate('/projects/embedding-model', {
+      state: {
+        currentEmbeddingModel: embeddingModel,
+        experimentId: experimentInfo?.id
+      }
+    });
+  };
+
   return (
     <Sheet
       sx={{
@@ -110,6 +131,7 @@ export default function CurrentFoundationInfo({
         setAdaptor={setAdaptor}
         setFoundation={setFoundation}
       />
+
       <Stack direction="row" gap={2}>
         <Box flex={2}>
           <Table id="huggingface-model-config-info">
@@ -216,7 +238,22 @@ export default function CurrentFoundationInfo({
           </Box>
         </Box>
         <Box flex={1}>
-          <Typography level="title-lg" marginTop={1} marginBottom={1}>
+          {/* Embedding Model Button - Now on the rightmost side */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
+            <Typography level="title-lg" marginTop={1} marginBottom={1}>
+              Embedding Model:
+            </Typography>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleEmbeddingModelClick}
+              sx={{ width: 'fit-content' }}
+            >
+              {embeddingModel}
+            </Button>
+          </Box>
+
+          <Typography level="title-lg" marginBottom={1}>
             <BabyIcon size="1rem" />
             &nbsp;Available Adaptors:
           </Typography>

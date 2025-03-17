@@ -30,13 +30,53 @@ import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 type Order = 'asc' | 'desc';
 
+// Modified SelectButton to support embedding models
+const EnhancedSelectButton = ({
+  setFoundation,
+  setAdaptor,
+  setEmbedding,
+  model,
+}) => {
+  // If setEmbedding is provided, we're in embedding model selection mode
+  if (setEmbedding) {
+    return (
+      <button
+        onClick={() => setEmbedding(model)}
+        style={{
+          backgroundColor: 'var(--joy-palette-primary-500)',
+          color: 'white',
+          border: 'none',
+          padding: '6px 16px',
+          borderRadius: '4px',
+          cursor: 'pointer',
+          fontSize: '0.875rem',
+          fontWeight: 600,
+        }}
+      >
+        Select
+      </button>
+    );
+  }
+
+  // Otherwise use the original SelectButton for foundation models
+  return (
+    <SelectButton
+      setFoundation={setFoundation}
+      setAdaptor={setAdaptor}
+      model={model}
+    />
+  );
+};
+
 const LocalModelsTable = ({
   models,
   mutateModels,
   setFoundation,
   setAdaptor,
+  setEmbedding,
   pickAModelMode = false,
   showOnlyGeneratedModels = false,
+  isEmbeddingMode = false,
 }) => {
   const [order, setOrder] = useState<Order>('desc');
   const [searchText, setSearchText] = useState('');
@@ -237,19 +277,20 @@ const LocalModelsTable = ({
                     <td>{row?.json_data?.parameters}</td>
                     {/* <td>{JSON.stringify(row)}</td> */}
                     {/* <td>
-    <Box
-      sx={{ display: "flex", gap: 2, alignItems: "center" }}
-    ></Box>
-  </td> */}
+                      <Box
+                        sx={{ display: "flex", gap: 2, alignItems: "center" }}
+                      ></Box>
+                    </td> */}
                     <td>{row.model_id}</td>
                     <td style={{ textAlign: 'right' }}>
                       {/* <Link fontWeight="lg" component="button" color="neutral">
-    Archive
-  </Link> */}
+                          Archive
+                        </Link> */}
                       {pickAModelMode === true ? (
-                        <SelectButton
+                        <EnhancedSelectButton
                           setFoundation={setFoundation}
                           setAdaptor={setAdaptor}
+                          setEmbedding={setEmbedding}
                           model={row}
                         />
                       ) : (

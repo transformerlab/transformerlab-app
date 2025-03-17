@@ -33,7 +33,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Logs from './Logs';
-import FoundationHome from './Experiment/Foundation';
+import FoundationHome, { FoundationHomeEmbed } from './Experiment/Foundation';
 import { createContext, useContext, useEffect, useState } from 'react';
 import Workflows from './Experiment/Workflows';
 import { AnalyticsBrowser } from '@segment/analytics-next';
@@ -174,6 +174,52 @@ export default function MainAppPanel({
     });
   }
 
+  function setEmbedding(model) {
+    let model_name = '';
+    let model_filename = '';
+    let model_architecture = '';
+
+    if (model) {
+      model_name = model.model_id;
+
+      // model_filename is a real path to a local model file or directory
+      if (model.stored_in_filesystem) {
+        model_filename = model.local_path;
+      } else if (model.json_data?.model_filename) {
+        model_filename = model.json_data.model_filename;
+      }
+
+      model_architecture = model.json_data?.architecture;
+    }
+
+    async function updateConfigs() {
+      await fetch(
+        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+          experimentInfo?.id,
+          'embedding_model',
+          model_name,
+        ),
+      );
+      await fetch(
+        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+          experimentInfo?.id,
+          'embedding_model_filename',
+          model_filename,
+        ),
+      );
+      await fetch(
+        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+          experimentInfo?.id,
+          'embedding_model_architecture',
+          model_architecture
+        )
+      );
+      experimentInfoMutate();
+    }
+
+    updateConfigs();
+  }
+
   async function experimentAddEvaluation(
     pluginName: string,
     localName: string,
@@ -242,6 +288,16 @@ export default function MainAppPanel({
               experimentInfo={experimentInfo}
               setFoundation={setFoundation}
               setAdaptor={setAdaptor}
+            />
+          }
+        />
+        <Route
+          path="/projects/embedding-model"
+          element={
+            <FoundationHomeEmbed
+              pickAModelMode
+              experimentInfo={experimentInfo}
+              setEmbedding={setEmbedding}
             />
           }
         />

@@ -1087,7 +1087,7 @@ Endpoints.Dataset = {
 };
 
 Endpoints.Models = {
-  LocalList: () => API_URL() + 'model/list',
+  LocalList: (embedding?: boolean) => API_URL() + 'model/list' + (embedding !== undefined ? `?embedding=${embedding}` : ''),
   CountDownloaded: () => API_URL() + 'model/count_downloaded',
   Gallery: () => API_URL() + 'model/gallery',
   GetPeftsForModel: () => API_URL() + 'model/pefts',
