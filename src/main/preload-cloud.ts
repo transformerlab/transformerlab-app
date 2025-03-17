@@ -123,7 +123,9 @@ contextBridge.exposeInMainWorld('sshClient', {
 });
 
 contextBridge.exposeInMainWorld('autoUpdater', {
-  onMessage: (data) => ipcRenderer.on('autoUpdater', data),
+  onMessage: (f) => {
+    f(null, 'Update not available.');
+  },
   removeAllListeners: () => ipcRenderer.removeAllListeners('autoUpdater'),
   requestUpdate: () => ipcRenderer.invoke('autoUpdater:requestUpdate'),
 });
