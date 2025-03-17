@@ -48,6 +48,7 @@ const configuration: webpack.Configuration = {
   entry: [
     `webpack-dev-server/client?http://localhost:${port}/dist`,
     'webpack/hot/only-dev-server',
+    path.join(webpackPaths.srcMainPath, 'preload-cloud.ts'),
     path.join(webpackPaths.srcRendererPath, 'index.tsx'),
   ],
 
@@ -181,21 +182,22 @@ const configuration: webpack.Configuration = {
       verbose: true,
     },
     setupMiddlewares(middlewares) {
-      console.log('Starting preload.js builder...');
-      const preloadProcess = spawn('npm', ['run', 'start:preload'], {
+      console.log('Starting preload-cloud.js builder...');
+      console.log(path.join(webpackPaths.srcMainPath, 'preload-cloud.ts'));
+      const preloadProcess = spawn('npm', ['run', 'start:preload-cloud'], {
         shell: true,
         stdio: 'inherit',
       })
         .on('close', (code: number) => process.exit(code!))
         .on('error', (spawnError) => console.error(spawnError));
 
-      console.log('Starting Main Process...');
-      let args = ['run', 'start:main'];
-      if (process.env.MAIN_ARGS) {
-        args = args.concat(
-          ['--', ...process.env.MAIN_ARGS.matchAll(/"[^"]+"|[^\s"]+/g)].flat(),
-        );
-      }
+      // console.log('Starting Main Process...');
+      // let args = ['run', 'start:main'];
+      // if (process.env.MAIN_ARGS) {
+      //   args = args.concat(
+      //     ['--', ...process.env.MAIN_ARGS.matchAll(/"[^"]+"|[^\s"]+/g)].flat(),
+      //   );
+      // }
       // spawn('npm', args, {
       //   shell: true,
       //   stdio: 'inherit',
