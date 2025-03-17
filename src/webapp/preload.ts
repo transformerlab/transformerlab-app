@@ -2,13 +2,13 @@
 window.storage = {
     // Add your methods here
     get: async (key: string) => {
-        return "localhost";
+        return localStorage.getItem(key);
     },
     set: (key: string, value: string) => {
-        return;
+        localStorage.setItem(key, value);
     },
     delete: (key: string) => {
-        return;
+        localStorage.removeItem(key);
     },
 
 };
