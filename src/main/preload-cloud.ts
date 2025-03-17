@@ -98,14 +98,16 @@ contextBridge.exposeInMainWorld('platform', {
 
 contextBridge.exposeInMainWorld('storage', {
   get: (key: string) => {
-    return ipcRenderer.invoke('getStoreValue', key);
+    return Promise.resolve(localStorage.getItem(key));
   },
   set: (key: string, value: string) => {
-    return ipcRenderer.invoke('setStoreValue', key, value);
+    localStorage.setItem(key, value);
+    return Promise.resolve();
   },
   delete: (key: string) => {
-    console.log('inv delete', key);
-    return ipcRenderer.invoke('deleteStoreValue', key);
+    localStorage.removeItem(key);
+    console.log('Deleted key from localStorage:', key);
+    return Promise.resolve();
   },
 });
 
