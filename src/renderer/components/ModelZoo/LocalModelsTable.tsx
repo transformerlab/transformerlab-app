@@ -9,6 +9,7 @@ import {
   Table,
   Typography,
   Option,
+  Button,
 } from '@mui/joy';
 import {
   ArrowRightToLineIcon,
@@ -40,21 +41,13 @@ const EnhancedSelectButton = ({
   // If setEmbedding is provided, we're in embedding model selection mode
   if (setEmbedding) {
     return (
-      <button
+      <Button
+        variant="soft"
+        color="success"
         onClick={() => setEmbedding(model)}
-        style={{
-          backgroundColor: 'var(--joy-palette-primary-500)',
-          color: 'white',
-          border: 'none',
-          padding: '6px 16px',
-          borderRadius: '4px',
-          cursor: 'pointer',
-          fontSize: '0.875rem',
-          fontWeight: 600,
-        }}
       >
         Select
-      </button>
+      </Button>
     );
   }
 
@@ -225,7 +218,7 @@ const LocalModelsTable = ({
                               marginRight: '5px',
                             }}
                           />
-                        ) : (row?.source && row?.source != "transformerlab") ? (
+                        ) : row?.source && row?.source != 'transformerlab' ? (
                           <ArrowRightToLineIcon
                             color="var(--joy-palette-success-700)"
                             style={{
@@ -267,10 +260,10 @@ const LocalModelsTable = ({
                           'MistralForCausalLM',
                           'Phi3ForCausalLM',
                           'Qwen2ForCausalLM',
-                          'T5ForConditionalGeneration'
+                          'T5ForConditionalGeneration',
                         ].includes(row?.json_data?.architecture) && (
-                            <>🤗 &nbsp;</>
-                          )}
+                          <>🤗 &nbsp;</>
+                        )}
                         {row?.json_data?.architecture}
                       </Typography>
                     </td>
@@ -307,12 +300,12 @@ const LocalModelsTable = ({
                               if (
                                 confirm(
                                   "Are you sure you want to delete model '" +
-                                  row.model_id +
-                                  "'?"
+                                    row.model_id +
+                                    "'?",
                                 )
                               ) {
                                 await fetch(
-                                  chatAPI.Endpoints.Models.Delete(row.model_id)
+                                  chatAPI.Endpoints.Models.Delete(row.model_id),
                                 );
                                 mutateModels();
                               }
