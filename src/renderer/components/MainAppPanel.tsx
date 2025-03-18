@@ -72,6 +72,7 @@ export const PageTracker = () => {
       const doNotTrack = await window.storage.get('DO_NOT_TRACK');
       if (doNotTrack === 'true') {
         console.log('Do not track is enabled');
+        return;
       }
 
       // Track page view when location changes
