@@ -4,10 +4,6 @@ import { Modal, ModalClose, Sheet, Typography } from '@mui/joy';
 import HexLogoSpinner from './Shared/HexLogoSpinner';
 
 export default function AutoUpdateModal({ }) {
-  // HACK: Make webapp work for now
-  if (!window.autoUpdater) {
-    return;
-  }
   const [open, setOpen] = React.useState<boolean>(true);
   const [message, setMessage] = React.useState<string>('Looking for updates');
 
