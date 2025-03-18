@@ -46,6 +46,8 @@ export default function LoginModal({
 
   const [host, setHost] = useState('');
 
+  const WEB_APP = window.platform.appmode == "cloud";
+
   React.useEffect(() => {
     // HACK: Make webapp work for now
     if (!window.storage) {
@@ -80,8 +82,6 @@ export default function LoginModal({
     const apiStatus = response !== null ? 1 : 0;
     setChecking(false);
     if (apiStatus === 1) {
-      // TEMP HACK: If window.storage doesn't exist then don't save recent connection
-      // This means it won't work when you are using the app as a cloud app
       if (window.storage &&
         !recentConnections.includes(window.TransformerLab.API_URL)) {
         if (recentConnections.length > 4) {
@@ -96,86 +96,6 @@ export default function LoginModal({
     } else {
       setFailed(true);
     }
-  }
-
-  // SUPER TEMP HACK: Skip login window if this isn't the electron app
-  // instead hack up a new login screen
-  if (!window.storage) {
-    return (
-      <Modal open={cloudModalOpen}>
-        <ModalDialog
-          aria-labelledby="basic-modal-dialog-title"
-          aria-describedby="basic-modal-dialog-description"
-          sx={{
-            top: '5vh', // Sit 20% from the top of the screen
-            margin: 'auto',
-            transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
-            width: '80vw',
-            // maxWidth: '700px',
-            height: '90vh',
-          }}
-        >
-          <form
-            onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
-              event.preventDefault();
-
-              const server = event.currentTarget.elements[0].value
-                .trim()
-                .replace(/\/+$/, '');
-              const port = event.currentTarget.elements[1].value.replace(
-                /[\s]+/g,
-                ''
-              );
-
-              // eslint-disable-next-line prefer-template
-              const fullServer = 'http://' + server + ':' + port + '/';
-
-              window.TransformerLab = {};
-              window.TransformerLab.API_URL = fullServer;
-
-              setCloudModalOpen(false);
-            }}
-          >
-            <Stack spacing={2}>
-              <FormControl>
-                <FormLabel>Server URL</FormLabel>
-                <Input autoFocus required placeholder="192.168.1.100" />
-                <FormHelperText>
-                  Do not include http:// in the URL.
-                </FormHelperText>
-              </FormControl>
-              <FormControl>
-                <FormLabel>Server Port</FormLabel>
-                <Input required defaultValue="8338" placeholder="8338" />
-              </FormControl>
-              <Button
-                type="submit"
-                startDecorator={
-                  checking && (
-                    <CircularProgress
-                      variant="solid"
-                      thickness={2}
-                      sx={{
-                        '--CircularProgress-size': '16px',
-                        color: 'white',
-                      }}
-                    />
-                  )
-                }
-                sx={{ p: 1 }}
-              >
-                Submit
-              </Button>
-              {failed && (
-                <div style={{ color: 'var(--joy-palette-danger-600)' }}>
-                  Couldn&apos;t connect to server. Please try a different URL.
-                </div>
-              )}
-            </Stack>
-          </form>
-        </ModalDialog>
-      </Modal>
-    );
   }
 
   return (
@@ -218,12 +138,14 @@ export default function LoginModal({
         </OneTimePopup>
         <Tabs
           aria-label="Basic tabs"
-          defaultValue={0}
+          defaultValue={WEB_APP ? 1 : 0}
           sx={{ overflow: 'hidden', height: '100%' }}
           onChange={(_event, newValue) => { }}
         >
           <TabList tabFlex={1}>
-            <Tab>Local Engine</Tab>
+            {!WEB_APP && (
+              <Tab>Local Engine</Tab>
+            )}
             <Tab>Connect to Remote Engine</Tab>
             {/* <Tab value="SSH">Connect via SSH</Tab> */}
           </TabList>
