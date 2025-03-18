@@ -31,7 +31,7 @@ export default function NewNodeModal({
   const [mode, setMode] = useState('OTHER');
   const [availableTasks, setAvailableTasks] = useState([]);
 
-  const {
+  let {
     data: tasksData,
     error: tasksError,
     isLoading: isLoadingTasks,
@@ -42,6 +42,10 @@ export default function NewNodeModal({
     evaluationData = JSON.parse(experimentInfo?.config?.evaluations);
   } catch (error) {
     console.error('Failed to parse evaluation data:', error);
+  }
+
+  if (tasksData?.detail === 'Not Found') {
+    tasksData = [];
   }
 
   const handleModeChange = (event: any, newValue: string) => {
