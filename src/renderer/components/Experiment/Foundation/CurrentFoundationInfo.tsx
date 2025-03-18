@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Divider,
   IconButton,
   Stack,
   Table,
@@ -149,135 +150,31 @@ export default function CurrentFoundationInfo({
         setFoundation={setFoundation}
       />
 
-      <Stack direction="row" gap={2}>
-        <Box flex={2}>
-          <Table id="huggingface-model-config-info">
-            <tbody>
-              {Object.entries(huggingfaceData).map(
-                (row) =>
-                  hf_translate(row[0]) !== null && (
-                    <tr key={row[0]}>
-                      <td>{hf_translate(row[0])}</td>
-                      <td>{JSON.stringify(row[1])}</td>
-                    </tr>
-                  ),
-              )}
-            </tbody>
-          </Table>
-          {/* Model Provenance Collapsible */}
-          <Box mt={4}>
+      <Sheet sx={{ overflow: 'auto' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
+          <Typography level="title-lg" marginTop={1} marginBottom={1}>
+            Embedding Model:
+          </Typography>
+          <ButtonGroup>
             <Button
-              variant="soft"
-              onClick={() => setShowProvenance((prev) => !prev)}
+              variant="outlined"
+              color="primary"
+              onClick={handleEmbeddingModelClick}
+              sx={{ width: 'fit-content' }}
             >
-              Model Provenance {showProvenance ? '▲' : '▼'}
+              {embeddingModel}
             </Button>
-            {showProvenance && (
-              <Box
-                sx={{
-                  mt: 2,
-                  overflow: 'auto',
-                  maxHeight: 400,
-                  maxWidth: '100%',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                }}
-              >
-                {provenance ? (
-                  <Table
-                    id="model-provenance-table"
-                    sx={{
-                      tableLayout: 'auto',
-                      minWidth: 600, // Ensure horizontal scroll if needed
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th>Job ID</th>
-                        <th>Base Model</th>
-                        <th>Dataset</th>
-                        <th>Params</th>
-                        <th>Output Model</th>
-                        <th>Evals</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {provenance.provenance_chain.map((row) => (
-                        <tr key={row.job_id}>
-                          <td>{row.job_id}</td>
-                          <td>{row.input_model}</td>
-                          <td>{row.dataset}</td>
-                          <td>
-                            <pre>{JSON.stringify(row.parameters, null, 2)}</pre>
-                          </td>
-                          <td>{row.output_model}</td>
-                          <td>
-                            <Box>
-                              {row.evals && row.evals.length > 0 ? (
-                                row.evals.map((evalItem) => (
-                                  <Tooltip
-                                    key={evalItem.job_id}
-                                    title={
-                                      <pre style={{ margin: 0 }}>
-                                        {JSON.stringify(evalItem, null, 2)}
-                                      </pre>
-                                    }
-                                  >
-                                    <Typography
-                                      level="body2"
-                                      sx={{ cursor: 'pointer', mb: 0.5 }}
-                                    >
-                                      {evalItem.job_id} -{' '}
-                                      {evalItem.template_name ||
-                                        evalItem.evaluator ||
-                                        'Eval'}
-                                    </Typography>
-                                  </Tooltip>
-                                ))
-                              ) : (
-                                <Typography level="body2">No Evals</Typography>
-                              )}
-                            </Box>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                ) : provenanceError ? (
-                  <Typography>Error loading provenance</Typography>
-                ) : (
-                  <Typography>Loading Provenance...</Typography>
-                )}
-              </Box>
-            )}
-          </Box>
+            <Button
+              startDecorator={<Undo2Icon />}
+              onClick={() => setEmbeddingModel(DEFAULT_EMBEDDING_MODEL)}
+            >
+              Reset to Default
+            </Button>
+          </ButtonGroup>
         </Box>
-        <Box flex={1}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
-            <Typography level="title-lg" marginTop={1} marginBottom={1}>
-              Embedding Model:
-            </Typography>
-            <ButtonGroup>
-              <Button
-                variant="outlined"
-                color="primary"
-                onClick={handleEmbeddingModelClick}
-                sx={{ width: 'fit-content' }}
-              >
-                {embeddingModel}
-              </Button>
-              <Button
-                startDecorator={<Undo2Icon />}
-                onClick={() => setEmbeddingModel(DEFAULT_EMBEDDING_MODEL)}
-              >
-                Reset to Default
-              </Button>
-            </ButtonGroup>
-          </Box>
-
+        <Box>
           <Typography level="title-lg" marginBottom={1}>
-            <BabyIcon size="1rem" />
-            &nbsp;Available Adaptors:
+            Available Adaptors:
           </Typography>
           <Stack
             direction="column"
@@ -332,7 +229,116 @@ export default function CurrentFoundationInfo({
               ))}
           </Stack>
         </Box>
-      </Stack>
+        <Divider sx={{ my: 2 }} />
+        <Stack direction="row" gap={2}>
+          <Box flex={2}>
+            <Table id="huggingface-model-config-info">
+              <tbody>
+                {Object.entries(huggingfaceData).map(
+                  (row) =>
+                    hf_translate(row[0]) !== null && (
+                      <tr key={row[0]}>
+                        <td>{hf_translate(row[0])}</td>
+                        <td>{JSON.stringify(row[1])}</td>
+                      </tr>
+                    ),
+                )}
+              </tbody>
+            </Table>
+            {/* Model Provenance Collapsible */}
+            <Box mt={4}>
+              <Button
+                variant="soft"
+                onClick={() => setShowProvenance((prev) => !prev)}
+              >
+                Model Provenance {showProvenance ? '▲' : '▼'}
+              </Button>
+              {showProvenance && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    overflow: 'auto',
+                    maxHeight: 400,
+                    maxWidth: '100%',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                  }}
+                >
+                  {provenance ? (
+                    <Table
+                      id="model-provenance-table"
+                      sx={{
+                        tableLayout: 'auto',
+                        minWidth: 600, // Ensure horizontal scroll if needed
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th>Job ID</th>
+                          <th>Base Model</th>
+                          <th>Dataset</th>
+                          <th>Params</th>
+                          <th>Output Model</th>
+                          <th>Evals</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {provenance.provenance_chain.map((row) => (
+                          <tr key={row.job_id}>
+                            <td>{row.job_id}</td>
+                            <td>{row.input_model}</td>
+                            <td>{row.dataset}</td>
+                            <td>
+                              <pre>
+                                {JSON.stringify(row.parameters, null, 2)}
+                              </pre>
+                            </td>
+                            <td>{row.output_model}</td>
+                            <td>
+                              <Box>
+                                {row.evals && row.evals.length > 0 ? (
+                                  row.evals.map((evalItem) => (
+                                    <Tooltip
+                                      key={evalItem.job_id}
+                                      title={
+                                        <pre style={{ margin: 0 }}>
+                                          {JSON.stringify(evalItem, null, 2)}
+                                        </pre>
+                                      }
+                                    >
+                                      <Typography
+                                        level="body2"
+                                        sx={{ cursor: 'pointer', mb: 0.5 }}
+                                      >
+                                        {evalItem.job_id} -{' '}
+                                        {evalItem.template_name ||
+                                          evalItem.evaluator ||
+                                          'Eval'}
+                                      </Typography>
+                                    </Tooltip>
+                                  ))
+                                ) : (
+                                  <Typography level="body2">
+                                    No Evals
+                                  </Typography>
+                                )}
+                              </Box>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  ) : provenanceError ? (
+                    <Typography>Error loading provenance</Typography>
+                  ) : (
+                    <Typography>Loading Provenance...</Typography>
+                  )}
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </Stack>
+      </Sheet>
     </Sheet>
   );
 }
