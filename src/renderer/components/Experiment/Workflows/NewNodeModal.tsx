@@ -31,21 +31,17 @@ export default function NewNodeModal({
   const [mode, setMode] = useState('OTHER');
   const [availableTasks, setAvailableTasks] = useState([]);
 
-  let {
+  const {
     data: tasksData,
     error: tasksError,
     isLoading: isLoadingTasks,
-  } = useSWR(chatAPI.Endpoints.Tasks.List(), fetcher);
+  } = useSWR(open ? chatAPI.Endpoints.Tasks.List() : null, fetcher);
 
   let evaluationData = [];
   try {
     evaluationData = JSON.parse(experimentInfo?.config?.evaluations);
   } catch (error) {
     console.error('Failed to parse evaluation data:', error);
-  }
-
-  if (tasksData?.detail === 'Not Found') {
-    tasksData = [];
   }
 
   const handleModeChange = (event: any, newValue: string) => {
@@ -59,7 +55,7 @@ export default function NewNodeModal({
   };
 
   useEffect(() => {
-    if (tasksData && mode != 'OTHER') {
+    if (tasksData && mode != 'OTHER' && tasksData?.detail !== 'Not Found') {
       const filteredTasks = tasksData.filter((task) => task.type === mode);
       setAvailableTasks(filteredTasks);
     } else {
