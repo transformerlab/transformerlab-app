@@ -49,10 +49,6 @@ export default function LoginModal({
   const WEB_APP = window.platform.appmode == "cloud";
 
   React.useEffect(() => {
-    // HACK: Make webapp work for now
-    if (!window.storage) {
-      return [];
-    }
     window.storage
       .get('recentConnections')
       .then((result) => {
@@ -82,8 +78,7 @@ export default function LoginModal({
     const apiStatus = response !== null ? 1 : 0;
     setChecking(false);
     if (apiStatus === 1) {
-      if (window.storage &&
-        !recentConnections.includes(window.TransformerLab.API_URL)) {
+      if (!recentConnections.includes(window.TransformerLab.API_URL)) {
         if (recentConnections.length > 4) {
           recentConnections.pop();
         }
