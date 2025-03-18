@@ -132,6 +132,7 @@ const Flow = ({
         method: 'POST',
       },
     );
+    mutateWorkflows();
   }, []);
 
   const onReconnectStart = useCallback(() => {
