@@ -60,6 +60,7 @@ export type ElectronHandler = typeof electronHandler;
 contextBridge.exposeInMainWorld('electron', electronHandler);
 
 contextBridge.exposeInMainWorld('platform', {
+  appmode: "electron",
   node: () => process.versions.node,
   chrome: () => process.versions.chrome,
   electron: () => process.versions.electron,
