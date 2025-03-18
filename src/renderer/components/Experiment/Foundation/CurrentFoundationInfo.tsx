@@ -2,14 +2,33 @@
 
 import Sheet from '@mui/joy/Sheet';
 
-import { Box, Button, IconButton, Stack, Table, Typography } from '@mui/joy';
+import {
+  Box,
+  Button,
+  ButtonGroup,
+  Divider,
+  IconButton,
+  Stack,
+  Table,
+  Typography,
+} from '@mui/joy';
 import Tooltip from '@mui/joy/Tooltip';
-import { BabyIcon, DotIcon, Trash2Icon, XCircleIcon } from 'lucide-react';
+import {
+  BabyIcon,
+  DotIcon,
+  Icon,
+  Trash2Icon,
+  Undo2Icon,
+  XCircleIcon,
+} from 'lucide-react';
 
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+const DEFAULT_EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5';
 
 const fetchWithPost = ({ url, post }) =>
   fetch(url, {
@@ -63,16 +82,20 @@ export default function CurrentFoundationInfo({
       url: chatAPI.Endpoints.Models.GetPeftsForModel(),
       post: experimentInfo?.config?.foundation,
     },
-    fetchWithPost
+    fetchWithPost,
   );
   const [huggingfaceData, setHugggingfaceData] = useState({});
   const [showProvenance, setShowProvenance] = useState(false);
   const huggingfaceId = experimentInfo?.config?.foundation;
+  const [embeddingModel, setEmbeddingModel] = useState(
+    experimentInfo?.config?.embedding_model || DEFAULT_EMBEDDING_MODEL,
+  );
+  const navigate = useNavigate();
 
   // Fetch provenance data from your GET endpoint using chatAPI.Endpoints.Models.ModelProvenance()
   const { data: provenance, error: provenanceError } = useSWR(
     chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
-    fetcher
+    fetcher,
   );
 
   useMemo(() => {
@@ -95,6 +118,22 @@ export default function CurrentFoundationInfo({
     }
   }, [experimentInfo]);
 
+  // Add useEffect to update embeddingModel when experimentInfo changes
+  useEffect(() => {
+    if (experimentInfo?.config?.embedding_model) {
+      setEmbeddingModel(experimentInfo.config.embedding_model);
+    }
+  }, [experimentInfo?.config?.embedding_model]);
+
+  const handleEmbeddingModelClick = () => {
+    navigate('/projects/embedding-model', {
+      state: {
+        currentEmbeddingModel: embeddingModel,
+        experimentId: experimentInfo?.id,
+      },
+    });
+  };
+
   return (
     <Sheet
       sx={{
@@ -110,124 +149,22 @@ export default function CurrentFoundationInfo({
         setAdaptor={setAdaptor}
         setFoundation={setFoundation}
       />
-      <Stack direction="row" gap={2}>
-        <Box flex={2}>
-          <Table id="huggingface-model-config-info">
-            <tbody>
-              {Object.entries(huggingfaceData).map(
-                (row) =>
-                  hf_translate(row[0]) !== null && (
-                    <tr key={row[0]}>
-                      <td>{hf_translate(row[0])}</td>
-                      <td>{JSON.stringify(row[1])}</td>
-                    </tr>
-                  )
-              )}
-            </tbody>
-          </Table>
-          {/* Model Provenance Collapsible */}
-          <Box mt={4}>
-            <Button
-              variant="soft"
-              onClick={() => setShowProvenance((prev) => !prev)}
-            >
-              Model Provenance {showProvenance ? '▲' : '▼'}
-            </Button>
-            {showProvenance && (
-              <Box
-                sx={{
-                  mt: 2,
-                  overflow: 'auto',
-                  maxHeight: 400,
-                  maxWidth: '100%',
-                  border: '1px solid #ccc',
-                  borderRadius: '4px',
-                }}
-              >
-                {provenance ? (
-                  <Table
-                    id="model-provenance-table"
-                    sx={{
-                      tableLayout: 'auto',
-                      minWidth: 600, // Ensure horizontal scroll if needed
-                    }}
-                  >
-                    <thead>
-                      <tr>
-                        <th>Job ID</th>
-                        <th>Base Model</th>
-                        <th>Dataset</th>
-                        <th>Params</th>
-                        <th>Output Model</th>
-                        <th>Evals</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {provenance.provenance_chain.map((row) => (
-                        <tr key={row.job_id}>
-                          <td>{row.job_id}</td>
-                          <td>{row.input_model}</td>
-                          <td>{row.dataset}</td>
-                          <td>
-                            <pre>{JSON.stringify(row.parameters, null, 2)}</pre>
-                          </td>
-                          <td>{row.output_model}</td>
-                          <td>
-                            <Box>
-                              {row.evals && row.evals.length > 0 ? (
-                                row.evals.map((evalItem) => (
-                                  <Tooltip
-                                    key={evalItem.job_id}
-                                    title={
-                                      <pre style={{ margin: 0 }}>
-                                        {JSON.stringify(evalItem, null, 2)}
-                                      </pre>
-                                    }
-                                  >
-                                    <Typography
-                                      level="body2"
-                                      sx={{ cursor: 'pointer', mb: 0.5 }}
-                                    >
-                                      {evalItem.job_id} -{' '}
-                                      {evalItem.template_name ||
-                                        evalItem.evaluator ||
-                                        'Eval'}
-                                    </Typography>
-                                  </Tooltip>
-                                ))
-                              ) : (
-                                <Typography level="body2">
-                                  No Evals
-                                </Typography>
-                              )}
-                            </Box>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                ) : provenanceError ? (
-                  <Typography>Error loading provenance</Typography>
-                ) : (
-                  <Typography>Loading Provenance...</Typography>
-                )}
-              </Box>
-            )}
-          </Box>
-        </Box>
-        <Box flex={1}>
-          <Typography level="title-lg" marginTop={1} marginBottom={1}>
-            <BabyIcon size="1rem" />
-            &nbsp;Available Adaptors:
+
+      <Sheet sx={{ overflow: 'auto' }}>
+        <Box sx={{ mt: 3 }}>
+          <Typography level="title-lg" marginBottom={1}>
+            Available Adaptors:
           </Typography>
           <Stack
             direction="column"
             spacing={1}
             style={{ overflow: 'auto', height: '100%' }}
           >
-            {peftData &&
-              peftData.length === 0 &&
-              'No Adaptors available for this model. Train one!'}
+            {peftData && peftData.length === 0 && (
+              <Typography level="body-sm" color="neutral">
+                No Adaptors available for this model. Train one!
+              </Typography>
+            )}
             {peftData &&
               peftData.map((peft) => (
                 <div
@@ -255,13 +192,13 @@ export default function CurrentFoundationInfo({
                     variant="plain"
                     onClick={() => {
                       confirm(
-                        'Are you sure you want to delete this adaptor?'
+                        'Are you sure you want to delete this adaptor?',
                       ) &&
                         fetch(
                           chatAPI.Endpoints.Models.DeletePeft(
                             experimentInfo?.config?.foundation,
-                            peft
-                          )
+                            peft,
+                          ),
                         ).then(() => {
                           peftMutate();
                         });
@@ -273,7 +210,138 @@ export default function CurrentFoundationInfo({
               ))}
           </Stack>
         </Box>
-      </Stack>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', marginTop: 2 }}>
+          <Typography level="title-lg" marginBottom={1}>
+            Embedding Model:
+          </Typography>
+          <ButtonGroup>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleEmbeddingModelClick}
+              sx={{ width: 'fit-content' }}
+            >
+              {embeddingModel}
+            </Button>
+            <Button
+              startDecorator={<Undo2Icon />}
+              onClick={() => setEmbeddingModel(DEFAULT_EMBEDDING_MODEL)}
+            >
+              Reset to Default
+            </Button>
+          </ButtonGroup>
+        </Box>
+        <Divider sx={{ my: 2 }} />
+        <Stack direction="row" gap={2}>
+          <Box flex={2}>
+            <Table id="huggingface-model-config-info">
+              <tbody>
+                {Object.entries(huggingfaceData).map(
+                  (row) =>
+                    hf_translate(row[0]) !== null && (
+                      <tr key={row[0]}>
+                        <td>{hf_translate(row[0])}</td>
+                        <td>{JSON.stringify(row[1])}</td>
+                      </tr>
+                    ),
+                )}
+              </tbody>
+            </Table>
+            {/* Model Provenance Collapsible */}
+            <Box mt={4}>
+              <Button
+                variant="soft"
+                onClick={() => setShowProvenance((prev) => !prev)}
+              >
+                Model Provenance {showProvenance ? '▲' : '▼'}
+              </Button>
+              {showProvenance && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    overflow: 'auto',
+                    maxHeight: 400,
+                    maxWidth: '100%',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                  }}
+                >
+                  {provenance ? (
+                    <Table
+                      id="model-provenance-table"
+                      sx={{
+                        tableLayout: 'auto',
+                        minWidth: 600, // Ensure horizontal scroll if needed
+                      }}
+                    >
+                      <thead>
+                        <tr>
+                          <th>Job ID</th>
+                          <th>Base Model</th>
+                          <th>Dataset</th>
+                          <th>Params</th>
+                          <th>Output Model</th>
+                          <th>Evals</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {provenance.provenance_chain.map((row) => (
+                          <tr key={row.job_id}>
+                            <td>{row.job_id}</td>
+                            <td>{row.input_model}</td>
+                            <td>{row.dataset}</td>
+                            <td>
+                              <pre>
+                                {JSON.stringify(row.parameters, null, 2)}
+                              </pre>
+                            </td>
+                            <td>{row.output_model}</td>
+                            <td>
+                              <Box>
+                                {row.evals && row.evals.length > 0 ? (
+                                  row.evals.map((evalItem) => (
+                                    <Tooltip
+                                      key={evalItem.job_id}
+                                      title={
+                                        <pre style={{ margin: 0 }}>
+                                          {JSON.stringify(evalItem, null, 2)}
+                                        </pre>
+                                      }
+                                    >
+                                      <Typography
+                                        level="body2"
+                                        sx={{ cursor: 'pointer', mb: 0.5 }}
+                                      >
+                                        {evalItem.job_id} -{' '}
+                                        {evalItem.template_name ||
+                                          evalItem.evaluator ||
+                                          'Eval'}
+                                      </Typography>
+                                    </Tooltip>
+                                  ))
+                                ) : (
+                                  <Typography level="body2">
+                                    No Evals
+                                  </Typography>
+                                )}
+                              </Box>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  ) : provenanceError ? (
+                    <Typography>Error loading provenance</Typography>
+                  ) : (
+                    <Typography>Loading Provenance...</Typography>
+                  )}
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </Stack>
+      </Sheet>
     </Sheet>
   );
 }
