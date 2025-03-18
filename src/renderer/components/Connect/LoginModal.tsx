@@ -42,7 +42,6 @@ export default function LoginModal({
   const [recentSSHConnections, setRecentSSHConnections] = React.useState<
     string[]
   >([]);
-  const [cloudModalOpen, setCloudModalOpen] = React.useState<boolean>(true);
 
   const [host, setHost] = useState('');
 
