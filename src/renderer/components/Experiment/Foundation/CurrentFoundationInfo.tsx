@@ -2,15 +2,32 @@
 
 import Sheet from '@mui/joy/Sheet';
 
-import { Box, Button, IconButton, Stack, Table, Typography } from '@mui/joy';
+import {
+  Box,
+  Button,
+  ButtonGroup,
+  IconButton,
+  Stack,
+  Table,
+  Typography,
+} from '@mui/joy';
 import Tooltip from '@mui/joy/Tooltip';
-import { BabyIcon, DotIcon, Trash2Icon, XCircleIcon } from 'lucide-react';
+import {
+  BabyIcon,
+  DotIcon,
+  Icon,
+  Trash2Icon,
+  Undo2Icon,
+  XCircleIcon,
+} from 'lucide-react';
 
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+const DEFAULT_EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5';
 
 const fetchWithPost = ({ url, post }) =>
   fetch(url, {
@@ -64,20 +81,20 @@ export default function CurrentFoundationInfo({
       url: chatAPI.Endpoints.Models.GetPeftsForModel(),
       post: experimentInfo?.config?.foundation,
     },
-    fetchWithPost
+    fetchWithPost,
   );
   const [huggingfaceData, setHugggingfaceData] = useState({});
   const [showProvenance, setShowProvenance] = useState(false);
   const huggingfaceId = experimentInfo?.config?.foundation;
   const [embeddingModel, setEmbeddingModel] = useState(
-    experimentInfo?.config?.embedding_model || "BAAI/bge-base-en-v1.5"
+    experimentInfo?.config?.embedding_model || DEFAULT_EMBEDDING_MODEL,
   );
   const navigate = useNavigate();
 
   // Fetch provenance data from your GET endpoint using chatAPI.Endpoints.Models.ModelProvenance()
   const { data: provenance, error: provenanceError } = useSWR(
     chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
-    fetcher
+    fetcher,
   );
 
   useMemo(() => {
@@ -111,8 +128,8 @@ export default function CurrentFoundationInfo({
     navigate('/projects/embedding-model', {
       state: {
         currentEmbeddingModel: embeddingModel,
-        experimentId: experimentInfo?.id
-      }
+        experimentId: experimentInfo?.id,
+      },
     });
   };
 
@@ -143,7 +160,7 @@ export default function CurrentFoundationInfo({
                       <td>{hf_translate(row[0])}</td>
                       <td>{JSON.stringify(row[1])}</td>
                     </tr>
-                  )
+                  ),
               )}
             </tbody>
           </Table>
@@ -218,9 +235,7 @@ export default function CurrentFoundationInfo({
                                   </Tooltip>
                                 ))
                               ) : (
-                                <Typography level="body2">
-                                  No Evals
-                                </Typography>
+                                <Typography level="body2">No Evals</Typography>
                               )}
                             </Box>
                           </td>
@@ -238,19 +253,26 @@ export default function CurrentFoundationInfo({
           </Box>
         </Box>
         <Box flex={1}>
-          {/* Embedding Model Button - Now on the rightmost side */}
           <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
             <Typography level="title-lg" marginTop={1} marginBottom={1}>
               Embedding Model:
             </Typography>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleEmbeddingModelClick}
-              sx={{ width: 'fit-content' }}
-            >
-              {embeddingModel}
-            </Button>
+            <ButtonGroup>
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={handleEmbeddingModelClick}
+                sx={{ width: 'fit-content' }}
+              >
+                {embeddingModel}
+              </Button>
+              <Button
+                startDecorator={<Undo2Icon />}
+                onClick={() => setEmbeddingModel(DEFAULT_EMBEDDING_MODEL)}
+              >
+                Reset to Default
+              </Button>
+            </ButtonGroup>
           </Box>
 
           <Typography level="title-lg" marginBottom={1}>
@@ -292,13 +314,13 @@ export default function CurrentFoundationInfo({
                     variant="plain"
                     onClick={() => {
                       confirm(
-                        'Are you sure you want to delete this adaptor?'
+                        'Are you sure you want to delete this adaptor?',
                       ) &&
                         fetch(
                           chatAPI.Endpoints.Models.DeletePeft(
                             experimentInfo?.config?.foundation,
-                            peft
-                          )
+                            peft,
+                          ),
                         ).then(() => {
                           peftMutate();
                         });
