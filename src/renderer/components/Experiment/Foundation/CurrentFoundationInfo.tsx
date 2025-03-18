@@ -151,28 +151,7 @@ export default function CurrentFoundationInfo({
       />
 
       <Sheet sx={{ overflow: 'auto' }}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', mb: 3 }}>
-          <Typography level="title-lg" marginTop={1} marginBottom={1}>
-            Embedding Model:
-          </Typography>
-          <ButtonGroup>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleEmbeddingModelClick}
-              sx={{ width: 'fit-content' }}
-            >
-              {embeddingModel}
-            </Button>
-            <Button
-              startDecorator={<Undo2Icon />}
-              onClick={() => setEmbeddingModel(DEFAULT_EMBEDDING_MODEL)}
-            >
-              Reset to Default
-            </Button>
-          </ButtonGroup>
-        </Box>
-        <Box>
+        <Box sx={{ mt: 3 }}>
           <Typography level="title-lg" marginBottom={1}>
             Available Adaptors:
           </Typography>
@@ -181,9 +160,11 @@ export default function CurrentFoundationInfo({
             spacing={1}
             style={{ overflow: 'auto', height: '100%' }}
           >
-            {peftData &&
-              peftData.length === 0 &&
-              'No Adaptors available for this model. Train one!'}
+            {peftData && peftData.length === 0 && (
+              <Typography level="body-sm" color="neutral">
+                No Adaptors available for this model. Train one!
+              </Typography>
+            )}
             {peftData &&
               peftData.map((peft) => (
                 <div
@@ -228,6 +209,28 @@ export default function CurrentFoundationInfo({
                 </div>
               ))}
           </Stack>
+        </Box>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', marginTop: 2 }}>
+          <Typography level="title-lg" marginBottom={1}>
+            Embedding Model:
+          </Typography>
+          <ButtonGroup>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleEmbeddingModelClick}
+              sx={{ width: 'fit-content' }}
+            >
+              {embeddingModel}
+            </Button>
+            <Button
+              startDecorator={<Undo2Icon />}
+              onClick={() => setEmbeddingModel(DEFAULT_EMBEDDING_MODEL)}
+            >
+              Reset to Default
+            </Button>
+          </ButtonGroup>
         </Box>
         <Divider sx={{ my: 2 }} />
         <Stack direction="row" gap={2}>
