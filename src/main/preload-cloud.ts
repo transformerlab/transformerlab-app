@@ -102,10 +102,17 @@ contextBridge.exposeInMainWorld('platform', {
 
 contextBridge.exposeInMainWorld('storage', {
   get: (key: string) => {
-    return Promise.resolve(localStorage.getItem(key));
+    const keyValue = localStorage.getItem(key);
+    try {
+      return Promise.resolve(JSON.parse(keyValue));
+    } catch (err) {
+      // In case soemthing made it into storage wihout getting stringify-ed
+      return Promise.resolve(keyValue);
+
+    }
   },
-  set: (key: string, value: string) => {
-    localStorage.setItem(key, value);
+  set: (key: string, value: any) => {
+    localStorage.setItem(key, JSON.stringify(value));
     return Promise.resolve();
   },
   delete: (key: string) => {
