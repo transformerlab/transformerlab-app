@@ -8,9 +8,11 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  addEdge,
+  reconnectEdge,
 } from '@xyflow/react';
 import { PlusCircleIcon } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import CustomNode from './nodes/CustomNode';
 import StartNode from './nodes/StartNode';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
@@ -80,7 +82,7 @@ function generateEdges(workflow: any) {
         id: currentNode.id + nextId,
         source: currentNode.id,
         target: nextId,
-        animated: false,
+        animated: true,
         type: 'default',
         style: {
           stroke: 'var(--joy-palette-primary-outlinedDisabledColor)',
@@ -109,12 +111,46 @@ const Flow = ({
   setNewNodeModalOpen: (param: boolean) => void;
   mutateWorkflows: Function;
 }) => {
+  const edgeReconnectSuccessful = useRef(true);
   const [nodes, setNodes, onNodesChange] = useNodesState(
-    generateNodes(selectedWorkflow)
+    generateNodes(selectedWorkflow),
   );
   const [edges, setEdges, onEdgesChange] = useEdgesState(
-    generateEdges(selectedWorkflow)
+    generateEdges(selectedWorkflow),
   );
+
+  const onConnect = useCallback((params) => {
+    setEdges((els) => addEdge(params, els));
+    alert(JSON.stringify(params));
+    fetch(
+      chatAPI.Endpoints.Workflows.AddEdge(
+        selectedWorkflow?.id,
+        params.source,
+        params.target,
+      ),
+      {
+        method: 'POST',
+      },
+    );
+  }, []);
+
+  const onReconnectStart = useCallback(() => {
+    edgeReconnectSuccessful.current = false;
+  }, []);
+
+  const onReconnect = useCallback((oldEdge, newConnection) => {
+    edgeReconnectSuccessful.current = true;
+    console.log();
+    setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
+  }, []);
+
+  const onReconnectEnd = useCallback((_, edge) => {
+    if (!edgeReconnectSuccessful.current) {
+      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+    }
+
+    edgeReconnectSuccessful.current = true;
+  }, []);
 
   const reactFlowInstance = useReactFlow();
 
@@ -150,12 +186,12 @@ const Flow = ({
         chatAPI.Endpoints.Workflows.EditNodeMetadata(
           workflowId,
           node?.id,
-          metadata
-        )
+          metadata,
+        ),
       );
       mutateWorkflows();
     },
-    [selectedWorkflow]
+    [selectedWorkflow],
   );
 
   return (
@@ -180,7 +216,7 @@ const Flow = ({
         for (const node of nodes) {
           // console.log('delete node: ' + node?.id);
           await fetch(
-            chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id)
+            chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id),
           );
         }
         mutateWorkflows();
@@ -188,6 +224,10 @@ const Flow = ({
       style={{
         backgroundColor: 'var(--joy-palette-background-surface)',
       }}
+      onConnect={onConnect}
+      onReconnectStart={onReconnectStart}
+      onReconnect={onReconnect}
+      onReconnectEnd={onReconnectEnd}
     >
       <Button
         onClick={() => {
