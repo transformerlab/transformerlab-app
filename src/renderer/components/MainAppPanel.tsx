@@ -33,11 +33,12 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Logs from './Logs';
-import FoundationHome, { FoundationHomeEmbed } from './Experiment/Foundation';
+import FoundationHome from './Experiment/Foundation';
 import { createContext, useContext, useEffect, useState } from 'react';
 import Workflows from './Experiment/Workflows';
 import { AnalyticsBrowser } from '@segment/analytics-next';
 import React from 'react';
+import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 
 export const analytics = new AnalyticsBrowser();
 analytics.load({ writeKey: 'UYXFr71CWmsdxDqki5oFXIs2PSR5XGCE' });
@@ -211,8 +212,8 @@ export default function MainAppPanel({
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'embedding_model_architecture',
-          model_architecture
-        )
+          model_architecture,
+        ),
       );
       experimentInfoMutate();
     }
@@ -294,8 +295,7 @@ export default function MainAppPanel({
         <Route
           path="/projects/embedding-model"
           element={
-            <FoundationHomeEmbed
-              pickAModelMode
+            <SelectEmbeddingModel
               experimentInfo={experimentInfo}
               setEmbedding={setEmbedding}
             />

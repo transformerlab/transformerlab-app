@@ -15,16 +15,3 @@ export default function FoundationHome({
     />
   );
 }
-
-export function FoundationHomeEmbed({
-  pickAModelMode = false,
-  experimentInfo,
-  setEmbedding = (name: string) => {},
-}) {
-  return (
-    <SelectEmbeddingModel
-      experimentInfo={experimentInfo}
-      setEmbedding={setEmbedding}
-    />
-  );
-}
