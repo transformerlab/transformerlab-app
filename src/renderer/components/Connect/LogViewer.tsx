@@ -19,11 +19,6 @@ export default function LogViewer({
   }
 
   useEffect(() => {
-    // HACK: Temporarily skip this if running in a web app
-    if (!window.electron) {
-      return;
-    }
-
     // see if you can find any DOM elements with class "xterm" and remove them
     // I don't know why they are left behind, but this is a workaround
     const xtermElements = document.getElementsByClassName('xterm');
