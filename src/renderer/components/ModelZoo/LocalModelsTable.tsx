@@ -22,44 +22,14 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
-import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 type Order = 'asc' | 'desc';
-
-// Modified SelectButton to support embedding models
-const EnhancedSelectButton = ({
-  setFoundation,
-  setAdaptor,
-  setEmbedding,
-  model,
-}) => {
-  // If setEmbedding is provided, we're in embedding model selection mode
-  if (setEmbedding) {
-    return (
-      <Button
-        variant="soft"
-        color="success"
-        onClick={() => setEmbedding(model)}
-      >
-        Select
-      </Button>
-    );
-  }
-
-  // Otherwise use the original SelectButton for foundation models
-  return (
-    <SelectButton
-      setFoundation={setFoundation}
-      setAdaptor={setAdaptor}
-      model={model}
-    />
-  );
-};
 
 const LocalModelsTable = ({
   models,
@@ -280,7 +250,7 @@ const LocalModelsTable = ({
                           Archive
                         </Link> */}
                       {pickAModelMode === true ? (
-                        <EnhancedSelectButton
+                        <SelectButton
                           setFoundation={setFoundation}
                           setAdaptor={setAdaptor}
                           setEmbedding={setEmbedding}
