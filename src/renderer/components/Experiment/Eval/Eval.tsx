@@ -49,7 +49,7 @@ export default function Eval({
   const [open, setOpen] = useState(false);
   const [currentEvaluator, setCurrentEvaluator] = useState('');
   const [currentPlugin, setCurrentPlugin] = useState('');
-  const [currentEvalName, setCurrentEvalName] = useState('');
+  const [currentEvalId, setcurrentEvalId] = useState('');
 
   const {
     data: plugins,
@@ -59,9 +59,9 @@ export default function Eval({
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
-        'evaluator'
+        'evaluator',
       ),
-    fetcher
+    fetcher,
   );
 
   async function saveFile() {
@@ -74,7 +74,7 @@ export default function Eval({
         {
           method: 'POST',
           body: value,
-        }
+        },
       ).then(() => {});
     }
   }
@@ -104,12 +104,12 @@ export default function Eval({
           open={open}
           onClose={() => {
             setOpen(false);
-            setCurrentEvalName('');
+            setcurrentEvalId('');
           }}
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
           pluginId={currentPlugin}
-          currentEvalName={currentEvalName}
+          currentEvalId={currentEvalId}
         />
         <Stack
           direction="row"
@@ -165,7 +165,7 @@ export default function Eval({
             experimentInfo={experimentInfo}
             experimentInfoMutate={experimentInfoMutate}
             setCurrentPlugin={setCurrentPlugin}
-            setCurrentEvalName={setCurrentEvalName}
+            setCurrentEvalId={setcurrentEvalId}
             setOpen={setOpen}
           />
         </Sheet>

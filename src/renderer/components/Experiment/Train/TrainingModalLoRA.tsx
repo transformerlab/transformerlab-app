@@ -54,13 +54,13 @@ export default function TrainingModalLoRA({
   open,
   onClose,
   experimentInfo,
-  template_id,
+  task_id,
   pluginId,
 }: {
   open: boolean;
   onClose: () => void;
   experimentInfo: any;
-  template_id?: string;
+  task_id?: string;
   pluginId: string;
 }) {
   // Store the current selected Dataset in this modal
@@ -103,14 +103,14 @@ export default function TrainingModalLoRA({
     isLoading: templateIsLoading,
     mutate: templateMutate,
   } = useSWR(
-    template_id ? chatAPI.Endpoints.Tasks.GetByID(template_id) : null,
+    task_id ? chatAPI.Endpoints.Tasks.GetByID(task_id) : null,
     fetcher,
   );
 
   console.log(templateData);
 
-  async function updateTrainingTemplate(
-    template_id: string,
+  async function updateTask(
+    task_id: string,
     input_config: string,
     config: string,
     output_config: string,
@@ -120,17 +120,14 @@ export default function TrainingModalLoRA({
       config: config,
       output_config: output_config,
     };
-    const response = await fetch(
-      chatAPI.Endpoints.Tasks.UpdateTask(template_id),
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(configBody),
+    const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
       },
-    );
+      body: JSON.stringify(configBody),
+    });
     const result = await response.json();
     return result;
   }
@@ -294,10 +291,10 @@ export default function TrainingModalLoRA({
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             const formJson = Object.fromEntries((formData as any).entries());
-            if (templateData && template_id) {
+            if (templateData && task_id) {
               //Only update if we are currently editing a template
-              updateTrainingTemplate(
-                template_id,
+              updateTask(
+                task_id,
                 templateData.input_config,
                 JSON.stringify(formJson),
                 templateData.output_config,

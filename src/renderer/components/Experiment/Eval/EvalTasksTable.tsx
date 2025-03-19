@@ -4,6 +4,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import EvalModal from './EvalModal';
 import { useState } from 'react';
 import useSWR from 'swr';
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function listEvals(evalString) {
   let result = [];
@@ -13,7 +14,6 @@ function listEvals(evalString) {
   return result;
 }
 
-
 function formatTemplateConfig(script_parameters): ReactElement {
   // const c = JSON.parse(script_parameters);
 
@@ -21,13 +21,16 @@ function formatTemplateConfig(script_parameters): ReactElement {
   // const short_model_name = c.model_name.split('/').pop();
   // Set main_task as either or the metric name from the script parameters
   const main_task = (() => {
-
-    let predefined_tasks = script_parameters.predefined_tasks? script_parameters.predefined_tasks : '';
+    let predefined_tasks = script_parameters.predefined_tasks
+      ? script_parameters.predefined_tasks
+      : '';
     if (script_parameters.tasks) {
       try {
         const tasksArray = JSON.parse(script_parameters.tasks);
         if (Array.isArray(tasksArray)) {
-          return tasksArray.map((task) => task.name).join(', ') + predefined_tasks;
+          return (
+            tasksArray.map((task) => task.name).join(', ') + predefined_tasks
+          );
         }
       } catch (error) {
         // Invalid JSON; fall back to the original value
@@ -39,57 +42,51 @@ function formatTemplateConfig(script_parameters): ReactElement {
   const dataset_name = script_parameters.dataset_name
     ? script_parameters.dataset_name
     : 'N/A';
-  const judge_model = script_parameters.judge_model? script_parameters.judge_model : 'N/A';
+  const judge_model = script_parameters.judge_model
+    ? script_parameters.judge_model
+    : 'N/A';
   const is_model = judge_model !== 'N/A';
   const is_dataset = dataset_name !== 'N/A';
-
 
   const r = (
     <>
       <b>Metrics/Tasks:</b> {main_task} <br />
-      {is_dataset && (<><b>Dataset:</b> {dataset_name} <FileTextIcon size={14} />
-      <br /></>)}
+      {is_dataset && (
+        <>
+          <b>Dataset:</b> {dataset_name} <FileTextIcon size={14} />
+          <br />
+        </>
+      )}
       {is_model && (
         <>
           <b>Model:</b> {judge_model}
           <br />
         </>
       )}
-
     </>
   );
   return r;
 }
 
-async function evaluationRun(
-  experimentId: string,
-  plugin: string,
-  evaluator: string
-) {
+async function evaluationRun(taskId: string) {
   // fetch(
   //   chatAPI.Endpoints.Experiment.RunEvaluation(experimentId, plugin, evaluator)
   // );
-  await fetch(
-    chatAPI.Endpoints.Jobs.Create(
-      experimentId,
-      'EVAL',
-      'QUEUED',
-      JSON.stringify({
-        plugin: plugin,
-        evaluator: evaluator,
-      })
-    )
-  );
+  await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
 }
-
 
 export default function EvalTasksTable({
   experimentInfo,
   experimentInfoMutate,
   setCurrentPlugin,
-  setCurrentEvalName,
+  setCurrentEvalId,
   setOpen,
 }) {
+  const { data, error, isLoading, mutate } = useSWR(
+    chatAPI.Endpoints.Tasks.ListByType('EVAL'),
+    fetcher,
+  );
+  console.log(data);
 
   return (
     <>
@@ -105,66 +102,55 @@ export default function EvalTasksTable({
           </tr>
         </thead>
         <tbody>
-          {listEvals(experimentInfo?.config?.evaluations) &&
-            listEvals(experimentInfo?.config?.evaluations)?.map(
-              (evaluations) => (
-                <tr key={evaluations.name}>
-                  <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
-                    {evaluations.name}
-                  </td>
-                  <td style={{ overflow: 'hidden' }}>
-                    {formatTemplateConfig(evaluations.script_parameters)}
-                    {/* {evaluations?.script_parameters?.task}&nbsp; */}
-                    {/* <FileTextIcon size={14} /> */}
-                  </td>
-                  <td>{evaluations.plugin}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <ButtonGroup
+          {data &&
+            data?.map((evaluations) => (
+              <tr key={evaluations.id}>
+                <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
+                  {evaluations.name}
+                </td>
+                <td style={{ overflow: 'hidden' }}>
+                  {formatTemplateConfig(JSON.parse(evaluations.config))}
+                  {/* {evaluations?.script_parameters?.task}&nbsp; */}
+                  {/* <FileTextIcon size={14} /> */}
+                </td>
+                <td>{evaluations.plugin}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <ButtonGroup
+                    variant="soft"
+                    sx={{ justifyContent: 'flex-end' }}
+                  >
+                    <Button
+                      startDecorator={<PlayIcon />}
                       variant="soft"
-                      sx={{ justifyContent: 'flex-end' }}
+                      color="success"
+                      onClick={async () => await evaluationRun(evaluations.id)}
                     >
-                      <Button
-                        startDecorator={<PlayIcon />}
-                        variant="soft"
-                        color="success"
-                        onClick={async () =>
-                          await evaluationRun(
-                            experimentInfo.id,
-                            evaluations.plugin,
-                            evaluations.name
-                          )
-                        }
-                      >
-                        Queue
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => {
-                          setOpen(true);
-                          setCurrentPlugin(evaluations?.plugin);
-                          setCurrentEvalName(evaluations.name);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <IconButton
-                        onClick={async () => {
-                          await fetch(
-                            chatAPI.Endpoints.Experiment.DeleteEval(
-                              experimentInfo.id,
-                              evaluations.name
-                            )
-                          );
-                          experimentInfoMutate();
-                        }}
-                      >
-                        <Trash2Icon />
-                      </IconButton>
-                    </ButtonGroup>
-                  </td>
-                </tr>
-              )
-            )}
+                      Queue
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        setOpen(true);
+                        setCurrentPlugin(evaluations?.plugin);
+                        setCurrentEvalId(evaluations.id);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <IconButton
+                      onClick={async () => {
+                        await fetch(
+                          chatAPI.Endpoints.Tasks.DeleteTask(evaluations.id),
+                        );
+                        experimentInfoMutate();
+                      }}
+                    >
+                      <Trash2Icon />
+                    </IconButton>
+                  </ButtonGroup>
+                </td>
+              </tr>
+            ))}
         </tbody>
       </Table>
     </>
