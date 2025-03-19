@@ -1009,7 +1009,13 @@ function convertSlashInUrl(url: string) {
 }
 
 Endpoints.Tasks = {
-  List: () => API_URL() + 'tasks/list'
+  List: () => API_URL() + 'tasks/list',
+  ListByType: (type: string) => API_URL() + 'tasks/list_by_type?type=' + type,
+  Queue: (id: string) => API_URL() + 'tasks/' + id + '/queue',
+  GetByID: (id: string) => API_URL() + 'tasks/' + id + '/get',
+  UpdateTask: (id: string) => API_URL() + 'tasks/' + id + '/update',
+  NewTask: () => API_URL() + 'tasks/new_task',
+  DeleteTask: (id: string) => API_URL() + 'tasks/' + id + '/delete',
 
 }
 

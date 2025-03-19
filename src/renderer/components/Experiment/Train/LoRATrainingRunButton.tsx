@@ -21,104 +21,110 @@ export default function LoRATrainingRunButton({
       color="primary"
       endDecorator={<PlayIcon size="14px" />}
       onClick={async () => {
+        await fetch(
+          chatAPI.Endpoints.Tasks.Queue(trainingTemplate.template_id),
+        );
+        return;
         const model = job_data.model_name;
-        console.log(job_data)
+        console.log(job_data);
         const dataset = job_data.dataset;
 
         const models_downloaded = await fetch(
-          chatAPI.Endpoints.Models.LocalList()
-        ).then((response) => {
-          // First check that the API responded correctly
-          if (response.ok) {
-            return response.json();
-          } else {
-            const error_msg = `${response.statusText}`;
-            throw new Error(error_msg);
-          }
-        })
-        .then((data) => {
-          // Then check the API responose to see if there was an error.
-          console.log('Server response:', data);
-          if (data?.status == "error") {
-            throw new Error(data.message);
-          }
-          return data;
-        })
-        .catch((error) => {
-          alert(error);
-          return false;
-        });
+          chatAPI.Endpoints.Models.LocalList(),
+        )
+          .then((response) => {
+            // First check that the API responded correctly
+            if (response.ok) {
+              return response.json();
+            } else {
+              const error_msg = `${response.statusText}`;
+              throw new Error(error_msg);
+            }
+          })
+          .then((data) => {
+            // Then check the API responose to see if there was an error.
+            console.log('Server response:', data);
+            if (data?.status == 'error') {
+              throw new Error(data.message);
+            }
+            return data;
+          })
+          .catch((error) => {
+            alert(error);
+            return false;
+          });
         let modelInLocalList = false;
-        if (model === "unknown")
-        {
+        if (model === 'unknown') {
           modelInLocalList = true;
         } else {
-        models_downloaded.forEach(modelData => {
-          if (modelData.model_id == model || modelData.local_path === model) {
-            modelInLocalList = true;
-          }
-        });
-      }
+          models_downloaded.forEach((modelData) => {
+            if (modelData.model_id == model || modelData.local_path === model) {
+              modelInLocalList = true;
+            }
+          });
+        }
 
         const datasets_downloaded = await fetch(
-          chatAPI.Endpoints.Dataset.LocalList()
-        ).then((response) => {
-          // First check that the API responded correctly
-          if (response.ok) {
-            return response.json();
-          } else {
-            const error_msg = `${response.statusText}`;
-            throw new Error(error_msg);
-          }
-        })
-        .then((data) => {
-          // Then check the API responose to see if there was an error.
-          console.log('Server response:', data);
-          if (data?.status == "error") {
-            throw new Error(data.message);
-          }
-          return data;
-        })
-        .catch((error) => {
-          alert(error);
-          return false;
-        });
+          chatAPI.Endpoints.Dataset.LocalList(),
+        )
+          .then((response) => {
+            // First check that the API responded correctly
+            if (response.ok) {
+              return response.json();
+            } else {
+              const error_msg = `${response.statusText}`;
+              throw new Error(error_msg);
+            }
+          })
+          .then((data) => {
+            // Then check the API responose to see if there was an error.
+            console.log('Server response:', data);
+            if (data?.status == 'error') {
+              throw new Error(data.message);
+            }
+            return data;
+          })
+          .catch((error) => {
+            alert(error);
+            return false;
+          });
 
         let datasetInLocalList = false;
-        datasets_downloaded.forEach(datasetData => {
+        datasets_downloaded.forEach((datasetData) => {
           if (datasetData.dataset_id == dataset) {
             datasetInLocalList = true;
           }
         });
 
-        if(modelInLocalList && datasetInLocalList){
+        if (modelInLocalList && datasetInLocalList) {
           // Use fetch API to call endpoint
           await fetch(
             chatAPI.Endpoints.Jobs.Create(
               experimentId,
               'TRAIN',
               'QUEUED',
-              JSON.stringify(job_data)
-            )
+              JSON.stringify(job_data),
+            ),
           )
             .then((response) => response.json())
             .then((data) => console.log(data))
             .catch((error) => console.log(error));
           jobsMutate();
-        }
-        else{
-          let msg = "Warning: To use this recipe you will need to download the following:";
+        } else {
+          let msg =
+            'Warning: To use this recipe you will need to download the following:';
           let shouldDownload = false;
 
           if (!datasetInLocalList) {
-            msg += "\n- Dataset: " + dataset;
+            msg += '\n- Dataset: ' + dataset;
           }
 
           if (!modelInLocalList) {
-            msg += "\n- Model: " + model;
+            msg += '\n- Model: ' + model;
           }
-          msg += "\n\nDo you want to download these now?";
-          if (confirm(msg)) { // Use confirm() to get Accept/Cancel
+          msg += '\n\nDo you want to download these now?';
+          if (confirm(msg)) {
+            // Use confirm() to get Accept/Cancel
             if (!datasetInLocalList) {
               fetch(chatAPI.Endpoints.Dataset.Download(dataset))
                 .then((response) => {
@@ -133,9 +139,10 @@ export default function LoRATrainingRunButton({
                 });
             }
             if (!modelInLocalList) {
-              chatAPI.downloadModelFromHuggingFace(model)
+              chatAPI
+                .downloadModelFromHuggingFace(model)
                 .then((response) => {
-                  if (response.status == "error") {
+                  if (response.status == 'error') {
                     console.log(response);
                     throw new Error(`${response.message}`);
                   }
@@ -147,11 +154,10 @@ export default function LoRATrainingRunButton({
             }
           } else {
             // User pressed Cancel
-            alert("Downloads cancelled. This recipe might not work correctly.");
+            alert('Downloads cancelled. This recipe might not work correctly.');
           }
         }
-        }
-      }
+      }}
     >
       {initialMessage}
     </Button>

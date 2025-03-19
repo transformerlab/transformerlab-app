@@ -34,9 +34,9 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
     chatAPI.Endpoints.Experiment.ScriptGetFile(
       experimentInfo?.id,
       pluginId,
-      'info.md'
+      'info.md',
     ),
-    fetcher
+    fetcher,
   );
 
   return (
@@ -69,24 +69,26 @@ export default function TrainingModalLoRA({
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
 
-
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
     experimentInfo?.id
-      ? chatAPI.Endpoints.Experiment.ScriptGetFile(experimentInfo.id, pluginId, 'index.json')
+      ? chatAPI.Endpoints.Experiment.ScriptGetFile(
+          experimentInfo.id,
+          pluginId,
+          'index.json',
+        )
       : null,
-    fetcher
+    fetcher,
   );
 
-  let trainingType = "LoRA";
-  if (trainingTypeData && trainingTypeData !== "undefined" && trainingTypeData.length > 0) {
-
-  trainingType = JSON.parse(trainingTypeData)?.train_type || "LoRA";
-
+  let trainingType = 'LoRA';
+  if (
+    trainingTypeData &&
+    trainingTypeData !== 'undefined' &&
+    trainingTypeData.length > 0
+  ) {
+    trainingType = JSON.parse(trainingTypeData)?.train_type || 'LoRA';
   }
-
-
-
 
   // Fetch available datasets from the API
   const {
@@ -101,28 +103,25 @@ export default function TrainingModalLoRA({
     isLoading: templateIsLoading,
     mutate: templateMutate,
   } = useSWR(
-    template_id
-      ? chatAPI.Endpoints.Jobs.GetTrainingTemplate(template_id)
-      : null,
-    fetcher
+    template_id ? chatAPI.Endpoints.Tasks.GetByID(template_id) : null,
+    fetcher,
   );
+
+  console.log(templateData);
+
   async function updateTrainingTemplate(
     template_id: string,
-    name: string,
-    description: string,
-    type: string,
-    config: string
+    input_config: string,
+    config: string,
+    output_config: string,
   ) {
     const configBody = {
+      input_config: input_config,
       config: config,
+      output_config: output_config,
     };
     const response = await fetch(
-      chatAPI.Endpoints.Jobs.UpdateTrainingTemplate(
-        template_id,
-        name,
-        description,
-        type
-      ),
+      chatAPI.Endpoints.Tasks.UpdateTask(template_id),
       {
         method: 'PUT',
         headers: {
@@ -130,8 +129,38 @@ export default function TrainingModalLoRA({
           accept: 'application/json',
         },
         body: JSON.stringify(configBody),
-      }
+      },
     );
+    const result = await response.json();
+    return result;
+  }
+
+  async function createNewTask(
+    name: string,
+    plugin: string,
+    experimentId: string,
+    input_config: string,
+    config: string,
+    output_config: string,
+  ) {
+    const configBody = {
+      name: name,
+      plugin: plugin,
+      experiment_id: experimentId,
+      input_config: input_config,
+      config: config,
+      output_config: output_config,
+      type: 'TRAIN',
+    };
+    console.log(configBody);
+    const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(configBody),
+    });
     const result = await response.json();
     return result;
   }
@@ -269,18 +298,25 @@ export default function TrainingModalLoRA({
               //Only update if we are currently editing a template
               updateTrainingTemplate(
                 template_id,
-                event.currentTarget.elements['template_name'].value,
-                'Description',
-                trainingType,
-                JSON.stringify(formJson)
+                templateData.input_config,
+                JSON.stringify(formJson),
+                templateData.output_config,
               );
               templateMutate(); //Need to mutate template data after updating
             } else {
-              chatAPI.saveTrainingTemplate(
-                event.currentTarget.elements['template_name'].value,
-                'Description',
-                trainingType,
-                JSON.stringify(formJson)
+              createNewTask(
+                formJson.template_name,
+                formJson.plugin_name,
+                experimentInfo?.id,
+                JSON.stringify({
+                  model_name: formJson.model_name,
+                  model_architecture: formJson.model_architecture,
+                  dataset_name: formJson.dataset_name,
+                }),
+                JSON.stringify(formJson),
+                JSON.stringify({
+                  adaptor_name: formJson.adaptor_name,
+                }),
               );
             }
             setNameInput(generateFriendlyName());

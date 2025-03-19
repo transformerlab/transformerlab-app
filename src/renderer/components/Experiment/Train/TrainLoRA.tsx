@@ -63,7 +63,11 @@ function formatTemplateConfig(config): ReactElement {
 
   const r = (
     <>
-      {short_model_name && (<><b>Model:</b> {short_model_name} <br /></>)}
+      {short_model_name && (
+        <>
+          <b>Model:</b> {short_model_name} <br />
+        </>
+      )}
       <b>Dataset:</b> {c.dataset_name} <FileTextIcon size={14} />
       <br />
       {/* <b>Adaptor:</b> {c.adaptor_name} <br /> */}
@@ -98,12 +102,14 @@ export default function TrainLoRA({ experimentInfo }) {
   const [currentPlugin, setCurrentPlugin] = useState('');
 
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.GET_TRAINING_TEMPLATE_URL(),
-    fetcher
+    chatAPI.Endpoints.Tasks.ListByType('TRAIN'),
+    fetcher,
   );
   useEffect(() => {
     mutate();
   }, [data]);
+
+  console.log(data);
   const {
     data: jobs,
     error: jobsError,
@@ -123,7 +129,7 @@ export default function TrainLoRA({ experimentInfo }) {
     fetcher,
     {
       refreshInterval: 2000,
-    }
+    },
   );
 
   //Fetch available training plugins
@@ -134,11 +140,11 @@ export default function TrainLoRA({ experimentInfo }) {
   } = useSWR(
     chatAPI.Endpoints.Experiment.ListScriptsOfType(
       experimentInfo?.id,
-      'trainer' // type
+      'trainer', // type
       // 'model_architectures:' +
       //   experimentInfo?.config?.foundation_model_architecture //filter
     ),
-    fetcher
+    fetcher,
   );
 
   const modelArchitecture =
@@ -246,7 +252,8 @@ export default function TrainLoRA({ experimentInfo }) {
                       level="body-xs"
                       sx={{ color: 'var(--joy-palette-neutral-400)' }}
                     >
-                      {plugin.model_architectures && !plugin.model_architectures.includes(modelArchitecture)
+                      {plugin.model_architectures &&
+                      !plugin.model_architectures.includes(modelArchitecture)
                         ? '(Does not support this model architecture)'
                         : ''}
                     </Typography>
@@ -294,13 +301,13 @@ export default function TrainLoRA({ experimentInfo }) {
                 data &&
                   data?.map((row) => {
                     return (
-                      <tr key={row[0]}>
+                      <tr key={row.id}>
                         <td>
                           <Typography
                             level="title-sm"
                             sx={{ overflow: 'clip' }}
                           >
-                            {row[1]}
+                            {row.name}
                           </Typography>
                         </td>
                         {/* <td>{row[2]}</td> */}
@@ -308,10 +315,10 @@ export default function TrainLoRA({ experimentInfo }) {
                           {row[4]} <FileTextIcon size={14} />
                         </td> */}
                         <td style={{ overflow: 'clip' }}>
-                          {JSON.parse(row[5])?.plugin_name}
+                          {JSON.parse(row.config)?.plugin_name}
                         </td>
                         <td style={{ overflow: 'hidden' }}>
-                          {formatTemplateConfig(row[5])}
+                          {formatTemplateConfig(row.config)}
                         </td>
                         <td
                           style={{
@@ -322,21 +329,24 @@ export default function TrainLoRA({ experimentInfo }) {
                             <LoRATrainingRunButton
                               initialMessage="Queue"
                               trainingTemplate={{
-                                template_id: row[0],
-                                template_name: row[1],
+                                template_id: row.id,
+                                template_name: row.name,
                                 model_name:
-                                  JSON.parse(row[5])?.model_name || 'unknown',
-                                dataset: row[4],
-                                config: row[5],
+                                  JSON.parse(row.input_config)?.model_name ||
+                                  'unknown',
+                                dataset:
+                                  JSON.parse(row.input_config)?.dataset_name ||
+                                  'unknown',
+                                config: row.config,
                               }}
                               jobsMutate={jobsMutate}
                               experimentId={experimentInfo?.id}
                             />
                             <Button
                               onClick={() => {
-                                setTemplateID(row[0]);
+                                setTemplateID(row.id);
                                 setCurrentPlugin(
-                                  JSON.parse(row[5])?.plugin_name
+                                  JSON.parse(row.config)?.plugin_name,
                                 );
                                 setOpen(true);
                               }}
@@ -348,19 +358,19 @@ export default function TrainLoRA({ experimentInfo }) {
                             <IconButton
                               onClick={async () => {
                                 await fetch(
-                                  chatAPI.Endpoints.Recipes.Export(row[0])
+                                  chatAPI.Endpoints.Recipes.Export(row[0]),
                                 )
                                   .then((response) => response.blob())
                                   .then((blob) => {
                                     // Create blob link to download
                                     const url = window.URL.createObjectURL(
-                                      new Blob([blob])
+                                      new Blob([blob]),
                                     );
                                     const link = document.createElement('a');
                                     link.href = url;
                                     link.setAttribute(
                                       'download',
-                                      `recipe.yaml`
+                                      `recipe.yaml`,
                                     );
 
                                     // Append to html link, click and remove
@@ -375,13 +385,10 @@ export default function TrainLoRA({ experimentInfo }) {
                             <IconButton
                               onClick={async () => {
                                 confirm(
-                                  'Are you sure you want to delete this Training Template?'
+                                  'Are you sure you want to delete this Training Template?',
                                 ) &&
                                   (await fetch(
-                                    chatAPI.API_URL() +
-                                      'train/template/' +
-                                      row[0] +
-                                      '/delete'
+                                    chatAPI.Endpoints.Tasks.DeleteTask(row.id),
                                   ));
                                 mutate();
                               }}
@@ -484,7 +491,7 @@ export default function TrainLoRA({ experimentInfo }) {
                             <Trash2Icon
                               onClick={async () => {
                                 await fetch(
-                                  chatAPI.Endpoints.Jobs.Delete(job.id)
+                                  chatAPI.Endpoints.Jobs.Delete(job.id),
                                 );
                                 jobsMutate();
                               }}

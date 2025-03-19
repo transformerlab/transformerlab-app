@@ -104,6 +104,7 @@ export default function NewNodeModal({
 
               const node = {
                 name: name,
+                task: selectedTaskName,
                 type: mode,
                 metadata: { task_name: selectedTaskName },
               };
