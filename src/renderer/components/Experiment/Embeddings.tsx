@@ -20,22 +20,57 @@ export default function Embeddings({ experimentInfo }) {
   const { models, isError, isLoading } = chatAPI.useModelStatus();
 
   async function getEmbeddings() {
-    const text = document.getElementsByName('inputText')[0].value;
-    const lines = text.split('\n');
+    try {
+      const text = document.getElementsByName('inputText')[0].value;
 
-    const model_name = experimentInfo?.config?.foundation;
+      // Use experiment id from experimentInfo
+      const experimentId = experimentInfo?.id;
 
-    let embeddings = await chatAPI.getEmbeddings(model_name, lines);
-    embeddings = embeddings?.data;
+      if (!experimentId) {
+        document.getElementById('embeddingsResult').innerHTML =
+          "Error: No experiment ID found";
+        return;
+      }
 
-    //expand embeddings subproperty embedding array to string:
-    embeddings = embeddings?.map((item) => {
-      return item.embedding;
-    });
+      const requestData = {
+        experiment_id: String(experimentId),
+        text: text
+      };
+      console.log("Request payload:", requestData);
+      console.log('Request URL:', chatAPI.Endpoints.Rag.Embeddings(experimentId));
 
-    embeddings = embeddings?.join('\n\n\n');
+      const response = await fetch(chatAPI.Endpoints.Rag.Embeddings(experimentId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
 
-    document.getElementById('embeddingsResult').innerHTML = embeddings;
+      // Get the response text for debugging
+      const responseText = await response.text();
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} - ${responseText}`);
+      }
+
+      // Parse the response text to JSON
+      const result = JSON.parse(responseText);
+
+      // Process the new response format
+      let embeddings = result?.embeddings || [];
+
+      // Convert embeddings to string format
+      const embeddingsText = embeddings
+        .map(embedding => JSON.stringify(embedding))
+        .join('\n\n\n');
+
+      document.getElementById('embeddingsResult').innerHTML = embeddingsText;
+    } catch (error) {
+      console.error('Error generating embeddings:', error);
+      document.getElementById('embeddingsResult').innerHTML =
+        `Error: ${error.message}`;
+    }
   }
 
   if (!experimentInfo) return 'Select an Experiment';
