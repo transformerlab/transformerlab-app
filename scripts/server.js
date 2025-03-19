@@ -7,7 +7,7 @@ const url = require('url');
 const PORT = 4567;
 
 // Directory containing your HTML files
-const DIRECTORY = './release/app/dist/renderer'; // Change this to your directory path if needed
+const DIRECTORY = './release/cloud'; // Change this to your directory path if needed
 
 // Create the HTTP server
 const server = http.createServer((req, res) => {
