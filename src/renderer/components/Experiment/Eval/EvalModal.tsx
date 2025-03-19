@@ -131,6 +131,12 @@ export default function EvalModal({
     isLoading: datasetsIsLoading,
   } = useSWR(chatAPI.Endpoints.Dataset.LocalList(), fetcher);
 
+  const {
+    data: evalData,
+    error: evalError,
+    isLoading: evalIsLoading,
+  } = useSWR(chatAPI.Endpoints.Tasks.GetByID(currentEvalId), fetcher);
+
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
       pluginId &&
@@ -169,58 +175,44 @@ export default function EvalModal({
   useEffect(() => {
     if (experimentInfo && pluginId) {
       if (currentEvalId && currentEvalId !== '') {
-        const evaluationsStr = experimentInfo.config?.evaluations;
-        if (typeof evaluationsStr === 'string') {
-          try {
-            const evaluations = JSON.parse(evaluationsStr);
-            if (Array.isArray(evaluations)) {
-              const evalConfig = evaluations.find(
-                (evalItem: any) =>
-                  evalItem.name === currentEvalId &&
-                  evalItem.plugin === pluginId,
-              );
-              if (evalConfig) {
-                setConfig(evalConfig.script_parameters);
-                const datasetKeyExists = Object.keys(
-                  evalConfig.script_parameters,
-                ).some((key) => key.toLowerCase().includes('dataset'));
-                setHasDatasetKey(datasetKeyExists);
-                if (
-                  evalConfig.script_parameters._dataset_display_message &&
-                  evalConfig.script_parameters._dataset_display_message.length >
-                    0
-                ) {
-                  setDatasetDisplayMessage(
-                    evalConfig.script_parameters._dataset_display_message,
-                  );
-                }
-                const tasksKeyExists = Object.keys(
-                  evalConfig.script_parameters,
-                ).some((key) => key.toLowerCase().includes('tasks'));
-                if (tasksKeyExists) {
-                  evalConfig.script_parameters.tasks =
-                    evalConfig.script_parameters.tasks.split(',');
-                  setConfig(evalConfig.script_parameters);
-                }
+        console.log(evalData);
+        const evalConfig = JSON.parse(evalData.config);
+        if (evalConfig) {
+          setConfig(evalConfig.script_parameters);
+          const datasetKeyExists = Object.keys(
+            evalConfig.script_parameters,
+          ).some((key) => key.toLowerCase().includes('dataset'));
+          setHasDatasetKey(datasetKeyExists);
+          if (
+            evalConfig.script_parameters._dataset_display_message &&
+            evalConfig.script_parameters._dataset_display_message.length > 0
+          ) {
+            setDatasetDisplayMessage(
+              evalConfig.script_parameters._dataset_display_message,
+            );
+          }
+          const tasksKeyExists = Object.keys(evalConfig.script_parameters).some(
+            (key) => key.toLowerCase().includes('tasks'),
+          );
+          if (tasksKeyExists) {
+            evalConfig.script_parameters.tasks =
+              evalConfig.script_parameters.tasks.split(',');
+            setConfig(evalConfig.script_parameters);
+          }
 
-                if (
-                  hasDatasetKey &&
-                  evalConfig.script_parameters.dataset_name.length > 0
-                ) {
-                  setSelectedDataset(evalConfig.script_parameters.dataset_name);
-                }
-                if (!nameInput && evalConfig?.name.length > 0) {
-                  setNameInput(evalConfig.name);
-                }
-              }
-              // if (!nameInput && evalConfig?.script_parameters.run_name) {
-              //   setNameInput(evalConfig.script_parameters.run_name);
-              // }
-            }
-          } catch (error) {
-            console.error('Failed to parse evaluations JSON string:', error);
+          if (
+            hasDatasetKey &&
+            evalConfig.script_parameters.dataset_name.length > 0
+          ) {
+            setSelectedDataset(evalConfig.script_parameters.dataset_name);
+          }
+          if (!nameInput && evalConfig?.run_name.length > 0) {
+            setNameInput(evalConfig.run_name);
           }
         }
+        // if (!nameInput && evalConfig?.script_parameters.run_name) {
+        //   setNameInput(evalConfig.script_parameters.run_name);
+        // }
       } else {
         if (data) {
           let parsedData;
