@@ -27,7 +27,7 @@ function formatTemplateConfig(script_parameters): ReactElement {
       try {
         const tasksArray = JSON.parse(script_parameters.tasks);
         if (Array.isArray(tasksArray)) {
-          return tasksArray.map((task) => task.name).join(', ') + predefined_tasks;
+          return tasksArray.map((task) => task.name).join(', ') + ', ' + predefined_tasks;
         }
       } catch (error) {
         // Invalid JSON; fall back to the original value
