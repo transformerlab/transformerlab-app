@@ -25,7 +25,7 @@ import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import PickADocumentMenu from '../Rag/PickADocumentMenu';
 
 import { generateFriendlyName } from 'renderer/lib/utils';
-import exp from 'node:constants';
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
@@ -154,15 +154,16 @@ export default function GenerateModal({
 
             const datasetKeyExists = Object.keys(
               generationConfig.script_parameters
-            ).some((key) => key.toLowerCase().includes('dataset_name'));
+            ).some((key) => key.toLowerCase() === 'dataset_name');
 
             const docsKeyExists = Object.keys(
               generationConfig.script_parameters
-            ).some((key) => key.toLowerCase().includes('docs'));
+            ).some((key) => key.toLowerCase() === 'docs');
+
 
             const contextKeyExists = Object.keys(
               generationConfig.script_parameters
-            ).some((key) => key.toLowerCase().includes('context'));
+            ).some((key) => key.toLowerCase() === 'context');
 
             setHasDatasetKey(datasetKeyExists);
 
@@ -190,7 +191,7 @@ export default function GenerateModal({
 
             if (
               hasDatasetKey &&
-              generationConfig.script_parameters.dataset_name.length > 0
+              generationConfig.script_parameters.dataset_name
             ) {
               setSelectedDataset(
                 generationConfig.script_parameters.dataset_name
