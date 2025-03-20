@@ -27,6 +27,7 @@ import {
 import { useMemo } from 'react';
 import ModelProviderWidget from 'renderer/components/Experiment/Widgets/ModelProviderWidget';
 import CustomEvaluationWidget from './Widgets/CustomEvaluationWidget';
+import GEvalTasksWidget from './Widgets/CustomGEvalWidget';
 
 import {
   RegistryWidgetsType,
@@ -500,7 +501,8 @@ const widgets: RegistryWidgetsType = {
   SelectWidget: CustomSelectSimple,
   AutoCompleteWidget: CustomAutocompleteWidget,
   EvaluationWidget: CustomEvaluationWidget,
-  ModelProviderWidget: ModelProviderWidget
+  ModelProviderWidget: ModelProviderWidget,
+  GEvalTasksWidget: GEvalTasksWidget
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
