@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import * as React from 'react';
 import { ColorPaletteProp } from '@mui/joy/styles';
@@ -37,22 +38,20 @@ import {
   PlusCircleIcon,
   RotateCcwIcon,
   SearchIcon,
-} from 'lucide-react';
-import {
   FilterIcon as FilterAltIcon,
-  ChevronDownIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
 } from 'lucide-react';
+
 import useSWR from 'swr';
 
 import { formatBytes } from 'renderer/lib/utils';
 
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import Dropzone from 'react-dropzone';
 import { FaRegFileAlt } from 'react-icons/fa';
 import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
 import TinyButton from 'renderer/components/Shared/TinyButton';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -115,15 +114,24 @@ function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
           color="danger"
           onClick={() => {
             fetch(
-              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename, foldername),
-            ).then((response) => {
-              if (response.ok) {
-                console.log(response);
-                mutate();
-              } else {
+              chatAPI.Endpoints.Documents.Delete(
+                experimentInfo?.id,
+                filename,
+                foldername,
+              ),
+            )
+              .then((response) => {
+                if (response.ok) {
+                  console.log(response);
+                  mutate();
+                  return response;
+                }
                 console.log('Error deleting file');
-              }
-            });
+                throw new Error('Error deleting file');
+              })
+              .catch((error) => {
+                console.error('Error:', error);
+              });
           }}
         >
           Delete
@@ -172,14 +180,14 @@ export default function Documents({
       .then((response) => {
         if (response.ok) {
           return response.json();
-        } else {
-          throw new Error('File upload failed');
         }
+        throw new Error('File upload failed');
       })
       .then((data) => {
         console.log('Server response:', data);
         setLoading(false);
         mutate();
+        return data;
       })
       .catch((error) => {
         console.error('Error uploading file:', error);
