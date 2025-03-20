@@ -5,7 +5,7 @@ import Typography from '@mui/joy/Typography';
 import { DownloadIcon, RotateCcwIcon, Type } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { Box, Chip, CircularProgress, Stack } from '@mui/joy';
+import { Box, ButtonGroup, Chip, CircularProgress, Stack } from '@mui/joy';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -165,14 +165,11 @@ export default function PluginCard({
             </Box>
           )}
 
-          <Box
+          <ButtonGroup
             sx={{
-              display: 'flex',
-              flexDirection: 'row',
               mt: 1,
               justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: 1,
+              flexWrap: 'wrap',
             }}
           >
             {!download && (
@@ -256,7 +253,7 @@ export default function PluginCard({
                 </>
               )}
             </Button>
-          </Box>
+          </ButtonGroup>
         </CardContent>
       </Card>
     </>
