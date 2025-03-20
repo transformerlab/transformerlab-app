@@ -36,8 +36,6 @@ export default function Embeddings({ experimentInfo }) {
         experiment_id: String(experimentId),
         text: text
       };
-      console.log("Request payload:", requestData);
-      console.log('Request URL:', chatAPI.Endpoints.Rag.Embeddings(experimentId));
 
       const response = await fetch(chatAPI.Endpoints.Rag.Embeddings(experimentId), {
         method: 'POST',
