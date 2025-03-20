@@ -13,7 +13,7 @@ import {
   Chip,
   FormLabel,
 } from '@mui/joy';
-import Documents from './Documents';
+import Documents from '../../Shared/Documents';
 import Query from './Query';
 import useSWR from 'swr';
 
@@ -33,7 +33,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
   } = useSWR(
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.ListScriptsOfType(experimentInfo?.id, 'rag'),
-    fetcher
+    fetcher,
   );
 
   if (plugins?.length === 0) {
@@ -130,7 +130,8 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
             }}
           >
             <Typography level="title-sm">
-              Rag Engine: <Chip> {experimentInfo?.config?.rag_engine}</Chip>{' '}
+              Rag Engine:{' '}
+              <Chip> {experimentInfo?.config?.rag_engine}</Chip>{' '}
             </Typography>
 
             <Button

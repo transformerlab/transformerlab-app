@@ -187,7 +187,6 @@ export default function Documents({
         console.log('Server response:', data);
         setLoading(false);
         mutate();
-        return data;
       })
       .catch((error) => {
         console.error('Error uploading file:', error);
