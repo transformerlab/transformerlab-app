@@ -1217,6 +1217,8 @@ Endpoints.Rag = {
   ReIndex: (experimentId: string, folderName: string = 'rag') =>
     API_URL() +
     `experiment/${experimentId}/rag/reindex?rag_folder=${folderName}`,
+  Embeddings: (experimentId: string) =>
+    API_URL() + `experiment/${experimentId}/rag/embed`,
 };
 
 Endpoints.Prompts = {
