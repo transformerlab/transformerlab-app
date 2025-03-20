@@ -54,7 +54,7 @@ function getTint(type: string) {
   return (
     'color-mix(in srgb, ' +
     tint +
-    ', var(--joy-palette-background-surface) 70%)'
+    ', var(--joy-palette-background-surface) 75%)'
   );
 }
 
