@@ -3,6 +3,7 @@ import { FileTextIcon, PlayIcon, Trash2Icon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import useSWR from 'swr';
+const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function listGenerations(generationString) {
   let result = [];
@@ -31,7 +32,9 @@ function formatTemplateConfig(script_parameters): ReactElement {
   if (is_docs) {
     docs_file_name_actual = script_parameters.docs.split('/').pop();
   }
-  const generation_model = script_parameters.generation_model? script_parameters.generation_model : 'N/A';
+  const generation_model = script_parameters.generation_model
+    ? script_parameters.generation_model
+    : 'N/A';
 
   return (
     <>
@@ -47,36 +50,22 @@ function formatTemplateConfig(script_parameters): ReactElement {
   );
 }
 
-async function generationRun(
-  experimentId: string,
-  plugin: string,
-  generator: string
-) {
-  // fetch(
-  //   chatAPI.Endpoints.Experiment.RunGeneration(experimentId, plugin, evaluator)
-  // );
-  await fetch(
-    chatAPI.Endpoints.Jobs.Create(
-      experimentId,
-      'GENERATE',
-      'QUEUED',
-      JSON.stringify({
-        plugin: plugin,
-        generator: generator,
-      })
-    )
-  );
+async function generationRun(taskId: string) {
+  await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
 }
-
 
 export default function GenerateTasksTable({
   experimentInfo,
   experimentInfoMutate,
   setCurrentPlugin,
-  setCurrentGenerationName,
+  setCurrentGenerationId,
   setOpen,
 }) {
-
+  const { data, error, isLoading, mutate } = useSWR(
+    chatAPI.Endpoints.Tasks.ListByType('GENERATE'),
+    fetcher,
+  );
+  console.log(data);
   return (
     <>
       <Table aria-label="basic table" stickyHeader sx={{}}>
@@ -91,66 +80,55 @@ export default function GenerateTasksTable({
           </tr>
         </thead>
         <tbody>
-          {listGenerations(experimentInfo?.config?.generations) &&
-            listGenerations(experimentInfo?.config?.generations)?.map(
-              (generations) => (
-                <tr key={generations.name}>
-                  <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
-                    {generations.name}
-                  </td>
-                  <td style={{ overflow: 'hidden' }}>
-                    {formatTemplateConfig(generations.script_parameters)}
-                    {/* {evaluations?.script_parameters?.task}&nbsp; */}
-                    {/* <FileTextIcon size={14} /> */}
-                  </td>
-                  <td>{generations.plugin}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <ButtonGroup
+          {data &&
+            data?.map((generations) => (
+              <tr key={generations.id}>
+                <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
+                  {generations.name}
+                </td>
+                <td style={{ overflow: 'hidden' }}>
+                  {/* formatTemplateConfig(generations.script_parameters) */}
+                  {/* {evaluations?.script_parameters?.task}&nbsp; */}
+                  {/* <FileTextIcon size={14} /> */}
+                </td>
+                <td>{generations.plugin}</td>
+                <td style={{ textAlign: 'right' }}>
+                  <ButtonGroup
+                    variant="soft"
+                    sx={{ justifyContent: 'flex-end' }}
+                  >
+                    <Button
+                      startDecorator={<PlayIcon />}
                       variant="soft"
-                      sx={{ justifyContent: 'flex-end' }}
+                      color="success"
+                      onClick={async () => await generationRun(generations.id)}
                     >
-                      <Button
-                        startDecorator={<PlayIcon />}
-                        variant="soft"
-                        color="success"
-                        onClick={async () =>
-                          await generationRun(
-                            experimentInfo.id,
-                            generations.plugin,
-                            generations.name
-                          )
-                        }
-                      >
-                        Queue
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => {
-                          setOpen(true);
-                          setCurrentPlugin(generations?.plugin);
-                          setCurrentGenerationName(generations.name);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <IconButton
-                        onClick={async () => {
-                          await fetch(
-                            chatAPI.Endpoints.Experiment.DeleteGeneration(
-                              experimentInfo.id,
-                              generations.name
-                            )
-                          );
-                          experimentInfoMutate();
-                        }}
-                      >
-                        <Trash2Icon />
-                      </IconButton>
-                    </ButtonGroup>
-                  </td>
-                </tr>
-              )
-            )}
+                      Queue
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        setOpen(true);
+                        setCurrentPlugin(generations?.plugin);
+                        setCurrentGenerationId(generations.id);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <IconButton
+                      onClick={async () => {
+                        await fetch(
+                          chatAPI.Endpoints.Tasks.DeleteTask(generations.id),
+                        );
+                        experimentInfoMutate();
+                      }}
+                    >
+                      <Trash2Icon />
+                    </IconButton>
+                  </ButtonGroup>
+                </td>
+              </tr>
+            ))}
         </tbody>
       </Table>
     </>

@@ -33,9 +33,9 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
     chatAPI.Endpoints.Experiment.ScriptGetFile(
       experimentInfo?.id,
       pluginId,
-      'info.md'
+      'info.md',
     ),
-    fetcher
+    fetcher,
   );
 
   return (
@@ -62,7 +62,7 @@ function getGenerationFromGenerationsArray(generationsStr, generationName) {
 
       if (Array.isArray(generations)) {
         thisGeneration = generations.find(
-          (generation) => generation.name === generationName
+          (generation) => generation.name === generationName,
         );
       }
     } catch (error) {
@@ -73,13 +73,66 @@ function getGenerationFromGenerationsArray(generationsStr, generationName) {
   return thisGeneration;
 }
 
+async function updateTask(
+  task_id: string,
+  input_config: string,
+  config: string,
+  output_config: string,
+) {
+  const configBody = {
+    input_config: input_config,
+    config: config,
+    output_config: output_config,
+  };
+  const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(configBody),
+  });
+  const result = await response.json();
+  return result;
+}
+
+async function createNewTask(
+  name: string,
+  plugin: string,
+  experimentId: string,
+  input_config: string,
+  config: string,
+  output_config: string,
+) {
+  const configBody = {
+    name: name,
+    plugin: plugin,
+    experiment_id: experimentId,
+    input_config: input_config,
+    config: config,
+    output_config: output_config,
+    type: 'GENERATE',
+  };
+  console.log(configBody);
+  const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(configBody),
+  });
+  const result = await response.json();
+  return result;
+}
+
 export default function GenerateModal({
   open,
   onClose,
   experimentInfo,
   experimentInfoMutate,
   pluginId,
-  currentGenerationName,
+  currentGenerationId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -87,7 +140,7 @@ export default function GenerateModal({
   experimentInfoMutate: () => void;
   template_id?: string;
   pluginId: string;
-  currentGenerationName?: string; // Optional incase of new generation
+  currentGenerationId?: string; // Optional incase of new generation
 }) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
@@ -107,17 +160,22 @@ export default function GenerateModal({
     error: datasetsError,
     isLoading: datasetsIsLoading,
   } = useSWR(chatAPI.Endpoints.Dataset.LocalList(), fetcher);
-
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
       pluginId &&
       chatAPI.Endpoints.Experiment.ScriptGetFile(
         experimentInfo?.id,
         pluginId,
-        'index.json'
+        'index.json',
       ),
-    fetcher
+    fetcher,
   );
+
+  const {
+    data: generationData,
+    error: generationError,
+    isLoading: generationIsLoading,
+  } = useSWR(chatAPI.Endpoints.Tasks.GetByID(currentGenerationId), fetcher);
 
   const { data: currentDatasetInfo, isLoading: currentDatasetInfoIsLoading } =
     useSWR(() => {
@@ -129,7 +187,7 @@ export default function GenerateModal({
 
   useEffect(() => {
     if (open) {
-      if (!currentGenerationName || currentGenerationName === '') {
+      if (!currentGenerationId || currentGenerationId === '') {
         setNameInput(generateFriendlyName());
       } else {
         setNameInput('');
@@ -140,124 +198,116 @@ export default function GenerateModal({
   useEffect(() => {
     // EDIT GENERATION
     if (experimentInfo && pluginId) {
-      if (currentGenerationName && currentGenerationName !== '') {
-        const generationsStr = experimentInfo.config?.generations;
-        setSelectedDocs([]);
+      if (currentGenerationId && currentGenerationId !== '') {
+        console.log(currentGenerationId);
+        console.log(generationData);
+        const generationConfig = JSON.parse(generationData.config);
+        if (generationConfig) {
+          setConfig(generationConfig.script_parameters);
 
-        if (generationsStr) {
-          const generationConfig = getGenerationFromGenerationsArray(
-            generationsStr,
-            currentGenerationName
-          );
-          if (generationConfig) {
+          const datasetKeyExists = Object.keys(
+            generationConfig.script_parameters,
+          ).some((key) => key.toLowerCase().includes('dataset'));
+
+          const docsKeyExists = Object.keys(
+            generationConfig.script_parameters,
+          ).some((key) => key.toLowerCase().includes('docs'));
+
+          const contextKeyExists = Object.keys(
+            generationConfig.script_parameters,
+          ).some((key) => key.toLowerCase().includes('context'));
+
+          setHasDatasetKey(datasetKeyExists);
+
+          if (
+            docsKeyExists &&
+            generationConfig.script_parameters.docs.length > 0
+          ) {
+            setHasContextKey(false);
+            setHasDocumentsKey(true);
+            generationConfig.script_parameters.docs =
+              generationConfig.script_parameters.docs.split(',');
             setConfig(generationConfig.script_parameters);
-
-            const datasetKeyExists = Object.keys(
-              generationConfig.script_parameters
-            ).some((key) => key.toLowerCase().includes('dataset'));
-
-            const docsKeyExists = Object.keys(
-              generationConfig.script_parameters
-            ).some((key) => key.toLowerCase().includes('docs'));
-
-            const contextKeyExists = Object.keys(
-              generationConfig.script_parameters
-            ).some((key) => key.toLowerCase().includes('context'));
-
-            setHasDatasetKey(datasetKeyExists);
-
-            if (
-              docsKeyExists &&
-              generationConfig.script_parameters.docs.length > 0
-            ) {
-              setHasContextKey(false);
-              setHasDocumentsKey(true);
-              generationConfig.script_parameters.docs =
-                generationConfig.script_parameters.docs.split(',');
-              setConfig(generationConfig.script_parameters);
-              setSelectedDocs(generationConfig.script_parameters.docs);
-            } else if (
-              contextKeyExists &&
-              generationConfig.script_parameters.context.length > 0
-            ) {
-              setHasContextKey(true);
-              setHasDocumentsKey(false);
-              const context = generationConfig.script_parameters.context;
-              setContextInput(context);
-              delete generationConfig.script_parameters.context;
-              setConfig(generationConfig.script_parameters);
-            }
-
-            if (
-              hasDatasetKey &&
-              generationConfig.script_parameters.dataset_name.length > 0
-            ) {
-              setSelectedDataset(
-                generationConfig.script_parameters.dataset_name
-              );
-            }
-            if (
-              generationConfig.script_parameters._dataset_display_message &&
-              generationConfig.script_parameters._dataset_display_message
-                .length > 0
-            ) {
-              setDatasetDisplayMessage(
-                generationConfig.script_parameters._dataset_display_message
-              );
-            }
-            if (!nameInput && generationConfig?.name.length > 0) {
-              setNameInput(generationConfig.name);
-            }
+            setSelectedDocs(generationConfig.script_parameters.docs);
+          } else if (
+            contextKeyExists &&
+            generationConfig.script_parameters.context.length > 0
+          ) {
+            setHasContextKey(true);
+            setHasDocumentsKey(false);
+            const context = generationConfig.script_parameters.context;
+            setContextInput(context);
+            delete generationConfig.script_parameters.context;
+            setConfig(generationConfig.script_parameters);
           }
-        }
-      } else {
-        // CREATE NEW GENERATION
-        if (data) {
-          let parsedData;
-          try {
-            parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
-            // Set config as a JSON object with keys of the parameters and values of the default values
-            setSelectedDocs([]);
-            let tempconfig: { [key: string]: any } = {};
-            if (parsedData && parsedData.parameters) {
-              tempconfig = Object.fromEntries(
-                Object.entries(parsedData.parameters).map(([key, value]) => [
-                  key,
-                  value.default,
-                ])
-              );
-              // Logic to set dataset message
-              if (parsedData && parsedData._dataset) {
-                setHasDatasetKey(true);
-                // Check if the dataset display message string length is greater than 0
-                if (
-                  parsedData._dataset_display_message &&
-                  parsedData._dataset_display_message.length > 0
-                ) {
-                  setDatasetDisplayMessage(parsedData._dataset_display_message);
-                  // Add dataset display message to the config parameters
-                }
-              }
-              // Check if parsed data parameters has a key that includes 'docs'
-              const docsKeyExists = Object.keys(parsedData.parameters).some(
-                (key) => key.toLowerCase().includes('tflabcustomui_docs')
-              );
 
-              const contextKeyExists = Object.keys(parsedData.parameters).some(
-                (key) => key.toLowerCase().includes('tflabcustomui_context')
-              );
-              setHasContextKey(contextKeyExists);
-              setHasDocumentsKey(docsKeyExists);
-            }
-            setConfig(tempconfig);
-          } catch (e) {
-            console.error('Error parsing data', e);
-            parsedData = '';
+          if (
+            hasDatasetKey &&
+            generationConfig.script_parameters.dataset_name.length > 0
+          ) {
+            setSelectedDataset(generationConfig.script_parameters.dataset_name);
+          }
+          if (
+            generationConfig.script_parameters._dataset_display_message &&
+            generationConfig.script_parameters._dataset_display_message.length >
+              0
+          ) {
+            setDatasetDisplayMessage(
+              generationConfig.script_parameters._dataset_display_message,
+            );
+          }
+          if (!nameInput && generationData?.name.length > 0) {
+            setNameInput(generationData.name);
           }
         }
       }
+    } else {
+      // CREATE NEW GENERATION
+      if (data) {
+        let parsedData;
+        try {
+          parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+          // Set config as a JSON object with keys of the parameters and values of the default values
+          setSelectedDocs([]);
+          let tempconfig: { [key: string]: any } = {};
+          if (parsedData && parsedData.parameters) {
+            tempconfig = Object.fromEntries(
+              Object.entries(parsedData.parameters).map(([key, value]) => [
+                key,
+                value.default,
+              ]),
+            );
+            // Logic to set dataset message
+            if (parsedData && parsedData._dataset) {
+              setHasDatasetKey(true);
+              // Check if the dataset display message string length is greater than 0
+              if (
+                parsedData._dataset_display_message &&
+                parsedData._dataset_display_message.length > 0
+              ) {
+                setDatasetDisplayMessage(parsedData._dataset_display_message);
+                // Add dataset display message to the config parameters
+              }
+            }
+            // Check if parsed data parameters has a key that includes 'docs'
+            const docsKeyExists = Object.keys(parsedData.parameters).some(
+              (key) => key.toLowerCase().includes('tflabcustomui_docs'),
+            );
+
+            const contextKeyExists = Object.keys(parsedData.parameters).some(
+              (key) => key.toLowerCase().includes('tflabcustomui_context'),
+            );
+            setHasContextKey(contextKeyExists);
+            setHasDocumentsKey(docsKeyExists);
+          }
+          setConfig(tempconfig);
+        } catch (e) {
+          console.error('Error parsing data', e);
+          parsedData = '';
+        }
+      }
     }
-  }, [experimentInfo, pluginId, currentGenerationName, nameInput, data]);
+  }, [experimentInfo, pluginId, currentGenerationId, nameInput, data]);
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -267,7 +317,7 @@ export default function GenerateModal({
     ? experimentInfo?.config?.foundation_filename
     : experimentInfo?.config?.foundation;
 
-  // Set config to the plugin config if it is available based on currentGenerationName within experiment info
+  // Set config to the plugin config if it is available based on currentGenerationId within experiment info
 
   function TrainingModalFirstTab() {
     return (
@@ -375,26 +425,29 @@ export default function GenerateModal({
       } else {
         formJson.generation_type = 'scratch';
       }
+      formJson.script_parameters = JSON.parse(JSON.stringify(formJson));
 
       console.log('formJson', formJson);
 
-      // Run when the currentGenerationName is provided
-      if (currentGenerationName && currentGenerationName !== '') {
-        const result = await chatAPI.EXPERIMENT_EDIT_GENERATION(
-          experimentInfo?.id,
-          currentGenerationName,
-          formJson
+      // Run when the currentGenerationId is provided
+      if (currentGenerationId && currentGenerationId !== '') {
+        await updateTask(
+          currentGenerationId,
+          '{}',
+          JSON.stringify(formJson),
+          '{}',
         );
         setNameInput(generateFriendlyName());
         setContextInput('');
       } else {
         const template_name = formJson.template_name;
-        delete formJson.template_name;
-        const result = await chatAPI.EXPERIMENT_ADD_GENERATION(
-          experimentInfo?.id,
+        await createNewTask(
           template_name,
           pluginId,
-          formJson
+          experimentInfo?.id,
+          '{}',
+          JSON.stringify(formJson),
+          '{}',
         );
         // alert(JSON.stringify(formJson, null, 2));
         setNameInput(generateFriendlyName());
