@@ -54,7 +54,7 @@ function getTint(type: string) {
   return (
     'color-mix(in srgb, ' +
     tint +
-    ', var(--joy-palette-background-surface) 50%)'
+    ', var(--joy-palette-background-surface) 70%)'
   );
 }
 
@@ -143,6 +143,7 @@ export default function PluginCard({
                 '-webkit-box-orient': 'vertical',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                wordBreak: 'break-word', // Add this line to break up long words
               }}
             >
               {plugin.description}
@@ -174,16 +175,6 @@ export default function PluginCard({
           >
             {!download && (
               <>
-                {/* <Button
-                color="neutral"
-                variant="outlined"
-                onClick={async () => {
-                  await fetch(chatAPI.Endpoints.Dataset.Delete(plugin.name));
-                  parentMutate();
-                }}
-              >
-                <Trash2Icon />
-              </Button> */}
                 <Link
                   to={'/plugins/' + plugin.uniqueId}
                   style={{ textDecoration: 'none', color: 'white' }}
