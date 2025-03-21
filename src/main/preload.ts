@@ -60,7 +60,7 @@ export type ElectronHandler = typeof electronHandler;
 contextBridge.exposeInMainWorld('electron', electronHandler);
 
 contextBridge.exposeInMainWorld('platform', {
-  appmode: "electron",
+  appmode: 'electron',
   node: () => process.versions.node,
   chrome: () => process.versions.chrome,
   electron: () => process.versions.electron,
@@ -101,12 +101,4 @@ contextBridge.exposeInMainWorld('autoUpdater', {
   onMessage: (data) => ipcRenderer.on('autoUpdater', data),
   removeAllListeners: () => ipcRenderer.removeAllListeners('autoUpdater'),
   requestUpdate: () => ipcRenderer.invoke('autoUpdater:requestUpdate'),
-});
-
-contextBridge.exposeInMainWorld('darkMode', {
-  toggle: () => ipcRenderer.invoke('dark-mode:toggle'),
-  system: () => ipcRenderer.invoke('dark-mode:system'),
-  setMode: (value) => ipcRenderer.invoke('dark-mode:set', value),
-  onUpdate: (callback) =>
-    ipcRenderer.on('dark-mode:updated', (_event, value) => callback(value)),
 });
