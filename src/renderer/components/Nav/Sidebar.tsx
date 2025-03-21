@@ -195,12 +195,12 @@ export default function Sidebar({
           icon={<FlaskConicalIcon />}
           disabled={!experimentInfo?.name}
         />
-        <SubNavItem
+        {/* <SubNavItem
           title="Settings"
           path="/projects/settings"
           icon={<SlidersIcon />}
           disabled={!experimentInfo?.name}
-        />
+        /> */}
       </List>
       <List sx={{ justifyContent: 'flex-end' }}>
         <Divider sx={{ marginBottom: 2 }} />
