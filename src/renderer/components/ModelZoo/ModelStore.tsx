@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/control-has-associated-label */
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -351,6 +352,7 @@ export default function ModelStore() {
                       />
                     }
                     sx={{
+                      marginLeft: 2,
                       '& svg': {
                         transition: '0.2s',
                         transform:
@@ -407,7 +409,7 @@ export default function ModelStore() {
                 ).map((row) => (
                   <tr key={row.uniqueID}>
                     <td>
-                      <Typography level="title-md" marginLeft={2}>
+                      <Typography level="body-sm" marginLeft={2}>
                         {row.new && (
                           <Chip
                             variant="outlined"
@@ -481,18 +483,22 @@ export default function ModelStore() {
                             : '',
                       }}
                     >
-                      {row.architecture == 'MLX' && (
-                        <>
-                          <TinyMLXLogo />
-                          &nbsp;
-                        </>
-                      )}
-                      {row.architecture}
+                      <Typography
+                        level="body-sm"
+                        marginLeft={2}
+                        startDecorator={
+                          row.architecture === 'MLX' && <TinyMLXLogo />
+                        }
+                      >
+                        {row.architecture}
+                      </Typography>
                     </td>
 
                     <td>
-                      {row?.size_of_model_in_mb &&
-                        formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                      <Typography level="body-sm">
+                        {row?.size_of_model_in_mb &&
+                          formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                      </Typography>
                     </td>
 
                     <td style={{ textAlign: 'right' }}>
