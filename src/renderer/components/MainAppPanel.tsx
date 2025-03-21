@@ -9,7 +9,13 @@ import {
 } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { createContext, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { AnalyticsBrowser } from '@segment/analytics-next';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
@@ -42,7 +48,7 @@ export const analytics = new AnalyticsBrowser();
 analytics.load({ writeKey: 'UYXFr71CWmsdxDqki5oFXIs2PSR5XGCE' });
 
 // Segment context provider to make analytics available throughout the app
-export const SegmentContext = createContext(null);
+export const SegmentContext = createContext();
 
 export const SegmentProvider = ({ children }) => {
   return (
@@ -106,164 +112,182 @@ export default function MainAppPanel({
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
     useState('chat');
 
-  function setFoundation(model) {
-    let model_name = '';
-    let model_filename = '';
+  const setFoundation = useCallback(
+    (model) => {
+      let model_name = '';
+      let model_filename = '';
 
-    if (model) {
-      model_name = model.model_id;
+      if (model) {
+        model_name = model.model_id;
 
-      // model_filename is a real path to a local model file or directory
-      // For most generated models this will be a path to a directory
-      if (model.stored_in_filesystem) {
-        model_filename = model.local_path;
+        // model_filename is a real path to a local model file or directory
+        // For most generated models this will be a path to a directory
+        if (model.stored_in_filesystem) {
+          model_filename = model.local_path;
 
-        // If stored_in_filesystem isn't set but model_filename is then
-        // just take model_filename directly
-        // This is an imported model and this should hold a full path
-      } else if (model.json_data?.model_filename) {
-        model_filename = model.json_data.model_filename;
-      }
-    }
-
-    async function updateConfigs() {
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'foundation',
-          model_name,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'foundation_model_architecture',
-          model?.json_data?.architecture,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'foundation_filename',
-          model_filename,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'generationParams',
-          '{"temperature": 0.7, "maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
-        ),
-      );
-      experimentInfoMutate();
-    }
-
-    updateConfigs();
-  }
-
-  function setAdaptor(name) {
-    fetch(
-      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-        experimentInfo?.id,
-        'adaptor',
-        name,
-      ),
-    ).then((res) => {
-      experimentInfoMutate();
-    });
-  }
-
-  function setEmbedding(model) {
-    let model_name = '';
-    let model_filename = '';
-    let model_architecture = '';
-
-    if (model) {
-      model_name = model.model_id;
-
-      // model_filename is a real path to a local model file or directory
-      if (model.stored_in_filesystem) {
-        model_filename = model.local_path;
-      } else if (model.json_data?.model_filename) {
-        model_filename = model.json_data.model_filename;
+          // If stored_in_filesystem isn't set but model_filename is then
+          // just take model_filename directly
+          // This is an imported model and this should hold a full path
+        } else if (model.json_data?.model_filename) {
+          model_filename = model.json_data.model_filename;
+        }
       }
 
-      model_architecture = model.json_data?.architecture;
-    }
+      async function updateConfigs() {
+        await fetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'foundation',
+            model_name,
+          ),
+        );
+        await fetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'foundation_model_architecture',
+            model?.json_data?.architecture,
+          ),
+        );
+        await fetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'foundation_filename',
+            model_filename,
+          ),
+        );
+        await fetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'generationParams',
+            '{"temperature": 0.7, "maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
+          ),
+        );
+        experimentInfoMutate();
+      }
 
-    async function updateConfigs() {
+      updateConfigs();
+    },
+    [experimentInfo, experimentInfoMutate],
+  );
+
+  const setAdaptor = useCallback(
+    (name) => {
+      fetch(
+        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+          experimentInfo?.id,
+          'adaptor',
+          name,
+        ),
+      ).then((res) => {
+        experimentInfoMutate();
+      });
+    },
+    [experimentInfo, experimentInfoMutate],
+  );
+
+  const setEmbedding = useCallback(
+    (model) => {
+      let model_name = '';
+      let model_filename = '';
+      let model_architecture = '';
+
+      if (model) {
+        model_name = model.model_id;
+
+        // model_filename is a real path to a local model file or directory
+        if (model.stored_in_filesystem) {
+          model_filename = model.local_path;
+        } else if (model.json_data?.model_filename) {
+          model_filename = model.json_data.model_filename;
+        }
+
+        model_architecture = model.json_data?.architecture;
+      }
+
+      async function updateConfigs() {
+        await fetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'embedding_model',
+            model_name,
+          ),
+        );
+        await fetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'embedding_model_filename',
+            model_filename,
+          ),
+        );
+        await fetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'embedding_model_architecture',
+            model_architecture,
+          ),
+        );
+        experimentInfoMutate();
+      }
+
+      updateConfigs();
+    },
+    [experimentInfo, experimentInfoMutate],
+  );
+
+  const experimentAddEvaluation = useCallback(
+    async (
+      pluginName: string,
+      localName: string,
+      script_template_parameters: any = {},
+    ) => {
+      await chatAPI.EXPERIMENT_ADD_EVALUATION(
+        experimentInfo?.id,
+        localName,
+        pluginName,
+        script_template_parameters,
+      );
+      experimentInfoMutate();
+    },
+    [experimentInfo, experimentInfoMutate],
+  );
+
+  const experimentAddGeneration = useCallback(
+    async (
+      pluginName: string,
+      localName: string,
+      script_template_parameters: any = {},
+    ) => {
+      await chatAPI.EXPERIMENT_ADD_GENERATION(
+        experimentInfo?.id,
+        localName,
+        pluginName,
+        script_template_parameters,
+      );
+      experimentInfoMutate();
+    },
+    [experimentInfo, experimentInfoMutate],
+  );
+
+  const setRagEngine = useCallback(
+    async (name: string, rag_settings: any = {}) => {
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
-          'embedding_model',
-          model_name,
+          'rag_engine',
+          name,
         ),
       );
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
-          'embedding_model_filename',
-          model_filename,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'embedding_model_architecture',
-          model_architecture,
+          'rag_engine_settings',
+          JSON.stringify(rag_settings),
         ),
       );
       experimentInfoMutate();
-    }
-
-    updateConfigs();
-  }
-
-  async function experimentAddEvaluation(
-    pluginName: string,
-    localName: string,
-    script_template_parameters: any = {},
-  ) {
-    await chatAPI.EXPERIMENT_ADD_EVALUATION(
-      experimentInfo?.id,
-      localName,
-      pluginName,
-      script_template_parameters,
-    );
-    experimentInfoMutate();
-  }
-
-  async function experimentAddGeneration(
-    pluginName: string,
-    localName: string,
-    script_template_parameters: any = {},
-  ) {
-    await chatAPI.EXPERIMENT_ADD_GENERATION(
-      experimentInfo?.id,
-      localName,
-      pluginName,
-      script_template_parameters,
-    );
-    experimentInfoMutate();
-  }
-
-  async function setRagEngine(name: string, rag_settings: any = {}) {
-    await fetch(
-      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-        experimentInfo?.id,
-        'rag_engine',
-        name,
-      ),
-    );
-    await fetch(
-      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-        experimentInfo?.id,
-        'rag_engine_settings',
-        JSON.stringify(rag_settings),
-      ),
-    );
-    experimentInfoMutate();
-  }
+    },
+    [experimentInfo, experimentInfoMutate],
+  );
 
   if (!experimentInfo) {
     redirect('/');
