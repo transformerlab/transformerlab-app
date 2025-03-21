@@ -53,50 +53,6 @@ import { LuFileJson } from 'react-icons/lu';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
-function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
-  if (b[orderBy] < a[orderBy]) {
-    return -1;
-  }
-  if (b[orderBy] > a[orderBy]) {
-    return 1;
-  }
-  return 0;
-}
-
-type Doc = 'asc' | 'desc';
-
-function getComparator<Key extends keyof any>(
-  order: Doc,
-  orderBy: Key,
-): (
-  a: { [key in Key]: number | string },
-  b: { [key in Key]: number | string },
-) => number {
-  return order === 'desc'
-    ? (a, b) => descendingComparator(a, b, orderBy)
-    : (a, b) => -descendingComparator(a, b, orderBy);
-}
-
-// Since 2020 all major browsers ensure sort stability with Array.prototype.sort().
-// stableSort() brings sort stability to non-modern browsers (notably IE11). If you
-// only support modern browsers you can replace stableSort(exampleArray, exampleComparator)
-// with exampleArray.slice().sort(exampleComparator)
-function stableSort<T>(
-  array: readonly T[],
-  comparator: (a: T, b: T) => number,
-) {
-  if (!Array.isArray(array)) return [];
-  const stabilizedThis = array?.map((el, index) => [el, index] as [T, number]);
-  stabilizedThis?.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) {
-      return order;
-    }
-    return a[1] - b[1];
-  });
-  return stabilizedThis?.map((el) => el[0]);
-}
-
 function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
   return (
     <Dropdown>
@@ -139,6 +95,211 @@ function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
       </Menu>
     </Dropdown>
   );
+}
+
+function File({ row, fullPage, experimentInfo, currentFolder, mutate }) {
+  return (
+    <tr key={row?.name}>
+      <td style={{ paddingLeft: '1rem' }}>
+        <Typography
+          level="body-sm"
+          sx={{ display: 'flex', alignItems: 'center' }}
+        >
+          <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
+          {row?.name}
+        </Typography>
+      </td>
+      {fullPage && (
+        <>
+          <td>
+            <Typography level="body-xs">{row?.date}</Typography>
+          </td>
+          <td>
+            <Chip
+              variant="soft"
+              size="sm"
+              startDecorator={
+                {
+                  '.txt': <FaRegFileAlt />,
+                  '.pdf': <FaRegFilePdf />,
+                  '.jsonl': <LuFileJson />,
+                }[row?.type]
+              }
+              color={
+                {
+                  '.txt': 'success',
+                  '.pdf': 'neutral',
+                  '.jsonl': 'danger',
+                }[row?.type] as ColorPaletteProp
+              }
+            >
+              {row?.type}
+            </Chip>
+          </td>
+          <td>
+            {row?.size && (
+              <Typography level="body-xs" color="neutral">
+                {formatBytes(row?.size)}
+              </Typography>
+            )}
+          </td>
+        </>
+      )}
+
+      <td>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Button
+            variant="plain"
+            size="sm"
+            style={{ fontSize: '11px' }}
+            onClick={() => {
+              setPreviewFile(row?.name);
+            }}
+          >
+            <EyeIcon size="16px" />
+          </Button>
+          <RowMenu
+            experimentInfo={experimentInfo}
+            filename={row?.name}
+            foldername={currentFolder}
+            mutate={mutate}
+            row={row}
+          />
+        </Box>
+      </td>
+    </tr>
+  );
+}
+
+function Folder({
+  row,
+  experimentInfo,
+  currentFolder,
+  setCurrentFolder,
+  fullPage,
+  mutate,
+}) {
+  return (
+    <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
+      <td style={{ paddingLeft: '1rem' }}>
+        <Typography
+          level="body-sm"
+          sx={{ display: 'flex', alignItems: 'center' }}
+        >
+          <FolderIcon size="16px" style={{ marginRight: '0.5rem' }} />
+          {row?.name}
+        </Typography>
+      </td>
+      {fullPage && (
+        <>
+          <td>
+            <Typography level="body-xs">{row?.date}</Typography>
+          </td>
+          <td>
+            <Chip
+              variant="soft"
+              size="sm"
+              startDecorator={
+                {
+                  '.txt': <FaRegFileAlt />,
+                  '.pdf': <FaRegFilePdf />,
+                  '.jsonl': <LuFileJson />,
+                }[row?.type]
+              }
+              color={
+                {
+                  '.txt': 'success',
+                  '.pdf': 'neutral',
+                  '.jsonl': 'danger',
+                }[row?.type] as ColorPaletteProp
+              }
+            >
+              {row?.type}
+            </Chip>
+          </td>
+          <td>
+            {row?.size == 0 ? (
+              <></>
+            ) : (
+              row?.size &&
+              row?.size != 0 && (
+                <Typography level="body-xs" color="neutral">
+                  {formatBytes(row?.size)}
+                </Typography>
+              )
+            )}
+          </td>
+        </>
+      )}
+      <td>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <RowMenu
+            experimentInfo={experimentInfo}
+            filename={row?.name}
+            foldername={currentFolder}
+            mutate={mutate}
+            row={row}
+          />
+        </Box>
+      </td>
+    </tr>
+  );
+}
+
+function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
+  if (b[orderBy] < a[orderBy]) {
+    return -1;
+  }
+  if (b[orderBy] > a[orderBy]) {
+    return 1;
+  }
+  return 0;
+}
+
+type Doc = 'asc' | 'desc';
+
+function getComparator<Key extends keyof any>(
+  order: Doc,
+  orderBy: Key,
+): (
+  a: { [key in Key]: number | string },
+  b: { [key in Key]: number | string },
+) => number {
+  return order === 'desc'
+    ? (a, b) => descendingComparator(a, b, orderBy)
+    : (a, b) => -descendingComparator(a, b, orderBy);
+}
+
+// Since 2020 all major browsers ensure sort stability with Array.prototype.sort().
+// stableSort() brings sort stability to non-modern browsers (notably IE11). If you
+// only support modern browsers you can replace stableSort(exampleArray, exampleComparator)
+// with exampleArray.slice().sort(exampleComparator)
+function stableSort<T>(
+  array: readonly T[],
+  comparator: (a: T, b: T) => number,
+) {
+  if (!Array.isArray(array)) return [];
+  const stabilizedThis = array?.map((el, index) => [el, index] as [T, number]);
+  stabilizedThis?.sort((a, b) => {
+    const order = comparator(a[0], b[0]);
+    if (order !== 0) {
+      return order;
+    }
+    return a[1] - b[1];
+  });
+  return stabilizedThis?.map((el) => el[0]);
 }
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -212,160 +373,6 @@ export default function Documents({
       console.error('Error creating folder:', error);
     }
   };
-
-  function File({ row }) {
-    return (
-      <tr key={row?.name}>
-        <td style={{ paddingLeft: '1rem' }}>
-          <Typography
-            level="body-sm"
-            sx={{ display: 'flex', alignItems: 'center' }}
-          >
-            <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
-            {row?.name}
-          </Typography>
-        </td>
-        {fullPage && (
-          <>
-            <td>
-              <Typography level="body-xs">{row?.date}</Typography>
-            </td>
-            <td>
-              <Chip
-                variant="soft"
-                size="sm"
-                startDecorator={
-                  {
-                    '.txt': <FaRegFileAlt />,
-                    '.pdf': <FaRegFilePdf />,
-                    '.jsonl': <LuFileJson />,
-                  }[row?.type]
-                }
-                color={
-                  {
-                    '.txt': 'success',
-                    '.pdf': 'neutral',
-                    '.jsonl': 'danger',
-                  }[row?.type] as ColorPaletteProp
-                }
-              >
-                {row?.type}
-              </Chip>
-            </td>
-            <td>
-              {row?.size && (
-                <Typography level="body-xs" color="neutral">
-                  {formatBytes(row?.size)}
-                </Typography>
-              )}
-            </td>
-          </>
-        )}
-
-        <td>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <Button
-              variant="plain"
-              size="sm"
-              style={{ fontSize: '11px' }}
-              onClick={() => {
-                setPreviewFile(row?.name);
-              }}
-            >
-              <EyeIcon size="16px" />
-            </Button>
-            <RowMenu
-              experimentInfo={experimentInfo}
-              filename={row?.name}
-              foldername={currentFolder}
-              mutate={mutate}
-              row={row}
-            />
-          </Box>
-        </td>
-      </tr>
-    );
-  }
-
-  function Folder({ row }) {
-    return (
-      <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
-        <td style={{ paddingLeft: '1rem' }}>
-          <Typography
-            level="body-sm"
-            sx={{ display: 'flex', alignItems: 'center' }}
-          >
-            <FolderIcon size="16px" style={{ marginRight: '0.5rem' }} />
-            {row?.name}
-          </Typography>
-        </td>
-        {fullPage && (
-          <>
-            <td>
-              <Typography level="body-xs">{row?.date}</Typography>
-            </td>
-            <td>
-              <Chip
-                variant="soft"
-                size="sm"
-                startDecorator={
-                  {
-                    '.txt': <FaRegFileAlt />,
-                    '.pdf': <FaRegFilePdf />,
-                    '.jsonl': <LuFileJson />,
-                  }[row?.type]
-                }
-                color={
-                  {
-                    '.txt': 'success',
-                    '.pdf': 'neutral',
-                    '.jsonl': 'danger',
-                  }[row?.type] as ColorPaletteProp
-                }
-              >
-                {row?.type}
-              </Chip>
-            </td>
-            <td>
-              {row?.size == 0 ? (
-                <></>
-              ) : (
-                row?.size &&
-                row?.size != 0 && (
-                  <Typography level="body-xs" color="neutral">
-                    {formatBytes(row?.size)}
-                  </Typography>
-                )
-              )}
-            </td>
-          </>
-        )}
-        <td>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <RowMenu
-              experimentInfo={experimentInfo}
-              filename={row?.name}
-              foldername={currentFolder}
-              mutate={mutate}
-              row={row}
-            />
-          </Box>
-        </td>
-      </tr>
-    );
-  }
 
   const renderFilters = () => (
     <React.Fragment>
@@ -682,9 +689,22 @@ export default function Documents({
                   )}
                   {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
                     row?.type === 'folder' ? (
-                      <Folder row={row} />
+                      <Folder
+                        row={row}
+                        experimentInfo={experimentInfo}
+                        currentFolder={currentFolder}
+                        setCurrentFolder={setCurrentFolder}
+                        fullPage={fullPage}
+                        mutate={mutate}
+                      />
                     ) : (
-                      <File row={row} />
+                      <File
+                        row={row}
+                        fullPage={fullPage}
+                        experimentInfo={experimentInfo}
+                        currentFolder={currentFolder}
+                        mutate={mutate}
+                      />
                     ),
                   )}
                 </tbody>
