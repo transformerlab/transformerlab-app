@@ -8,6 +8,9 @@ import {
   useLocation,
 } from 'react-router-dom';
 
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { AnalyticsBrowser } from '@segment/analytics-next';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
 import Embeddings from './Experiment/Embeddings';
@@ -22,29 +25,24 @@ import Generate from './Experiment/Generate/Generate';
 import Export from './Experiment/Export/Export';
 import Api from './Experiment/Api';
 import Settings from './Experiment/Settings';
-import ModelHome from './Experiment/ExperimentNotes';
 import TrainLoRA from './Experiment/Train/TrainLoRA';
 import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
 import Rag from './Experiment/Rag';
 import Tokenize from './Experiment/Interact/Tokenize';
 
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
-import { createContext, useContext, useEffect, useState } from 'react';
 import Workflows from './Experiment/Workflows';
-import { AnalyticsBrowser } from '@segment/analytics-next';
-import React from 'react';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 
 export const analytics = new AnalyticsBrowser();
 analytics.load({ writeKey: 'UYXFr71CWmsdxDqki5oFXIs2PSR5XGCE' });
 
 // Segment context provider to make analytics available throughout the app
-export const SegmentContext = createContext();
+export const SegmentContext = createContext(null);
 
 export const SegmentProvider = ({ children }) => {
   return (
@@ -413,10 +411,6 @@ export default function MainAppPanel({
           element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
         />
         <Route path="/data" element={<Data />} />
-        <Route
-          path="/model-home"
-          element={<ModelHome experimentInfo={experimentInfo} />}
-        />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
