@@ -97,7 +97,14 @@ function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
   );
 }
 
-function File({ row, fullPage, experimentInfo, currentFolder, mutate }) {
+function File({
+  row,
+  fullPage,
+  experimentInfo,
+  currentFolder,
+  mutate,
+  setPreviewFile,
+}) {
   return (
     <tr key={row?.name}>
       <td style={{ paddingLeft: '1rem' }}>
@@ -704,6 +711,7 @@ export default function Documents({
                         experimentInfo={experimentInfo}
                         currentFolder={currentFolder}
                         mutate={mutate}
+                        setPreviewFile={setPreviewFile}
                       />
                     ),
                   )}
