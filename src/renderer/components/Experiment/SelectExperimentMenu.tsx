@@ -4,6 +4,7 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
+  EllipsisVerticalIcon,
   PlusCircleIcon,
   StopCircleIcon,
   XSquareIcon,
@@ -89,12 +90,23 @@ export default function SelectExperimentMenu({
                 {experimentInfo?.name || 'Select'}
                 <span
                   style={{
+                    flexGrow: 0,
+                    justifyContent: 'right',
+                    display: 'inline-flex',
+                    marginLeft: '8px',
+                  }}
+                >
+                  <ChevronDownIcon size="18px" />
+                </span>
+                <span
+                  style={{
                     flexGrow: 1,
                     justifyContent: 'right',
                     display: 'inline-flex',
+                    color: 'var(--joy-palette-neutral-plainColor)',
                   }}
                 >
-                  <ChevronDownIcon />
+                  &nbsp;
                 </span>
               </Button>
             </Tooltip>
@@ -106,9 +118,21 @@ export default function SelectExperimentMenu({
                 backgroundColor: 'transparent !important',
                 color: 'var(--joy-palette-neutral-plainColor)',
                 paddingLeft: 1,
+                paddingRight: 0,
               }}
             >
               {experimentInfo?.name || 'Select'}
+              <span
+                style={{
+                  flexGrow: 0,
+                  justifyContent: 'right',
+                  display: 'inline-flex',
+                  color: 'var(--joy-palette-neutral-plainColor)',
+                  marginLeft: '8px',
+                }}
+              >
+                <ChevronDownIcon size="18px" />
+              </span>
               <span
                 style={{
                   flexGrow: 1,
@@ -117,7 +141,7 @@ export default function SelectExperimentMenu({
                   color: 'var(--joy-palette-neutral-plainColor)',
                 }}
               >
-                <ChevronDownIcon />
+                &nbsp;
               </span>
             </MenuButton>
           )}
