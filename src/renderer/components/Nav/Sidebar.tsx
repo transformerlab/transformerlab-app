@@ -22,9 +22,20 @@ import {
   FileIcon,
   ChartColumnIncreasingIcon,
   WorkflowIcon,
+  User2Icon,
+  UserIcon,
+  LogOutIcon,
 } from 'lucide-react';
 
-import { ButtonGroup, IconButton, Sheet, Tooltip } from '@mui/joy';
+import {
+  Avatar,
+  Box,
+  ButtonGroup,
+  IconButton,
+  Sheet,
+  Tooltip,
+  Typography,
+} from '@mui/joy';
 
 import {
   useModelStatus,
@@ -195,12 +206,12 @@ export default function Sidebar({
           icon={<FlaskConicalIcon />}
           disabled={!experimentInfo?.name}
         />
-        <SubNavItem
+        {/* <SubNavItem
           title="Settings"
           path="/projects/settings"
           icon={<SlidersIcon />}
           disabled={!experimentInfo?.name}
-        />
+        /> */}
       </List>
       <List sx={{ justifyContent: 'flex-end' }}>
         <Divider sx={{ marginBottom: 2 }} />
@@ -236,7 +247,54 @@ export default function Sidebar({
           </ListItemButton>
         </ListItem> */}
         <Divider sx={{ my: 2 }} />
-        <ButtonGroup sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Box
+          sx={{
+            display: experimentInfo?.name === 'dev' ? 'flex' : 'none',
+            gap: 1,
+            alignItems: 'center',
+            mb: 1,
+            maxWidth: '180px',
+          }}
+        >
+          {/* <Avatar
+            variant="outlined"
+            size="sm"
+            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=286"
+          /> */}
+          <UserIcon />
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              level="title-sm"
+              sx={{
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              User Name
+            </Typography>
+            <Typography
+              level="body-xs"
+              sx={{
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              user@test.com
+            </Typography>
+          </Box>
+          <IconButton size="sm" variant="plain" color="neutral">
+            <LogOutIcon size="18px" />
+          </IconButton>
+        </Box>
+        <ButtonGroup
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <ColorSchemeToggle themeSetter={themeSetter} />
           <a
             href="https://github.com/transformerlab/transformerlab-app/"
@@ -263,14 +321,6 @@ export default function Sidebar({
               <SettingsIcon strokeWidth={1} />
             </IconButton>
           </Tooltip>
-          {/* <Tooltip title="Logs">
-            <IconButton
-              variant="plain"
-              onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
-            >
-              <LogsIcon strokeWidth={1} />
-            </IconButton>
-          </Tooltip> */}
         </ButtonGroup>
       </List>
     </Sheet>
