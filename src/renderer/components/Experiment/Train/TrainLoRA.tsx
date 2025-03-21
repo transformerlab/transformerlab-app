@@ -144,6 +144,9 @@ export default function TrainLoRA({ experimentInfo }) {
   const modelArchitecture =
     experimentInfo?.config?.foundation_model_architecture;
 
+  const embeddingModelArchitecture =
+    experimentInfo?.config?.embedding_model_architecture;
+
   if (!experimentInfo) {
     return 'No experiment selected';
   }
@@ -233,7 +236,8 @@ export default function TrainLoRA({ experimentInfo }) {
                   key={plugin.uniqueId}
                   disabled={
                     plugin.model_architectures
-                      ? !plugin.model_architectures.includes(modelArchitecture)
+                      ? !plugin.model_architectures.includes(modelArchitecture) &&
+                      !plugin.model_architectures.includes(embeddingModelArchitecture)
                       : false
                   }
                 >
@@ -246,7 +250,8 @@ export default function TrainLoRA({ experimentInfo }) {
                       level="body-xs"
                       sx={{ color: 'var(--joy-palette-neutral-400)' }}
                     >
-                      {plugin.model_architectures && !plugin.model_architectures.includes(modelArchitecture)
+                      {plugin.model_architectures && !plugin.model_architectures.includes(modelArchitecture) &&
+                      !plugin.model_architectures.includes(embeddingModelArchitecture)
                         ? '(Does not support this model architecture)'
                         : ''}
                     </Typography>
