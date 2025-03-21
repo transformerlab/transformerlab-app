@@ -40,7 +40,7 @@ export default function SelectExperimentMenu({
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.GET_EXPERIMENTS_URL(),
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -57,8 +57,10 @@ export default function SelectExperimentMenu({
       <FormControl>
         <FormLabel
           sx={{
-            paddingLeft: '6px',
+            paddingLeft: 1,
             color: 'var(--joy-palette-neutral-plainColor)',
+            paddingBottom: 0,
+            marginBottom: 0,
           }}
         >
           Experiment:
@@ -80,7 +82,8 @@ export default function SelectExperimentMenu({
                 sx={{
                   backgroundColor: 'transparent !important',
                   fontSize: '22px',
-                  color: '#999',
+                  color: 'var(--joy-palette-neutral-plainDisabledColor)',
+                  paddingLeft: 1,
                 }}
               >
                 {experimentInfo?.name || 'Select'}
@@ -101,6 +104,8 @@ export default function SelectExperimentMenu({
               sx={{
                 fontSize: '22px',
                 backgroundColor: 'transparent !important',
+                color: 'var(--joy-palette-neutral-plainColor)',
+                paddingLeft: 1,
               }}
             >
               {experimentInfo?.name || 'Select'}
@@ -109,6 +114,7 @@ export default function SelectExperimentMenu({
                   flexGrow: 1,
                   justifyContent: 'right',
                   display: 'inline-flex',
+                  color: 'var(--joy-palette-neutral-plainColor)',
                 }}
               >
                 <ChevronDownIcon />
