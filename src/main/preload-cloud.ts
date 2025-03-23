@@ -24,8 +24,8 @@ const ipcRenderer = {
       }, 1); // Simulate async operation with 1 ms delay
     });
   },
-  on: (_channel: string, _func: (...args: unknown[]) => void) => { },
-  once: (_channel: string, _func: (...args: unknown[]) => void) => { },
+  on: (_channel: string, _func: (...args: unknown[]) => void) => {},
+  once: (_channel: string, _func: (...args: unknown[]) => void) => {},
   invoke: async (_channel: string, ..._args: unknown[]) => {
     console.log(`Invoking ${_channel} with args:`, _args);
     return new Promise((resolve) => {
@@ -34,7 +34,7 @@ const ipcRenderer = {
       }, 1); // Simulate async operation with 1 ms delay
     });
   },
-  removeAllListeners: (_channel: string) => { },
+  removeAllListeners: (_channel: string) => {},
 };
 
 // write to the browser window to break the HTML:
@@ -89,7 +89,9 @@ const electronHandler = {
 contextBridge.exposeInMainWorld('electron', electronHandler);
 
 contextBridge.exposeInMainWorld('platform', {
-  appmode: "cloud",
+  appmode: 'cloud',
+  environment: process.env.NODE_ENV, // Webpack's EnvironmentPlugin will replace this with 'production' or 'development'
+  version: process.env.npm_package_version,
   node: () => process.versions.node,
   chrome: () => process.versions.chrome,
   electron: () => process.versions.electron,
@@ -108,7 +110,6 @@ contextBridge.exposeInMainWorld('storage', {
     } catch (err) {
       // In case soemthing made it into storage wihout getting stringify-ed
       return Promise.resolve(keyValue);
-
     }
   },
   set: (key: string, value: any) => {
@@ -121,7 +122,6 @@ contextBridge.exposeInMainWorld('storage', {
     return Promise.resolve();
   },
 });
-
 
 // contextBridge.exposeInMainWorld('sshClient', {
 //   connect: (data) => ipcRenderer.invoke('ssh:connect', data),
@@ -143,4 +143,3 @@ contextBridge.exposeInMainWorld('autoUpdater', {
   removeAllListeners: () => ipcRenderer.removeAllListeners('autoUpdater'),
   requestUpdate: () => ipcRenderer.invoke('autoUpdater:requestUpdate'),
 });
-

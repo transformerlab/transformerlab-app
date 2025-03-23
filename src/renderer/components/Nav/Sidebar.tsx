@@ -78,6 +78,8 @@ export default function Sidebar({
     );
   }
 
+  const DEV_MODE = experimentInfo?.name === 'dev';
+
   return (
     <Sheet
       className="Sidebar"
@@ -107,8 +109,18 @@ export default function Sidebar({
       }}
     >
       <div
-        style={{ width: '100%', height: '52px', '-webkit-app-region': 'drag' }}
-      ></div>
+        style={{
+          width: '100%',
+          height: '52px',
+          '-webkit-app-region': 'drag',
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+          color: 'var(--joy-palette-neutral-plainDisabledColor)',
+        }}
+      >
+        {DEV_MODE && <>Transformer Lab v{window.platform?.version}</>}
+      </div>
       <SelectExperimentMenu
         experimentInfo={experimentInfo}
         setExperimentId={setExperimentId}
@@ -140,7 +152,7 @@ export default function Sidebar({
           icon={<MessageCircleIcon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
-        {experimentInfo?.name == 'dev' && (
+        {DEV_MODE && (
           <SubNavItem
             title="Workflows"
             path="/projects/workflows"
@@ -249,7 +261,7 @@ export default function Sidebar({
         <Divider sx={{ my: 2 }} />
         <Box
           sx={{
-            display: experimentInfo?.name === 'dev' ? 'flex' : 'none',
+            display: DEV_MODE ? 'flex' : 'none',
             gap: 1,
             alignItems: 'center',
             mb: 1,
