@@ -270,6 +270,8 @@ export default function Sidebar({
           <a
             href="https://github.com/transformerlab/transformerlab-app/"
             target="_blank"
+            rel="noreferrer"
+            aria-label="Visit Transformer Lab on Github"
           >
             <Tooltip
               title={
