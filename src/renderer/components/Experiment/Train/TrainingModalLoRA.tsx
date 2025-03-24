@@ -107,10 +107,6 @@ export default function TrainingModalLoRA({
     fetcher,
   );
 
-  console.log(task_id);
-
-  console.log(templateData);
-
   async function updateTask(
     task_id: string,
     input_config: string,
