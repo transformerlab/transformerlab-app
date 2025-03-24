@@ -1,5 +1,4 @@
 import { Chip, Tooltip, Typography } from '@mui/joy';
-import { log } from 'console';
 
 function renderToken(token) {
   if (token === ' ') {
