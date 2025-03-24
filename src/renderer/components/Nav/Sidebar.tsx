@@ -136,57 +136,57 @@ export default function Sidebar({
       >
         <SubNavItem
           title="Foundation"
-          path="/projects/model"
+          path="/experiment/model"
           icon={<LayersIcon />}
           disabled={!experimentInfo?.name}
         />
         {/* <SubNavItem
           title="Prompt"
-          path="/projects/prompt"
+          path="/experiment/prompt"
           icon={<TextSelectIcon />}
           disabled={!experimentInfo?.name}
         /> */}
         <SubNavItem
           title="Interact"
-          path="/projects/chat"
+          path="/experiment/chat"
           icon={<MessageCircleIcon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
         {DEV_MODE && (
           <SubNavItem
             title="Workflows"
-            path="/projects/workflows"
+            path="/experiment/workflows"
             icon={<WorkflowIcon />}
             disabled={!experimentInfo?.name}
           />
         )}
         {/* <SubNavItem
           title="Query Docs"
-          path="/projects/rag"
+          path="/experiment/rag"
           icon={<FolderSearch2Icon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         /> */}
         {/* <SubNavItem
           title="Embeddings"
-          path="/projects/embeddings"
+          path="/experiment/embeddings"
           icon={<FileDigitIcon />}
           disabled={activeModelIsNotSameAsFoundation()}
         />
         <SubNavItem
           title="Tokenize"
-          path="/projects/tokenize"
+          path="/experiment/tokenize"
           icon={<RectangleEllipsisIcon />}
           disabled={activeModelIsNotSameAsFoundation()}
         /> */}
         <SubNavItem
           title="Train"
-          path="/projects/training"
+          path="/experiment/training"
           icon={<GraduationCapIcon />}
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
           title="Export"
-          path="/projects/export"
+          path="/experiment/export"
           icon={<ArrowRightFromLineIcon />}
           disabled={
             !experimentInfo?.name || !experimentInfo?.config?.foundation
@@ -194,7 +194,7 @@ export default function Sidebar({
         />
         <SubNavItem
           title="Generate"
-          path="/projects/generate"
+          path="/experiment/generate"
           icon={<SquareStackIcon />}
           disabled={
             !experimentInfo?.name || !experimentInfo?.config?.foundation
@@ -202,25 +202,25 @@ export default function Sidebar({
         />
         <SubNavItem
           title="Evaluate"
-          path="/projects/eval"
+          path="/experiment/eval"
           icon={<ChartColumnIncreasingIcon />}
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
           title="Documents"
-          path="/projects/documents"
+          path="/experiment/documents"
           icon={<FileIcon />}
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
           title="Notes"
-          path="/projects/notes"
+          path="/experiment/notes"
           icon={<FlaskConicalIcon />}
           disabled={!experimentInfo?.name}
         />
         {/* <SubNavItem
           title="Settings"
-          path="/projects/settings"
+          path="/experiment/settings"
           icon={<SlidersIcon />}
           disabled={!experimentInfo?.name}
         /> */}

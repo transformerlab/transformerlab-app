@@ -50,12 +50,11 @@ function typeOfComputer(cpu, os, device) {
 }
 
 export default function Welcome() {
-
   // Check number of downloaded models
   let model_count = 0;
   const { data: modelCountResponse } = useSWR(
     chatAPI.Endpoints.Models.CountDownloaded(),
-    fetcher
+    fetcher,
   );
   if (modelCountResponse && modelCountResponse!.data) {
     model_count = modelCountResponse!.data;
@@ -147,7 +146,7 @@ export default function Welcome() {
               endDecorator={<ArrowRightCircleIcon />}
               size="lg"
               onClick={() => {
-                navigate('/projects/chat');
+                navigate('/experiment/chat');
               }}
             >
               Chat 💬 with it
