@@ -163,7 +163,7 @@ export default function TrainLoRA({ experimentInfo }) {
           mutate();
         }}
         experimentInfo={experimentInfo}
-        template_id={Number(templateID) > -1 ? templateID : undefined}
+        task_id={Number(templateID) > -1 ? templateID : undefined}
         pluginId={currentPlugin}
       />
       <TensorboardModal
