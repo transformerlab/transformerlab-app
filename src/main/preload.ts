@@ -61,6 +61,8 @@ contextBridge.exposeInMainWorld('electron', electronHandler);
 
 contextBridge.exposeInMainWorld('platform', {
   appmode: 'electron',
+  environment: process.env.NODE_ENV, // Webpack's EnvironmentPlugin will replace this with 'production' or 'development'
+  version: process.env.npm_package_version,
   node: () => process.versions.node,
   chrome: () => process.versions.chrome,
   electron: () => process.versions.electron,

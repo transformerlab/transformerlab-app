@@ -84,11 +84,16 @@ export default function CurrentFoundationInfo({
     },
     fetchWithPost,
   );
+
+  const {
+    mutate: experimentInfoMutate,
+  } = useSWR(chatAPI.GET_EXPERIMENT_URL(experimentInfo?.id), fetcher);
+
   const [huggingfaceData, setHugggingfaceData] = useState({});
   const [showProvenance, setShowProvenance] = useState(false);
   const huggingfaceId = experimentInfo?.config?.foundation;
   const [embeddingModel, setEmbeddingModel] = useState(
-    experimentInfo?.config?.embedding_model || DEFAULT_EMBEDDING_MODEL,
+    experimentInfo?.config?.embedding_model,
   );
   const navigate = useNavigate();
 
@@ -97,6 +102,41 @@ export default function CurrentFoundationInfo({
     chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
     fetcher,
   );
+
+  const resetToDefaultEmbedding = async () => {
+    // Update local state
+    setEmbeddingModel(DEFAULT_EMBEDDING_MODEL);
+    try {
+    // Update backend configuration
+    await fetch(
+      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+        experimentInfo?.id,
+        'embedding_model',
+        DEFAULT_EMBEDDING_MODEL,
+      )
+    );
+
+    await fetch(
+      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+        experimentInfo?.id,
+        'embedding_model_filename',
+        '',
+      )
+    );
+
+    await fetch(
+      chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+        experimentInfo?.id,
+        'embedding_model_architecture',
+        'BertModel',
+      )
+    );
+    experimentInfoMutate();
+
+    } catch (error) {
+      console.error('Failed to reset embedding model:', error);
+  }
+  };
 
   useMemo(() => {
     // This is a local model
@@ -122,6 +162,9 @@ export default function CurrentFoundationInfo({
   useEffect(() => {
     if (experimentInfo?.config?.embedding_model) {
       setEmbeddingModel(experimentInfo.config.embedding_model);
+    }
+    else {
+      resetToDefaultEmbedding();
     }
   }, [experimentInfo?.config?.embedding_model]);
 
@@ -226,7 +269,7 @@ export default function CurrentFoundationInfo({
             </Button>
             <Button
               startDecorator={<Undo2Icon />}
-              onClick={() => setEmbeddingModel(DEFAULT_EMBEDDING_MODEL)}
+              onClick={resetToDefaultEmbedding}
             >
               Reset to Default
             </Button>

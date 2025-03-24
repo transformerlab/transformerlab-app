@@ -73,6 +73,10 @@ export const PageTracker = () => {
 
   useEffect(() => {
     const trackPageView = async () => {
+      // Do not track if this is a development environment
+      if (window.platform?.environment === 'development') {
+        return;
+      }
       // Check for the DO_NOT_TRACK value in localStorage
       const doNotTrack = await window.storage.get('DO_NOT_TRACK');
       if (doNotTrack === 'true') {
@@ -86,11 +90,12 @@ export const PageTracker = () => {
         url: window.location.href,
         search: location.search,
         title: document.title,
-        // context: {
-        //   app: {
-        //     version: APP_VERSION,
-        //   },
-        // },
+        context: {
+          app: {
+            version: window.platform?.version,
+            mode: window.platform?.appmode,
+          },
+        },
       });
     };
 
