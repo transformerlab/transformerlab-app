@@ -147,13 +147,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   );
 }
 
-function GlobalMenuItems({
-  DEV_MODE,
-  experimentInfo,
-  outdatedPluginsCount,
-  themeSetter,
-  navigate,
-}) {
+function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   return (
     <>
       {' '}
@@ -176,85 +170,93 @@ function GlobalMenuItems({
           counter={outdatedPluginsCount}
         />
         <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
-        <Divider sx={{ my: 2 }} />
-        <Box
-          sx={{
-            display: DEV_MODE ? 'flex' : 'none',
-            gap: 1,
-            alignItems: 'center',
-            mb: 1,
-            maxWidth: '180px',
-          }}
-        >
-          {/* <Avatar
-      variant="outlined"
-      size="sm"
-      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=286"
-    /> */}
-          <UserIcon />
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              level="title-sm"
-              sx={{
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              User Name
-            </Typography>
-            <Typography
-              level="body-xs"
-              sx={{
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              user@test.com
-            </Typography>
-          </Box>
-          <IconButton size="sm" variant="plain" color="neutral">
-            <LogOutIcon size="18px" />
-          </IconButton>
-        </Box>
-        <ButtonGroup
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <ColorSchemeToggle themeSetter={themeSetter} />
-          <a
-            href="https://github.com/transformerlab/transformerlab-app/"
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Visit Transformer Lab on Github"
+      </List>
+    </>
+  );
+}
+
+function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
+  return (
+    <>
+      {' '}
+      <Divider sx={{ my: 2 }} />
+      <Box
+        sx={{
+          display: DEV_MODE ? 'flex' : 'none',
+          gap: 1,
+          alignItems: 'center',
+          mb: 1,
+          maxWidth: '180px',
+        }}
+      >
+        {/* <Avatar
+variant="outlined"
+size="sm"
+src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=286"
+/> */}
+        <UserIcon />
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography
+            level="title-sm"
+            sx={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
           >
-            <Tooltip
-              title={
-                <>
-                  Visit Transformer Lab on Github
-                  <br />
-                  to contribute to the project or
-                  <br />
-                  send a bug report.
-                </>
-              }
-            >
-              <IconButton variant="plain">
-                <GithubIcon strokeWidth={1} />
-              </IconButton>
-            </Tooltip>
-          </a>
-          <Tooltip title="Settings">
-            <IconButton variant="plain" onClick={() => navigate('/settings')}>
-              <SettingsIcon strokeWidth={1} />
+            User Name
+          </Typography>
+          <Typography
+            level="body-xs"
+            sx={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            user@test.com
+          </Typography>
+        </Box>
+        <IconButton size="sm" variant="plain" color="neutral">
+          <LogOutIcon size="18px" />
+        </IconButton>
+      </Box>
+      <ButtonGroup
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <ColorSchemeToggle themeSetter={themeSetter} />
+        <a
+          href="https://github.com/transformerlab/transformerlab-app/"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Visit Transformer Lab on Github"
+        >
+          <Tooltip
+            title={
+              <>
+                Visit Transformer Lab on Github
+                <br />
+                to contribute to the project or
+                <br />
+                send a bug report.
+              </>
+            }
+          >
+            <IconButton variant="plain">
+              <GithubIcon strokeWidth={1} />
             </IconButton>
           </Tooltip>
-        </ButtonGroup>
-      </List>
+        </a>
+        <Tooltip title="Settings">
+          <IconButton variant="plain" onClick={() => navigate('/settings')}>
+            <SettingsIcon strokeWidth={1} />
+          </IconButton>
+        </Tooltip>
+      </ButtonGroup>
     </>
   );
 }
@@ -325,11 +327,14 @@ export default function Sidebar({
         models={models}
       />
       <GlobalMenuItems
-        DEV_MODE={undefined}
-        experimentInfo={undefined}
-        outdatedPluginsCount={undefined}
-        themeSetter={undefined}
-        navigate={undefined}
+        DEV_MODE={DEV_MODE}
+        experimentInfo={experimentInfo}
+        outdatedPluginsCount={outdatedPluginsCount}
+      />
+      <BottomMenuItems
+        DEV_MODE={DEV_MODE}
+        navigate={navigate}
+        themeSetter={themeSetter}
       />
     </Sheet>
   );
