@@ -157,24 +157,6 @@ export default function Sidebar({
             disabled={!experimentInfo?.name}
           />
         )}
-        {/* <SubNavItem
-          title="Query Docs"
-          path="/projects/rag"
-          icon={<FolderSearch2Icon />}
-          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
-        /> */}
-        {/* <SubNavItem
-          title="Embeddings"
-          path="/projects/embeddings"
-          icon={<FileDigitIcon />}
-          disabled={activeModelIsNotSameAsFoundation()}
-        />
-        <SubNavItem
-          title="Tokenize"
-          path="/projects/tokenize"
-          icon={<RectangleEllipsisIcon />}
-          disabled={activeModelIsNotSameAsFoundation()}
-        /> */}
         <SubNavItem
           title="Train"
           path="/projects/training"
@@ -215,12 +197,6 @@ export default function Sidebar({
           icon={<FlaskConicalIcon />}
           disabled={!experimentInfo?.name}
         />
-        {/* <SubNavItem
-          title="Settings"
-          path="/projects/settings"
-          icon={<SlidersIcon />}
-          disabled={!experimentInfo?.name}
-        /> */}
       </List>
       <List sx={{ justifyContent: 'flex-end' }}>
         <Divider sx={{ marginBottom: 2 }} />
@@ -241,20 +217,6 @@ export default function Sidebar({
           counter={outdatedPluginsCount}
         />
         <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
-
-        {/* <ListItem>
-          <ListItemButton
-            onClick={() => {
-              setDrawerOpen(true);
-            }}
-            sx={{ justifyContent: 'center' }}
-          >
-            <ListItemDecorator>
-              <TerminalSquareIcon strokeWidth={1.5} />
-            </ListItemDecorator>
-            <ListItemContent>Terminal</ListItemContent>
-          </ListItemButton>
-        </ListItem> */}
         <Divider sx={{ my: 2 }} />
         <Box
           sx={{
