@@ -8,7 +8,6 @@ import {
   GraduationCapIcon,
   LayersIcon,
   MessageCircleIcon,
-  SlidersIcon,
   BoxesIcon,
   FileTextIcon,
   MonitorIcon,
@@ -22,13 +21,11 @@ import {
   FileIcon,
   ChartColumnIncreasingIcon,
   WorkflowIcon,
-  User2Icon,
   UserIcon,
   LogOutIcon,
 } from 'lucide-react';
 
 import {
-  Avatar,
   Box,
   ButtonGroup,
   IconButton,
