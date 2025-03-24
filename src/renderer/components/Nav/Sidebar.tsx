@@ -44,18 +44,7 @@ import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 
-export default function Sidebar({
-  experimentInfo,
-  setExperimentId,
-  logsDrawerOpen,
-  setLogsDrawerOpen,
-  themeSetter,
-}) {
-  const { models, isError, isLoading } = useModelStatus();
-  const { outdatedPluginsCount } = usePluginStatus(experimentInfo);
-
-  const navigate = useNavigate();
-
+function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   function activeModelIsNotSameAsFoundation() {
     if (models === null) {
       return true;
@@ -75,60 +64,16 @@ export default function Sidebar({
     );
   }
 
-  const DEV_MODE = experimentInfo?.name === 'dev';
-
   return (
-    <Sheet
-      className="Sidebar"
-      sx={{
-        gridArea: 'sidebar',
-        borderRight: '1px solid',
-        borderColor: 'divider',
-        transition: 'transform 0.4s',
-        zIndex: 100,
-        height: '100%',
-        overflow: 'auto',
-        top: 0,
-        p: 2,
-        py: 1,
-        pt: '0',
-        flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-        userSelect: 'none',
-        width: '100%',
-        // opacity: 0.4,
-        '& .lucide': {
-          strokeWidth: '1.5px',
-        },
-        '& .MuiBadge-root': {},
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          height: '52px',
-          '-webkit-app-region': 'drag',
-          display: 'flex',
-          alignItems: 'flex-end',
-          justifyContent: 'center',
-          color: 'var(--joy-palette-neutral-plainDisabledColor)',
-        }}
-      >
-        {DEV_MODE && <>Transformer Lab v{window.platform?.version}</>}
-      </div>
-      <SelectExperimentMenu
-        experimentInfo={experimentInfo}
-        setExperimentId={setExperimentId}
-        models={models}
-      />
+    <>
+      {' '}
       <List
         sx={{
           '--ListItem-radius': '8px',
           '--ListItem-minHeight': '32px',
           '--List-gap': '4px',
           overflowY: 'auto',
+          flex: 1,
         }}
       >
         <SubNavItem
@@ -138,11 +83,11 @@ export default function Sidebar({
           disabled={!experimentInfo?.name}
         />
         {/* <SubNavItem
-          title="Prompt"
-          path="/projects/prompt"
-          icon={<TextSelectIcon />}
-          disabled={!experimentInfo?.name}
-        /> */}
+      title="Prompt"
+      path="/projects/prompt"
+      icon={<TextSelectIcon />}
+      disabled={!experimentInfo?.name}
+    /> */}
         <SubNavItem
           title="Interact"
           path="/projects/chat"
@@ -198,7 +143,21 @@ export default function Sidebar({
           disabled={!experimentInfo?.name}
         />
       </List>
-      <List sx={{ justifyContent: 'flex-end' }}>
+    </>
+  );
+}
+
+function GlobalMenuItems({
+  DEV_MODE,
+  experimentInfo,
+  outdatedPluginsCount,
+  themeSetter,
+  navigate,
+}) {
+  return (
+    <>
+      {' '}
+      <List sx={{ flex: 1, overflowY: 'auto' }}>
         <Divider sx={{ marginBottom: 2 }} />
 
         <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
@@ -228,10 +187,10 @@ export default function Sidebar({
           }}
         >
           {/* <Avatar
-            variant="outlined"
-            size="sm"
-            src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=286"
-          /> */}
+      variant="outlined"
+      size="sm"
+      src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=286"
+    /> */}
           <UserIcon />
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography
@@ -296,6 +255,82 @@ export default function Sidebar({
           </Tooltip>
         </ButtonGroup>
       </List>
+    </>
+  );
+}
+
+export default function Sidebar({
+  experimentInfo,
+  setExperimentId,
+  logsDrawerOpen,
+  setLogsDrawerOpen,
+  themeSetter,
+}) {
+  const { models, isError, isLoading } = useModelStatus();
+  const { outdatedPluginsCount } = usePluginStatus(experimentInfo);
+
+  const navigate = useNavigate();
+
+  const DEV_MODE = experimentInfo?.name === 'dev';
+
+  return (
+    <Sheet
+      className="Sidebar"
+      sx={{
+        gridArea: 'sidebar',
+        borderRight: '1px solid',
+        borderColor: 'divider',
+        transition: 'transform 0.4s',
+        zIndex: 100,
+        height: '100%',
+        overflow: 'auto',
+        top: 0,
+        p: 2,
+        py: 1,
+        pt: '0',
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        userSelect: 'none',
+        width: '100%',
+        // opacity: 0.4,
+        '& .lucide': {
+          strokeWidth: '1.5px',
+        },
+        '& .MuiBadge-root': {},
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          height: '52px',
+          '-webkit-app-region': 'drag',
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+          color: 'var(--joy-palette-neutral-plainDisabledColor)',
+        }}
+      >
+        {DEV_MODE && <>Transformer Lab v{window.platform?.version}</>}
+      </div>
+      <SelectExperimentMenu
+        experimentInfo={experimentInfo}
+        setExperimentId={setExperimentId}
+        models={models}
+      />
+      <ExperimentMenuItems
+        DEV_MODE={DEV_MODE}
+        experimentInfo={experimentInfo}
+        models={models}
+      />
+      <GlobalMenuItems
+        DEV_MODE={undefined}
+        experimentInfo={undefined}
+        outdatedPluginsCount={undefined}
+        themeSetter={undefined}
+        navigate={undefined}
+      />
     </Sheet>
   );
 }
