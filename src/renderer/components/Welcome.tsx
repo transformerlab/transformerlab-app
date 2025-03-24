@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 
 import { Button, Sheet, Stack, Typography } from '@mui/joy';
@@ -21,6 +21,7 @@ import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 import DownloadFirstModelModal from './DownloadFirstModelModal';
 import HexLogo from './Shared/HexLogo';
+import { SegmentProvider, useAnalytics } from './MainAppPanel';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -50,12 +51,11 @@ function typeOfComputer(cpu, os, device) {
 }
 
 export default function Welcome() {
-
   // Check number of downloaded models
   let model_count = 0;
   const { data: modelCountResponse } = useSWR(
     chatAPI.Endpoints.Models.CountDownloaded(),
-    fetcher
+    fetcher,
   );
   if (modelCountResponse && modelCountResponse!.data) {
     model_count = modelCountResponse!.data;
@@ -68,13 +68,33 @@ export default function Welcome() {
   const { server, isLoading, isError } = chatAPI.useServerStats();
 
   const navigate = useNavigate();
+  const analytics = useAnalytics();
 
   const cpu = server?.cpu;
   const os = server?.os;
   const device = server?.device;
 
+  useEffect(() => {
+    const trackAnalytics = async () => {
+      // Do not track if this is a development environment
+      if (window.platform.environment === 'development') {
+        return;
+      }
+
+      // Check for the DO_NOT_TRACK value in localStorage
+      const doNotTrack = await window.storage.get('DO_NOT_TRACK');
+      if (doNotTrack === 'true') {
+        return;
+      }
+
+      analytics.identify(); // right now we have no user data to send but Mixpanel needs us to register as a user
+    };
+
+    trackAnalytics();
+  }, []);
+
   return (
-    <>
+    <SegmentProvider>
       <DownloadFirstModelModal
         open={modelDownloadModalOpen}
         setOpen={setModelDownloadModalOpen}
@@ -176,6 +196,6 @@ export default function Welcome() {
           </div>
         </div>
       </Sheet>
-    </>
+    </SegmentProvider>
   );
 }

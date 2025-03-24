@@ -73,10 +73,14 @@ export const PageTracker = () => {
 
   useEffect(() => {
     const trackPageView = async () => {
+      // Do not track if this is a development environment
+      if (window.platform.environment === 'development') {
+        return;
+      }
+
       // Check for the DO_NOT_TRACK value in localStorage
       const doNotTrack = await window.storage.get('DO_NOT_TRACK');
       if (doNotTrack === 'true') {
-        console.log('Do not track is enabled');
         return;
       }
 
