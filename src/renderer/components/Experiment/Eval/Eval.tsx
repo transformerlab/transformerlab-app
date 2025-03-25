@@ -15,6 +15,7 @@ import {
   MenuItem,
   Alert,
   Stack,
+  ListDivider,
 } from '@mui/joy';
 import { PlusCircleIcon } from 'lucide-react';
 
@@ -138,15 +139,50 @@ export default function Eval({
                 Add Task
               </MenuButton>
               <Menu>
-                {plugins?.map((row) => (
-                  <MenuItem
-                    onClick={() => openModalForPLugin(row.uniqueId)}
-                    key={row.uniqueId}
-                  >
-                    {row.name}
-                  </MenuItem>
-                ))}
-              </Menu>
+            {/* Model-based evaluators section */}
+            <MenuItem
+              disabled
+              sx={{
+                color: 'text.tertiary',
+                fontWeight: 'bold',
+                fontSize: '0.75rem',
+                '&.Mui-disabled': { opacity: 1 }
+              }}
+            >
+              DATASET-BASED EVALUATIONS
+            </MenuItem>
+            {plugins?.filter(row => row.evalsType === 'dataset').map((row) => (
+              <MenuItem
+                onClick={() => openModalForPLugin(row.uniqueId)}
+                key={row.uniqueId}
+              >
+                {row.name}
+              </MenuItem>
+            ))}
+
+            <ListDivider />
+
+            {/* Dataset-based evaluators section */}
+            <MenuItem
+              disabled
+              sx={{
+                color: 'text.tertiary',
+                fontWeight: 'bold',
+                fontSize: '0.75rem',
+                '&.Mui-disabled': { opacity: 1 }
+              }}
+            >
+              MODEL-BASED EVALUATIONS
+            </MenuItem>
+            {plugins?.filter(row => row.evalsType === 'model').map((row) => (
+              <MenuItem
+                onClick={() => openModalForPLugin(row.uniqueId)}
+                key={row.uniqueId}
+              >
+                {row.name}
+              </MenuItem>
+            ))}
+          </Menu>
             </Dropdown>
           )}
         </Stack>
