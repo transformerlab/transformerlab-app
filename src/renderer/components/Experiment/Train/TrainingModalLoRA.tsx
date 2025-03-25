@@ -264,7 +264,12 @@ export default function TrainingModalLoRA({
               name="foundation_model_file_path"
               readOnly
             />
-            <input hidden value={experimentInfo?.config?.embedding_model} name="embedding_model" readOnly />
+            <input
+              hidden
+              value={experimentInfo?.config?.embedding_model}
+              name="embedding_model"
+              readOnly
+            />
             <input
               hidden
               value={experimentInfo?.config?.embedding_model_architecture}
@@ -307,7 +312,8 @@ export default function TrainingModalLoRA({
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
-            const formJson = Object.fromEntries((formData as any).entries());
+            let formJson = Object.fromEntries((formData as any).entries());
+            formJson.trainingType = trainingType;
             if (templateData && task_id) {
               //Only update if we are currently editing a template
               updateTask(
