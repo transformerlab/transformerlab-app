@@ -78,39 +78,39 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
       >
         <SubNavItem
           title="Foundation"
-          path="/projects/model"
+          path="/experiment/model"
           icon={<LayersIcon />}
           disabled={!experimentInfo?.name}
         />
         {/* <SubNavItem
-      title="Prompt"
-      path="/projects/prompt"
-      icon={<TextSelectIcon />}
-      disabled={!experimentInfo?.name}
-    /> */}
+          title="Prompt"
+          path="/experiment/prompt"
+          icon={<TextSelectIcon />}
+          disabled={!experimentInfo?.name}
+        /> */}
         <SubNavItem
           title="Interact"
-          path="/projects/chat"
+          path="/experiment/chat"
           icon={<MessageCircleIcon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
         {DEV_MODE && (
           <SubNavItem
             title="Workflows"
-            path="/projects/workflows"
+            path="/experiment/workflows"
             icon={<WorkflowIcon />}
             disabled={!experimentInfo?.name}
           />
         )}
         <SubNavItem
           title="Train"
-          path="/projects/training"
+          path="/experiment/training"
           icon={<GraduationCapIcon />}
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
           title="Export"
-          path="/projects/export"
+          path="/experiment/export"
           icon={<ArrowRightFromLineIcon />}
           disabled={
             !experimentInfo?.name || !experimentInfo?.config?.foundation
@@ -118,7 +118,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         />
         <SubNavItem
           title="Generate"
-          path="/projects/generate"
+          path="/experiment/generate"
           icon={<SquareStackIcon />}
           disabled={
             !experimentInfo?.name || !experimentInfo?.config?.foundation
@@ -126,19 +126,19 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         />
         <SubNavItem
           title="Evaluate"
-          path="/projects/eval"
+          path="/experiment/eval"
           icon={<ChartColumnIncreasingIcon />}
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
           title="Documents"
-          path="/projects/documents"
+          path="/experiment/documents"
           icon={<FileIcon />}
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
           title="Notes"
-          path="/projects/notes"
+          path="/experiment/notes"
           icon={<FlaskConicalIcon />}
           disabled={!experimentInfo?.name}
         />

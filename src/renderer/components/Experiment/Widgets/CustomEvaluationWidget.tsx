@@ -107,6 +107,7 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
             <Option value="number">Number (Regex)</Option>
             <Option value="contains">Contains</Option>
             <Option value="isequal">IsEqual</Option>
+            <Option value="code">Code</Option>
           </Select>
           <Button
             onClick={() => handleRemoveField(index)}

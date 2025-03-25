@@ -305,11 +305,11 @@ export default function MainAppPanel({
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route
-          path="/projects/notes"
+          path="/experiment/notes"
           element={<ExperimentNotes experimentInfo={experimentInfo} />}
         />
         <Route
-          path="/projects/model"
+          path="/experiment/model"
           element={
             <FoundationHome
               pickAModelMode
@@ -320,7 +320,7 @@ export default function MainAppPanel({
           }
         />
         <Route
-          path="/projects/embedding-model"
+          path="/experiment/embedding-model"
           element={
             <SelectEmbeddingModel
               experimentInfo={experimentInfo}
@@ -329,11 +329,11 @@ export default function MainAppPanel({
           }
         />
         <Route
-          path="/projects/workflows"
+          path="/experiment/workflows"
           element={<Workflows experimentInfo={experimentInfo} />}
         />
         <Route
-          path="/projects/prompt"
+          path="/experiment/prompt"
           element={
             <Prompt
               experimentId={experimentInfo?.id}
@@ -343,7 +343,7 @@ export default function MainAppPanel({
           }
         />
         <Route
-          path="/projects/chat"
+          path="/experiment/chat"
           element={
             <Interact
               experimentInfo={experimentInfo}
@@ -355,19 +355,19 @@ export default function MainAppPanel({
           }
         />
         <Route
-          path="/projects/embeddings"
+          path="/experiment/embeddings"
           element={<Embeddings experimentInfo={experimentInfo} />}
         />
         <Route
-          path="/projects/tokenize"
+          path="/experiment/tokenize"
           element={<Tokenize experimentInfo={experimentInfo} />}
         />
         <Route
-          path="/projects/training"
+          path="/experiment/training"
           element={<TrainLoRA experimentInfo={experimentInfo} />}
         />
         <Route
-          path="/projects/eval"
+          path="/experiment/eval"
           element={
             <Eval
               experimentInfo={experimentInfo}
@@ -377,7 +377,7 @@ export default function MainAppPanel({
           }
         />
         <Route
-          path="/projects/generate"
+          path="/experiment/generate"
           element={
             <Generate
               experimentInfo={experimentInfo}
@@ -387,21 +387,21 @@ export default function MainAppPanel({
           }
         />
         <Route
-          path="/projects/documents"
+          path="/experiment/documents"
           element={<Documents experimentInfo={experimentInfo} />}
         />
         <Route
-          path="/projects/rag"
+          path="/experiment/rag"
           element={
             <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
           }
         />
         <Route
-          path="/projects/export"
+          path="/experiment/export"
           element={<Export experimentInfo={experimentInfo} />}
         />
         <Route
-          path="/projects/generate"
+          path="/experiment/generate"
           element={<Generate experimentInfo={experimentInfo} />}
         />
         <Route
@@ -414,7 +414,7 @@ export default function MainAppPanel({
         />
         <Route path="/api" element={<Api />} />
         <Route
-          path="/projects/settings"
+          path="/experiment/settings"
           element={
             <Settings
               experimentInfo={experimentInfo}
