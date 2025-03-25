@@ -198,7 +198,12 @@ export default function GenerateModal({
   useEffect(() => {
     // EDIT GENERATION
     if (experimentInfo && pluginId) {
-      if (currentGenerationId && currentGenerationId !== '') {
+      if (
+        generationData &&
+        generationData !== undefined &&
+        currentGenerationId &&
+        currentGenerationId != ''
+      ) {
         console.log(currentGenerationId);
         console.log(generationData);
         const generationConfig = JSON.parse(generationData.config);
@@ -240,63 +245,48 @@ export default function GenerateModal({
             delete generationConfig.script_parameters.context;
             setConfig(generationConfig.script_parameters);
           }
-            const datasetKeyExists = Object.keys(
-              generationConfig.script_parameters
-            ).some((key) => key.toLowerCase() === 'dataset_name');
 
-            const docsKeyExists = Object.keys(
-              generationConfig.script_parameters
-            ).some((key) => key.toLowerCase() === 'docs');
+          setHasDatasetKey(datasetKeyExists);
 
+          if (
+            docsKeyExists &&
+            generationConfig.script_parameters.docs.length > 0
+          ) {
+            setHasContextKey(false);
+            setHasDocumentsKey(true);
+            generationConfig.script_parameters.docs =
+              generationConfig.script_parameters.docs.split(',');
+            setConfig(generationConfig.script_parameters);
+            setSelectedDocs(generationConfig.script_parameters.docs);
+          } else if (
+            contextKeyExists &&
+            generationConfig.script_parameters.context.length > 0
+          ) {
+            setHasContextKey(true);
+            setHasDocumentsKey(false);
+            const context = generationConfig.script_parameters.context;
+            setContextInput(context);
+            delete generationConfig.script_parameters.context;
+            setConfig(generationConfig.script_parameters);
+          }
 
-            const contextKeyExists = Object.keys(
-              generationConfig.script_parameters
-            ).some((key) => key.toLowerCase() === 'context');
-
-            setHasDatasetKey(datasetKeyExists);
-
-            if (
-              docsKeyExists &&
-              generationConfig.script_parameters.docs.length > 0
-            ) {
-              setHasContextKey(false);
-              setHasDocumentsKey(true);
-              generationConfig.script_parameters.docs =
-                generationConfig.script_parameters.docs.split(',');
-              setConfig(generationConfig.script_parameters);
-              setSelectedDocs(generationConfig.script_parameters.docs);
-            } else if (
-              contextKeyExists &&
-              generationConfig.script_parameters.context.length > 0
-            ) {
-              setHasContextKey(true);
-              setHasDocumentsKey(false);
-              const context = generationConfig.script_parameters.context;
-              setContextInput(context);
-              delete generationConfig.script_parameters.context;
-              setConfig(generationConfig.script_parameters);
-            }
-
-            if (
-              hasDatasetKey &&
-              generationConfig.script_parameters.dataset_name
-            ) {
-              setSelectedDataset(
-                generationConfig.script_parameters.dataset_name
-              );
-            }
-            if (
-              generationConfig.script_parameters._dataset_display_message &&
-              generationConfig.script_parameters._dataset_display_message
-                .length > 0
-            ) {
-              setDatasetDisplayMessage(
-                generationConfig.script_parameters._dataset_display_message
-              );
-            }
-            if (!nameInput && generationConfig?.name.length > 0) {
-              setNameInput(generationConfig.name);
-            }
+          if (
+            hasDatasetKey &&
+            generationConfig.script_parameters.dataset_name
+          ) {
+            setSelectedDataset(generationConfig.script_parameters.dataset_name);
+          }
+          if (
+            generationConfig.script_parameters._dataset_display_message &&
+            generationConfig.script_parameters._dataset_display_message.length >
+              0
+          ) {
+            setDatasetDisplayMessage(
+              generationConfig.script_parameters._dataset_display_message,
+            );
+          }
+          if (!nameInput && generationData?.name.length > 0) {
+            setNameInput(generationData.name);
           }
         }
       }
@@ -453,6 +443,7 @@ export default function GenerateModal({
       }
 
       if (hasDocumentsKey && formJson.docs.length > 0) {
+        console.log(formJson);
         formJson.docs = JSON.parse(formJson.docs);
         formJson.docs = formJson.docs.join(',');
         formJson.generation_type = 'docs';
