@@ -10,10 +10,7 @@ import {
   Sheet,
   Typography,
 } from '@mui/joy';
-import {
-  PlusIcon,
-  StoreIcon,
-} from 'lucide-react';
+import { PlusIcon, StoreIcon } from 'lucide-react';
 import PluginCard from './PluginCard';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -26,7 +23,7 @@ export default function LocalPlugins({ experimentInfo }) {
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Experiment.ListScripts(experimentInfo?.id),
-    fetcher
+    fetcher,
   );
 
   if (error) return 'An error has occurred.';
@@ -47,20 +44,17 @@ export default function LocalPlugins({ experimentInfo }) {
         mutate={mutate}
         experimentInfo={experimentInfo}
       />
-      <Typography level="body-md">
-        Below is a list of currently installed and available plugins. Additional scripts can be added in the
-        {' '} <StoreIcon /> Plugin Script Store
+      <Typography level="body-sm" mb={2}>
+        Below is a list of currently installed and available plugins. Additional
+        scripts can be added in the <StoreIcon size={14} /> Plugin Script Store
       </Typography>
       <Sheet
-        variant="soft"
-        color="primary"
         sx={{
           width: '100%',
-          borderRadius: 'md',
           flex: 1,
-          overflow: 'auto',
+          paddingRight: 2,
+          overflowY: 'auto',
           minHeight: 0,
-          padding: 2,
         }}
       >
         <Grid container spacing={2} sx={{ flexGrow: 1 }}>

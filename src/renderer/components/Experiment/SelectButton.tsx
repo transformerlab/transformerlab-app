@@ -3,7 +3,12 @@ import * as React from 'react';
 
 import { Button, CircularProgress } from '@mui/joy';
 
-export default function SelectButton({ setFoundation, model, setAdaptor }) {
+export default function SelectButton({
+  setFoundation,
+  model,
+  setAdaptor,
+  setEmbedding,
+}) {
   const [selected, setSelected] = React.useState(false);
 
   const name = model.id;
@@ -25,9 +30,13 @@ export default function SelectButton({ setFoundation, model, setAdaptor }) {
       variant="soft"
       color="success"
       onClick={() => {
-        setSelected(true);
-        setFoundation(model);
-        setAdaptor('');
+        if (setEmbedding) {
+          setEmbedding(model);
+        } else {
+          setSelected(true);
+          setFoundation(model);
+          setAdaptor('');
+        }
       }}
     >
       Select

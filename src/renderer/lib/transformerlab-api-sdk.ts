@@ -1016,8 +1016,7 @@ Endpoints.Tasks = {
   UpdateTask: (id: string) => API_URL() + 'tasks/' + id + '/update',
   NewTask: () => API_URL() + 'tasks/new_task',
   DeleteTask: (id: string) => API_URL() + 'tasks/' + id + '/delete',
-
-}
+};
 
 Endpoints.Workflows = {
   List: () => API_URL() + 'workflows/list',
@@ -1031,23 +1030,36 @@ Endpoints.Workflows = {
   DeleteWorkflow: (workflowId: string) =>
     API_URL() + 'workflows/delete/' + workflowId,
   AddNode: (workflowId: string, node: string) =>
-    API_URL() +
-    'workflows/' + workflowId + '/add_node' +
-    '?node=' +
-    node,
+    API_URL() + 'workflows/' + workflowId + '/add_node' + '?node=' + node,
   DeleteNode: (workflowId: string, nodeId: string) =>
-    API_URL() +
-    'workflows/' + workflowId + '/' + nodeId + '/delete_node',
+    API_URL() + 'workflows/' + workflowId + '/' + nodeId + '/delete_node',
   UpdateNode: (workflowId: string, nodeId: string, node: string) =>
     API_URL() +
-    'workflows/' + workflowId + '/' + nodeId + '/update_node' +
+    'workflows/' +
+    workflowId +
+    '/' +
+    nodeId +
+    '/update_node' +
     '?node=' +
     node,
   EditNodeMetadata: (workflowId: string, nodeId: string, metadata: string) =>
     API_URL() +
-    'workflows/' + workflowId + '/' + nodeId + '/edit_node_metadata' +
+    'workflows/' +
+    workflowId +
+    '/' +
+    nodeId +
+    '/edit_node_metadata' +
     '?metadata=' +
     metadata,
+  AddEdge: (workflowId: string, from: string, to: string) =>
+    API_URL() +
+    'workflows/' +
+    workflowId +
+    '/' +
+    from +
+    '/add_edge' +
+    '?end_node_id=' +
+    to,
   RunWorkflow: (workflowId: string) =>
     API_URL() + 'workflows/' + workflowId + '/start',
 };
@@ -1089,7 +1101,10 @@ Endpoints.Dataset = {
     API_URL() + 'data/delete?dataset_id=' + datasetId,
   Create: (datasetId: string) => API_URL() + 'data/new?dataset_id=' + datasetId,
   Download: (datasetId: string, configName?: string) =>
-    API_URL() + 'data/download?dataset_id=' + datasetId + (configName ? '&config_name=' + configName : ''),
+    API_URL() +
+    'data/download?dataset_id=' +
+    datasetId +
+    (configName ? '&config_name=' + configName : ''),
   LocalList: (generated: boolean = true) =>
     API_URL() + 'data/list?generated=' + generated,
   GeneratedList: () => API_URL() + 'data/generated_datasets_list',
@@ -1206,7 +1221,10 @@ Endpoints.Rag = {
     API_URL() +
     `experiment/${experimentId}/rag/query?model=${model_name}&query=${query}&settings=${settings}&rag_folder=${ragFolder}`,
   ReIndex: (experimentId: string, folderName: string = 'rag') =>
-    API_URL() + `experiment/${experimentId}/rag/reindex&folder=${folderName}`,
+    API_URL() +
+    `experiment/${experimentId}/rag/reindex?rag_folder=${folderName}`,
+  Embeddings: (experimentId: string) =>
+    API_URL() + `experiment/${experimentId}/rag/embed`,
 };
 
 Endpoints.Prompts = {

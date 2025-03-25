@@ -76,9 +76,15 @@ export default function DatasetCard({
             </div>
           </div>
           <div>
-            <Typography level="body-md">Total size:</Typography>
+            <Typography level="title-sm">Total size:</Typography>
             <Typography fontSize="sm" fontWeight="bold">
               {size === -1 ? 'Unknown' : formatBytes(size)}
+            </Typography>
+          </div>
+          <div>
+            <Typography level="title-sm">Location:</Typography>
+            <Typography fontSize="sm">
+              {location === 'huggingfacehub' ? 'Hugging Face Hub' : 'Local'}
             </Typography>
           </div>
         </CardContent>
@@ -163,8 +169,8 @@ export default function DatasetCard({
               {downloaded
                 ? 'Downloaded'
                 : installing
-                ? 'Downloading'
-                : 'Download'}{' '}
+                  ? 'Downloading'
+                  : 'Download'}{' '}
             </Button>
           )}
         </CardContent>

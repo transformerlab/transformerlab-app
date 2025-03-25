@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import * as React from 'react';
 import { ColorPaletteProp } from '@mui/joy/styles';
@@ -37,22 +38,232 @@ import {
   PlusCircleIcon,
   RotateCcwIcon,
   SearchIcon,
-} from 'lucide-react';
-import {
   FilterIcon as FilterAltIcon,
-  ChevronDownIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
 } from 'lucide-react';
+
 import useSWR from 'swr';
 
 import { formatBytes } from 'renderer/lib/utils';
 
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import Dropzone from 'react-dropzone';
 import { FaRegFileAlt } from 'react-icons/fa';
 import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
 import TinyButton from 'renderer/components/Shared/TinyButton';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+
+function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
+  return (
+    <Dropdown>
+      <MenuButton
+        slots={{ root: IconButton }}
+        slotProps={{ root: { variant: 'plain', color: 'neutral', size: 'sm' } }}
+      >
+        <MoreHorizRoundedIcon size="16px" />
+      </MenuButton>
+      <Menu size="sm" sx={{ minWidth: 140 }}>
+        <MenuItem disabled>Size: {formatBytes(row?.size)}</MenuItem>
+        {/* <MenuItem disabled>Rename</MenuItem> */}
+        <Divider />
+        <MenuItem
+          color="danger"
+          onClick={() => {
+            fetch(
+              chatAPI.Endpoints.Documents.Delete(
+                experimentInfo?.id,
+                filename,
+                foldername,
+              ),
+            )
+              .then((response) => {
+                if (response.ok) {
+                  console.log(response);
+                  mutate();
+                  return response;
+                }
+                console.log('Error deleting file');
+                throw new Error('Error deleting file');
+              })
+              .catch((error) => {
+                console.error('Error:', error);
+              });
+          }}
+        >
+          Delete
+        </MenuItem>
+      </Menu>
+    </Dropdown>
+  );
+}
+
+function File({
+  row,
+  fullPage,
+  experimentInfo,
+  currentFolder,
+  mutate,
+  setPreviewFile,
+}) {
+  return (
+    <tr key={row?.name}>
+      <td style={{ paddingLeft: '1rem' }}>
+        <Typography
+          level="body-sm"
+          sx={{ display: 'flex', alignItems: 'center' }}
+        >
+          <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
+          {row?.name}
+        </Typography>
+      </td>
+      {fullPage && (
+        <>
+          <td>
+            <Typography level="body-xs">{row?.date}</Typography>
+          </td>
+          <td>
+            <Chip
+              variant="soft"
+              size="sm"
+              startDecorator={
+                {
+                  '.txt': <FaRegFileAlt />,
+                  '.pdf': <FaRegFilePdf />,
+                  '.jsonl': <LuFileJson />,
+                }[row?.type]
+              }
+              color={
+                {
+                  '.txt': 'success',
+                  '.pdf': 'neutral',
+                  '.jsonl': 'danger',
+                }[row?.type] as ColorPaletteProp
+              }
+            >
+              {row?.type}
+            </Chip>
+          </td>
+          <td>
+            {row?.size && (
+              <Typography level="body-xs" color="neutral">
+                {formatBytes(row?.size)}
+              </Typography>
+            )}
+          </td>
+        </>
+      )}
+
+      <td>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <Button
+            variant="plain"
+            size="sm"
+            style={{ fontSize: '11px' }}
+            onClick={() => {
+              setPreviewFile(row?.name);
+            }}
+          >
+            <EyeIcon size="16px" />
+          </Button>
+          <RowMenu
+            experimentInfo={experimentInfo}
+            filename={row?.name}
+            foldername={currentFolder}
+            mutate={mutate}
+            row={row}
+          />
+        </Box>
+      </td>
+    </tr>
+  );
+}
+
+function Folder({
+  row,
+  experimentInfo,
+  currentFolder,
+  setCurrentFolder,
+  fullPage,
+  mutate,
+}) {
+  return (
+    <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
+      <td style={{ paddingLeft: '1rem' }}>
+        <Typography
+          level="body-sm"
+          sx={{ display: 'flex', alignItems: 'center' }}
+        >
+          <FolderIcon size="16px" style={{ marginRight: '0.5rem' }} />
+          {row?.name}
+        </Typography>
+      </td>
+      {fullPage && (
+        <>
+          <td>
+            <Typography level="body-xs">{row?.date}</Typography>
+          </td>
+          <td>
+            <Chip
+              variant="soft"
+              size="sm"
+              startDecorator={
+                {
+                  '.txt': <FaRegFileAlt />,
+                  '.pdf': <FaRegFilePdf />,
+                  '.jsonl': <LuFileJson />,
+                }[row?.type]
+              }
+              color={
+                {
+                  '.txt': 'success',
+                  '.pdf': 'neutral',
+                  '.jsonl': 'danger',
+                }[row?.type] as ColorPaletteProp
+              }
+            >
+              {row?.type}
+            </Chip>
+          </td>
+          <td>
+            {row?.size == 0 ? (
+              <></>
+            ) : (
+              row?.size &&
+              row?.size != 0 && (
+                <Typography level="body-xs" color="neutral">
+                  {formatBytes(row?.size)}
+                </Typography>
+              )
+            )}
+          </td>
+        </>
+      )}
+      <td>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+          }}
+        >
+          <RowMenu
+            experimentInfo={experimentInfo}
+            filename={row?.name}
+            foldername={currentFolder}
+            mutate={mutate}
+            row={row}
+          />
+        </Box>
+      </td>
+    </tr>
+  );
+}
 
 function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   if (b[orderBy] < a[orderBy]) {
@@ -98,41 +309,6 @@ function stableSort<T>(
   return stabilizedThis?.map((el) => el[0]);
 }
 
-function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
-  return (
-    <Dropdown>
-      <MenuButton
-        slots={{ root: IconButton }}
-        slotProps={{ root: { variant: 'plain', color: 'neutral', size: 'sm' } }}
-      >
-        <MoreHorizRoundedIcon size="16px" />
-      </MenuButton>
-      <Menu size="sm" sx={{ minWidth: 140 }}>
-        <MenuItem disabled>Size: {formatBytes(row?.size)}</MenuItem>
-        {/* <MenuItem disabled>Rename</MenuItem> */}
-        <Divider />
-        <MenuItem
-          color="danger"
-          onClick={() => {
-            fetch(
-              chatAPI.Endpoints.Documents.Delete(experimentInfo?.id, filename, foldername),
-            ).then((response) => {
-              if (response.ok) {
-                console.log(response);
-                mutate();
-              } else {
-                console.log('Error deleting file');
-              }
-            });
-          }}
-        >
-          Delete
-        </MenuItem>
-      </Menu>
-    </Dropdown>
-  );
-}
-
 const fetcher = (url) => fetch(url).then((res) => res.json());
 type Order = 'asc' | 'desc';
 
@@ -172,9 +348,8 @@ export default function Documents({
       .then((response) => {
         if (response.ok) {
           return response.json();
-        } else {
-          throw new Error('File upload failed');
         }
+        throw new Error('File upload failed');
       })
       .then((data) => {
         console.log('Server response:', data);
@@ -205,160 +380,6 @@ export default function Documents({
       console.error('Error creating folder:', error);
     }
   };
-
-  function File({ row }) {
-    return (
-      <tr key={row?.name}>
-        <td style={{ paddingLeft: '1rem' }}>
-          <Typography
-            level="body-sm"
-            sx={{ display: 'flex', alignItems: 'center' }}
-          >
-            <FileTextIcon size="16px" style={{ marginRight: '0.5rem' }} />
-            {row?.name}
-          </Typography>
-        </td>
-        {fullPage && (
-          <>
-            <td>
-              <Typography level="body-xs">{row?.date}</Typography>
-            </td>
-            <td>
-              <Chip
-                variant="soft"
-                size="sm"
-                startDecorator={
-                  {
-                    '.txt': <FaRegFileAlt />,
-                    '.pdf': <FaRegFilePdf />,
-                    '.jsonl': <LuFileJson />,
-                  }[row?.type]
-                }
-                color={
-                  {
-                    '.txt': 'success',
-                    '.pdf': 'neutral',
-                    '.jsonl': 'danger',
-                  }[row?.type] as ColorPaletteProp
-                }
-              >
-                {row?.type}
-              </Chip>
-            </td>
-            <td>
-              {row?.size && (
-                <Typography level="body-xs" color="neutral">
-                  {formatBytes(row?.size)}
-                </Typography>
-              )}
-            </td>
-          </>
-        )}
-
-        <td>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <Button
-              variant="plain"
-              size="sm"
-              style={{ fontSize: '11px' }}
-              onClick={() => {
-                setPreviewFile(row?.name);
-              }}
-            >
-              <EyeIcon size="16px" />
-            </Button>
-            <RowMenu
-              experimentInfo={experimentInfo}
-              filename={row?.name}
-              foldername={currentFolder}
-              mutate={mutate}
-              row={row}
-            />
-          </Box>
-        </td>
-      </tr>
-    );
-  }
-
-  function Folder({ row }) {
-    return (
-      <tr key={row?.name} onDoubleClick={() => setCurrentFolder(row?.name)}>
-        <td style={{ paddingLeft: '1rem' }}>
-          <Typography
-            level="body-sm"
-            sx={{ display: 'flex', alignItems: 'center' }}
-          >
-            <FolderIcon size="16px" style={{ marginRight: '0.5rem' }} />
-            {row?.name}
-          </Typography>
-        </td>
-        {fullPage && (
-          <>
-            <td>
-              <Typography level="body-xs">{row?.date}</Typography>
-            </td>
-            <td>
-              <Chip
-                variant="soft"
-                size="sm"
-                startDecorator={
-                  {
-                    '.txt': <FaRegFileAlt />,
-                    '.pdf': <FaRegFilePdf />,
-                    '.jsonl': <LuFileJson />,
-                  }[row?.type]
-                }
-                color={
-                  {
-                    '.txt': 'success',
-                    '.pdf': 'neutral',
-                    '.jsonl': 'danger',
-                  }[row?.type] as ColorPaletteProp
-                }
-              >
-                {row?.type}
-              </Chip>
-            </td>
-            <td>
-              {row?.size == 0 ? (
-                <></>
-              ) : (
-                row?.size &&
-                row?.size != 0 && (
-                  <Typography level="body-xs" color="neutral">
-                    {formatBytes(row?.size)}
-                  </Typography>
-                )
-              )}
-            </td>
-          </>
-        )}
-        <td>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <RowMenu
-              experimentInfo={experimentInfo}
-              filename={row?.name}
-              foldername={currentFolder}
-              mutate={mutate}
-              row={row}
-            />
-          </Box>
-        </td>
-      </tr>
-    );
-  }
 
   const renderFilters = () => (
     <React.Fragment>
@@ -675,9 +696,23 @@ export default function Documents({
                   )}
                   {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
                     row?.type === 'folder' ? (
-                      <Folder row={row} />
+                      <Folder
+                        row={row}
+                        experimentInfo={experimentInfo}
+                        currentFolder={currentFolder}
+                        setCurrentFolder={setCurrentFolder}
+                        fullPage={fullPage}
+                        mutate={mutate}
+                      />
                     ) : (
-                      <File row={row} />
+                      <File
+                        row={row}
+                        fullPage={fullPage}
+                        experimentInfo={experimentInfo}
+                        currentFolder={currentFolder}
+                        mutate={mutate}
+                        setPreviewFile={setPreviewFile}
+                      />
                     ),
                   )}
                 </tbody>

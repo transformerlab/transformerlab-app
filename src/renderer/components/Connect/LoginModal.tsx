@@ -45,6 +45,8 @@ export default function LoginModal({
 
   const [host, setHost] = useState('');
 
+  const WEB_APP = window.platform.appmode == "cloud";
+
   React.useEffect(() => {
     window.storage
       .get('recentConnections')
@@ -55,7 +57,7 @@ export default function LoginModal({
 
         return result;
       })
-      .catch(() => {});
+      .catch(() => { });
 
     window.storage
       .get('recentSSHConnections')
@@ -66,7 +68,7 @@ export default function LoginModal({
 
         return result;
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [connection]);
 
   async function checkServer() {
@@ -130,12 +132,14 @@ export default function LoginModal({
         </OneTimePopup>
         <Tabs
           aria-label="Basic tabs"
-          defaultValue={0}
+          defaultValue={WEB_APP ? 1 : 0}
           sx={{ overflow: 'hidden', height: '100%' }}
-          onChange={(_event, newValue) => {}}
+          onChange={(_event, newValue) => { }}
         >
           <TabList tabFlex={1}>
-            <Tab>Local Engine</Tab>
+            {!WEB_APP && (
+              <Tab>Local Engine</Tab>
+            )}
             <Tab>Connect to Remote Engine</Tab>
             {/* <Tab value="SSH">Connect via SSH</Tab> */}
           </TabList>

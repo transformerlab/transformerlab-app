@@ -4,8 +4,12 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
+  CogIcon,
+  EllipsisVerticalIcon,
   PlusCircleIcon,
+  SettingsIcon,
   StopCircleIcon,
+  UserPlusIcon,
   XSquareIcon,
 } from 'lucide-react';
 import {
@@ -21,6 +25,7 @@ import {
   Dropdown,
   MenuButton,
   Tooltip,
+  Sheet,
 } from '@mui/joy';
 import { useState, useEffect, MouseEvent, FormEvent } from 'react';
 import useSWR from 'swr';
@@ -28,6 +33,34 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
+
+function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
+  return (
+    <Dropdown>
+      <MenuButton variant="plain" sx={{ background: 'transparent !important' }}>
+        <SettingsIcon size="20px" color="var(--joy-palette-text-tertiary)" />
+      </MenuButton>
+      <Menu variant="soft" className="select-experiment-menu">
+        <MenuItem
+          variant="soft"
+          color="danger"
+          onClick={() => {
+            if (
+              confirm(
+                'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
+              )
+            ) {
+              fetch(chatAPI.DELETE_EXPERIMENT_URL(experimentInfo?.id));
+              setExperimentId(null);
+            }
+          }}
+        >
+          Delete {experimentInfo?.name}
+        </MenuItem>
+      </Menu>
+    </Dropdown>
+  );
+}
 
 export default function SelectExperimentMenu({
   experimentInfo,
@@ -40,7 +73,7 @@ export default function SelectExperimentMenu({
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.GET_EXPERIMENTS_URL(),
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -57,8 +90,10 @@ export default function SelectExperimentMenu({
       <FormControl>
         <FormLabel
           sx={{
-            paddingLeft: '6px',
+            paddingLeft: 1,
             color: 'var(--joy-palette-neutral-plainColor)',
+            paddingBottom: 0,
+            marginBottom: 0,
           }}
         >
           Experiment:
@@ -80,40 +115,80 @@ export default function SelectExperimentMenu({
                 sx={{
                   backgroundColor: 'transparent !important',
                   fontSize: '22px',
-                  color: '#999',
+                  color: 'var(--joy-palette-neutral-plainDisabledColor)',
+                  paddingLeft: 1,
                 }}
               >
                 {experimentInfo?.name || 'Select'}
                 <span
                   style={{
+                    flexGrow: 0,
+                    justifyContent: 'right',
+                    display: 'inline-flex',
+                    marginLeft: '8px',
+                  }}
+                >
+                  <ChevronDownIcon size="18px" />
+                </span>
+                <span
+                  style={{
                     flexGrow: 1,
                     justifyContent: 'right',
                     display: 'inline-flex',
+                    color: 'var(--joy-palette-neutral-plainColor)',
                   }}
                 >
-                  <ChevronDownIcon />
+                  &nbsp;
                 </span>
               </Button>
             </Tooltip>
           ) : (
-            <MenuButton
-              variant="plain"
-              sx={{
-                fontSize: '22px',
-                backgroundColor: 'transparent !important',
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
               }}
             >
-              {experimentInfo?.name || 'Select'}
-              <span
-                style={{
-                  flexGrow: 1,
-                  justifyContent: 'right',
-                  display: 'inline-flex',
+              <MenuButton
+                variant="plain"
+                sx={{
+                  fontSize: '22px',
+                  backgroundColor: 'transparent !important',
+                  color: 'var(--joy-palette-neutral-plainColor)',
+                  paddingLeft: 1,
+                  paddingRight: 0,
                 }}
               >
-                <ChevronDownIcon />
-              </span>
-            </MenuButton>
+                {experimentInfo?.name || 'Select'}
+                <span
+                  style={{
+                    flexGrow: 0,
+                    justifyContent: 'right',
+                    display: 'inline-flex',
+                    color: 'var(--joy-palette-neutral-plainColor)',
+                    marginLeft: '8px',
+                  }}
+                >
+                  <ChevronDownIcon size="18px" />
+                </span>
+                <span
+                  style={{
+                    flexGrow: 1,
+                    justifyContent: 'right',
+                    display: 'inline-flex',
+                    color: 'var(--joy-palette-neutral-plainColor)',
+                  }}
+                >
+                  &nbsp;
+                </span>
+              </MenuButton>
+              <ExperimentSettingsMenu
+                experimentInfo={experimentInfo}
+                setExperimentId={setExperimentId}
+              />
+            </div>
           )}
           <Menu className="select-experiment-menu">
             {data &&

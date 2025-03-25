@@ -258,6 +258,25 @@ export default function TrainingModalLoRA({
               name="model_architecture"
               readOnly
             />
+            <input
+              hidden
+              value={experimentInfo?.config?.foundation_filename}
+              name="foundation_model_file_path"
+              readOnly
+            />
+            <input hidden value={experimentInfo?.config?.embedding_model} name="embedding_model" readOnly />
+            <input
+              hidden
+              value={experimentInfo?.config?.embedding_model_architecture}
+              name="embedding_model_architecture"
+              readOnly
+            />
+            <input
+              hidden
+              value={experimentInfo?.config?.embedding_model_filename}
+              name="embedding_model_file_path"
+              readOnly
+            />
           </Stack>
         </Sheet>
       </Stack>

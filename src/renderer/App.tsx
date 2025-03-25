@@ -47,9 +47,10 @@ export default function App() {
   useEffect(() => {
     async function getSavedExperimentId() {
       const connectionWithoutDots = connection.replace(/\./g, '-');
-      const experimentId = await window.storage.get(
-        `experimentId.${connectionWithoutDots}`
-      );
+      // window.storage should be defined by cloud or electron preload script
+      const experimentId = window.storage
+        ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
+        : 1;
       if (experimentId) {
         setExperimentId(experimentId);
       } else if (connection !== '') {
@@ -74,7 +75,8 @@ export default function App() {
   }, [connection]);
 
   useEffect(() => {
-    if (experimentId == '') return;
+    // if there is no experiment or window.storage isn't setup then skip
+    if (experimentId == '' || !window.storage) return;
     const connectionWithoutDots = connection.replace(/\./g, '-');
     window.storage.set(`experimentId.${connectionWithoutDots}`, experimentId);
   }, [experimentId]);

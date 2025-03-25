@@ -1,5 +1,4 @@
 import * as React from 'react';
-
 import Sheet from '@mui/joy/Sheet';
 import {
   Button,
@@ -19,13 +18,13 @@ import {
   TabList,
   Tab,
   TabPanel,
+  Switch, // Import the Switch component
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 
-// Import the AIProvidersSettings component.
 import AIProvidersSettings from './AIProvidersSettings';
 import ViewJobsTab from './ViewJobsTab';
 import { alignBox } from '@nivo/core';
@@ -34,6 +33,16 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
+  const [doNotTrack, setDoNotTrack] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchDoNotTrack = async () => {
+      const value = await window.storage.get('DO_NOT_TRACK');
+      setDoNotTrack(value === 'true');
+    };
+    fetchDoNotTrack();
+  }, []);
+
   const {
     data: hftoken,
     error: hftokenerror,
@@ -76,6 +85,12 @@ export default function TransformerLabSettings() {
       />
     );
   }
+
+  const handleDoNotTrackChange = (event) => {
+    const checked = event.target.checked;
+    setDoNotTrack(checked);
+    window.storage.set('DO_NOT_TRACK', checked.toString());
+  };
 
   return (
     <Sheet
@@ -209,7 +224,6 @@ export default function TransformerLabSettings() {
             <Typography level="title-lg" marginBottom={2}>
               AI Providers & Models:
             </Typography>
-            {/* Clickable list option */}
             <Button variant="soft" onClick={() => setShowProvidersPage(true)}>
               Set API Keys for AI Providers
             </Button>
@@ -231,6 +245,20 @@ export default function TransformerLabSettings() {
             >
               Reset all Tutorial Popup Screens
             </Button>
+            <Divider sx={{ mt: 2, mb: 2 }} />
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Do Not Share Any Data</FormLabel>
+              <Switch
+                checked={doNotTrack}
+                onChange={handleDoNotTrackChange}
+                sx={{ alignSelf: 'flex-start' }}
+              />
+              <FormHelperText>
+                {doNotTrack
+                  ? 'No tracking events will be sent'
+                  : 'Anonymous usage data will be shared with Transformer Lab'}
+              </FormHelperText>
+            </FormControl>
           </TabPanel>
           <TabPanel
             value={1}

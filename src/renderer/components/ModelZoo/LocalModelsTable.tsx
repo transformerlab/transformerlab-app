@@ -9,6 +9,7 @@ import {
   Table,
   Typography,
   Option,
+  Button,
 } from '@mui/joy';
 import {
   ArrowRightToLineIcon,
@@ -21,12 +22,12 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 
+import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
-import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 type Order = 'asc' | 'desc';
 
@@ -35,8 +36,10 @@ const LocalModelsTable = ({
   mutateModels,
   setFoundation,
   setAdaptor,
+  setEmbedding,
   pickAModelMode = false,
   showOnlyGeneratedModels = false,
+  isEmbeddingMode = false,
 }) => {
   const [order, setOrder] = useState<Order>('desc');
   const [searchText, setSearchText] = useState('');
@@ -185,7 +188,7 @@ const LocalModelsTable = ({
                               marginRight: '5px',
                             }}
                           />
-                        ) : (row?.source && row?.source != "transformerlab") ? (
+                        ) : row?.source && row?.source != 'transformerlab' ? (
                           <ArrowRightToLineIcon
                             color="var(--joy-palette-success-700)"
                             style={{
@@ -227,29 +230,30 @@ const LocalModelsTable = ({
                           'MistralForCausalLM',
                           'Phi3ForCausalLM',
                           'Qwen2ForCausalLM',
-                          'T5ForConditionalGeneration'
+                          'T5ForConditionalGeneration',
                         ].includes(row?.json_data?.architecture) && (
-                            <>🤗 &nbsp;</>
-                          )}
+                          <>🤗 &nbsp;</>
+                        )}
                         {row?.json_data?.architecture}
                       </Typography>
                     </td>
                     <td>{row?.json_data?.parameters}</td>
                     {/* <td>{JSON.stringify(row)}</td> */}
                     {/* <td>
-    <Box
-      sx={{ display: "flex", gap: 2, alignItems: "center" }}
-    ></Box>
-  </td> */}
+                      <Box
+                        sx={{ display: "flex", gap: 2, alignItems: "center" }}
+                      ></Box>
+                    </td> */}
                     <td>{row.model_id}</td>
                     <td style={{ textAlign: 'right' }}>
                       {/* <Link fontWeight="lg" component="button" color="neutral">
-    Archive
-  </Link> */}
+                          Archive
+                        </Link> */}
                       {pickAModelMode === true ? (
                         <SelectButton
                           setFoundation={setFoundation}
                           setAdaptor={setAdaptor}
+                          setEmbedding={setEmbedding}
                           model={row}
                         />
                       ) : (
@@ -266,12 +270,12 @@ const LocalModelsTable = ({
                               if (
                                 confirm(
                                   "Are you sure you want to delete model '" +
-                                  row.model_id +
-                                  "'?"
+                                    row.model_id +
+                                    "'?",
                                 )
                               ) {
                                 await fetch(
-                                  chatAPI.Endpoints.Models.Delete(row.model_id)
+                                  chatAPI.Endpoints.Models.Delete(row.model_id),
                                 );
                                 mutateModels();
                               }

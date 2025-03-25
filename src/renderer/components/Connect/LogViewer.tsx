@@ -7,7 +7,7 @@ import { FitAddon } from '@xterm/addon-fit';
 
 export default function LogViewer({
   triggerStrings = [],
-  triggerFunction = () => {},
+  triggerFunction = () => { },
 }) {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;

@@ -35,7 +35,7 @@ export default function NewNodeModal({
     data: tasksData,
     error: tasksError,
     isLoading: isLoadingTasks,
-  } = useSWR(chatAPI.Endpoints.Tasks.List(), fetcher);
+  } = useSWR(open ? chatAPI.Endpoints.Tasks.List() : null, fetcher);
 
   let evaluationData = [];
   try {
@@ -55,7 +55,7 @@ export default function NewNodeModal({
   };
 
   useEffect(() => {
-    if (tasksData && mode != 'OTHER') {
+    if (tasksData && mode != 'OTHER' && tasksData?.detail !== 'Not Found') {
       const filteredTasks = tasksData.filter((task) => task.type === mode);
       setAvailableTasks(filteredTasks);
     } else {

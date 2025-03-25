@@ -5,7 +5,7 @@ import Typography from '@mui/joy/Typography';
 import { DownloadIcon, RotateCcwIcon, Type } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { Box, Chip, CircularProgress, Stack } from '@mui/joy';
+import { Box, ButtonGroup, Chip, CircularProgress, Stack } from '@mui/joy';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
@@ -54,7 +54,7 @@ function getTint(type: string) {
   return (
     'color-mix(in srgb, ' +
     tint +
-    ', var(--joy-palette-background-surface) 50%)'
+    ', var(--joy-palette-background-surface) 75%)'
   );
 }
 
@@ -143,6 +143,7 @@ export default function PluginCard({
                 '-webkit-box-orient': 'vertical',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                wordBreak: 'break-word', // Add this line to break up long words
               }}
             >
               {plugin.description}
@@ -165,28 +166,15 @@ export default function PluginCard({
             </Box>
           )}
 
-          <Box
+          <ButtonGroup
             sx={{
-              display: 'flex',
-              flexDirection: 'row',
               mt: 1,
               justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: 1,
+              flexWrap: 'wrap',
             }}
           >
             {!download && (
               <>
-                {/* <Button
-                color="neutral"
-                variant="outlined"
-                onClick={async () => {
-                  await fetch(chatAPI.Endpoints.Dataset.Delete(plugin.name));
-                  parentMutate();
-                }}
-              >
-                <Trash2Icon />
-              </Button> */}
                 <Link
                   to={'/plugins/' + plugin.uniqueId}
                   style={{ textDecoration: 'none', color: 'white' }}
@@ -256,7 +244,7 @@ export default function PluginCard({
                 </>
               )}
             </Button>
-          </Box>
+          </ButtonGroup>
         </CardContent>
       </Card>
     </>

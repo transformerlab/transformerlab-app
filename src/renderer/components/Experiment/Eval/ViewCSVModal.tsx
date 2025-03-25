@@ -62,7 +62,9 @@ function formatEvalData(data, compareEvals = false) {
       const evaluatorName = row[3];
       const metricName = row[4];
       const scoreVal = row[5];
-      const combinedScore = { [`${evaluatorName}-${jobId}-${metricName}`]: scoreVal };
+      const combinedScore = {
+        [`${evaluatorName}-${jobId}-${metricName}`]: scoreVal,
+      };
 
       // Append additional columns after the 6th column, if any
       const extraColumns = row.slice(6);
@@ -114,27 +116,45 @@ function formatEvalData(data, compareEvals = false) {
   return { header: header, body: formattedData };
 }
 
+function sameTask(metric1, metric2) {
+  const metric1Split = metric1.split('-');
+  const metric2Split = metric2.split('-');
+  return (
+    metric1Split[0] === metric2Split[0] && metric1Split[1] === metric2Split[1]
+  );
+}
+
 function formatArrayOfScores(scores) {
   const scoresArray = Array.isArray(scores) ? scores : [scores];
-  const formattedScores = scoresArray.map((score) => {
+  const formattedScores = [];
+  let lastMetricName = '';
+  for (let i = 0; i < scoresArray.length; i++) {
+    const score = scoresArray[i];
     const metricName = Object.keys(score)[0];
     const value = Object.values(score)[0];
-
-    return (
+    if (lastMetricName !== '' && !sameTask(lastMetricName, metricName)) {
+      formattedScores.push(
+        <div style={{ flexBasis: '100%', height: '4px' }} key={i + 0.5} />,
+      );
+    }
+    formattedScores.push(
       <Box
         sx={{
           backgroundColor: heatedColor(parseFloat(value)),
           padding: '0 5px',
           fontWeight: 'normal',
-          flex: '1 0 0',
+          flex: '1',
           overflow: 'hidden',
         }}
+        key={i}
       >
         {metricName}:<br />
         {parseFloat(value).toFixed(5)}
-      </Box>
+      </Box>,
     );
-  });
+
+    lastMetricName = metricName;
+  }
   return formattedScores;
 }
 
@@ -154,6 +174,7 @@ function formatScore(score) {
             flexDirection: 'row',
             height: '100%',
             overflow: 'hidden',
+            flexWrap: 'wrap',
           }}
         >
           {formatArrayOfScores(score)}
@@ -170,82 +191,79 @@ const convertReportToCSV = (report: { header: any[]; body: any[] }) => {
   const csvRows = [];
   csvRows.push(report.header.join(','));
   report.body.forEach((row) => {
-      const csvRow = row
-          .map((cell) => {
-              let cellText = '';
-              if (typeof cell === 'object') {
-                  // Convert objects to a JSON string and escape inner quotes
-                  cellText = JSON.stringify(cell).replace(/"/g, '""');
-              } else {
-                  cellText = cell;
-              }
-              return `"${cellText}"`;
-          })
-          .join(',');
-      csvRows.push(csvRow);
+    const csvRow = row
+      .map((cell) => {
+        let cellText = '';
+        if (typeof cell === 'object') {
+          // Convert objects to a JSON string and escape inner quotes
+          cellText = JSON.stringify(cell).replace(/"/g, '""');
+        } else {
+          cellText = cell;
+        }
+        return `"${cellText}"`;
+      })
+      .join(',');
+    csvRows.push(csvRow);
   });
   return csvRows.join('\n');
 };
 
-const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) => {
+const ViewCSVModal = ({
+  open,
+  onClose,
+  jobId,
+  fetchCSV,
+  compareData = null,
+}) => {
   const [report, setReport] = useState({});
 
-
   useEffect(() => {
-
     if (!compareData) {
-
-    if (open && jobId) {
-      fetchCSV(jobId).then((data) => {
-        try {
-          setReport(formatEvalData(JSON.parse(data)));
-        } catch (e) {
-          setReport({ header: ['Error'], body: [[data]] });
-        }
-      });
+      if (open && jobId) {
+        fetchCSV(jobId).then((data) => {
+          try {
+            setReport(formatEvalData(JSON.parse(data)));
+          } catch (e) {
+            setReport({ header: ['Error'], body: [[data]] });
+          }
+        });
+      }
+    } else {
+      try {
+        setReport(formatEvalData(compareData, true));
+      } catch (e) {
+        setReport({ header: ['Error'], body: [[compareData]] });
+      }
     }
-
-  } else {
-    try {
-      setReport(formatEvalData(compareData, true));
-    } catch (e) {
-      setReport({ header: ['Error'], body: [[compareData]] });
-    }
-
-  }
-
   }, [open, jobId, fetchCSV]);
 
-
   const handleDownload = async () => {
-
     if (!compareData) {
-    const response = await fetch(
-      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId, 'download')
-    );
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `report_${jobId}.csv`; // Adjust extension if necessary
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  } else {
-    const csvContent = convertReportToCSV(report);
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `detailed_report.csv`; // Adjust extension if necessary
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }
-
-};
+      const response = await fetch(
+        chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId, 'download'),
+      );
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `report_${jobId}.csv`; // Adjust extension if necessary
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      const csvContent = convertReportToCSV(report);
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `detailed_report.csv`; // Adjust extension if necessary
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -260,8 +278,9 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV, compareData = null }) =>
           }}
         >
           <Typography level="h4" mb={2}>
-          {compareData ? 'Detailed Comparison Report' :
-            `Additional Output from Job: ${jobId}`}
+            {compareData
+              ? 'Detailed Comparison Report'
+              : `Additional Output from Job: ${jobId}`}
           </Typography>
           <Button onClick={handleDownload} variant="outlined">
             Download Report

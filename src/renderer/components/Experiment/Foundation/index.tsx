@@ -1,4 +1,5 @@
 import SelectAModel from './SelectAModel';
+import SelectEmbeddingModel from './SelectEmbeddingModel';
 
 export default function FoundationHome({
   pickAModelMode = false,

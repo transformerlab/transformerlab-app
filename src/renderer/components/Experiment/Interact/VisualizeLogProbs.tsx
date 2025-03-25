@@ -18,7 +18,6 @@ import {
 import { useRef, useState } from 'react';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { log } from 'console';
 import RenderLogProbs from './RenderLogProbs';
 
 export default function CompletionsPage({
@@ -194,14 +193,14 @@ export default function CompletionsPage({
           overflowWrap: 'break-word',
         }}
       >
-        <Alert
+        {/* <Alert
           color="neutral"
           variant="outlined"
           startDecorator={<ConstructionIcon />}
         >
           This feature is currently in developement. It only works with on Apple
           Silicon using the MLX inference engine.
-        </Alert>
+        </Alert> */}
         <Input
           name="starting-text"
           placeholder="Enter text to complete here"

@@ -25,7 +25,7 @@ import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import PickADocumentMenu from '../Rag/PickADocumentMenu';
 
 import { generateFriendlyName } from 'renderer/lib/utils';
-import exp from 'node:constants';
+
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
@@ -240,24 +240,63 @@ export default function GenerateModal({
             delete generationConfig.script_parameters.context;
             setConfig(generationConfig.script_parameters);
           }
+            const datasetKeyExists = Object.keys(
+              generationConfig.script_parameters
+            ).some((key) => key.toLowerCase() === 'dataset_name');
 
-          if (
-            hasDatasetKey &&
-            generationConfig.script_parameters.dataset_name.length > 0
-          ) {
-            setSelectedDataset(generationConfig.script_parameters.dataset_name);
-          }
-          if (
-            generationConfig.script_parameters._dataset_display_message &&
-            generationConfig.script_parameters._dataset_display_message.length >
-              0
-          ) {
-            setDatasetDisplayMessage(
-              generationConfig.script_parameters._dataset_display_message,
-            );
-          }
-          if (!nameInput && generationData?.name.length > 0) {
-            setNameInput(generationData.name);
+            const docsKeyExists = Object.keys(
+              generationConfig.script_parameters
+            ).some((key) => key.toLowerCase() === 'docs');
+
+
+            const contextKeyExists = Object.keys(
+              generationConfig.script_parameters
+            ).some((key) => key.toLowerCase() === 'context');
+
+            setHasDatasetKey(datasetKeyExists);
+
+            if (
+              docsKeyExists &&
+              generationConfig.script_parameters.docs.length > 0
+            ) {
+              setHasContextKey(false);
+              setHasDocumentsKey(true);
+              generationConfig.script_parameters.docs =
+                generationConfig.script_parameters.docs.split(',');
+              setConfig(generationConfig.script_parameters);
+              setSelectedDocs(generationConfig.script_parameters.docs);
+            } else if (
+              contextKeyExists &&
+              generationConfig.script_parameters.context.length > 0
+            ) {
+              setHasContextKey(true);
+              setHasDocumentsKey(false);
+              const context = generationConfig.script_parameters.context;
+              setContextInput(context);
+              delete generationConfig.script_parameters.context;
+              setConfig(generationConfig.script_parameters);
+            }
+
+            if (
+              hasDatasetKey &&
+              generationConfig.script_parameters.dataset_name
+            ) {
+              setSelectedDataset(
+                generationConfig.script_parameters.dataset_name
+              );
+            }
+            if (
+              generationConfig.script_parameters._dataset_display_message &&
+              generationConfig.script_parameters._dataset_display_message
+                .length > 0
+            ) {
+              setDatasetDisplayMessage(
+                generationConfig.script_parameters._dataset_display_message
+              );
+            }
+            if (!nameInput && generationConfig?.name.length > 0) {
+              setNameInput(generationConfig.name);
+            }
           }
         }
       }

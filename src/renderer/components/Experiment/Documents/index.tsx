@@ -1,5 +1,5 @@
 import { Sheet } from '@mui/joy';
-import Documents from '../Rag/Documents';
+import Documents from '../../Shared/Documents';
 
 export default function BigDocumentsPage({ experimentInfo }) {
   return (
@@ -12,8 +12,7 @@ export default function BigDocumentsPage({ experimentInfo }) {
         pb: 2,
       }}
     >
-      <Documents experimentInfo={experimentInfo} fullPage  additionalMessage/>
+      <Documents experimentInfo={experimentInfo} fullPage additionalMessage />
     </Sheet>
   );
 }
-
