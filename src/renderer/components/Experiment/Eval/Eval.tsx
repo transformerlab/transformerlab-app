@@ -149,9 +149,9 @@ export default function Eval({
                 '&.Mui-disabled': { opacity: 1 }
               }}
             >
-              MODEL-BASED EVALUATIONS
+              DATASET-BASED EVALUATIONS
             </MenuItem>
-            {plugins?.filter(row => row.evalsType === 'model').map((row) => (
+            {plugins?.filter(row => row.evalsType === 'dataset').map((row) => (
               <MenuItem
                 onClick={() => openModalForPLugin(row.uniqueId)}
                 key={row.uniqueId}
@@ -172,9 +172,9 @@ export default function Eval({
                 '&.Mui-disabled': { opacity: 1 }
               }}
             >
-              DATASET-BASED EVALUATIONS
+              MODEL-BASED EVALUATIONS
             </MenuItem>
-            {plugins?.filter(row => row.evalsType === 'dataset').map((row) => (
+            {plugins?.filter(row => row.evalsType === 'model').map((row) => (
               <MenuItem
                 onClick={() => openModalForPLugin(row.uniqueId)}
                 key={row.uniqueId}
