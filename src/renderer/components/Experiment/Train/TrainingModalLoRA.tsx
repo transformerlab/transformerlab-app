@@ -313,7 +313,7 @@ export default function TrainingModalLoRA({
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             let formJson = Object.fromEntries((formData as any).entries());
-            formJson.trainingType = trainingType;
+            formJson.type = trainingType;
             if (templateData && task_id) {
               //Only update if we are currently editing a template
               updateTask(
