@@ -174,32 +174,36 @@ export default function EvalModal({
 
   useEffect(() => {
     if (experimentInfo && pluginId) {
-      if (currentEvalId && currentEvalId !== '') {
+      if (
+        evalData &&
+        evalData !== undefined &&
+        currentEvalId &&
+        currentEvalId !== ''
+      ) {
         console.log(evalData);
         const evalConfig = JSON.parse(evalData.config);
-              if (evalConfig) {
-                setConfig(evalConfig.script_parameters);
-                const datasetKeyExists = Object.keys(
-                  evalConfig.script_parameters
-                ).some((key) => key.toLowerCase().includes('dataset_name'));
-                setHasDatasetKey(datasetKeyExists);
-                if (
-                  evalConfig.script_parameters._dataset_display_message &&
-                  evalConfig.script_parameters._dataset_display_message.length >
-                    0
-                ) {
-                  setDatasetDisplayMessage(
-                    evalConfig.script_parameters._dataset_display_message
-                  );
-                }
-                const tasksKeyExists = Object.keys(
-                  evalConfig.script_parameters
-                ).some((key) => key.toLowerCase().includes('tasks'));
-                if (tasksKeyExists) {
-                  evalConfig.script_parameters.tasks =
-                    evalConfig.script_parameters.tasks.split(',');
-                  setConfig(evalConfig.script_parameters);
-                }
+        if (evalConfig) {
+          setConfig(evalConfig.script_parameters);
+          const datasetKeyExists = Object.keys(
+            evalConfig.script_parameters,
+          ).some((key) => key.toLowerCase().includes('dataset_name'));
+          setHasDatasetKey(datasetKeyExists);
+          if (
+            evalConfig.script_parameters._dataset_display_message &&
+            evalConfig.script_parameters._dataset_display_message.length > 0
+          ) {
+            setDatasetDisplayMessage(
+              evalConfig.script_parameters._dataset_display_message,
+            );
+          }
+          const tasksKeyExists = Object.keys(evalConfig.script_parameters).some(
+            (key) => key.toLowerCase().includes('tasks'),
+          );
+          if (tasksKeyExists) {
+            evalConfig.script_parameters.tasks =
+              evalConfig.script_parameters.tasks.split(',');
+            setConfig(evalConfig.script_parameters);
+          }
 
           if (
             hasDatasetKey &&
