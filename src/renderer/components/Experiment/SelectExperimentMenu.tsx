@@ -37,7 +37,11 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
   return (
     <Dropdown>
-      <MenuButton variant="plain" sx={{ background: 'transparent !important' }}>
+      <MenuButton
+        variant="plain"
+        size="sm"
+        sx={{ background: 'transparent !important', padding: 0 }}
+      >
         <SettingsIcon size="20px" color="var(--joy-palette-text-tertiary)" />
       </MenuButton>
       <Menu variant="soft" className="select-experiment-menu">
@@ -155,13 +159,27 @@ export default function SelectExperimentMenu({
                 variant="plain"
                 sx={{
                   fontSize: '22px',
+                  maxWidth: '200px',
                   backgroundColor: 'transparent !important',
                   color: 'var(--joy-palette-neutral-plainColor)',
                   paddingLeft: 1,
                   paddingRight: 0,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  justifyContent: 'left',
+                  display: 'inline-flex',
                 }}
               >
-                {experimentInfo?.name || 'Select'}
+                <span
+                  style={{
+                    width: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {experimentInfo?.name || 'Select'}
+                </span>
                 <span
                   style={{
                     flexGrow: 0,
