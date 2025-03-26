@@ -85,6 +85,23 @@ export default function Eval({
     setOpen(true);
   }
 
+  // eslint-disable-next-line react/no-unstable-nested-components
+  function FilteredPlugins({ plugins, type }) {
+    const filteredPlugins = plugins?.filter((row) => row.evalsType === type);
+    if (!filteredPlugins || filteredPlugins.length === 0) {
+      return <MenuItem disabled>No plugins installed</MenuItem>;
+    }
+
+    return filteredPlugins.map((row) => (
+      <MenuItem
+        onClick={() => openModalForPLugin(row.uniqueId)}
+        key={row.uniqueId}
+      >
+        {row.name}
+      </MenuItem>
+    ));
+  }
+
   if (!experimentInfo) {
     return 'No experiment selected';
   }
@@ -149,16 +166,8 @@ export default function Eval({
               >
                 DATASET-BASED EVALUATIONS
               </MenuItem>
-              {plugins
-                ?.filter((row) => row.evalsType === 'dataset')
-                .map((row) => (
-                  <MenuItem
-                    onClick={() => openModalForPLugin(row.uniqueId)}
-                    key={row.uniqueId}
-                  >
-                    {row.name}
-                  </MenuItem>
-                ))}
+
+              <FilteredPlugins plugins={plugins} type="dataset" />
 
               <ListDivider />
 
@@ -174,16 +183,7 @@ export default function Eval({
               >
                 MODEL-BASED EVALUATIONS
               </MenuItem>
-              {plugins
-                ?.filter((row) => row.evalsType === 'model')
-                .map((row) => (
-                  <MenuItem
-                    onClick={() => openModalForPLugin(row.uniqueId)}
-                    key={row.uniqueId}
-                  >
-                    {row.name}
-                  </MenuItem>
-                ))}
+              <FilteredPlugins plugins={plugins} type="model" />
             </Menu>
           </Dropdown>
         )}
