@@ -9,6 +9,10 @@ const providers = [
     keyName: 'OPENAI_API_KEY',
   },
   {
+    name: 'Azure OpenAI',
+    keyName: 'AZURE_OPENAI_DETAILS',
+  },
+  {
     name: 'Anthropic',
     keyName: 'ANTHROPIC_API_KEY',
   },

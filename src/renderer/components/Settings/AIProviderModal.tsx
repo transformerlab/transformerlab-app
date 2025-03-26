@@ -95,6 +95,37 @@ export default function AIProviderModal({
                 <Input name="customModelName" />
               </FormControl>
             </>
+          ) : selectedProvider?.name === 'Azure OpenAI' ? (
+            <>
+              <FormControl sx={{ mt: 2 }}>
+                <FormLabel>API Version</FormLabel>
+                <Input name="openai_api_version" />
+              </FormControl>
+              <FormControl sx={{ mt: 2 }}>
+                <FormLabel>Azure Deployment</FormLabel>
+                <Input name="azure_deployment" />
+              </FormControl>
+              <FormControl sx={{ mt: 2 }}>
+                <FormLabel>Azure Endpoint</FormLabel>
+                <Input name="azure_endpoint" />
+              </FormControl>
+              <FormControl sx={{ mt: 2 }}>
+                <FormLabel>API Key</FormLabel>
+                <Input
+                  endDecorator={
+                    <IconButton
+                      onClick={() => {
+                        setShowApiKey(!showApiKey);
+                      }}
+                    >
+                      {showApiKey ? <EyeOffIcon /> : <EyeIcon />}
+                    </IconButton>
+                  }
+                  name="azure_openai_api_key"
+                  type={showApiKey ? 'text' : 'password'}
+                />
+              </FormControl>
+            </>
           ) : (
             <FormControl sx={{ mt: 2 }}>
               <FormLabel>{selectedProvider?.name} API Key</FormLabel>
@@ -154,6 +185,28 @@ export default function AIProviderModal({
                 </li>
                 <li>Log in/Create an account.</li>
                 <li>Follow instructions to generate an API key.</li>
+              </ol>
+            </>
+          )}
+          {selectedProvider?.name === 'Azure OpenAI' && (
+            <>
+              <Typography level="title-md" mt={2}>
+                Steps to get Azure OpenAI credentials:
+              </Typography>
+              <ol>
+                <li>
+                  Go to{' '}
+                  <a
+                    href="https://portal.azure.com/#blade/Microsoft_Azure_ProjectOxford/CognitiveServicesHub/OpenAI"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Azure Portal - OpenAI Service
+                  </a>
+                </li>
+                <li>Create or select your Azure OpenAI resource.</li>
+                <li>Navigate to Keys and Endpoint to find your API key and endpoint.</li>
+                <li>Create a deployment in the Azure OpenAI Studio and note your deployment name.</li>
               </ol>
             </>
           )}
