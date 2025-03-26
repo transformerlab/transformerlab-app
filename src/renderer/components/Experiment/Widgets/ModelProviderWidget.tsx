@@ -42,6 +42,7 @@ function ModelProviderWidget<
     const isDisabledFilter = true;
     const disabledEnvMap = {
         claude: 'ANTHROPIC_API_KEY',
+        azure: 'AZURE_OPENAI_DETAILS',
         openai: 'OPENAI_API_KEY',
         custom: 'CUSTOM_MODEL_API_KEY',
     };
@@ -63,6 +64,7 @@ function ModelProviderWidget<
         'Claude 3.5 Haiku': 'claude-3-5-haiku-latest',
         'OpenAI GPT 4o': 'gpt-4o',
         'OpenAI GPT 4o Mini': 'gpt-4o-mini',
+        'Azure OpenAI': 'azure-openai',
         'Custom Model API': 'custom-model-api',
         'Local': 'local',
     };
