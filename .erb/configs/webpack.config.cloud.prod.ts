@@ -131,6 +131,7 @@ const configuration: webpack.Configuration = {
         removeAttributeQuotes: true,
         removeComments: true,
       },
+      favicon: 'src/renderer/img/hex.svg', // This will automatically handle the favicon
       isBrowser: false,
       isDevelopment: false,
     }),
