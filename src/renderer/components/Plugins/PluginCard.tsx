@@ -94,159 +94,197 @@ export default function PluginCard({
   download,
   parentMutate,
   experimentInfo = {},
+  machineType,
 }) {
   const [installing, setInstalling] = useState(null);
 
+  // eslint-disable-next-line react/no-unstable-nested-components
+  function WillThisPluginWorkOnMyMachine({ pluginArchitectures, machineType }) {
+    if (!pluginArchitectures) return null;
+    if (machineType === 'mps') {
+      if (
+        pluginArchitectures.includes('mlx') ||
+        pluginArchitectures.includes('cpu')
+      ) {
+        return (
+          <Typography level="body-xs" color="success">
+            This plugin should work on your machine because it supports MLX.
+          </Typography>
+        );
+      }
+      return (
+        <Typography level="body-xs" color="danger">
+          This plugin will not work on your machine because you do not have the
+          supported architecture(s) above.
+        </Typography>
+      );
+    }
+    if (machineType === 'cuda') {
+      if (
+        pluginArchitectures.includes('cuda') ||
+        pluginArchitectures.includes('cpu')
+      ) {
+        return (
+          <Typography level="body-xs" color="danger">
+            This plugin will work on your machine.
+          </Typography>
+        );
+      }
+      return (
+        <Typography level="body-xs" color="danger">
+          This plugin will not work on your machine because you do not have the
+          supported architecture(s) above.
+        </Typography>
+      );
+    }
+  }
+
   return (
-    <>
-      <Card
-        orientation="horizontal"
-        sx={{
-          height: '100%',
-          backgroundColor: getTint(type),
-        }}
+    <Card
+      orientation="horizontal"
+      sx={{
+        height: '100%',
+        backgroundColor: getTint(type),
+      }}
+    >
+      <CardContent
+        orientation="vertical"
+        sx={{ justifyContent: 'space-between' }}
       >
-        <CardContent
-          orientation="vertical"
-          sx={{ justifyContent: 'space-between' }}
-        >
-          <Box>
-            {/* {JSON.stringify(plugin)} */}
-            <Typography
-              level="title-lg"
-              // startDecorator={getIcon(type)}
-            >
-              <b>
-                {plugin.name}&nbsp;
-                <Chip>{type}</Chip>
-              </b>
-            </Typography>
-            <Typography level="body-md" fontSize="sm" sx={{ mt: 0.0, mb: 1 }}>
-              {/* {plugin.uniqueId}&nbsp; */}
-              {plugin?.gallery_version ? (
-                plugin?.version != plugin?.gallery_version ? (
-                  <Chip color="danger">v{plugin.version} Needs Upgrade</Chip>
-                ) : (
-                  <>v{plugin.version}</>
-                )
+        <Box>
+          {/* {JSON.stringify(plugin)} */}
+          <Typography
+            level="title-lg"
+            // startDecorator={getIcon(type)}
+          >
+            <b>
+              {plugin.name}&nbsp;
+              <Chip>{type}</Chip>
+            </b>
+          </Typography>
+          <Typography level="body-md" fontSize="sm" sx={{ mt: 0.0, mb: 1 }}>
+            {/* {plugin.uniqueId}&nbsp; */}
+            {plugin?.gallery_version ? (
+              plugin?.version != plugin?.gallery_version ? (
+                <Chip color="danger">v{plugin.version} Needs Upgrade</Chip>
               ) : (
                 <>v{plugin.version}</>
-              )}
-            </Typography>
+              )
+            ) : (
+              <>v{plugin.version}</>
+            )}
+          </Typography>
 
-            <Typography
-              level="body-sm"
-              sx={{
-                display: '-webkit-box',
-                '-webkit-line-clamp':
-                  '2' /* Number of lines to show before truncating */,
-                '-webkit-box-orient': 'vertical',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                wordBreak: 'break-word', // Add this line to break up long words
-              }}
-            >
-              {plugin.description}
-            </Typography>
-          </Box>
-          {plugin?.supported_hardware_architectures && (
-            <Box sx={{ mt: 1 }}>
-              <Typography level="title-sm" fontSize="sm">
-                Supported Architectures:
-              </Typography>
-              <Stack
-                flexDirection={'row'}
-                gap={1}
-                sx={{ alignItems: 'center' }}
-              >
-                <ShowArchitectures
-                  architectures={plugin?.supported_hardware_architectures}
-                />
-              </Stack>
-            </Box>
-          )}
-
-          <ButtonGroup
+          <Typography
+            level="body-sm"
             sx={{
-              mt: 1,
-              justifyContent: 'flex-end',
-              flexWrap: 'wrap',
+              display: '-webkit-box',
+              '-webkit-line-clamp':
+                '2' /* Number of lines to show before truncating */,
+              '-webkit-box-orient': 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              wordBreak: 'break-word', // Add this line to break up long words
             }}
           >
-            {!download && (
-              <>
-                <Link
-                  to={'/plugins/' + plugin.uniqueId}
-                  style={{ textDecoration: 'none', color: 'white' }}
-                  state={plugin}
-                >
-                  <Button variant="plain" color="primary" sx={{ ml: 'auto' }}>
-                    Edit
-                  </Button>
-                </Link>
-              </>
-            )}
-            {!download && (
-              <>
-                <Button
-                  variant="plain"
-                  color="danger"
-                  onClick={async () => {
-                    if (
-                      confirm('Are you sure you want to delete this plugin?')
-                    ) {
-                      await fetch(
-                        chatAPI.Endpoints.Experiment.DeletePlugin(
-                          experimentInfo?.id,
-                          plugin?.uniqueId,
-                        ),
-                      );
-                      parentMutate();
-                    }
-                  }}
-                >
-                  Delete
+            {plugin.description}
+          </Typography>
+        </Box>
+        {plugin?.supported_hardware_architectures && (
+          <Box sx={{ mt: 1 }}>
+            <Typography level="title-sm" fontSize="sm">
+              Supported Architectures:
+            </Typography>
+            <Stack flexDirection={'row'} gap={1} sx={{ alignItems: 'center' }}>
+              <ShowArchitectures
+                architectures={plugin?.supported_hardware_architectures}
+              />
+            </Stack>
+            <WillThisPluginWorkOnMyMachine
+              pluginArchitectures={plugin?.supported_hardware_architectures}
+              machineType={machineType}
+            />
+          </Box>
+        )}
+
+        <ButtonGroup
+          sx={{
+            mt: 1,
+            justifyContent: 'flex-end',
+            flexWrap: 'wrap',
+          }}
+        >
+          {!download && (
+            <>
+              <Link
+                to={'/plugins/' + plugin.uniqueId}
+                style={{ textDecoration: 'none', color: 'white' }}
+                state={plugin}
+              >
+                <Button variant="plain" color="primary" sx={{ ml: 'auto' }}>
+                  Edit
                 </Button>
+              </Link>
+            </>
+          )}
+          {!download && (
+            <>
+              <Button
+                variant="plain"
+                color="danger"
+                onClick={async () => {
+                  if (confirm('Are you sure you want to delete this plugin?')) {
+                    await fetch(
+                      chatAPI.Endpoints.Experiment.DeletePlugin(
+                        experimentInfo?.id,
+                        plugin?.uniqueId,
+                      ),
+                    );
+                    parentMutate();
+                  }
+                }}
+              >
+                Delete
+              </Button>
+            </>
+          )}
+          <Button
+            variant={plugin?.installed ? 'outlined' : 'solid'}
+            size="sm"
+            color="primary"
+            aria-label="Download"
+            onClick={async () => {
+              setInstalling(plugin.uniqueId);
+              await fetch(
+                chatAPI.Endpoints.Experiment.InstallPlugin(
+                  experimentInfo?.id,
+                  plugin.uniqueId,
+                ),
+              );
+              setInstalling(null);
+              parentMutate();
+            }}
+          >
+            {installing == plugin.uniqueId && (
+              <>
+                <CircularProgress />
+                &nbsp;
               </>
             )}
-            <Button
-              variant={plugin?.installed ? 'outlined' : 'solid'}
-              size="sm"
-              color="primary"
-              aria-label="Download"
-              onClick={async () => {
-                setInstalling(plugin.uniqueId);
-                await fetch(
-                  chatAPI.Endpoints.Experiment.InstallPlugin(
-                    experimentInfo?.id,
-                    plugin.uniqueId,
-                  ),
-                );
-                setInstalling(null);
-                parentMutate();
-              }}
-            >
-              {installing == plugin.uniqueId && (
-                <>
-                  <CircularProgress />
-                  &nbsp;
-                </>
-              )}
-              {plugin?.installed == true ? (
-                <>
-                  Reinstall&nbsp;
-                  <RotateCcwIcon size={16} />
-                </>
-              ) : (
-                <>
-                  Install &nbsp;
-                  <DownloadIcon size={16} />
-                </>
-              )}
-            </Button>
-          </ButtonGroup>
-        </CardContent>
-      </Card>
-    </>
+            {plugin?.installed == true ? (
+              <>
+                Reinstall&nbsp;
+                <RotateCcwIcon size={16} />
+              </>
+            ) : (
+              <>
+                Install &nbsp;
+                <DownloadIcon size={16} />
+              </>
+            )}
+          </Button>
+        </ButtonGroup>
+      </CardContent>
+    </Card>
   );
 }
