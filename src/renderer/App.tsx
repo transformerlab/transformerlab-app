@@ -16,6 +16,7 @@ import secretPurpleTheme from './lib/secretPurpleTheme';
 
 import './styles.css';
 import LoginModal from './components/Connect/LoginModal';
+import RecipesModal from './components/Recipes';
 
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
@@ -39,16 +40,13 @@ export default function App() {
   useEffect(() => {
     async function getSavedExperimentId() {
       const connectionWithoutDots = connection.replace(/\./g, '-');
-      // window.storage should be defined by cloud or electron preload script
-      const experimentId = window.storage
-        ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
-        : 1;
+      const experimentId = await window.storage.get(
+        `experimentId.${connectionWithoutDots}`,
+      );
       if (experimentId) {
         setExperimentId(experimentId);
-      } else if (connection !== '') {
-        // If there's no stored experiment and we are connected
-        // then default to to the first experiment
-        setExperimentId(1);
+      } else {
+        setExperimentId('');
       }
     }
 
@@ -58,7 +56,7 @@ export default function App() {
 
     window.TransformerLab.API_URL = connection;
 
-    if (connection == '') {
+    if (connection === '') {
       setExperimentId('');
       return;
     }
@@ -86,6 +84,14 @@ export default function App() {
     isLoading: experimentInfoIsLoading,
     mutate: experimentInfoMutate,
   } = useSWR(chatAPI.GET_EXPERIMENT_URL(experimentId), fetcher);
+
+  // This gets all the available experiments
+  const { data: experimentList } = useSWR(
+    connection !== '' ? chatAPI.GET_EXPERIMENTS_URL() : null,
+    fetcher,
+  );
+
+  const noExperiments = !!(experimentList && experimentList.length === 0);
 
   const onOutputDrawerDrag = useCallback((pos) => {
     const ypos = pos.y;
@@ -142,7 +148,6 @@ export default function App() {
           experimentInfo={experimentInfo}
         />
         {/* <FirstSidebar setDrawerOpen={setDrawerOpen} /> */}
-
         <Sidebar
           experimentInfo={experimentInfo}
           setExperimentId={setExperimentId}
@@ -230,6 +235,9 @@ export default function App() {
           setTerminalDrawerOpen={setLogsDrawerOpen}
           setSSHConnection={setSSHConnection}
         />
+        {window.platform?.environment === 'development' && noExperiments && (
+          <RecipesModal setExperimentId={setExperimentId} />
+        )}
       </Box>
     </CssVarsProvider>
   );
