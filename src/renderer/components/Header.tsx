@@ -262,7 +262,7 @@ function StatsBar({ connection, setConnection }) {
               </Box>
             }
           >
-            <div>
+            <div style={{ whiteSpace: 'nowrap', marginLeft: '10px' }}>
               {/* <TinyCircle size={6} /> */}
               <Link2Icon
                 size={16}
