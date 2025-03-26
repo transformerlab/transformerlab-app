@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-no-useless-fragment */
 import Sheet from '@mui/joy/Sheet';
 import { Sparklines, SparklinesLine } from 'react-sparklines';
 import {
@@ -13,9 +14,9 @@ import { useEffect, useState } from 'react';
 import { Link2Icon } from 'lucide-react';
 
 import { formatBytes } from 'renderer/lib/utils';
+import { Link as ReactRouterLink } from 'react-router-dom';
 import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 
-import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 import TinyMLXLogo from './Shared/TinyMLXLogo';
 import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
 
@@ -40,12 +41,12 @@ function StatsBar({ connection, setConnection }) {
 
     // GPU Percent:
     const gpuPercent =
-      server?.gpu?.reduce((acc, gpu) => {
+      (server?.gpu?.reduce((acc, gpu) => {
         if (gpu.total_memory && gpu.used_memory) {
           return acc + (gpu.used_memory / gpu.total_memory) * 100;
         }
         return acc;
-      }, 0) / (server?.gpu?.length || 1);
+      }, 0) ?? 0) / (server?.gpu?.length || 1);
 
     if (Number.isNaN(gpuPercent)) {
       newConnectionStats.gpu.push(0);
@@ -122,11 +123,9 @@ function StatsBar({ connection, setConnection }) {
               />
             ))}
             <span style={{ display: 'flex', alignItems: 'center' }}>
-          {server?.device == 'cuda' && (
-            <TinyNVIDIALogo/>
-          )}</span>
+              {server?.device == 'cuda' && <TinyNVIDIALogo />}
+            </span>
           </Stack>
-
         </span>
       </Tooltip>
     );
@@ -360,6 +359,16 @@ export default function Header({ connection, setConnection, experimentInfo }) {
   );
 }
 
+function getBackgroundColor(percent) {
+  if (percent > 80) {
+    return 'rgba(255, 0, 0, 0.1)';
+  }
+  if (percent > 60) {
+    return 'rgba(255, 255, 0, 0.1)';
+  }
+  return 'rgba(0, 255, 0, 0.1)';
+}
+
 function PercentWithColoredBackgroundMeter({ percent }) {
   return (
     <div
@@ -371,12 +380,7 @@ function PercentWithColoredBackgroundMeter({ percent }) {
         padding: '12px 0px 12px 5px',
         marginRight: '3px',
         height: '20px',
-        backgroundColor:
-          percent > 80
-            ? 'rgba(255, 0, 0, 0.1)'
-            : percent > 60
-            ? 'rgba(255, 255, 0, 0.1)'
-            : 'rgba(0, 255, 0, 0.1)',
+        backgroundColor: getBackgroundColor(percent),
       }}
     >
       {percent}%
