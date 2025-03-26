@@ -3,6 +3,7 @@ import Modal from '@mui/joy/Modal';
 import ModalDialog from '@mui/joy/ModalDialog';
 import { Button, Typography } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import RecipeCard from './RecipeCard';
 
 export default function LoginModal({ setExperimentId }) {
   async function createNewExperiment() {
@@ -14,8 +15,6 @@ export default function LoginModal({ setExperimentId }) {
   return (
     <Modal open={true}>
       <ModalDialog
-        aria-labelledby="basic-modal-dialog-title"
-        aria-describedby="basic-modal-dialog-description"
         sx={{
           top: '5vh', // Sit 20% from the top of the screen
           margin: 'auto',
@@ -26,12 +25,13 @@ export default function LoginModal({ setExperimentId }) {
         }}
       >
         <Typography level="h3">What do you want to do?</Typography>
+        <RecipeCard />
         <Button
           onClick={() => {
             createNewExperiment();
           }}
         >
-          Start from scratch
+          Start from a blank experiment
         </Button>
       </ModalDialog>
     </Modal>
