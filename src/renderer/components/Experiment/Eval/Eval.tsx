@@ -60,9 +60,9 @@ export default function Eval({
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
-        'evaluator'
+        'evaluator',
       ),
-    fetcher
+    fetcher,
   );
 
   async function saveFile() {
@@ -75,7 +75,7 @@ export default function Eval({
         {
           method: 'POST',
           body: value,
-        }
+        },
       ).then(() => {});
     }
   }
@@ -90,134 +90,135 @@ export default function Eval({
   }
 
   return (
-    <>
+    <Sheet
+      sx={{
+        overflow: 'hidden',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Plugins:
+        {JSON.stringify(plugins)} */}
+      <EvalModal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setCurrentEvalName('');
+        }}
+        experimentInfo={experimentInfo}
+        experimentInfoMutate={experimentInfoMutate}
+        pluginId={currentPlugin}
+        currentEvalName={currentEvalName}
+      />
+      <Stack
+        direction="row"
+        spacing={2}
+        mb={2}
+        justifyContent="space-between"
+        alignItems="flex-end"
+      >
+        <Typography level="h3" mb={1}>
+          Evaluation Tasks
+        </Typography>
+        {plugins?.length === 0 ? (
+          <Alert color="danger">
+            No Evaluation Scripts available, please install an evaluator plugin.
+          </Alert>
+        ) : (
+          <Dropdown>
+            <MenuButton
+              startDecorator={<PlusCircleIcon />}
+              variant="plain"
+              color="success"
+              sx={{ width: 'fit-content', mb: 1 }}
+              size="sm"
+            >
+              Add Task
+            </MenuButton>
+            <Menu>
+              {/* Model-based evaluators section */}
+              <MenuItem
+                disabled
+                sx={{
+                  color: 'text.tertiary',
+                  fontWeight: 'bold',
+                  fontSize: '0.75rem',
+                  '&.Mui-disabled': { opacity: 1 },
+                }}
+              >
+                DATASET-BASED EVALUATIONS
+              </MenuItem>
+              {plugins
+                ?.filter((row) => row.evalsType === 'dataset')
+                .map((row) => (
+                  <MenuItem
+                    onClick={() => openModalForPLugin(row.uniqueId)}
+                    key={row.uniqueId}
+                  >
+                    {row.name}
+                  </MenuItem>
+                ))}
+
+              <ListDivider />
+
+              {/* Dataset-based evaluators section */}
+              <MenuItem
+                disabled
+                sx={{
+                  color: 'text.tertiary',
+                  fontWeight: 'bold',
+                  fontSize: '0.75rem',
+                  '&.Mui-disabled': { opacity: 1 },
+                }}
+              >
+                MODEL-BASED EVALUATIONS
+              </MenuItem>
+              {plugins
+                ?.filter((row) => row.evalsType === 'model')
+                .map((row) => (
+                  <MenuItem
+                    onClick={() => openModalForPLugin(row.uniqueId)}
+                    key={row.uniqueId}
+                  >
+                    {row.name}
+                  </MenuItem>
+                ))}
+            </Menu>
+          </Dropdown>
+        )}
+      </Stack>
+      <Sheet
+        variant="soft"
+        color="primary"
+        sx={{
+          overflow: 'auto',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+        }}
+      >
+        <EvalTasksTable
+          experimentInfo={experimentInfo}
+          experimentInfoMutate={experimentInfoMutate}
+          setCurrentPlugin={setCurrentPlugin}
+          setCurrentEvalName={setCurrentEvalName}
+          setOpen={setOpen}
+        />
+      </Sheet>
       <Sheet
         sx={{
           overflow: 'hidden',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
+          flex: 2,
+          pt: 2,
         }}
       >
-        {/* Plugins:
-        {JSON.stringify(plugins)} */}
-        <EvalModal
-          open={open}
-          onClose={() => {
-            setOpen(false);
-            setCurrentEvalName('');
-          }}
-          experimentInfo={experimentInfo}
-          experimentInfoMutate={experimentInfoMutate}
-          pluginId={currentPlugin}
-          currentEvalName={currentEvalName}
-        />
-        <Stack
-          direction="row"
-          spacing={2}
-          mb={2}
-          justifyContent="space-between"
-          alignItems="flex-end"
-        >
-          <Typography level="h3" mb={1}>
-            Evaluation Tasks
-          </Typography>
-          {plugins?.length === 0 ? (
-            <Alert color="danger">
-              No Evaluation Scripts available, please install an evaluator
-              plugin.
-            </Alert>
-          ) : (
-            <Dropdown>
-              <MenuButton
-                startDecorator={<PlusCircleIcon />}
-                variant="plain"
-                color="success"
-                sx={{ width: 'fit-content', mb: 1 }}
-                size="sm"
-              >
-                Add Task
-              </MenuButton>
-              <Menu>
-            {/* Model-based evaluators section */}
-            <MenuItem
-              disabled
-              sx={{
-                color: 'text.tertiary',
-                fontWeight: 'bold',
-                fontSize: '0.75rem',
-                '&.Mui-disabled': { opacity: 1 }
-              }}
-            >
-              DATASET-BASED EVALUATIONS
-            </MenuItem>
-            {plugins?.filter(row => row.evalsType === 'dataset').map((row) => (
-              <MenuItem
-                onClick={() => openModalForPLugin(row.uniqueId)}
-                key={row.uniqueId}
-              >
-                {row.name}
-              </MenuItem>
-            ))}
-
-            <ListDivider />
-
-            {/* Dataset-based evaluators section */}
-            <MenuItem
-              disabled
-              sx={{
-                color: 'text.tertiary',
-                fontWeight: 'bold',
-                fontSize: '0.75rem',
-                '&.Mui-disabled': { opacity: 1 }
-              }}
-            >
-              MODEL-BASED EVALUATIONS
-            </MenuItem>
-            {plugins?.filter(row => row.evalsType === 'model').map((row) => (
-              <MenuItem
-                onClick={() => openModalForPLugin(row.uniqueId)}
-                key={row.uniqueId}
-              >
-                {row.name}
-              </MenuItem>
-            ))}
-          </Menu>
-            </Dropdown>
-          )}
-        </Stack>
-        <Sheet
-          variant="soft"
-          color="primary"
-          sx={{
-            overflow: 'auto',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            flex: 1,
-          }}
-        >
-          <EvalTasksTable
-            experimentInfo={experimentInfo}
-            experimentInfoMutate={experimentInfoMutate}
-            setCurrentPlugin={setCurrentPlugin}
-            setCurrentEvalName={setCurrentEvalName}
-            setOpen={setOpen}
-          />
-        </Sheet>
-        <Sheet
-          sx={{
-            overflow: 'hidden',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            flex: 2,
-            pt: 2,
-          }}
-        >
-          <EvalJobsTable />
-        </Sheet>
+        <EvalJobsTable />
       </Sheet>
-    </>
+    </Sheet>
   );
 }
