@@ -10,7 +10,7 @@ import ImportModelsBar from './ImportModelsBar';
 
 import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import Welcome from '../Welcome';
+import Welcome from '../Welcome/Welcome';
 
 import LocalModelsTable from './LocalModelsTable';
 
@@ -29,7 +29,7 @@ export default function LocalModels({
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Models.LocalList(),
-    fetcher
+    fetcher,
   );
 
   const location = useLocation();

@@ -20,7 +20,7 @@ import { AnalyticsBrowser } from '@segment/analytics-next';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
 import Embeddings from './Experiment/Embeddings';
-import Welcome from './Welcome';
+import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';

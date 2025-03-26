@@ -4,7 +4,7 @@ import useSWR from 'swr';
 
 import { Button, Sheet, Stack, Typography } from '@mui/joy';
 
-import labImage from '../img/lab.jpg';
+import labImage from './img/lab.jpg';
 
 import {
   ArrowRightCircleIcon,
@@ -19,8 +19,8 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
-import DownloadFirstModelModal from './DownloadFirstModelModal';
-import HexLogo from './Shared/HexLogo';
+import DownloadFirstModelModal from '../DownloadFirstModelModal';
+import HexLogo from '../Shared/HexLogo';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
