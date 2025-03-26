@@ -13,12 +13,12 @@ import {
   Chip,
   Typography,
 } from '@mui/joy';
-import PluginCard from './PluginCard';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import { SearchIcon } from 'lucide-react';
 import { filterByFilters } from 'renderer/lib/utils';
+import PluginCard from './PluginCard';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -31,33 +31,31 @@ export default function PluginGallery({ experimentInfo }) {
   const [filters, setFilters] = useState({});
 
   const renderFilters = () => (
-    <>
-      <FormControl size="sm" sx={{ flex: 1 }}>
-        <FormLabel>Plugin Type</FormLabel>
-        <Select
-          placeholder="Filter by Type"
-          slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
-          value={filters?.license}
-          onChange={(e, newValue) => {
-            setFilters({ ...filters, type: newValue });
-          }}
-        >
-          {[
-            'All',
-            'generator',
-            'trainer',
-            'evaluator',
-            'loader',
-            'exporter',
-            'rag',
-          ].map((type) => (
-            <Option value={type}>
-              <Chip>{type}</Chip>
-            </Option>
-          ))}
-        </Select>
-      </FormControl>
-    </>
+    <FormControl size="sm" sx={{ flex: 1 }}>
+      <FormLabel>Plugin Type</FormLabel>
+      <Select
+        placeholder="Filter by Type"
+        slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
+        value={filters?.license}
+        onChange={(e, newValue) => {
+          setFilters({ ...filters, type: newValue });
+        }}
+      >
+        {[
+          'All',
+          'generator',
+          'trainer',
+          'evaluator',
+          'loader',
+          'exporter',
+          'rag',
+        ].map((type) => (
+          <Option value={type}>
+            <Chip>{type}</Chip>
+          </Option>
+        ))}
+      </Select>
+    </FormControl>
   );
 
   const groupByType = (plugins) => {
@@ -72,9 +70,7 @@ export default function PluginGallery({ experimentInfo }) {
   };
 
   if (error)
-    return (
-      'An error has occurred.' + chatAPI.Endpoints.Plugins.Gallery() + error
-    );
+    return `An error has occurred.${chatAPI.Endpoints.Plugins.Gallery()}${error}`;
   if (isLoading) return <LinearProgress />;
 
   const filteredPlugins = filterByFilters(data, searchText, filters);
