@@ -3,6 +3,10 @@ import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
 
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import useSWR from 'swr';
+import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
+import { IconButton } from '@mui/joy';
 import Sidebar from './components/Nav/Sidebar';
 import MainAppPanel from './components/MainAppPanel';
 import Header from './components/Header';
@@ -12,20 +16,8 @@ import secretPurpleTheme from './lib/secretPurpleTheme';
 
 import './styles.css';
 import LoginModal from './components/Connect/LoginModal';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-import useSWR from 'swr';
-import XtermJSDrawer from './components/Connect/XtermJS';
 import OutputTerminal from './components/OutputTerminal';
-import {
-  ChevronDown,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  EllipsisIcon,
-  Icon,
-} from 'lucide-react';
-import { IconButton } from '@mui/joy';
-import { log } from 'node:console';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 // import OutputTerminal from './components/OutputTerminal';
 import AutoUpdateModal from './components/AutoUpdateModal';
@@ -113,13 +105,13 @@ export default function App() {
     setLogsDrawerHeight(bottom);
   }, []);
 
-  function themeSetter(name: string) {
+  const themeSetter = useCallback((name: string) => {
     if (name === 'purple') {
       setTheme(secretPurpleTheme);
     } else {
       setTheme(customTheme);
     }
-  }
+  }, []);
 
   return (
     <CssVarsProvider disableTransitionOnChange theme={theme}>
@@ -212,9 +204,7 @@ export default function App() {
               onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
             >
               {logsDrawerOpen ? (
-                <>
-                  <ChevronDownIcon size="18px" />
-                </>
+                <ChevronDownIcon size="18px" />
               ) : (
                 <ChevronUpIcon size="18px" />
               )}
