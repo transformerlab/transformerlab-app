@@ -15,6 +15,7 @@ import {
   MenuItem,
   Alert,
   Stack,
+  ListDivider,
 } from '@mui/joy';
 import { PlusCircleIcon } from 'lucide-react';
 
@@ -84,18 +85,118 @@ export default function Eval({
     setOpen(true);
   }
 
+  // eslint-disable-next-line react/no-unstable-nested-components
+  function FilteredPlugins({ plugins, type }) {
+    const filteredPlugins = plugins?.filter((row) => row.evalsType === type);
+    if (!filteredPlugins || filteredPlugins.length === 0) {
+      return <MenuItem disabled>No plugins installed</MenuItem>;
+    }
+
+    return filteredPlugins.map((row) => (
+      <MenuItem
+        onClick={() => openModalForPLugin(row.uniqueId)}
+        key={row.uniqueId}
+      >
+        {row.name}
+      </MenuItem>
+    ));
+  }
+
   if (!experimentInfo) {
     return 'No experiment selected';
   }
 
   return (
-    <>
+    <Sheet
+      sx={{
+        overflow: 'hidden',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Plugins:
+        {JSON.stringify(plugins)} */}
+      <EvalModal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setCurrentEvalName('');
+        }}
+        experimentInfo={experimentInfo}
+        experimentInfoMutate={experimentInfoMutate}
+        pluginId={currentPlugin}
+        currentEvalName={currentEvalName}
+      />
+      <Stack
+        direction="row"
+        spacing={2}
+        mb={2}
+        justifyContent="space-between"
+        alignItems="flex-end"
+      >
+        <Typography level="h3" mb={1}>
+          Evaluation Tasks
+        </Typography>
+        {plugins?.length === 0 ? (
+          <Alert color="danger">
+            No Evaluation Scripts available, please install an evaluator plugin.
+          </Alert>
+        ) : (
+          <Dropdown>
+            <MenuButton
+              startDecorator={<PlusCircleIcon />}
+              variant="plain"
+              color="success"
+              sx={{ width: 'fit-content', mb: 1 }}
+              size="sm"
+            >
+              Add Task
+            </MenuButton>
+            <Menu>
+              {/* Model-based evaluators section */}
+              <MenuItem
+                disabled
+                sx={{
+                  color: 'text.tertiary',
+                  fontWeight: 'bold',
+                  fontSize: '0.75rem',
+                  '&.Mui-disabled': { opacity: 1 },
+                }}
+              >
+                DATASET-BASED EVALUATIONS
+              </MenuItem>
+
+              <FilteredPlugins plugins={plugins} type="dataset" />
+
+              <ListDivider />
+
+              {/* Dataset-based evaluators section */}
+              <MenuItem
+                disabled
+                sx={{
+                  color: 'text.tertiary',
+                  fontWeight: 'bold',
+                  fontSize: '0.75rem',
+                  '&.Mui-disabled': { opacity: 1 },
+                }}
+              >
+                MODEL-BASED EVALUATIONS
+              </MenuItem>
+              <FilteredPlugins plugins={plugins} type="model" />
+            </Menu>
+          </Dropdown>
+        )}
+      </Stack>
       <Sheet
+        variant="soft"
+        color="primary"
         sx={{
-          overflow: 'hidden',
+          overflow: 'auto',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
+          flex: 1,
         }}
       >
         {/* Plugins:
@@ -182,6 +283,18 @@ export default function Eval({
           <EvalJobsTable />
         </Sheet>
       </Sheet>
-    </>
+      <Sheet
+        sx={{
+          overflow: 'hidden',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 2,
+          pt: 2,
+        }}
+      >
+        <EvalJobsTable />
+      </Sheet>
+    </Sheet>
   );
 }
