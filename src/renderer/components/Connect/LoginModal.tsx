@@ -37,7 +37,7 @@ export default function LoginModal({
   const [checking, setChecking] = React.useState<boolean>(false);
   const [failed, setFailed] = React.useState<boolean>(false);
   const [recentConnections, setRecentConnections] = React.useState<string[]>(
-    []
+    [],
   );
   const [recentSSHConnections, setRecentSSHConnections] = React.useState<
     string[]
@@ -45,7 +45,7 @@ export default function LoginModal({
 
   const [host, setHost] = useState('');
 
-  const WEB_APP = window.platform.appmode == "cloud";
+  const WEB_APP = window.platform.appmode == 'cloud';
 
   React.useEffect(() => {
     window.storage
@@ -57,7 +57,7 @@ export default function LoginModal({
 
         return result;
       })
-      .catch(() => { });
+      .catch(() => {});
 
     window.storage
       .get('recentSSHConnections')
@@ -68,7 +68,7 @@ export default function LoginModal({
 
         return result;
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [connection]);
 
   async function checkServer() {
@@ -133,13 +133,11 @@ export default function LoginModal({
         <Tabs
           aria-label="Basic tabs"
           defaultValue={WEB_APP ? 1 : 0}
-          sx={{ overflow: 'hidden', height: '100%' }}
-          onChange={(_event, newValue) => { }}
+          sx={{ overflow: 'auto', height: '100%' }}
+          onChange={(_event, newValue) => {}}
         >
           <TabList tabFlex={1}>
-            {!WEB_APP && (
-              <Tab>Local Engine</Tab>
-            )}
+            {!WEB_APP && <Tab>Local Engine</Tab>}
             <Tab>Connect to Remote Engine</Tab>
             {/* <Tab value="SSH">Connect via SSH</Tab> */}
           </TabList>
@@ -194,7 +192,7 @@ export default function LoginModal({
                   .replace(/\/+$/, '');
                 const port = event.currentTarget.elements[1].value.replace(
                   /[\s]+/g,
-                  ''
+                  '',
                 );
 
                 // eslint-disable-next-line prefer-template
@@ -299,7 +297,7 @@ export default function LoginModal({
                   window.document.getElementsByName('update_and_install')[0]
                     ?.checked;
                 const create_reverse_tunnel = window.document.getElementsByName(
-                  'create_reverse_tunnel'
+                  'create_reverse_tunnel',
                 )[0]?.checked;
                 const run_permanent =
                   window.document.getElementsByName('run_permanent')[0]
