@@ -34,9 +34,9 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
     chatAPI.Endpoints.Experiment.ScriptGetFile(
       experimentInfo?.id,
       pluginId,
-      'info.md'
+      'info.md',
     ),
-    fetcher
+    fetcher,
   );
 
   return (
@@ -54,13 +54,13 @@ export default function TrainingModalLoRA({
   open,
   onClose,
   experimentInfo,
-  template_id,
+  task_id,
   pluginId,
 }: {
   open: boolean;
   onClose: () => void;
   experimentInfo: any;
-  template_id?: string;
+  task_id?: string;
   pluginId: string;
 }) {
   // Store the current selected Dataset in this modal
@@ -69,24 +69,26 @@ export default function TrainingModalLoRA({
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
 
-
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
     experimentInfo?.id
-      ? chatAPI.Endpoints.Experiment.ScriptGetFile(experimentInfo.id, pluginId, 'index.json')
+      ? chatAPI.Endpoints.Experiment.ScriptGetFile(
+          experimentInfo.id,
+          pluginId,
+          'index.json',
+        )
       : null,
-    fetcher
+    fetcher,
   );
 
-  let trainingType = "LoRA";
-  if (trainingTypeData && trainingTypeData !== "undefined" && trainingTypeData.length > 0) {
-
-  trainingType = JSON.parse(trainingTypeData)?.train_type || "LoRA";
-
+  let trainingType = 'LoRA';
+  if (
+    trainingTypeData &&
+    trainingTypeData !== 'undefined' &&
+    trainingTypeData.length > 0
+  ) {
+    trainingType = JSON.parse(trainingTypeData)?.train_type || 'LoRA';
   }
-
-
-
 
   // Fetch available datasets from the API
   const {
@@ -101,37 +103,59 @@ export default function TrainingModalLoRA({
     isLoading: templateIsLoading,
     mutate: templateMutate,
   } = useSWR(
-    template_id
-      ? chatAPI.Endpoints.Jobs.GetTrainingTemplate(template_id)
-      : null,
-    fetcher
+    task_id ? chatAPI.Endpoints.Tasks.GetByID(task_id) : null,
+    fetcher,
   );
-  async function updateTrainingTemplate(
-    template_id: string,
-    name: string,
-    description: string,
-    type: string,
-    config: string
+
+  async function updateTask(
+    task_id: string,
+    inputs: string,
+    config: string,
+    outputs: string,
   ) {
     const configBody = {
+      inputs: inputs,
       config: config,
+      outputs: outputs,
     };
-    const response = await fetch(
-      chatAPI.Endpoints.Jobs.UpdateTrainingTemplate(
-        template_id,
-        name,
-        description,
-        type
-      ),
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          accept: 'application/json',
-        },
-        body: JSON.stringify(configBody),
-      }
-    );
+    const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(configBody),
+    });
+    const result = await response.json();
+    return result;
+  }
+
+  async function createNewTask(
+    name: string,
+    plugin: string,
+    experimentId: string,
+    inputs: string,
+    config: string,
+    outputs: string,
+  ) {
+    const configBody = {
+      name: name,
+      plugin: plugin,
+      experiment_id: experimentId,
+      inputs: inputs,
+      config: config,
+      outputs: outputs,
+      type: 'TRAIN',
+    };
+    console.log(configBody);
+    const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(configBody),
+    });
     const result = await response.json();
     return result;
   }
@@ -240,7 +264,12 @@ export default function TrainingModalLoRA({
               name="foundation_model_file_path"
               readOnly
             />
-            <input hidden value={experimentInfo?.config?.embedding_model} name="embedding_model" readOnly />
+            <input
+              hidden
+              value={experimentInfo?.config?.embedding_model}
+              name="embedding_model"
+              readOnly
+            />
             <input
               hidden
               value={experimentInfo?.config?.embedding_model_architecture}
@@ -283,23 +312,31 @@ export default function TrainingModalLoRA({
           onSubmit={(event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
-            const formJson = Object.fromEntries((formData as any).entries());
-            if (templateData && template_id) {
+            let formJson = Object.fromEntries((formData as any).entries());
+            formJson.type = trainingType;
+            if (templateData && task_id) {
               //Only update if we are currently editing a template
-              updateTrainingTemplate(
-                template_id,
-                event.currentTarget.elements['template_name'].value,
-                'Description',
-                trainingType,
-                JSON.stringify(formJson)
+              updateTask(
+                task_id,
+                templateData.inputs,
+                JSON.stringify(formJson),
+                templateData.outputs,
               );
               templateMutate(); //Need to mutate template data after updating
             } else {
-              chatAPI.saveTrainingTemplate(
-                event.currentTarget.elements['template_name'].value,
-                'Description',
-                trainingType,
-                JSON.stringify(formJson)
+              createNewTask(
+                formJson.template_name,
+                formJson.plugin_name,
+                experimentInfo?.id,
+                JSON.stringify({
+                  model_name: formJson.model_name,
+                  model_architecture: formJson.model_architecture,
+                  dataset_name: formJson.dataset_name,
+                }),
+                JSON.stringify(formJson),
+                JSON.stringify({
+                  adaptor_name: formJson.adaptor_name,
+                }),
               );
             }
             setNameInput(generateFriendlyName());

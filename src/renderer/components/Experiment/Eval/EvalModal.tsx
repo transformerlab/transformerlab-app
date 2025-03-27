@@ -31,9 +31,9 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
     chatAPI.Endpoints.Experiment.ScriptGetFile(
       experimentInfo?.id,
       pluginId,
-      'info.md'
+      'info.md',
     ),
-    fetcher
+    fetcher,
   );
 
   return (
@@ -47,13 +47,66 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
   );
 }
 
+async function updateTask(
+  task_id: string,
+  inputs: string,
+  config: string,
+  outputs: string,
+) {
+  const configBody = {
+    inputs: inputs,
+    config: config,
+    outputs: outputs,
+  };
+  const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(configBody),
+  });
+  const result = await response.json();
+  return result;
+}
+
+async function createNewTask(
+  name: string,
+  plugin: string,
+  experimentId: string,
+  inputs: string,
+  config: string,
+  outputs: string,
+) {
+  const configBody = {
+    name: name,
+    plugin: plugin,
+    experiment_id: experimentId,
+    inputs: inputs,
+    config: config,
+    outputs: outputs,
+    type: 'EVAL',
+  };
+  console.log(configBody);
+  const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(configBody),
+  });
+  const result = await response.json();
+  return result;
+}
+
 export default function EvalModal({
   open,
   onClose,
   experimentInfo,
   experimentInfoMutate,
   pluginId,
-  currentEvalName,
+  currentEvalId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -61,7 +114,7 @@ export default function EvalModal({
   experimentInfoMutate: () => void;
   template_id?: string;
   pluginId: string;
-  currentEvalName?: string; // Optional incase of new evaluation
+  currentEvalId?: string; // Optional incase of new evaluation
 }) {
   // Store the current selected Dataset in this modal
   const [selectedDataset, setSelectedDataset] = useState(null);
@@ -78,15 +131,21 @@ export default function EvalModal({
     isLoading: datasetsIsLoading,
   } = useSWR(chatAPI.Endpoints.Dataset.LocalList(), fetcher);
 
+  const {
+    data: evalData,
+    error: evalError,
+    isLoading: evalIsLoading,
+  } = useSWR(chatAPI.Endpoints.Tasks.GetByID(currentEvalId), fetcher);
+
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
       pluginId &&
       chatAPI.Endpoints.Experiment.ScriptGetFile(
         experimentInfo?.id,
         pluginId,
-        'index.json'
+        'index.json',
       ),
-    fetcher
+    fetcher,
   );
 
   const { data: currentDatasetInfo, isLoading: currentDatasetInfoIsLoading } =
@@ -104,7 +163,7 @@ export default function EvalModal({
 
   useEffect(() => {
     if (open) {
-      if (!currentEvalName || currentEvalName === '') {
+      if (!currentEvalId || currentEvalId === '') {
         setNameInput(generateFriendlyName());
       }
     } else {
@@ -115,59 +174,50 @@ export default function EvalModal({
 
   useEffect(() => {
     if (experimentInfo && pluginId) {
-      if (currentEvalName && currentEvalName !== '') {
-        const evaluationsStr = experimentInfo.config?.evaluations;
-        if (typeof evaluationsStr === 'string') {
-          try {
-            const evaluations = JSON.parse(evaluationsStr);
-            if (Array.isArray(evaluations)) {
-              const evalConfig = evaluations.find(
-                (evalItem: any) =>
-                  evalItem.name === currentEvalName &&
-                  evalItem.plugin === pluginId
-              );
-              if (evalConfig) {
-                setConfig(evalConfig.script_parameters);
-                const datasetKeyExists = Object.keys(
-                  evalConfig.script_parameters
-                ).some((key) => key.toLowerCase().includes('dataset_name'));
-                setHasDatasetKey(datasetKeyExists);
-                if (
-                  evalConfig.script_parameters._dataset_display_message &&
-                  evalConfig.script_parameters._dataset_display_message.length >
-                    0
-                ) {
-                  setDatasetDisplayMessage(
-                    evalConfig.script_parameters._dataset_display_message
-                  );
-                }
-                const tasksKeyExists = Object.keys(
-                  evalConfig.script_parameters
-                ).some((key) => key.toLowerCase().includes('tasks'));
-                if (tasksKeyExists) {
-                  evalConfig.script_parameters.tasks =
-                    evalConfig.script_parameters.tasks.split(',');
-                  setConfig(evalConfig.script_parameters);
-                }
+      if (
+        evalData &&
+        evalData !== undefined &&
+        currentEvalId &&
+        currentEvalId !== ''
+      ) {
+        console.log(evalData);
+        const evalConfig = JSON.parse(evalData.config);
+        if (evalConfig) {
+          setConfig(evalConfig.script_parameters);
+          const datasetKeyExists = Object.keys(
+            evalConfig.script_parameters,
+          ).some((key) => key.toLowerCase().includes('dataset_name'));
+          setHasDatasetKey(datasetKeyExists);
+          if (
+            evalConfig.script_parameters._dataset_display_message &&
+            evalConfig.script_parameters._dataset_display_message.length > 0
+          ) {
+            setDatasetDisplayMessage(
+              evalConfig.script_parameters._dataset_display_message,
+            );
+          }
+          const tasksKeyExists = Object.keys(evalConfig.script_parameters).some(
+            (key) => key.toLowerCase().includes('tasks'),
+          );
+          if (tasksKeyExists) {
+            evalConfig.script_parameters.tasks =
+              evalConfig.script_parameters.tasks.split(',');
+            setConfig(evalConfig.script_parameters);
+          }
 
-                if (
-                  hasDatasetKey &&
-                  evalConfig.script_parameters.dataset_name.length > 0
-                ) {
-                  setSelectedDataset(evalConfig.script_parameters.dataset_name);
-                }
-                if (!nameInput && evalConfig?.name.length > 0) {
-                  setNameInput(evalConfig.name);
-                }
-              }
-              // if (!nameInput && evalConfig?.script_parameters.run_name) {
-              //   setNameInput(evalConfig.script_parameters.run_name);
-              // }
-            }
-          } catch (error) {
-            console.error('Failed to parse evaluations JSON string:', error);
+          if (
+            hasDatasetKey &&
+            evalConfig.script_parameters.dataset_name.length > 0
+          ) {
+            setSelectedDataset(evalConfig.script_parameters.dataset_name);
+          }
+          if (!nameInput && evalConfig?.run_name.length > 0) {
+            setNameInput(evalConfig.run_name);
           }
         }
+        // if (!nameInput && evalConfig?.script_parameters.run_name) {
+        //   setNameInput(evalConfig.script_parameters.run_name);
+        // }
       } else {
         if (data) {
           let parsedData;
@@ -180,7 +230,7 @@ export default function EvalModal({
                 Object.entries(parsedData.parameters).map(([key, value]) => [
                   key,
                   value.default,
-                ])
+                ]),
               );
               if (parsedData && parsedData._dataset) {
                 setHasDatasetKey(true);
@@ -208,7 +258,7 @@ export default function EvalModal({
         }
       }
     }
-  }, [experimentInfo, pluginId, currentEvalName, nameInput, data]);
+  }, [experimentInfo, pluginId, currentEvalId, nameInput, data]);
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -218,7 +268,7 @@ export default function EvalModal({
     ? experimentInfo?.config?.foundation_filename
     : experimentInfo?.config?.foundation;
 
-  // Set config to the plugin config if it is available based on currentEvalName within experiment info
+  // Set config to the plugin config if it is available based on currentEvalId within experiment info
 
   function TrainingModalFirstTab() {
     return (
@@ -274,25 +324,28 @@ export default function EvalModal({
       if (!formJson.run_name) {
         formJson.run_name = formJson.template_name;
       }
+      console.log(formJson);
+      if (!formJson.predefined_tasks) {
+        formJson.predefined_tasks = formJson.tasks;
+      }
+      formJson.script_parameters = JSON.parse(JSON.stringify(formJson));
 
-      // Run when the currentEvalName is provided
-      if (currentEvalName && currentEvalName !== '') {
-        const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(
-          experimentInfo?.id,
-          currentEvalName,
-          formJson
-        );
+      // Run when the currentEvalId is provided
+      if (currentEvalId && currentEvalId !== '') {
+        await updateTask(currentEvalId, '{}', JSON.stringify(formJson), '{}');
         setNameInput('');
         setHasDatasetKey(false);
       } else {
         console.log('formJson:', formJson);
         const template_name = formJson.template_name;
         // delete formJson.template_name;
-        const result = await chatAPI.EXPERIMENT_ADD_EVALUATION(
-          experimentInfo?.id,
+        await createNewTask(
           template_name,
           pluginId,
-          formJson
+          experimentInfo?.id,
+          '{}',
+          JSON.stringify(formJson),
+          '{}',
         );
         // alert(JSON.stringify(formJson, null, 2));
         setNameInput(generateFriendlyName());
@@ -303,7 +356,7 @@ export default function EvalModal({
 
       // };
       // }
-      // const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalName, formJson)
+      // const result = await chatAPI.EXPERIMENT_EDIT_EVALUATION(experimentInfo?.id, currentEvalId, formJson)
       // // alert(JSON.stringify(formJson, null, 2));
       // setNameInput(generateFriendlyName());
       // onClose();
@@ -311,7 +364,6 @@ export default function EvalModal({
       console.error('Failed to edit evaluation:', error);
     }
   };
-
 
   return (
     <Modal open={open}>
@@ -361,11 +413,7 @@ export default function EvalModal({
             >
               <TrainingModalFirstTab />
             </TabPanel>
-            <TabPanel
-              value={2}
-              sx={{ p: 2, overflow: 'auto'}}
-              keepMounted
-            >
+            <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}

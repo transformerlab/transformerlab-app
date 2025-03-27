@@ -47,7 +47,7 @@ export default function Generate({
 }) {
   const [open, setOpen] = useState(false);
   const [currentPlugin, setCurrentPlugin] = useState('');
-  const [currentGenerationName, setCurrentGenerationName] = useState('');
+  const [currentGenerationId, setCurrentGenerationId] = useState('');
 
   const {
     data: plugins,
@@ -57,9 +57,9 @@ export default function Generate({
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
-        'generator'
+        'generator',
       ),
-    fetcher
+    fetcher,
   );
 
   async function saveFile() {
@@ -71,12 +71,12 @@ export default function Generate({
         chatAPI.Endpoints.Experiment.SavePlugin(
           project,
           generationName,
-          'main.py'
+          'main.py',
         ),
         {
           method: 'POST',
           body: value,
-        }
+        },
       ).then(() => {});
     }
   }
@@ -106,12 +106,12 @@ export default function Generate({
           open={open}
           onClose={() => {
             setOpen(false);
-            setCurrentGenerationName('');
+            setCurrentGenerationId('');
           }}
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
           pluginId={currentPlugin}
-          currentGenerationName={currentGenerationName}
+          currentGenerationId={currentGenerationId}
         />
         <Stack
           direction="row"
@@ -166,7 +166,7 @@ export default function Generate({
             experimentInfo={experimentInfo}
             experimentInfoMutate={experimentInfoMutate}
             setCurrentPlugin={setCurrentPlugin}
-            setCurrentGenerationName={setCurrentGenerationName}
+            setCurrentGenerationId={setCurrentGenerationId}
             setOpen={setOpen}
           />
         </Sheet>

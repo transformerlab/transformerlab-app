@@ -50,7 +50,7 @@ export default function Eval({
   const [open, setOpen] = useState(false);
   const [currentEvaluator, setCurrentEvaluator] = useState('');
   const [currentPlugin, setCurrentPlugin] = useState('');
-  const [currentEvalName, setCurrentEvalName] = useState('');
+  const [currentEvalId, setcurrentEvalId] = useState('');
 
   const {
     data: plugins,
@@ -199,13 +199,89 @@ export default function Eval({
           flex: 1,
         }}
       >
-        <EvalTasksTable
+        {/* Plugins:
+        {JSON.stringify(plugins)} */}
+        <EvalModal
+          open={open}
+          onClose={() => {
+            setOpen(false);
+            setcurrentEvalId('');
+          }}
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
-          setCurrentPlugin={setCurrentPlugin}
-          setCurrentEvalName={setCurrentEvalName}
-          setOpen={setOpen}
+          pluginId={currentPlugin}
+          currentEvalId={currentEvalId}
         />
+        <Stack
+          direction="row"
+          spacing={2}
+          mb={2}
+          justifyContent="space-between"
+          alignItems="flex-end"
+        >
+          <Typography level="h3" mb={1}>
+            Evaluation Tasks
+          </Typography>
+          {plugins?.length === 0 ? (
+            <Alert color="danger">
+              No Evaluation Scripts available, please install an evaluator
+              plugin.
+            </Alert>
+          ) : (
+            <Dropdown>
+              <MenuButton
+                startDecorator={<PlusCircleIcon />}
+                variant="plain"
+                color="success"
+                sx={{ width: 'fit-content', mb: 1 }}
+                size="sm"
+              >
+                Add Task
+              </MenuButton>
+              <Menu>
+                {plugins?.map((row) => (
+                  <MenuItem
+                    onClick={() => openModalForPLugin(row.uniqueId)}
+                    key={row.uniqueId}
+                  >
+                    {row.name}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </Dropdown>
+          )}
+        </Stack>
+        <Sheet
+          variant="soft"
+          color="primary"
+          sx={{
+            overflow: 'auto',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+          }}
+        >
+          <EvalTasksTable
+            experimentInfo={experimentInfo}
+            experimentInfoMutate={experimentInfoMutate}
+            setCurrentPlugin={setCurrentPlugin}
+            setCurrentEvalId={setcurrentEvalId}
+            setOpen={setOpen}
+          />
+        </Sheet>
+        <Sheet
+          sx={{
+            overflow: 'hidden',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 2,
+            pt: 2,
+          }}
+        >
+          <EvalJobsTable />
+        </Sheet>
       </Sheet>
       <Sheet
         sx={{
