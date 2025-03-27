@@ -85,14 +85,6 @@ export default function App() {
     mutate: experimentInfoMutate,
   } = useSWR(chatAPI.GET_EXPERIMENT_URL(experimentId), fetcher);
 
-  // This gets all the available experiments
-  const { data: experimentList } = useSWR(
-    connection !== '' ? chatAPI.GET_EXPERIMENTS_URL() : null,
-    fetcher,
-  );
-
-  const noExperiments = !!(experimentList && experimentList.length === 0);
-
   const onOutputDrawerDrag = useCallback((pos) => {
     const ypos = pos.y;
     // calculate how far from the bottom of the screen that ypos is:
@@ -235,9 +227,6 @@ export default function App() {
           setTerminalDrawerOpen={setLogsDrawerOpen}
           setSSHConnection={setSSHConnection}
         />
-        {window.platform?.environment === 'development' && noExperiments && (
-          <RecipesModal setExperimentId={setExperimentId} />
-        )}
       </Box>
     </CssVarsProvider>
   );

@@ -1,3 +1,4 @@
+/* eslint-disable react/require-default-props */
 import {
   Avatar,
   Box,
@@ -9,15 +10,20 @@ import {
   Typography,
 } from '@mui/joy';
 import { HeartIcon } from 'lucide-react';
-import { useState, useEffect } from 'react';
 
-const RecipeCard: React.FC = () => {
+export default function RecipeCard({
+  recipeDetails,
+  actionOveride = null,
+}: {
+  recipeDetails: { title: string; description: string };
+  actionOveride?: (() => void) | null;
+}) {
   return (
     <Card
       variant="outlined"
       sx={{
-        width: 320,
-        overflow: 'auto',
+        width: '300px',
+        height: '280px',
       }}
     >
       <Box
@@ -30,24 +36,52 @@ const RecipeCard: React.FC = () => {
         <Avatar src="" size="lg" />
       </Box>
       <CardContent>
-        <Typography level="title-lg">Train a Model From Scratch</Typography>
-        <Typography level="body-sm">
-          Use Nanotron to train a model from scratch. It's great.
+        <Typography
+          level="title-lg"
+          sx={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
+          {recipeDetails?.title}
+        </Typography>
+        <Typography
+          level="body-sm"
+          sx={{
+            height: '60px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+          }}
+        >
+          {recipeDetails?.description}
         </Typography>
       </CardContent>
       <CardActions buttonFlex="0 1 120px">
-        <IconButton variant="outlined" color="neutral" sx={{ mr: 'auto' }}>
+        <IconButton variant="plain" color="neutral" sx={{ mr: 'auto' }}>
           <HeartIcon size="20px" />
         </IconButton>
-        <Button variant="outlined" color="neutral">
+        <Button variant="plain" color="neutral">
           Info
         </Button>
-        <Button variant="solid" color="primary">
+        <Button
+          variant="solid"
+          color="primary"
+          onClick={
+            actionOveride ||
+            (() => {
+              alert('Action not implemented');
+            })
+          }
+        >
           Start
         </Button>
       </CardActions>
     </Card>
   );
-};
-
-export default RecipeCard;
+}
