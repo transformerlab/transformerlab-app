@@ -109,14 +109,14 @@ export default function TrainingModalLoRA({
 
   async function updateTask(
     task_id: string,
-    input_config: string,
+    inputs: string,
     config: string,
-    output_config: string,
+    outputs: string,
   ) {
     const configBody = {
-      input_config: input_config,
+      inputs: inputs,
       config: config,
-      output_config: output_config,
+      outputs: outputs,
     };
     const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
       method: 'PUT',
@@ -134,17 +134,17 @@ export default function TrainingModalLoRA({
     name: string,
     plugin: string,
     experimentId: string,
-    input_config: string,
+    inputs: string,
     config: string,
-    output_config: string,
+    outputs: string,
   ) {
     const configBody = {
       name: name,
       plugin: plugin,
       experiment_id: experimentId,
-      input_config: input_config,
+      inputs: inputs,
       config: config,
-      output_config: output_config,
+      outputs: outputs,
       type: 'TRAIN',
     };
     console.log(configBody);
@@ -318,9 +318,9 @@ export default function TrainingModalLoRA({
               //Only update if we are currently editing a template
               updateTask(
                 task_id,
-                templateData.input_config,
+                templateData.inputs,
                 JSON.stringify(formJson),
-                templateData.output_config,
+                templateData.outputs,
               );
               templateMutate(); //Need to mutate template data after updating
             } else {

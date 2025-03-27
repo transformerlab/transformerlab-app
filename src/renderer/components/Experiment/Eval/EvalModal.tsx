@@ -49,14 +49,14 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
 
 async function updateTask(
   task_id: string,
-  input_config: string,
+  inputs: string,
   config: string,
-  output_config: string,
+  outputs: string,
 ) {
   const configBody = {
-    input_config: input_config,
+    inputs: inputs,
     config: config,
-    output_config: output_config,
+    outputs: outputs,
   };
   const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
     method: 'PUT',
@@ -74,17 +74,17 @@ async function createNewTask(
   name: string,
   plugin: string,
   experimentId: string,
-  input_config: string,
+  inputs: string,
   config: string,
-  output_config: string,
+  outputs: string,
 ) {
   const configBody = {
     name: name,
     plugin: plugin,
     experiment_id: experimentId,
-    input_config: input_config,
+    inputs: inputs,
     config: config,
-    output_config: output_config,
+    outputs: outputs,
     type: 'EVAL',
   };
   console.log(configBody);

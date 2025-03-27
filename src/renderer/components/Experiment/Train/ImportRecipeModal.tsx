@@ -35,7 +35,6 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
 
   const recipes = recipesData;
 
-
   const {
     data: pluginsData,
     error: pluginsError,
@@ -43,7 +42,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
   } = useSWR(chatAPI.Endpoints.Plugins.List(), fetcher);
 
   const installedPlugins = pluginsData
-    ? pluginsData.map(plugin => plugin.uniqueId)
+    ? pluginsData.map((plugin) => plugin.uniqueId)
     : [];
 
   // For any variables that need to be reset on close
@@ -80,61 +79,48 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
   // Given a recipe string, uploads to API.
   const uploadRecipe = async (recipe_name: string, recipe_text: string) => {
     setUploading(true); //This is for the loading spinner
-    const response = await fetch(
-      chatAPI.Endpoints.Recipes.Import(recipe_name),
-      {
-        method: 'POST',
-        body: recipe_text,
-      }
-    )
-      .then((response) => {
-        // First check that the API responded correctly
-        if (response.ok) {
-          return response.json();
-        } else {
-          const error_msg = `${response.statusText}`;
-          throw new Error(error_msg);
-        }
-      })
-      .then((data) => {
-        // Then check the API responose to see if there was an error.
-        console.log('Server response:', data);
-        if (data?.status == "error") {
-          throw new Error(data.message);
-        }
-        if (!data?.data) {
-          throw new Error("Warning: Server response was missing expected field 'data'.");
-        }
-        return data.data;
-      })
-      .catch((error) => {
-        alert(error);
-        return false;
-      });
+    const recipe = YAML.parse(recipe_text);
+    console.log(recipe);
+    console.log('got here!');
+    const config = JSON.parse(recipe.training.config_json);
+    const response = await createNewTask(
+      recipe_name,
+      recipe.training.plugin,
+      '1',
+      JSON.stringify({
+        model_name: recipe.model.name,
+        model_architecture: config.model_architecture,
+        dataset_name: recipe.datasets.name,
+      }),
+      config,
+      '{}',
+    );
 
     // If we have a response then recipe imported successfully.
     // Check if we need to download any assets so we can tell the user.
     if (response) {
-      if (!response.model || !response.model.path) {
-        alert("Warning: This recipe does not have an associated model")
-      } else if (!response.dataset || ! response.dataset.path) {
-        alert("Warning: This recipe does not have an associated dataset")
+      if (!recipe.model || !recipe.model.path) {
+        alert('Warning: This recipe does not have an associated model');
+      } else if (!recipe.dataset || !recipe.dataset.path) {
+        alert('Warning: This recipe does not have an associated dataset');
       } else {
-        let msg = "Warning: To use this recipe you will need to download the following:";
+        let msg =
+          'Warning: To use this recipe you will need to download the following:';
         let shouldDownload = false;
 
         if (!response.dataset.downloaded) {
-          msg += "\n- Dataset: " + response.dataset.path;
+          msg += '\n- Dataset: ' + response.dataset.path;
           shouldDownload = true;
         }
         if (!response.model.downloaded) {
-          msg += "\n- Model: " + response.model.path;
+          msg += '\n- Model: ' + response.model.path;
           shouldDownload = true;
         }
 
         if (shouldDownload) {
-          msg += "\n\nDo you want to download these now?";
-          if (confirm(msg)) { // Use confirm() to get Accept/Cancel
+          msg += '\n\nDo you want to download these now?';
+          if (confirm(msg)) {
+            // Use confirm() to get Accept/Cancel
             if (!response.dataset.downloaded) {
               fetch(chatAPI.Endpoints.Dataset.Download(response.dataset.path))
                 .then((response) => {
@@ -149,9 +135,10 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                 });
             }
             if (!response.model.downloaded) {
-              chatAPI.downloadModelFromHuggingFace(response.model.path)
+              chatAPI
+                .downloadModelFromHuggingFace(response.model.path)
                 .then((response) => {
-                  if (response.status == "error") {
+                  if (response.status == 'error') {
                     console.log(response);
                     throw new Error(`${response.message}`);
                   }
@@ -163,7 +150,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
             }
           } else {
             // User pressed Cancel
-            alert("Downloads cancelled. This recipe might not work correctly.");
+            alert('Downloads cancelled. This recipe might not work correctly.');
           }
         }
       }
@@ -172,6 +159,36 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
     setUploading(false);
     handleClose();
   };
+
+  async function createNewTask(
+    name: string,
+    plugin: string,
+    experimentId: string,
+    inputs: string,
+    config: string,
+    outputs: string,
+  ) {
+    const configBody = {
+      name: name,
+      plugin: plugin,
+      experiment_id: experimentId,
+      inputs: inputs,
+      config: config,
+      outputs: outputs,
+      type: 'TRAIN',
+    };
+    console.log(configBody);
+    const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(configBody),
+    });
+    const result = await response.json();
+    return result;
+  }
 
   return (
     <>
@@ -215,12 +232,18 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                         </Typography>
                       </td>
                       <td>
-                        <Typography fontWeight="sm" style={{overflow: 'hidden'}}>
+                        <Typography
+                          fontWeight="sm"
+                          style={{ overflow: 'hidden' }}
+                        >
                           {row.training?.plugin}
                         </Typography>
                       </td>
                       <td>
-                        <Typography fontWeight="sm" style={{overflow: 'hidden'}}>
+                        <Typography
+                          fontWeight="sm"
+                          style={{ overflow: 'hidden' }}
+                        >
                           {row.datasets?.name}
                         </Typography>
                       </td>
@@ -236,7 +259,9 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
                       <td>
                         <Button
                           size="sm"
-                          disabled = {!(installedPlugins.includes(row.training?.plugin))}
+                          disabled={
+                            !installedPlugins.includes(row.training?.plugin)
+                          }
                           onClick={() => {
                             const recipe_text = YAML.stringify(row);
                             uploadRecipe(row.metadata?.name, recipe_text);

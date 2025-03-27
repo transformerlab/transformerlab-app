@@ -109,7 +109,6 @@ export default function TrainLoRA({ experimentInfo }) {
     mutate();
   }, [data]);
 
-  console.log(data);
   const {
     data: jobs,
     error: jobsError,
@@ -242,8 +241,12 @@ export default function TrainLoRA({ experimentInfo }) {
                   key={plugin.uniqueId}
                   disabled={
                     plugin.model_architectures
-                      ? !plugin.model_architectures.includes(modelArchitecture) &&
-                      !plugin.model_architectures.includes(embeddingModelArchitecture)
+                      ? !plugin.model_architectures.includes(
+                          modelArchitecture,
+                        ) &&
+                        !plugin.model_architectures.includes(
+                          embeddingModelArchitecture,
+                        )
                       : false
                   }
                 >
@@ -256,8 +259,11 @@ export default function TrainLoRA({ experimentInfo }) {
                       level="body-xs"
                       sx={{ color: 'var(--joy-palette-neutral-400)' }}
                     >
-                      {plugin.model_architectures && !plugin.model_architectures.includes(modelArchitecture) &&
-                      !plugin.model_architectures.includes(embeddingModelArchitecture)
+                      {plugin.model_architectures &&
+                      !plugin.model_architectures.includes(modelArchitecture) &&
+                      !plugin.model_architectures.includes(
+                        embeddingModelArchitecture,
+                      )
                         ? '(Does not support this model architecture)'
                         : ''}
                     </Typography>
@@ -336,10 +342,10 @@ export default function TrainLoRA({ experimentInfo }) {
                                 template_id: row.id,
                                 template_name: row.name,
                                 model_name:
-                                  JSON.parse(row.input_config)?.model_name ||
+                                  JSON.parse(row.inputs)?.model_name ||
                                   'unknown',
                                 dataset:
-                                  JSON.parse(row.input_config)?.dataset_name ||
+                                  JSON.parse(row.inputs)?.dataset_name ||
                                   'unknown',
                                 config: row.config,
                               }}
