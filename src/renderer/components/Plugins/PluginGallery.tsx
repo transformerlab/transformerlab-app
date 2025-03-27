@@ -27,8 +27,16 @@ export default function PluginGallery({ experimentInfo }) {
     chatAPI.Endpoints.Plugins.Gallery(),
     fetcher,
   );
+
+  const { data: serverInfo } = useSWR(
+    chatAPI.Endpoints.ServerInfo.Get(),
+    fetcher,
+  );
+
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
+
+  const device = serverInfo?.device;
 
   const renderFilters = () => (
     <FormControl size="sm" sx={{ flex: 1 }}>
@@ -103,7 +111,6 @@ export default function PluginGallery({ experimentInfo }) {
             startDecorator={<SearchIcon />}
           />
         </FormControl>
-
         {renderFilters()}
       </Box>
       <Sheet
@@ -148,6 +155,7 @@ export default function PluginGallery({ experimentInfo }) {
                     download
                     experimentInfo={experimentInfo}
                     parentMutate={mutate}
+                    machineType={device}
                   />
                 </Grid>
               ))}
