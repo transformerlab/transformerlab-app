@@ -50,7 +50,7 @@ export default function Eval({
   const [open, setOpen] = useState(false);
   const [currentEvaluator, setCurrentEvaluator] = useState('');
   const [currentPlugin, setCurrentPlugin] = useState('');
-  const [currentEvalId, setcurrentEvalId] = useState('');
+  const [currentEvalId, setCurrentEvalId] = useState('');
 
   const {
     data: plugins,
@@ -121,12 +121,12 @@ export default function Eval({
         open={open}
         onClose={() => {
           setOpen(false);
-          setCurrentEvalName('');
+          setCurrentEvalId('');
         }}
         experimentInfo={experimentInfo}
         experimentInfoMutate={experimentInfoMutate}
         pluginId={currentPlugin}
-        currentEvalName={currentEvalName}
+        currentEvalId={currentEvalId}
       />
       <Stack
         direction="row"
@@ -205,7 +205,7 @@ export default function Eval({
           open={open}
           onClose={() => {
             setOpen(false);
-            setcurrentEvalId('');
+            setCurrentEvalId('');
           }}
           experimentInfo={experimentInfo}
           experimentInfoMutate={experimentInfoMutate}
@@ -266,7 +266,7 @@ export default function Eval({
             experimentInfo={experimentInfo}
             experimentInfoMutate={experimentInfoMutate}
             setCurrentPlugin={setCurrentPlugin}
-            setCurrentEvalId={setcurrentEvalId}
+            setCurrentEvalId={setCurrentEvalId}
             setOpen={setOpen}
           />
         </Sheet>
