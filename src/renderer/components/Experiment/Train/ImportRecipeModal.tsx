@@ -92,7 +92,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
         model_architecture: config.model_architecture,
         dataset_name: recipe.datasets.name,
       }),
-      config,
+      JSON.stringify(config),
       '{}',
     );
 
