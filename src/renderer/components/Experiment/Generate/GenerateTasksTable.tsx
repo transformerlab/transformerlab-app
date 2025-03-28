@@ -1,8 +1,27 @@
-import { Button, ButtonGroup, IconButton, Stack, Table } from '@mui/joy';
-import { FileTextIcon, PlayIcon, Trash2Icon } from 'lucide-react';
+import {
+  Alert,
+  Button,
+  ButtonGroup,
+  Dropdown,
+  IconButton,
+  Menu,
+  MenuButton,
+  MenuItem,
+  Sheet,
+  Stack,
+  Table,
+  Typography,
+} from '@mui/joy';
+import {
+  FileTextIcon,
+  PlayIcon,
+  PlusCircleIcon,
+  Trash2Icon,
+} from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import useSWR from 'swr';
+import GenerateModal from './GenerateModal';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function listGenerations(generationString) {
@@ -57,10 +76,13 @@ async function generationRun(taskId: string) {
 export default function GenerateTasksTable({
   experimentInfo,
   experimentInfoMutate,
+  currentPlugin,
   setCurrentPlugin,
+  currentGenerationId,
   setCurrentGenerationId,
-  setOpen,
 }) {
+  const [open, setOpen] = useState(false);
+
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Tasks.ListByTypeInExperiment(
       'GENERATE',
@@ -68,67 +90,154 @@ export default function GenerateTasksTable({
     ),
     fetcher,
   );
-  console.log(data);
+
+  const {
+    data: plugins,
+    error: pluginsError,
+    isLoading: pluginsIsLoading,
+  } = useSWR(
+    experimentInfo?.id &&
+      chatAPI.Endpoints.Experiment.ListScriptsOfType(
+        experimentInfo?.id,
+        'generator',
+      ),
+    fetcher,
+  );
+
+  function openModalForPLugin(pluginId) {
+    setCurrentPlugin(pluginId);
+    setOpen(true);
+  }
+
   return (
-    <Table aria-label="basic table" stickyHeader sx={{}}>
-      <thead>
-        <tr>
-          <th width="200px" style={{ paddingLeft: '1rem' }}>
-            Name
-          </th>
-          <th>Details</th>
-          <th>Plugin</th>
-          <th style={{ textAlign: 'right' }}>&nbsp;</th>
-        </tr>
-      </thead>
-      <tbody>
-        {data &&
-          data?.map((generations) => (
-            <tr key={generations.id}>
-              <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
-                {generations.name}
-              </td>
-              <td style={{ overflow: 'hidden' }}>
-                {/* formatTemplateConfig(generations.script_parameters) */}
-                {/* {evaluations?.script_parameters?.task}&nbsp; */}
-                {/* <FileTextIcon size={14} /> */}
-              </td>
-              <td>{generations.plugin}</td>
-              <td style={{ textAlign: 'right' }}>
-                <ButtonGroup variant="soft" sx={{ justifyContent: 'flex-end' }}>
-                  <Button
-                    startDecorator={<PlayIcon />}
-                    variant="soft"
-                    color="success"
-                    onClick={async () => await generationRun(generations.id)}
-                  >
-                    Queue
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    onClick={() => {
-                      setOpen(true);
-                      setCurrentPlugin(generations?.plugin);
-                      setCurrentGenerationId(generations.id);
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <IconButton
-                    onClick={async () => {
-                      await fetch(
-                        chatAPI.Endpoints.Tasks.DeleteTask(generations.id),
-                      );
-                      mutate();
-                    }}
-                  >
-                    <Trash2Icon />
-                  </IconButton>
-                </ButtonGroup>
-              </td>
+    <>
+      <Stack
+        direction="row"
+        spacing={2}
+        mb={2}
+        justifyContent="space-between"
+        alignItems="flex-end"
+      >
+        <Typography level="h3" mb={1}>
+          Generation Tasks
+        </Typography>
+        {plugins?.length === 0 ? (
+          <Alert color="danger">
+            No Generator Scripts available, please install a generator plugin.
+          </Alert>
+        ) : (
+          <Dropdown>
+            <MenuButton
+              startDecorator={<PlusCircleIcon />}
+              variant="plain"
+              color="success"
+              sx={{ width: 'fit-content', mb: 1 }}
+              size="sm"
+            >
+              Add Task
+            </MenuButton>
+            <Menu>
+              {plugins?.map((row) => (
+                <MenuItem
+                  onClick={() => openModalForPLugin(row.uniqueId)}
+                  key={row.uniqueId}
+                >
+                  {row.name}
+                </MenuItem>
+              ))}
+            </Menu>
+          </Dropdown>
+        )}
+      </Stack>
+
+      <Sheet
+        variant="soft"
+        color="primary"
+        sx={{
+          overflow: 'auto',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+        }}
+      >
+        <GenerateModal
+          open={open}
+          onClose={() => {
+            setOpen(false);
+            setCurrentGenerationId('');
+          }}
+          experimentInfo={experimentInfo}
+          experimentInfoMutate={mutate}
+          pluginId={currentPlugin}
+          currentGenerationId={currentGenerationId}
+        />
+        <Table aria-label="basic table" stickyHeader sx={{}}>
+          <thead>
+            <tr>
+              <th width="200px" style={{ paddingLeft: '1rem' }}>
+                Name
+              </th>
+              <th>Details</th>
+              <th>Plugin</th>
+              <th style={{ textAlign: 'right' }}>&nbsp;</th>
             </tr>
-          ))}
-      </tbody>
-    </Table>
+          </thead>
+          <tbody>
+            {data &&
+              data?.map((generations) => (
+                <tr key={generations.id}>
+                  <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
+                    {generations.name}
+                  </td>
+                  <td style={{ overflow: 'hidden' }}>
+                    {/* formatTemplateConfig(generations.script_parameters) */}
+                    {/* {evaluations?.script_parameters?.task}&nbsp; */}
+                    {/* <FileTextIcon size={14} /> */}
+                  </td>
+                  <td>{generations.plugin}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <ButtonGroup
+                      variant="soft"
+                      sx={{ justifyContent: 'flex-end' }}
+                    >
+                      <Button
+                        startDecorator={<PlayIcon />}
+                        variant="soft"
+                        color="success"
+                        onClick={async () =>
+                          await generationRun(generations.id)
+                        }
+                      >
+                        Queue
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          setOpen(true);
+                          setCurrentPlugin(generations?.plugin);
+                          setCurrentGenerationId(generations.id);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <IconButton
+                        onClick={async () => {
+                          await fetch(
+                            chatAPI.Endpoints.Tasks.DeleteTask(generations.id),
+                          );
+                          mutate();
+                        }}
+                      >
+                        <Trash2Icon />
+                      </IconButton>
+                    </ButtonGroup>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </Table>
+      </Sheet>
+    </>
   );
 }
