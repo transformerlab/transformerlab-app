@@ -1,10 +1,11 @@
+/* eslint-disable no-console */
 /* eslint-disable jsx-a11y/anchor-is-valid */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { LightbulbIcon, PlayIcon } from 'lucide-react';
+import { LightbulbIcon, PlayIcon, ClipboardIcon } from 'lucide-react';
 import {
   Alert,
   Button,
@@ -16,8 +17,19 @@ import {
 } from '@mui/joy';
 
 export default function Embeddings({ experimentInfo }) {
-  const { models, isError, isLoading } = chatAPI.useModelStatus();
   const [embeddingsResult, setEmbeddingsResult] = useState('');
+
+  const copyToClipboard = () => {
+    navigator.clipboard
+      .writeText(embeddingsResult)
+      .then(() => {
+        console.log('Embeddings copied to clipboard');
+        return true;
+      })
+      .catch((err) => {
+        console.error('Failed to copy embeddings:', err);
+      });
+  };
 
   async function getEmbeddings() {
     try {
@@ -73,7 +85,6 @@ export default function Embeddings({ experimentInfo }) {
   }
 
   if (!experimentInfo) return 'Select an Experiment';
-  if (!models?.[0]?.id) return 'No Model is Running';
 
   return (
     <Sheet
@@ -104,6 +115,8 @@ export default function Embeddings({ experimentInfo }) {
             defaultValue="This is a line
 This is a second line."
             name="inputText"
+            maxRows={10}
+            sx={{ marginRight: 1 }}
           />
 
           <FormHelperText>
@@ -111,7 +124,7 @@ This is a second line."
           </FormHelperText>
         </FormControl>
         <Button
-          sx={{ mt: 4, mb: 4 }}
+          sx={{ my: 2 }}
           startDecorator={<PlayIcon />}
           onClick={async () => getEmbeddings()}
         >
@@ -119,15 +132,37 @@ This is a second line."
         </Button>
       </div>
       <div>
-        <FormControl>
-          <FormLabel>Output Vectors</FormLabel>
+        <FormControl
+          sx={{ alignItems: 'flex-start', width: '100%', overflow: 'hidden' }}
+        >
+          <FormLabel>
+            Output Vectors (Embedding Model:{' '}
+            {experimentInfo?.config?.embedding_model})
+          </FormLabel>
+
           <Sheet
             variant="soft"
             color="neutral"
-            sx={{ padding: 1, overflow: 'hidden' }}
+            sx={{
+              padding: 1,
+              overflowX: 'hidden',
+              overflowY: 'auto',
+              minHeight: '8rem',
+              maxHeight: '20rem',
+              maxWidth: '90%',
+            }}
           >
             {embeddingsResult}
           </Sheet>
+          <Button
+            size="sm"
+            variant="plain"
+            onClick={copyToClipboard}
+            startDecorator={<ClipboardIcon />}
+            sx={{ mt: 1, justifyContent: 'flex-start' }}
+          >
+            Copy to Clipboard
+          </Button>
         </FormControl>
       </div>
     </Sheet>
