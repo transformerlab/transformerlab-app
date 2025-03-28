@@ -23,7 +23,12 @@ const YAML = require('yaml');
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ImportRecipeModal({ open, setOpen, mutate }) {
+export default function ImportRecipeModal({
+  open,
+  setOpen,
+  mutate,
+  experiment_id,
+}) {
   const [uploading, setUploading] = useState(false);
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
 
@@ -86,7 +91,7 @@ export default function ImportRecipeModal({ open, setOpen, mutate }) {
     const response = await createNewTask(
       recipe_name,
       recipe.training.plugin,
-      '1',
+      experiment_id,
       JSON.stringify({
         model_name: recipe.model.name,
         model_architecture: config.model_architecture,
