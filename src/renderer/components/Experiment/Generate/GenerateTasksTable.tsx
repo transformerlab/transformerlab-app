@@ -70,70 +70,65 @@ export default function GenerateTasksTable({
   );
   console.log(data);
   return (
-    <>
-      <Table aria-label="basic table" stickyHeader sx={{}}>
-        <thead>
-          <tr>
-            <th width="200px" style={{ paddingLeft: '1rem' }}>
-              Name
-            </th>
-            <th>Details</th>
-            <th>Plugin</th>
-            <th style={{ textAlign: 'right' }}>&nbsp;</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data &&
-            data?.map((generations) => (
-              <tr key={generations.id}>
-                <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
-                  {generations.name}
-                </td>
-                <td style={{ overflow: 'hidden' }}>
-                  {/* formatTemplateConfig(generations.script_parameters) */}
-                  {/* {evaluations?.script_parameters?.task}&nbsp; */}
-                  {/* <FileTextIcon size={14} /> */}
-                </td>
-                <td>{generations.plugin}</td>
-                <td style={{ textAlign: 'right' }}>
-                  <ButtonGroup
+    <Table aria-label="basic table" stickyHeader sx={{}}>
+      <thead>
+        <tr>
+          <th width="200px" style={{ paddingLeft: '1rem' }}>
+            Name
+          </th>
+          <th>Details</th>
+          <th>Plugin</th>
+          <th style={{ textAlign: 'right' }}>&nbsp;</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data &&
+          data?.map((generations) => (
+            <tr key={generations.id}>
+              <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
+                {generations.name}
+              </td>
+              <td style={{ overflow: 'hidden' }}>
+                {/* formatTemplateConfig(generations.script_parameters) */}
+                {/* {evaluations?.script_parameters?.task}&nbsp; */}
+                {/* <FileTextIcon size={14} /> */}
+              </td>
+              <td>{generations.plugin}</td>
+              <td style={{ textAlign: 'right' }}>
+                <ButtonGroup variant="soft" sx={{ justifyContent: 'flex-end' }}>
+                  <Button
+                    startDecorator={<PlayIcon />}
                     variant="soft"
-                    sx={{ justifyContent: 'flex-end' }}
+                    color="success"
+                    onClick={async () => await generationRun(generations.id)}
                   >
-                    <Button
-                      startDecorator={<PlayIcon />}
-                      variant="soft"
-                      color="success"
-                      onClick={async () => await generationRun(generations.id)}
-                    >
-                      Queue
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      onClick={() => {
-                        setOpen(true);
-                        setCurrentPlugin(generations?.plugin);
-                        setCurrentGenerationId(generations.id);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <IconButton
-                      onClick={async () => {
-                        await fetch(
-                          chatAPI.Endpoints.Tasks.DeleteTask(generations.id),
-                        );
-                        experimentInfoMutate();
-                      }}
-                    >
-                      <Trash2Icon />
-                    </IconButton>
-                  </ButtonGroup>
-                </td>
-              </tr>
-            ))}
-        </tbody>
-      </Table>
-    </>
+                    Queue
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      setOpen(true);
+                      setCurrentPlugin(generations?.plugin);
+                      setCurrentGenerationId(generations.id);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <IconButton
+                    onClick={async () => {
+                      await fetch(
+                        chatAPI.Endpoints.Tasks.DeleteTask(generations.id),
+                      );
+                      experimentInfoMutate();
+                    }}
+                  >
+                    <Trash2Icon />
+                  </IconButton>
+                </ButtonGroup>
+              </td>
+            </tr>
+          ))}
+      </tbody>
+    </Table>
   );
 }
