@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 
+import React, { useState } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -16,6 +17,7 @@ import {
 
 export default function Embeddings({ experimentInfo }) {
   const { models, isError, isLoading } = chatAPI.useModelStatus();
+  const [embeddingsResult, setEmbeddingsResult] = useState('');
 
   async function getEmbeddings() {
     try {
@@ -25,8 +27,7 @@ export default function Embeddings({ experimentInfo }) {
       const experimentId = experimentInfo?.id;
 
       if (!experimentId) {
-        document.getElementById('embeddingsResult').innerHTML =
-          'Error: No experiment ID found';
+        setEmbeddingsResult('Error: No experiment ID found');
         return;
       }
 
@@ -64,11 +65,10 @@ export default function Embeddings({ experimentInfo }) {
         .map((embedding: any) => JSON.stringify(embedding))
         .join('\n\n\n');
 
-      document.getElementById('embeddingsResult').innerHTML = embeddingsText;
+      setEmbeddingsResult(embeddingsText);
     } catch (error) {
       console.error('Error generating embeddings:', error);
-      document.getElementById('embeddingsResult').innerHTML =
-        `Error: ${error?.message}`;
+      setEmbeddingsResult(`Error: ${error?.message}`);
     }
   }
 
@@ -122,11 +122,12 @@ This is a second line."
         <FormControl>
           <FormLabel>Output Vectors</FormLabel>
           <Sheet
-            id="embeddingsResult"
             variant="soft"
             color="neutral"
             sx={{ padding: 1, overflow: 'hidden' }}
-          />
+          >
+            {embeddingsResult}
+          </Sheet>
         </FormControl>
       </div>
     </Sheet>
