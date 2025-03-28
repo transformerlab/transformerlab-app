@@ -177,33 +177,33 @@ export default function EvalModal({
       ) {
         const evalConfig = JSON.parse(evalData.config);
         if (evalConfig) {
-          setConfig(evalConfig.script_parameters);
+          setConfig(evalConfig);
           const datasetKeyExists = Object.keys(
-            evalConfig.script_parameters,
-          ).some((key) => key.toLowerCase().includes('dataset_name'));
+            evalConfig,
+          ).some((key) => key === 'dataset_name');
           setHasDatasetKey(datasetKeyExists);
           if (
-            evalConfig.script_parameters._dataset_display_message &&
-            evalConfig.script_parameters._dataset_display_message.length > 0
+            evalConfig._dataset_display_message &&
+            evalConfig._dataset_display_message.length > 0
           ) {
             setDatasetDisplayMessage(
-              evalConfig.script_parameters._dataset_display_message,
+              evalConfig._dataset_display_message,
             );
           }
-          const tasksKeyExists = Object.keys(evalConfig.script_parameters).some(
+          const tasksKeyExists = Object.keys(evalConfig).some(
             (key) => key.toLowerCase().includes('tasks'),
           );
           if (tasksKeyExists) {
-            evalConfig.script_parameters.tasks =
-              evalConfig.script_parameters.tasks.split(',');
-            setConfig(evalConfig.script_parameters);
+            evalConfig.tasks =
+              evalConfig.tasks.split(',');
+            setConfig(evalConfig);
           }
 
           if (
             hasDatasetKey &&
-            evalConfig.script_parameters.dataset_name.length > 0
+            evalConfig.dataset_name.length > 0
           ) {
-            setSelectedDataset(evalConfig.script_parameters.dataset_name);
+            setSelectedDataset(evalConfig.dataset_name);
           }
           if (!nameInput && evalConfig?.run_name.length > 0) {
             setNameInput(evalConfig.run_name);

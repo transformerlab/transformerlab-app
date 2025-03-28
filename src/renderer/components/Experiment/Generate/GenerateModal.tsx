@@ -196,6 +196,12 @@ export default function GenerateModal({
         setNameInput(generateFriendlyName());
       } else {
         setNameInput('');
+        setHasContextKey(false);
+        setHasDocumentsKey(false);
+        setHasDatasetKey(false);
+        setSelectedDocs([]);
+        setContextInput('');
+        setSelectedDataset(null);
       }
     }
   }, [open]);
@@ -216,63 +222,39 @@ export default function GenerateModal({
           setConfig(generationConfig.script_parameters);
 
           const datasetKeyExists = Object.keys(
-            generationConfig.script_parameters,
-          ).some((key) => key.toLowerCase().includes('dataset'));
+            generationConfig,
+          ).some((key) => key === 'dataset_name');
 
           const docsKeyExists = Object.keys(
-            generationConfig.script_parameters,
-          ).some((key) => key.toLowerCase().includes('docs'));
+            generationConfig,
+          ).some((key) => key === 'docs');
 
           const contextKeyExists = Object.keys(
-            generationConfig.script_parameters,
-          ).some((key) => key.toLowerCase().includes('context'));
+            generationConfig,
+          ).some((key) => key === 'context');
 
           setHasDatasetKey(datasetKeyExists);
 
           if (
             docsKeyExists &&
-            generationConfig.script_parameters.docs.length > 0
+            generationConfig.docs.length > 0
           ) {
             setHasContextKey(false);
             setHasDocumentsKey(true);
-            generationConfig.script_parameters.docs =
-              generationConfig.script_parameters.docs.split(',');
-            setConfig(generationConfig.script_parameters);
-            setSelectedDocs(generationConfig.script_parameters.docs);
+            generationConfig.docs =
+              generationConfig.docs.split(',');
+            setConfig(generationConfig);
+            setSelectedDocs(generationConfig.docs);
           } else if (
             contextKeyExists &&
-            generationConfig.script_parameters.context.length > 0
+            generationConfig.context.length > 0
           ) {
             setHasContextKey(true);
             setHasDocumentsKey(false);
-            const context = generationConfig.script_parameters.context;
+            const context = generationConfig.context;
             setContextInput(context);
-            delete generationConfig.script_parameters.context;
-            setConfig(generationConfig.script_parameters);
-          }
-
-          setHasDatasetKey(datasetKeyExists);
-
-          if (
-            docsKeyExists &&
-            generationConfig.script_parameters.docs.length > 0
-          ) {
-            setHasContextKey(false);
-            setHasDocumentsKey(true);
-            generationConfig.script_parameters.docs =
-              generationConfig.script_parameters.docs.split(',');
-            setConfig(generationConfig.script_parameters);
-            setSelectedDocs(generationConfig.script_parameters.docs);
-          } else if (
-            contextKeyExists &&
-            generationConfig.script_parameters.context.length > 0
-          ) {
-            setHasContextKey(true);
-            setHasDocumentsKey(false);
-            const context = generationConfig.script_parameters.context;
-            setContextInput(context);
-            delete generationConfig.script_parameters.context;
-            setConfig(generationConfig.script_parameters);
+            delete generationConfig.context;
+            setConfig(generationConfig);
           }
 
           if (
@@ -294,8 +276,7 @@ export default function GenerateModal({
             setNameInput(generationData.name);
           }
         }
-      }
-    } else {
+      } else {
       // CREATE NEW GENERATION
       if (data) {
         let parsedData;
@@ -339,7 +320,7 @@ export default function GenerateModal({
           console.error('Error parsing data', e);
           parsedData = '';
         }
-      }
+      }}
     }
   }, [experimentInfo, pluginId, currentGenerationId, nameInput, data]);
 
@@ -448,7 +429,6 @@ export default function GenerateModal({
       }
 
       if (hasDocumentsKey && formJson.docs.length > 0) {
-        console.log(formJson);
         formJson.docs = JSON.parse(formJson.docs);
         formJson.docs = formJson.docs.join(',');
         formJson.generation_type = 'docs';
