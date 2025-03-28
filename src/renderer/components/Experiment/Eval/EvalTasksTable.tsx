@@ -86,10 +86,6 @@ export default function EvalTasksTable({
     chatAPI.Endpoints.Tasks.ListByTypeInExperiment('EVAL', experimentInfo.id),
     fetcher,
   );
-  console.log(
-    chatAPI.Endpoints.Tasks.ListByTypeInExperiment('EVAL', experimentInfo.id),
-  );
-  console.log(data);
 
   return (
     <>
