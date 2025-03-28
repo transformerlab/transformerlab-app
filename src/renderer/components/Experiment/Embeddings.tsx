@@ -87,15 +87,12 @@ export default function Embeddings({ experimentInfo }) {
         overflowX: 'hidden',
       }}
     >
-      {/* <Typography level="title-lg">Generate Embeddings</Typography> */}
       <Alert variant="plain" startDecorator={<LightbulbIcon />}>
         <Typography level="body-sm" textColor="text.tertiary" fontWeight={400}>
-          An embedding is a mathematical representation of a word or a piece of
-          text in a high-dimensional vector space. In the context of large
-          language models, embeddings are used to convert words, characters, or
-          subwords into numerical vectors that capture their semantic meaning.
-          The resulting embedding vectors can be used to compare the meaning of
-          chunks of text.
+          Embeddings are used to convert words, characters, or subwords into
+          numerical vectors that capture their semantic meaning. The resulting
+          embedding vectors can be used to compare the meaning of chunks of
+          text.
         </Typography>
       </Alert>
       <div>
