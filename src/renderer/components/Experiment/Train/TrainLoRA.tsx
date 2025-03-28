@@ -102,7 +102,7 @@ export default function TrainLoRA({ experimentInfo }) {
   const [currentPlugin, setCurrentPlugin] = useState('');
 
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Tasks.ListByType('TRAIN'),
+    chatAPI.Endpoints.Tasks.ListByTypeInExperiment('TRAIN', experimentInfo?.id),
     fetcher,
   );
   useEffect(() => {
@@ -180,6 +180,7 @@ export default function TrainLoRA({ experimentInfo }) {
         open={importRecipeModalOpen}
         setOpen={setImportRecipeModalOpen}
         mutate={mutate}
+        experiment_id={experimentInfo?.id}
       />
       <Sheet
         sx={{

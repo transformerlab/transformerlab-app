@@ -62,7 +62,10 @@ export default function GenerateTasksTable({
   setOpen,
 }) {
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Tasks.ListByType('GENERATE'),
+    chatAPI.Endpoints.Tasks.ListByTypeInExperiment(
+      'GENERATE',
+      experimentInfo.id,
+    ),
     fetcher,
   );
   console.log(data);

@@ -83,8 +83,11 @@ export default function EvalTasksTable({
   setOpen,
 }) {
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Tasks.ListByType('EVAL'),
+    chatAPI.Endpoints.Tasks.ListByTypeInExperiment('EVAL', experimentInfo.id),
     fetcher,
+  );
+  console.log(
+    chatAPI.Endpoints.Tasks.ListByTypeInExperiment('EVAL', experimentInfo.id),
   );
   console.log(data);
 

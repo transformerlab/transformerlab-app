@@ -212,45 +212,6 @@ export default function Eval({
           pluginId={currentPlugin}
           currentEvalId={currentEvalId}
         />
-        <Stack
-          direction="row"
-          spacing={2}
-          mb={2}
-          justifyContent="space-between"
-          alignItems="flex-end"
-        >
-          <Typography level="h3" mb={1}>
-            Evaluation Tasks
-          </Typography>
-          {plugins?.length === 0 ? (
-            <Alert color="danger">
-              No Evaluation Scripts available, please install an evaluator
-              plugin.
-            </Alert>
-          ) : (
-            <Dropdown>
-              <MenuButton
-                startDecorator={<PlusCircleIcon />}
-                variant="plain"
-                color="success"
-                sx={{ width: 'fit-content', mb: 1 }}
-                size="sm"
-              >
-                Add Task
-              </MenuButton>
-              <Menu>
-                {plugins?.map((row) => (
-                  <MenuItem
-                    onClick={() => openModalForPLugin(row.uniqueId)}
-                    key={row.uniqueId}
-                  >
-                    {row.name}
-                  </MenuItem>
-                ))}
-              </Menu>
-            </Dropdown>
-          )}
-        </Stack>
         <Sheet
           variant="soft"
           color="primary"
@@ -269,18 +230,6 @@ export default function Eval({
             setCurrentEvalId={setCurrentEvalId}
             setOpen={setOpen}
           />
-        </Sheet>
-        <Sheet
-          sx={{
-            overflow: 'hidden',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            flex: 2,
-            pt: 2,
-          }}
-        >
-          <EvalJobsTable />
         </Sheet>
       </Sheet>
       <Sheet
