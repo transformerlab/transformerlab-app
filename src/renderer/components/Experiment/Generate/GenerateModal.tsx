@@ -175,7 +175,12 @@ export default function GenerateModal({
     data: generationData,
     error: generationError,
     isLoading: generationIsLoading,
-  } = useSWR(chatAPI.Endpoints.Tasks.GetByID(currentGenerationId), fetcher);
+  } = useSWR(
+    currentGenerationId
+      ? chatAPI.Endpoints.Tasks.GetByID(currentGenerationId)
+      : null,
+    fetcher,
+  );
 
   const { data: currentDatasetInfo, isLoading: currentDatasetInfoIsLoading } =
     useSWR(() => {
