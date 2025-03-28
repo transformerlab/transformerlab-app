@@ -91,98 +91,96 @@ export default function Generate({
   }
 
   return (
-    <>
+    <Sheet
+      sx={{
+        overflow: 'hidden',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      {/* Plugins:
+        {JSON.stringify(plugins)} */}
+      <GenerateModal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setCurrentGenerationId('');
+        }}
+        experimentInfo={experimentInfo}
+        experimentInfoMutate={experimentInfoMutate}
+        pluginId={currentPlugin}
+        currentGenerationId={currentGenerationId}
+      />
+      <Stack
+        direction="row"
+        spacing={2}
+        mb={2}
+        justifyContent="space-between"
+        alignItems="flex-end"
+      >
+        <Typography level="h3" mb={1}>
+          Generation Tasks
+        </Typography>
+        {plugins?.length === 0 ? (
+          <Alert color="danger">
+            No Generator Scripts available, please install a generator plugin.
+          </Alert>
+        ) : (
+          <Dropdown>
+            <MenuButton
+              startDecorator={<PlusCircleIcon />}
+              variant="plain"
+              color="success"
+              sx={{ width: 'fit-content', mb: 1 }}
+              size="sm"
+            >
+              Add Task
+            </MenuButton>
+            <Menu>
+              {plugins?.map((row) => (
+                <MenuItem
+                  onClick={() => openModalForPLugin(row.uniqueId)}
+                  key={row.uniqueId}
+                >
+                  {row.name}
+                </MenuItem>
+              ))}
+            </Menu>
+          </Dropdown>
+        )}
+      </Stack>
+      <Sheet
+        variant="soft"
+        color="primary"
+        sx={{
+          overflow: 'auto',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+        }}
+      >
+        <GenerateTasksTable
+          experimentInfo={experimentInfo}
+          experimentInfoMutate={experimentInfoMutate}
+          setCurrentPlugin={setCurrentPlugin}
+          setCurrentGenerationId={setCurrentGenerationId}
+          setOpen={setOpen}
+        />
+      </Sheet>
       <Sheet
         sx={{
           overflow: 'hidden',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
+          flex: 2,
+          pt: 2,
         }}
       >
-        {/* Plugins:
-        {JSON.stringify(plugins)} */}
-        <GenerateModal
-          open={open}
-          onClose={() => {
-            setOpen(false);
-            setCurrentGenerationId('');
-          }}
-          experimentInfo={experimentInfo}
-          experimentInfoMutate={experimentInfoMutate}
-          pluginId={currentPlugin}
-          currentGenerationId={currentGenerationId}
-        />
-        <Stack
-          direction="row"
-          spacing={2}
-          mb={2}
-          justifyContent="space-between"
-          alignItems="flex-end"
-        >
-          <Typography level="h3" mb={1}>
-            Generation Tasks
-          </Typography>
-          {plugins?.length === 0 ? (
-            <Alert color="danger">
-              No Generator Scripts available, please install a generator plugin.
-            </Alert>
-          ) : (
-            <Dropdown>
-              <MenuButton
-                startDecorator={<PlusCircleIcon />}
-                variant="plain"
-                color="success"
-                sx={{ width: 'fit-content', mb: 1 }}
-                size="sm"
-              >
-                Add Task
-              </MenuButton>
-              <Menu>
-                {plugins?.map((row) => (
-                  <MenuItem
-                    onClick={() => openModalForPLugin(row.uniqueId)}
-                    key={row.uniqueId}
-                  >
-                    {row.name}
-                  </MenuItem>
-                ))}
-              </Menu>
-            </Dropdown>
-          )}
-        </Stack>
-        <Sheet
-          variant="soft"
-          color="primary"
-          sx={{
-            overflow: 'auto',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            flex: 1,
-          }}
-        >
-          <GenerateTasksTable
-            experimentInfo={experimentInfo}
-            experimentInfoMutate={experimentInfoMutate}
-            setCurrentPlugin={setCurrentPlugin}
-            setCurrentGenerationId={setCurrentGenerationId}
-            setOpen={setOpen}
-          />
-        </Sheet>
-        <Sheet
-          sx={{
-            overflow: 'hidden',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            flex: 2,
-            pt: 2,
-          }}
-        >
-          <GenerateJobsTable />
-        </Sheet>
+        <GenerateJobsTable />
       </Sheet>
-    </>
+    </Sheet>
   );
 }
