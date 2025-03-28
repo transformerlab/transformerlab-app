@@ -36,6 +36,7 @@ import {
 } from './interactUtils';
 import Batched from './Batched/Batched';
 import VisualizeLogProbs from './VisualizeLogProbs';
+import VisualizeGeneration from './VisualizeGeneration';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -764,6 +765,7 @@ export default function Chat({
           >
             <Option value="chat">Chat</Option>
             <Option value="completion">Completion</Option>
+            <Option value="visualize_model">Model Activations</Option>
             <Option value="rag">Query Docs (RAG)</Option>
             <Option value="tools">Tool Calling</Option>
             <Option value="template">Templated Prompt</Option>
@@ -820,6 +822,23 @@ export default function Chat({
             tokenCount={tokenCount}
             isThinking={isThinking}
             sendCompletionToLLM={sendCompletionToLLM}
+            stopStreaming={stopStreaming}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setChats={setChats}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+            experimentInfo={experimentInfo}
+            experimentInfoMutate={experimentInfoMutate}
+          />
+        )}
+        {mode === 'visualize_model' && (
+          <VisualizeGeneration
+            tokenCount={tokenCount}
             stopStreaming={stopStreaming}
             generationParameters={generationParameters}
             setGenerationParameters={setGenerationParameters}
