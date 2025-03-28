@@ -11,7 +11,7 @@ import {
   Slider,
   Tooltip,
 } from '@mui/joy';
-import { SendIcon, StopCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { SendIcon, StopCircle, ChevronLeft, ChevronRight, ConstructionIcon } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
@@ -309,7 +309,14 @@ export default function VisualizeGeneration({
           overflow: 'hidden',
         }}
       >
-        <Typography level="h3" sx={{ mb: 2, px: 2, pt: 2 }}>
+      <Alert
+           color="neutral"
+           variant="outlined"
+           startDecorator={<ConstructionIcon />}
+         >
+           This feature is currently in developement. It only works with the Fastchat Server.
+         </Alert>
+        <Typography level="h2" sx={{ mb: 2, px: 2, pt: 2 }}>
           Model Activations
         </Typography>
 
