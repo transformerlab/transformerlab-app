@@ -104,15 +104,14 @@ export default function EvalModal({
   open,
   onClose,
   experimentInfo,
-  experimentInfoMutate,
+  mutateTasks,
   pluginId,
   currentEvalId,
 }: {
   open: boolean;
   onClose: () => void;
   experimentInfo: any;
-  experimentInfoMutate: () => void;
-  template_id?: string;
+  mutateTasks: () => void;
   pluginId: string;
   currentEvalId?: string; // Optional incase of new evaluation
 }) {
@@ -351,7 +350,7 @@ export default function EvalModal({
         setNameInput(generateFriendlyName());
         setHasDatasetKey(false);
       }
-      experimentInfoMutate();
+      mutateTasks();
       onClose();
 
       // };

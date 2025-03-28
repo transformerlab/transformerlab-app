@@ -65,6 +65,11 @@ export default function Eval({
     fetcher,
   );
 
+  const { data: tasks, mutate: mutateTasks } = useSWR(
+    chatAPI.Endpoints.Tasks.ListByTypeInExperiment('EVAL', experimentInfo?.id),
+    fetcher,
+  );
+
   async function saveFile() {
     // const value = editorRef?.current?.getValue();
 
@@ -124,7 +129,7 @@ export default function Eval({
           setCurrentEvalId('');
         }}
         experimentInfo={experimentInfo}
-        experimentInfoMutate={experimentInfoMutate}
+        mutateTasks={mutateTasks}
         pluginId={currentPlugin}
         currentEvalId={currentEvalId}
       />
@@ -208,7 +213,7 @@ export default function Eval({
             setCurrentEvalId('');
           }}
           experimentInfo={experimentInfo}
-          experimentInfoMutate={experimentInfoMutate}
+          mutateTasks={mutateTasks}
           pluginId={currentPlugin}
           currentEvalId={currentEvalId}
         />
@@ -229,6 +234,8 @@ export default function Eval({
             setCurrentPlugin={setCurrentPlugin}
             setCurrentEvalId={setCurrentEvalId}
             setOpen={setOpen}
+            tasks={tasks}
+            mutateTasks={mutateTasks}
           />
         </Sheet>
       </Sheet>

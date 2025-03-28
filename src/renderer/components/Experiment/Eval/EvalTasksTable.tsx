@@ -81,12 +81,9 @@ export default function EvalTasksTable({
   setCurrentPlugin,
   setCurrentEvalId,
   setOpen,
+  tasks,
+  mutateTasks,
 }) {
-  const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Tasks.ListByTypeInExperiment('EVAL', experimentInfo.id),
-    fetcher,
-  );
-
   return (
     <>
       <Table aria-label="basic table" stickyHeader sx={{}}>
@@ -101,8 +98,8 @@ export default function EvalTasksTable({
           </tr>
         </thead>
         <tbody>
-          {data &&
-            data?.map((evaluations) => (
+          {tasks &&
+            tasks?.map((evaluations) => (
               <tr key={evaluations.id}>
                 <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
                   {evaluations.name}
@@ -141,7 +138,7 @@ export default function EvalTasksTable({
                         await fetch(
                           chatAPI.Endpoints.Tasks.DeleteTask(evaluations.id),
                         );
-                        experimentInfoMutate();
+                        mutateTasks();
                       }}
                     >
                       <Trash2Icon />
