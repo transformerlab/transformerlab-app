@@ -360,9 +360,8 @@ export default function VisualizeGeneration({
             </Box>
           )}
 
-          {/* Action buttons - moved stop button next to Visualize */}
           <Stack direction="row" spacing={1}>
-          {isGenerating && (  // Only show when actively generating
+          {isGenerating && (
               <IconButton
                 color="danger"
                 onClick={handleStopGeneration}
