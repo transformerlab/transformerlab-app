@@ -8,7 +8,6 @@ import Sheet from '@mui/joy/Sheet';
 
 import {
   Typography,
-  Option,
   Dropdown,
   MenuButton,
   Menu,
@@ -21,34 +20,12 @@ import { PlusCircleIcon } from 'lucide-react';
 
 import EvalJobsTable from './EvalJobsTable.tsx';
 import EvalTasksTable from './EvalTasksTable';
-// import NewEvalModal from './NewEvalModal';
 import EvalModal from './EvalModal';
-
-function getTemplateParametersForPlugin(pluginName, plugins) {
-  if (!pluginName || !plugins) {
-    return [];
-  }
-
-  const plugin = plugins.find((row) => row.name === pluginName);
-  if (plugin) {
-    return plugin?.info?.template_parameters[0]?.options.map((row) => (
-      <Option value={row} key={row}>
-        {row}
-      </Option>
-    ));
-  }
-  return [];
-}
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Eval({
-  experimentInfo,
-  addEvaluation,
-  experimentInfoMutate,
-}) {
+export default function Eval({ experimentInfo, experimentInfoMutate }) {
   const [open, setOpen] = useState(false);
-  const [currentEvaluator, setCurrentEvaluator] = useState('');
   const [currentPlugin, setCurrentPlugin] = useState('');
   const [currentEvalId, setCurrentEvalId] = useState('');
 
@@ -69,21 +46,6 @@ export default function Eval({
     chatAPI.Endpoints.Tasks.ListByTypeInExperiment('EVAL', experimentInfo?.id),
     fetcher,
   );
-
-  async function saveFile() {
-    // const value = editorRef?.current?.getValue();
-
-    if (value) {
-      // Use fetch to post the value to the server
-      await fetch(
-        chatAPI.Endpoints.Experiment.SavePlugin(project, evalName, 'main.py'),
-        {
-          method: 'POST',
-          body: value,
-        },
-      ).then(() => {});
-    }
-  }
 
   function openModalForPLugin(pluginId) {
     setCurrentPlugin(pluginId);
