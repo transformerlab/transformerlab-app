@@ -19,11 +19,10 @@ import {
   Tabs,
   Sheet,
 } from '@mui/joy';
+import { generateFriendlyName } from 'renderer/lib/utils';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
 
-import { generateFriendlyName } from 'renderer/lib/utils';
-import exp from 'node:constants';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
@@ -37,13 +36,11 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
   );
 
   return (
-    <>
-      <Markdown remarkPlugins={[remarkGfm]} className="editableSheetContent">
-        {data && data != 'FILE NOT FOUND'
-          ? data
-          : 'No description for this plugin is availabe.'}
-      </Markdown>
-    </>
+    <Markdown remarkPlugins={[remarkGfm]} className="editableSheetContent">
+      {data && data !== 'FILE NOT FOUND'
+        ? data
+        : 'No description for this plugin is availabe.'}
+    </Markdown>
   );
 }
 
@@ -54,9 +51,9 @@ async function updateTask(
   outputs: string,
 ) {
   const configBody = {
-    inputs: inputs,
-    config: config,
-    outputs: outputs,
+    inputs,
+    config,
+    outputs,
   };
   const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
     method: 'PUT',
@@ -79,15 +76,14 @@ async function createNewTask(
   outputs: string,
 ) {
   const configBody = {
-    name: name,
-    plugin: plugin,
+    name,
+    plugin,
     experiment_id: experimentId,
-    inputs: inputs,
-    config: config,
-    outputs: outputs,
+    inputs,
+    config,
+    outputs,
     type: 'EVAL',
   };
-  console.log(configBody);
   const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
     method: 'PUT',
     headers: {
@@ -179,7 +175,6 @@ export default function EvalModal({
         currentEvalId &&
         currentEvalId !== ''
       ) {
-        console.log(evalData);
         const evalConfig = JSON.parse(evalData.config);
         if (evalConfig) {
           setConfig(evalConfig.script_parameters);
@@ -217,43 +212,41 @@ export default function EvalModal({
         // if (!nameInput && evalConfig?.script_parameters.run_name) {
         //   setNameInput(evalConfig.script_parameters.run_name);
         // }
-      } else {
-        if (data) {
-          let parsedData;
-          try {
-            parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
-            // Set config as a JSON object with keys of the parameters and values of the default values
-            let tempconfig: { [key: string]: any } = {};
-            if (parsedData && parsedData.parameters) {
-              tempconfig = Object.fromEntries(
-                Object.entries(parsedData.parameters).map(([key, value]) => [
-                  key,
-                  value.default,
-                ]),
-              );
-              if (parsedData && parsedData._dataset) {
-                setHasDatasetKey(true);
-                // Check if the dataset display message string length is greater than 0
-                if (
-                  parsedData._dataset_display_message &&
-                  parsedData._dataset_display_message.length > 0
-                ) {
-                  setDatasetDisplayMessage(parsedData._dataset_display_message);
-                  // Add dataset display message to the config parameters
-                }
+      } else if (data) {
+        let parsedData;
+        try {
+          parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+          // Set config as a JSON object with keys of the parameters and values of the default values
+          let tempconfig: { [key: string]: any } = {};
+          if (parsedData && parsedData.parameters) {
+            tempconfig = Object.fromEntries(
+              Object.entries(parsedData.parameters).map(([key, value]) => [
+                key,
+                value.default,
+              ]),
+            );
+            if (parsedData && parsedData._dataset) {
+              setHasDatasetKey(true);
+              // Check if the dataset display message string length is greater than 0
+              if (
+                parsedData._dataset_display_message &&
+                parsedData._dataset_display_message.length > 0
+              ) {
+                setDatasetDisplayMessage(parsedData._dataset_display_message);
+                // Add dataset display message to the config parameters
               }
-
-              setConfig(tempconfig);
-              // Set hasDataset to true in the parsed data, the dataset key is `true`
-              // If tempconfig is not an empty object
-              // if (tempconfig && Object.keys(tempconfig).length > 0) {
-              //   setNameInput(generateFriendlyName());
-              // }
             }
-          } catch (e) {
-            console.error('Error parsing data', e);
-            parsedData = '';
+
+            setConfig(tempconfig);
+            // Set hasDataset to true in the parsed data, the dataset key is `true`
+            // If tempconfig is not an empty object
+            // if (tempconfig && Object.keys(tempconfig).length > 0) {
+            //   setNameInput(generateFriendlyName());
+            // }
           }
+        } catch (e) {
+          console.error('Error parsing data', e);
+          parsedData = '';
         }
       }
     }
@@ -269,6 +262,7 @@ export default function EvalModal({
 
   // Set config to the plugin config if it is available based on currentEvalId within experiment info
 
+  // eslint-disable-next-line react/no-unstable-nested-components
   function TrainingModalFirstTab() {
     return (
       <Stack spacing={2}>
@@ -323,7 +317,6 @@ export default function EvalModal({
       if (!formJson.run_name) {
         formJson.run_name = formJson.template_name;
       }
-      console.log(formJson);
       if (!formJson.predefined_tasks) {
         formJson.predefined_tasks = formJson.tasks;
       }
@@ -335,7 +328,6 @@ export default function EvalModal({
         setNameInput('');
         setHasDatasetKey(false);
       } else {
-        console.log('formJson:', formJson);
         const template_name = formJson.template_name;
         // delete formJson.template_name;
         await createNewTask(
@@ -421,21 +413,19 @@ export default function EvalModal({
             </TabPanel>
             {hasDatasetKey && (
               <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-                <>
-                  <TrainingModalDataTab
-                    datasetsIsLoading={datasetsIsLoading}
-                    datasets={datasets}
-                    selectedDataset={selectedDataset}
-                    setSelectedDataset={setSelectedDataset}
-                    currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
-                    currentDatasetInfo={currentDatasetInfo}
-                    templateData={null}
-                    injectIntoTemplate={null}
-                    experimentInfo={experimentInfo}
-                    pluginId={pluginId}
-                    displayMessage={datasetDisplayMessage}
-                  />
-                </>
+                <TrainingModalDataTab
+                  datasetsIsLoading={datasetsIsLoading}
+                  datasets={datasets}
+                  selectedDataset={selectedDataset}
+                  setSelectedDataset={setSelectedDataset}
+                  currentDatasetInfoIsLoading={currentDatasetInfoIsLoading}
+                  currentDatasetInfo={currentDatasetInfo}
+                  templateData={null}
+                  injectIntoTemplate={null}
+                  experimentInfo={experimentInfo}
+                  pluginId={pluginId}
+                  displayMessage={datasetDisplayMessage}
+                />
               </TabPanel>
             )}
           </Tabs>
