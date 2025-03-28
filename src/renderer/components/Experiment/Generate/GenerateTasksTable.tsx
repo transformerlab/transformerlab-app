@@ -119,7 +119,7 @@ export default function GenerateTasksTable({
                       await fetch(
                         chatAPI.Endpoints.Tasks.DeleteTask(generations.id),
                       );
-                      experimentInfoMutate();
+                      mutate();
                     }}
                   >
                     <Trash2Icon />
