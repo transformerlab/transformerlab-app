@@ -38,7 +38,7 @@ function formatTemplateConfig(script_parameters): ReactElement {
   // Remove the author/full path from the model name for cleanliness
   // const short_model_name = c.model_name.split('/').pop();
   // Set main_task as either or the metric name from the script parameters
-  const main_task = script_parameters.generation_type;
+  const main_task = script_parameters?.generation_type;
   let docs_file_name_actual = '';
   // Only keep the first 3 words of the main task
 
@@ -51,7 +51,7 @@ function formatTemplateConfig(script_parameters): ReactElement {
   if (is_docs) {
     docs_file_name_actual = script_parameters.docs.split('/').pop();
   }
-  const generation_model = script_parameters.generation_model
+  const generation_model = script_parameters?.generation_model
     ? script_parameters.generation_model
     : 'N/A';
 
@@ -191,9 +191,7 @@ export default function GenerateTasksTable({
                     {generations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {/* formatTemplateConfig(generations.script_parameters) */}
-                    {/* {evaluations?.script_parameters?.task}&nbsp; */}
-                    {/* <FileTextIcon size={14} /> */}
+                    {formatTemplateConfig(JSON.parse(generations.config))}
                   </td>
                   <td>{generations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>
