@@ -101,26 +101,28 @@ export default function ImportRecipeModal({
       '{}',
     );
 
+    console.log(response);
+
     // If we have a response then recipe imported successfully.
     // Check if we need to download any assets so we can tell the user.
     if (response) {
       if (!recipe.model || !recipe.model.path) {
         alert('Warning: This recipe does not have an associated model');
-      } else if (!recipe.dataset || !recipe.dataset.path) {
+      } else if (!recipe.datasets || !recipe.datasets.path) {
         alert('Warning: This recipe does not have an associated dataset');
       } else {
         let msg =
           'Warning: To use this recipe you will need to download the following:';
         let shouldDownload = false;
 
-        if (!response.dataset.downloaded) {
-          msg += '\n- Dataset: ' + response.dataset.path;
-          shouldDownload = true;
-        }
-        if (!response.model.downloaded) {
-          msg += '\n- Model: ' + response.model.path;
-          shouldDownload = true;
-        }
+        //if (!response.datasets.downloaded) {
+        //  msg += '\n- Dataset: ' + response.dataset.path;
+        //  shouldDownload = true;
+        //}
+        //if (!response.model.downloaded) {
+        //  msg += '\n- Model: ' + response.model.path;
+        //  shouldDownload = true;
+        //}
 
         if (shouldDownload) {
           msg += '\n\nDo you want to download these now?';
