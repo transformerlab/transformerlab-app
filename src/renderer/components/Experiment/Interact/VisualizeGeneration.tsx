@@ -314,7 +314,7 @@ export default function VisualizeGeneration({
            variant="outlined"
            startDecorator={<ConstructionIcon />}
          >
-           This feature is currently in developement. It only works with the Fastchat Server.
+           This feature is currently in developement. It only works with Fastchat and MLX Server currently.
          </Alert>
         <Typography level="h2" sx={{ mb: 2, px: 2, pt: 2 }}>
           Model Activations
