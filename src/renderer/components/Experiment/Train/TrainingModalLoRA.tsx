@@ -321,14 +321,12 @@ export default function TrainingModalLoRA({
               const templateDataOutputs = JSON.parse(templateData.outputs);
               for (const key in templateDataInputs) {
                 if (key in formJson && templateDataInputs[key] != formJson[key]) {
-                  console.log(key, formJson[key]);
                   templateDataInputs[key] = formJson[key];
                 }
               }
               // For all keys in templateData.outputs that are in formJson, set the value from formJson
               for (const key in templateDataOutputs) {
                 if (key in formJson && templateDataOutputs[key] != formJson[key]) {
-                  console.log(key, formJson[key]);
                   templateDataOutputs[key] = formJson[key];
                 }
               }
@@ -338,10 +336,6 @@ export default function TrainingModalLoRA({
                 JSON.stringify(formJson),
                 JSON.stringify(templateDataOutputs),
               );
-              console.log("Updated task with parameters", task_id);
-              console.log("Updated task with parameters", formJson);
-              console.log("Updated task with parameters", typeof templateData.inputs);
-              console.log("Updated task with parameters", typeof templateData.outputs);
               templateMutate(); //Need to mutate template data after updating
             } else {
               createNewTask(
