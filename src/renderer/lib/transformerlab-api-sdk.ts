@@ -1949,7 +1949,7 @@ export function useModelStatus() {
 }
 
 export function usePluginStatus(experimentInfo: any) {
-  let { data } = useSWR(
+  const { data, isLoading, mutate } = useSWR(
     experimentInfo
       ? Endpoints.Experiment.ListScripts(experimentInfo?.id)
       : null,
@@ -1964,7 +1964,7 @@ export function usePluginStatus(experimentInfo: any) {
     );
   }
 
-  return { data: outdatedPlugins };
+  return { data: outdatedPlugins, isLoading, mutate };
 }
 
 export function useServerStats() {

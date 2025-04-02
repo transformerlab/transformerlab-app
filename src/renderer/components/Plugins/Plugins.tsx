@@ -1,15 +1,46 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import Sheet from '@mui/joy/Sheet';
-import { Alert, Button, Tab, TabList, TabPanel, Tabs } from '@mui/joy';
-import { StoreIcon } from 'lucide-react';
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  Tab,
+  TabList,
+  TabPanel,
+  Tabs,
+} from '@mui/joy';
+import { Circle, StoreIcon } from 'lucide-react';
 
 import { usePluginStatus } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useState } from 'react';
 import PluginGallery from './PluginGallery';
 import LocalPlugins from './LocalPlugins';
 import OneTimePopup from '../Shared/OneTimePopup';
 
 export default function Plugins({ experimentInfo }) {
-  const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
+  const { data: outdatedPlugins, mutate: outdatePluginsMutate } =
+    usePluginStatus(experimentInfo);
+  const [installing, setInstalling] = useState(null);
+
+  if (installing !== null) {
+    return (
+      <Sheet
+        sx={{
+          display: 'flex',
+          height: '100%',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Alert color="warning">
+          <CircularProgress />
+          Installing {installing} plugin. Please wait...
+        </Alert>
+      </Sheet>
+    );
+  }
 
   return (
     <Sheet sx={{ display: 'flex', height: '100%', flexDirection: 'column' }}>
@@ -23,22 +54,37 @@ export default function Plugins({ experimentInfo }) {
           <p>You can add a plugin by clicking on "Install".</p>
         </>
       </OneTimePopup>
-      <Alert sx={{ mb: 2 }}>
-        <b>{outdatedPlugins?.length}</b> plugins have necessary updates. Update
-        now?
-        <Button
-          color="success"
-          onClick={() => {
-            const pluginsToUpdate = outdatedPlugins.map((plugin) => ({
-              name: plugin.name,
-              // version: plugin.version,
-            }));
-            alert(`updating: ${JSON.stringify(pluginsToUpdate)}`);
-          }}
-        >
-          Update All
-        </Button>
-      </Alert>
+      {outdatedPlugins?.length > 0 && (
+        <Alert sx={{ mb: 2 }}>
+          <b>{outdatedPlugins?.length}</b> plugins have necessary updates.
+          Update now?
+          <Button
+            color="success"
+            onClick={async () => {
+              const pluginsToUpdate = outdatedPlugins.map((plugin) => ({
+                name: plugin.name,
+                // version: plugin.version,
+                uniqueId: plugin.uniqueId,
+              }));
+              // eslint-disable-next-line no-restricted-syntax
+              for (const plugin of pluginsToUpdate) {
+                setInstalling(plugin.name);
+                await fetch(
+                  chatAPI.Endpoints.Experiment.InstallPlugin(
+                    experimentInfo?.id,
+                    plugin.uniqueId,
+                  ),
+                );
+                console.log('Installing plugin:', plugin);
+              }
+              outdatePluginsMutate();
+              setInstalling(null);
+            }}
+          >
+            Update All
+          </Button>
+        </Alert>
+      )}
       <Tabs
         aria-label="Plugin Tabs"
         defaultValue={1}
