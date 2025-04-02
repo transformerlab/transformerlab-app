@@ -1,15 +1,18 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import Sheet from '@mui/joy/Sheet';
-import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
+import { Alert, Button, Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import { StoreIcon } from 'lucide-react';
 
+import { usePluginStatus } from 'renderer/lib/transformerlab-api-sdk';
 import PluginGallery from './PluginGallery';
 import LocalPlugins from './LocalPlugins';
 import OneTimePopup from '../Shared/OneTimePopup';
 
 export default function Plugins({ experimentInfo }) {
+  const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
+
   return (
-    <Sheet sx={{ display: 'flex', height: '100%' }}>
+    <Sheet sx={{ display: 'flex', height: '100%', flexDirection: 'column' }}>
       <OneTimePopup title="About Plugins">
         <>
           <p>
@@ -20,6 +23,22 @@ export default function Plugins({ experimentInfo }) {
           <p>You can add a plugin by clicking on "Install".</p>
         </>
       </OneTimePopup>
+      <Alert sx={{ mb: 2 }}>
+        <b>{outdatedPlugins?.length}</b> plugins have necessary updates. Update
+        now?
+        <Button
+          color="success"
+          onClick={() => {
+            const pluginsToUpdate = outdatedPlugins.map((plugin) => ({
+              name: plugin.name,
+              // version: plugin.version,
+            }));
+            alert(`updating: ${JSON.stringify(pluginsToUpdate)}`);
+          }}
+        >
+          Update All
+        </Button>
+      </Alert>
       <Tabs
         aria-label="Plugin Tabs"
         defaultValue={1}
