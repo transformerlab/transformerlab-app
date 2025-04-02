@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import useSWR from 'swr';
 
+
 import {
   Box,
   Button,
@@ -85,9 +86,10 @@ export default function ImportRecipeModal({
   const uploadRecipe = async (recipe_name: string, recipe_text: string) => {
     setUploading(true); //This is for the loading spinner
     const recipe = YAML.parse(recipe_text);
-    console.log(recipe);
-    console.log('got here!');
     const config = JSON.parse(recipe.training.config_json);
+    // Adding these fields so we can get the model and dataset from the response and see if we need to download them
+    config['_tlab_recipe_datasets'] = recipe.datasets;
+    config['_tlab_recipe_models'] = recipe.model;
     const response = await createNewTask(
       recipe_name,
       recipe.training.plugin,
@@ -101,24 +103,26 @@ export default function ImportRecipeModal({
       '{}',
     );
 
+    // Check if response has a data field
+    const response_data = response.data;
     // If we have a response then recipe imported successfully.
     // Check if we need to download any assets so we can tell the user.
     if (response) {
-      if (!recipe.model || !recipe.model.path) {
+      if (!response_data.model || !response_data.model.path) {
         alert('Warning: This recipe does not have an associated model');
-      } else if (!recipe.dataset || !recipe.dataset.path) {
+      } else if (!response_data.dataset || !response_data.dataset.path) {
         alert('Warning: This recipe does not have an associated dataset');
       } else {
         let msg =
           'Warning: To use this recipe you will need to download the following:';
         let shouldDownload = false;
 
-        if (!response.dataset.downloaded) {
-          msg += '\n- Dataset: ' + response.dataset.path;
+        if (!response_data.dataset.downloaded) {
+          msg += '\n- Dataset: ' + response_data.dataset.path;
           shouldDownload = true;
         }
-        if (!response.model.downloaded) {
-          msg += '\n- Model: ' + response.model.path;
+        if (!response_data.model.downloaded) {
+          msg += '\n- Model: ' + response_data.model.path;
           shouldDownload = true;
         }
 
@@ -126,8 +130,8 @@ export default function ImportRecipeModal({
           msg += '\n\nDo you want to download these now?';
           if (confirm(msg)) {
             // Use confirm() to get Accept/Cancel
-            if (!response.dataset.downloaded) {
-              fetch(chatAPI.Endpoints.Dataset.Download(response.dataset.path))
+            if (!response_data.dataset.downloaded) {
+              fetch(chatAPI.Endpoints.Dataset.Download(response_data.dataset.path))
                 .then((response) => {
                   if (!response.ok) {
                     console.log(response);
@@ -139,9 +143,9 @@ export default function ImportRecipeModal({
                   alert('Dataset download failed:\n' + error);
                 });
             }
-            if (!response.model.downloaded) {
+            if (!response_data.model.downloaded) {
               chatAPI
-                .downloadModelFromHuggingFace(response.model.path)
+                .downloadModelFromHuggingFace(response_data.model.path)
                 .then((response) => {
                   if (response.status == 'error') {
                     console.log(response);
