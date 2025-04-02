@@ -269,7 +269,7 @@ export default function Sidebar({
   themeSetter,
 }) {
   const { models, isError, isLoading } = useModelStatus();
-  const { outdatedPluginsCount } = usePluginStatus(experimentInfo);
+  const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
 
   const navigate = useNavigate();
 
@@ -329,7 +329,7 @@ export default function Sidebar({
       <GlobalMenuItems
         DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
-        outdatedPluginsCount={outdatedPluginsCount}
+        outdatedPluginsCount={outdatedPlugins?.length}
       />
       <BottomMenuItems
         DEV_MODE={DEV_MODE}
