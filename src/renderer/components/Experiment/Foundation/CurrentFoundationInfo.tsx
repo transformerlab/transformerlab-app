@@ -11,7 +11,7 @@ import {
   Stack,
   Table,
   Typography,
-  Chip
+  Chip,
 } from '@mui/joy';
 import Tooltip from '@mui/joy/Tooltip';
 import {
@@ -101,7 +101,6 @@ export default function CurrentFoundationInfo({
   );
   const navigate = useNavigate();
 
-
   // Fetch base model provenance
   const { data: baseProvenance, error: baseProvenanceError } = useSWR(
     chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
@@ -111,20 +110,27 @@ export default function CurrentFoundationInfo({
   // Fetch adaptor provenance when selected
   const { data: adaptorProvenance, error: adaptorProvenanceError } = useSWR(
     selectedProvenanceModel && selectedProvenanceModel !== huggingfaceId
-      ? chatAPI.Endpoints.Models.ModelProvenance(`${huggingfaceId}_${selectedProvenanceModel}`)
+      ? chatAPI.Endpoints.Models.ModelProvenance(
+          `${huggingfaceId}_${selectedProvenanceModel}`,
+        )
       : null,
     fetcher,
   );
 
   // Show proper provenance data based on selection
-  const currentProvenance = selectedProvenanceModel === huggingfaceId ? baseProvenance : adaptorProvenance;
-  const currentProvenanceError = selectedProvenanceModel === huggingfaceId ? baseProvenanceError : adaptorProvenanceError;
-
+  const currentProvenance =
+    selectedProvenanceModel === huggingfaceId
+      ? baseProvenance
+      : adaptorProvenance;
+  const currentProvenanceError =
+    selectedProvenanceModel === huggingfaceId
+      ? baseProvenanceError
+      : adaptorProvenanceError;
 
   // Reset selected provenance model when base model changes
-    useEffect(() => {
-      setSelectedProvenanceModel(huggingfaceId);
-    }, [huggingfaceId]);
+  useEffect(() => {
+    setSelectedProvenanceModel(huggingfaceId);
+  }, [huggingfaceId]);
 
   const resetToDefaultEmbedding = async () => {
     // Update local state
@@ -312,81 +318,110 @@ export default function CurrentFoundationInfo({
                 )}
               </tbody>
             </Table>
-        {/* Enhanced Model Provenance Section */}
-        <Box mt={4}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-            <Button
-              variant="soft"
-              onClick={() => setShowProvenance((prev) => !prev)}
-              endDecorator={showProvenance ? '▲' : '▼'}
-            >
-              Model Provenance
-            </Button>
+            {/* Enhanced Model Provenance Section */}
+            <Box mt={4}>
+              <Box
+                sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}
+              >
+                <Button
+                  variant="soft"
+                  onClick={() => setShowProvenance((prev) => !prev)}
+                  endDecorator={showProvenance ? '▲' : '▼'}
+                >
+                  Model Provenance
+                </Button>
 
-            {showProvenance && (
-              <Typography level="body-sm">
-                View provenance for:
-                <Box component="span" ml={1} sx={{ display: 'inline-flex', gap: 1 }}>
-                  <Chip
-                    size="sm"
-                    variant={selectedProvenanceModel === huggingfaceId ? "solid" : "soft"}
-                    color="primary"
-                    onClick={() => setSelectedProvenanceModel(huggingfaceId)}
-                    sx={{ cursor: 'pointer' }}
-                  >
-                    Base Model
-                  </Chip>
-
-                  {peftData && peftData.map(peft => (
-                    <Chip
-                      key={peft}
-                      size="sm"
-                      variant={selectedProvenanceModel === peft ? "solid" : "soft"}
-                      color="primary"
-                      onClick={() => setSelectedProvenanceModel(peft)}
-                      sx={{ cursor: 'pointer' }}
+                {showProvenance && (
+                  <Typography level="body-sm">
+                    View provenance for:
+                    <Box
+                      component="span"
+                      ml={1}
+                      sx={{ display: 'inline-flex', gap: 1 }}
                     >
-                      {peft}
-                    </Chip>
-                  ))}
-                </Box>
-              </Typography>
-            )}
-          </Box>
+                      <Chip
+                        size="sm"
+                        variant={
+                          selectedProvenanceModel === huggingfaceId
+                            ? 'solid'
+                            : 'soft'
+                        }
+                        color="primary"
+                        onClick={() =>
+                          setSelectedProvenanceModel(huggingfaceId)
+                        }
+                        sx={{ cursor: 'pointer' }}
+                      >
+                        Base Model
+                      </Chip>
 
-          {showProvenance && (
-            <Box
-              sx={{
-                mt: 2,
-                overflow: 'auto',
-                maxHeight: 500,
-                maxWidth: '100%',
-                border: '1px solid #ccc',
-                borderRadius: '4px',
-                p: 2
-              }}
-            >
-              {selectedProvenanceModel !== huggingfaceId && (
-                <Box sx={{ mb: 2, p: 1, bgcolor: 'background.level1', borderRadius: '4px' }}>
-                  <Typography level="body-sm" fontWeight="bold">
-                    Showing provenance for: {huggingfaceId}_{selectedProvenanceModel}
+                      {peftData &&
+                        peftData.map((peft) => (
+                          <Chip
+                            key={peft}
+                            size="sm"
+                            variant={
+                              selectedProvenanceModel === peft
+                                ? 'solid'
+                                : 'soft'
+                            }
+                            color="primary"
+                            onClick={() => setSelectedProvenanceModel(peft)}
+                            sx={{ cursor: 'pointer' }}
+                          >
+                            {peft}
+                          </Chip>
+                        ))}
+                    </Box>
                   </Typography>
+                )}
+              </Box>
+
+              {showProvenance && (
+                <Box
+                  sx={{
+                    mt: 2,
+                    overflow: 'auto',
+                    maxHeight: 500,
+                    maxWidth: '100%',
+                    border: '1px solid #ccc',
+                    borderRadius: '4px',
+                    p: 2,
+                  }}
+                >
+                  {selectedProvenanceModel !== huggingfaceId && (
+                    <Box
+                      sx={{
+                        mb: 2,
+                        p: 1,
+                        bgcolor: 'background.level1',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      <Typography level="body-sm" fontWeight="bold">
+                        Showing provenance for: {huggingfaceId}_
+                        {selectedProvenanceModel}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {currentProvenance ? (
+                    <ModelProvenanceTimeline
+                      provenance={currentProvenance}
+                      modelName={
+                        selectedProvenanceModel === huggingfaceId
+                          ? huggingfaceId
+                          : `${huggingfaceId}_${selectedProvenanceModel}`
+                      }
+                      isAdaptor={selectedProvenanceModel !== huggingfaceId}
+                    />
+                  ) : currentProvenanceError ? (
+                    <Typography>Error loading provenance data</Typography>
+                  ) : (
+                    <Typography>Loading provenance data...</Typography>
+                  )}
                 </Box>
               )}
-
-              {currentProvenance ? (
-                <ModelProvenanceTimeline
-                  provenance={currentProvenance}
-                  modelName={selectedProvenanceModel === huggingfaceId ? huggingfaceId : `${huggingfaceId}_${selectedProvenanceModel}`}
-                  isAdaptor={selectedProvenanceModel !== huggingfaceId}
-                />
-              ) : currentProvenanceError ? (
-                <Typography>Error loading provenance data</Typography>
-              ) : (
-                <Typography>Loading provenance data...</Typography>
-              )}
-            </Box>
-          )}
             </Box>
           </Box>
         </Stack>
