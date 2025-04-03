@@ -29,9 +29,6 @@
   },
   "editor.formatOnSave": true,
   "prettier.enable": true,
-  "[python]": {
-    "editor.defaultFormatter": "charliermarsh.ruff"
-  },
   "[javascript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
