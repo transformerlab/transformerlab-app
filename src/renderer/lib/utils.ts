@@ -211,3 +211,12 @@ export function jobChipColor(status: string): string {
 
   return 'var(--joy-palette-neutral-200)';
 }
+
+export const colorArray = [
+  '#e8c1a0',
+  '#C7DFF7',
+  '#f1e15b',
+  '#e8a838',
+  '#61c0bf',
+  '#97e3d5',
+];

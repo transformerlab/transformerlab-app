@@ -11,17 +11,9 @@ import { useState } from 'react';
 
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import TinyNVIDIALogo from '../Shared/TinyNVIDIALogo';
+import { colorArray } from 'renderer/lib/utils';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
-
-const colorArray = [
-  '#e8c1a0',
-  '#C7DFF7',
-  '#f1e15b',
-  '#e8a838',
-  '#61c0bf',
-  '#97e3d5',
-];
 
 function getTint(type: string) {
   var tint = '';
