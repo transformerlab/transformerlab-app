@@ -77,7 +77,7 @@ export default function Workflows({ experimentInfo }) {
   const workflows = workflowsData;
 
   const selectedWorkflow = workflows?.find(
-    (workflow) => workflow.id === selectedWorkflowId
+    (workflow) => workflow.id === selectedWorkflowId,
   );
 
   async function runWorkflow(workflowId: string) {
@@ -100,6 +100,7 @@ export default function Workflows({ experimentInfo }) {
           setNewWorkflowModalOpen(false);
           mutateWorkflows();
         }}
+        selectedWorkflow={selectedWorkflow}
         experimentId={experimentInfo?.id}
       />
       {selectedWorkflow && (
@@ -147,7 +148,12 @@ export default function Workflows({ experimentInfo }) {
               ))}
             <Divider />
             <ListItem>
-              <ListItemButton onClick={() => setNewWorkflowModalOpen(true)}>
+              <ListItemButton
+                onClick={() => {
+                  setSelectedWorkflowId(null);
+                  setNewWorkflowModalOpen(true);
+                }}
+              >
                 <ListItemDecorator>
                   <PlusCircleIcon />
                 </ListItemDecorator>
@@ -196,7 +202,11 @@ export default function Workflows({ experimentInfo }) {
                     <EllipsisIcon />
                   </MenuButton>
                   <Menu>
-                    <MenuItem onClick={() => alert('not implemented')}>
+                    <MenuItem
+                      onClick={() => {
+                        setNewWorkflowModalOpen(true);
+                      }}
+                    >
                       <ListItemDecorator>
                         <PenIcon />
                       </ListItemDecorator>
@@ -209,13 +219,13 @@ export default function Workflows({ experimentInfo }) {
                           confirm(
                             'Are you sure you want to delete workflow ' +
                               selectedWorkflow?.name +
-                              '?'
+                              '?',
                           )
                         ) {
                           await fetch(
                             chatAPI.Endpoints.Workflows.DeleteWorkflow(
-                              selectedWorkflow?.id
-                            )
+                              selectedWorkflow?.id,
+                            ),
                           );
                           mutateWorkflows();
                           setSelectedWorkflowId(null);
