@@ -3,14 +3,18 @@ import { BuiltInNode, Handle, useReactFlow } from '@xyflow/react';
 import { NodeProps, Position } from '@xyflow/system';
 import { XIcon } from 'lucide-react';
 
+import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
+
 function chipColorByType(jobType: string) {
   switch (jobType) {
     case 'EVAL':
-      return 'var(--joy-palette-success-200)';
+      return mixColorWithBackground(colorArray[0]);
     case 'TRAIN':
-      return 'var(--joy-palette-warning-200)';
+      return mixColorWithBackground(colorArray[1]);
+    case 'GENERATE':
+      return mixColorWithBackground(colorArray[2]);
     default:
-      return 'var(--joy-palette-danger-200)';
+      return mixColorWithBackground(colorArray[3]);
   }
 }
 

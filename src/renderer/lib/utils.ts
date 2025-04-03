@@ -220,3 +220,7 @@ export const colorArray = [
   '#61c0bf',
   '#97e3d5',
 ];
+
+export function mixColorWithBackground(color: string, percent = '50'): string {
+  return `color-mix(in srgb, ${color}, var(--joy-palette-background-surface) ${percent}%)`;
+}

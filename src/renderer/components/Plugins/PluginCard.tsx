@@ -11,7 +11,7 @@ import { useState } from 'react';
 
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import TinyNVIDIALogo from '../Shared/TinyNVIDIALogo';
-import { colorArray } from 'renderer/lib/utils';
+import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -43,11 +43,7 @@ function getTint(type: string) {
 
   // Now mix the Tint color with the background color
   // so that this works in dark and light mode
-  return (
-    'color-mix(in srgb, ' +
-    tint +
-    ', var(--joy-palette-background-surface) 75%)'
-  );
+  return mixColorWithBackground(tint, '75');
 }
 
 function mapArchitectureToIcon(arch) {
