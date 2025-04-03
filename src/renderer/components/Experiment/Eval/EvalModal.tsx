@@ -318,7 +318,7 @@ export default function EvalModal({
         formJson.run_name = formJson.template_name;
       }
       if (!formJson.predefined_tasks) {
-        formJson.predefined_tasks = formJson.tasks;
+        formJson.predefined_tasks = '';
       }
       formJson.script_parameters = JSON.parse(JSON.stringify(formJson));
 
