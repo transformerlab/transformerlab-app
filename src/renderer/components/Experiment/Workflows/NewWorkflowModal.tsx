@@ -68,7 +68,7 @@ export default function NewWorkflowModal({
                 Leave Blank to Create an Empty Workflow
               </FormHelperText>
             </FormControl> */}
-            <Button type="submit">Submit</Button>
+            <Button type="submit">Save</Button>
           </Stack>
         </form>
       </ModalDialog>
