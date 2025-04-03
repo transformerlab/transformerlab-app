@@ -12,13 +12,10 @@ import {
   Stack,
   Textarea,
 } from '@mui/joy';
-import { useState } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 export default function NewWorkflowModal({ open, onClose, experimentId }) {
-  const [state, setState] = useState(null);
-
   return (
     <Modal open={open} onClose={() => onClose()}>
       <ModalDialog>
@@ -30,12 +27,11 @@ export default function NewWorkflowModal({ open, onClose, experimentId }) {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             const workflowName = formData.get('name') as string;
-            //const nodes = formData.get('nodes') as string;
             await fetch(
               chatAPI.Endpoints.Workflows.CreateEmpty(
                 workflowName,
-                experimentId
-              )
+                experimentId,
+              ),
             );
             onClose();
           }}
