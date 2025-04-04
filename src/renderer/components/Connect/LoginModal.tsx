@@ -97,11 +97,9 @@ export default function LoginModal({
   }
 
   React.useEffect(() => {
-    // If we are on the webapp, try to automatically connect to the current server's host
+    // If we are on the webapp, try to automatically connect to localhost for the server
     if (WEB_APP && connection === '') {
-      const currentPath = window.location.href;
-      window.TransformerLab.API_URL = currentPath;
-      console.log('Connecting to: ', window.TransformerLab.API_URL);
+      window.TransformerLab.API_URL = 'http://localhost:8338/';
       setServer(window.TransformerLab.API_URL);
     }
   }, []);
@@ -146,17 +144,17 @@ export default function LoginModal({
         </OneTimePopup>
         <Tabs
           aria-label="Basic tabs"
-          defaultValue={WEB_APP ? 'remote' : 'local'}
+          defaultValue={WEB_APP ? 1 : 0}
           sx={{ overflow: 'auto', height: '100%' }}
           onChange={(_event, newValue) => {}}
         >
           <TabList tabFlex={1}>
-            {!WEB_APP && <Tab value="local">Local Engine</Tab>}
-            <Tab value="remote">Connect to Remote Engine</Tab>
+            {!WEB_APP && <Tab>Local Engine</Tab>}
+            <Tab>Connect to Remote Engine</Tab>
             {/* <Tab value="SSH">Connect via SSH</Tab> */}
           </TabList>
           <TabPanel
-            value="local"
+            value={0}
             sx={{
               p: 1,
               overflowY: 'hidden',
@@ -167,7 +165,7 @@ export default function LoginModal({
             <LocalConnection setServer={setServer} />
           </TabPanel>
           <TabPanel
-            value="remote"
+            value={1}
             sx={{ p: 1, maxWidth: '600px', margin: 'auto', pt: 4 }}
             keepMounted
           >
