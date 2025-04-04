@@ -141,13 +141,16 @@ const Flow = ({
 
   const onReconnect = useCallback((oldEdge, newConnection) => {
     edgeReconnectSuccessful.current = true;
-    console.log();
     setEdges((els) => reconnectEdge(oldEdge, newConnection, els));
   }, []);
 
   const onReconnectEnd = useCallback((_, edge) => {
     if (!edgeReconnectSuccessful.current) {
-      setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+      setEdges((eds) => {
+        const updatedEdges = eds.filter((e) => e.id !== edge.id);
+        alert('edge broken'); // Alert when an edge is deleted
+        return updatedEdges;
+      });
     }
 
     edgeReconnectSuccessful.current = true;
