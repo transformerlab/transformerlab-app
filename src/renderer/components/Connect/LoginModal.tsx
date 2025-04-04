@@ -28,6 +28,10 @@ import OneTimePopup from '../Shared/OneTimePopup';
 
 import MuxPlayer from '@mux/mux-player-react';
 
+if (!window?.TransformerLab) {
+  window.TransformerLab = {};
+}
+
 export default function LoginModal({
   setServer,
   connection,
@@ -91,6 +95,14 @@ export default function LoginModal({
       setFailed(true);
     }
   }
+
+  React.useEffect(() => {
+    // If we are on the webapp, try to automatically connect to localhost for the server
+    if (WEB_APP && connection === '') {
+      window.TransformerLab.API_URL = 'http://localhost:8338/';
+      setServer(window.TransformerLab.API_URL);
+    }
+  }, []);
 
   return (
     <Modal open={connection == ''}>
@@ -173,8 +185,9 @@ export default function LoginModal({
                 fontWeight={400}
               >
                 <a
-                  href="https://transformerlab.ai/docs/install/advanced-install#manual-install-instructions"
+                  href="https://transformerlab.ai/docs/install/install-on-cloud"
                   target="_blank"
+                  rel="noreferrer"
                 >
                   Follow these instructions
                 </a>{' '}
@@ -198,7 +211,7 @@ export default function LoginModal({
                 // eslint-disable-next-line prefer-template
                 const fullServer = 'http://' + server + ':' + port + '/';
 
-                window.TransformerLab = {};
+                // if window.TransformerLab doesn't exist, create it:
                 window.TransformerLab.API_URL = fullServer;
 
                 checkServer();
