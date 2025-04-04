@@ -45,7 +45,7 @@ export default function RecipesModal({
             spacing={3}
             sx={{
               flexGrow: 1,
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               alignContent: 'flex-start',
               overflow: 'auto',
               width: '100%',

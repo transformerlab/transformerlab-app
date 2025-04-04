@@ -23,7 +23,7 @@ export default function RecipeCard({
       variant="soft"
       sx={{
         // width: '300px',
-        height: '280px',
+        height: '220px',
         border: '1px solid',
         borderColor: 'neutral.outlinedBorder',
       }}

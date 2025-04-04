@@ -4,6 +4,12 @@ const recipeDetails = [
     title: 'Train a Model From Scratch',
     description:
       'Build a new machine learning model from the ground up using Nanotron. Ideal for custom use cases and datasets.',
+    requiredAssets: {
+      models: ['llama2', 'llama3'],
+      datasets: ['text', 'image'],
+      plugins: ['lora', 'peft'],
+    },
+    supportedHardware: ['cpu', 'cuda', 'mps'],
   },
   {
     id: 2,
@@ -28,6 +34,12 @@ const recipeDetails = [
     title: 'Quantize a Model',
     description:
       'Optimize your model for faster inference and reduced size using Nanotron’s quantization tools.',
+  },
+  {
+    id: 6,
+    title: 'RAG Train and Evaluate',
+    description:
+      'Train and evaluate a Retrieval-Augmented Generation (RAG) model. Combine the power of retrieval and generation for enhanced performance.',
   },
 ];
 
