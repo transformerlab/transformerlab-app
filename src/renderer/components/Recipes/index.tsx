@@ -33,10 +33,10 @@ export default function RecipesModal({
           }}
         >
           <ModalClose onClick={() => setModalOpen(false)} />
-          <Typography level="h2">
-            👋 Welcome to Transformer Lab! What do you want to do?
+          <Typography level="h2" mt={2}>
+            What do you want to do?
           </Typography>
-          <Typography level="body-lg" mb={2}>
+          <Typography level="body-lg" mb={4}>
             Start a new experiment using one of the recipes below, or start from
             scratch.
           </Typography>

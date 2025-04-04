@@ -1,7 +1,7 @@
 const recipeDetails = [
   {
     id: 1,
-    title: 'Train a Model From Scratch',
+    title: 'Train a Text Model From Scratch',
     description:
       'Build a new machine learning model from the ground up using Nanotron. Ideal for custom use cases and datasets.',
     requiredAssets: {
