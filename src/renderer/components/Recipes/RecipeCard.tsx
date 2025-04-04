@@ -20,10 +20,12 @@ export default function RecipeCard({
 }) {
   return (
     <Card
-      variant="outlined"
+      variant="soft"
       sx={{
-        width: '300px',
+        // width: '300px',
         height: '280px',
+        border: '1px solid',
+        borderColor: 'neutral.outlinedBorder',
       }}
     >
       <Box

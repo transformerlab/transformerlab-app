@@ -61,9 +61,8 @@ export default function RecipesModal({
             top: '5vh', // Sit 20% from the top of the screen
             margin: 'auto',
             transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
-            width: '80vw',
-            // maxWidth: '700px',
             height: '90vh',
+            width: '100vw',
           }}
         >
           <ModalClose onClick={() => setModalOpen(false)} />
@@ -72,15 +71,16 @@ export default function RecipesModal({
           </Typography>
           <Grid
             container
-            spacing={2}
+            spacing={3}
             sx={{
               flexGrow: 1,
               justifyContent: 'center',
               alignContent: 'flex-start',
               overflow: 'auto',
+              width: '100%',
             }}
           >
-            <Grid key={0}>
+            <Grid key={0} xs={12} sm={6} md={4} lg={3}>
               <RecipeCard
                 recipeDetails={{
                   title: 'Create a Blank Experiment',
@@ -93,7 +93,7 @@ export default function RecipesModal({
               />
             </Grid>
             {recipeDetails.map((recipe) => (
-              <Grid key={recipe.id}>
+              <Grid key={recipe.id} xs={12} sm={6} md={4} lg={3}>
                 <RecipeCard recipeDetails={recipe} />
               </Grid>
             ))}
