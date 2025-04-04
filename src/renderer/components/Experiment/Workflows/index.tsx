@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import {
   Box,
   Button,
@@ -263,7 +264,7 @@ export default function Workflows({ experimentInfo }) {
               )
             ) : (
               <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
-                Select Workflow
+                &nbsp;
               </Box>
             )}
           </Box>
