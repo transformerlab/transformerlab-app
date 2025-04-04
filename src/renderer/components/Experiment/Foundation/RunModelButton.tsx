@@ -32,7 +32,7 @@ export default function RunModelButton({
   experimentInfo,
   killWorker,
   models,
-  mutate = () => {},
+  mutate = () => { },
 }) {
   const [jobId, setJobId] = useState(null);
   const [showRunSettings, setShowRunSettings] = useState(false);
@@ -52,14 +52,13 @@ export default function RunModelButton({
     );
   }
 
-  // useEffect(() => {
-  //   if (experimentInfo?.config?.inferenceParams) {
-  //     setInferenceSettings(JSON.parse(experimentInfo?.config?.inferenceParams));
-  //   }
-  // }, [experimentInfo]);
-
   // Set a default inference Engine if there is none
   useEffect(() => {
+    // Update experiment inference parameters so the Run button shows correctly
+    if (experimentInfo?.config?.inferenceParams) {
+      setInferenceSettings(JSON.parse(experimentInfo?.config?.inferenceParams));
+    }
+
     // console.log('Searching for primary inference engine');
     // console.log(inferenceSettings);
     (async () => {
@@ -69,7 +68,7 @@ export default function RunModelButton({
             experimentInfo?.id,
             'loader', // type
             'model_architectures:' +
-              experimentInfo?.config?.foundation_model_architecture //filter
+            experimentInfo?.config?.foundation_model_architecture //filter
           )
         );
         const inferenceEnginesJSON = await inferenceEngines.json();
