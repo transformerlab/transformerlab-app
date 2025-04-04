@@ -29,7 +29,7 @@ export default function TensorboardModal({
         setIframeReady(false);
 
         await fetch(
-          chatAPI.API_URL() + 'train/tensorboard/start?job_id=' + job_id
+          chatAPI.API_URL() + 'train/tensorboard/start?job_id=' + job_id,
         );
 
         for (let i = 0; i < 8; i++) {
@@ -38,8 +38,21 @@ export default function TensorboardModal({
           await new Promise((r) => setTimeout(r, 3000));
 
           try {
-            const tensorboardIsReady = await fetch(`${currentServerURL}:6006/`);
-            if (tensorboardIsReady.status === 200) {
+            const mode =
+              window?.platform?.appmode === 'cloud' ? 'no-cors' : 'cors';
+            // eslint-disable-next-line no-await-in-loop
+            const tensorboardIsReady = await fetch(
+              `${currentServerURL}:6006/`,
+              {
+                mode,
+              },
+            );
+            if (
+              tensorboardIsReady.status === 200 ||
+              tensorboardIsReady.status === 0
+            ) {
+              // See https://github.com/whatwg/fetch/issues/1140 for why we check for 0
+              // Basically no-cors will will not allow us to see the status code
               setIframeReady(true);
               break;
             } else {
