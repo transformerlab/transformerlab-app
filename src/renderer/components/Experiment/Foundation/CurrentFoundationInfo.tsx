@@ -418,7 +418,7 @@ export default function CurrentFoundationInfo({
                   ) : currentProvenanceError ? (
                     <Typography>Error loading provenance data</Typography>
                   ) : (
-                    <Typography>Loading provenance data...</Typography>
+                    <Typography>No Provenance Data Found</Typography>
                   )}
                 </Box>
               )}
