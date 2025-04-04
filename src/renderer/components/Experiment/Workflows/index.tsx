@@ -146,9 +146,9 @@ export default function Workflows({ experimentInfo }) {
                   </ListItemButton>
                 </ListItem>
               ))}
-            <Divider />
             <ListItem>
               <ListItemButton
+                sx={{ mt: 1 }}
                 onClick={() => {
                   setSelectedWorkflowId(null);
                   setNewWorkflowModalOpen(true);
@@ -263,7 +263,7 @@ export default function Workflows({ experimentInfo }) {
               )
             ) : (
               <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
-                Select Workflow
+                &nbsp;
               </Box>
             )}
           </Box>
