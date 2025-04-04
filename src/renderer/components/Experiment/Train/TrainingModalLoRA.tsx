@@ -147,6 +147,7 @@ export default function TrainingModalLoRA({
       outputs: outputs,
       type: 'TRAIN',
     };
+    console.log(configBody);
     const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
       method: 'PUT',
       headers: {
@@ -323,6 +324,7 @@ export default function TrainingModalLoRA({
                   key in formJson &&
                   templateDataInputs[key] != formJson[key]
                 ) {
+                  console.log(key, formJson[key]);
                   templateDataInputs[key] = formJson[key];
                 }
               }
@@ -332,6 +334,7 @@ export default function TrainingModalLoRA({
                   key in formJson &&
                   templateDataOutputs[key] != formJson[key]
                 ) {
+                  console.log(key, formJson[key]);
                   templateDataOutputs[key] = formJson[key];
                 }
               }
