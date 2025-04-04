@@ -35,7 +35,7 @@ export default function RecipeCard({
           alignItems: 'center',
         }}
       >
-        <Avatar src="" size="lg" />
+        {/* <Avatar src="" size="lg" /> */}
       </Box>
       <CardContent>
         <Typography
