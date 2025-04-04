@@ -41,14 +41,21 @@ function formatTemplateConfig(script_parameters): ReactElement {
         const tasksArray = JSON.parse(script_parameters.tasks);
         if (Array.isArray(tasksArray)) {
           if (predefined_tasks && predefined_tasks !== '') {
+            // Check if tasks array is empty
+            if (tasksArray.length === 0) {
+              // If tasks array is empty, return only the predefined tasks
+              return predefined_tasks;
+            }
+            // If tasks array is not empty, join the tasks with the predefined tasks
+            // and return the result
             return (
-              tasksArray.map((task) => task.name).join(', ') + ',' + predefined_tasks
+              tasksArray.map((task) => task.name).join(', ') +
+              ',' +
+              predefined_tasks
             );
           }
           // If predefined_tasks is empty, just return the tasks
-          return (
-            tasksArray.map((task) => task.name).join(', ')
-          );
+          return tasksArray.map((task) => task.name).join(', ');
         }
       } catch (error) {
         // Invalid JSON; fall back to the original value

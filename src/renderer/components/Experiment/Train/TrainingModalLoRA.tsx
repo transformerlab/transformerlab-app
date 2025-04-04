@@ -320,13 +320,21 @@ export default function TrainingModalLoRA({
               const templateDataInputs = JSON.parse(templateData.inputs);
               const templateDataOutputs = JSON.parse(templateData.outputs);
               for (const key in templateDataInputs) {
-                if (key in formJson && templateDataInputs[key] != formJson[key]) {
+                if (
+                  key in formJson &&
+                  templateDataInputs[key] != formJson[key]
+                ) {
+                  console.log(key, formJson[key]);
                   templateDataInputs[key] = formJson[key];
                 }
               }
               // For all keys in templateData.outputs that are in formJson, set the value from formJson
               for (const key in templateDataOutputs) {
-                if (key in formJson && templateDataOutputs[key] != formJson[key]) {
+                if (
+                  key in formJson &&
+                  templateDataOutputs[key] != formJson[key]
+                ) {
+                  console.log(key, formJson[key]);
                   templateDataOutputs[key] = formJson[key];
                 }
               }
