@@ -37,6 +37,7 @@ import {
 import Batched from './Batched/Batched';
 import VisualizeLogProbs from './VisualizeLogProbs';
 import VisualizeGeneration from './VisualizeGeneration';
+import ModelLayerVisualization from './ModelLayerVisualization';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -63,7 +64,7 @@ export default function Chat({
 
   const { data: defaultPromptConfigForModel } = useSWR(
     chatAPI.TEMPLATE_FOR_MODEL_URL(experimentInfo?.config?.foundation),
-    fetcher
+    fetcher,
   );
 
   const parsedPromptData = experimentInfo?.config?.prompt_template;
@@ -194,8 +195,8 @@ export default function Chat({
         chatAPI.Endpoints.Experiment.UpdateConfig(
           experimentInfo?.id,
           'generationParams',
-          JSON.stringify(generationParameters)
-        )
+          JSON.stringify(generationParameters),
+        ),
       ).then(() => {
         experimentInfoMutate();
       });
@@ -307,7 +308,7 @@ export default function Chat({
 
     try {
       generationParameters.stop_str = JSON.parse(
-        generationParameters?.stop_str
+        generationParameters?.stop_str,
       );
     } catch (e) {
       console.log('Error parsing stop strings as JSON');
@@ -324,7 +325,7 @@ export default function Chat({
       generationParameters?.frequencyPenalty,
       systemMessage,
       generationParameters?.stop_str,
-      image
+      image,
     );
 
     clearTimeout(timeoutId);
@@ -471,7 +472,7 @@ export default function Chat({
 
     try {
       generationParameters.stop_str = JSON.parse(
-        generationParameters?.stop_str
+        generationParameters?.stop_str,
       );
     } catch (e) {
       console.log('Error parsing stop strings as JSON');
@@ -488,7 +489,7 @@ export default function Chat({
       generationParameters?.frequencyPenalty,
       systemMessage,
       generationParameters?.stop_str,
-      image
+      image,
     );
 
     // The model may make repeated tool calls but don't let it get stuck in a loop
@@ -537,7 +538,7 @@ export default function Chat({
                 tool_responses.push(func_response.message);
               } else {
                 tool_responses.push(
-                  'There was an unknown error calling the tool.'
+                  'There was an unknown error calling the tool.',
                 );
               }
             }
@@ -567,7 +568,7 @@ export default function Chat({
             generationParameters?.frequencyPenalty,
             systemMessage,
             generationParameters?.stop_str,
-            image
+            image,
           );
         }
       }
@@ -647,7 +648,7 @@ export default function Chat({
     mutate: conversationsMutate,
   } = useSWR(
     chatAPI.Endpoints.Experiment.GetConversations(experimentInfo?.id),
-    fetcher
+    fetcher,
   );
 
   const sendCompletionToLLM = async (element, targetElement) => {
@@ -667,7 +668,7 @@ export default function Chat({
 
     try {
       generationParameters.stop_str = JSON.parse(
-        generationParameters?.stop_str
+        generationParameters?.stop_str,
       );
     } catch (e) {
       console.log('Error parsing stop strings as JSON');
@@ -682,7 +683,7 @@ export default function Chat({
       generationParameters?.topP,
       false,
       generationParameters?.stop_str,
-      targetElement
+      targetElement,
     );
     setIsThinking(false);
 
@@ -744,7 +745,7 @@ export default function Chat({
             value={mode}
             onChange={(
               event: React.SyntheticEvent | null,
-              newValue: string | null
+              newValue: string | null,
             ) => setMode(newValue)}
             variant="soft"
             size="md"
@@ -766,6 +767,7 @@ export default function Chat({
             <Option value="chat">Chat</Option>
             <Option value="completion">Completion</Option>
             <Option value="visualize_model">Model Activations</Option>
+            <Option value="model_layers">Model Architecture</Option>
             <Option value="rag">Query Docs (RAG)</Option>
             <Option value="tools">Tool Calling</Option>
             <Option value="template">Templated Prompt</Option>
@@ -838,6 +840,23 @@ export default function Chat({
         )}
         {mode === 'visualize_model' && (
           <VisualizeGeneration
+            tokenCount={tokenCount}
+            stopStreaming={stopStreaming}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setChats={setChats}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+            experimentInfo={experimentInfo}
+            experimentInfoMutate={experimentInfoMutate}
+          />
+        )}
+        {mode === 'model_layers' && (
+          <ModelLayerVisualization
             tokenCount={tokenCount}
             stopStreaming={stopStreaming}
             generationParameters={generationParameters}
