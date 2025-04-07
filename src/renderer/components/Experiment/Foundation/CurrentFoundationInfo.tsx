@@ -29,7 +29,6 @@ import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
-import ModelLayerVisualization from '../Interact/ModelLayerVisualization';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -102,7 +101,6 @@ export default function CurrentFoundationInfo({
   const [embeddingModel, setEmbeddingModel] = useState(
     experimentInfo?.config?.embedding_model,
   );
-  const [showVisualization, setShowVisualization] = useState(false);
   const navigate = useNavigate();
 
   // Fetch base model provenance
@@ -208,7 +206,26 @@ export default function CurrentFoundationInfo({
     });
   };
 
-  // console.log('ADAPTOR:', adaptor);
+  const handleModelVisualizationClick = async () => {
+    try {
+      // Check if the local model server is running by checking worker health
+      const response = await fetch(
+        `${chatAPI.INFERENCE_SERVER_URL()}server/worker_healthz`,
+      );
+      const data = await response.json();
+
+      if (response.status === 200 && Array.isArray(data) && data.length > 0) {
+        // Model server is running, navigate to visualization page
+        navigate('/experiment/model_architecture_visualization');
+      } else {
+        // Server responded but workers aren't ready
+        alert('Please Run the model before visualizing its architecture');
+      }
+    } catch (error) {
+      console.error('Failed to check model server status:', error);
+      alert('Please Run the model before visualizing its architecture');
+    }
+  };
 
   return (
     <Sheet
@@ -226,62 +243,16 @@ export default function CurrentFoundationInfo({
         setFoundation={setFoundation}
       />
 
-      {/* Add model visualization button */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, mb: 2 }}>
         <Button
           variant="outlined"
           color="primary"
           startDecorator={<LayersIcon size={18} />}
-          onClick={() => setShowVisualization(true)}
+          onClick={handleModelVisualizationClick}
         >
           Visualize Model Architecture
         </Button>
       </Box>
-
-      {/* Visualization Modal */}
-      <Modal
-        open={showVisualization}
-        onClose={() => setShowVisualization(false)}
-        sx={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <Sheet
-          sx={{
-            width: '90%',
-            height: '90%',
-            borderRadius: 'md',
-            overflow: 'hidden',
-            p: 0,
-          }}
-        >
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              p: 2,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Typography level="title-md">
-              Model Architecture: {experimentInfo?.config?.foundation}
-            </Typography>
-            <IconButton onClick={() => setShowVisualization(false)}>
-              <XCircleIcon />
-            </IconButton>
-          </Box>
-          <Box sx={{ height: 'calc(100% - 60px)' }}>
-            <ModelLayerVisualization
-              currentModel={experimentInfo?.config?.foundation}
-              currentAdaptor={adaptor}
-            />
-          </Box>
-        </Sheet>
-      </Modal>
 
       <Sheet sx={{ overflow: 'auto' }}>
         <Box sx={{ mt: 3 }}>
