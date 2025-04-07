@@ -15,10 +15,48 @@ import {
   SendIcon,
   StopCircle,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import RenderLogProbs from './RenderLogProbs';
+
+function SubmitGenerateButton({ isThinking, stopStreaming, handleSend }) {
+  return (
+    <Stack
+      flexDirection="row"
+      sx={{ display: 'flex', justifyContent: 'flex-end' }}
+    >
+      {isThinking && (
+        <IconButton color="danger">
+          <StopCircle onClick={stopStreaming} />
+        </IconButton>
+      )}
+      <Button
+        sx={{}}
+        color="neutral"
+        endDecorator={
+          isThinking ? (
+            <CircularProgress
+              thickness={2}
+              size="sm"
+              color="neutral"
+              sx={{
+                '--CircularProgress-size': '13px',
+              }}
+            />
+          ) : (
+            <SendIcon size="20px" />
+          )
+        }
+        disabled={isThinking}
+        id="chat-submit-button"
+        onClick={handleSend}
+      >
+        {isThinking ? <>Generating</> : 'Visualize'}
+      </Button>
+    </Stack>
+  );
+}
 
 export default function CompletionsPage({
   tokenCount,
@@ -42,59 +80,62 @@ export default function CompletionsPage({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const outputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  function updateFunction(t) {
+  const updateFunction = useCallback((t) => {
     let tx = '';
     for (let i = 0; i < t.length; i++) {
       tx += t[i].text;
     }
     setText(tx);
     setLogProbs(t);
-  }
+  }, []);
 
-  const sendCompletionToLLM = async (element, targetElement) => {
-    const text = element.value;
+  const sendCompletionToLLM = useCallback(
+    async (element, targetElement) => {
+      const text = element.value;
 
-    setIsThinking(true);
+      setIsThinking(true);
 
-    var inferenceParams = '';
+      var inferenceParams = '';
 
-    if (experimentInfo?.config?.inferenceParams) {
-      inferenceParams = experimentInfo?.config?.inferenceParams;
-      inferenceParams = JSON.parse(inferenceParams);
-    }
+      if (experimentInfo?.config?.inferenceParams) {
+        inferenceParams = experimentInfo?.config?.inferenceParams;
+        inferenceParams = JSON.parse(inferenceParams);
+      }
 
-    const generationParamsJSON = experimentInfo?.config?.generationParams;
-    const generationParameters = JSON.parse(generationParamsJSON);
+      const generationParamsJSON = experimentInfo?.config?.generationParams;
+      const generationParameters = JSON.parse(generationParamsJSON);
 
-    try {
-      generationParameters.stop_str = JSON.parse(
-        generationParameters?.stop_str
+      try {
+        generationParameters.stop_str = JSON.parse(
+          generationParameters?.stop_str,
+        );
+      } catch (e) {
+        console.log('Error parsing stop strings as JSON');
+      }
+
+      const currentModel = experimentInfo?.config?.foundation;
+      const adaptor = experimentInfo?.config?.adaptor;
+
+      const result = await chatAPI.sendCompletionReactWay(
+        currentModel,
+        adaptor,
+        text,
+        generationParameters?.temperature,
+        generationParameters?.maxTokens,
+        generationParameters?.topP,
+        false,
+        generationParameters?.stop_str,
+        updateFunction,
+        true,
       );
-    } catch (e) {
-      console.log('Error parsing stop strings as JSON');
-    }
+      setIsThinking(false);
 
-    const currentModel = experimentInfo?.config?.foundation;
-    const adaptor = experimentInfo?.config?.adaptor;
+      return result;
+    },
+    [experimentInfo, updateFunction],
+  );
 
-    const result = await chatAPI.sendCompletionReactWay(
-      currentModel,
-      adaptor,
-      text,
-      generationParameters?.temperature,
-      generationParameters?.maxTokens,
-      generationParameters?.topP,
-      false,
-      generationParameters?.stop_str,
-      updateFunction,
-      true
-    );
-    setIsThinking(false);
-
-    return result;
-  };
-
-  async function handleSend() {
+  const handleSend = useCallback(async () => {
     setTimeTaken(-1);
     const startTime = performance.now();
 
@@ -103,7 +144,7 @@ export default function CompletionsPage({
 
     const result = await sendCompletionToLLM(
       inputRef.current,
-      outputRef.current
+      outputRef.current,
     );
 
     if (result) {
@@ -112,47 +153,9 @@ export default function CompletionsPage({
     }
     const endTime = performance.now();
     setTimeTaken(endTime - startTime);
-  }
+  }, [sendCompletionToLLM, setTimeTaken, setText, setLogProbs]);
 
-  function SubmitGenerateButton() {
-    return (
-      <>
-        <Stack
-          flexDirection="row"
-          sx={{ display: 'flex', justifyContent: 'flex-end' }}
-        >
-          {isThinking && (
-            <IconButton color="danger">
-              <StopCircle onClick={stopStreaming} />
-            </IconButton>
-          )}
-          <Button
-            sx={{}}
-            color="neutral"
-            endDecorator={
-              isThinking ? (
-                <CircularProgress
-                  thickness={2}
-                  size="sm"
-                  color="neutral"
-                  sx={{
-                    '--CircularProgress-size': '13px',
-                  }}
-                />
-              ) : (
-                <SendIcon size="20px" />
-              )
-            }
-            disabled={isThinking}
-            id="chat-submit-button"
-            onClick={handleSend}
-          >
-            {isThinking ? <>Generating</> : 'Generate'}
-          </Button>
-        </Stack>
-      </>
-    );
-  }
+  // Moved SubmitGenerateButton outside of CompletionsPage
 
   return (
     <Sheet
@@ -193,14 +196,6 @@ export default function CompletionsPage({
           overflowWrap: 'break-word',
         }}
       >
-        {/* <Alert
-          color="neutral"
-          variant="outlined"
-          startDecorator={<ConstructionIcon />}
-        >
-          This feature is currently in developement. It only works with on Apple
-          Silicon using the MLX inference engine.
-        </Alert> */}
         <Input
           name="starting-text"
           placeholder="Enter text to complete here"
@@ -209,7 +204,7 @@ export default function CompletionsPage({
               ref: inputRef,
             },
           }}
-        ></Input>
+        />
         <Sheet
           variant="outlined"
           sx={{
@@ -250,8 +245,12 @@ export default function CompletionsPage({
               </Typography>
             )}
             {timeTaken == -1 && <CircularProgress size="sm" />}
-          </div>
-          <SubmitGenerateButton />
+          </div>{' '}
+          <SubmitGenerateButton
+            isThinking={isThinking}
+            stopStreaming={stopStreaming}
+            handleSend={handleSend}
+          />
         </Stack>
       </div>
     </Sheet>
