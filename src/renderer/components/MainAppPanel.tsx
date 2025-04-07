@@ -355,6 +355,18 @@ export default function MainAppPanel({
           }
         />
         <Route
+          path="/experiment/model_architecture_visualization"
+          element={
+            <Interact
+              experimentInfo={experimentInfo}
+              experimentInfoMutate={experimentInfoMutate}
+              setRagEngine={setRagEngine}
+              mode={'model_layers'}
+              setMode={setSelectedInteractSubpage}
+            />
+          }
+        />
+        <Route
           path="/experiment/embeddings"
           element={<Embeddings experimentInfo={experimentInfo} />}
         />
