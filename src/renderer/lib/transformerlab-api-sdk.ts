@@ -597,7 +597,7 @@ export async function sendCompletionReactWay(
 }
 
 // This sends a request to the completion endpoint
-// but sends an array of prompts instead of a single prompt
+// but sends an array of prompts instead of a single prompt. Temporarily: Sends multiple completion requests separately.
 export async function sendBatchedCompletion(
   currentModel: string,
   adaptor: string,
@@ -616,45 +616,90 @@ export async function sendBatchedCompletion(
     model = currentModel.split('/').slice(-1)[0];
   }
 
-  // if (adaptor && adaptor !== '') {
-  //   model = adaptor;
-  // }
+  // Helper function to sleep between requests
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const data = {
+  // Array to store all individual results
+  const allResults = [];
+
+  // Process each prompt one at a time
+  for (const prompt of text) {
+    const data = {
+      model: model,
+      adaptor: adaptor,
+      stream: false,
+      prompt: prompt, // Send single prompt instead of array
+      temperature,
+      max_tokens: maxTokens,
+      top_p: topP,
+      n: repeatTimes,
+    };
+
+    if (stopString) {
+      data.stop = stopString;
+    }
+
+    let response;
+    try {
+      response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      allResults.push(result);
+
+      // Sleep for 0.01 seconds (10ms) between requests
+      await sleep(10);
+    } catch (error) {
+      console.log('There was an error processing prompt:', prompt, error);
+      allResults.push({ error: 'Request failed', prompt });
+    }
+  }
+
+  // Create consolidated response with choices from all results
+  const consolidatedResponse = {
+    choices: [],
+    created: Math.floor(Date.now() / 1000),
+    id: `cmpl-${Math.random().toString(36).substring(2, 10)}`,
     model: model,
-    adaptor: adaptor,
-    stream: false,
-    prompt: text,
-    temperature,
-    max_tokens: maxTokens,
-    top_p: topP,
-    n: repeatTimes,
+    object: 'text_completion',
+    usage: {
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+    },
   };
 
-  if (stopString) {
-    data.stop = stopString;
-  }
+  // Extract choices from individual results
+  allResults.forEach((result, resultIndex) => {
+    if (result.choices) {
+      result.choices.forEach((choice, choiceIndex) => {
+        consolidatedResponse.choices.push({
+          index: consolidatedResponse.choices.length,
+          text: choice.text || '',
+          logprobs: choice.logprobs || null,
+          finish_reason: choice.finish_reason || 'stop',
+        });
+      });
 
-  let result;
-  var id = Math.random() * 1000;
+      // Accumulate token usage if available
+      if (result.usage) {
+        consolidatedResponse.usage.prompt_tokens +=
+          result.usage.prompt_tokens || 0;
+        consolidatedResponse.usage.completion_tokens +=
+          result.usage.completion_tokens || 0;
+        consolidatedResponse.usage.total_tokens +=
+          result.usage.total_tokens || 0;
+      }
+    }
+  });
 
-  let response;
-  try {
-    response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-  } catch (error) {
-    console.log('There was an error', error);
-    return null;
-  }
-
-  result = await response.json();
-  return result;
+  return consolidatedResponse;
 }
 
 // If we want to use the chat endpoint of the inference engine,
