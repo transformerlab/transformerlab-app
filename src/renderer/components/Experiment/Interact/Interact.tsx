@@ -40,17 +40,6 @@ import VisualizeGeneration from './VisualizeGeneration';
 import ModelLayerVisualization from './ModelLayerVisualization';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
-// const supports = [
-//   'chat',
-//   'completion',
-//   'rag',
-//   'tools',
-//   'template',
-//   'embeddings',
-//   'tokenize',
-//   'logprobs',
-//   'batched',
-// ];
 
 export default function Chat({
   experimentInfo,
@@ -58,7 +47,6 @@ export default function Chat({
   setRagEngine,
   mode,
   setMode,
-  supports,
 }) {
   const { models } = chatAPI.useModelStatus();
   const [conversationId, setConversationId] = React.useState(null);
@@ -95,10 +83,7 @@ export default function Chat({
   // For now this is helpful a rough indicator of the number of tokens used.
   // But we should improve this later
   if (mode === 'chat' || mode === 'tools') {
-    // textToDebounce += experimentInfo?.config?.prompt_template?.system_message;
-    const systemMessage =
-      document.getElementsByName('system-message')[0]?.value;
-    textToDebounce += systemMessage || '';
+    textToDebounce += experimentInfo?.config?.prompt_template?.system_message;
     textToDebounce += '\n';
     chats.forEach((c) => {
       textToDebounce += c.t;
@@ -125,7 +110,7 @@ export default function Chat({
       }
     }
     scrollChatToBottom();
-  }, [debouncedText, chats, mode]);
+  }, []);
 
   // If the model changes, check the location of the inference service
   // And reset the global pointer to the inference server
@@ -707,7 +692,7 @@ export default function Chat({
   };
 
   async function countTokens() {
-    let count = await chatAPI.countTokens(currentModel, [debouncedText]);
+    var count = await chatAPI.countTokens(currentModel, [debouncedText]);
     setTokenCount(count);
   }
 
@@ -722,10 +707,10 @@ export default function Chat({
       };
     });
 
-    // Only add debouncedText if it exists, otherwise use empty string
-    texts.push({ role: 'user', content: debouncedText || '' });
+    texts.push({ role: 'user', content: debouncedText });
 
-    let count = await chatAPI.countChatTokens(currentModel, texts);
+    var count = await chatAPI.countChatTokens(currentModel, texts);
+
     setTokenCount(count);
   }
 
@@ -779,51 +764,17 @@ export default function Chat({
               }
             }
           >
-            <Option value="chat" disabled={!supports.includes('chat')}>
-              Chat
-            </Option>
-            <Option
-              value="completion"
-              disabled={!supports.includes('completion')}
-            >
-              Completion
-            </Option>
-            <Option
-              value="visualize_model"
-              disabled={!supports.includes('visualize_model')}
-            >
-              Model Activations
-            </Option>
-            <Option
-              value="model_layers"
-              disabled={!supports.includes('model_layers')}
-            >
-              Model Architecture
-            </Option>
-            <Option value="rag" disabled={!supports.includes('rag')}>
-              Query Docs (RAG)
-            </Option>
-            <Option value="tools" disabled={!supports.includes('tools')}>
-              Tool Calling
-            </Option>
-            <Option value="template" disabled={!supports.includes('template')}>
-              Templated Prompt
-            </Option>
-            <Option
-              value="embeddings"
-              disabled={!supports.includes('embeddings')}
-            >
-              Embeddings
-            </Option>
-            <Option value="tokenize" disabled={!supports.includes('tokenize')}>
-              Tokenize
-            </Option>
-            <Option value="logprobs" disabled={!supports.includes('logprobs')}>
-              Visualize Logprobs
-            </Option>
-            <Option value="batched" disabled={!supports.includes('batched')}>
-              Batched Query
-            </Option>
+            <Option value="chat">Chat</Option>
+            <Option value="completion">Completion</Option>
+            <Option value="visualize_model">Model Activations</Option>
+            <Option value="model_layers">Model Architecture</Option>
+            <Option value="rag">Query Docs (RAG)</Option>
+            <Option value="tools">Tool Calling</Option>
+            <Option value="template">Templated Prompt</Option>
+            <Option value="embeddings">Embeddings</Option>
+            <Option value="tokenize">Tokenize</Option>
+            <Option value="logprobs">Visualize Logprobs</Option>
+            <Option value="batched">Batched Query</Option>
           </Select>
         </FormControl>
         <Typography level="title-md">
