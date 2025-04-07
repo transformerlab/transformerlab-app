@@ -202,6 +202,12 @@ export default function CompletionsPage({
           slotProps={{
             input: {
               ref: inputRef,
+              onKeyDown: (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              },
             },
           }}
         />
