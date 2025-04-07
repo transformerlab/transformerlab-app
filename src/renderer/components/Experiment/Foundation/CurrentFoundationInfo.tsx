@@ -12,7 +12,6 @@ import {
   Table,
   Typography,
   Chip,
-  Modal,
 } from '@mui/joy';
 import Tooltip from '@mui/joy/Tooltip';
 import {
