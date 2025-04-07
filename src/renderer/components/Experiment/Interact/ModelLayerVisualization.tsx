@@ -40,6 +40,8 @@ export default function ModelLayerVisualization({
   conversationId,
   experimentInfo,
   experimentInfoMutate,
+  currentModel,
+  currentAdaptor,
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -59,6 +61,8 @@ export default function ModelLayerVisualization({
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const layerMeshesRef = useRef([]);
+
+  console.log('ADAPTOR', currentAdaptor);
 
   // Add this function to your component
   const updateHoveredLayer = () => {
@@ -94,7 +98,12 @@ export default function ModelLayerVisualization({
   };
 
   // Get current model
-  const currentModel = experimentInfo?.config?.foundation;
+  if (!currentModel) {
+    currentModel = experimentInfo?.config?.foundation;
+  }
+
+  // const currentModel = experimentInfo?.config?.foundation;
+  // console.log('FOUNDATION', experimentInfo?.config);
 
   // Fetch model layer data
   const fetchModelArchitecture = async () => {
@@ -103,1387 +112,36 @@ export default function ModelLayerVisualization({
     setIsLoading(true);
     setError(null);
 
+    console.log('Fetching model architecture for:', currentModel);
+
     try {
-      // const url = `${chatAPI.API_URL()}v1/model_architecture`;
+      const url = `${chatAPI.INFERENCE_SERVER_URL()}v1/model_architecture`;
+      console.log(
+        'REQUEST BODY',
+        JSON.stringify({
+          model: currentModel,
+          adaptor: currentAdaptor || '',
+        }),
+      );
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: currentModel,
+          adaptor: currentAdaptor || '',
+        }),
+      });
 
-      // const response = await fetch(url, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     model: currentModel,
-      //   }),
-      // });
+      if (!response.ok) {
+        throw new Error(
+          `Server responded with ${response.status}: ${response.statusText}`,
+        );
+      }
 
-      // if (!response.ok) {
-      //   throw new Error(
-      //     `Server responded with ${response.status}: ${response.statusText}`,
-      //   );
-      // }
-
-      // const data = await response.json();
-      const data = {
-        layers: [
-          {
-            name: 'model.embed_tokens.weight',
-            size: 2.0,
-            param_count: 28311552,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.self_attn.q_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.self_attn.k_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.v_proj.weight',
-            size: 1.2300270212748519,
-            param_count: 110592,
-          },
-          {
-            name: 'model.layers.self_attn.o_proj.weight',
-            size: 1.382574308505843,
-            param_count: 331776,
-          },
-          {
-            name: 'model.layers.mlp.gate_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.up_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.mlp.down_proj.weight',
-            size: 1.5187668882967826,
-            param_count: 884736,
-          },
-          {
-            name: 'model.layers.input_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          {
-            name: 'model.layers.post_attention_layernorm.weight',
-            size: 0.5,
-            param_count: 576,
-          },
-          { name: 'model.norm.weight', size: 0.5, param_count: 576 },
-          { name: 'lm_head.weight', size: 2.0, param_count: 28311552 },
-        ],
-      };
+      const data = await response.json();
+      console.log('DATA', data);
       setModelLayers(data.layers || []);
     } catch (err) {
       setError(`Failed to fetch model architecture: ${err.message}`);
@@ -1546,23 +204,25 @@ export default function ModelLayerVisualization({
     const minWidth = 0.5;
     const maxWidth = 5.0; // Length based on param count
     const thickness = 0.2; // Thickness of the rectangle
-    const spacing = 0.2; // Spacing between components
+    const spacing = 0.05; // Minimal spacing between components for stacked look
 
-    // Create rectangles for each layer - horizontal layout
-    let xOffset = 0;
-    const totalWidth = modelLayers.reduce((acc, layer) => {
-      const paramCount = layer.param_count;
-      const width =
-        minWidth +
-        ((Math.log(paramCount) - Math.log(minParamSize)) /
-          (Math.log(maxParamSize) - Math.log(minParamSize))) *
-          (maxWidth - minWidth);
-      return acc + width + spacing;
-    }, 0);
+    // Create rectangles for each layer - vertical stack layout
+    let yOffset = 0;
 
-    // Start offset to center the entire model
-    xOffset = -totalWidth / 2;
+    // Calculate colors for layers based on their type
+    const uniqueTypes = [
+      ...new Set(
+        modelLayers.map((layer) => layer.name.split('.').slice(-2)[0]),
+      ),
+    ];
 
+    // Color map for layer types
+    const colorMap = {};
+    uniqueTypes.forEach((type, index) => {
+      colorMap[type] = `hsl(${(index / uniqueTypes.length) * 360}, 70%, 60%)`;
+    });
+
+    // Create vertical stack of layers
     modelLayers.forEach((layer, index) => {
       // Calculate width based on parameter count (logarithmic scale)
       const paramCount = layer.param_count;
@@ -1572,36 +232,38 @@ export default function ModelLayerVisualization({
           (Math.log(maxParamSize) - Math.log(minParamSize))) *
           (maxWidth - minWidth);
 
-      // Create rectangle geometry and material
-      // Using BoxGeometry for standing rectangles instead of PlaneGeometry
-      const height = 1.0 + (width / maxWidth) * 2; // Height proportional to width but with a minimum
-      const geometry = new THREE.BoxGeometry(width, height, thickness);
+      // Create box geometry and material
+      const height = 0.25; // Fixed height for each layer in the stack
+      const geometry = new THREE.BoxGeometry(width, height, width);
+
+      // Get color based on layer type
+      const layerType = layer.name.split('.').slice(-2)[0];
+      const color =
+        colorMap[layerType] ||
+        `hsl(${(index / modelLayers.length) * 360}, 70%, 60%)`;
 
       const material = new THREE.MeshLambertMaterial({
-        color:
-          layer.color || `hsl(${(index / modelLayers.length) * 360}, 70%, 60%)`,
+        color: color,
         transparent: true,
         opacity: 0.9,
       });
 
-      // Create mesh and position it horizontally
-      const rectangle = new THREE.Mesh(geometry, material);
+      // Create mesh and position it in the stack
+      const box = new THREE.Mesh(geometry, material);
 
-      // Position at the center of its width, with bottom at y=0 (standing up)
-      rectangle.position.set(xOffset + width / 2, height / 2, 0);
+      // Position vertically stacked from bottom to top
+      box.position.set(0, yOffset + height / 2, 0);
 
-      // No rotation needed - BoxGeometry is already oriented vertically
-
-      rectangle.userData = {
+      box.userData = {
         name: layer.name,
         paramCount: layer.param_count,
-        type: layer.type || layer.name.split('.').slice(-2)[0],
+        type: layerType,
         index: index,
       };
 
-      scene.add(rectangle);
-      layerMeshesRef.current.push(rectangle);
-      xOffset += width + spacing; // Move to next position horizontally
+      scene.add(box);
+      layerMeshesRef.current.push(box);
+      yOffset += height + spacing; // Move to next position vertically
     });
 
     // Add lights
@@ -1612,10 +274,11 @@ export default function ModelLayerVisualization({
     directionalLight.position.set(1, 1, 1);
     scene.add(directionalLight);
 
-    // Adjust camera position for better viewing of standing rectangles
-    camera.position.set(0, 5, 15);
-    camera.lookAt(new THREE.Vector3(0, 3, 0)); // Look at the middle height of rectangles
-    controls.target.set(0, 3, 0);
+    // Adjust camera position for better viewing of vertical stack
+    const totalHeight = yOffset;
+    camera.position.set(8, totalHeight / 2, 8);
+    camera.lookAt(new THREE.Vector3(0, totalHeight / 2, 0)); // Look at the middle of the stack
+    controls.target.set(0, totalHeight / 2, 0);
     controls.update();
 
     // Add hover detection
@@ -1729,7 +392,7 @@ export default function ModelLayerVisualization({
         gap: 2,
       }}
     >
-      <ChatSettingsOnLeftHandSide
+      {/* <ChatSettingsOnLeftHandSide
         generationParameters={generationParameters}
         setGenerationParameters={setGenerationParameters}
         tokenCount={tokenCount}
@@ -1742,7 +405,7 @@ export default function ModelLayerVisualization({
         conversationId={conversationId}
         experimentInfo={experimentInfo}
         experimentInfoMutate={experimentInfoMutate}
-      />
+      /> */}
 
       <Sheet
         sx={{
@@ -1758,8 +421,8 @@ export default function ModelLayerVisualization({
           variant="outlined"
           startDecorator={<ConstructionIcon />}
         >
-          This feature is currently in development and requires a compatible
-          model server.
+          This feature is currently in development and requires the FastChat
+          Model Server.
         </Alert>
 
         <Box
