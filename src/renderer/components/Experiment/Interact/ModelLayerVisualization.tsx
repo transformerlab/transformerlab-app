@@ -180,6 +180,8 @@ export default function ModelLayerVisualization({
     // Create renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    renderer.shadowMap.enabled = true; // Enable shadow mapping
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Use soft shadows
     canvasRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -188,6 +190,7 @@ export default function ModelLayerVisualization({
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.rotateSpeed = 0.5;
+    controls.maxDistance = 200; // Set a reasonable max zoom out distance
     controls.update();
     controlsRef.current = controls;
 
@@ -250,6 +253,8 @@ export default function ModelLayerVisualization({
 
       // Create mesh and position it in the stack
       const box = new THREE.Mesh(geometry, material);
+      // box.castShadow = true; // Enable shadow casting for the object
+      // box.receiveShadow = true; // Enable shadow receiving for the object
 
       // Position vertically stacked from bottom to top
       box.position.set(0, yOffset + height / 2, 0);
@@ -266,13 +271,106 @@ export default function ModelLayerVisualization({
       yOffset += height + spacing; // Move to next position vertically
     });
 
+    // Add input arrow below the first layer
+    if (modelLayers.length > 0) {
+      const inputArrowGroup = new THREE.Group();
+
+      // Shaft of the arrow
+      const inputShaftGeometry = new THREE.CylinderGeometry(
+        0.05,
+        0.05,
+        0.5,
+        16,
+      );
+      const inputShaftMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+      });
+      const inputShaft = new THREE.Mesh(inputShaftGeometry, inputShaftMaterial);
+      inputShaft.position.y = -0.25; // Center the shaft vertically
+      inputArrowGroup.add(inputShaft);
+
+      // Arrowhead
+      const inputHeadGeometry = new THREE.ConeGeometry(0.1, 0.2, 16);
+      const inputHeadMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+      });
+      const inputHead = new THREE.Mesh(inputHeadGeometry, inputHeadMaterial);
+      inputHead.position.y = -0.6; // Position the arrowhead below the shaft
+      inputHead.rotation.x = Math.PI; // Flip the cone to point upward
+      inputArrowGroup.add(inputHead);
+
+      inputArrowGroup.rotation.x = Math.PI; // Point the arrow upward
+      inputArrowGroup.position.set(0, -0.75, 0); // Position below the first layer
+      scene.add(inputArrowGroup);
+    }
+
+    // Add output arrow after the last layer
+    if (modelLayers.length > 0) {
+      const outputArrowGroup = new THREE.Group();
+
+      // Shaft of the arrow
+      const outputShaftGeometry = new THREE.CylinderGeometry(
+        0.05,
+        0.05,
+        0.5,
+        16,
+      );
+      const outputShaftMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+      });
+      const outputShaft = new THREE.Mesh(
+        outputShaftGeometry,
+        outputShaftMaterial,
+      );
+      outputShaft.position.y = 0.25; // Center the shaft vertically
+      outputArrowGroup.add(outputShaft);
+
+      // Arrowhead
+      const outputHeadGeometry = new THREE.ConeGeometry(0.1, 0.2, 16);
+      const outputHeadMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+      });
+      const outputHead = new THREE.Mesh(outputHeadGeometry, outputHeadMaterial);
+      outputHead.position.y = 0.6; // Position the arrowhead above the shaft
+      outputArrowGroup.add(outputHead);
+
+      outputArrowGroup.position.set(0, yOffset + 0.5, 0); // Position above the last layer
+      scene.add(outputArrowGroup);
+    }
+
     // Add lights
-    const ambientLight = new THREE.AmbientLight(0x404040, 1);
+    const ambientLight = new THREE.AmbientLight(0x404040, 30); // Increased intensity to brighten up the objects
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(1, 1, 1);
-    scene.add(directionalLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); // Slightly increased intensity
+    directionalLight.position.set(1, yOffset + 5, 4);
+    // directionalLight.castShadow = true; // Enable shadow casting for the light
+    directionalLight.shadow.mapSize.width = 1024; // Shadow map resolution
+    directionalLight.shadow.mapSize.height = 1024;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = yOffset * 2;
+    // scene.add(directionalLight);
+
+    // Add a visible representation for the directional light
+    const lightHelperGeometry = new THREE.SphereGeometry(3, 16, 16); // Small sphere
+    const lightHelperMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+    });
+    const lightHelper = new THREE.Mesh(
+      lightHelperGeometry,
+      lightHelperMaterial,
+    );
+    lightHelper.position.copy(directionalLight.position); // Match the light's position
+    // scene.add(lightHelper);
+
+    // Add ground plane to receive shadows
+    const groundGeometry = new THREE.PlaneGeometry(50, 50);
+    const groundMaterial = new THREE.ShadowMaterial({ opacity: 0.5 });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2; // Rotate to lie flat
+    ground.position.y = 0; // Position at the base of the stack
+    ground.receiveShadow = true; // Enable shadow receiving
+    scene.add(ground);
 
     // Adjust camera position for better viewing of vertical stack
     const totalHeight = yOffset;
@@ -511,13 +609,13 @@ export default function ModelLayerVisualization({
           </Alert>
         )}
 
-        <Box sx={{ p: 2, pb: 0 }}>
+        <Box sx={{ p: 0, pb: 0 }}>
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
-            sx={{ mb: 2 }}
+            sx={{ mb: 0 }}
           >
-            <FormControl sx={{ flex: 1 }}>
+            {/* <FormControl sx={{ flex: 1 }}>
               <Typography level="body-sm">Elevation: {elevation}°</Typography>
               <Slider
                 value={elevation}
@@ -535,7 +633,7 @@ export default function ModelLayerVisualization({
                 min={0}
                 max={360}
               />
-            </FormControl>
+            </FormControl> */}
           </Stack>
         </Box>
 
