@@ -519,8 +519,8 @@ export default function ModelLayerVisualization({
           variant="outlined"
           startDecorator={<ConstructionIcon />}
         >
-          This feature is currently in development and requires the FastChat
-          Model Server.
+          This feature is currently in development and works with the FastChat
+          and MLX Model Server only.
         </Alert>
 
         <Box
