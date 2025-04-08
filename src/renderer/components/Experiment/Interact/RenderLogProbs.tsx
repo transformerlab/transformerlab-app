@@ -56,7 +56,7 @@ function SingleChip({ index, logprob }) {
       title={renderListOfLogProbs(
         logprob?.top_logprobs?.[0],
         logprob?.tokens?.[0],
-        logProbToColor(logprob?.token_logprobs?.[0])
+        logProbToColor(logprob?.token_logprobs?.[0]),
       )}
       key={index}
       variant="outlined"
