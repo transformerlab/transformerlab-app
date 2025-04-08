@@ -40,6 +40,7 @@ import {
   SearchIcon,
   FilterIcon as FilterAltIcon,
   MoreVerticalIcon as MoreHorizRoundedIcon,
+  LinkIcon,
 } from 'lucide-react';
 
 import useSWR from 'swr';
@@ -323,10 +324,30 @@ export default function Documents({
   const [dropzoneActive, setDropzoneActive] = React.useState(false);
   const [previewFile, setPreviewFile] = React.useState<string | null>(null);
   const [showFolderModal, setShowFolderModal] = React.useState(false);
+  const [showWebpageModal, setShowWebpageModal] = React.useState(false);
+  const [webpageUrls, setWebpageUrls] = React.useState(['']);
   const [newFolderName, setNewFolderName] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [currentFolder, setCurrentFolder] = React.useState(fixedFolder);
   const [order, setOrder] = React.useState<Order>('asc');
+
+  const addUrlField = () => {
+    setWebpageUrls([...webpageUrls, '']);
+  };
+
+  const removeUrlField = (index) => {
+    if (webpageUrls.length > 1) {
+      const newUrls = [...webpageUrls];
+      newUrls.splice(index, 1);
+      setWebpageUrls(newUrls);
+    }
+  };
+
+  const updateUrl = (index, value) => {
+    const newUrls = [...webpageUrls];
+    newUrls[index] = value;
+    setWebpageUrls(newUrls);
+  };
 
   const {
     data: rows,
@@ -449,6 +470,114 @@ export default function Documents({
           </Box>
         </ModalDialog>
       </Modal>
+      <Modal open={showWebpageModal} onClose={() => setShowWebpageModal(false)}>
+        <ModalDialog sx={{ width: '450px', maxWidth: '90vw' }}>
+          <ModalClose />
+          <Typography level="title-lg">Add Webpages</Typography>
+          <Typography level="body-sm" sx={{ mb: 2 }}>
+            Enter webpage URLs you want to add to your documents
+          </Typography>
+
+          <Box sx={{ mb: 2, maxHeight: '50vh', overflowY: 'auto' }}>
+            {webpageUrls.map((url, index) => (
+              <Box
+                key={index}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  mb: 1.5,
+                  gap: 1,
+                }}
+              >
+                <Input
+                  size="sm"
+                  placeholder="https://example.com"
+                  value={url}
+                  onChange={(e) => updateUrl(index, e.target.value)}
+                  sx={{ flexGrow: 1 }}
+                  error={url && !url.startsWith('http')}
+                  endDecorator={
+                    webpageUrls.length > 1 && (
+                      <IconButton
+                        size="sm"
+                        variant="plain"
+                        color="neutral"
+                        onClick={() => removeUrlField(index)}
+                      >
+                        <Typography fontSize="lg">×</Typography>
+                      </IconButton>
+                    )
+                  }
+                />
+              </Box>
+            ))}
+          </Box>
+
+          <Button
+            variant="outlined"
+            color="neutral"
+            size="sm"
+            onClick={addUrlField}
+            startDecorator={<PlusCircleIcon size="16px" />}
+            sx={{ mb: 2 }}
+          >
+            Add Another URL
+          </Button>
+
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              color="primary"
+              onClick={() => {
+                setLoading(true);
+                const validUrls = webpageUrls
+                  .map((url) => url.trim())
+                  .filter((url) => url && url.includes('://'));
+                if (validUrls.length > 0) {
+                  fetch(
+                    chatAPI.Endpoints.Documents.UploadLinks(
+                      experimentInfo?.id,
+                      currentFolder,
+                    ),
+                    {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        urls: validUrls,
+                      }),
+                    },
+                  )
+                    .then((response) => {
+                      if (!response.ok)
+                        throw new Error('Failed to add webpages');
+                      return response.json();
+                    })
+                    .then((data) => {
+                      console.log('Webpages added:', data);
+                      setWebpageUrls(['']);
+                      setShowWebpageModal(false);
+                      mutate();
+                    })
+                    .catch((error) => {
+                      console.error('Error adding webpages:', error);
+                    })
+                    .finally(() => {
+                      setLoading(false);
+                    });
+                } else {
+                  setLoading(false);
+                  // Could add a toast or alert here about no valid URLs
+                }
+              }}
+              disabled={!webpageUrls.some((url) => url.trim())}
+            >
+              {loading ? <CircularProgress size="sm" /> : 'Add Webpages'}
+            </Button>
+          </Box>
+        </ModalDialog>
+      </Modal>
+
       <Box
         sx={{
           display: 'flex',
@@ -505,6 +634,17 @@ export default function Documents({
                 <FileUpIcon size="16px" />
               </ListItemDecorator>
               Upload File
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setWebpageUrls(['']);
+                setShowWebpageModal(true);
+              }}
+            >
+              <ListItemDecorator>
+                <LinkIcon size="16px" />
+              </ListItemDecorator>
+              Add Webpage
             </MenuItem>
             <MenuItem
               onClick={() => {
