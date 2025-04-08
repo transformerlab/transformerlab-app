@@ -49,6 +49,7 @@ export default function ModelLayerVisualization({
   const [elevation, setElevation] = useState(30);
   const [azimuth, setAzimuth] = useState(45);
   const [zoom, setZoom] = useState(1.0);
+  const [selectedLayer, setSelectedLayer] = useState(null);
 
   // Canvas ref for Three.js
   const canvasRef = useRef(null);
@@ -56,13 +57,14 @@ export default function ModelLayerVisualization({
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
   const controlsRef = useRef(null);
+  const layerCanvasRef = useRef(null);
   // Add these near the top of your component
   const [hoveredLayer, setHoveredLayer] = useState(null);
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const layerMeshesRef = useRef([]);
 
-  console.log('ADAPTOR', currentAdaptor);
+  let hoveredLayerSavedBeforeNextFrame = null;
 
   // Add this function to your component
   const updateHoveredLayer = () => {
@@ -85,6 +87,7 @@ export default function ModelLayerVisualization({
     if (intersects.length > 0) {
       // Found a hovered layer
       const hoveredMesh = intersects[0].object;
+      hoveredLayerSavedBeforeNextFrame = hoveredMesh;
       setHoveredLayer({
         name: hoveredMesh.userData.name,
         paramCount: hoveredMesh.userData.paramCount,
@@ -93,7 +96,16 @@ export default function ModelLayerVisualization({
       });
     } else {
       // No layer being hovered
+      hoveredLayerSavedBeforeNextFrame = null;
       setHoveredLayer(null);
+    }
+  };
+
+  const handleClick = () => {
+    if (hoveredLayerSavedBeforeNextFrame !== null) {
+      setSelectedLayer(hoveredLayerSavedBeforeNextFrame);
+    } else {
+      setSelectedLayer(null);
     }
   };
 
@@ -157,7 +169,13 @@ export default function ModelLayerVisualization({
     // Clean up existing renderer
     if (rendererRef.current) {
       rendererRef.current.dispose();
-      canvasRef.current.removeChild(rendererRef.current.domElement);
+      if (
+        canvasRef.current instanceof HTMLElement &&
+        rendererRef.current?.domElement instanceof HTMLElement &&
+        canvasRef.current.contains(rendererRef.current.domElement)
+      ) {
+        canvasRef.current.removeChild(rendererRef.current.domElement);
+      }
     }
 
     // Create scene
@@ -392,6 +410,7 @@ export default function ModelLayerVisualization({
 
     // Add hover detection events
     renderer.domElement.addEventListener('mousemove', handleMouseMove);
+    renderer.domElement.addEventListener('click', handleClick);
 
     // Animation function with hover detection
     const animate = () => {
@@ -422,6 +441,7 @@ export default function ModelLayerVisualization({
     return () => {
       window.removeEventListener('resize', handleResize);
       renderer.domElement.removeEventListener('mousemove', handleMouseMove);
+      renderer.domElement.removeEventListener('click', handleClick);
       layerMeshesRef.current = [];
     };
   };
@@ -464,6 +484,94 @@ export default function ModelLayerVisualization({
   useEffect(() => {
     updateCameraView();
   }, [elevation, azimuth, zoom]);
+
+  const renderSelectedLayer = () => {
+    if (!layerCanvasRef.current || !selectedLayer) return;
+
+    // Clear the canvas
+    while (layerCanvasRef.current.firstChild) {
+      layerCanvasRef.current.removeChild(layerCanvasRef.current.firstChild);
+    }
+
+    // Create a new scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f0f0);
+
+    // Create a camera
+    const canvas = layerCanvasRef.current;
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      canvas.clientWidth / canvas.clientHeight,
+      0.1,
+      1000,
+    );
+    camera.position.set(0, 2, 0.5);
+
+    // Create a renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    layerCanvasRef.current.appendChild(renderer.domElement);
+
+    // Add orbit controls
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Create a 100x100 grid of boxes
+    const gridSize = 20;
+    const boxSize = 0.1;
+    const spacing = 0.0; // Space between boxes
+    const color = selectedLayer?.material?.color || 0x0077ff;
+    // change opacity to match the selected layer:
+    const opacity = selectedLayer?.material?.opacity || 0.5;
+    const transparent = selectedLayer?.material?.transparent || true;
+
+    const geometry = new THREE.BoxGeometry(boxSize, boxSize, boxSize);
+    const material = new THREE.MeshLambertMaterial({
+      color,
+      opacity,
+      transparent,
+    });
+
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const box = new THREE.Mesh(geometry, material);
+        box.position.set(
+          i * (boxSize + spacing) - (gridSize * (boxSize + spacing)) / 2,
+          0,
+          j * (boxSize + spacing) - (gridSize * (boxSize + spacing)) / 2,
+        );
+        scene.add(box);
+      }
+    }
+
+    // Point the camera at the center of the grid
+    camera.lookAt(0, 0, 0);
+
+    controls.update();
+
+    // Add lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 2);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 7.5);
+    scene.add(directionalLight);
+
+    // Render the scene
+    const animate = () => {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+
+    animate();
+  };
+
+  // Effect to render the selected layer when it changes
+  useEffect(() => {
+    renderSelectedLayer();
+  }, [selectedLayer]);
 
   // Handle manual refresh
   const handleRefresh = () => {
@@ -609,41 +717,14 @@ export default function ModelLayerVisualization({
           </Alert>
         )}
 
-        <Box sx={{ p: 0, pb: 0 }}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={2}
-            sx={{ mb: 0 }}
-          >
-            {/* <FormControl sx={{ flex: 1 }}>
-              <Typography level="body-sm">Elevation: {elevation}°</Typography>
-              <Slider
-                value={elevation}
-                onChange={(e, val) => setElevation(val)}
-                min={0}
-                max={90}
-              />
-            </FormControl>
-
-            <FormControl sx={{ flex: 1 }}>
-              <Typography level="body-sm">Azimuth: {azimuth}°</Typography>
-              <Slider
-                value={azimuth}
-                onChange={(e, val) => setAzimuth(val)}
-                min={0}
-                max={360}
-              />
-            </FormControl> */}
-          </Stack>
-        </Box>
-
         <Box
           sx={{
             flexGrow: 1,
             p: 2,
             pt: 0,
+            gap: 2,
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: 'row',
             position: 'relative',
           }}
         >
@@ -659,17 +740,31 @@ export default function ModelLayerVisualization({
               <CircularProgress size="lg" />
             </Box>
           ) : (
-            <Box
-              ref={canvasRef}
-              sx={{
-                flexGrow: 1,
-                height: '100%',
-                width: '100%',
-                bgcolor: 'background.level1',
-                borderRadius: 'md',
-                overflow: 'hidden',
-              }}
-            />
+            <>
+              <Box
+                ref={canvasRef}
+                sx={{
+                  flexGrow: 1,
+                  height: '100%',
+                  bgcolor: 'background.level1',
+                  borderRadius: 'md',
+                  overflow: 'hidden',
+                }}
+              />
+              <Box sx={{ width: '300px' }} id="detailed-layer">
+                <Box
+                  ref={layerCanvasRef}
+                  sx={{
+                    width: '100%',
+                    height: '300px',
+                    bgcolor: 'background.level1',
+                    borderRadius: 'md',
+                    overflow: 'hidden',
+                  }}
+                />
+                {/* {JSON.stringify(selectedLayer)} */}
+              </Box>
+            </>
           )}
 
           {modelLayers.length > 0 && (
