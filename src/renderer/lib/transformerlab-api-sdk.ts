@@ -1259,6 +1259,12 @@ Endpoints.Documents = {
     experimentId +
     '/documents/create_folder?name=' +
     folderName,
+  UploadLinks: (experimentId: string, folderName: string) =>
+    API_URL() +
+    'experiment/' +
+    experimentId +
+    '/documents/upload_links?folder=' +
+    folderName,
 };
 
 Endpoints.Rag = {
