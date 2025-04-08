@@ -16,16 +16,22 @@ import {
   Typography,
 } from '@mui/joy';
 import { useState } from 'react';
+import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 
 // array of 5 pastel colours for the rainbow effect:
-const colourArray = ['#e9fcf1', '#f2e0fc', '#f6f3d8', '#d4effc', '#fbcae0'];
+const colourArray = colorArray;
+// const colourArray = ['#e9fcf1', '#f2e0fc', '#f6f3d8', '#d4effc', '#fbcae0'];
+
 function singleWordElement(word, tokenID, i) {
   return (
     <Tooltip title={tokenID} arrow>
       <span
         key={i}
         style={{
-          backgroundColor: colourArray[i % colourArray.length],
+          backgroundColor: mixColorWithBackground(
+            colourArray[i % colourArray.length],
+          ),
+          color: 'var(--joy-palette-text-primary)',
         }}
       >
         {word}
@@ -73,7 +79,7 @@ function makeRainbowTextFromArray(arr) {
         result.push(
           <>
             <br />
-          </>
+          </>,
         );
         continue;
       }
@@ -108,7 +114,7 @@ export default function Tokenize({ experimentInfo }) {
 
     if (!tokens) {
       setTokenizedResult(
-        'This inference engine plugin does not yet support a tokenization endpoint'
+        'This inference engine plugin does not yet support a tokenization endpoint',
       );
       return;
     }
@@ -139,6 +145,7 @@ export default function Tokenize({ experimentInfo }) {
           height: '100%',
           marginBottom: '1rem',
           paddingBottom: '1rem',
+          paddingRight: '1rem',
           overflowY: 'auto',
           overflowX: 'hidden',
         }}
@@ -201,7 +208,7 @@ What is 13411321.4 + 512351.52 ?"
               sx={{
                 padding: 1,
                 overflow: 'auto',
-                backgroundColor: 'rgb(240, 244, 248)',
+                backgroundColor: 'var(--joy-palette-background-level2)',
                 color: 'black',
               }}
             >
