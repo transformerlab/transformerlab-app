@@ -21,6 +21,7 @@ import {
   Trash2Icon,
   Undo2Icon,
   XCircleIcon,
+  LayersIcon,
 } from 'lucide-react';
 
 import useSWR from 'swr';
@@ -204,6 +205,27 @@ export default function CurrentFoundationInfo({
     });
   };
 
+  const handleModelVisualizationClick = async () => {
+    try {
+      // Check if the local model server is running by checking worker health
+      const response = await fetch(
+        `${chatAPI.INFERENCE_SERVER_URL()}server/worker_healthz`,
+      );
+      const data = await response.json();
+
+      if (response.status === 200 && Array.isArray(data) && data.length > 0) {
+        // Model server is running, navigate to visualization page
+        navigate('/experiment/model_architecture_visualization');
+      } else {
+        // Server responded but workers aren't ready
+        alert('Please Run the model before visualizing its architecture');
+      }
+    } catch (error) {
+      console.error('Failed to check model server status:', error);
+      alert('Please Run the model before visualizing its architecture');
+    }
+  };
+
   return (
     <Sheet
       sx={{
@@ -219,6 +241,17 @@ export default function CurrentFoundationInfo({
         setAdaptor={setAdaptor}
         setFoundation={setFoundation}
       />
+
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, mb: 2 }}>
+        <Button
+          variant="outlined"
+          color="primary"
+          startDecorator={<LayersIcon size={18} />}
+          onClick={handleModelVisualizationClick}
+        >
+          Visualize Model Architecture
+        </Button>
+      </Box>
 
       <Sheet sx={{ overflow: 'auto' }}>
         <Box sx={{ mt: 3 }}>
