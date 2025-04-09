@@ -30,6 +30,10 @@ jobs:
           npm run postinstall
           npm run build
 
+      - name: Zip static web assets
+        run: |
+          zip -r transformer-lab-web.zip release/cloud/
+
       - name: copy p8 key to file
         run: |
           echo "${{ secrets.APPLE_API_KEY_P8_FILE }}" > api_key.p8
@@ -48,37 +52,10 @@ jobs:
         run: |
           npm exec electron-builder -- --publish always --win --mac --linux
 
-      - name: Extract version from package.json
-        id: package-version
-        run: |
-          VERSION=$(node -p "require('./release/app/package.json').version")
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        shell: bash
-
-      - name: Rename the Windows EXE to TransformerLab-v{{ steps.package-version.outputs.version }}.exe
-        run: |
-          mv "${{ github.workspace }}/release/build/Transformer Lab Setup ${{ steps.package-version.outputs.version }}.exe" "${{ github.workspace }}/release/build/Transformer-Lab-Setup-signed-v${{ steps.package-version.outputs.version }}.exe"
-        shell: bash
-
-      - name: Sign Windows EXE using SSL.com eSigner
-        uses: sslcom/esigner-codesign@develop
+      - name: Upload static assets to GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
-          command: sign
-          username: ${{ secrets.ES_USERNAME }}
-          password: ${{ secrets.ES_PASSWORD }}
-          credential_id: ${{ secrets.CREDENTIAL_ID }}
-          totp_secret: ${{ secrets.ES_TOTP_SECRET }}
-          file_path: "${{ github.workspace }}/release/build/Transformer-Lab-Setup-signed-v${{ steps.package-version.outputs.version }}.exe"
-          output_path: "${{ github.workspace }}/signed"
-
-      - name: Zip and upload static web assets
-        run: |
-          cd release/cloud
-          tar -czvf transformerlab_web.tar.gz .
-          gh release upload ${{ github.ref_name }} transformerlab_web.tar.gz
-          gh release upload --clobber ${{ github.ref_name }} "${{ github.workspace }}/signed/Transformer-Lab-Setup-signed-v${{ steps.package-version.outputs.version }}.exe"
+          files: transformer-lab-web.zip
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
