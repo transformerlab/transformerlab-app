@@ -45,6 +45,7 @@ jobs:
       - name: Upload static assets to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: v0.13.0-test
           files: transformerlab-web.zip
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
