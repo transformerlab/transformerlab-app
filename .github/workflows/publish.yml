@@ -32,7 +32,7 @@ jobs:
 
       - name: Zip static web assets
         run: |
-          zip -r transformer-lab-web.zip release/cloud/
+          zip -r transformerlab-web.zip release/cloud/
 
       - name: copy p8 key to file
         run: |
@@ -55,7 +55,7 @@ jobs:
       - name: Upload static assets to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: transformer-lab-web.zip
+          files: transformerlab-web.zip
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
