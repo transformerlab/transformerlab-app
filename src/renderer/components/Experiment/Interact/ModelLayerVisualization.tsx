@@ -784,21 +784,28 @@ export default function ModelLayerVisualization({
                     overflow: 'hidden',
                   }}
                 />
-                <Typography
-                  level="title-md"
-                  sx={{ mt: 1, mb: 0.5, color: 'primary.500' }}
-                >
-                  Name: {selectedLayer?.userData?.name}
-                  <br />
-                  Type: {selectedLayer?.userData?.type}
-                  <br />
-                  Parameters: {selectedLayer?.userData?.paramCount}
-                  <br />
-                  index: {selectedLayer?.userData?.index}
-                  <br />
-                  Shape: {selectedLayer?.userData?.shape}
-                  <br />
-                </Typography>
+                {selectedLayer && (
+                  <>
+                    <Typography level="title-md" sx={{ mt: 1 }}>
+                      Selected Layer:
+                    </Typography>
+                    <Typography
+                      level="body-md"
+                      sx={{ mb: 0.5, color: 'primary.500' }}
+                    >
+                      Name: {selectedLayer?.userData?.name}
+                      <br />
+                      Type: {selectedLayer?.userData?.type}
+                      <br />
+                      Parameters: {selectedLayer?.userData?.paramCount}
+                      <br />
+                      index: {selectedLayer?.userData?.index}
+                      <br />
+                      Shape: {selectedLayer?.userData?.shape}
+                      <br />
+                    </Typography>
+                  </>
+                )}
               </Box>
             </>
           )}
