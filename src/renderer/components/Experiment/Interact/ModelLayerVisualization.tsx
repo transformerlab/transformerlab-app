@@ -563,6 +563,13 @@ export default function ModelLayerVisualization({
     // Point the camera at the center of the grid
     camera.lookAt(0, 0, 0);
 
+    // zoom out the camera to fit the entire grid:
+    const maxDimension = Math.max(width, length);
+    const cameraDistance = maxDimension * (boxSize + spacing) * 0.75;
+    camera.position.set(0, cameraDistance, cameraDistance);
+    camera.lookAt(0, 0, 0);
+    controls.target.set(0, 0, 0);
+
     controls.update();
 
     // Add lights
