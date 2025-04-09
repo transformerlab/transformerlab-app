@@ -13,9 +13,9 @@ import {
 } from '@xyflow/react';
 import { PlusCircleIcon } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
-import CustomNode from '../nodes/CustomNode';
-import StartNode from '../nodes/StartNode';
-import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
+import CustomNode from './nodes/CustomNode';
+import StartNode from './nodes/StartNode';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 const nodeTypes = { customNode: CustomNode, startNode: StartNode };
 
@@ -41,7 +41,6 @@ function generateNodes(workflow: any): any[] {
       jobType: node.type,
       template: node.template,
       metadata: node?.metadata,
-      task: node?.task,
     };
 
     const savedPosition = node?.metadata?.position || { x: 0, y: position };
@@ -61,7 +60,6 @@ function generateNodes(workflow: any): any[] {
 
 function generateEdges(workflow: any) {
   const workflowConfig = JSON.parse(workflow?.config);
-  const workflowId = workflow?.id;
 
   if (workflowConfig.nodes.length < 1) {
     return [];
@@ -80,16 +78,8 @@ function generateEdges(workflow: any) {
       continue;
     }
     currentNode.out.forEach((nextId) => {
-      // check if this edge already exist in the out array:
-      if (
-        out.some(
-          (edge) => edge.id === `${workflowId}-${currentNode.id}-${nextId}`,
-        )
-      ) {
-        return;
-      }
       out.push({
-        id: `${workflowId}-${currentNode.id}-${nextId}`,
+        id: currentNode.id + nextId,
         source: currentNode.id,
         target: nextId,
         animated: true,
@@ -108,7 +98,7 @@ function generateEdges(workflow: any) {
       });
     });
   }
-  // console.log(out);
+
   return out;
 }
 
@@ -130,25 +120,7 @@ const Flow = ({
   );
 
   const onConnect = useCallback((params) => {
-    const newEdge = {
-      id: `${selectedWorkflow?.id}-${params.source}-${params.target}`,
-      source: params.source,
-      target: params.target,
-      animated: true,
-      type: 'default',
-      style: {
-        stroke: 'var(--joy-palette-warning-outlinedBorder)',
-        strokeWidth: 1.5,
-      },
-      markerEnd: {
-        type: 'arrow',
-        color: 'var(--joy-palette-warning-outlinedBorder)',
-        width: 12,
-        height: 10,
-        strokeWidth: 2,
-      },
-    };
-    setEdges((els) => addEdge(newEdge, els));
+    setEdges((els) => addEdge(params, els));
     fetch(
       chatAPI.Endpoints.Workflows.AddEdge(
         selectedWorkflow?.id,
@@ -261,16 +233,16 @@ const Flow = ({
       zoomOnDoubleClick={false}
       panOnScroll={false}
       onDelete={async ({ nodes, edges }) => {
-        await Promise.all(
-          nodes.map((node) =>
-            fetch(chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id)),
-          ),
-        );
+        for (const node of nodes) {
+          // console.log('delete node: ' + node?.id);
+          await fetch(
+            chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id),
+          );
+        }
         mutateWorkflows();
       }}
       style={{
-        backgroundColor:
-          'color-mix(in srgb, var(--joy-palette-background-level1), white 60%)',
+        backgroundColor: 'var(--joy-palette-background-surface)',
       }}
       onConnect={onConnect}
       onReconnectStart={onReconnectStart}
