@@ -788,8 +788,16 @@ export default function ModelLayerVisualization({
                   level="title-md"
                   sx={{ mt: 1, mb: 0.5, color: 'primary.500' }}
                 >
-                  {selectedLayer?.userData?.name}
-                  <pre>{JSON.stringify(selectedLayer?.userData, null, 2)}</pre>
+                  Name: {selectedLayer?.userData?.name}
+                  <br />
+                  Type: {selectedLayer?.userData?.type}
+                  <br />
+                  Parameters: {selectedLayer?.userData?.paramCount}
+                  <br />
+                  index: {selectedLayer?.userData?.index}
+                  <br />
+                  Shape: {selectedLayer?.userData?.shape}
+                  <br />
                 </Typography>
               </Box>
             </>
