@@ -121,7 +121,6 @@ const Flow = ({
 
   const onConnect = useCallback((params) => {
     setEdges((els) => addEdge(params, els));
-    alert(JSON.stringify(params));
     fetch(
       chatAPI.Endpoints.Workflows.AddEdge(
         selectedWorkflow?.id,
@@ -148,7 +147,23 @@ const Flow = ({
     if (!edgeReconnectSuccessful.current) {
       setEdges((eds) => {
         const updatedEdges = eds.filter((e) => e.id !== edge.id);
-        alert('edge broken'); // Alert when an edge is deleted
+        fetch(
+          chatAPI.Endpoints.Workflows.RemoveEdge(
+            selectedWorkflow?.id,
+            edge.source,
+            edge.target,
+          ),
+          {
+            method: 'POST',
+          },
+        )
+          .then(() => {
+            mutateWorkflows();
+            return updatedEdges;
+          })
+          .catch((error) => {
+            console.error('Failed to remove edge:', error);
+          });
         return updatedEdges;
       });
     }
@@ -163,6 +178,7 @@ const Flow = ({
   // The workflow isn't updating when I switch workflows
   // so I do this hack:
   useEffect(() => {
+    // console.log('updating workflow');
     setNodes(generateNodes(selectedWorkflow));
     setEdges(generateEdges(selectedWorkflow));
   }, [selectedWorkflow]);

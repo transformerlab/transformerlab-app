@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 /* eslint-disable prefer-template */
 /* eslint-disable no-console */
 /* eslint-disable import/prefer-default-export */
@@ -1109,6 +1110,15 @@ Endpoints.Workflows = {
     '/' +
     from +
     '/add_edge' +
+    '?end_node_id=' +
+    to,
+  RemoveEdge: (workflowId: string, start_node_id: string, to: string) =>
+    API_URL() +
+    'workflows/' +
+    workflowId +
+    '/' +
+    start_node_id +
+    '/remove_edge' +
     '?end_node_id=' +
     to,
   RunWorkflow: (workflowId: string) =>
