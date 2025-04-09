@@ -250,13 +250,13 @@ const Flow = ({
       </Button>
       <Background color="#96ADE9" />
       <Controls>
-        <ControlButton
+        {/* <ControlButton
           onClick={() => {
             alert('hi');
           }}
         >
           *
-        </ControlButton>
+        </ControlButton> */}
       </Controls>
     </ReactFlow>
   );
