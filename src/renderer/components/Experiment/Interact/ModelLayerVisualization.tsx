@@ -655,7 +655,6 @@ export default function ModelLayerVisualization({
 
         <Box
           sx={{
-            p: 2,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -697,42 +696,6 @@ export default function ModelLayerVisualization({
           </Stack>
         </Box>
 
-        {/* Add this after the canvas box in your return statement */}
-        {hoveredLayer && (
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: '16px',
-              right: '16px',
-              maxWidth: '300px',
-              bgcolor: 'rgba(255,255,255,0.9)',
-              p: 2,
-              borderRadius: 'md',
-              backdropFilter: 'blur(5px)',
-              boxShadow: 'sm',
-              zIndex: 1000,
-            }}
-          >
-            <Typography level="title-md" sx={{ mb: 1, color: 'primary.500' }}>
-              Layer Information
-            </Typography>
-            <Typography level="body-sm" sx={{ mb: 0.5 }}>
-              <strong>Name:</strong> {hoveredLayer.name}
-            </Typography>
-            <Typography level="body-sm" sx={{ mb: 0.5 }}>
-              <strong>Type:</strong> {hoveredLayer.type}
-            </Typography>
-            <Typography level="body-sm" sx={{ mb: 0.5 }}>
-              <strong>Parameters:</strong>{' '}
-              {hoveredLayer.paramCount.toLocaleString()}
-            </Typography>
-            <Typography level="body-sm">
-              <strong>Layer Index:</strong> {hoveredLayer.index + 1} of{' '}
-              {modelLayers.length}
-            </Typography>
-          </Box>
-        )}
-
         {error && (
           <Alert color="danger" sx={{ mx: 2, mb: 2 }}>
             {error}
@@ -742,9 +705,7 @@ export default function ModelLayerVisualization({
         <Box
           sx={{
             flexGrow: 1,
-            p: 2,
             pt: 0,
-            gap: 2,
             display: 'flex',
             flexDirection: 'row',
             position: 'relative',
@@ -762,7 +723,47 @@ export default function ModelLayerVisualization({
               <CircularProgress size="lg" />
             </Box>
           ) : (
-            <>
+            <Box
+              sx={{ width: '100%', height: '100%', display: 'flex', gap: 2 }}
+            >
+              {/* Add this after the canvas box in your return statement */}
+              {hoveredLayer && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: '1rem',
+                    left: '1rem',
+                    maxWidth: '300px',
+                    bgcolor: 'rgba(255,255,255,0.9)',
+                    p: 2,
+                    borderRadius: 'md',
+                    backdropFilter: 'blur(5px)',
+                    boxShadow: 'sm',
+                    zIndex: 1000,
+                  }}
+                >
+                  <Typography
+                    level="title-md"
+                    sx={{ mb: 1, color: 'primary.500' }}
+                  >
+                    Layer Information
+                  </Typography>
+                  <Typography level="body-sm" sx={{ mb: 0.5 }}>
+                    <strong>Name:</strong> {hoveredLayer.name}
+                  </Typography>
+                  <Typography level="body-sm" sx={{ mb: 0.5 }}>
+                    <strong>Type:</strong> {hoveredLayer.type}
+                  </Typography>
+                  <Typography level="body-sm" sx={{ mb: 0.5 }}>
+                    <strong>Parameters:</strong>{' '}
+                    {hoveredLayer.paramCount.toLocaleString()}
+                  </Typography>
+                  <Typography level="body-sm">
+                    <strong>Layer Index:</strong> {hoveredLayer.index + 1} of{' '}
+                    {modelLayers.length}
+                  </Typography>
+                </Box>
+              )}
               <Box
                 ref={canvasRef}
                 sx={{
@@ -807,15 +808,15 @@ export default function ModelLayerVisualization({
                   </>
                 )}
               </Box>
-            </>
+            </Box>
           )}
 
           {modelLayers.length > 0 && (
             <Box
               sx={{
                 position: 'absolute',
-                bottom: '16px',
-                left: '16px',
+                bottom: '1rem',
+                left: '1rem',
                 maxWidth: '300px',
                 bgcolor: 'rgba(255,255,255,0.8)',
                 p: 2,
