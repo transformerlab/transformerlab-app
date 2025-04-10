@@ -708,6 +708,7 @@ export default function ModelLayerVisualization({
           sx={{
             flexGrow: 1,
             pt: 0,
+            pb: 1,
             display: 'flex',
             flexDirection: 'row',
             position: 'relative',
