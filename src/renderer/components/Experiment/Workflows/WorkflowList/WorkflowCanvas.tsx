@@ -60,6 +60,7 @@ function generateNodes(workflow: any): any[] {
 
 function generateEdges(workflow: any) {
   const workflowConfig = JSON.parse(workflow?.config);
+  const workflowId = workflow?.id;
 
   if (workflowConfig.nodes.length < 1) {
     return [];
@@ -78,8 +79,16 @@ function generateEdges(workflow: any) {
       continue;
     }
     currentNode.out.forEach((nextId) => {
+      // check if this edge already exist in the out array:
+      if (
+        out.some(
+          (edge) => edge.id === `${workflowId}-${currentNode.id}-${nextId}`,
+        )
+      ) {
+        return;
+      }
       out.push({
-        id: currentNode.id + nextId,
+        id: `${workflowId}-${currentNode.id}-${nextId}`,
         source: currentNode.id,
         target: nextId,
         animated: true,
@@ -98,7 +107,7 @@ function generateEdges(workflow: any) {
       });
     });
   }
-
+  // console.log(out);
   return out;
 }
 
@@ -120,7 +129,25 @@ const Flow = ({
   );
 
   const onConnect = useCallback((params) => {
-    setEdges((els) => addEdge(params, els));
+    const newEdge = {
+      id: `${selectedWorkflow?.id}-${params.source}-${params.target}`,
+      source: params.source,
+      target: params.target,
+      animated: true,
+      type: 'default',
+      style: {
+        stroke: 'var(--joy-palette-warning-outlinedBorder)',
+        strokeWidth: 1.5,
+      },
+      markerEnd: {
+        type: 'arrow',
+        color: 'var(--joy-palette-warning-outlinedBorder)',
+        width: 12,
+        height: 10,
+        strokeWidth: 2,
+      },
+    };
+    setEdges((els) => addEdge(newEdge, els));
     fetch(
       chatAPI.Endpoints.Workflows.AddEdge(
         selectedWorkflow?.id,
@@ -233,12 +260,11 @@ const Flow = ({
       zoomOnDoubleClick={false}
       panOnScroll={false}
       onDelete={async ({ nodes, edges }) => {
-        for (const node of nodes) {
-          // console.log('delete node: ' + node?.id);
-          await fetch(
-            chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id),
-          );
-        }
+        await Promise.all(
+          nodes.map((node) =>
+            fetch(chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id)),
+          ),
+        );
         mutateWorkflows();
       }}
       style={{
