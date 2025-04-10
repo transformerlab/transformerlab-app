@@ -144,17 +144,17 @@ export default function LoginModal({
         </OneTimePopup>
         <Tabs
           aria-label="Basic tabs"
-          defaultValue={WEB_APP ? 1 : 0}
+          defaultValue={WEB_APP ? 'remote' : 'local'}
           sx={{ overflow: 'auto', height: '100%' }}
           onChange={(_event, newValue) => {}}
         >
           <TabList tabFlex={1}>
-            {!WEB_APP && <Tab>Local Engine</Tab>}
-            <Tab>Connect to Remote Engine</Tab>
+            {!WEB_APP && <Tab value="local">Local Engine</Tab>}
+            <Tab value="remote">Connect to Remote Engine</Tab>
             {/* <Tab value="SSH">Connect via SSH</Tab> */}
           </TabList>
           <TabPanel
-            value={0}
+            value="local"
             sx={{
               p: 1,
               overflowY: 'hidden',
@@ -165,7 +165,7 @@ export default function LoginModal({
             <LocalConnection setServer={setServer} />
           </TabPanel>
           <TabPanel
-            value={1}
+            value="remote"
             sx={{ p: 1, maxWidth: '600px', margin: 'auto', pt: 4 }}
             keepMounted
           >
