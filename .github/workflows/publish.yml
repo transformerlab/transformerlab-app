@@ -30,6 +30,10 @@ jobs:
           npm run postinstall
           npm run build
 
+      - name: Zip static web assets
+        run: |
+          zip -r transformerlab-web.zip release/cloud/
+
       - name: copy p8 key to file
         run: |
           echo "${{ secrets.APPLE_API_KEY_P8_FILE }}" > api_key.p8
@@ -47,3 +51,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm exec electron-builder -- --publish always --win --mac --linux
+
+      - name: Upload static assets to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: transformerlab-web.zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
