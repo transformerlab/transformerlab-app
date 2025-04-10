@@ -2,12 +2,29 @@ import { LinearProgress, Tooltip, Typography } from '@mui/joy';
 import { ClipboardCopyIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react';
 
 import Markdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark as oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 function displayFloatStringWithPrecision(floatString, precision) {
   if (floatString === null) return '';
   return parseFloat(floatString).toFixed(precision);
+}
+
+function parseThinkingToken(t) {
+  if (t === null) return '';
+  if (typeof t === 'string') {
+    // send an alert if a <think> tag is found
+    // Replace all occurrences of <think></think> with a <span> with color="red"
+    const regex = /<think>([\s\S]*?)<\/think>/g;
+    return t.replace(regex, (_, thinkingText) => {
+      return `<div class="chatBubbleThinking">
+${thinkingText}
+</div>`;
+    });
+  }
+  return t;
 }
 
 export default function ChatBubble({
@@ -21,6 +38,7 @@ export default function ChatBubble({
   regenerateLastMessage = () => {},
   isLastMessage = false,
 }) {
+  const tWithThinking = parseThinkingToken(t);
   return (
     <div
       style={{
@@ -141,7 +159,7 @@ export default function ChatBubble({
         {pos === 'bot' && !isThinking && (
           <div style={{ maxWidth: '100%', overflow: 'hidden' }}>
             <Markdown
-              children={t}
+              rehypePlugins={[rehypeRaw]}
               components={{
                 code(props) {
                   const { children, className, node, ...rest } = props;
@@ -161,7 +179,9 @@ export default function ChatBubble({
                   );
                 },
               }}
-            />{' '}
+            >
+              {tWithThinking}
+            </Markdown>
           </div>
         )}
         {isThinking && (
