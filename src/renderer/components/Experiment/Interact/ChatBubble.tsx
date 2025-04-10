@@ -1,27 +1,9 @@
-import { Avatar, LinearProgress, Tooltip, Typography } from '@mui/joy';
-import {
-  BotIcon,
-  ClipboardCopyIcon,
-  RotateCcwIcon,
-  Trash2Icon,
-  UserCircleIcon,
-} from 'lucide-react';
+import { LinearProgress, Tooltip, Typography } from '@mui/joy';
+import { ClipboardCopyIcon, RotateCcwIcon, Trash2Icon } from 'lucide-react';
 
 import Markdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark as oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
-
-function convertNewLines(text) {
-  if (typeof text !== 'string') return text;
-  if (text === null) return '';
-  return text.split('\n').map((str) => {
-    return (
-      <p style={{ margin: 0, padding: 0, marginTop: 10, marginBottom: 10 }}>
-        {str}
-      </p>
-    );
-  });
-}
 
 function displayFloatStringWithPrecision(floatString, precision) {
   if (floatString === null) return '';
@@ -60,7 +42,7 @@ export default function ChatBubble({
         borderLeft:
           pos === 'bot' ? '2px solid var(--joy-palette-neutral-500)' : 'none',
 
-        //marginLeft: pos === 'human' ? 'auto' : '0',
+        // marginLeft: pos === 'human' ? 'auto' : '0',
         // borderRadius: '20px',
       }}
       className="chatBubble"
@@ -84,7 +66,6 @@ export default function ChatBubble({
         {pos === 'human' && !isThinking && (
           <div>
             <Markdown
-              children={t}
               components={{
                 code(props) {
                   const { children, className, node, ...rest } = props;
@@ -104,34 +85,37 @@ export default function ChatBubble({
                   );
                 },
               }}
-            />
+            >
+              {t}
+            </Markdown>
           </div>
         )}
         {pos === 'tool' && !isThinking && (
           <div>
             <code>
-            <Markdown
-              children={t}
-              components={{
-                code(props) {
-                  const { children, className, node, ...rest } = props;
-                  const match = /language-(\w+)/.exec(className || '');
-                  return match ? (
-                    <SyntaxHighlighter
-                      {...rest}
-                      PreTag="div"
-                      children={String(children).replace(/\n$/, '')}
-                      language={match[1]}
-                      style={oneDark}
-                    />
-                  ) : (
-                    <code {...rest} className={className}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}
-            />
+              <Markdown
+                components={{
+                  code(props) {
+                    const { children, className, node, ...rest } = props;
+                    const match = /language-(\w+)/.exec(className || '');
+                    return match ? (
+                      <SyntaxHighlighter
+                        {...rest}
+                        PreTag="div"
+                        children={String(children).replace(/\n$/, '')}
+                        language={match[1]}
+                        style={oneDark}
+                      />
+                    ) : (
+                      <code {...rest} className={className}>
+                        {children}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {t}
+              </Markdown>
             </code>
           </div>
         )}
