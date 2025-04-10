@@ -683,6 +683,8 @@ export default function ModelLayerVisualization({
 
             <Button
               color="neutral"
+              variant="plain"
+              size="sm"
               startDecorator={
                 isLoading ? (
                   <CircularProgress thickness={2} size="sm" color="neutral" />
