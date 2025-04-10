@@ -86,16 +86,37 @@ export default function ModelLayerVisualization({
 
     if (intersects.length > 0) {
       // Found a hovered layer
-      const hoveredMesh = intersects[0].object;
+      const hoveredMesh = intersects[0].object as THREE.Mesh;
       hoveredLayerSavedBeforeNextFrame = hoveredMesh;
       setHoveredLayer({
-        name: hoveredMesh.userData.name,
-        paramCount: hoveredMesh.userData.paramCount,
-        type: hoveredMesh.userData.type,
-        index: hoveredMesh.userData.index,
+        name: hoveredMesh.userData?.name || '',
+        paramCount: hoveredMesh.userData?.paramCount || 0,
+        type: hoveredMesh.userData?.type || '',
+        index: hoveredMesh.userData?.index || 0,
+      });
+
+      // Reset opacity of other layers
+      sceneRef.current?.children.forEach((child) => {
+        if (child instanceof THREE.Mesh && child !== hoveredMesh) {
+          child.material.opacity = 0.4;
+          child.material.color.set(child.userData.color);
+          child.material.needsUpdate = true;
+        } else if (child instanceof THREE.Mesh && child === hoveredMesh) {
+          child.material.opacity = 0.9;
+          child.material.color.set(child.userData.color);
+          child.material.needsUpdate = true;
+        }
       });
     } else {
       // No layer being hovered
+      // Reset opacity of other layers
+      sceneRef.current?.children.forEach((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material.opacity = 0.9;
+          child.material.color.set(child.userData.color);
+          child.material.needsUpdate = true;
+        }
+      });
       hoveredLayerSavedBeforeNextFrame = null;
       setHoveredLayer(null);
     }
