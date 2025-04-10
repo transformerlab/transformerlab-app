@@ -665,7 +665,7 @@ export default function ModelLayerVisualization({
           <Typography level="h2">Model Layer Visualization</Typography>
 
           <Stack direction="row" spacing={1}>
-            <IconButton
+            {/* <IconButton
               color="neutral"
               onClick={handleZoomOut}
               aria-label="Zoom out"
@@ -679,7 +679,7 @@ export default function ModelLayerVisualization({
               aria-label="Zoom in"
             >
               <ZoomIn />
-            </IconButton>
+            </IconButton> */}
 
             <Button
               color="neutral"
