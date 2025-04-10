@@ -658,6 +658,8 @@ export default function ModelLayerVisualization({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            overflow: 'hidden',
+            marginY: 1,
           }}
         >
           <Typography level="h2">Model Layer Visualization</Typography>
@@ -709,6 +711,7 @@ export default function ModelLayerVisualization({
             display: 'flex',
             flexDirection: 'row',
             position: 'relative',
+            overflow: 'hidden',
           }}
         >
           {isLoading ? (
