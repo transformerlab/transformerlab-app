@@ -27,6 +27,19 @@ a {
   transition: opacity 0.1s ease-in-out;
 }
 
+.chatBubbleThinking {
+  background-color: var(--joy-palette-warning-softBg);
+  font-size: 14px;
+  color: var(--joy-palette-text-tertiary);
+  border-radius: 10px;
+  padding: 10px;
+  margin: 0;
+}
+
+.chatBubbleThinking p {
+  margin: 5px;
+}
+
 .hoverIcon:hover {
   cursor: pointer;
   opacity: 1;

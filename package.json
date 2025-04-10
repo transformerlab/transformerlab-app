@@ -139,6 +139,7 @@
     "react-sparklines": "^1.7.0",
     "react-syntax-highlighter": "^15.6.1",
     "read-config-ng": "^3.0.5",
+    "rehype-raw": "^7.0.0",
     "remark-gfm": "^3.0.1",
     "serve-favicon": "^2.5.0",
     "swr": "^2.3.2",
