@@ -25,6 +25,81 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import useSWR from 'swr';
+import { ResponsiveBar } from '@nivo/bar';
+
+// write a fetcher that uses POST:
+const fetcher = (url: string, body: Record<string, unknown>) =>
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  }).then((res) => res.json());
+
+function SingleLayerHistogram({
+  modelName,
+  layerName,
+}: {
+  modelName: string;
+  layerName: string;
+}) {
+  const url = `${chatAPI.INFERENCE_SERVER_URL()}v1/layer_details`;
+  const { data } = useSWR(
+    [url, { model_name: modelName, layer_name: layerName }],
+    ([url, body]) => fetcher(url, body),
+  );
+
+  if (!data || !data.histogram) {
+    return (
+      <Box
+        sx={{
+          width: '100%',
+          height: '150px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        &nbsp;
+      </Box>
+    );
+  }
+
+  const histogramData = data.histogram.map((value: number, index: number) => ({
+    bin: `${data.bin_edges[index].toFixed(2)} - ${data.bin_edges[index + 1].toFixed(2)}`,
+    count: value,
+  }));
+
+  return (
+    <Box
+      sx={{
+        width: '100%',
+        height: '150px',
+        borderRadius: 'md',
+        overflow: 'hidden',
+      }}
+    >
+      <Typography level="title-md" sx={{ mb: 1 }}>
+        Layer Weights Distribution:
+      </Typography>
+      <ResponsiveBar
+        data={histogramData}
+        keys={['count']}
+        indexBy="bin"
+        margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+        padding={0.0}
+        colors={{ scheme: 'nivo' }}
+        axisBottom={null}
+        axisLeft={null}
+        enableLabel={false}
+        gridXValues={[]}
+        gridYValues={[]}
+      />
+    </Box>
+  );
+}
 
 export default function ModelLayerVisualization({
   tokenCount,
@@ -90,6 +165,7 @@ export default function ModelLayerVisualization({
       hoveredLayerSavedBeforeNextFrame = hoveredMesh;
       setHoveredLayer({
         name: hoveredMesh.userData?.name || '',
+        original_name: hoveredMesh.userData?.original_name || '',
         paramCount: hoveredMesh.userData?.paramCount || 0,
         type: hoveredMesh.userData?.type || '',
         index: hoveredMesh.userData?.index || 0,
@@ -302,6 +378,7 @@ export default function ModelLayerVisualization({
 
       box.userData = {
         name: layer.name,
+        original_name: layer?.original_name,
         paramCount: layer.param_count,
         type: layerType,
         index: index,
@@ -776,7 +853,7 @@ export default function ModelLayerVisualization({
                     Layer Information
                   </Typography>
                   <Typography level="body-sm" sx={{ mb: 0.5 }}>
-                    <strong>Name:</strong> {hoveredLayer.name}
+                    <strong>Name:</strong> {hoveredLayer.original_name}
                   </Typography>
                   <Typography level="body-sm" sx={{ mb: 0.5 }}>
                     <strong>Type:</strong> {hoveredLayer.type}
@@ -802,6 +879,9 @@ export default function ModelLayerVisualization({
                 }}
               />
               <Box sx={{ width: '300px' }} id="detailed-layer">
+                <Typography level="title-md" sx={{ mb: 1 }}>
+                  Layer Details
+                </Typography>
                 <Box
                   ref={layerCanvasRef}
                   sx={{
@@ -814,14 +894,15 @@ export default function ModelLayerVisualization({
                 />
                 {selectedLayer && (
                   <>
-                    <Typography level="title-md" sx={{ mt: 1 }}>
-                      Selected Layer:
-                    </Typography>
+                    <SingleLayerHistogram
+                      modelName={currentModel}
+                      layerName={selectedLayer?.userData?.original_name}
+                    />
                     <Typography
                       level="body-md"
                       sx={{ mb: 0.5, color: 'primary.500' }}
                     >
-                      Name: {selectedLayer?.userData?.name}
+                      Name: {selectedLayer?.userData?.original_name}
                       <br />
                       Type: {selectedLayer?.userData?.type}
                       <br />
