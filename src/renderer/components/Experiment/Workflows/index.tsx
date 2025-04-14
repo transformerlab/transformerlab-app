@@ -1,5 +1,5 @@
 /* eslint-disable no-nested-ternary */
-import { Sheet, Typography } from '@mui/joy';
+import { Box, Sheet, Tab, TabList, TabPanel, Tabs, Typography } from '@mui/joy';
 
 import '@xyflow/react/dist/style.css';
 
@@ -16,9 +16,6 @@ export default function Workflows({ experimentInfo }) {
         mb: 3,
       }}
     >
-      <Typography level="h1" mb={1}>
-        Workflows
-      </Typography>
       <Sheet
         sx={{
           display: 'flex',
@@ -28,7 +25,21 @@ export default function Workflows({ experimentInfo }) {
           height: '100%',
         }}
       >
-        <WorkflowList experimentInfo={experimentInfo} />
+        <Tabs
+          defaultValue={0}
+          sx={{ width: '100%', height: '100%', display: 'flex' }}
+        >
+          <TabList>
+            <Tab>Workflows</Tab>
+            <Tab>Second tab</Tab>
+          </TabList>
+          <TabPanel value={0} sx={{ width: '100%', height: '100%' }}>
+            <WorkflowList experimentInfo={experimentInfo} />
+          </TabPanel>
+          <TabPanel value={1} sx={{ width: '100%' }}>
+            Workflow Runs
+          </TabPanel>
+        </Tabs>
       </Sheet>
     </Sheet>
   );
