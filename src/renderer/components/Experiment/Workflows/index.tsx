@@ -29,7 +29,7 @@ import {
   Trash2Icon,
   WorkflowIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
@@ -74,6 +74,15 @@ export default function Workflows({ experimentInfo }) {
     isLoading: isLoading,
     mutate: mutateWorkflows,
   } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
+
+  // select the first workflow available:
+  useEffect(() => {
+    if (workflowsData && workflowsData.length > 0) {
+      if (selectedWorkflowId == null && !newWorkflowModalOpen) {
+        setSelectedWorkflowId(workflowsData[0].id);
+      }
+    }
+  }, [selectedWorkflowId, newWorkflowModalOpen]);
 
   const workflows = workflowsData;
 
