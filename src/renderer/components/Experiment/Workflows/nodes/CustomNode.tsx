@@ -72,6 +72,7 @@ export default function memo({
           gap: '5px',
           alignItems: 'center',
           justifyContent: 'center',
+          backgroundColor: 'var(--joy-palette-background-level1)',
         }}
       >
         <Typography level="title-md">{data?.label}</Typography>

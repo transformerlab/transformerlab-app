@@ -115,7 +115,13 @@ export default function WorkflowList({ experimentInfo }) {
           experimentInfo={experimentInfo}
         />
       )}
-      <Box display="flex" flexDirection="row" width="100%" height="100%">
+      <Box
+        display="flex"
+        flexDirection="row"
+        width="100%"
+        height="100%"
+        gap={1}
+      >
         <Box flex={1} display="flex" flexDirection="column">
           <Typography level="title-lg" mb={2}>
             Workflows
