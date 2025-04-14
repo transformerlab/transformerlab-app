@@ -1079,13 +1079,6 @@ Endpoints.Workflows = {
     name +
     '&experiment_id=' +
     experimentId,
-  UpdateName: (workflowId: string, new_name: string) =>
-    API_URL() +
-    'workflows/' +
-    workflowId +
-    '/update_name' +
-    '?new_name=' +
-    new_name,
   DeleteWorkflow: (workflowId: string) =>
     API_URL() + 'workflows/delete/' + workflowId,
   AddNode: (workflowId: string, node: string) =>
@@ -1131,8 +1124,6 @@ Endpoints.Workflows = {
   RunWorkflow: (workflowId: string) =>
     API_URL() + 'workflows/' + workflowId + '/start',
   ListRuns: () => API_URL() + 'workflows/list_runs',
-  GetRun: (workflowRunID: string) =>
-    API_URL() + 'workflows/runs/' + workflowRunID,
 };
 
 Endpoints.Dataset = {
@@ -1225,12 +1216,7 @@ Endpoints.Models = {
   ImportFromLocalPath: (modelPath: string) =>
     API_URL() + 'model/import_from_local_path?model_path=' + modelPath,
   HuggingFaceLogin: () => API_URL() + 'model/login_to_huggingface',
-  Delete: (modelId: string, deleteCache: boolean = false) =>
-    API_URL() +
-    'model/delete?model_id=' +
-    modelId +
-    '&delete_from_cache=' +
-    deleteCache,
+  Delete: (modelId: string) => API_URL() + 'model/delete?model_id=' + modelId,
   wandbLogin: () => API_URL() + 'model/login_to_wandb',
   testWandbLogin: () => API_URL() + 'model/test_wandb_login',
 };
@@ -1241,8 +1227,6 @@ Endpoints.Plugins = {
   Preview: (pluginId: string) =>
     API_URL() + 'plugins/preview?pluginId=' + pluginId,
   List: () => API_URL() + 'plugins/list',
-  RunPluginInstallScript: (pluginId: string) =>
-    API_URL() + 'plugins/' + pluginId + '/run_installer_script',
 };
 
 Endpoints.Config = {
