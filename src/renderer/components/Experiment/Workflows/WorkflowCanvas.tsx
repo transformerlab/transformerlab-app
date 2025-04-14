@@ -268,7 +268,8 @@ const Flow = ({
         mutateWorkflows();
       }}
       style={{
-        backgroundColor: 'var(--joy-palette-background-surface)',
+        backgroundColor:
+          'color-mix(in srgb, var(--joy-palette-background-level1), white 60%)',
       }}
       onConnect={onConnect}
       onReconnectStart={onReconnectStart}
