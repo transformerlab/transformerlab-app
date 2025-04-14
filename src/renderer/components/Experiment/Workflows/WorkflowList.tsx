@@ -115,145 +115,147 @@ export default function WorkflowList({ experimentInfo }) {
           experimentInfo={experimentInfo}
         />
       )}
-      <Box flex={1}>
-        <Typography level="title-lg" mb={2}>
-          Workflows
-        </Typography>
-        <List>
-          {workflows &&
-            workflows?.length > 0 &&
-            workflows?.map((workflow) => (
-              <ListItem key={workflow.id}>
-                <ListItemButton
-                  onClick={() => setSelectedWorkflowId(workflow.id)}
-                  selected={selectedWorkflowId === workflow.id}
-                >
-                  <ListItemDecorator>
-                    <WorkflowIcon />
-                  </ListItemDecorator>
-                  <ListItemContent>{workflow.name}</ListItemContent>
-                </ListItemButton>
-              </ListItem>
-            ))}
-          <ListItem>
-            <ListItemButton
-              sx={{ mt: 1 }}
-              onClick={() => {
-                setSelectedWorkflowId(null);
-                setNewWorkflowModalOpen(true);
-              }}
-            >
-              <ListItemDecorator>
-                <PlusCircleIcon />
-              </ListItemDecorator>
-              <ListItemContent>New Workflow</ListItemContent>
-            </ListItemButton>
-          </ListItem>
-        </List>
-      </Box>
-      <Box flex={3} display="flex" flexDirection="column">
-        <Box
-          display="flex"
-          flexDirection="row"
-          alignItems="center"
-          mb={1}
-          justifyContent="space-between"
-        >
-          <Typography level="title-lg">
-            Workflow {selectedWorkflow?.name}
+      <Box display="flex" flexDirection="row" width="100%" height="100%">
+        <Box flex={1}>
+          <Typography level="title-lg" mb={2}>
+            Workflows
           </Typography>
-          <Box pl={2} display="flex" flexDirection="row" gap={1}>
-            <>
-              {selectedWorkflow?.status != 'RUNNING' ? (
-                <Button
-                  disabled={!selectedWorkflow}
-                  startDecorator={<PlayIcon />}
-                  onClick={() => runWorkflow(selectedWorkflow.id)}
-                >
-                  Run
-                </Button>
-              ) : (
-                <Button startDecorator={<PlayIcon />} disabled>
-                  Running
-                </Button>
-              )}
-              <IconButton
-                variant="plain"
-                disabled={!selectedWorkflow}
-                // startDecorator={<BookOpenIcon />}
-                onClick={() => setViewCodeMode(!viewCodeMode)}
+          <List>
+            {workflows &&
+              workflows?.length > 0 &&
+              workflows?.map((workflow) => (
+                <ListItem key={workflow.id}>
+                  <ListItemButton
+                    onClick={() => setSelectedWorkflowId(workflow.id)}
+                    selected={selectedWorkflowId === workflow.id}
+                  >
+                    <ListItemDecorator>
+                      <WorkflowIcon />
+                    </ListItemDecorator>
+                    <ListItemContent>{workflow.name}</ListItemContent>
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            <ListItem>
+              <ListItemButton
+                sx={{ mt: 1 }}
+                onClick={() => {
+                  setSelectedWorkflowId(null);
+                  setNewWorkflowModalOpen(true);
+                }}
               >
-                {viewCodeMode ? <WorkflowIcon /> : <BracesIcon />}
-              </IconButton>
-              <Dropdown>
-                <MenuButton variant="plain" disabled={!selectedWorkflow}>
-                  <EllipsisIcon />
-                </MenuButton>
-                <Menu>
-                  <MenuItem
-                    onClick={() => {
-                      setNewWorkflowModalOpen(true);
-                    }}
-                  >
-                    <ListItemDecorator>
-                      <PenIcon />
-                    </ListItemDecorator>
-                    Edit Workflow Name
-                  </MenuItem>
-                  <MenuItem
-                    color="danger"
-                    onClick={async () => {
-                      if (
-                        confirm(
-                          'Are you sure you want to delete workflow ' +
-                            selectedWorkflow?.name +
-                            '?',
-                        )
-                      ) {
-                        await fetch(
-                          chatAPI.Endpoints.Workflows.DeleteWorkflow(
-                            selectedWorkflow?.id,
-                          ),
-                        );
-                        mutateWorkflows();
-                        setSelectedWorkflowId(null);
-                      }
-                    }}
-                  >
-                    <ListItemDecorator>
-                      <Trash2Icon />
-                    </ListItemDecorator>
-                    Delete Workflow
-                  </MenuItem>
-                </Menu>
-              </Dropdown>
-            </>
-          </Box>
+                <ListItemDecorator>
+                  <PlusCircleIcon />
+                </ListItemDecorator>
+                <ListItemContent>New Workflow</ListItemContent>
+              </ListItemButton>
+            </ListItem>
+          </List>
         </Box>
-        <Box
-          sx={{
-            display: 'flex',
-            width: '100%',
-            height: '100%',
-            overflow: 'hidden',
-            flexDirection: 'row',
-          }}
-        >
-          {selectedWorkflow ? (
-            viewCodeMode ? (
-              <ShowCode code={selectedWorkflow} />
-            ) : (
-              <WorkflowCanvas
-                selectedWorkflow={selectedWorkflow}
-                setNewNodeModalOpen={setNewNodeflowModalOpen}
-                mutateWorkflows={mutateWorkflows}
-              />
-            )
-          ) : (
-            <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
-              &nbsp;
+        <Box flex={3} display="flex" flexDirection="column">
+          <Box
+            display="flex"
+            flexDirection="row"
+            alignItems="center"
+            mb={1}
+            justifyContent="space-between"
+          >
+            <Typography level="title-lg">
+              Workflow {selectedWorkflow?.name}
+            </Typography>
+            <Box pl={2} display="flex" flexDirection="row" gap={1}>
+              <>
+                {selectedWorkflow?.status != 'RUNNING' ? (
+                  <Button
+                    disabled={!selectedWorkflow}
+                    startDecorator={<PlayIcon />}
+                    onClick={() => runWorkflow(selectedWorkflow.id)}
+                  >
+                    Run
+                  </Button>
+                ) : (
+                  <Button startDecorator={<PlayIcon />} disabled>
+                    Running
+                  </Button>
+                )}
+                <IconButton
+                  variant="plain"
+                  disabled={!selectedWorkflow}
+                  // startDecorator={<BookOpenIcon />}
+                  onClick={() => setViewCodeMode(!viewCodeMode)}
+                >
+                  {viewCodeMode ? <WorkflowIcon /> : <BracesIcon />}
+                </IconButton>
+                <Dropdown>
+                  <MenuButton variant="plain" disabled={!selectedWorkflow}>
+                    <EllipsisIcon />
+                  </MenuButton>
+                  <Menu>
+                    <MenuItem
+                      onClick={() => {
+                        setNewWorkflowModalOpen(true);
+                      }}
+                    >
+                      <ListItemDecorator>
+                        <PenIcon />
+                      </ListItemDecorator>
+                      Edit Workflow Name
+                    </MenuItem>
+                    <MenuItem
+                      color="danger"
+                      onClick={async () => {
+                        if (
+                          confirm(
+                            'Are you sure you want to delete workflow ' +
+                              selectedWorkflow?.name +
+                              '?',
+                          )
+                        ) {
+                          await fetch(
+                            chatAPI.Endpoints.Workflows.DeleteWorkflow(
+                              selectedWorkflow?.id,
+                            ),
+                          );
+                          mutateWorkflows();
+                          setSelectedWorkflowId(null);
+                        }
+                      }}
+                    >
+                      <ListItemDecorator>
+                        <Trash2Icon />
+                      </ListItemDecorator>
+                      Delete Workflow
+                    </MenuItem>
+                  </Menu>
+                </Dropdown>
+              </>
             </Box>
-          )}
+          </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+              flexDirection: 'row',
+            }}
+          >
+            {selectedWorkflow ? (
+              viewCodeMode ? (
+                <ShowCode code={selectedWorkflow} />
+              ) : (
+                <WorkflowCanvas
+                  selectedWorkflow={selectedWorkflow}
+                  setNewNodeModalOpen={setNewNodeflowModalOpen}
+                  mutateWorkflows={mutateWorkflows}
+                />
+              )
+            ) : (
+              <Box sx={{ width: '100%', backgroundColor: '#F7F9FB' }} p={4}>
+                &nbsp;
+              </Box>
+            )}
+          </Box>
         </Box>
       </Box>
     </>
