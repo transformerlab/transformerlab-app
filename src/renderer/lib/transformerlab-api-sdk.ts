@@ -1123,6 +1123,7 @@ Endpoints.Workflows = {
     to,
   RunWorkflow: (workflowId: string) =>
     API_URL() + 'workflows/' + workflowId + '/start',
+  ListRuns: () => API_URL() + 'workflows/list_runs',
 };
 
 Endpoints.Dataset = {

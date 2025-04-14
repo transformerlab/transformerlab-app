@@ -4,6 +4,7 @@ import { Box, Sheet, Tab, TabList, TabPanel, Tabs, Typography } from '@mui/joy';
 import '@xyflow/react/dist/style.css';
 
 import WorkflowList from './WorkflowList';
+import WorkflowRuns from './WorkflowRuns';
 
 export default function Workflows({ experimentInfo }) {
   return (
@@ -31,13 +32,16 @@ export default function Workflows({ experimentInfo }) {
         >
           <TabList>
             <Tab>Workflows</Tab>
-            <Tab>Second tab</Tab>
+            <Tab>Workflow Runs</Tab>
           </TabList>
-          <TabPanel value={0} sx={{ width: '100%', height: '100%' }}>
+          <TabPanel
+            value={0}
+            sx={{ width: '100%', height: '100%', overflow: 'hidden' }}
+          >
             <WorkflowList experimentInfo={experimentInfo} />
           </TabPanel>
           <TabPanel value={1} sx={{ width: '100%' }}>
-            Workflow Runs
+            <WorkflowRuns experimentInfo={experimentInfo} />
           </TabPanel>
         </Tabs>
       </Sheet>
