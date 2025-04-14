@@ -116,11 +116,11 @@ export default function WorkflowList({ experimentInfo }) {
         />
       )}
       <Box display="flex" flexDirection="row" width="100%" height="100%">
-        <Box flex={1}>
+        <Box flex={1} display="flex" flexDirection="column">
           <Typography level="title-lg" mb={2}>
             Workflows
           </Typography>
-          <List>
+          <List sx={{ overflowY: 'auto', height: '100%' }}>
             {workflows &&
               workflows?.length > 0 &&
               workflows?.map((workflow) => (
