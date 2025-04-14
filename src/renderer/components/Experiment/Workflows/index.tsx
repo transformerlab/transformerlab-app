@@ -82,7 +82,7 @@ export default function Workflows({ experimentInfo }) {
         setSelectedWorkflowId(workflowsData[0].id);
       }
     }
-  }, [selectedWorkflowId, newWorkflowModalOpen]);
+  }, [workflowsData, selectedWorkflowId, newWorkflowModalOpen]);
 
   const workflows = workflowsData;
 
