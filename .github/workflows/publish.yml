@@ -50,8 +50,8 @@ jobs:
 
       - name: Zip and upload static web assets
         run: |
-          zip -r transformerlab-web.zip release/cloud/
-          gh release upload ${{ github.ref_name }} transformerlab-web.zip
+          tar -czvf transformerlab_web.tar.gz release/cloud/
+          gh release upload ${{ github.ref_name }} transformerlab_web.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
