@@ -68,6 +68,9 @@ export default function TrainingModalLoRA({
   const [config, setConfig] = useState({});
   const [nameInput, setNameInput] = useState('');
   const [currentTab, setCurrentTab] = useState(0);
+  const [sweepConfig, setSweepConfig] = useState<{ [key: string]: string[] }>(
+    {},
+  );
 
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
@@ -163,6 +166,13 @@ export default function TrainingModalLoRA({
     if (templateData && typeof templateData.config === 'string') {
       //Should only parse data once after initial load
       templateData.config = JSON.parse(templateData.config);
+      // console.log('Parsed templateData.config:', templateData.config);
+      // Set sweep config if it exists
+      if (templateData.config.sweep_config) {
+        setSweepConfig(JSON.parse(templateData.config.sweep_config));
+      } else {
+        setSweepConfig({});
+      }
     }
     if (templateData && templateData.config) {
       setSelectedDataset(templateData.config.dataset_name);
@@ -286,6 +296,172 @@ export default function TrainingModalLoRA({
       </Stack>
     );
   }
+  function SweepConfigTab({ trainingTypeData, sweepConfig, setSweepConfig }) {
+    const [newParam, setNewParam] = useState('');
+    const [newValues, setNewValues] = useState('');
+
+    // Parse parameters from trainingTypeData
+    let availableParameters = [];
+    let parameterTypes = {};
+    try {
+      if (trainingTypeData && trainingTypeData !== 'undefined') {
+        const parsedData = JSON.parse(trainingTypeData);
+        // Extract parameter names and their types from the training type data
+        if (parsedData?.parameters) {
+          availableParameters = Object.keys(parsedData.parameters);
+          // Store parameter types for conversion later
+          Object.entries(parsedData.parameters).forEach(([param, config]) => {
+            if (config && typeof config === 'object' && 'type' in config) {
+              parameterTypes[param] = config.type;
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing training type data:', error);
+    }
+
+    // Filter out parameters that are already in sweepConfig
+    const unusedParameters = availableParameters.filter(
+      (param) => !Object.keys(sweepConfig).includes(param),
+    );
+
+    const addSweepParam = () => {
+      if (newParam && newValues.trim()) {
+        // Split values by comma and trim whitespace
+        const valuesArray = newValues.split(',').map((val) => {
+          const trimmedValue = val.trim();
+
+          // Convert to number if parameter type is number or integer
+          const paramType = parameterTypes[newParam];
+          if (paramType === 'number' || paramType === 'integer') {
+            const numValue = Number(trimmedValue);
+            return isNaN(numValue) ? trimmedValue : numValue;
+          }
+
+          return trimmedValue;
+        });
+
+        setSweepConfig((prev) => ({
+          ...prev,
+          [newParam]: valuesArray,
+        }));
+
+        // Reset input fields
+        setNewParam('');
+        setNewValues('');
+      }
+    };
+
+    const removeParam = (paramToRemove) => {
+      setSweepConfig((prev) => {
+        const updated = { ...prev };
+        delete updated[paramToRemove];
+        return updated;
+      });
+    };
+
+    return (
+      <Stack spacing={3}>
+        <Sheet sx={{ p: 2, borderRadius: 'sm' }} variant="outlined">
+          <Stack spacing={2}>
+            <FormLabel>Add Parameter Sweep</FormLabel>
+            <FormHelperText>
+              Define parameters to sweep during training. Each parameter can
+              have multiple values to try. Selecting a hyperparameter will
+              override the values set for it in the Plugin Config tab.
+            </FormHelperText>
+
+            <Stack direction="row" spacing={2} alignItems="flex-start">
+              <FormControl sx={{ minWidth: '200px' }}>
+                <FormLabel>Parameter</FormLabel>
+                <select
+                  value={newParam}
+                  onChange={(e) => setNewParam(e.target.value)}
+                  style={{
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #ccc',
+                    width: '100%',
+                    backgroundColor: 'transparent',
+                  }}
+                >
+                  <option value="">Select a parameter</option>
+                  {unusedParameters.map((param) => (
+                    <option key={param} value={param}>
+                      {param}
+                    </option>
+                  ))}
+                </select>
+              </FormControl>
+
+              <FormControl sx={{ flex: 1 }}>
+                <FormLabel>Sweep Values (comma separated)</FormLabel>
+                <Input
+                  value={newValues}
+                  onChange={(e) => setNewValues(e.target.value)}
+                  placeholder="e.g. 2,4,8,16"
+                />
+                <FormHelperText>
+                  Enter values separated by commas
+                </FormHelperText>
+              </FormControl>
+
+              <Button
+                sx={{ mt: 3 }}
+                onClick={addSweepParam}
+                disabled={!newParam || !newValues.trim()}
+              >
+                Add Parameter
+              </Button>
+            </Stack>
+          </Stack>
+        </Sheet>
+
+        {Object.keys(sweepConfig).length > 0 && (
+          <Sheet sx={{ p: 2, borderRadius: 'sm' }} variant="outlined">
+            <FormLabel>Current Sweep Configuration</FormLabel>
+            <Stack spacing={2} mt={1}>
+              {Object.entries(sweepConfig).map(([param, values]) => (
+                <Sheet
+                  key={param}
+                  sx={{ p: 2, borderRadius: 'sm' }}
+                  variant="soft"
+                >
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                  >
+                    <Stack>
+                      <FormLabel>{param}</FormLabel>
+                      <FormHelperText>
+                        Values: {values.join(', ')}
+                      </FormHelperText>
+                    </Stack>
+                    <Button
+                      color="danger"
+                      variant="soft"
+                      size="sm"
+                      onClick={() => removeParam(param)}
+                    >
+                      Remove
+                    </Button>
+                  </Stack>
+                </Sheet>
+              ))}
+            </Stack>
+          </Sheet>
+        )}
+
+        <input
+          type="hidden"
+          name="sweep_config"
+          value={JSON.stringify(sweepConfig)}
+        />
+      </Stack>
+    );
+  }
 
   return (
     <Modal open={open}>
@@ -313,6 +489,11 @@ export default function TrainingModalLoRA({
             const formData = new FormData(event.currentTarget);
             let formJson = Object.fromEntries((formData as any).entries());
             formJson.type = trainingType;
+            // Add sweep config to form data
+            if (Object.keys(sweepConfig).length > 0) {
+              formJson.sweep_config = JSON.stringify(sweepConfig);
+            }
+            console.log('Form Data:', formJson);
             if (templateData && task_id) {
               //Only update if we are currently editing a template
               // For all keys in templateData.inputs that are in formJson, set the value from formJson
@@ -335,6 +516,7 @@ export default function TrainingModalLoRA({
                   templateDataOutputs[key] = formJson[key];
                 }
               }
+
               updateTask(
                 task_id,
                 JSON.stringify(templateDataInputs),
@@ -359,6 +541,7 @@ export default function TrainingModalLoRA({
               );
             }
             setNameInput(generateFriendlyName());
+            setSweepConfig({});
             onClose();
           }}
         >
@@ -374,6 +557,7 @@ export default function TrainingModalLoRA({
               <Tab>Dataset</Tab>
               <Tab>Data Template</Tab>
               <Tab>Plugin Config</Tab>
+              <Tab>Sweep Config</Tab>
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
               <PluginIntroduction
@@ -396,7 +580,7 @@ export default function TrainingModalLoRA({
             </TabPanel>
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <>
-                {currentTab == 2 && (
+                {currentTab === 2 && (
                   <OneTimePopup title="How to Create a Training Template:">
                     Use the <b>Available Fields</b> to populate the template
                     fields on this screen. For each template field, you can type
@@ -436,6 +620,13 @@ export default function TrainingModalLoRA({
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
                 config={config}
+              />
+            </TabPanel>
+            <TabPanel value={5} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <SweepConfigTab
+                trainingTypeData={trainingTypeData}
+                sweepConfig={sweepConfig}
+                setSweepConfig={setSweepConfig}
               />
             </TabPanel>
           </Tabs>
