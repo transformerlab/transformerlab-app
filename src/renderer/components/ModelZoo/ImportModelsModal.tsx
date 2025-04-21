@@ -176,9 +176,20 @@ export default function ImportModelsModal({ open, setOpen }) {
                 }
               </div>
               <div>
+                <label htmlFor="modelFolderSelector">
+                  <Button
+                    component="span"
+                    size="sm"
+                    sx={{ height: '30px' }}
+                    variant="outlined"
+                  >
+                    Select Folder
+                  </Button>
+                </label>
                 <input
                   directory=""
                   webkitdirectory=""
+                  style={{display:'none'}}
                   type="file"
                   id="modelFolderSelector"
                   onChange={async (event: FormEvent<HTMLFormElement>) => {
