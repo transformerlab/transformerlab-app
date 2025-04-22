@@ -93,6 +93,15 @@ export default function TrainingModalLoRA({
     trainingType = JSON.parse(trainingTypeData)?.train_type || 'LoRA';
   }
 
+  let runSweeps = false;
+  if (
+    trainingTypeData &&
+    trainingTypeData !== 'undefined' &&
+    trainingTypeData.length > 0
+  ) {
+    runSweeps = JSON.parse(trainingTypeData)?.sweeps || false;
+  }
+
   // Fetch available datasets from the API
   const {
     data: datasets,
@@ -557,7 +566,7 @@ export default function TrainingModalLoRA({
               <Tab>Dataset</Tab>
               <Tab>Data Template</Tab>
               <Tab>Plugin Config</Tab>
-              <Tab>Sweep Config</Tab>
+              {runSweeps && <Tab>Sweep Config</Tab>}
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
               <PluginIntroduction
@@ -622,13 +631,15 @@ export default function TrainingModalLoRA({
                 config={config}
               />
             </TabPanel>
-            <TabPanel value={5} sx={{ p: 2, overflow: 'auto' }} keepMounted>
-              <SweepConfigTab
-                trainingTypeData={trainingTypeData}
-                sweepConfig={sweepConfig}
-                setSweepConfig={setSweepConfig}
-              />
-            </TabPanel>
+            {runSweeps && (
+              <TabPanel value={5} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+                <SweepConfigTab
+                  trainingTypeData={trainingTypeData}
+                  sweepConfig={sweepConfig}
+                  setSweepConfig={setSweepConfig}
+                />
+              </TabPanel>
+            )}
           </Tabs>
           <Stack spacing={2} direction="row" justifyContent="flex-end">
             <Button color="danger" variant="soft" onClick={() => onClose()}>
