@@ -48,6 +48,13 @@ jobs:
         run: |
           npm exec electron-builder -- --publish always --win --mac --linux
 
+      - name: Extract version from package.json
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./release/app/package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: sign windows exe
         uses: sslcom/esigner-codesign@develop
         with:
@@ -57,14 +64,14 @@ jobs:
           password: ${{ secrets.ES_PASSWORD }}
           credential id: ${{ secrets.CREDENTIAL_ID }}
           totp_secret: ${{ secrets.ES_TOTP_SECRET }}
-          file_path: ${GITHUB_WORKSPACE}/release/build/Transformer\ Lab\ Setup\ ${{ github.event.release.tag_name }}.exe
-          output_path: ${GITHUB_WORKSPACE}/signed
+          file_path: "${GITHUB_WORKSPACE}/release/build/Transformer Lab Setup ${steps.package-version.outputs.version}.exe"
+          output_path: "${GITHUB_WORKSPACE}/signed"
 
       - name: Zip and upload static web assets
         run: |
           tar -czvf transformerlab_web.tar.gz release/cloud/
           gh release upload ${{ github.ref_name }} transformerlab_web.tar.gz
-          gh release upload ${GITHUB_WORKSPACE}/signed/Transformer\ Lab\ Setup\ ${{ github.event.release.tag_name }}.exe
+          gh release upload "${GITHUB_WORKSPACE}/release/build/Transformer Lab Setup ${steps.package-version.outputs.version}.exe"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
