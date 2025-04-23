@@ -173,28 +173,27 @@ export default function TrainingModalLoRA({
     const result = await response.json();
     return result;
   }
-  //Whenever template data updates, we need to update state variables used in the form.
+  // Whenever template data updates, we need to update state variables used in the form.
   useEffect(() => {
     if (templateData && typeof templateData.config === 'string') {
-      //Should only parse data once after initial load
+      // Should only parse data once after initial load
       templateData.config = JSON.parse(templateData.config);
-      // console.log('Parsed templateData.config:', templateData.config);
-      // Set sweep config if it exists
-      if (templateData.config.sweep_config) {
-        setSweepConfig(JSON.parse(templateData.config.sweep_config));
-      } else {
-        setSweepConfig({});
-      }
     }
     if (templateData && templateData.config) {
       setSelectedDataset(templateData.config.dataset_name);
       setConfig(templateData.config);
       setNameInput(templateData.name);
+      if (templateData.config.sweep_config) {
+        setSweepConfig(JSON.parse(templateData.config.sweep_config));
+      } else {
+        setSweepConfig({});
+      }
     } else {
-      //This case is for when we are creating a new template
+      // This case is for when we are creating a new template
       setSelectedDataset(null);
       setConfig({});
       setNameInput(generateFriendlyName());
+      setSweepConfig({});
     }
   }, [templateData]);
   // Once you have a dataset selected, we use SWR's dependency mode to fetch the
