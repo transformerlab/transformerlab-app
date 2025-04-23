@@ -99,7 +99,10 @@ export default function TrainingModalLoRA({
     trainingTypeData !== 'undefined' &&
     trainingTypeData.length > 0
   ) {
-    runSweeps = JSON.parse(trainingTypeData)?.sweeps || false;
+    const parsedData = JSON.parse(trainingTypeData);
+    if (Array.isArray(parsedData?.supports)) {
+      runSweeps = parsedData.supports.includes('sweeps');
+    }
   }
 
   // Fetch available datasets from the API
