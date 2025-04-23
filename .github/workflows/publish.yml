@@ -48,14 +48,6 @@ jobs:
         run: |
           npm exec electron-builder -- --publish always --win --mac --linux
 
-      - name: list credential names
-        uses: sslcom/esigner-codesign@develop
-        with:
-          # Sign and timestamp code object
-          command: get_credential_ids
-          username: ${{ secrets.ES_USERNAME }}
-          password: ${{ secrets.ES_PASSWORD }}
-
       - name: sign windows exe
         uses: sslcom/esigner-codesign@develop
         with:
