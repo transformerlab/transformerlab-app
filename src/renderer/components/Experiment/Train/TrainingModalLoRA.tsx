@@ -18,6 +18,7 @@ import {
   TabPanel,
   Tabs,
   Sheet,
+  Switch,
 } from '@mui/joy';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from './TraningModalDataTab';
@@ -71,6 +72,7 @@ export default function TrainingModalLoRA({
   const [sweepConfig, setSweepConfig] = useState<{ [key: string]: string[] }>(
     {},
   );
+  const [isRunSweeps, setIsRunSweeps] = useState(false);
 
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
@@ -188,12 +190,18 @@ export default function TrainingModalLoRA({
       } else {
         setSweepConfig({});
       }
+      if (templateData.config.run_sweeps) {
+        setIsRunSweeps(templateData.config.run_sweeps);
+      } else {
+        setIsRunSweeps(false);
+      }
     } else {
       // This case is for when we are creating a new template
       setSelectedDataset(null);
       setConfig({});
       setNameInput(generateFriendlyName());
       setSweepConfig({});
+      setIsRunSweeps(false);
     }
   }, [templateData]);
   // Once you have a dataset selected, we use SWR's dependency mode to fetch the
@@ -230,6 +238,7 @@ export default function TrainingModalLoRA({
     return 'Select an Experiment';
   }
 
+  // eslint-disable-next-line react/no-unstable-nested-components
   function TrainingModalFirstTab() {
     return (
       <Stack spacing={2}>
@@ -307,6 +316,7 @@ export default function TrainingModalLoRA({
       </Stack>
     );
   }
+  // eslint-disable-next-line react/no-unstable-nested-components
   function SweepConfigTab({ trainingTypeData, sweepConfig, setSweepConfig }) {
     const [newParam, setNewParam] = useState('');
     const [newValues, setNewValues] = useState('');
@@ -374,6 +384,26 @@ export default function TrainingModalLoRA({
 
     return (
       <Stack spacing={3}>
+        <Sheet sx={{ p: 2, borderRadius: 'sm' }} variant="outlined">
+          <Stack spacing={2}>
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <FormLabel>Run Hyperparameter Sweeps</FormLabel>
+              <Switch
+                checked={isRunSweeps}
+                onChange={(event) => setIsRunSweeps(event.target.checked)}
+                color={isRunSweeps ? 'success' : 'neutral'}
+              />
+            </Stack>
+            <FormHelperText>
+              Enable this to perform hyperparameter sweeps using the parameters
+              defined below.
+            </FormHelperText>
+          </Stack>
+        </Sheet>
         <Sheet sx={{ p: 2, borderRadius: 'sm' }} variant="outlined">
           <Stack spacing={2}>
             <FormLabel>Add Parameter Sweep</FormLabel>
@@ -470,6 +500,7 @@ export default function TrainingModalLoRA({
           name="sweep_config"
           value={JSON.stringify(sweepConfig)}
         />
+        <input type="hidden" name="run_sweeps" value={isRunSweeps.toString()} />
       </Stack>
     );
   }
@@ -504,6 +535,12 @@ export default function TrainingModalLoRA({
             if (Object.keys(sweepConfig).length > 0) {
               formJson.sweep_config = JSON.stringify(sweepConfig);
             }
+            if (formJson.run_sweeps) {
+              formJson.run_sweeps = formJson.run_sweeps === 'true';
+            } else {
+              formJson.run_sweeps = false;
+            }
+
             console.log('Form Data:', formJson);
             if (templateData && task_id) {
               //Only update if we are currently editing a template
@@ -553,6 +590,7 @@ export default function TrainingModalLoRA({
             }
             setNameInput(generateFriendlyName());
             setSweepConfig({});
+            setIsRunSweeps(false);
             onClose();
           }}
         >
