@@ -52,7 +52,7 @@ jobs:
         uses: sslcom/esigner-codesign@develop
         with:
           # Sign and timestamp code object
-          commmand: get_credential_ids
+          command: get_credential_ids
           username: ${{ secrets.ES_USERNAME }}
           password: ${{ secrets.ES_PASSWORD }}
 
@@ -60,7 +60,7 @@ jobs:
         uses: sslcom/esigner-codesign@develop
         with:
           # Sign and timestamp code object
-          commmand: sign
+          command: sign
           username: ${{ secrets.ES_USERNAME }}
           password: ${{ secrets.ES_PASSWORD }}
           credential id: ${{ secrets.CREDENTIAL_ID }}
