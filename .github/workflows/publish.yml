@@ -48,10 +48,31 @@ jobs:
         run: |
           npm exec electron-builder -- --publish always --win --mac --linux
 
+      - name: list credential names
+        uses: sslcom/esigner-codesign@develop
+        with:
+          # Sign and timestamp code object
+          commmand: get_credential_ids
+          username: ${{ secrets.ES_USERNAME }}
+          password: ${{ secrets.ES_PASSWORD }}
+
+      - name: sign windows exe
+        uses: sslcom/esigner-codesign@develop
+        with:
+          # Sign and timestamp code object
+          commmand: sign
+          username: ${{ secrets.ES_USERNAME }}
+          password: ${{ secrets.ES_PASSWORD }}
+          credential id: ${{ secrets.CREDENTIAL_ID }}
+          totp_secret: ${{ secrets.ES_TOTP_SECRET }}
+          file_path: ${GITHUB_WORKSPACE}/release/build/Transformer\ Lab\ Setup\ ${{ github.event.release.tag_name }}.exe
+          output_path: ${GITHUB_WORKSPACE}/signed
+
       - name: Zip and upload static web assets
         run: |
           tar -czvf transformerlab_web.tar.gz release/cloud/
           gh release upload ${{ github.ref_name }} transformerlab_web.tar.gz
+          gh release upload ${GITHUB_WORKSPACE}/signed/Transformer\ Lab\ Setup\ ${{ github.event.release.tag_name }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
