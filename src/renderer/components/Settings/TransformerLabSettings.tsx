@@ -27,13 +27,13 @@ import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 
 import AIProvidersSettings from './AIProvidersSettings';
 import ViewJobsTab from './ViewJobsTab';
-import { alignBox } from '@nivo/core';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [doNotTrack, setDoNotTrack] = React.useState(false);
+  const [autoUpdatePlugins, setAutoUpdatePlugins] = React.useState(false);
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -41,6 +41,14 @@ export default function TransformerLabSettings() {
       setDoNotTrack(value === 'true');
     };
     fetchDoNotTrack();
+  }, []);
+
+  React.useEffect(() => {
+    const fetchAutoUpdateSetting = async () => {
+      const value = await window.storage.get('AUTO_UPDATE_PLUGINS');
+      setAutoUpdatePlugins(value === 'true');
+    };
+    fetchAutoUpdateSetting();
   }, []);
 
   const {
@@ -90,6 +98,12 @@ export default function TransformerLabSettings() {
     const checked = event.target.checked;
     setDoNotTrack(checked);
     window.storage.set('DO_NOT_TRACK', checked.toString());
+  };
+
+  const handleAutoUpdatePluginsChange = (event) => {
+    const checked_update = event.target.checked;
+    setAutoUpdatePlugins(checked_update);
+    window.storage.set('AUTO_UPDATE_PLUGINS', checked_update.toString());
   };
 
   return (
@@ -257,6 +271,23 @@ export default function TransformerLabSettings() {
                 {doNotTrack
                   ? 'No tracking events will be sent'
                   : 'Anonymous usage data will be shared with Transformer Lab'}
+              </FormHelperText>
+            </FormControl>
+            <Divider sx={{ mt: 2, mb: 2 }} />
+            <Typography level="title-lg" marginBottom={2}>
+              Plugin Settings:
+            </Typography>
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Auto-update Plugins</FormLabel>
+              <Switch
+                checked={autoUpdatePlugins}
+                onChange={handleAutoUpdatePluginsChange}
+                sx={{ alignSelf: 'flex-start' }}
+              />
+              <FormHelperText>
+                {autoUpdatePlugins
+                  ? 'Plugins will be updated automatically when updates are available'
+                  : 'You will be prompted before updating plugins'}
               </FormHelperText>
             </FormControl>
           </TabPanel>
