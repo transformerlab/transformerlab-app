@@ -66,13 +66,41 @@ export default function PluginGallery({ experimentInfo }) {
     </FormControl>
   );
 
-  const groupByType = (plugins) => {
+  const isPluginCompatible = (plugin, machineType) => {
+    if (!plugin.supported_hardware_architectures) return true; // Default to compatible if no information
+
+    if (machineType === 'mps') {
+      return (
+        plugin.supported_hardware_architectures.includes('mlx') ||
+        plugin.supported_hardware_architectures.includes('cpu')
+      );
+    }
+
+    if (machineType === 'cuda') {
+      return (
+        plugin.supported_hardware_architectures.includes('cuda') ||
+        plugin.supported_hardware_architectures.includes('cpu')
+      );
+    }
+
+    return true; // Default to compatible for unknown machine types
+  };
+
+  const groupByType = (plugins, machineType) => {
     return plugins.reduce((acc, plugin) => {
       const { type } = plugin;
+      const compatible = isPluginCompatible(plugin, machineType);
+
       if (!acc[type]) {
-        acc[type] = [];
+        acc[type] = { compatible: [], incompatible: [] };
       }
-      acc[type].push(plugin);
+
+      if (compatible) {
+        acc[type].compatible.push(plugin);
+      } else {
+        acc[type].incompatible.push(plugin);
+      }
+
       return acc;
     }, {});
   };
@@ -82,7 +110,7 @@ export default function PluginGallery({ experimentInfo }) {
   if (isLoading) return <LinearProgress />;
 
   const filteredPlugins = filterByFilters(data, searchText, filters);
-  const groupedPlugins = groupByType(filteredPlugins);
+  const groupedPlugins = groupByType(filteredPlugins, device);
 
   return (
     <>
@@ -146,20 +174,59 @@ export default function PluginGallery({ experimentInfo }) {
                 {type} Plugins:
               </Typography>
             </Box>
-            <Grid container spacing={2} sx={{ flexGrow: 1 }}>
-              {groupedPlugins[type].map((plugin) => (
-                <Grid xs={4} key={plugin.id}>
-                  <PluginCard
-                    plugin={plugin}
-                    type={plugin.type}
-                    download
-                    experimentInfo={experimentInfo}
-                    parentMutate={mutate}
-                    machineType={device}
-                  />
+
+            {/* Compatible plugins */}
+            {groupedPlugins[type].compatible.length > 0 && (
+              <Grid container spacing={2} sx={{ flexGrow: 1 }}>
+                {groupedPlugins[type].compatible.map((plugin) => (
+                  <Grid xs={4} key={plugin.id}>
+                    <PluginCard
+                      plugin={plugin}
+                      type={plugin.type}
+                      download
+                      experimentInfo={experimentInfo}
+                      parentMutate={mutate}
+                      machineType={device}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+
+            {/* Incompatible plugins */}
+            {groupedPlugins[type].incompatible.length > 0 && (
+              <>
+                <Typography
+                  level="title-sm"
+                  sx={{
+                    mt: 3,
+                    mb: 1,
+                    color: 'text.secondary',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    pb: 1,
+                  }}
+                >
+                  Not compatible with your hardware architecture:
+                </Typography>
+                <Grid container spacing={2} sx={{ flexGrow: 1 }}>
+                  {groupedPlugins[type].incompatible.map((plugin) => (
+                    <Grid xs={4} key={plugin.id}>
+                      <Box sx={{ opacity: 0.6 }}>
+                        <PluginCard
+                          plugin={plugin}
+                          type={plugin.type}
+                          download
+                          experimentInfo={experimentInfo}
+                          parentMutate={mutate}
+                          machineType={device}
+                        />
+                      </Box>
+                    </Grid>
+                  ))}
                 </Grid>
-              ))}
-            </Grid>
+              </>
+            )}
           </Box>
         ))}
       </Sheet>

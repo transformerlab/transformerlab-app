@@ -89,42 +89,31 @@ export default function PluginCard({
   // eslint-disable-next-line react/no-unstable-nested-components
   function WillThisPluginWorkOnMyMachine({ pluginArchitectures, machineType }) {
     if (!pluginArchitectures) return null;
+
+    // Check if plugin is compatible with the machine type
+    let isCompatible = false;
+
     if (machineType === 'mps') {
-      if (
+      isCompatible =
         pluginArchitectures.includes('mlx') ||
-        pluginArchitectures.includes('cpu')
-      ) {
-        return (
-          <Typography level="body-xs" color="success">
-            This plugin should work on your machine because it supports MLX.
-          </Typography>
-        );
-      }
-      return (
-        <Typography level="body-xs" color="danger">
-          This plugin will not work on your machine because you do not have the
-          supported architecture(s) above.
-        </Typography>
-      );
-    }
-    if (machineType === 'cuda') {
-      if (
+        pluginArchitectures.includes('cpu');
+    } else if (machineType === 'cuda') {
+      isCompatible =
         pluginArchitectures.includes('cuda') ||
-        pluginArchitectures.includes('cpu')
-      ) {
-        return (
-          <Typography level="body-xs" color="danger">
-            This plugin will work on your machine.
-          </Typography>
-        );
-      }
+        pluginArchitectures.includes('cpu');
+    }
+
+    // Only show a message for incompatible plugins
+    if (!isCompatible) {
       return (
-        <Typography level="body-xs" color="danger">
-          This plugin will not work on your machine because you do not have the
-          supported architecture(s) above.
+        <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
+          This plugin is not compatible with your hardware architecture
         </Typography>
       );
     }
+
+    // Return null for compatible plugins (no message)
+    return null;
   }
 
   return (
