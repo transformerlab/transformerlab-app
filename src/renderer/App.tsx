@@ -123,7 +123,7 @@ export default function App() {
           height: '100dvh',
           width: '100dvw',
           overflow: 'hidden',
-          gridTemplateColumns: '200px 1fr',
+          gridTemplateColumns: '180px 1fr',
           gridTemplateRows: logsDrawerOpen
             ? `60px 5fr ${logsDrawerHeight}px`
             : '60px 5fr 18px',

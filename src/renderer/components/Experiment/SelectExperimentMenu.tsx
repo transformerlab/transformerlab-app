@@ -111,7 +111,7 @@ export default function SelectExperimentMenu({
   return (
     <div>
       <FormControl>
-        <FormLabel
+        {/* <FormLabel
           sx={{
             paddingLeft: 1,
             color: 'var(--joy-palette-neutral-plainColor)',
@@ -119,8 +119,8 @@ export default function SelectExperimentMenu({
             marginBottom: 0,
           }}
         >
-          Experiment:
-        </FormLabel>
+          <Typography level="body-sm">Experiment:</Typography>
+        </FormLabel> */}
         <Dropdown>
           {models?.length > 0 ? (
             <Tooltip
@@ -133,37 +133,50 @@ export default function SelectExperimentMenu({
               }
               variant="soft"
             >
-              <Button
-                variant="plain"
-                sx={{
-                  backgroundColor: 'transparent !important',
-                  fontSize: '22px',
-                  color: 'var(--joy-palette-neutral-plainDisabledColor)',
-                  paddingLeft: 1,
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '4px',
                 }}
               >
-                {experimentInfo?.name || 'Select'}
-                <span
-                  style={{
-                    flexGrow: 0,
-                    justifyContent: 'right',
-                    display: 'inline-flex',
-                    marginLeft: '8px',
+                <Button
+                  variant="plain"
+                  sx={{
+                    backgroundColor: 'transparent !important',
+                    fontSize: '20px',
+                    color: 'var(--joy-palette-neutral-plainDisabledColor)',
+                    paddingLeft: 1,
+                    paddingRight: 0,
+                    minHeight: '22px',
+                    height: '22px',
                   }}
                 >
-                  <ChevronDownIcon size="18px" />
-                </span>
-                <span
-                  style={{
-                    flexGrow: 1,
-                    justifyContent: 'right',
-                    display: 'inline-flex',
-                    color: 'var(--joy-palette-neutral-plainColor)',
-                  }}
-                >
-                  &nbsp;
-                </span>
-              </Button>
+                  {experimentInfo?.name || 'Select'}
+                  <span
+                    style={{
+                      flexGrow: 0,
+                      justifyContent: 'right',
+                      display: 'inline-flex',
+                      marginLeft: '8px',
+                    }}
+                  >
+                    <ChevronDownIcon size="18px" />
+                  </span>
+                  <span
+                    style={{
+                      flexGrow: 1,
+                      justifyContent: 'right',
+                      display: 'inline-flex',
+                      color: 'var(--joy-palette-neutral-plainColor)',
+                    }}
+                  >
+                    &nbsp;
+                  </span>
+                </Button>
+              </div>
             </Tooltip>
           ) : (
             <div
@@ -172,10 +185,12 @@ export default function SelectExperimentMenu({
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                marginBottom: '4px',
               }}
             >
               <MenuButton
                 variant="plain"
+                size="sm"
                 sx={{
                   fontSize: '22px',
                   maxWidth: '200px',
@@ -228,7 +243,7 @@ export default function SelectExperimentMenu({
               />
             </div>
           )}
-          <Menu className="select-experiment-menu">
+          <Menu className="select-experiment-menu" variant="plain">
             {data &&
               data.map((experiment: any) => {
                 return (

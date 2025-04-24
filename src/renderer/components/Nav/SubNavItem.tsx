@@ -31,8 +31,16 @@ const SubNavItem = ({
         selected={!!match}
         disabled={disabled}
       >
-        <ListItemDecorator>{icon}</ListItemDecorator>
-        <ListItemContent>
+        <ListItemDecorator sx={{ minInlineSize: '30px' }}>
+          {icon}
+        </ListItemDecorator>
+        <ListItemContent
+          sx={{
+            display: 'flex',
+            justifyContent: 'flex-start',
+            alignContent: 'center',
+          }}
+        >
           <Badge
             variant="plain"
             badgeContent={counter}
