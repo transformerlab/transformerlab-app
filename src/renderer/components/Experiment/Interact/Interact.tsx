@@ -95,7 +95,10 @@ export default function Chat({
   // For now this is helpful a rough indicator of the number of tokens used.
   // But we should improve this later
   if (mode === 'chat' || mode === 'tools') {
-    textToDebounce += experimentInfo?.config?.prompt_template?.system_message;
+    // textToDebounce += experimentInfo?.config?.prompt_template?.system_message;
+    const systemMessage =
+      document.getElementsByName('system-message')[0]?.value;
+    textToDebounce += systemMessage || '';
     textToDebounce += '\n';
     chats.forEach((c) => {
       textToDebounce += c.t;
@@ -122,7 +125,7 @@ export default function Chat({
       }
     }
     scrollChatToBottom();
-  }, []);
+  }, [debouncedText, chats, mode]);
 
   // If the model changes, check the location of the inference service
   // And reset the global pointer to the inference server
@@ -704,7 +707,7 @@ export default function Chat({
   };
 
   async function countTokens() {
-    var count = await chatAPI.countTokens(currentModel, [debouncedText]);
+    let count = await chatAPI.countTokens(currentModel, [debouncedText]);
     setTokenCount(count);
   }
 
@@ -719,10 +722,10 @@ export default function Chat({
       };
     });
 
-    texts.push({ role: 'user', content: debouncedText });
+    // Only add debouncedText if it exists, otherwise use empty string
+    texts.push({ role: 'user', content: debouncedText || '' });
 
-    var count = await chatAPI.countChatTokens(currentModel, texts);
-
+    let count = await chatAPI.countChatTokens(currentModel, texts);
     setTokenCount(count);
   }
 
