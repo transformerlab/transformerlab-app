@@ -12,8 +12,11 @@ import {
   Table,
   Typography,
   Chip,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
 } from '@mui/joy';
-import Tooltip from '@mui/joy/Tooltip';
 import {
   BabyIcon,
   DotIcon,
@@ -100,6 +103,7 @@ export default function CurrentFoundationInfo({
   const [embeddingModel, setEmbeddingModel] = useState(
     experimentInfo?.config?.embedding_model,
   );
+  const [activeTab, setActiveTab] = useState(0);
   const navigate = useNavigate();
 
   // Fetch base model provenance
@@ -242,7 +246,39 @@ export default function CurrentFoundationInfo({
         setFoundation={setFoundation}
       />
 
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1, mb: 2 }}>
+      {/* Moved embedding model and visualization buttons above tabs */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          mt: 2,
+          mb: 1,
+          px: 2,
+        }}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+          <Typography level="title-md" marginBottom={1}>
+            Embedding Model:
+          </Typography>
+          <ButtonGroup size="sm">
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={handleEmbeddingModelClick}
+              sx={{ width: 'fit-content' }}
+            >
+              {embeddingModel}
+            </Button>
+            <Button
+              startDecorator={<Undo2Icon size={16} />}
+              onClick={resetToDefaultEmbedding}
+            >
+              Reset to Default
+            </Button>
+          </ButtonGroup>
+        </Box>
+
         <Button
           variant="outlined"
           color="primary"
@@ -253,15 +289,67 @@ export default function CurrentFoundationInfo({
         </Button>
       </Box>
 
-      <Sheet sx={{ overflow: 'auto' }}>
-        <Box sx={{ mt: 3 }}>
-          <Typography level="title-lg" marginBottom={1}>
-            Available Adaptors:
+      <Tabs
+        aria-label="Model tabs"
+        value={activeTab}
+        onChange={(event, value) => setActiveTab(value)}
+        sx={{ mt: 2 }}
+      >
+        <TabList>
+          <Tab>Overview</Tab>
+          <Tab>Adaptors</Tab>
+          <Tab>Provenance</Tab>
+        </TabList>
+
+        {/* Overview Tab */}
+        <TabPanel value={0} sx={{ p: 2 }}>
+          <Typography level="title-lg" marginBottom={2}>
+            Model Configuration
+          </Typography>
+          <Sheet
+            variant="outlined"
+            sx={{
+              p: 2,
+              borderRadius: 'md',
+              overflow: 'auto',
+              maxHeight: '500px',
+            }}
+          >
+            {Object.keys(huggingfaceData).length === 0 ||
+            !Object.entries(huggingfaceData).some(
+              (row) => hf_translate(row[0]) !== null,
+            ) ? (
+              <Typography level="body-sm" color="neutral" sx={{ p: 2 }}>
+                No configuration data available for this model. This may happen
+                with local models or when the model info hasn't been loaded yet.
+              </Typography>
+            ) : (
+              <Table id="huggingface-model-config-info">
+                <tbody>
+                  {Object.entries(huggingfaceData).map(
+                    (row) =>
+                      hf_translate(row[0]) !== null && (
+                        <tr key={row[0]}>
+                          <td>{hf_translate(row[0])}</td>
+                          <td>{JSON.stringify(row[1])}</td>
+                        </tr>
+                      ),
+                  )}
+                </tbody>
+              </Table>
+            )}
+          </Sheet>
+        </TabPanel>
+
+        {/* Adaptors Tab */}
+        <TabPanel value={1} sx={{ p: 2 }}>
+          <Typography level="title-lg" marginBottom={2}>
+            Available Adaptors
           </Typography>
           <Stack
             direction="column"
-            spacing={1}
-            style={{ overflow: 'auto', height: '100%' }}
+            spacing={2}
+            style={{ overflow: 'auto', maxHeight: '500px' }}
           >
             {peftData && peftData.length === 0 && (
               <Typography level="body-sm" color="neutral">
@@ -270,195 +358,153 @@ export default function CurrentFoundationInfo({
             )}
             {peftData &&
               peftData.map((peft) => (
-                <div
-                  style={{
+                <Sheet
+                  key={peft}
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: 'sm',
                     display: 'flex',
-                    flexDirection: 'row',
-                    justifyContent: 'left',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                   }}
-                  key={peft}
                 >
-                  <Typography level="title-md" paddingRight={3}>
-                    {peft}
-                    &nbsp;&nbsp;
-                  </Typography>
-                  <Button
-                    variant="soft"
-                    onClick={() => {
-                      setAdaptor(peft);
-                    }}
-                  >
-                    Select
-                  </Button>
-                  <IconButton
-                    variant="plain"
-                    onClick={() => {
-                      confirm(
-                        'Are you sure you want to delete this adaptor?',
-                      ) &&
-                        fetch(
-                          chatAPI.Endpoints.Models.DeletePeft(
-                            experimentInfo?.config?.foundation,
-                            peft,
-                          ),
-                        ).then(() => {
-                          peftMutate();
-                        });
-                    }}
-                  >
-                    <Trash2Icon />
-                  </IconButton>
-                </div>
-              ))}
-          </Stack>
-        </Box>
-
-        <Box sx={{ display: 'flex', flexDirection: 'column', marginTop: 2 }}>
-          <Typography level="title-lg" marginBottom={1}>
-            Embedding Model:
-          </Typography>
-          <ButtonGroup>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleEmbeddingModelClick}
-              sx={{ width: 'fit-content' }}
-            >
-              {embeddingModel}
-            </Button>
-            <Button
-              startDecorator={<Undo2Icon />}
-              onClick={resetToDefaultEmbedding}
-            >
-              Reset to Default
-            </Button>
-          </ButtonGroup>
-        </Box>
-        <Divider sx={{ my: 2 }} />
-        <Stack direction="row" gap={2}>
-          <Box flex={2}>
-            <Table id="huggingface-model-config-info">
-              <tbody>
-                {Object.entries(huggingfaceData).map(
-                  (row) =>
-                    hf_translate(row[0]) !== null && (
-                      <tr key={row[0]}>
-                        <td>{hf_translate(row[0])}</td>
-                        <td>{JSON.stringify(row[1])}</td>
-                      </tr>
-                    ),
-                )}
-              </tbody>
-            </Table>
-            {/* Enhanced Model Provenance Section */}
-            <Box mt={4}>
-              <Box
-                sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}
-              >
-                <Button
-                  variant="soft"
-                  onClick={() => setShowProvenance((prev) => !prev)}
-                  endDecorator={showProvenance ? '▲' : '▼'}
-                >
-                  Model Provenance
-                </Button>
-
-                {showProvenance && (
-                  <Typography level="body-sm">
-                    View provenance for:
-                    <Box
-                      component="span"
-                      ml={1}
-                      sx={{ display: 'inline-flex', gap: 1 }}
-                    >
-                      <Chip
-                        size="sm"
-                        variant={
-                          selectedProvenanceModel === huggingfaceId
-                            ? 'solid'
-                            : 'soft'
-                        }
-                        color="primary"
-                        onClick={() =>
-                          setSelectedProvenanceModel(huggingfaceId)
-                        }
-                        sx={{ cursor: 'pointer' }}
-                      >
-                        Base Model
-                      </Chip>
-
-                      {peftData &&
-                        peftData.map((peft) => (
-                          <Chip
-                            key={peft}
-                            size="sm"
-                            variant={
-                              selectedProvenanceModel === peft
-                                ? 'solid'
-                                : 'soft'
-                            }
-                            color="primary"
-                            onClick={() => setSelectedProvenanceModel(peft)}
-                            sx={{ cursor: 'pointer' }}
-                          >
-                            {peft}
-                          </Chip>
-                        ))}
-                    </Box>
-                  </Typography>
-                )}
-              </Box>
-
-              {showProvenance && (
-                <Box
-                  sx={{
-                    mt: 2,
-                    overflow: 'auto',
-                    maxHeight: 500,
-                    maxWidth: '100%',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    p: 2,
-                  }}
-                >
-                  {selectedProvenanceModel !== huggingfaceId && (
-                    <Box
-                      sx={{
-                        mb: 2,
-                        p: 1,
-                        bgcolor: 'background.level1',
-                        borderRadius: '4px',
+                  <Typography level="title-md">{peft}</Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant={adaptor === peft ? 'solid' : 'soft'}
+                      color="primary"
+                      onClick={() => {
+                        setAdaptor(peft);
                       }}
                     >
-                      <Typography level="body-sm" fontWeight="bold">
-                        Showing provenance for: {huggingfaceId}_
-                        {selectedProvenanceModel}
-                      </Typography>
-                    </Box>
-                  )}
+                      {adaptor === peft ? 'Selected' : 'Select'}
+                    </Button>
+                    <IconButton
+                      variant="plain"
+                      color="danger"
+                      onClick={() => {
+                        confirm(
+                          'Are you sure you want to delete this adaptor?',
+                        ) &&
+                          fetch(
+                            chatAPI.Endpoints.Models.DeletePeft(
+                              experimentInfo?.config?.foundation,
+                              peft,
+                            ),
+                          ).then(() => {
+                            peftMutate();
+                          });
+                      }}
+                    >
+                      <Trash2Icon />
+                    </IconButton>
+                  </Box>
+                </Sheet>
+              ))}
+          </Stack>
+        </TabPanel>
 
-                  {currentProvenance ? (
-                    <ModelProvenanceTimeline
-                      provenance={currentProvenance}
-                      modelName={
-                        selectedProvenanceModel === huggingfaceId
-                          ? huggingfaceId
-                          : `${huggingfaceId}_${selectedProvenanceModel}`
+        {/* Provenance Tab */}
+        <TabPanel value={2} sx={{ p: 2, height: '100%' }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+            }}
+          >
+            {/* Provenance model selector */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                mb: 2,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Typography level="title-lg">Model Provenance</Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                }}
+              >
+                <Typography level="body-sm">View:</Typography>
+                <Chip
+                  size="sm"
+                  variant={
+                    selectedProvenanceModel === huggingfaceId ? 'solid' : 'soft'
+                  }
+                  color="primary"
+                  onClick={() => setSelectedProvenanceModel(huggingfaceId)}
+                  sx={{ cursor: 'pointer' }}
+                >
+                  Base Model
+                </Chip>
+
+                {peftData &&
+                  peftData.map((peft) => (
+                    <Chip
+                      key={peft}
+                      size="sm"
+                      variant={
+                        selectedProvenanceModel === peft ? 'solid' : 'soft'
                       }
-                      isAdaptor={selectedProvenanceModel !== huggingfaceId}
-                    />
-                  ) : currentProvenanceError ? (
-                    <Typography>Error loading provenance data</Typography>
-                  ) : (
-                    <Typography>No Provenance Data Found</Typography>
-                  )}
-                </Box>
+                      color="primary"
+                      onClick={() => setSelectedProvenanceModel(peft)}
+                      sx={{ cursor: 'pointer' }}
+                    >
+                      {peft}
+                    </Chip>
+                  ))}
+              </Box>
+            </Box>
+
+            {selectedProvenanceModel !== huggingfaceId && (
+              <Box
+                sx={{
+                  mb: 2,
+                  p: 1,
+                  bgcolor: 'background.level1',
+                  borderRadius: '4px',
+                }}
+              >
+                <Typography level="body-sm" fontWeight="bold">
+                  Showing provenance for: {huggingfaceId}_
+                  {selectedProvenanceModel}
+                </Typography>
+              </Box>
+            )}
+
+            <Box
+              sx={{
+                flexGrow: 1,
+                overflow: 'auto',
+              }}
+            >
+              {currentProvenance ? (
+                <ModelProvenanceTimeline
+                  provenance={currentProvenance}
+                  modelName={
+                    selectedProvenanceModel === huggingfaceId
+                      ? huggingfaceId
+                      : `${huggingfaceId}_${selectedProvenanceModel}`
+                  }
+                  isAdaptor={selectedProvenanceModel !== huggingfaceId}
+                />
+              ) : currentProvenanceError ? (
+                <Typography>Error loading provenance data</Typography>
+              ) : (
+                <Typography>No Provenance Data Found</Typography>
               )}
             </Box>
           </Box>
-        </Stack>
-      </Sheet>
+        </TabPanel>
+      </Tabs>
     </Sheet>
   );
 }
