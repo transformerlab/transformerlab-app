@@ -71,7 +71,7 @@ jobs:
           cd release/cloud
           tar -czvf transformerlab_web.tar.gz .
           gh release upload ${{ github.ref_name }} transformerlab_web.tar.gz
-          gh release upload "${GITHUB_WORKSPACE}/release/build/Transformer Lab Setup ${{ steps.package-version.outputs.version }}.exe"
+          gh release upload "${{ github.workspace }}/signed/Transformer Lab Setup ${{ steps.package-version.outputs.version }}.exe"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
