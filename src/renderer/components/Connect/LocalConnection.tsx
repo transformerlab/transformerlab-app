@@ -732,7 +732,7 @@ function InstallStepper({ setServer }) {
               title={
                 <>
                   Check if Conda is Installed at
-                  ~/.transformerlab/miniconda3/{' '}
+                  ~/.transformerlab/miniforge3/{' '}
                 </>
               }
               activeStep={activeStep}

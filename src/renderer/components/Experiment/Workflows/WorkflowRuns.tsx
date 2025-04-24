@@ -14,6 +14,7 @@ import useSWR from 'swr';
 import TinyCircle from 'renderer/components/Shared/TinyCircle';
 import { useEffect, useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import WorkflowRunCanvas from './WorkflowRunCanvas';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
@@ -70,9 +71,14 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun }) {
   if (!selectedWorkflowRun) {
     return <div>No workflow run selected.</div>;
   }
+
+  const { data, error, isLoading, mutate } = useSWR(
+    chatAPI.Endpoints.Workflows.GetRun(selectedWorkflowRun.id),
+    fetcher,
+  );
   return (
     <Sheet variant="soft" sx={{ height: '100%', p: 2 }}>
-      <pre>{JSON.stringify(selectedWorkflowRun, null, 2)}</pre>
+      <WorkflowRunCanvas selectedWorkflowRun={data} />
     </Sheet>
   );
 }

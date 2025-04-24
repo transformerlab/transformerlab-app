@@ -37,8 +37,18 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
   return (
     <Dropdown>
-      <MenuButton variant="plain" sx={{ background: 'transparent !important' }}>
-        <SettingsIcon size="20px" color="var(--joy-palette-text-tertiary)" />
+      <MenuButton
+        variant="plain"
+        size="sm"
+        sx={{
+          background: 'transparent !important,',
+          padding: 0,
+          paddingInline: 0,
+          minHeight: '18px',
+          height: '18px',
+        }}
+      >
+        <SettingsIcon size="18px" color="var(--joy-palette-text-tertiary)" />
       </MenuButton>
       <Menu variant="soft" className="select-experiment-menu">
         <MenuItem
@@ -88,7 +98,7 @@ export default function SelectExperimentMenu({
   return (
     <div>
       <FormControl>
-        <FormLabel
+        {/* <FormLabel
           sx={{
             paddingLeft: 1,
             color: 'var(--joy-palette-neutral-plainColor)',
@@ -96,8 +106,8 @@ export default function SelectExperimentMenu({
             marginBottom: 0,
           }}
         >
-          Experiment:
-        </FormLabel>
+          <Typography level="body-sm">Experiment:</Typography>
+        </FormLabel> */}
         <Dropdown>
           {models?.length > 0 ? (
             <Tooltip
@@ -110,37 +120,50 @@ export default function SelectExperimentMenu({
               }
               variant="soft"
             >
-              <Button
-                variant="plain"
-                sx={{
-                  backgroundColor: 'transparent !important',
-                  fontSize: '22px',
-                  color: 'var(--joy-palette-neutral-plainDisabledColor)',
-                  paddingLeft: 1,
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '4px',
                 }}
               >
-                {experimentInfo?.name || 'Select'}
-                <span
-                  style={{
-                    flexGrow: 0,
-                    justifyContent: 'right',
-                    display: 'inline-flex',
-                    marginLeft: '8px',
+                <Button
+                  variant="plain"
+                  sx={{
+                    backgroundColor: 'transparent !important',
+                    fontSize: '20px',
+                    color: 'var(--joy-palette-neutral-plainDisabledColor)',
+                    paddingLeft: 1,
+                    paddingRight: 0,
+                    minHeight: '22px',
+                    height: '22px',
                   }}
                 >
-                  <ChevronDownIcon size="18px" />
-                </span>
-                <span
-                  style={{
-                    flexGrow: 1,
-                    justifyContent: 'right',
-                    display: 'inline-flex',
-                    color: 'var(--joy-palette-neutral-plainColor)',
-                  }}
-                >
-                  &nbsp;
-                </span>
-              </Button>
+                  {experimentInfo?.name || 'Select'}
+                  <span
+                    style={{
+                      flexGrow: 0,
+                      justifyContent: 'right',
+                      display: 'inline-flex',
+                      marginLeft: '8px',
+                    }}
+                  >
+                    <ChevronDownIcon size="18px" />
+                  </span>
+                  <span
+                    style={{
+                      flexGrow: 1,
+                      justifyContent: 'right',
+                      display: 'inline-flex',
+                      color: 'var(--joy-palette-neutral-plainColor)',
+                    }}
+                  >
+                    &nbsp;
+                  </span>
+                </Button>
+              </div>
             </Tooltip>
           ) : (
             <div
@@ -149,16 +172,20 @@ export default function SelectExperimentMenu({
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                marginBottom: '4px',
               }}
             >
               <MenuButton
                 variant="plain"
+                size="sm"
                 sx={{
-                  fontSize: '22px',
+                  fontSize: '20px',
                   backgroundColor: 'transparent !important',
                   color: 'var(--joy-palette-neutral-plainColor)',
                   paddingLeft: 1,
                   paddingRight: 0,
+                  minHeight: '22px',
+                  height: '22px',
                 }}
               >
                 {experimentInfo?.name || 'Select'}
@@ -190,7 +217,7 @@ export default function SelectExperimentMenu({
               />
             </div>
           )}
-          <Menu className="select-experiment-menu">
+          <Menu className="select-experiment-menu" variant="plain">
             {data &&
               data.map((experiment: any) => {
                 return (

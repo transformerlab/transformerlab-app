@@ -7,7 +7,7 @@ import {
   webFrame,
 } from 'electron';
 
-webFrame.setZoomFactor(0.85);
+webFrame.setZoomFactor(1);
 
 export type Channels =
   | 'getStoreValue'

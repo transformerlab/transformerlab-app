@@ -116,6 +116,7 @@ export default function App() {
   return (
     <CssVarsProvider disableTransitionOnChange theme={theme}>
       <CssBaseline />
+
       <Box
         component="main"
         className="MainContent"
@@ -124,7 +125,7 @@ export default function App() {
           height: '100dvh',
           width: '100dvw',
           overflow: 'hidden',
-          gridTemplateColumns: '220px 1fr',
+          gridTemplateColumns: '180px 1fr',
           gridTemplateRows: logsDrawerOpen
             ? `60px 5fr ${logsDrawerHeight}px`
             : '60px 5fr 18px',
