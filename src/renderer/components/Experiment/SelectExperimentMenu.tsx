@@ -4,58 +4,63 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
+  CogIcon,
+  EllipsisVerticalIcon,
   PlusCircleIcon,
   SettingsIcon,
   StopCircleIcon,
+  UserPlusIcon,
+  XSquareIcon,
 } from 'lucide-react';
 import {
   FormControl,
   FormLabel,
+  Input,
   ListItemDecorator,
+  Modal,
+  ModalDialog,
+  Stack,
+  Typography,
   Divider,
   Dropdown,
   MenuButton,
   Tooltip,
+  Sheet,
 } from '@mui/joy';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, MouseEvent, FormEvent } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import Recipes from '../Recipes';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-function ExperimentSettingsMenu({ experimentInfo, setExperimentId, mutate }) {
-  const noExperiment = !experimentInfo || !experimentInfo.id;
+function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
   return (
     <Dropdown>
       <MenuButton
         variant="plain"
         size="sm"
-        disabled={noExperiment}
-        sx={{ background: 'transparent !important', padding: 0 }}
+        sx={{
+          background: 'transparent !important,',
+          padding: 0,
+          paddingInline: 0,
+          minHeight: '18px',
+          height: '18px',
+        }}
       >
-        <SettingsIcon
-          size="20px"
-          color={
-            noExperiment
-              ? 'var(--joy-palette-neutral-outlinedDisabledBorder)'
-              : 'var(--joy-palette-text-tertiary)'
-          }
-        />
+        <SettingsIcon size="18px" color="var(--joy-palette-text-tertiary)" />
       </MenuButton>
       <Menu variant="soft" className="select-experiment-menu">
         <MenuItem
           variant="soft"
           color="danger"
-          onClick={async () => {
+          onClick={() => {
             if (
               confirm(
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              await fetch(chatAPI.DELETE_EXPERIMENT_URL(experimentInfo?.id));
-              mutate();
+              fetch(chatAPI.DELETE_EXPERIMENT_URL(experimentInfo?.id));
               setExperimentId(null);
             }
           }}
@@ -82,31 +87,13 @@ export default function SelectExperimentMenu({
   );
 
   useEffect(() => {
-    if (data && data.length === 0) {
-      setModalOpen(true);
-    }
-  }, [data]);
-
-  useEffect(() => {
-    if (data && data.length === 1) {
-      setExperimentId(data[0].id);
-    }
-  }, [data]);
+    mutate();
+  }, [experimentInfo]);
 
   const createHandleClose = (id: string) => () => {
     setAnchorEl(null);
     setExperimentId(id);
   };
-
-  const noExperiments = data && data.length === 0; // This means the user has No Experiments
-
-  const createNewExperiment = useCallback(async (name) => {
-    const response = await fetch(chatAPI.CREATE_EXPERIMENT_URL(name));
-    const newId = await response.json();
-    mutate();
-    setExperimentId(newId);
-    setModalOpen(false);
-  }, []);
 
   return (
     <div>
@@ -192,28 +179,16 @@ export default function SelectExperimentMenu({
                 variant="plain"
                 size="sm"
                 sx={{
-                  fontSize: '22px',
-                  maxWidth: '200px',
+                  fontSize: '20px',
                   backgroundColor: 'transparent !important',
                   color: 'var(--joy-palette-neutral-plainColor)',
                   paddingLeft: 1,
                   paddingRight: 0,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  justifyContent: 'left',
-                  display: 'inline-flex',
+                  minHeight: '22px',
+                  height: '22px',
                 }}
               >
-                <span
-                  style={{
-                    width: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  {experimentInfo?.name || 'Select'}
-                </span>
+                {experimentInfo?.name || 'Select'}
                 <span
                   style={{
                     flexGrow: 0,
@@ -239,7 +214,6 @@ export default function SelectExperimentMenu({
               <ExperimentSettingsMenu
                 experimentInfo={experimentInfo}
                 setExperimentId={setExperimentId}
-                mutate={mutate}
               />
             </div>
           )}
@@ -279,11 +253,53 @@ export default function SelectExperimentMenu({
           </Menu>
         </Dropdown>
       </FormControl>
-      <Recipes
-        modalOpen={modalOpen}
-        setModalOpen={setModalOpen}
-        createNewExperiment={createNewExperiment}
-      />
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+        <ModalDialog
+          aria-labelledby="basic-modal-dialog-title"
+          aria-describedby="basic-modal-dialog-description"
+          sx={{ maxWidth: 500 }}
+        >
+          <Typography id="basic-modal-dialog-title" component="h2">
+            Create new experiment
+          </Typography>
+          {/* <Typography
+            id="basic-modal-dialog-description"
+            textColor="text.tertiary"
+          >
+            Please supply a friendly name for your project
+          </Typography> */}
+          <form
+            onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+              event.preventDefault();
+              const form = new FormData(event.target);
+              // const formJson = Object.fromEntries((formData as any).entries());
+              // alert(JSON.stringify(formJson));
+              const name = form.get('name');
+              const response = await fetch(chatAPI.CREATE_EXPERIMENT_URL(name));
+              const newId = await response.json();
+              setExperimentId(newId);
+              createHandleClose(newId);
+              mutate();
+              setModalOpen(false);
+            }}
+          >
+            <Stack spacing={2}>
+              <FormControl>
+                <FormLabel>Experiment Name</FormLabel>
+                <Input name="name" autoFocus required />
+              </FormControl>
+              {/* <FormControl>
+                <FormLabel>Description</FormLabel>
+                <Input required />
+              </FormControl> */}
+              <Button type="submit">Submit</Button>
+              <Button variant="soft" onClick={() => setModalOpen(false)}>
+                Cancel
+              </Button>
+            </Stack>
+          </form>
+        </ModalDialog>
+      </Modal>
     </div>
   );
 }
