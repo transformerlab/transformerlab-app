@@ -106,6 +106,12 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         disabled={!experimentInfo?.name}
       />
       <SubNavItem
+        title="Export"
+        path="/experiment/export"
+        icon={<ArrowRightFromLineIcon />}
+        disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
+      />
+      <SubNavItem
         title="Generate"
         path="/experiment/generate"
         icon={<SquareStackIcon />}
@@ -122,12 +128,6 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         path="/experiment/documents"
         icon={<FileIcon />}
         disabled={!experimentInfo?.name}
-      />
-      <SubNavItem
-        title="Export"
-        path="/experiment/export"
-        icon={<ArrowRightFromLineIcon />}
-        disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
       />
       <SubNavItem
         title="Notes"
@@ -283,8 +283,8 @@ export default function Sidebar({
         height: '100%',
         overflow: 'auto',
         top: 0,
-        pl: 1.2,
-        pr: 1,
+        pl: 1,
+        pr: 0.5,
         py: 1,
         pt: '0',
         flexShrink: 0,

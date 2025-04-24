@@ -16,7 +16,6 @@ import secretPurpleTheme from './lib/secretPurpleTheme';
 
 import './styles.css';
 import LoginModal from './components/Connect/LoginModal';
-import RecipesModal from './components/Recipes';
 
 import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
@@ -40,13 +39,16 @@ export default function App() {
   useEffect(() => {
     async function getSavedExperimentId() {
       const connectionWithoutDots = connection.replace(/\./g, '-');
-      const experimentId = await window.storage.get(
-        `experimentId.${connectionWithoutDots}`,
-      );
+      // window.storage should be defined by cloud or electron preload script
+      const experimentId = window.storage
+        ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
+        : 1;
       if (experimentId) {
         setExperimentId(experimentId);
-      } else {
-        setExperimentId('');
+      } else if (connection !== '') {
+        // If there's no stored experiment and we are connected
+        // then default to to the first experiment
+        setExperimentId(1);
       }
     }
 
@@ -56,7 +58,7 @@ export default function App() {
 
     window.TransformerLab.API_URL = connection;
 
-    if (connection === '') {
+    if (connection == '') {
       setExperimentId('');
       return;
     }
@@ -123,7 +125,7 @@ export default function App() {
           height: '100dvh',
           width: '100dvw',
           overflow: 'hidden',
-          gridTemplateColumns: '180px 1fr',
+          gridTemplateColumns: '200px 1fr',
           gridTemplateRows: logsDrawerOpen
             ? `60px 5fr ${logsDrawerHeight}px`
             : '60px 5fr 18px',
@@ -141,6 +143,7 @@ export default function App() {
           experimentInfo={experimentInfo}
         />
         {/* <FirstSidebar setDrawerOpen={setDrawerOpen} /> */}
+
         <Sidebar
           experimentInfo={experimentInfo}
           setExperimentId={setExperimentId}
@@ -169,7 +172,6 @@ export default function App() {
             experimentInfo={experimentInfo}
             setExperimentId={setExperimentId}
             experimentInfoMutate={experimentInfoMutate}
-            setLogsDrawerOpen={setLogsDrawerOpen}
           />
         </Box>
         <Box
