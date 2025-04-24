@@ -138,7 +138,7 @@ export async function checkForMissingSystemRequirements() {
 export async function checkLocalServerVersion() {
   const mainFile = path.join(
     await getTransformerLabCodeDir(),
-    'LATEST_VERSION'
+    'LATEST_VERSION',
   );
 
   console.log('Checking if server is installed locally at', mainFile);
@@ -227,7 +227,7 @@ export function killLocalServer() {
     console.log('Killing local server if not NULL');
     if (localServer) {
       console.log(
-        `Killing local server with pid ${localServer.pid} and all it children`
+        `Killing local server with pid ${localServer.pid} and all it children`,
       );
       var kill = require('tree-kill');
       kill(localServer.pid, 'SIGTERM', function (err) {
@@ -251,8 +251,7 @@ export async function checkIfCurlInstalled() {
     }
     console.log(`stdout: ${stdout}`);
     return true;
-  }
-  catch (error) {
+  } catch (error) {
     console.error(`Failed to check if curl is installed: ${error}`);
     return false;
   }
@@ -277,7 +276,9 @@ export async function installLocalServer() {
   // First check if curl is installed on the client machine:
   const curlInstalled = await checkIfCurlInstalled();
   if (!curlInstalled) {
-    dialog.showMessageBox({message: 'Curl is not installed. Please install curl and try again.'});
+    dialog.showMessageBox({
+      message: 'Curl is not installed. Please install curl and try again.',
+    });
     return;
   }
 
@@ -294,7 +295,9 @@ export async function installLocalServer() {
       options,
       (error, stdout, stderr) => {
         if (error) {
-          dialog.showMessageBox({message: `Failed to download Transformer Lab ${error}`});
+          dialog.showMessageBox({
+            message: `Failed to download Transformer Lab ${error}`,
+          });
           console.error(`exec error: ${error}`);
           return;
         }
@@ -302,7 +305,7 @@ export async function installLocalServer() {
         console.error(`stderr: ${stderr}`);
         // write stdout to the file called out:
         fs.writeSync(out, stdout);
-      }
+      },
     );
   } catch (err) {
     console.log('Failed to install local server', err);
@@ -312,7 +315,7 @@ export async function installLocalServer() {
 export async function checkIfCondaBinExists() {
   // Look for the conda directory inside .transformerlab
   const root_dir = await getTransformerLabRootDir();
-  const condaBin = path.join(root_dir, 'miniconda3', 'bin', 'conda');
+  const condaBin = path.join(root_dir, 'miniforge3', 'bin', 'conda');
   if (fs.existsSync(condaBin)) {
     return true;
   } else {
@@ -333,7 +336,7 @@ export async function checkDependencies() {
   // if not, report back that we need to do an install/update!
   const installedDependenciesFile = path.join(
     await getTransformerLabCodeDir(),
-    'INSTALLED_DEPENDENCIES'
+    'INSTALLED_DEPENDENCIES',
   );
   if (!fs.existsSync(installedDependenciesFile)) {
     response.status = 'error';
@@ -343,7 +346,7 @@ export async function checkDependencies() {
 
   const { error, stdout, stderr } = await executeInstallStep(
     'list_installed_packages',
-    false
+    false,
   );
 
   // if there was an error abort processing
@@ -406,7 +409,7 @@ export async function checkIfCondaEnvironmentExists() {
 
   const { error, stdout, stderr } = await executeInstallStep(
     'list_environments',
-    false
+    false,
   );
 
   let response = {
@@ -456,7 +459,7 @@ function truncate(str: string, max: number) {
  */
 export async function executeInstallStep(
   argument: string,
-  logToFile = true
+  logToFile = true,
 ): Promise<{ error: string | null; stdout: string; stderr: string }> {
   const server_dir = await getTransformerLabCodeDir();
   const logFilePath = await getLogFilePath();
@@ -465,7 +468,7 @@ export async function executeInstallStep(
 
   if (!fs.existsSync(server_dir)) {
     console.log(
-      'Install step failed. TransformerLab directory has not been setup.'
+      'Install step failed. TransformerLab directory has not been setup.',
     );
     const err = new Error('TransformerLab directory has not been setup.');
     return { error: err, stdout: '', stderr: '' };
@@ -546,6 +549,6 @@ export async function executeInstallStep(
           });
         }
       });
-    }
+    },
   );
 }
