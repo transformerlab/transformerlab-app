@@ -13,7 +13,7 @@ import remarkGfm from 'remark-gfm';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { PencilIcon } from 'lucide-react';
-import { Box, Button, Typography } from '@mui/joy';
+import { Button, Typography } from '@mui/joy';
 import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
 const { parseTmTheme } = require('monaco-themes');
@@ -91,25 +91,16 @@ export default function ExperimentNotes({ experimentInfo }) {
   }
 
   return (
-    <Sheet
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        mb: 3,
-      }}
-    >
+    <Sheet>
       <Typography level="h1">Experiment Notes</Typography>
       {!isEditing && (
         <Sheet
           color="neutral"
           variant="outlined"
           sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            mt: 1,
-            height: '100%',
+            mt: 3,
+            minHeight: '300px',
+            minWidth: '600px',
             p: 3,
             boxShadow:
               'rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px',
@@ -117,14 +108,12 @@ export default function ExperimentNotes({ experimentInfo }) {
           className="editableSheet"
         >
           {!data && 'Write experiment notes here...'}
-          <Box display="flex" sx={{ width: '100%' }}>
-            <Markdown
-              remarkPlugins={[remarkGfm]}
-              className="editableSheetContent"
-            >
-              {data}
-            </Markdown>
-          </Box>
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            className="editableSheetContent"
+          >
+            {data}
+          </Markdown>
           <Button
             onClick={() => {
               setIsEditing(true);
@@ -133,6 +122,8 @@ export default function ExperimentNotes({ experimentInfo }) {
               mt: 1,
               ml: 'auto',
               position: 'absolute',
+              top: '30%',
+              left: '20%',
             }}
             variant="solid"
             className="hoverEditButton"
@@ -144,14 +135,7 @@ export default function ExperimentNotes({ experimentInfo }) {
       )}
 
       {isEditing && (
-        <Sheet
-          sx={{
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
+        <>
           <Typography mt={3}>
             Use{' '}
             <a
@@ -166,15 +150,13 @@ export default function ExperimentNotes({ experimentInfo }) {
             color="neutral"
             sx={{
               p: 3,
-              display: 'flex',
               backgroundColor: '#ddd',
-              height: '100%',
             }}
           >
             <Editor
+              height="600px"
               defaultLanguage="markdown"
               theme="my-theme"
-              height="100%"
               options={{
                 minimap: {
                   enabled: false,
@@ -186,34 +168,22 @@ export default function ExperimentNotes({ experimentInfo }) {
               onMount={handleEditorDidMount}
             />
           </Sheet>
-          <Box
-            display="flex"
-            flexDirection="row"
-            gap={1}
-            sx={{
-              width: '100%',
-              justifyContent: 'flex-end',
-              alignContent: 'center',
-              mt: 1,
+          <Button
+            onClick={() => {
+              saveValue();
             }}
+            sx={{ mt: 1, ml: 'auto' }}
           >
-            <Button
-              onClick={() => {
-                saveValue();
-              }}
-              sx={{}}
-            >
-              Save
-            </Button>
-            <Button
-              variant="soft"
-              sx={{ ml: 1 }}
-              onClick={() => setIsEditing(false)}
-            >
-              Cancel
-            </Button>
-          </Box>
-        </Sheet>
+            Save
+          </Button>
+          <Button
+            variant="soft"
+            sx={{ ml: '10px' }}
+            onClick={() => setIsEditing(false)}
+          >
+            Cancel
+          </Button>
+        </>
       )}
     </Sheet>
   );
