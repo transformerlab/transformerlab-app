@@ -186,18 +186,28 @@ export default function ExperimentNotes({ experimentInfo }) {
               onMount={handleEditorDidMount}
             />
           </Sheet>
-          <Box display="flex" sx={{ width: '100%' }}>
+          <Box
+            display="flex"
+            flexDirection="row"
+            gap={1}
+            sx={{
+              width: '100%',
+              justifyContent: 'flex-end',
+              alignContent: 'center',
+              mt: 1,
+            }}
+          >
             <Button
               onClick={() => {
                 saveValue();
               }}
-              sx={{ mt: 1, ml: 'auto' }}
+              sx={{}}
             >
               Save
             </Button>
             <Button
               variant="soft"
-              sx={{ ml: '10px' }}
+              sx={{ ml: 1 }}
               onClick={() => setIsEditing(false)}
             >
               Cancel
