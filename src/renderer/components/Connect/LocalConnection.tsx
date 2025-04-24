@@ -26,7 +26,7 @@ function setIntervalXTimes(
   callback,
   notSuccessful,
   delay,
-  repetitions,
+  repetitions,,
 ) {
   var x = 0;
   var intervalID = window.setInterval(async function () {
@@ -540,9 +540,12 @@ function InstallStepper({ setServer }) {
 
   async function checkForPlugins() {
     setInstallingPlugins(true);
+    // First install missing plugins
     await fetch(
       'http://localhost:8338/plugins/install_missing_plugins_for_current_platform',
     );
+    // Then run the autoupdate for all plugins
+    await fetch('http://localhost:8338/plugins/autoupdate_all_plugins');
     setInstallingPlugins(false);
     setMissingPlugins([]);
     setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
