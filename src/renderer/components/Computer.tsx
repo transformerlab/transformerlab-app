@@ -147,7 +147,7 @@ export default function Computer() {
                     <Grid xs={4}>
                       <ComputerCard
                         icon={<FaApple />}
-                        title="Mac Monitoring Metrics"
+                        title="Mac Metrics"
                         sx={{ maxHeight: 'none', overflowY: 'visible' }}
                       >
                         <Typography level="title-sm" mb={1}>
