@@ -5,7 +5,7 @@ import ListItem from '@mui/joy/ListItem';
 import ListItemContent from '@mui/joy/ListItemContent';
 import ListItemDecorator from '@mui/joy/ListItemDecorator';
 import ListItemButton from '@mui/joy/ListItemButton';
-import { Badge } from '@mui/joy';
+import { Badge, Typography } from '@mui/joy';
 
 const SubNavItem = ({
   title,
@@ -31,15 +31,23 @@ const SubNavItem = ({
         selected={!!match}
         disabled={disabled}
       >
-        <ListItemDecorator>{icon}</ListItemDecorator>
-        <ListItemContent>
+        <ListItemDecorator sx={{ minInlineSize: '30px' }}>
+          {icon}
+        </ListItemDecorator>
+        <ListItemContent
+          sx={{
+            display: 'flex',
+            justifyContent: 'flex-start',
+            alignContent: 'center',
+          }}
+        >
           <Badge
             variant="plain"
             badgeContent={counter}
             badgeInset="8px -14px 0 0"
             size="sm"
           >
-            {title}
+            <Typography level="body-sm">{title}</Typography>
           </Badge>
         </ListItemContent>
       </ListItemButton>
