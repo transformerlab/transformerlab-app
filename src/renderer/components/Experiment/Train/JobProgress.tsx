@@ -4,10 +4,10 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { jobChipColor } from 'renderer/lib/utils';
 dayjs.extend(relativeTime);
+
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-
 
 export default function JobProgress({ job }) {
   return (
@@ -42,7 +42,10 @@ export default function JobProgress({ job }) {
             </IconButton>
           </Stack>
           {job?.job_data?.start_time && (
-            <>Started: {dayjs(job?.job_data?.start_time).fromNow()}</>
+            <>
+              Started:{' '}
+              {dayjs(job?.job_data?.start_time).format('MMM D, YYYY HH:mm:ss')}
+            </>
           )}
         </>
       ) : (
@@ -61,7 +64,11 @@ export default function JobProgress({ job }) {
             </Chip>
             {job?.job_data?.start_time && (
               <>
-                Started: {dayjs(job?.job_data?.start_time).fromNow()} <br />
+                Started:{' '}
+                {dayjs(job?.job_data?.start_time).format(
+                  'MMM D, YYYY HH:mm:ss',
+                )}{' '}
+                <br />
               </>
             )}
             {job?.job_data?.end_time && job?.job_data?.end_time && (
@@ -70,8 +77,8 @@ export default function JobProgress({ job }) {
                 {dayjs
                   .duration(
                     dayjs(job?.job_data?.end_time).diff(
-                      dayjs(job?.job_data?.start_time)
-                    )
+                      dayjs(job?.job_data?.start_time),
+                    ),
                   )
                   .humanize()}{' '}
                 <br />
