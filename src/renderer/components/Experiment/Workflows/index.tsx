@@ -42,7 +42,7 @@ export default function Workflows({ experimentInfo }) {
           >
             <WorkflowList experimentInfo={experimentInfo} />
           </TabPanel>
-          <TabPanel value={1} sx={{ width: '100%' }}>
+          <TabPanel value={1} sx={{ width: '100%', overflow: 'hidden' }}>
             <WorkflowRuns experimentInfo={experimentInfo} />
           </TabPanel>
           <TabPanel value={2} sx={{ width: '100%', overflow: 'hidden' }}>
