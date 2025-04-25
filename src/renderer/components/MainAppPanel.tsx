@@ -16,6 +16,8 @@ import {
   useEffect,
   useState,
 } from 'react';
+import useSWR from 'swr';
+
 import { AnalyticsBrowser } from '@segment/analytics-next';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
@@ -117,6 +119,49 @@ export default function MainAppPanel({
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
     useState('chat');
 
+  const fetcher = (url) => fetch(url).then((res) => res.json());
+
+  // Extract pluginId at the top level
+  const inferenceParams = experimentInfo?.config?.inferenceParams;
+  const pluginId = inferenceParams
+    ? JSON.parse(inferenceParams)?.inferenceEngine
+    : null;
+
+  // Use SWR at the top level, not inside useEffect
+  const { data: modelData } = useSWR(
+    experimentInfo?.id && pluginId
+      ? chatAPI.Endpoints.Experiment.ScriptGetFile(
+          experimentInfo.id,
+          pluginId,
+          'index.json',
+        )
+      : null,
+    fetcher,
+  );
+
+  let modelSupports = [
+    'chat',
+    'completion',
+    'rag',
+    'tools',
+    'template',
+    'embeddings',
+    'tokenize',
+    'batched',
+  ];
+
+  if (modelData && modelData !== 'null' && modelData !== 'undefined') {
+    modelSupports = JSON.parse(modelData)?.supports || [
+      'chat',
+      'completion',
+      'rag',
+      'tools',
+      'template',
+      'embeddings',
+      'tokenize',
+      'batched',
+    ];
+  }
   const setFoundation = useCallback(
     (model) => {
       let model_name = '';
@@ -351,6 +396,7 @@ export default function MainAppPanel({
               setRagEngine={setRagEngine}
               mode={selectedInteractSubpage}
               setMode={setSelectedInteractSubpage}
+              supports={modelSupports}
             />
           }
         />
@@ -363,6 +409,7 @@ export default function MainAppPanel({
               setRagEngine={setRagEngine}
               mode={'model_layers'}
               setMode={setSelectedInteractSubpage}
+              supports={modelSupports}
             />
           }
         />

@@ -40,6 +40,17 @@ import VisualizeGeneration from './VisualizeGeneration';
 import ModelLayerVisualization from './ModelLayerVisualization';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
+// const supports = [
+//   'chat',
+//   'completion',
+//   'rag',
+//   'tools',
+//   'template',
+//   'embeddings',
+//   'tokenize',
+//   'logprobs',
+//   'batched',
+// ];
 
 export default function Chat({
   experimentInfo,
@@ -47,6 +58,7 @@ export default function Chat({
   setRagEngine,
   mode,
   setMode,
+  supports,
 }) {
   const { models } = chatAPI.useModelStatus();
   const [conversationId, setConversationId] = React.useState(null);
@@ -764,17 +776,51 @@ export default function Chat({
               }
             }
           >
-            <Option value="chat">Chat</Option>
-            <Option value="completion">Completion</Option>
-            <Option value="visualize_model">Model Activations</Option>
-            <Option value="model_layers">Model Architecture</Option>
-            <Option value="rag">Query Docs (RAG)</Option>
-            <Option value="tools">Tool Calling</Option>
-            <Option value="template">Templated Prompt</Option>
-            <Option value="embeddings">Embeddings</Option>
-            <Option value="tokenize">Tokenize</Option>
-            <Option value="logprobs">Visualize Logprobs</Option>
-            <Option value="batched">Batched Query</Option>
+            <Option value="chat" disabled={!supports.includes('chat')}>
+              Chat
+            </Option>
+            <Option
+              value="completion"
+              disabled={!supports.includes('completion')}
+            >
+              Completion
+            </Option>
+            <Option
+              value="visualize_model"
+              disabled={!supports.includes('visualize_model')}
+            >
+              Model Activations
+            </Option>
+            <Option
+              value="model_layers"
+              disabled={!supports.includes('model_layers')}
+            >
+              Model Architecture
+            </Option>
+            <Option value="rag" disabled={!supports.includes('rag')}>
+              Query Docs (RAG)
+            </Option>
+            <Option value="tools" disabled={!supports.includes('tools')}>
+              Tool Calling
+            </Option>
+            <Option value="template" disabled={!supports.includes('template')}>
+              Templated Prompt
+            </Option>
+            <Option
+              value="embeddings"
+              disabled={!supports.includes('embeddings')}
+            >
+              Embeddings
+            </Option>
+            <Option value="tokenize" disabled={!supports.includes('tokenize')}>
+              Tokenize
+            </Option>
+            <Option value="logprobs" disabled={!supports.includes('logprobs')}>
+              Visualize Logprobs
+            </Option>
+            <Option value="batched" disabled={!supports.includes('batched')}>
+              Batched Query
+            </Option>
           </Select>
         </FormControl>
         <Typography level="title-md">
