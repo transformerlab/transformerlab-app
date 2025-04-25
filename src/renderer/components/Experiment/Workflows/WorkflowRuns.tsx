@@ -14,7 +14,7 @@ import useSWR from 'swr';
 import TinyCircle from 'renderer/components/Shared/TinyCircle';
 import { useEffect, useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import WorkflowRunCanvas from './WorkflowRunCanvas';
+import WorkflowRunCanvas from './WorkflowRunDisplay';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
@@ -58,7 +58,9 @@ function ListOfWorkflowRuns({
               )}
             </ListItemDecorator>
             <ListItemContent>
-              <Typography level="title-lg">{run?.id}</Typography>
+              <Typography level="title-lg">
+                {run?.workflow_name} - {run?.id}
+              </Typography>
             </ListItemContent>
           </ListItemButton>
         </ListItem>
