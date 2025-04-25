@@ -11,6 +11,7 @@ import {
   CardCover,
 } from '@mui/joy';
 import { SquareCheckIcon } from 'lucide-react';
+import dayjs from 'dayjs';
 
 export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
   if (!selectedWorkflowRun) {
@@ -52,7 +53,7 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
           {jobs.map((job) => (
             <ListItem key={job.jobID}>
               <SquareCheckIcon />
-              <Box>
+              <Box sx={{ width: '100%' }}>
                 <Typography level="title-md">{`Task: ${job.taskName}`}</Typography>
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
                   Status:{' '}
@@ -63,7 +64,8 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
                   </Chip>
                 </Typography>
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
-                  {`Start: ${job?.jobStartTime} | End: ${job?.jobEndTime}`}
+                  Start: {dayjs(job?.jobStartTime).fromNow()}
+                  {/* | End: {dayjs(job?.jobEndTime).fromNow()} */}
                 </Typography>
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
                   Duration: {formatDuration(job.jobStartTime, job.jobEndTime)}
