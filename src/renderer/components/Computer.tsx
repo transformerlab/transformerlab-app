@@ -31,7 +31,7 @@ import {
 import { SiNvidia } from 'react-icons/si';
 
 import { BsGpuCard } from 'react-icons/bs';
-import { FaComputer, FaW } from 'react-icons/fa6';
+import { FaComputer, FaW, FaApple } from 'react-icons/fa6';
 import { FaWindows } from 'react-icons/fa6';
 import { FaLinux } from 'react-icons/fa6';
 
@@ -46,7 +46,7 @@ import { FaPython } from 'react-icons/fa';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
-    <Card variant="soft" sx={{ maxHeight: '400px', overflowY: 'auto' }}>
+    <Card variant="soft" sx={{ maxHeight: '500px', overflowY: 'auto' }}>
       <CardContent>
         <Typography level="title-lg" startDecorator={icon}>
           {title}
@@ -141,61 +141,133 @@ export default function Computer() {
                       <StatRow title="Cores" value={server?.cpu_count} />
                     </ComputerCard>
                   </Grid>
-                  <Grid xs={4}>
-                    <ComputerCard
-                      icon={<BsGpuCard />}
-                      title={'GPU Specs (' + server.gpu?.length + ')'}
-                      image={undefined}
-                    >
-                      {server.gpu?.map((g, i) => {
-                        return (
-                          <Box mb={2}>
-                            <Typography level="title-md">GPU # {i}</Typography>
-                            {g.name.includes('NVIDIA') ? (
-                              <SiNvidia color="#76B900" />
-                            ) : (
-                              '🔥'
-                            )}
-                            &nbsp;
-                            {g.name}
-                            <StatRow
-                              title="Total VRAM"
-                              value={formatBytes(g?.total_memory)}
-                            />
-                            <StatRow
-                              title="Available"
-                              value={formatBytes(g?.free_memory)}
-                            />
-                            {g.total_memory !== 'n/a' && (
-                              <>
-                                <StatRow
-                                  title="Used"
-                                  value={
-                                    <>
-                                      {Math.round(
-                                        (g?.used_memory / g?.total_memory) *
-                                          100,
-                                      )}
-                                      %
-                                      <LinearProgress
-                                        determinate
-                                        value={
+
+                  {/* Mac metrics card replaces GPU specs */}
+                  {server.mac_metrics ? (
+                    <Grid xs={4}>
+                      <ComputerCard
+                        icon={<FaApple />}
+                        title="Mac Monitoring Metrics"
+                        sx={{ maxHeight: 'none', overflowY: 'visible' }}
+                      >
+                        <Typography level="title-sm" mb={1}>
+                          Temperature
+                        </Typography>
+                        <StatRow
+                          title="CPU Temperature"
+                          value={`${server.mac_metrics.temp?.cpu_temp_avg.toFixed(2)}°C`}
+                        />
+                        <StatRow
+                          title="GPU Temperature"
+                          value={`${server.mac_metrics.temp?.gpu_temp_avg.toFixed(2)}°C`}
+                        />
+
+                        <Typography level="title-sm" mt={2} mb={1}>
+                          Power Consumption
+                        </Typography>
+                        <StatRow
+                          title="Total Power"
+                          value={`${server.mac_metrics.all_power.toFixed(2)} W`}
+                        />
+                        <StatRow
+                          title="CPU Power"
+                          value={`${server.mac_metrics.cpu_power.toFixed(2)} W`}
+                        />
+                        <StatRow
+                          title="GPU Power"
+                          value={`${server.mac_metrics.gpu_power.toFixed(2)} W`}
+                        />
+                        <StatRow
+                          title="RAM Power"
+                          value={`${server.mac_metrics.ram_power.toFixed(2)} W`}
+                        />
+                        <StatRow
+                          title="System Power"
+                          value={`${server.mac_metrics.sys_power.toFixed(2)} W`}
+                        />
+
+                        <Typography level="title-sm" mt={2} mb={1}>
+                          Usage
+                        </Typography>
+                        {server.mac_metrics.ecpu_usage && (
+                          <StatRow
+                            title="ECPU Usage"
+                            value={`${server.mac_metrics.ecpu_usage[0]} MHz, ${(server.mac_metrics.ecpu_usage[1] * 100).toFixed(2)}%`}
+                          />
+                        )}
+                        {server.mac_metrics.pcpu_usage && (
+                          <StatRow
+                            title="PCPU Usage"
+                            value={`${server.mac_metrics.pcpu_usage[0]} MHz, ${(server.mac_metrics.pcpu_usage[1] * 100).toFixed(2)}%`}
+                          />
+                        )}
+                        {server.mac_metrics.gpu_usage && (
+                          <StatRow
+                            title="GPU Usage"
+                            value={`${server.mac_metrics.gpu_usage[0]} MHz, ${(server.mac_metrics.gpu_usage[1] * 100).toFixed(2)}%`}
+                          />
+                        )}
+                      </ComputerCard>
+                    </Grid>
+                  ) : (
+                    <Grid xs={4}>
+                      <ComputerCard
+                        icon={<BsGpuCard />}
+                        title={'GPU Specs (' + server.gpu?.length + ')'}
+                        image={undefined}
+                      >
+                        {server.gpu?.map((g, i) => {
+                          return (
+                            <Box mb={2}>
+                              <Typography level="title-md">
+                                GPU # {i}
+                              </Typography>
+                              {g.name.includes('NVIDIA') ? (
+                                <SiNvidia color="#76B900" />
+                              ) : (
+                                '🔥'
+                              )}
+                              &nbsp;
+                              {g.name}
+                              <StatRow
+                                title="Total VRAM"
+                                value={formatBytes(g?.total_memory)}
+                              />
+                              <StatRow
+                                title="Available"
+                                value={formatBytes(g?.free_memory)}
+                              />
+                              {g.total_memory !== 'n/a' && (
+                                <>
+                                  <StatRow
+                                    title="Used"
+                                    value={
+                                      <>
+                                        {Math.round(
                                           (g?.used_memory / g?.total_memory) *
-                                          100
-                                        }
-                                        variant="solid"
-                                        sx={{ minWidth: '50px' }}
-                                      />
-                                    </>
-                                  }
-                                />
-                              </>
-                            )}
-                          </Box>
-                        );
-                      })}
-                    </ComputerCard>
-                  </Grid>
+                                            100,
+                                        )}
+                                        %
+                                        <LinearProgress
+                                          determinate
+                                          value={
+                                            (g?.used_memory / g?.total_memory) *
+                                            100
+                                          }
+                                          variant="solid"
+                                          sx={{ minWidth: '50px' }}
+                                        />
+                                      </>
+                                    }
+                                  />
+                                </>
+                              )}
+                            </Box>
+                          );
+                        })}
+                      </ComputerCard>
+                    </Grid>
+                  )}
                   <Grid xs={3}>
                     <ComputerCard icon={<ZapIcon />} title="Acceleration">
                       <StatRow
