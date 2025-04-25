@@ -58,7 +58,7 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
                   Status:{' '}
                   <Chip
-                    color={job?.status === 'RUNNING' ? 'primary' : 'success'}
+                    color={job?.status === 'RUNNING' ? 'success' : 'warning'}
                   >
                     {job.status}
                   </Chip>
