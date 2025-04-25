@@ -21,6 +21,7 @@ import {
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import Store from 'electron-store';
+import { spawn } from 'child_process';
 
 import MenuBuilder from './menu';
 import {
@@ -123,10 +124,119 @@ ipcMain.handle('server:checkDependencies', async (event) => {
   return await checkDependencies();
 });
 
+ipcMain.handle('debug:testCrash', () => {
+  console.log('Intentionally triggering a test crash');
+  setTimeout(() => {
+    throw new Error('Test crash triggered via IPC!');
+  }, 100);
+});
+
 let mainWindow: BrowserWindow | null = null;
 
+// Track crashes to prevent restart loops
+const CRASH_TRACKING_FILE = path.join(
+  app.getPath('userData'),
+  'crash_tracker.json',
+);
+let restartApp = true;
+
+function trackCrash() {
+  try {
+    let crashData = { crashes: [], lastCrash: Date.now() };
+
+    if (fs.existsSync(CRASH_TRACKING_FILE)) {
+      crashData = JSON.parse(fs.readFileSync(CRASH_TRACKING_FILE, 'utf8'));
+    }
+
+    // Add current crash
+    crashData.crashes.push(Date.now());
+    crashData.lastCrash = Date.now();
+
+    // Only keep last 5 crashes for tracking
+    if (crashData.crashes.length > 5) {
+      crashData.crashes = crashData.crashes.slice(-5);
+    }
+
+    // If 3+ crashes in last 2 minutes, don't restart
+    const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+    const recentCrashes = crashData.crashes.filter(
+      (timestamp) => timestamp > twoMinutesAgo,
+    );
+
+    if (recentCrashes.length >= 3) {
+      restartApp = false;
+    }
+
+    fs.writeFileSync(CRASH_TRACKING_FILE, JSON.stringify(crashData));
+    return restartApp;
+  } catch (err) {
+    console.error('Error tracking crash', err);
+    return false; // Don't restart if tracking fails
+  }
+}
+
+// Replace your existing error handler with this enhanced version
 process.on('uncaughtException', function (error) {
-  console.log(error);
+  console.error('Uncaught Exception:', error);
+
+  try {
+    // Track crash and decide if we should restart
+    if (trackCrash()) {
+      log.error(`App crashed with error: ${error}. Restarting...`);
+
+      // Tell user about the crash if window exists
+      if (mainWindow) {
+        dialog
+          .showMessageBox({
+            type: 'error',
+            title: 'Transformer Lab Error',
+            message: 'The application encountered an error and will restart.',
+            detail: error.toString(),
+            buttons: ['OK'],
+            noLink: true,
+          })
+          .then(() => {
+            // Relaunch and quit
+            app.relaunch();
+            app.exit(0);
+          });
+      } else {
+        // No window to show dialog, just restart
+        app.relaunch();
+        app.exit(0);
+      }
+    } else {
+      log.error(`Too many crashes detected. Not restarting automatically.`);
+
+      if (mainWindow) {
+        dialog
+          .showMessageBox({
+            type: 'error',
+            title: 'Transformer Lab Error',
+            message:
+              'The application has crashed multiple times in a short period.',
+            detail: 'Please check the logs and restart manually.',
+            buttons: ['Quit'],
+            noLink: true,
+          })
+          .then(() => {
+            app.quit();
+          });
+      } else {
+        app.quit();
+      }
+    }
+  } catch (err) {
+    console.error('Error during crash handler:', err);
+    app.quit();
+  }
+});
+
+// Also handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Not forcing an app restart for promise rejections,
+  // but logging them for debugging
 });
 
 if (process.env.NODE_ENV === 'production') {
@@ -165,7 +275,7 @@ const startListeningToServerLog = async () => {
     console.log('main.js: start listening to log');
     event.reply(
       'serverLog:update',
-      '**Connecting to Terminal Output from Transformer Engine**'
+      '**Connecting to Terminal Output from Transformer Engine**',
     );
     if (!tail.isWatching) {
       tail.watch();
@@ -193,7 +303,7 @@ const startListeningToServerLog = async () => {
     console.log('main.js: stopping listening to log');
     event.reply(
       'serverLog:update',
-      '**Disconnecting Terminal Output from Transformer Engine**'
+      '**Disconnecting Terminal Output from Transformer Engine**',
     );
     tail.unwatch();
     currentlySubscribed = false;
@@ -208,7 +318,7 @@ nativeTheme.on('updated', () => {
   console.log('nativeTheme updated', nativeTheme.shouldUseDarkColors);
   mainWindow?.webContents.send(
     'dark-mode:updated',
-    nativeTheme.shouldUseDarkColors
+    nativeTheme.shouldUseDarkColors,
   );
 });
 
@@ -231,6 +341,7 @@ nativeTheme.on('updated', () => {
 ipcMain.handle('dark-mode:system', () => {
   nativeTheme.themeSource = 'system';
 });
+
 /***********************
  * DARK MODE stuff END
  ***********************/
@@ -251,7 +362,7 @@ if (isDebug) {
   autoUpdater.on('error', (error) => {
     dialog.showErrorBox(
       'AutoUpdate Error: ',
-      error == null ? 'unknown' : (error.stack || error).toString()
+      error == null ? 'unknown' : (error.stack || error).toString(),
     );
   });
 }
@@ -274,7 +385,7 @@ const installExtensions = async () => {
   return installer
     .default(
       extensions.map((name) => installer[name]),
-      forceDownload
+      forceDownload,
     )
     .catch(console.log);
 };
