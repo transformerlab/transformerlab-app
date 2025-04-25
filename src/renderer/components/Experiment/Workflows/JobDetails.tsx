@@ -20,7 +20,7 @@ export default function JobDetails({ jobId, onClose }) {
         variant="outlined"
         sx={{
           minWidth: 300,
-          maxWidth: '90vw',
+          maxWidth: '70vw',
           borderRadius: 'md',
           p: 3,
           boxShadow: 'lg',
@@ -34,13 +34,10 @@ export default function JobDetails({ jobId, onClose }) {
           textColor="inherit"
           sx={{ fontWeight: 'lg', mb: 1 }}
         >
-          Output from Job {jobId}
+          Job {jobId}
         </Typography>
         {data ? (
           <Box>
-            <Typography level="h6" sx={{ mb: 2 }}>
-              Job Details
-            </Typography>
             <Table aria-label="job details table">
               <thead>
                 <tr>
