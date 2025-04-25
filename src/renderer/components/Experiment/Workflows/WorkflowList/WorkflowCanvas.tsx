@@ -41,6 +41,7 @@ function generateNodes(workflow: any): any[] {
       jobType: node.type,
       template: node.template,
       metadata: node?.metadata,
+      task: node?.task,
     };
 
     const savedPosition = node?.metadata?.position || { x: 0, y: position };
