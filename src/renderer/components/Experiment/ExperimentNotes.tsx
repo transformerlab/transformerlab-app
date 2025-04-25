@@ -9,14 +9,14 @@ import { Editor } from '@monaco-editor/react';
 
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-const parseTmTheme = require('monaco-themes').parseTmTheme;
 // import monakai from 'monaco-themes/themes/Monokai Bright.json';
-import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { PencilIcon } from 'lucide-react';
-import { Button, Typography } from '@mui/joy';
+import { Box, Button, Typography } from '@mui/joy';
+import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
+
+const { parseTmTheme } = require('monaco-themes');
 
 function setTheme(editor: any, monaco: any) {
   const themeData = parseTmTheme(fairyflossTheme);
@@ -34,7 +34,7 @@ export default function ExperimentNotes({ experimentInfo }) {
   // Fetch the experiment markdown
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Experiment.GetFile(experimentId(), 'readme.md'),
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function ExperimentNotes({ experimentInfo }) {
     let value = editorRef?.current?.getValue();
 
     // A blank string will cause the save to fail, so we replace it with a space
-    if (value == '') {
+    if (value === '') {
       value = ' ';
     }
 
@@ -67,19 +67,23 @@ export default function ExperimentNotes({ experimentInfo }) {
       {
         method: 'POST',
         body: value,
-      }
-    ).then(() => {
-      mutate(value);
-      setIsEditing(false);
-    });
+      },
+    )
+      .then(() => {
+        mutate(value);
+        setIsEditing(false);
+        return true;
+      })
+      .catch((error) => {
+        console.error('Error saving the file:', error);
+      });
   }
 
   function experimentId() {
     if (experimentInfo) {
       return experimentInfo.id;
-    } else {
-      return '';
     }
+    return '';
   }
 
   if (!experimentInfo || experimentInfo.id == '') {
@@ -87,100 +91,130 @@ export default function ExperimentNotes({ experimentInfo }) {
   }
 
   return (
-    <>
-      <Sheet>
-        <Typography level="h1">Experiment Notes</Typography>
-        {!isEditing && (
-          <>
-            <Sheet
-              color="neutral"
-              variant="outlined"
-              sx={{
-                mt: 3,
-                minHeight: '300px',
-                minWidth: '600px',
-                p: 3,
-                boxShadow:
-                  'rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px',
-              }}
-              className="editableSheet"
+    <Sheet
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        mb: 3,
+      }}
+    >
+      <Typography level="h1">Experiment Notes</Typography>
+      {!isEditing && (
+        <Sheet
+          color="neutral"
+          variant="outlined"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            mt: 1,
+            height: '100%',
+            p: 3,
+            boxShadow:
+              'rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px',
+          }}
+          className="editableSheet"
+        >
+          {!data && 'Write experiment notes here...'}
+          <Box display="flex" sx={{ width: '100%' }}>
+            <Markdown
+              remarkPlugins={[remarkGfm]}
+              className="editableSheetContent"
             >
-              {!data && 'Write experiment notes here...'}
-              <Markdown
-                remarkPlugins={[remarkGfm]}
-                className="editableSheetContent"
-              >
-                {data}
-              </Markdown>
-              <Button
-                onClick={() => {
-                  setIsEditing(true);
-                }}
-                sx={{
-                  mt: 1,
-                  ml: 'auto',
-                  position: 'absolute',
-                  top: '30%',
-                  left: '20%',
-                }}
-                variant="solid"
-                className="hoverEditButton"
-                startDecorator={<PencilIcon size="18px" />}
-              >
-                Edit
-              </Button>
-            </Sheet>
-          </>
-        )}
+              {data}
+            </Markdown>
+          </Box>
+          <Button
+            onClick={() => {
+              setIsEditing(true);
+            }}
+            sx={{
+              mt: 1,
+              ml: 'auto',
+              position: 'absolute',
+            }}
+            variant="solid"
+            className="hoverEditButton"
+            startDecorator={<PencilIcon size="18px" />}
+          >
+            Edit
+          </Button>
+        </Sheet>
+      )}
 
-        {isEditing && (
-          <>
-            <Typography mt={3}>
-              Use{' '}
-              <a href="https://github.github.com/gfm/" target="_blank">
-                GitHub Flavored Markdown
-              </a>
-            </Typography>
-            <Sheet
-              color="neutral"
-              sx={{
-                p: 3,
-                backgroundColor: '#ddd',
-              }}
+      {isEditing && (
+        <Sheet
+          sx={{
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          <Typography mt={3}>
+            Use{' '}
+            <a
+              href="https://github.github.com/gfm/"
+              target="_blank"
+              rel="noreferrer"
             >
-              <Editor
-                height="600px"
-                defaultLanguage="markdown"
-                theme="my-theme"
-                options={{
-                  minimap: {
-                    enabled: false,
-                  },
-                  fontSize: 18,
-                  cursorStyle: 'block',
-                  wordWrap: 'on',
-                }}
-                onMount={handleEditorDidMount}
-              />
-            </Sheet>
+              GitHub Flavored Markdown
+            </a>
+          </Typography>
+          <Sheet
+            color="neutral"
+            sx={{
+              p: 3,
+              display: 'flex',
+              backgroundColor: '#ddd',
+              height: '100%',
+            }}
+          >
+            <Editor
+              defaultLanguage="markdown"
+              theme="my-theme"
+              height="100%"
+              options={{
+                minimap: {
+                  enabled: false,
+                },
+                fontSize: 18,
+                cursorStyle: 'block',
+                wordWrap: 'on',
+              }}
+              onMount={handleEditorDidMount}
+            />
+          </Sheet>
+          <Box
+            display="flex"
+            flexDirection="row"
+            gap={1}
+            sx={{
+              width: '100%',
+              justifyContent: 'flex-end',
+              alignContent: 'center',
+              mt: 1,
+            }}
+          >
             <Button
               onClick={() => {
                 saveValue();
               }}
-              sx={{ mt: 1, ml: 'auto' }}
+              sx={{}}
             >
               Save
             </Button>
             <Button
               variant="soft"
-              sx={{ ml: '10px' }}
+              sx={{ ml: 1 }}
               onClick={() => setIsEditing(false)}
             >
               Cancel
             </Button>
-          </>
-        )}
-      </Sheet>
-    </>
+          </Box>
+        </Sheet>
+      )}
+    </Sheet>
   );
 }
