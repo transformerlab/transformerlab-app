@@ -9,11 +9,15 @@ import {
   Box,
   Chip,
   CardCover,
+  Button,
 } from '@mui/joy';
 import { SquareCheckIcon } from 'lucide-react';
 import dayjs from 'dayjs';
+import JobDetails from './JobDetails';
 
 export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
+  const [viewJobDetails, setViewJobDetails] = React.useState(null);
+
   if (!selectedWorkflowRun) {
     return <Typography>No workflow run selected</Typography>;
   }
@@ -35,23 +39,35 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
 
   return (
     <Card variant="outlined" sx={{ padding: 2 }}>
+      <JobDetails
+        jobId={viewJobDetails}
+        onClose={() => {
+          setViewJobDetails(null);
+        }}
+      />
       <CardContent>
         <Typography level="h4" sx={{ marginBottom: 1 }}>
           Workflow: {workflow.name}
         </Typography>
-        <Typography level="body-md" sx={{ marginBottom: 2 }}>
+        <Typography level="body-md">
           Status: <Chip>{run.status}</Chip>
         </Typography>
-        <Typography level="body-md" sx={{ marginBottom: 2 }}>
+        <Typography level="body-md">
           Created At: {run.created_at} | Updated At: {run.updated_at}
         </Typography>
-        <Divider />
-        <Typography level="h4" sx={{ marginTop: 2, marginBottom: 1 }}>
+        <Typography level="h4" pt={1}>
           Tasks:
         </Typography>
         <List>
           {jobs.map((job) => (
-            <ListItem key={job.jobID}>
+            <ListItem
+              key={job.jobID}
+              sx={{
+                py: 1,
+                borderBottom:
+                  '1px solid var(--joy-palette-neutral-outlinedBorder)',
+              }}
+            >
               <SquareCheckIcon />
               <Box sx={{ width: '100%' }}>
                 <Typography level="title-md">{`Task: ${job.taskName}`}</Typography>
@@ -70,8 +86,15 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
                   Duration: {formatDuration(job.jobStartTime, job.jobEndTime)}
                 </Typography>
-                <Divider sx={{ marginTop: 1 }} />
               </Box>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setViewJobDetails(job?.jobID);
+                }}
+              >
+                View Output
+              </Button>
             </ListItem>
           ))}
         </List>
