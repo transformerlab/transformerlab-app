@@ -51,13 +51,16 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
         <List>
           {jobs.map((job) => (
             <ListItem key={job.jobID}>
+              <SquareCheckIcon />
               <Box>
-                <Typography
-                  level="title-md"
-                  startDecorator={<SquareCheckIcon />}
-                >{`Task: ${job.taskName}`}</Typography>
+                <Typography level="title-md">{`Task: ${job.taskName}`}</Typography>
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
-                  Status: <Chip>{job.status}</Chip>
+                  Status:{' '}
+                  <Chip
+                    color={job?.status === 'RUNNING' ? 'primary' : 'success'}
+                  >
+                    {job.status}
+                  </Chip>
                 </Typography>
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
                   {`Start: ${job?.jobStartTime} | End: ${job?.jobEndTime}`}
