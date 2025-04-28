@@ -13,7 +13,7 @@ import {
 import useSWR from 'swr';
 import { useEffect, useState } from 'react';
 import { SquareArrowRightIcon } from 'lucide-react';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import TriggerDisplay from './TriggerDisplay';
 
 const fakeTrigger = {
