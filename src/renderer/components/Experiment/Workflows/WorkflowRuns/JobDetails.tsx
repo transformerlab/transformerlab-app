@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Modal, Box, Typography, Sheet, ModalClose, Table } from '@mui/joy';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
+import OutputTerminal from 'renderer/components/OutputTerminal';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function JobDetails({ jobId, onClose }) {
@@ -96,6 +97,12 @@ export default function JobDetails({ jobId, onClose }) {
                 </tr>
               </tbody>
             </Table>
+            <OutputTerminal
+              logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+                data?.id,
+              )}
+              lineAnimationDelay={1}
+            />
           </Box>
         ) : (
           <Typography>Loading...</Typography>

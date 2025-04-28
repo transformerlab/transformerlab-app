@@ -13,7 +13,7 @@ import {
 import useSWR from 'swr';
 import TinyCircle from 'renderer/components/Shared/TinyCircle';
 import { useEffect, useState } from 'react';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import WorkflowRunDisplay from './WorkflowRunDisplay';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
