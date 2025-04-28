@@ -293,7 +293,7 @@ export default function CurrentFoundationInfo({
         aria-label="Model tabs"
         value={activeTab}
         onChange={(event, value) => setActiveTab(value)}
-        sx={{ mt: 2 }}
+        sx={{ mt: 2, overflow: 'hidden' }}
       >
         <TabList>
           <Tab>Overview</Tab>
@@ -302,7 +302,14 @@ export default function CurrentFoundationInfo({
         </TabList>
 
         {/* Overview Tab */}
-        <TabPanel value={0} sx={{ p: 2 }}>
+        <TabPanel
+          value={0}
+          sx={{
+            p: 2,
+            height: '100%',
+            overflowY: 'auto',
+          }}
+        >
           <Typography level="title-lg" marginBottom={2}>
             Model Configuration
           </Typography>
