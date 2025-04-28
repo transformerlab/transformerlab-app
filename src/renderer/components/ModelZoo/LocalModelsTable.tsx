@@ -274,10 +274,29 @@ const LocalModelsTable = ({
                                     "'?",
                                 )
                               ) {
-                                await fetch(
-                                  chatAPI.Endpoints.Models.Delete(row.model_id),
-                                );
-                                mutateModels();
+                                if (
+                                  confirm(
+                                    "Do you want to delete model '" +
+                                      row.model_id +
+                                      "' from the Huggingface Cache as well?",
+                                  )
+                                ) {
+                                  await fetch(
+                                    chatAPI.Endpoints.Models.Delete(
+                                      row.model_id,
+                                      true,
+                                    ),
+                                  );
+                                  mutateModels();
+                                } else {
+                                  await fetch(
+                                    chatAPI.Endpoints.Models.Delete(
+                                      row.model_id,
+                                      false,
+                                    ),
+                                  );
+                                  mutateModels();
+                                }
                               }
                             }}
                           />
