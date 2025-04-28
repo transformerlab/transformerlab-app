@@ -1,4 +1,4 @@
-import { Select, Typography, Option } from '@mui/joy';
+import { Select, Typography, Option, Chip } from '@mui/joy';
 import { BuiltInNode, Handle, useReactFlow } from '@xyflow/react';
 import { NodeProps, Position } from '@xyflow/system';
 import { XIcon } from 'lucide-react';
@@ -38,7 +38,8 @@ export default function memo({
         style={{
           backgroundColor: chipColorByType(data?.jobType),
           width: '100%',
-          borderRadius: '3px',
+          borderTopLeftRadius: '6px',
+          borderTopRightRadius: '6px',
         }}
       >
         <Typography level="body-xs">{data?.jobType}</Typography>
@@ -50,8 +51,16 @@ export default function memo({
           cursor: 'pointer',
           borderRadius: '50%',
         }}
+        role="button"
+        tabIndex={0}
+        aria-label="Delete node"
         onClick={() => {
           handleDelete();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            handleDelete();
+          }
         }}
       >
         <XIcon size="12px" />
@@ -73,18 +82,21 @@ export default function memo({
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: 'var(--joy-palette-background-level1)',
+          borderBottomLeftRadius: '6px',
+          borderBottomRightRadius: '6px',
         }}
       >
         <Typography level="title-md">{data?.label}</Typography>
-        <Typography level="body-sm">{data?.template}</Typography>
-        {/* // implement this later: it allows you to change a template
-         <Select
-          value={data?.template}
+        <Chip variant="outlined">{data?.task}</Chip>
+        {/* <Typography level="body-sm">{data?.task}</Typography> */}
+        {/* <Select
+          id={`task-select-${id}`}
+          value={data?.task}
           size="sm"
           variant="plain"
           sx={{ minHeight: 'unset' }}
         >
-          <Option value={data?.template}>{data?.template}</Option>
+          <Option value={data?.task}>{data?.task}</Option>
           <Option value="dog">Dog</Option>
           <Option value="cat">Cat</Option>
           <Option value="fish">Fish</Option>

@@ -281,8 +281,20 @@ path.react-flow__edge-path {
   stroke-width: 2;
 }
 
+.react-flow__node-customNode {
+  border: 2px solid var(--joy-palette-primary-outlinedBorder);
+  border-radius: 8px;
+}
+
+.react-flow__node-customNode .custom-node {
+  border: 1px solid white;
+  border-radius: 6px;
+}
+
+
 .custom-node-delete-button {
   opacity: 0.0;
+  z-index: 100;
 }
 
 .react-flow__node-customNode:hover .custom-node-delete-button {
@@ -292,8 +304,8 @@ path.react-flow__edge-path {
   border: 1.5px solid rgb(156, 144, 144);
   height: 14px;
   width: 14px;
-  top: -5px;
-  right: -5px;
+  top: 3px;
+  right: 3px;
   padding-left: 0.5px;
   cursor: 'pointer';
   display: flex;

@@ -3,9 +3,9 @@ import { Box, Sheet, Tab, TabList, TabPanel, Tabs, Typography } from '@mui/joy';
 
 import '@xyflow/react/dist/style.css';
 
-import WorkflowList from './WorkflowList';
-import WorkflowRuns from './WorkflowRuns';
-import WorkflowTriggers from './WorkflowTriggers';
+import WorkflowList from './WorkflowList/WorkflowList';
+import WorkflowRuns from './WorkflowRuns/WorkflowRuns';
+import WorkflowTriggers from './WorkflowTriggers/WorkflowTriggers';
 
 export default function Workflows({ experimentInfo }) {
   return (

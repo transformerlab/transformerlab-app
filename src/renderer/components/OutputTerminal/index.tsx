@@ -103,7 +103,9 @@ const OutputTerminal = ({
         height: '100%',
       }}
       ref={terminalRef}
-    ></Sheet>
+    >
+      &nbsp;
+    </Sheet>
   );
 };
 

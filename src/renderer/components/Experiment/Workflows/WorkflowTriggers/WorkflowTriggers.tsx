@@ -12,8 +12,8 @@ import {
 } from '@mui/joy';
 import useSWR from 'swr';
 import { useEffect, useState } from 'react';
-import { SquareArrowRightIcon } from 'lucide-react';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { SquareArrowRightIcon, ZapIcon } from 'lucide-react';
+import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import TriggerDisplay from './TriggerDisplay';
 
 const fakeTrigger = {
@@ -60,7 +60,7 @@ function ListOfTriggers({
       <ListItem>
         <ListItemButton selected>
           <ListItemDecorator>
-            <SquareArrowRightIcon />
+            <ZapIcon />
           </ListItemDecorator>
           <ListItemContent>
             <Typography level="title-lg">On Train Start</Typography>
@@ -70,7 +70,7 @@ function ListOfTriggers({
       <ListItem>
         <ListItemButton>
           <ListItemDecorator>
-            <SquareArrowRightIcon />
+            <ZapIcon />
           </ListItemDecorator>
           <ListItemContent>
             <Typography level="title-lg">On Train End</Typography>
