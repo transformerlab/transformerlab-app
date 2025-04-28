@@ -52,14 +52,21 @@ function ListOfWorkflowRuns({
           >
             <ListItemDecorator>
               {run?.status === 'RUNNING' ? (
-                <TinyCircle color="green" />
+                <CircularProgress
+                  variant="soft"
+                  sx={{
+                    '--CircularProgress-trackThickness': '2px',
+                    '--CircularProgress-progressThickness': '2px',
+                    '--CircularProgress-size': '12px',
+                  }}
+                />
               ) : (
                 <TinyCircle color="grey" />
               )}
             </ListItemDecorator>
             <ListItemContent>
               <Typography level="title-lg">
-                {run?.workflow_name} - {run?.id}
+                {run?.id} - {run?.workflow_name}
               </Typography>
             </ListItemContent>
           </ListItemButton>
@@ -79,7 +86,7 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun }) {
     fetcher,
   );
   return (
-    <Sheet variant="soft" sx={{ height: '100%', p: 2 }}>
+    <Sheet variant="soft" sx={{ height: '100%', p: 2, overflowY: 'auto' }}>
       <WorkflowRunDisplay selectedWorkflowRun={data} />
     </Sheet>
   );
@@ -91,6 +98,7 @@ export default function WorkflowRuns({ experimentInfo }) {
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Workflows.ListRuns(),
     fetcher,
+    { refreshInterval: 2000 },
   );
 
   return (
@@ -111,7 +119,7 @@ export default function WorkflowRuns({ experimentInfo }) {
           setSelectedWorkflowRun={setSelectedWorkflowRun}
         />
       </Box>
-      <Box flex="3">
+      <Box flex="3" sx={{}}>
         <ShowSelectedWorkflowRun selectedWorkflowRun={selectedWorkflowRun} />
       </Box>
     </Sheet>
