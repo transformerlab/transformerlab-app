@@ -37,12 +37,23 @@ export default function NewWorkflowModal({
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             const workflowName = formData.get('name') as string;
-            await fetch(
-              chatAPI.Endpoints.Workflows.CreateEmpty(
-                workflowName,
-                experimentId,
-              ),
-            );
+
+            if (selectedWorkflow?.id) {
+              // Update existing workflow
+              await fetch(
+                chatAPI.Endpoints.Workflows.UpdateName(
+                  selectedWorkflow.id,
+                  workflowName,
+                ),
+              );
+            } else {
+              await fetch(
+                chatAPI.Endpoints.Workflows.CreateEmpty(
+                  workflowName,
+                  experimentId,
+                ),
+              );
+            }
             onClose();
           }}
         >
