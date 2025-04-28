@@ -278,7 +278,7 @@ const LocalModelsTable = ({
                                   confirm(
                                     "Do you want to delete model '" +
                                       row.model_id +
-                                      "' from your local Huggingface cache as well (if present) ?",
+                                      "' from the Huggingface Cache as well?",
                                   )
                                 ) {
                                   await fetch(
