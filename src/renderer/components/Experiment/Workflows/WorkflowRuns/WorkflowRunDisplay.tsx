@@ -10,9 +10,8 @@ import {
   Chip,
   CardCover,
   Button,
-  CircularProgress,
 } from '@mui/joy';
-import { SquareCheckIcon, Type } from 'lucide-react';
+import { SquareCheckIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import JobDetails from './JobDetails';
 
@@ -69,20 +68,8 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
                   '1px solid var(--joy-palette-neutral-outlinedBorder)',
               }}
             >
-              {job.status === 'RUNNING' ? (
-                <CircularProgress
-                  variant="soft"
-                  sx={{
-                    '--CircularProgress-trackThickness': '4px',
-                    '--CircularProgress-progressThickness': '3px',
-                    '--CircularProgress-size': '18px',
-                  }}
-                />
-              ) : (
-                <SquareCheckIcon />
-              )}
+              <SquareCheckIcon />
               <Box sx={{ width: '100%' }}>
-                <Typography level="title-lg">Job ID: {job.jobID}</Typography>
                 <Typography level="title-md">{`Task: ${job.taskName}`}</Typography>
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
                   Status:{' '}
@@ -106,7 +93,7 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
                   setViewJobDetails(job?.jobID);
                 }}
               >
-                Output
+                View Output
               </Button>
             </ListItem>
           ))}
