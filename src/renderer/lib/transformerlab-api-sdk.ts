@@ -1241,6 +1241,8 @@ Endpoints.Plugins = {
   Preview: (pluginId: string) =>
     API_URL() + 'plugins/preview?pluginId=' + pluginId,
   List: () => API_URL() + 'plugins/list',
+  RunPluginInstallScript: (pluginId: string) =>
+    API_URL() + 'plugins/' + pluginId + '/run_installer_script',
 };
 
 Endpoints.Config = {
