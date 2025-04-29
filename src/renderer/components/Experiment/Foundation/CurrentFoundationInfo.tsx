@@ -78,6 +78,7 @@ export default function CurrentFoundationInfo({
   setFoundation,
   adaptor,
   setAdaptor,
+  setLogsDrawerOpen = null,
 }) {
   const {
     data: peftData,
@@ -244,6 +245,7 @@ export default function CurrentFoundationInfo({
         adaptor={adaptor}
         setAdaptor={setAdaptor}
         setFoundation={setFoundation}
+        setLogsDrawerOpen={setLogsDrawerOpen}
       />
 
       {/* Moved embedding model and visualization buttons above tabs */}
