@@ -101,6 +101,8 @@ export default function PluginCard({
       isCompatible =
         pluginArchitectures.includes('cuda') ||
         pluginArchitectures.includes('cpu');
+    } else {
+      isCompatible = pluginArchitectures.includes('cpu');
     }
 
     // Only show a message for incompatible plugins
