@@ -24,10 +24,11 @@ export default function SelectAModel({
   experimentInfo,
   setFoundation = (model) => {},
   setAdaptor = (name: string) => {},
+  setLogsDrawerOpen = null,
 }) {
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Models.LocalList(),
-    fetcher
+    fetcher,
   );
 
   const location = useLocation();
@@ -40,6 +41,7 @@ export default function SelectAModel({
         setFoundation={setFoundation}
         adaptor={experimentInfo?.config?.adaptor}
         setAdaptor={setAdaptor}
+        setLogsDrawerOpen={setLogsDrawerOpen}
       />
     );
   }
