@@ -114,6 +114,7 @@ export default function MainAppPanel({
   experimentInfo,
   setExperimentId,
   experimentInfoMutate,
+  setLogsDrawerOpen = null,
 }) {
   const navigate = useNavigate();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
@@ -361,6 +362,7 @@ export default function MainAppPanel({
               experimentInfo={experimentInfo}
               setFoundation={setFoundation}
               setAdaptor={setAdaptor}
+              setLogsDrawerOpen={setLogsDrawerOpen}
             />
           }
         />

@@ -169,6 +169,7 @@ export default function App() {
             experimentInfo={experimentInfo}
             setExperimentId={setExperimentId}
             experimentInfoMutate={experimentInfoMutate}
+            setLogsDrawerOpen={setLogsDrawerOpen}
           />
         </Box>
         <Box

@@ -6,12 +6,14 @@ export default function FoundationHome({
   experimentInfo,
   setFoundation = (name: string) => {},
   setAdaptor = (name: string) => {},
+  setLogsDrawerOpen = null,
 }) {
   return (
     <SelectAModel
       experimentInfo={experimentInfo}
       setFoundation={setFoundation}
       setAdaptor={setAdaptor}
+      setLogsDrawerOpen={setLogsDrawerOpen}
     />
   );
 }

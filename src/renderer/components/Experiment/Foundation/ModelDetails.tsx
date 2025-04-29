@@ -47,6 +47,7 @@ export default function ModelDetails({
   adaptor,
   setFoundation,
   setAdaptor,
+  setLogsDrawerOpen = null,
 }) {
   const [huggingfaceNewModelName, setHuggingfaceNewModelName] = useState('');
   const [huggingfaceOrganizationName, setHuggingfaceOrganizationName] =
@@ -63,7 +64,7 @@ export default function ModelDetails({
     if (!/^[a-zA-Z0-9-]+$/.test(huggingfaceNewModelName)) {
       //If the name is not in the correct format (letters, numbers, hyphens)
       alert(
-        'Invalid model name. Please only use letters, numbers, and hyphens.'
+        'Invalid model name. Please only use letters, numbers, and hyphens.',
       );
       setHuggingfaceNewModelName('');
       return;
@@ -75,8 +76,8 @@ export default function ModelDetails({
           huggingfaceId,
           huggingfaceNewModelName,
           huggingfaceOrganizationName,
-          huggingfaceModelCardData
-        )
+          huggingfaceModelCardData,
+        ),
       );
 
       const data = await response.json();
@@ -136,8 +137,8 @@ export default function ModelDetails({
                 modelDetailsData?.logo == 'loading'
                   ? placeholderLogo
                   : modelDetailsData?.logo
-                  ? modelDetailsData?.logo
-                  : placeholderLogo
+                    ? modelDetailsData?.logo
+                    : placeholderLogo
               }
               alt=""
               style={{}}
@@ -219,6 +220,7 @@ export default function ModelDetails({
               killWorker={killWorker}
               models={models}
               mutate={mutate}
+              setLogsDrawerOpen={setLogsDrawerOpen}
             />
             {experimentInfo?.config?.foundation_filename !== '' && (
               <Button
@@ -242,8 +244,8 @@ export default function ModelDetails({
                     'inferenceParams',
                     JSON.stringify({
                       inferenceEngine: null,
-                    })
-                  )
+                    }),
+                  ),
                 );
               }}
               color="danger"
