@@ -47,7 +47,7 @@ export default function LocalDatasets() {
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.LocalList(false),
-    fetcher
+    fetcher,
   );
 
   if (error) return 'An error has occurred.';
@@ -111,7 +111,16 @@ export default function LocalDatasets() {
             filterByFiltersDatasetID(data, searchText).map((row) => (
               <Grid xs={4}>
                 <DatasetCard
-                  name={row?.dataset_id}
+                  name={(() => {
+                    try {
+                      return (
+                        (row?.json_data && JSON.parse(row.json_data)?.name) ||
+                        row?.dataset_id
+                      );
+                    } catch {
+                      return row?.dataset_id;
+                    }
+                  })()}
                   size={row?.size}
                   key={row.id}
                   description={row?.description}
@@ -146,7 +155,7 @@ export default function LocalDatasets() {
         }}
       >
         <>
-        <FormControl>
+          <FormControl>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <Input
                 placeholder="Open-Orca/OpenOrca"
@@ -164,14 +173,21 @@ export default function LocalDatasets() {
               )}
               <Button
                 onClick={async (e) => {
-                  const dataset = document.getElementsByName('download-dataset-name')[0].value;
-                  const configName = showConfigNameField? document.getElementsByName('dataset-config-name')[0]?.value : undefined;
+                  const dataset = document.getElementsByName(
+                    'download-dataset-name',
+                  )[0].value;
+                  const configName = showConfigNameField
+                    ? document.getElementsByName('dataset-config-name')[0]
+                        ?.value
+                    : undefined;
                   // only download if valid model is entered
                   if (dataset) {
                     // this triggers UI changes while download is in progress
                     setDownloadingDataset(dataset);
                     // Datasets can be very large so do this asynchronously
-                    fetch(chatAPI.Endpoints.Dataset.Download(dataset, configName))
+                    fetch(
+                      chatAPI.Endpoints.Dataset.Download(dataset, configName),
+                    )
                       .then((response) => {
                         if (!response.ok) {
                           console.log(response);
@@ -190,14 +206,20 @@ export default function LocalDatasets() {
                       .catch((error) => {
                         setDownloadingDataset(null);
                         // Check if the error message asks for folder_name and automatically show the config field
-                        if (error.message.includes("folder_name")) {
+                        if (error.message.includes('folder_name')) {
                           setShowConfigNameField(true);
-                          }
+                        }
                         alert('Download failed:\n' + error);
                       });
                   }
                 }}
-                startDecorator={downloadingDataset ? <CircularProgress size="sm" thickness={2} /> : ''}
+                startDecorator={
+                  downloadingDataset ? (
+                    <CircularProgress size="sm" thickness={2} />
+                  ) : (
+                    ''
+                  )
+                }
               >
                 {downloadingDataset ? 'Downloading' : 'Download 🤗 Dataset'}
               </Button>
