@@ -86,6 +86,31 @@ function StatsBar({ connection, setConnection }) {
 
   function showGPU() {
     if (server?.os == 'Darwin' && server?.cpu == 'arm64') {
+      // Check if mac_metrics and GPU data are available
+      if (server?.mac_metrics?.gpu_usage) {
+        const gpuPercent = server.mac_metrics.gpu_usage[1] * 100; // Convert to percentage
+
+        return (
+          <Stack gap={0} direction="row">
+            VRAM:
+            <div style={{ width: '60px', textAlign: 'center' }}>
+              <div
+                style={{ width: '60px', position: 'absolute', opacity: 0.6 }}
+              >
+                <Sparklines height={20} width={60} data={cs.gpu}>
+                  <SparklinesLine color="var(--joy-palette-danger-500)" />
+                </Sparklines>
+              </div>
+              {Math.round(gpuPercent)}%
+            </div>{' '}
+            <span style={{ opacity: 0.6 }}>
+              <TinyMLXLogo />
+            </span>
+          </Stack>
+        );
+      }
+
+      // Fallback to just showing the MLX logo if no mac_metrics
       return (
         <span style={{ opacity: 0.6 }}>
           {' '}
