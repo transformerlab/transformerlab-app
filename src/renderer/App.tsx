@@ -85,7 +85,7 @@ export default function App() {
     error: experimentInfoError,
     isLoading: experimentInfoIsLoading,
     mutate: experimentInfoMutate,
-  } = useSWR(chatAPI.GET_EXPERIMENT_URL(experimentId), fetcher);
+  } = useSWR(chatAPI.Endpoints.Experiment.Get(experimentId), fetcher);
 
   const onOutputDrawerDrag = useCallback((pos) => {
     const ypos = pos.y;

@@ -797,17 +797,6 @@ export async function EXPERIMENT_EDIT_GENERATION(
   return result;
 }
 
-export function CREATE_EXPERIMENT_URL(name: string) {
-  return API_URL() + 'experiment/create?name=' + name;
-}
-
-export function GET_EXPERIMENT_URL(id: string) {
-  if (id === '') {
-    return '';
-  }
-  return API_URL() + 'experiment/' + id;
-}
-
 export function DELETE_EXPERIMENT_URL(id: string) {
   return API_URL() + 'experiment/' + id + '/delete';
 }
