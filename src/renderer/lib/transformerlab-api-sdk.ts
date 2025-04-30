@@ -95,7 +95,7 @@ export async function activeModels() {
   }
 }
 
-export let Endpoints: any = {};
+export const Endpoints: any = {};
 
 // We do this because the API does not like slashes in the URL
 function convertSlashInUrl(url: string) {
