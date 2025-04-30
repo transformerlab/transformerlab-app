@@ -60,7 +60,7 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              fetch(chatAPI.DELETE_EXPERIMENT_URL(experimentInfo?.id));
+              fetch(chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id));
               setExperimentId(null);
             }
           }}
