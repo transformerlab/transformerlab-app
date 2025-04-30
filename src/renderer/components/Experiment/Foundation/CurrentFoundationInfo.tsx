@@ -93,7 +93,7 @@ export default function CurrentFoundationInfo({
   );
 
   const { mutate: experimentInfoMutate } = useSWR(
-    chatAPI.GET_EXPERIMENT_URL(experimentInfo?.id),
+    chatAPI.Endpoints.Experiment.Get(experimentInfo?.id),
     fetcher,
   );
 
