@@ -416,7 +416,7 @@ export function CREATE_TRAINING_JOB_URL(
 }
 
 Endpoints.Experiment = {
-  GetAll: () => API_URL() + 'experiment',
+  GetAll: () => API_URL() + 'experiment/',
   UpdateConfig: (id: string, key: string, value: string) =>
     API_URL() +
     'experiment/' +
@@ -678,13 +678,6 @@ Endpoints.Jobs = {
 Endpoints.Global = {
   PromptLog: () => API_URL() + 'prompt_log',
 };
-
-export function GET_EXPERIMENTS_URL() {
-  if (API_URL() === null) {
-    return null;
-  }
-  return API_URL() + 'experiment/';
-}
 
 export function GET_EXPERIMENT_UPDATE_CONFIG_URL(
   id: string,
