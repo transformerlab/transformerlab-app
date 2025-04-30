@@ -95,176 +95,6 @@ export async function activeModels() {
   }
 }
 
-/**
- * Pass an array of strings, and this will
- * return an array of embeddings
- */
-export async function getEmbeddings(model: string, text: string[]) {
-  let shortModelName = model.split('/').slice(-1)[0];
-
-  let result;
-
-  const data = {
-    model: shortModelName,
-    input: text,
-  };
-
-  try {
-    const response = await fetch(`${API_URL()}v1/embeddings`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    result = await response.json();
-  } catch (error) {
-    console.log('There was an error', error);
-  }
-
-  return result;
-}
-
-export async function tokenize(model: string, text: string) {
-  let shortModelName = model.split('/').slice(-1)[0];
-
-  let result;
-
-  const data = {
-    model: shortModelName,
-    text: text,
-  };
-
-  try {
-    const response = await fetch(`${API_URL()}tokenize`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    result = await response.json();
-  } catch (error) {
-    console.log('There was an error', error);
-  }
-
-  return result;
-}
-
-export async function generateLogProbs(model: string, prompt: string) {
-  let shortModelName = model.split('/').slice(-1)[0];
-  // @TODO Doesn't work with an adaptor right now
-
-  // Hardcode these for now
-  const temperature = 0.7;
-  const maxTokens = 256;
-  const topP = 0.95;
-  const stopString = null;
-
-  const data = {
-    model: shortModelName,
-    stream: false,
-    prompt: prompt,
-    temperature,
-    max_tokens: maxTokens,
-    top_p: topP,
-    logprobs: 1,
-  };
-
-  if (stopString) {
-    data.stop = stopString;
-  }
-
-  const response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
-    method: 'POST', // or 'PUT'
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  const result = await response.json();
-
-  return result;
-}
-
-/**
- * Count tokens in a provided messages array
- */
-export async function countTokens(model: string, text: string[]) {
-  if (!model) return 0;
-
-  let shortModelName = model.split('/').slice(-1)[0];
-
-  let result;
-
-  const prompts = [
-    {
-      model: shortModelName,
-      prompt: text[0],
-      max_tokens: 0,
-    },
-  ];
-
-  const data = {
-    prompts: prompts,
-  };
-
-  try {
-    const response = await fetch(`${API_URL()}api/v1/token_check`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    result = await response.json();
-  } catch (error) {
-    console.log('There was an error', error);
-  }
-
-  return result?.prompts?.[0];
-}
-
-/**
- * Count tokens in a provided messages array
- */
-export async function countChatTokens(model: string, text: any) {
-  if (!model) return 0;
-
-  let shortModelName = model.split('/').slice(-1)[0];
-
-  let messages = [];
-  messages = messages.concat(text);
-
-  const data = {
-    model: shortModelName,
-    messages,
-  };
-
-  let result;
-
-  try {
-    const response = await fetch(`${API_URL()}v1/chat/count_tokens`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
-    result = await response.json();
-  } catch (error) {
-    console.log('There was an error', error);
-  }
-
-  return result;
-}
-
 export let Endpoints: any = {};
 
 // We do this because the API does not like slashes in the URL
@@ -1344,6 +1174,11 @@ export {
   sendBatchedCompletion,
   sendBatchedChat,
   callTool,
+  getEmbeddings,
+  tokenize,
+  generateLogProbs,
+  countTokens,
+  countChatTokens,
 } from './api-client/chat';
 
 export { INFERENCE_SERVER_URL, API_URL };
