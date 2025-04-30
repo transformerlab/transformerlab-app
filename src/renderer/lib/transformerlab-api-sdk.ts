@@ -30,7 +30,6 @@
  * does not need to know any API specifics
  * */
 
-import { log } from 'console';
 import useSWR from 'swr';
 
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './api-client/urls';
