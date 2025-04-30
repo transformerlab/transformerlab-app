@@ -82,9 +82,11 @@ export default function SelectExperimentMenu({
 
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.GET_EXPERIMENTS_URL(),
+    chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
     fetcher,
   );
+
+  console.log('data', data);
 
   useEffect(() => {
     mutate();
