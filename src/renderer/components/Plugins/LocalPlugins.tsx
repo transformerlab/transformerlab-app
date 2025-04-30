@@ -25,6 +25,12 @@ export default function LocalPlugins({ experimentInfo }) {
     chatAPI.Endpoints.Experiment.ListScripts(experimentInfo?.id),
     fetcher,
   );
+  const { data: serverInfo } = useSWR(
+    chatAPI.Endpoints.ServerInfo.Get(),
+    fetcher,
+  );
+
+  const device = serverInfo?.device;
 
   if (error) return 'An error has occurred.';
   if (isLoading) return <LinearProgress />;
@@ -70,6 +76,7 @@ export default function LocalPlugins({ experimentInfo }) {
                 parentMutate={mutate}
                 download={undefined}
                 experimentInfo={experimentInfo}
+                machineType={device}
               />
             </Grid>
           ))}

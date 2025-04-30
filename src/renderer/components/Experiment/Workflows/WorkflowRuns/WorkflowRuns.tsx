@@ -13,7 +13,8 @@ import {
 import useSWR from 'swr';
 import TinyCircle from 'renderer/components/Shared/TinyCircle';
 import { useEffect, useState } from 'react';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
+import WorkflowRunDisplay from './WorkflowRunDisplay';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
@@ -51,13 +52,22 @@ function ListOfWorkflowRuns({
           >
             <ListItemDecorator>
               {run?.status === 'RUNNING' ? (
-                <TinyCircle color="green" />
+                <CircularProgress
+                  variant="soft"
+                  sx={{
+                    '--CircularProgress-trackThickness': '2px',
+                    '--CircularProgress-progressThickness': '2px',
+                    '--CircularProgress-size': '12px',
+                  }}
+                />
               ) : (
                 <TinyCircle color="grey" />
               )}
             </ListItemDecorator>
             <ListItemContent>
-              <Typography level="title-lg">{run?.id}</Typography>
+              <Typography level="title-lg">
+                {run?.id} - {run?.workflow_name}
+              </Typography>
             </ListItemContent>
           </ListItemButton>
         </ListItem>
@@ -70,9 +80,14 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun }) {
   if (!selectedWorkflowRun) {
     return <div>No workflow run selected.</div>;
   }
+
+  const { data, error, isLoading, mutate } = useSWR(
+    chatAPI.Endpoints.Workflows.GetRun(selectedWorkflowRun.id),
+    fetcher,
+  );
   return (
-    <Sheet variant="soft" sx={{ height: '100%', p: 2 }}>
-      <pre>{JSON.stringify(selectedWorkflowRun, null, 2)}</pre>
+    <Sheet variant="soft" sx={{ height: '100%', p: 2, overflowY: 'auto' }}>
+      <WorkflowRunDisplay selectedWorkflowRun={data} />
     </Sheet>
   );
 }
@@ -83,6 +98,7 @@ export default function WorkflowRuns({ experimentInfo }) {
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Workflows.ListRuns(),
     fetcher,
+    { refreshInterval: 2000 },
   );
 
   return (
@@ -103,7 +119,7 @@ export default function WorkflowRuns({ experimentInfo }) {
           setSelectedWorkflowRun={setSelectedWorkflowRun}
         />
       </Box>
-      <Box flex="3">
+      <Box flex="3" sx={{}}>
         <ShowSelectedWorkflowRun selectedWorkflowRun={selectedWorkflowRun} />
       </Box>
     </Sheet>

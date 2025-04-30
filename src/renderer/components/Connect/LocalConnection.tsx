@@ -26,7 +26,7 @@ function setIntervalXTimes(
   callback,
   notSuccessful,
   delay,
-  repetitions
+  repetitions,
 ) {
   var x = 0;
   var intervalID = window.setInterval(async function () {
@@ -88,7 +88,7 @@ function InstallStep({ children = <></>, thisStep, title, activeStep }) {
 
 function InstallStepper({ setServer }) {
   const [activeStep, setActiveStep] = useState(
-    Steps.indexOf('CHECK_IF_INSTALLED')
+    Steps.indexOf('CHECK_IF_INSTALLED'),
   ); // 0, 1, 2
 
   const [userRequestedInstall, setUserRequestedInstall] = useState(false);
@@ -155,7 +155,7 @@ function InstallStepper({ setServer }) {
             throw new Error(setupMessage);
           }
           return window.electron.ipcRenderer.invoke(
-            'server:checkIfInstalledLocally'
+            'server:checkIfInstalledLocally',
           );
         })
         .then((serverIsInstalled) => {
@@ -185,7 +185,7 @@ function InstallStepper({ setServer }) {
     logStep(activeStep);
     (async () => {
       const ver = await window.electron.ipcRenderer.invoke(
-        'server:checkLocalVersion'
+        'server:checkLocalVersion',
       );
       setVersion(ver);
 
@@ -193,7 +193,7 @@ function InstallStepper({ setServer }) {
 
       try {
         const rel = await fetch(
-          'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest'
+          'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest',
         );
         json = await rel.json();
       } catch {
@@ -225,7 +225,7 @@ function InstallStepper({ setServer }) {
 
     (async () => {
       const condaExists = await window.electron.ipcRenderer.invoke(
-        'server:checkIfCondaExists'
+        'server:checkIfCondaExists',
       );
       if (condaExists) {
         setInstallStatus('success');
@@ -250,7 +250,7 @@ function InstallStepper({ setServer }) {
     (async () => {
       setInstallStatus('pending');
       const condaExists = await window.electron.ipcRenderer.invoke(
-        'server:checkIfCondaEnvironmentExists'
+        'server:checkIfCondaEnvironmentExists',
       );
       console.log(JSON.stringify(condaExists));
       if (condaExists?.status == 'success') {
@@ -276,13 +276,13 @@ function InstallStepper({ setServer }) {
 
     (async () => {
       const ipcResponse = await window.electron.ipcRenderer.invoke(
-        'server:checkDependencies'
+        'server:checkDependencies',
       );
 
       if (ipcResponse?.status == 'success' && ipcResponse?.data?.length == 0) {
         setInstallStatus('success');
         setActiveStep(
-          Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1
+          Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1,
         );
       } else {
         setInstallStatus('notstarted');
@@ -314,7 +314,7 @@ function InstallStepper({ setServer }) {
 
     (async () => {
       const p = await fetch(
-        'http://localhost:8338/plugins/list_missing_plugins_for_current_platform'
+        'http://localhost:8338/plugins/list_missing_plugins_for_current_platform',
       );
       const json = await p.json();
       setMissingPlugins(json);
@@ -352,7 +352,7 @@ function InstallStepper({ setServer }) {
 
     console.log('Starting Server');
     const start_process = await window.electron.ipcRenderer.invoke(
-      'server:startLocalServer'
+      'server:startLocalServer',
     );
 
     if (start_process?.status == 'error') {
@@ -375,7 +375,7 @@ function InstallStepper({ setServer }) {
       'API is Installed',
       async () => {
         const serverIsInstalled = await window.electron.ipcRenderer.invoke(
-          'server:checkIfInstalledLocally'
+          'server:checkIfInstalledLocally',
         );
         if (serverIsInstalled) {
           setInstallStatus('success');
@@ -394,7 +394,7 @@ function InstallStepper({ setServer }) {
         setInstallStatus('error');
       },
       2000,
-      8
+      8,
     );
   }
 
@@ -405,13 +405,13 @@ function InstallStepper({ setServer }) {
       'Server Version is Updated',
       async () => {
         const ver = await window.electron.ipcRenderer.invoke(
-          'server:checkLocalVersion'
+          'server:checkLocalVersion',
         );
 
         let json = {};
         try {
           const rel = await fetch(
-            'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest'
+            'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest',
           );
           json = await rel.json();
         } catch {
@@ -436,27 +436,27 @@ function InstallStepper({ setServer }) {
         setInstallStatus('error');
       },
       2000,
-      8
+      8,
     );
   }
 
   async function checkIfCondaIsInstalled() {
     setInstallStatus('pending');
     const installConda = await window.electron.ipcRenderer.invoke(
-      'server:install_conda'
+      'server:install_conda',
     );
     if (installConda?.error) {
       setInstallStatus('error');
       setErrorMessage(installConda?.stderr);
       alert(
-        'Conda could not be installed. Try running "~/.transformerlab/src/install.sh install_conda" in your terminal. This can sometimes be caused by a file permission error where the ~/.conda directory on your machine is not accessible to your user account.'
+        'Conda could not be installed. Try running "~/.transformerlab/src/install.sh install_conda" in your terminal. This can sometimes be caused by a file permission error where the ~/.conda directory on your machine is not accessible to your user account.',
       );
       setThinking(false);
       setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
       setUserRequestedInstall(false);
     }
     const condaExists = await window.electron.ipcRenderer.invoke(
-      'server:checkIfCondaExists'
+      'server:checkIfCondaExists',
     );
     if (condaExists) {
       setInstallStatus('success');
@@ -467,7 +467,7 @@ function InstallStepper({ setServer }) {
       'Conda is Installed',
       async () => {
         const condaExists = await window.electron.ipcRenderer.invoke(
-          'server:checkIfCondaExists'
+          'server:checkIfCondaExists',
         );
         if (condaExists) {
           setInstallStatus('success');
@@ -480,17 +480,17 @@ function InstallStepper({ setServer }) {
         setInstallStatus('error');
       },
       2000,
-      8
+      8,
     );
   }
 
   async function checkIfCondaEnvironmentExists() {
     setInstallStatus('pending');
     const installConda = await window.electron.ipcRenderer.invoke(
-      'server:install_create-conda-environment'
+      'server:install_create-conda-environment',
     );
     const condaExists = await window.electron.ipcRenderer.invoke(
-      'server:checkIfCondaEnvironmentExists'
+      'server:checkIfCondaEnvironmentExists',
     );
     if (condaExists?.status == 'success') {
       setInstallStatus('success');
@@ -513,17 +513,17 @@ function InstallStepper({ setServer }) {
     setInstallStatus('pending');
     setDependenciesErrorMessage(null);
     await window.electron.ipcRenderer.invoke(
-      'server:install_install-dependencies'
+      'server:install_install-dependencies',
     );
 
     const ipcResponse = await window.electron.ipcRenderer.invoke(
-      'server:checkDependencies'
+      'server:checkDependencies',
     );
 
     if (ipcResponse?.status == 'success' && ipcResponse?.data?.length == 0) {
       setInstallStatus('success');
       setActiveStep(
-        Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1
+        Steps.indexOf('CHECK_IF_PYTHON_DEPENDENCIES_INSTALLED') + 1,
       );
       return;
     }
@@ -540,9 +540,12 @@ function InstallStepper({ setServer }) {
 
   async function checkForPlugins() {
     setInstallingPlugins(true);
+    // First install missing plugins
     await fetch(
-      'http://localhost:8338/plugins/install_missing_plugins_for_current_platform'
+      'http://localhost:8338/plugins/install_missing_plugins_for_current_platform',
     );
+    // Then run the autoupdate for all plugins
+    await fetch('http://localhost:8338/plugins/autoupdate_all_plugins');
     setInstallingPlugins(false);
     setMissingPlugins([]);
     setActiveStep(Steps.indexOf('CHECK_FOR_IMPORTANT_PLUGINS') + 1);
@@ -728,7 +731,8 @@ function InstallStepper({ setServer }) {
               thisStep={Steps.indexOf('CHECK_IF_CONDA_INSTALLED')}
               title={
                 <>
-                  Check if Conda is Installed at ~/.transformerlab/miniconda3/{' '}
+                  Check if Conda is Installed at
+                  ~/.transformerlab/miniforge3/{' '}
                 </>
               }
               activeStep={activeStep}

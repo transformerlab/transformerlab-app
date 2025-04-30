@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';

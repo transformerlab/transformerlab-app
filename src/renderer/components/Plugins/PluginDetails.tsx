@@ -114,8 +114,8 @@ function NewFileNameModal({
               chatAPI.Endpoints.Experiment.ScriptNewFile(
                 experimentInfo?.id,
                 pluginName,
-                newfile
-              )
+                newfile,
+              ),
             );
             const result = await response.json();
             if (result?.error) {
@@ -159,9 +159,9 @@ export default function PluginDetails({ experimentInfo }) {
     chatAPI.Endpoints.Experiment.ScriptGetFile(
       experimentInfo?.id,
       pluginName,
-      currentFile
+      currentFile,
     ),
-    fetcher
+    fetcher,
   );
 
   const {
@@ -172,9 +172,9 @@ export default function PluginDetails({ experimentInfo }) {
   } = useSWR(
     chatAPI.Endpoints.Experiment.ScriptListFiles(
       experimentInfo?.id,
-      pluginName
+      pluginName,
     ),
-    fetcher
+    fetcher,
   );
 
   const editorRef = useRef(null);
@@ -288,8 +288,8 @@ export default function PluginDetails({ experimentInfo }) {
                 chatAPI.Endpoints.Experiment.ScriptDeleteFile(
                   experimentInfo?.id,
                   pluginName,
-                  currentFile
-                )
+                  currentFile,
+                ),
               );
               const result = await res.json();
               if (result?.error) {
@@ -302,14 +302,21 @@ export default function PluginDetails({ experimentInfo }) {
         >
           Delete
         </Button>
-        <Button
-          startDecorator={<PlayCircleIcon />}
-          onClick={() => {
-            alert('Not yet implemented.');
-          }}
-        >
-          Run
-        </Button>
+        {/* We currently check if the file is setup.sh to show the run button.
+        This is a bit of a hack because in plugin defintions, the setup can be named
+        different thigns. However, all existing plugins use setup.sh as the filename */}
+        {currentFile === 'setup.sh' && (
+          <Button
+            startDecorator={<PlayCircleIcon />}
+            onClick={() => {
+              fetch(
+                chatAPI.Endpoints.Plugins.RunPluginInstallScript(pluginName),
+              );
+            }}
+          >
+            Run
+          </Button>
+        )}
         <Button
           disabled={currentFile == null ? true : false}
           onClick={() => {
@@ -317,12 +324,12 @@ export default function PluginDetails({ experimentInfo }) {
               chatAPI.Endpoints.Experiment.ScriptSaveFile(
                 experimentInfo?.id,
                 pluginName,
-                currentFile
+                currentFile,
               ),
               {
                 method: 'POST',
                 body: editorRef?.current?.getValue(),
-              }
+              },
             ).then(() => {
               mutate();
             });

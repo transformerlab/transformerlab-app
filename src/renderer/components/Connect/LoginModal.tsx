@@ -97,9 +97,16 @@ export default function LoginModal({
   }
 
   React.useEffect(() => {
-    // If we are on the webapp, try to automatically connect to localhost for the server
+    // If we are on the webapp, try to automatically connect to the current server's host
     if (WEB_APP && connection === '') {
-      window.TransformerLab.API_URL = 'http://localhost:8338/';
+      const currentHost = window.location.origin;
+      // remove the port from the current host when it is formatted as http://host:port
+      const currentHostWithoutPort =
+        currentHost.split(':')[0] + ':' + currentHost.split(':')[1];
+      // console.log('currentHost', currentHost);
+      // console.log('currentHostWithoutPort', currentHostWithoutPort);
+      // console.log(`trying to set server to ${currentHostWithoutPort}:8338/`);
+      window.TransformerLab.API_URL = `${currentHostWithoutPort}:8338/`;
       setServer(window.TransformerLab.API_URL);
     }
   }, []);

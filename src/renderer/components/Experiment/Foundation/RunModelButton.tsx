@@ -32,7 +32,8 @@ export default function RunModelButton({
   experimentInfo,
   killWorker,
   models,
-  mutate = () => { },
+  mutate = () => {},
+  setLogsDrawerOpen = null,
 }) {
   const [jobId, setJobId] = useState(null);
   const [showRunSettings, setShowRunSettings] = useState(false);
@@ -68,8 +69,8 @@ export default function RunModelButton({
             experimentInfo?.id,
             'loader', // type
             'model_architectures:' +
-            experimentInfo?.config?.foundation_model_architecture //filter
-          )
+              experimentInfo?.config?.foundation_model_architecture, //filter
+          ),
         );
         const inferenceEnginesJSON = await inferenceEngines.json();
         const experimentId = experimentInfo?.id;
@@ -82,8 +83,8 @@ export default function RunModelButton({
             JSON.stringify({
               ...inferenceSettings,
               inferenceEngine: engine,
-            })
-          )
+            }),
+          ),
         );
         setInferenceSettings({
           inferenceEngine: inferenceEnginesJSON?.[0]?.uniqueId,
@@ -124,10 +125,23 @@ export default function RunModelButton({
                   experimentInfo?.config?.adaptor,
                   inferenceEngine,
                   inferenceSettings,
-                  experimentInfo?.id
+                  experimentInfo?.id,
                 );
                 if (response?.status == 'error') {
-                  alert(`Failed to start model:\n${response?.message}`);
+                  if (setLogsDrawerOpen) {
+                    setLogsDrawerOpen(true);
+                  }
+                  if (
+                    response?.message?.includes(
+                      'Process terminated with exit code 1',
+                    )
+                  ) {
+                    alert(
+                      'Could not start model. Please check the console at the bottom of the page for detailed logs.',
+                    );
+                  } else {
+                    alert(`Failed to start model:\n${response?.message}`);
+                  }
                   setJobId(null);
                   return;
                 }
@@ -167,7 +181,7 @@ export default function RunModelButton({
         >
           using{' '}
           {removeServerFromEndOfString(
-            inferenceSettings?.inferenceEngineFriendlyName
+            inferenceSettings?.inferenceEngineFriendlyName,
           ) ||
             inferenceSettings?.inferenceEngine ||
             'Engine'}

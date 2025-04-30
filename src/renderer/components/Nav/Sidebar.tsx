@@ -65,113 +65,109 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   }
 
   return (
-    <>
-      {' '}
-      <List
-        sx={{
-          '--ListItem-radius': '8px',
-          '--ListItem-minHeight': '32px',
-          '--List-gap': '4px',
-          overflowY: 'auto',
-          flex: 1,
-        }}
-      >
-        <SubNavItem
-          title="Foundation"
-          path="/experiment/model"
-          icon={<LayersIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        {/* <SubNavItem
+    <List
+      sx={{
+        '--ListItem-radius': '6px',
+        '--ListItem-minHeight': '32px',
+        overflowY: 'auto',
+        flex: 1,
+      }}
+    >
+      <SubNavItem
+        title="Foundation"
+        path="/experiment/model"
+        icon={<LayersIcon strokeWidth={1} />}
+        disabled={!experimentInfo?.name}
+      />
+      {/* <SubNavItem
           title="Prompt"
           path="/experiment/prompt"
           icon={<TextSelectIcon />}
           disabled={!experimentInfo?.name}
         /> */}
+      <SubNavItem
+        title="Interact"
+        path="/experiment/chat"
+        icon={<MessageCircleIcon strokeWidth={9} />}
+        disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
+      />
+      {DEV_MODE && (
         <SubNavItem
-          title="Interact"
-          path="/experiment/chat"
-          icon={<MessageCircleIcon />}
-          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
-        />
-        {DEV_MODE && (
-          <SubNavItem
-            title="Workflows"
-            path="/experiment/workflows"
-            icon={<WorkflowIcon />}
-            disabled={!experimentInfo?.name}
-          />
-        )}
-        <SubNavItem
-          title="Train"
-          path="/experiment/training"
-          icon={<GraduationCapIcon />}
+          title="Workflows"
+          path="/experiment/workflows"
+          icon={<WorkflowIcon />}
           disabled={!experimentInfo?.name}
         />
-        <SubNavItem
-          title="Export"
-          path="/experiment/export"
-          icon={<ArrowRightFromLineIcon />}
-          disabled={
-            !experimentInfo?.name || !experimentInfo?.config?.foundation
-          }
-        />
-        <SubNavItem
-          title="Generate"
-          path="/experiment/generate"
-          icon={<SquareStackIcon />}
-          disabled={
-            !experimentInfo?.name || !experimentInfo?.config?.foundation
-          }
-        />
-        <SubNavItem
-          title="Evaluate"
-          path="/experiment/eval"
-          icon={<ChartColumnIncreasingIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
-          title="Documents"
-          path="/experiment/documents"
-          icon={<FileIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
-          title="Notes"
-          path="/experiment/notes"
-          icon={<FlaskConicalIcon />}
-          disabled={!experimentInfo?.name}
-        />
-      </List>
-    </>
+      )}
+      <SubNavItem
+        title="Train"
+        path="/experiment/training"
+        icon={<GraduationCapIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem
+        title="Generate"
+        path="/experiment/generate"
+        icon={<SquareStackIcon />}
+        disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
+      />
+      <SubNavItem
+        title="Evaluate"
+        path="/experiment/eval"
+        icon={<ChartColumnIncreasingIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem
+        title="Documents"
+        path="/experiment/documents"
+        icon={<FileIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem
+        title="Export"
+        path="/experiment/export"
+        icon={<ArrowRightFromLineIcon />}
+        disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
+      />
+      <SubNavItem
+        title="Notes"
+        path="/experiment/notes"
+        icon={<FlaskConicalIcon />}
+        disabled={!experimentInfo?.name}
+      />
+    </List>
   );
 }
 
 function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   return (
-    <>
-      {' '}
-      <List sx={{ flex: 1, overflowY: 'auto' }}>
-        <Divider sx={{ marginBottom: 2 }} />
+    <List
+      sx={{
+        '--ListItem-radius': '6px',
+        '--ListItem-minHeight': '32px',
+        overflowY: 'auto',
+        flex: 1,
+      }}
+    >
+      <Divider sx={{ marginBottom: 1 }} />
 
-        <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
-        <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
-        <SubNavItem
-          title="API"
-          path="/api"
-          icon={<CodeIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
-        <SubNavItem
-          title="Plugins"
-          path="/plugins"
-          icon={<PlugIcon />}
-          counter={outdatedPluginsCount}
-        />
-        <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
-      </List>
-    </>
+      <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
+      <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
+      <SubNavItem
+        title="API"
+        path="/api"
+        icon={<CodeIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
+      <SubNavItem
+        title="Plugins"
+        path="/plugins"
+        icon={<PlugIcon />}
+        counter={outdatedPluginsCount}
+      />
+      <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
+    </List>
   );
 }
 
@@ -287,18 +283,21 @@ export default function Sidebar({
         height: '100%',
         overflow: 'auto',
         top: 0,
-        p: 2,
+        pl: 1.2,
+        pr: 1,
         py: 1,
         pt: '0',
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
-        gap: 1,
+        gap: 0.5,
         userSelect: 'none',
         width: '100%',
         // opacity: 0.4,
         '& .lucide': {
           strokeWidth: '1.5px',
+          width: '18px',
+          height: '18px',
         },
         '& .MuiBadge-root': {},
       }}
