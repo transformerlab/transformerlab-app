@@ -856,23 +856,6 @@ export async function getComputerInfo() {
   }
 }
 
-export function activateLocalAI(): void {
-  window.electron.ipcRenderer.sendMessage('spawn-start-localai');
-}
-
-export async function activateController() {
-  let response;
-  try {
-    response = await fetch(API_URL() + 'server/controller_start');
-    // console.log('response ok?' + response.ok);
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.log('error with starting controller', error);
-    return undefined;
-  }
-}
-
 export async function activateWorker(
   modelName: string,
   modelFilename: string | null = null,
@@ -928,30 +911,6 @@ export async function killWorker() {
   }
 }
 
-export function activateTransformerLabAPI(): void {
-  window.electron.ipcRenderer.sendMessage('spawn-start-transformerlab-api');
-}
-
-export async function startFinetune(
-  modelName: string,
-  adaptorName: string,
-  trainingData: string,
-) {
-  const response = await fetch(
-    `${API_URL()}train/finetune_lora?model=${modelName}&adaptor_name=${adaptorName}`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(trainingData),
-    },
-  );
-  const result = await response.json();
-  return result;
-}
-
 export function TEMPLATE_FOR_MODEL_URL(model: string) {
   return `${API_URL()}model/get_conversation_template?model=${model}`;
 }
@@ -964,49 +923,6 @@ export async function getTemplateForModel(modelName: string) {
   const response = await fetch(TEMPLATE_FOR_MODEL_URL(model));
   const result = await response.json();
 
-  return result;
-}
-
-/** ***********************
- * TRAINING AND TRAINING JOBS
- */
-
-export async function saveTrainingTemplate(
-  name: string,
-  description: string,
-  type: string,
-  config: string,
-) {
-  // template_id: str, description: str, type: str, datasets: str, config: str
-
-  const queryString = `?name=${name}&description=${description}&type=${type}`;
-
-  const configBody = {
-    config: config,
-  };
-  const response = await fetch(
-    API_URL() + 'train/template/create' + queryString,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
-      body: JSON.stringify(configBody),
-    },
-  );
-  const result = await response.json();
-  return result;
-}
-export async function getTrainingJobs() {
-  const response = await fetch(API_URL() + 'train/list');
-  const result = await response.json();
-  return result;
-}
-
-export async function getTrainingJobStatus(jobId: string) {
-  const response = await fetch(API_URL() + 'train/status?job_id=' + jobId);
-  const result = await response.json();
   return result;
 }
 
@@ -1082,14 +998,6 @@ export function useServerStats() {
     isLoading,
     isError: error,
   };
-}
-
-export async function downloadPlugin(pluginId: string) {
-  const response = await fetch(
-    API_URL() + 'plugins/download?plugin_slug=' + pluginId,
-  );
-  const result = await response.json();
-  return result;
 }
 
 const fetchAndGetErrorStatus = async (url) => {
