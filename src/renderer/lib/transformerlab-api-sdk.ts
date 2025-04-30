@@ -428,8 +428,8 @@ Endpoints.Experiment = {
     encodeURIComponent(value),
   Create: (name: string) => API_URL() + 'experiment/create?name=' + name,
   Get: (id: string) => API_URL() + 'experiment/' + id,
-  Delete: '',
-  SavePrompt: '',
+  Delete: (id: string) => API_URL() + 'experiment/' + id + '/delete',
+  SavePrompt: (id: string) => API_URL() + 'experiment/' + id + '/prompt',
   GetFile: (id: string, filename: string) =>
     API_URL() + 'experiment/' + id + '/file_contents?filename=' + filename,
   SaveFile: (id: string, filename: string) =>
@@ -795,14 +795,6 @@ export async function EXPERIMENT_EDIT_GENERATION(
   );
   const result = await response.json();
   return result;
-}
-
-export function DELETE_EXPERIMENT_URL(id: string) {
-  return API_URL() + 'experiment/' + id + '/delete';
-}
-
-export function SAVE_EXPERIMENT_PROMPT_URL(id: string) {
-  return API_URL() + 'experiment/' + id + '/prompt';
 }
 
 // Right now health function is the same as activeModels

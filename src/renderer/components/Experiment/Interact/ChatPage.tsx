@@ -8,9 +8,7 @@ import {
   Modal,
   ModalDialog,
 } from '@mui/joy';
-import {
-  ConstructionIcon,
-} from 'lucide-react';
+import { ConstructionIcon } from 'lucide-react';
 
 import ChatBubble from './ChatBubble';
 import ChatSubmit from './ChatSubmit';
@@ -47,7 +45,7 @@ export default function ChatPage({
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
   const [systemMessage, setSystemMessage] = useState(
-    experimentInfo?.config?.prompt_template?.system_message
+    experimentInfo?.config?.prompt_template?.system_message,
   );
 
   const sendSystemMessageToServer = (message) => {
@@ -60,7 +58,7 @@ export default function ChatPage({
     };
     newPrompt.system_message = newSystemPrompt;
 
-    fetch(chatAPI.SAVE_EXPERIMENT_PROMPT_URL(experimentId), {
+    fetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
       method: 'POST',
       body: JSON.stringify(newPrompt),
     }).then((response) => {
@@ -136,17 +134,15 @@ export default function ChatPage({
       >
         {enableTools && (
           <Alert
-          variant="outlined"
-          color="warning"
-          startDecorator={<ConstructionIcon />}
-        >
-          Work In Progress.
-          This is a preview of tool calling.
-          We will be expanding this portion of the app in an upcoming release.
-          This feature will allow a user to add functions that can be 
-          called by the model.
-          For now, there is a static set of default tools you can test.
-        </Alert>
+            variant="outlined"
+            color="warning"
+            startDecorator={<ConstructionIcon />}
+          >
+            Work In Progress. This is a preview of tool calling. We will be
+            expanding this portion of the app in an upcoming release. This
+            feature will allow a user to add functions that can be called by the
+            model. For now, there is a static set of default tools you can test.
+          </Alert>
         )}
         {!enableTools && (
           <SystemMessageBox
