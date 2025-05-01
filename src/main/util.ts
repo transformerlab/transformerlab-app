@@ -317,7 +317,7 @@ export async function installLocalServer() {
         console.log(`stdout: ${stdout}`);
         console.error(`stderr: ${stderr}`);
         // write stdout to the file called out:
-        fs.writeSync(out, stdout);
+        if (out) fs.writeSync(out, stdout);
       },
     );
   } catch (err) {
