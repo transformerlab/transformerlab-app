@@ -103,14 +103,11 @@ export default function LoginModal({
       // remove the port from the current host when it is formatted as http://host:port
       const protocol = currentHost.split('://')[0] + '://';
       const domain = currentHost.split('://')[1].split(':')[0];
-      const port = currentHost.split(':')[2] || '80'; // Default to port 80 if no port is specified
-      // console.log('protocol', protocol);
-      // console.log('domain', domain);
-      // console.log('port', port);
+      const port = currentHost.split(':')[2] || ''; // Leave blank if no port is specified
       console.log(
-        `Automatically trying to set server to ${protocol}${domain}:${port}/`,
+        `Automatically trying to set server to ${protocol}${domain}${port ? `:${port}` : ''}/`,
       );
-      window.TransformerLab.API_URL = `${protocol}${domain}:${port}/`;
+      window.TransformerLab.API_URL = `${protocol}${domain}${port ? `:${port}` : ''}/`;
       setServer(window.TransformerLab.API_URL);
     }
   }, []);
