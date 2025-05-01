@@ -151,7 +151,12 @@ export default function MainAppPanel({
     'batched',
   ];
 
-  if (modelData && modelData !== 'null' && modelData !== 'undefined') {
+  if (
+    modelData &&
+    modelData !== 'null' &&
+    modelData !== 'undefined' &&
+    modelData !== 'FILE NOT FOUND'
+  ) {
     modelSupports = JSON.parse(modelData)?.supports || [
       'chat',
       'completion',
