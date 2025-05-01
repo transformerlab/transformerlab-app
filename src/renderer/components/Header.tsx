@@ -148,13 +148,15 @@ function StatsBar({ connection, setConnection }) {
                 percent={Math.round(gpu?.utilization)}
               />
             ))}
-            <span style={{ display: 'flex', alignItems: 'center' }}>
-              {server?.device_type === 'nvidia' ? (
-                <TinyNVIDIALogo />
-              ) : (
-                <TinyAMDLogo />
-              )}
-            </span>
+            {server?.device === 'cuda' && (
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                {server?.device_type === 'nvidia' ? (
+                  <TinyNVIDIALogo />
+                ) : server?.device_type === 'amd' ? (
+                  <TinyAMDLogo />
+                ) : null}
+              </span>
+            )}
           </Stack>
         </span>
       </Tooltip>
