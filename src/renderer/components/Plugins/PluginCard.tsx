@@ -11,6 +11,7 @@ import { useState } from 'react';
 
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import TinyNVIDIALogo from '../Shared/TinyNVIDIALogo';
+import TinyAMDLogo from '../Shared/TinyAMDLogo';
 import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -56,6 +57,8 @@ function mapArchitectureToIcon(arch) {
       );
     case 'mlx':
       return <TinyMLXLogo />;
+    case 'amd':
+      return <TinyAMDLogo />;
     default:
       return (
         <Chip key={arch} color="primary">
@@ -92,6 +95,7 @@ export default function PluginCard({
 
     // Check if plugin is compatible with the machine type
     let isCompatible = false;
+    console.log('machineType', machineType);
 
     if (machineType === 'mps') {
       isCompatible =
@@ -101,9 +105,13 @@ export default function PluginCard({
       isCompatible =
         pluginArchitectures.includes('cuda') ||
         pluginArchitectures.includes('cpu');
+    } else if (machineType === 'amd') {
+      isCompatible = pluginArchitectures.includes('amd');
     } else {
       isCompatible = pluginArchitectures.includes('cpu');
     }
+
+    // console.log('pluginArchitectures', pluginArchitectures);
 
     // Only show a message for incompatible plugins
     if (!isCompatible) {
