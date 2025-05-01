@@ -101,12 +101,16 @@ export default function LoginModal({
     if (WEB_APP && connection === '') {
       const currentHost = window.location.origin;
       // remove the port from the current host when it is formatted as http://host:port
-      const currentHostWithoutPort =
-        currentHost.split(':')[0] + ':' + currentHost.split(':')[1];
-      // console.log('currentHost', currentHost);
-      // console.log('currentHostWithoutPort', currentHostWithoutPort);
-      // console.log(`trying to set server to ${currentHostWithoutPort}:8338/`);
-      window.TransformerLab.API_URL = `${currentHostWithoutPort}:8338/`;
+      const protocol = currentHost.split('://')[0] + '://';
+      const domain = currentHost.split('://')[1].split(':')[0];
+      const port = currentHost.split(':')[2] || '80'; // Default to port 80 if no port is specified
+      // console.log('protocol', protocol);
+      // console.log('domain', domain);
+      // console.log('port', port);
+      console.log(
+        `Automatically trying to set server to ${protocol}${domain}:${port}/`,
+      );
+      window.TransformerLab.API_URL = `${protocol}${domain}:${port}/`;
       setServer(window.TransformerLab.API_URL);
     }
   }, []);
