@@ -100,14 +100,8 @@ export default function LoginModal({
     // If we are on the webapp, try to automatically connect to the current server's host
     if (WEB_APP && connection === '') {
       const currentHost = window.location.origin;
-      // remove the port from the current host when it is formatted as http://host:port
-      const protocol = currentHost.split('://')[0] + '://';
-      const domain = currentHost.split('://')[1].split(':')[0];
-      const port = currentHost.split(':')[2] || ''; // Leave blank if no port is specified
-      console.log(
-        `Automatically trying to set server to ${protocol}${domain}${port ? `:${port}` : ''}/`,
-      );
-      window.TransformerLab.API_URL = `${protocol}${domain}${port ? `:${port}` : ''}/`;
+      window.TransformerLab.API_URL = currentHost + '/';
+      console.log('Connecting to: ', window.TransformerLab.API_URL);
       setServer(window.TransformerLab.API_URL);
     }
   }, []);
