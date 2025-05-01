@@ -99,8 +99,8 @@ export default function LoginModal({
   React.useEffect(() => {
     // If we are on the webapp, try to automatically connect to the current server's host
     if (WEB_APP && connection === '') {
-      const currentHost = window.location.origin;
-      window.TransformerLab.API_URL = currentHost + '/';
+      const currentPath = window.location.href;
+      window.TransformerLab.API_URL = currentPath;
       console.log('Connecting to: ', window.TransformerLab.API_URL);
       setServer(window.TransformerLab.API_URL);
     }
