@@ -275,11 +275,15 @@ export default function Computer() {
                         value={server.gpu?.length === 0 ? '❌' : '✅'}
                       />
                       <StatRow
-                        title="CUDA"
+                        title={server?.device_type !== 'amd' ? 'CUDA' : 'ROCm'}
                         value={server?.device === 'cuda' ? '✅ ' : '❌'}
                       />
                       <StatRow
-                        title="CUDA Version"
+                        title={
+                          server?.device_type !== 'amd'
+                            ? 'CUDA Version'
+                            : 'ROCm Version'
+                        }
                         value={server?.cuda_version}
                       />{' '}
                       <StatRow
