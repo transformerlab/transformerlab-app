@@ -41,6 +41,43 @@ export default function JobProgress({ job }) {
               <StopCircleIcon size="20px" />
             </IconButton>
           </Stack>
+          {/* Add smaller sweep subprogress bar when job.progress is -1 */}
+          {job.progress == '-1' &&
+            job?.job_data?.hasOwnProperty('sweep_subprogress') && (
+              <Stack
+                direction={'row'}
+                alignItems="center"
+                gap={1}
+                sx={{ mt: 0.5 }}
+              >
+                {/* <Typography level="body-sm">
+                  Sweep progress {job.job_data.sweep_current}/
+                  {job.job_data.sweep_total}:
+                </Typography> */}
+                <Chip
+                  size="sm"
+                  variant="soft"
+                  color="primary"
+                  sx={{
+                    fontSize: 'var(--joy-fontSize-xs)',
+                    height: 'auto',
+                    py: 0.5,
+                  }}
+                >
+                  Sweep {job.job_data.sweep_current}/{job.job_data.sweep_total}
+                </Chip>
+                <LinearProgress
+                  determinate
+                  value={job.job_data.sweep_subprogress}
+                  sx={{
+                    my: 0.5,
+                    height: '4px', // Make it smaller than the main progress bar
+                  }}
+                />
+                {Number.parseFloat(job.job_data.sweep_subprogress).toFixed(1) +
+                  '%'}
+              </Stack>
+            )}
           {job?.job_data?.start_time && (
             <>
               Started:{' '}

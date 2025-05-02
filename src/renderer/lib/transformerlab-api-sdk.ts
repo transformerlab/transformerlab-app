@@ -1569,9 +1569,10 @@ Endpoints.Experiment = {
     experimentId +
     'plugins/delete_plugin?pluginId=' +
     pluginId,
-  GetOutputFromJob: (jobId: string) => API_URL() + `train/job/${jobId}/output`,
-  StreamOutputFromTrainingJob: (jobId: string) =>
-    API_URL() + `train/job/${jobId}/stream_output`,
+  GetOutputFromJob: (jobId: string, sweep: boolean) =>
+    API_URL() + `train/job/${jobId}/output?sweeps=${sweep}`,
+  StreamOutputFromTrainingJob: (jobId: string, sweep: boolean = false) =>
+    API_URL() + `train/job/${jobId}/stream_output?sweeps=${sweep}`,
   StreamOutputFromJob: (jobId: string) =>
     API_URL() + `jobs/${jobId}/stream_output`,
   StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
