@@ -48,7 +48,7 @@ export default function Prompt({
 
   const { data, error, isLoading } = useSWR(
     chatAPI.TEMPLATE_FOR_MODEL_URL(experimentInfo?.config?.foundation),
-    fetcher
+    fetcher,
   );
 
   const parsedPromptData = experimentInfo?.config?.prompt_template;
@@ -81,10 +81,13 @@ export default function Prompt({
           const formData = new FormData(event.currentTarget);
           const formJson = Object.fromEntries((formData as any).entries());
           // alert(JSON.stringify(formJson));
-          fetch(chatAPI.SAVE_EXPERIMENT_PROMPT_URL(experimentId), {
-            method: 'POST',
-            body: JSON.stringify(formJson),
-          })
+          fetch(
+            chatAPI.Endpoints.Endpoints.Experiment.SavePrompt(experimentId),
+            {
+              method: 'POST',
+              body: JSON.stringify(formJson),
+            },
+          )
             .then((response) => {
               experimentInfoMutate();
               return response.text();
