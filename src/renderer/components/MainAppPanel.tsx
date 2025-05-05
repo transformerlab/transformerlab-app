@@ -472,7 +472,12 @@ export default function MainAppPanel({
         />
         <Route
           path="/plugins"
-          element={<Plugins experimentInfo={experimentInfo} />}
+          element={
+            <Plugins
+              experimentInfo={experimentInfo}
+              setLogsDrawerOpen={setLogsDrawerOpen}
+            />
+          }
         />
         <Route
           path="/plugins/:pluginName"
