@@ -467,7 +467,12 @@ export default function TrainLoRA({ experimentInfo }) {
 
                         <InfoIcon
                           onClick={() => {
-                            alert(job?.job_data?.config);
+                            const jobDataConfig = job?.job_data?.config;
+                            if (typeof jobDataConfig === 'object') {
+                              alert(JSON.stringify(jobDataConfig));
+                            } else {
+                              alert(jobDataConfig);
+                            }
                           }}
                           size="16px"
                           color="var(--joy-palette-neutral-500)"
