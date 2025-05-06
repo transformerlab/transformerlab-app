@@ -1,0 +1,24 @@
+{
+  "tasks": {
+    "getAll": {
+      "method": "GET",
+      "path": "/tasks/list"
+    },
+    "get": {
+      "method": "GET",
+      "path": "/tasks/{id}"
+    },
+    "fake": {
+      "method": "GET",
+      "path": "/tasks/{id}/anystring/{anything}"
+    },
+    "create": {
+      "method": "POST",
+      "path": "/tasks"
+    },
+    "delete": {
+      "method": "DELETE",
+      "path": "/tasks/{id}"
+    }
+  }
+}
