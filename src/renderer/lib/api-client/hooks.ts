@@ -2,8 +2,30 @@
  * SWR hooks
  */
 import useSWR from 'swr';
-import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
+import { API_URL, getFullPath } from './urls';
 import { Endpoints } from './endpoints';
+
+export default function useAPI(
+  majorEntity: string,
+  pathArray: string[],
+  params: Record<string, any> = {},
+  options: any = {},
+) {
+  const path = getFullPath(majorEntity, pathArray, params);
+  const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+  const { data, error, isValidating } = useSWR(path, fetcher, {
+    ...options,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  return {
+    data,
+    error,
+    isLoading: !error && !data && isValidating,
+  };
+}
 
 const fetcher = (...args: any[]) =>
   fetch(...args).then((res) => {
