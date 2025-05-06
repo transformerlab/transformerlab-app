@@ -1,5 +1,6 @@
-import endpointsJson from './endpoints.json';
 import useSWR from 'swr';
+import endpointsJson from './endpoints.json';
+import { API_URL } from './urls';
 
 type Endpoint = {
   method: string;
@@ -13,8 +14,6 @@ type Endpoints = {
 };
 
 const endpoints: Endpoints = endpointsJson;
-
-const apiUrl = 'http://localhost:3000/api';
 
 // A function that takes a major entity (e.g. "experiment"),
 // and a path array (e.g. ["tasks", "apple"]),
@@ -56,7 +55,7 @@ function getFullPath(
   params: Record<string, any>,
 ): string {
   const path = getPath(majorEntity, pathArray, params);
-  return `${apiUrl}${path}`;
+  return `${API_URL()}${path}`;
 }
 
 // Test the function
