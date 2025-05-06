@@ -14,7 +14,7 @@ export default function useAPI(
   const path = getFullPath(majorEntity, pathArray, params);
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-  const { data, error, isValidating } = useSWR(path, fetcher, {
+  const { data, error, isLoading, mutate } = useSWR(path, fetcher, {
     ...options,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
@@ -23,7 +23,8 @@ export default function useAPI(
   return {
     data,
     error,
-    isLoading: !error && !data && isValidating,
+    isLoading,
+    mutate,
   };
 }
 
