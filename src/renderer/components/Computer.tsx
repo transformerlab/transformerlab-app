@@ -38,11 +38,10 @@ import { FaLinux } from 'react-icons/fa6';
 import { formatBytes } from 'renderer/lib/utils';
 
 import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
 import { useState } from 'react';
 
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { FaPython } from 'react-icons/fa';
+import useAPI from 'renderer/lib/api-client/caller';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
@@ -74,10 +73,7 @@ export default function Computer() {
 
   const { server, isLoading, isError } = useServerStats();
 
-  const { data: pythonLibraries } = useSWR(
-    chatAPI.Endpoints.ServerInfo.PythonLibraries(),
-    fetcher,
-  );
+  const { data: pythonLibraries } = useAPI('server', ['pythonLibraries']);
 
   return (
     <Sheet

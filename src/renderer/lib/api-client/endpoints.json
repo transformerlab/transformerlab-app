@@ -2,23 +2,29 @@
   "tasks": {
     "getAll": {
       "method": "GET",
-      "path": "/tasks/list"
+      "path": "tasks/list"
     },
     "get": {
       "method": "GET",
-      "path": "/tasks/{id}"
+      "path": "tasks/{id}"
     },
     "fake": {
       "method": "GET",
-      "path": "/tasks/{id}/anystring/{anything}"
+      "path": "tasks/{id}/anystring/{anything}"
     },
     "create": {
       "method": "POST",
-      "path": "/tasks"
+      "path": "tasks"
     },
     "delete": {
       "method": "DELETE",
-      "path": "/tasks/{id}"
+      "path": "tasks/{id}"
+    }
+  },
+  "server": {
+    "pythonLibraries": {
+      "method": "GET",
+      "path": "server/python_libraries"
     }
   }
 }
