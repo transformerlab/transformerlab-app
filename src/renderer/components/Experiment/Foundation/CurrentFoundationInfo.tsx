@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   ButtonGroup,
-  Divider,
   IconButton,
   Stack,
   Table,
@@ -17,15 +16,7 @@ import {
   Tab,
   TabPanel,
 } from '@mui/joy';
-import {
-  BabyIcon,
-  DotIcon,
-  Icon,
-  Trash2Icon,
-  Undo2Icon,
-  XCircleIcon,
-  LayersIcon,
-} from 'lucide-react';
+import { Trash2Icon, Undo2Icon, LayersIcon } from 'lucide-react';
 
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
