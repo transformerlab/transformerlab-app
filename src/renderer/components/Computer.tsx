@@ -41,7 +41,7 @@ import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 
 import { FaPython } from 'react-icons/fa';
-import useAPI from 'renderer/lib/api-client/caller';
+import useAPI from 'renderer/lib/api-client/hooks';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
