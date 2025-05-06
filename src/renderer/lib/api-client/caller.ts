@@ -58,22 +58,6 @@ function getFullPath(
   return `${API_URL()}${path}`;
 }
 
-// Test the function
-// console.log(getPath('tasks', ['fake'], { id: 1, anything: 'apple' })); // Should log: tasks/1/anystring/apple
-// console.log(getPath('tasks', ['get'], { id: 1, anything: 'apple' })); // Should log: tasks/1/anystring/apple
-// console.log(getPath('tasks', ['getAll'], {})); // Should log: tasks/list
-// console.log(getPath('tasks', ['create'], {})); // Should log: tasks
-// // console.log(getPath('monkey', ['delete'], { id: 1 })); // Should throw an error: Major entity monkey not found
-// console.log(getFullPath('tasks', ['get'], { id: 1, anything: 'apple' })); // Should log: http://localhost:3000/api/tasks/1/anystring/apple
-// console.log(getFullPath('tasks', ['getAll'], {})); // Should log: http://localhost:3000/api/tasks/list
-
-// Now generate a useSWR function that takes a major entity and a path array,
-// and returns a useSWR function that fetches the data from the API
-// and returns the data, error, and isLoading state.
-// The function should also take an optional params object that will be passed to the getPath function
-// and used to generate the path.
-// The function should use it's own fetcher function to fetch the data from the API.
-
 export default function useAPI(
   majorEntity: string,
   pathArray: string[],
