@@ -111,7 +111,8 @@ export default function LocalDatasets() {
             filterByFiltersDatasetID(data, searchText).map((row) => (
               <Grid xs={4}>
                 <DatasetCard
-                  name={(() => {
+                  name={row?.dataset_id}
+                  cleanName={(() => {
                     try {
                       return (
                         (row?.json_data && JSON.parse(row.json_data)?.name) ||

@@ -30,6 +30,7 @@ export default function DatasetCard({
   location,
   parentMutate,
   local,
+  cleanName = null,
 }) {
   const [installing, setInstalling] = useState(null);
   const [previewDatasetModalOpen, setPreviewDatasetModalOpen] = useState(false);
@@ -60,7 +61,7 @@ export default function DatasetCard({
               sx={{ mb: 2, overflow: 'clip' }}
               startDecorator={<FileTextIcon />}
             >
-              <b>{name}</b>&nbsp;
+              <b>{cleanName || name}</b>&nbsp;
               {location === 'huggingfacehub' && ' 🤗'}
               {location === 'local' && ' '}
             </Typography>
