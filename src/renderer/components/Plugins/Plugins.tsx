@@ -18,7 +18,7 @@ import PluginGallery from './PluginGallery';
 import LocalPlugins from './LocalPlugins';
 import OneTimePopup from '../Shared/OneTimePopup';
 
-export default function Plugins({ experimentInfo }) {
+export default function Plugins({ experimentInfo, setLogsDrawerOpen = null }) {
   const { data: outdatedPlugins, mutate: outdatePluginsMutate } =
     usePluginStatus(experimentInfo);
   const [installing, setInstalling] = useState(null);
@@ -114,7 +114,10 @@ export default function Plugins({ experimentInfo }) {
           <Sheet
             sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
           >
-            <LocalPlugins experimentInfo={experimentInfo} />
+            <LocalPlugins
+              experimentInfo={experimentInfo}
+              setLogsDrawerOpen={setLogsDrawerOpen}
+            />
           </Sheet>
         </TabPanel>
         <TabPanel
@@ -128,7 +131,10 @@ export default function Plugins({ experimentInfo }) {
           <Sheet
             sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}
           >
-            <PluginGallery experimentInfo={experimentInfo} />
+            <PluginGallery
+              experimentInfo={experimentInfo}
+              setLogsDrawerOpen={setLogsDrawerOpen}
+            />
           </Sheet>
         </TabPanel>
       </Tabs>

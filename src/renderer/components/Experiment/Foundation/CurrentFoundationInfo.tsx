@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   ButtonGroup,
-  Divider,
   IconButton,
   Stack,
   Table,
@@ -17,15 +16,7 @@ import {
   Tab,
   TabPanel,
 } from '@mui/joy';
-import {
-  BabyIcon,
-  DotIcon,
-  Icon,
-  Trash2Icon,
-  Undo2Icon,
-  XCircleIcon,
-  LayersIcon,
-} from 'lucide-react';
+import { Trash2Icon, Undo2Icon, LayersIcon } from 'lucide-react';
 
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
@@ -93,7 +84,7 @@ export default function CurrentFoundationInfo({
   );
 
   const { mutate: experimentInfoMutate } = useSWR(
-    chatAPI.GET_EXPERIMENT_URL(experimentInfo?.id),
+    chatAPI.Endpoints.Experiment.Get(experimentInfo?.id),
     fetcher,
   );
 
@@ -210,27 +201,6 @@ export default function CurrentFoundationInfo({
     });
   };
 
-  const handleModelVisualizationClick = async () => {
-    try {
-      // Check if the local model server is running by checking worker health
-      const response = await fetch(
-        `${chatAPI.INFERENCE_SERVER_URL()}server/worker_healthz`,
-      );
-      const data = await response.json();
-
-      if (response.status === 200 && Array.isArray(data) && data.length > 0) {
-        // Model server is running, navigate to visualization page
-        navigate('/experiment/model_architecture_visualization');
-      } else {
-        // Server responded but workers aren't ready
-        alert('Please Run the model before visualizing its architecture');
-      }
-    } catch (error) {
-      console.error('Failed to check model server status:', error);
-      alert('Please Run the model before visualizing its architecture');
-    }
-  };
-
   return (
     <Sheet
       sx={{
@@ -247,50 +217,6 @@ export default function CurrentFoundationInfo({
         setFoundation={setFoundation}
         setLogsDrawerOpen={setLogsDrawerOpen}
       />
-
-      {/* Moved embedding model and visualization buttons above tabs */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          mt: 2,
-          mb: 1,
-          px: 2,
-        }}
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-          <Typography level="title-md" marginBottom={1}>
-            Embedding Model:
-          </Typography>
-          <ButtonGroup size="sm">
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleEmbeddingModelClick}
-              sx={{ width: 'fit-content' }}
-            >
-              {embeddingModel}
-            </Button>
-            <Button
-              startDecorator={<Undo2Icon size={16} />}
-              onClick={resetToDefaultEmbedding}
-            >
-              Reset to Default
-            </Button>
-          </ButtonGroup>
-        </Box>
-
-        <Button
-          variant="outlined"
-          color="primary"
-          startDecorator={<LayersIcon size={18} />}
-          onClick={handleModelVisualizationClick}
-        >
-          Visualize Model Architecture
-        </Button>
-      </Box>
-
       <Tabs
         aria-label="Model tabs"
         value={activeTab}
@@ -299,6 +225,7 @@ export default function CurrentFoundationInfo({
       >
         <TabList>
           <Tab>Overview</Tab>
+          <Tab>Embedding Models</Tab>
           <Tab>Adaptors</Tab>
           <Tab>Provenance</Tab>
         </TabList>
@@ -312,9 +239,6 @@ export default function CurrentFoundationInfo({
             overflowY: 'auto',
           }}
         >
-          <Typography level="title-lg" marginBottom={2}>
-            Model Configuration
-          </Typography>
           <Sheet
             variant="outlined"
             sx={{
@@ -350,8 +274,60 @@ export default function CurrentFoundationInfo({
           </Sheet>
         </TabPanel>
 
-        {/* Adaptors Tab */}
         <TabPanel value={1} sx={{ p: 2 }}>
+          <Stack
+            direction="column"
+            spacing={2}
+            style={{ overflow: 'auto', maxHeight: '500px' }}
+          >
+            <Sheet
+              variant="outlined"
+              sx={{
+                p: 2,
+                borderRadius: 'sm',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  mt: 2,
+                  mb: 1,
+                  px: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                  <Typography level="title-md" marginBottom={1}>
+                    Embedding Model:
+                  </Typography>
+                  <ButtonGroup size="sm">
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={handleEmbeddingModelClick}
+                      sx={{ width: 'fit-content' }}
+                    >
+                      {embeddingModel}
+                    </Button>
+                    <Button
+                      startDecorator={<Undo2Icon size={16} />}
+                      onClick={resetToDefaultEmbedding}
+                    >
+                      Reset to Default
+                    </Button>
+                  </ButtonGroup>
+                </Box>
+              </Box>
+            </Sheet>
+          </Stack>
+        </TabPanel>
+
+        {/* Adaptors Tab */}
+        <TabPanel value={2} sx={{ p: 2 }}>
           <Typography level="title-lg" marginBottom={2}>
             Available Adaptors
           </Typography>
@@ -415,7 +391,7 @@ export default function CurrentFoundationInfo({
         </TabPanel>
 
         {/* Provenance Tab */}
-        <TabPanel value={2} sx={{ p: 2, height: '100%' }}>
+        <TabPanel value={3} sx={{ p: 2, height: '100%' }}>
           <Box
             sx={{
               display: 'flex',
@@ -433,7 +409,6 @@ export default function CurrentFoundationInfo({
                 flexWrap: 'wrap',
               }}
             >
-              <Typography level="title-lg">Model Provenance</Typography>
               <Box
                 sx={{
                   display: 'flex',

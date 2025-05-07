@@ -22,7 +22,10 @@ import PluginCard from './PluginCard';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function PluginGallery({ experimentInfo }) {
+export default function PluginGallery({
+  experimentInfo,
+  setLogsDrawerOpen = null,
+}) {
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Plugins.Gallery(),
     fetcher,
@@ -190,6 +193,7 @@ export default function PluginGallery({ experimentInfo }) {
                       experimentInfo={experimentInfo}
                       parentMutate={mutate}
                       machineType={device}
+                      setLogsDrawerOpen={setLogsDrawerOpen}
                     />
                   </Grid>
                 ))}
@@ -223,6 +227,7 @@ export default function PluginGallery({ experimentInfo }) {
                           experimentInfo={experimentInfo}
                           parentMutate={mutate}
                           machineType={device}
+                          setLogsDrawerOpen={setLogsDrawerOpen}
                         />
                       </Box>
                     </Grid>

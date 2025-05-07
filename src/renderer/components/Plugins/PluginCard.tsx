@@ -86,6 +86,7 @@ export default function PluginCard({
   parentMutate,
   experimentInfo = {},
   machineType,
+  setLogsDrawerOpen = null,
 }) {
   const [installing, setInstalling] = useState(null);
 
@@ -247,7 +248,24 @@ export default function PluginCard({
                   experimentInfo?.id,
                   plugin.uniqueId,
                 ),
-              );
+              ).then(async (response) => {
+                if (response.ok) {
+                  const responseBody = await response.json();
+                  console.log('Response Body:', responseBody);
+                  if (responseBody?.status == 'error') {
+                    alert(
+                      `Failed to install plugin:\n${responseBody?.message}`,
+                    );
+                    if (setLogsDrawerOpen) {
+                      setLogsDrawerOpen(true);
+                    }
+                  }
+                } else {
+                  alert(
+                    'Error: The API did not return a response. Plugin installation failed.',
+                  );
+                }
+              });
               setInstalling(null);
               parentMutate();
             }}

@@ -143,7 +143,7 @@ export default function Export({ experimentInfo }) {
                       {' '}
                       <Button
                         startDecorator={
-                          runningPlugin ? (
+                          runningPlugin === row.uniqueId ? (
                             <CircularProgress size="sm" thickness={2} />
                           ) : !isModelValidArchitecture(
                               row.model_architectures
@@ -161,10 +161,10 @@ export default function Export({ experimentInfo }) {
                         }}
                         disabled={
                           !isModelValidArchitecture(row.model_architectures) ||
-                          runningPlugin
+                          runningPlugin !== null
                         }
                       >
-                        {runningPlugin
+                        {runningPlugin === row.uniqueId
                           ? 'Exporting...'
                           : !isModelValidArchitecture(row.model_architectures)
                           ? 'Not supported for this model architecture'

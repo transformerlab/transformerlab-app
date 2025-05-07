@@ -364,7 +364,7 @@ export default function ModelStore() {
                   </Link>
                 </th>
 
-                <th style={{ width: 100, padding: 12 }}>License</th>
+                <th style={{ width: 60, padding: 12 }}>License</th>
                 <th style={{ width: 100, padding: 12 }}>Engine</th>
                 <th style={{ width: 60, padding: 12 }}>
                   {' '}

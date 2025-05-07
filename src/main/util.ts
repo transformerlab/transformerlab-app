@@ -50,6 +50,19 @@ export async function getLogFilePath() {
   return path.join(await getTransformerLabRootDir(), 'local_server.log');
 }
 
+// Return a file descripter for the logfile
+// This can return false if there is an error!
+async function getLogFile() {
+  const logFilePath = await getLogFilePath();
+  try {
+    const fd = fs.openSync(logFilePath, 'a');
+    return fd;
+  } catch (error) {
+    console.warn(`Error opening log file: ${error}`);
+    return false;
+  }
+}
+
 export function resolveHtmlPath(htmlFileName: string) {
   if (process.env.NODE_ENV === 'development') {
     const port = process.env.PORT || 1212;
@@ -155,8 +168,9 @@ export async function checkLocalServerVersion() {
 
 export async function startLocalServer() {
   const server_dir = await getTransformerLabCodeDir();
+
   const logFilePath = await getLogFilePath();
-  const out = fs.openSync(logFilePath, 'a');
+  const out = await getLogFile();
   // const err = fs.openSync(logFilePath, 'a');
 
   // Need to call bash script through WSL on Windows
@@ -187,7 +201,7 @@ export async function startLocalServer() {
     if (localServer.stderr) {
       localServer.stderr.on('data', (data) => {
         console.error(`stderr: ${data}`);
-        fs.writeSync(out, data);
+        if (out) fs.writeSync(out, data);
 
         if (data.includes('Uvicorn running on')) {
           console.log('Server is running');
@@ -198,7 +212,7 @@ export async function startLocalServer() {
 
     localServer.stdout.on('data', (data) => {
       console.log(`stdout: ${data}`);
-      fs.writeSync(out, data);
+      if (out) fs.writeSync(out, data);
     });
 
     localServer.on('error', (error_msg) => {
@@ -261,8 +275,7 @@ export async function installLocalServer() {
   console.log('Installing local server');
 
   const server_dir = await getTransformerLabCodeDir();
-  const logFilePath = await getLogFilePath();
-  const out = fs.openSync(logFilePath, 'a');
+  const out = await getLogFile();
 
   const root_dir = await getTransformerLabRootDir();
   if (!fs.existsSync(root_dir)) {
@@ -304,7 +317,7 @@ export async function installLocalServer() {
         console.log(`stdout: ${stdout}`);
         console.error(`stderr: ${stderr}`);
         // write stdout to the file called out:
-        fs.writeSync(out, stdout);
+        if (out) fs.writeSync(out, stdout);
       },
     );
   } catch (err) {
@@ -379,9 +392,9 @@ export async function checkDependencies() {
     'sentencepiece',
     'torch',
     'transformers',
+    'transformerlab-inference',
     'peft',
     'packaging',
-    'fschat',
   ];
 
   //compare the list of dependencies to the keyDependencies
@@ -462,9 +475,7 @@ export async function executeInstallStep(
   logToFile = true,
 ): Promise<{ error: string | null; stdout: string; stderr: string }> {
   const server_dir = await getTransformerLabCodeDir();
-  const logFilePath = await getLogFilePath();
-  const out = fs.openSync(logFilePath, 'a');
-  const err = fs.openSync(logFilePath, 'a');
+  const out = await getLogFile();
 
   if (!fs.existsSync(server_dir)) {
     console.log(
@@ -515,14 +526,14 @@ export async function executeInstallStep(
       process.stderr.on('data', (data) => {
         // console.error(`stderr: ${data}`);
         stderr += data;
-        if (logToFile) fs.writeSync(out, data);
+        if (logToFile && out) fs.writeSync(out, data);
       });
 
       process.stdout.on('data', (data) => {
         // console.log(`stdout: ${truncate(data.toString(), 100)}`);
         if (data) {
           stdout += data;
-          if (logToFile) fs.writeSync(out, data);
+          if (logToFile && out) fs.writeSync(out, data);
         }
       });
 

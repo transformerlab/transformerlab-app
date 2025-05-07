@@ -15,7 +15,7 @@ const debounce = (func: Function, wait: number) => {
 
 const OutputTerminal = ({
   logEndpoint = chatAPI.Endpoints.ServerInfo.StreamLog(),
-  lineAnimationDelay = 100,
+  lineAnimationDelay = 10,
   initialMessage = '',
 }) => {
   const terminalRef = useRef(null);

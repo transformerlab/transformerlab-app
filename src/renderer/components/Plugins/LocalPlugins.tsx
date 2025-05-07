@@ -18,7 +18,10 @@ import NewPluginModal from './NewPluginModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function LocalPlugins({ experimentInfo }) {
+export default function LocalPlugins({
+  experimentInfo,
+  setLogsDrawerOpen = null,
+}) {
   const [newPluginModalOpen, setNewPluginModalOpen] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
@@ -77,6 +80,7 @@ export default function LocalPlugins({ experimentInfo }) {
                 download={undefined}
                 experimentInfo={experimentInfo}
                 machineType={device}
+                setLogsDrawerOpen={setLogsDrawerOpen}
               />
             </Grid>
           ))}
