@@ -182,13 +182,13 @@ export async function startLocalServer() {
     : ['-l', path.join(server_dir, 'run.sh')];
   const options = isPlatformWindows()
     ? {
-      // stdio: ['ignore', out, err],
-    }
+        // stdio: ['ignore', out, err],
+      }
     : {
-      cwd: server_dir,
-      // stdio: ['ignore', out, err],
-      shell: '/bin/bash',
-    };
+        cwd: server_dir,
+        // stdio: ['ignore', out, err],
+        shell: '/bin/bash',
+      };
 
   localServer = spawn(exec_cmd, exec_args, options);
 
@@ -392,9 +392,9 @@ export async function checkDependencies() {
     'sentencepiece',
     'torch',
     'transformers',
+    'transformerlab-inference',
     'peft',
     'packaging',
-    'fschat',
   ];
 
   //compare the list of dependencies to the keyDependencies
