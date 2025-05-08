@@ -112,7 +112,7 @@ export default function LocalDatasets() {
               <Grid xs={4}>
                 <DatasetCard
                   name={row?.dataset_id}
-                  cleanName={(() => {
+                  friendlyName={(() => {
                     try {
                       return (
                         (row?.json_data && JSON.parse(row.json_data)?.name) ||
