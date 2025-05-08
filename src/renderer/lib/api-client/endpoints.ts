@@ -28,11 +28,11 @@ Endpoints.Workflows = {
     `${API_URL()}workflows/create_empty` +
     `?name=${name}&experiment_id=${experimentId}`,
   UpdateName: (workflowId: string, new_name: string) =>
-    `${API_URL()}workflows/${workflowId}/update_name` + `?new_name=${new_name}`,
+    `${API_URL()}workflows/${workflowId}/update_name?new_name=${new_name}`,
   DeleteWorkflow: (workflowId: string) =>
     `${API_URL()}workflows/delete/${workflowId}`,
   AddNode: (workflowId: string, node: string) =>
-    `${API_URL()}workflows/${workflowId}/add_node` + `?node=${node}`,
+    `${API_URL()}workflows/${workflowId}/add_node?node=${node}`,
   DeleteNode: (workflowId: string, nodeId: string) =>
     `${API_URL()}workflows/${workflowId}/${nodeId}/delete_node`,
   UpdateNode: (workflowId: string, nodeId: string, node: string) =>
@@ -213,7 +213,7 @@ Endpoints.Tools = {
 Endpoints.Recipes = {
   Import: (name: string) =>
     `${API_URL()}train/template/import?name=${encodeURIComponent(name)}`,
-  Export: (template_id: int) =>
+  Export: (template_id: number) =>
     `${API_URL()}train/template/${template_id}/export`,
   Gallery: () => `${API_URL()}train/template/gallery`,
 };
@@ -237,11 +237,9 @@ export function CREATE_TRAINING_JOB_URL(
   template_id: string,
   experiment_id: string,
 ) {
-  return (
-    `${API_URL()}train/job/create?template_id=${
-      template_id
-    }&description=description` + `&experiment_id=${experiment_id}`
-  );
+  return `${API_URL()}train/job/create?template_id=${
+    template_id
+  }&description=description&experiment_id=${experiment_id}`;
 }
 
 Endpoints.Experiment = {
@@ -326,11 +324,11 @@ Endpoints.Experiment = {
   InstallPlugin: (experimentId: string, pluginId: string) =>
     `${API_URL()}experiment/${
       experimentId
-    }/plugins/install_plugin_to_experiment` + `?plugin_name=${pluginId}`,
+    }/plugins/install_plugin_to_experiment?plugin_name=${pluginId}`,
   DeletePlugin: (experimentId: string, pluginId: string) =>
     `${API_URL()}experiment/${
       experimentId
-    }/plugins/delete_plugin_from_experiment` + `?plugin_name=${pluginId}`,
+    }/plugins/delete_plugin_from_experiment?plugin_name=${pluginId}`,
   ListScripts: (experimentId: string) =>
     FULL_PATH(`experiment/${experimentId}/plugins/list`),
   ListScriptsOfType: (
@@ -401,7 +399,7 @@ Endpoints.Jobs = {
       experimentId ? `&experiment_id=${experimentId}` : ''
     }${type ? `&type=${type}` : ''}${data ? `&data=${data}` : ''}`,
   GetJobsOfType: (type: string = '', status: string = '') =>
-    `${API_URL()}jobs/list` + `?type=${type}&status=${status}`,
+    `${API_URL()}jobs/list?type=${type}&status=${status}`,
   Delete: (jobId: string) => `${API_URL()}jobs/delete/${jobId}`,
   GetTrainingTemplate: (template_id: string) =>
     `${API_URL()}jobs/template/${template_id}`,
