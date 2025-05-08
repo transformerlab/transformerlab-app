@@ -1,4 +1,4 @@
-import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
+import { API_URL, FULL_PATH } from './urls';
 
 export const Endpoints: any = {};
 
