@@ -33,7 +33,7 @@ export default function LocalPlugins({
     fetcher,
   );
 
-  const device = serverInfo?.device;
+  const device = serverInfo?.device_type;
 
   if (error) return 'An error has occurred.';
   if (isLoading) return <LinearProgress />;

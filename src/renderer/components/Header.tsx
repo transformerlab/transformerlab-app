@@ -19,6 +19,7 @@ import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 
 import TinyMLXLogo from './Shared/TinyMLXLogo';
 import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
+import TinyAMDLogo from './Shared/TinyAMDLogo';
 
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
@@ -147,9 +148,15 @@ function StatsBar({ connection, setConnection }) {
                 percent={Math.round(gpu?.utilization)}
               />
             ))}
-            <span style={{ display: 'flex', alignItems: 'center' }}>
-              {server?.device == 'cuda' && <TinyNVIDIALogo />}
-            </span>
+            {server?.device === 'cuda' && (
+              <span style={{ display: 'flex', alignItems: 'center' }}>
+                {server?.device_type === 'nvidia' ? (
+                  <TinyNVIDIALogo />
+                ) : server?.device_type === 'amd' ? (
+                  <TinyAMDLogo />
+                ) : null}
+              </span>
+            )}
           </Stack>
         </span>
       </Tooltip>
