@@ -109,11 +109,13 @@ export default function TrainingModalLoRA({
 
   async function updateTask(
     task_id: string,
+    name: string,
     inputs: string,
     config: string,
     outputs: string,
   ) {
     const configBody = {
+      name: name,
       inputs: inputs,
       config: config,
       outputs: outputs,
@@ -337,6 +339,7 @@ export default function TrainingModalLoRA({
               }
               updateTask(
                 task_id,
+                formJson.template_name,
                 JSON.stringify(templateDataInputs),
                 JSON.stringify(formJson),
                 JSON.stringify(templateDataOutputs),

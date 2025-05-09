@@ -75,11 +75,13 @@ function getGenerationFromGenerationsArray(generationsStr, generationName) {
 
 async function updateTask(
   task_id: string,
+  name: string,
   inputs: string,
   config: string,
   outputs: string,
 ) {
   const configBody = {
+    name: name,
     inputs: inputs,
     config: config,
     outputs: outputs,
@@ -444,11 +446,12 @@ export default function GenerateModal({
       formJson.script_parameters = JSON.parse(JSON.stringify(formJson));
 
       console.log('formJson', formJson);
-
+      const template_name = formJson.template_name;
       // Run when the currentGenerationId is provided
       if (currentGenerationId && currentGenerationId !== '') {
         await updateTask(
           currentGenerationId,
+          template_name,
           '{}',
           JSON.stringify(formJson),
           '{}',
