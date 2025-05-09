@@ -28,6 +28,7 @@ import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 import AIProvidersSettings from './AIProvidersSettings';
 import ViewJobsTab from './ViewJobsTab';
 import { alignBox } from '@nivo/core';
+import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -48,10 +49,9 @@ export default function TransformerLabSettings() {
     error: hftokenerror,
     isLoading: hftokenisloading,
     mutate: hftokenmutate,
-  } = useSWR(
-    chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
-    fetcher,
-  );
+  } = useAPI('config', ['get'], {
+    key: 'HuggingfaceUserAccessToken',
+  });
   const [showJobsOfType, setShowJobsOfType] = React.useState('NONE');
   const [showProvidersPage, setShowProvidersPage] = React.useState(false);
 
@@ -165,10 +165,10 @@ export default function TransformerLabSettings() {
                       const token =
                         document.getElementsByName('hftoken')[0].value;
                       await fetch(
-                        chatAPI.Endpoints.Config.Set(
-                          'HuggingfaceUserAccessToken',
-                          token,
-                        ),
+                        getFullPath('config', ['set'], {
+                          key: 'HuggingfaceUserAccessToken',
+                          value: token,
+                        }),
                       );
                       // Now manually log in to Huggingface
                       await fetch(chatAPI.Endpoints.Models.HuggingFaceLogin());
@@ -209,7 +209,10 @@ export default function TransformerLabSettings() {
                     const token =
                       document.getElementsByName('wandbToken')[0].value;
                     await fetch(
-                      chatAPI.Endpoints.Config.Set('WANDB_API_KEY', token),
+                      getFullPath('config', ['set'], {
+                        key: 'WANDB_API_KEY',
+                        value: token,
+                      }),
                     );
                     await fetch(chatAPI.Endpoints.Models.wandbLogin());
                     wandbLoginMutate();
