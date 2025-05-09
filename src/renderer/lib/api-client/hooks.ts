@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { API_URL, getFullPath } from './urls';
 import { Endpoints } from './endpoints';
 
-export default function useAPI(
+export function useAPI(
   majorEntity: string,
   pathArray: string[],
   params: Record<string, any> = {},

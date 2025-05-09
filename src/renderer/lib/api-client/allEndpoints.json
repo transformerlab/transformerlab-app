@@ -48,7 +48,7 @@
       "method": "GET",
       "path": "config/get/{key}"
     },
-    "update": {
+    "set": {
       "method": "PUT",
       "path": "config/set?k={key}&v={value}"
     }

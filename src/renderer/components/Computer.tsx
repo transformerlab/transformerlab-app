@@ -37,11 +37,10 @@ import { FaLinux } from 'react-icons/fa6';
 
 import { formatBytes } from 'renderer/lib/utils';
 
-import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
+import { useServerStats, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 
 import { FaPython } from 'react-icons/fa';
-import useAPI from 'renderer/lib/api-client/hooks';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
