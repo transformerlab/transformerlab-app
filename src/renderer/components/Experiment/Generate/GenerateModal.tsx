@@ -75,11 +75,13 @@ function getGenerationFromGenerationsArray(generationsStr, generationName) {
 
 async function updateTask(
   task_id: string,
+  name: string,
   inputs: string,
   config: string,
   outputs: string,
 ) {
   const configBody = {
+    name: name,
     inputs: inputs,
     config: config,
     outputs: outputs,
@@ -221,34 +223,27 @@ export default function GenerateModal({
         if (generationConfig) {
           setConfig(generationConfig.script_parameters);
 
-          const datasetKeyExists = Object.keys(
-            generationConfig,
-          ).some((key) => key === 'dataset_name');
+          const datasetKeyExists = Object.keys(generationConfig).some(
+            (key) => key === 'dataset_name',
+          );
 
-          const docsKeyExists = Object.keys(
-            generationConfig,
-          ).some((key) => key === 'docs');
+          const docsKeyExists = Object.keys(generationConfig).some(
+            (key) => key === 'docs',
+          );
 
-          const contextKeyExists = Object.keys(
-            generationConfig,
-          ).some((key) => key === 'context');
+          const contextKeyExists = Object.keys(generationConfig).some(
+            (key) => key === 'context',
+          );
 
           setHasDatasetKey(datasetKeyExists);
 
-          if (
-            docsKeyExists &&
-            generationConfig.docs.length > 0
-          ) {
+          if (docsKeyExists && generationConfig.docs.length > 0) {
             setHasContextKey(false);
             setHasDocumentsKey(true);
-            generationConfig.docs =
-              generationConfig.docs.split(',');
+            generationConfig.docs = generationConfig.docs.split(',');
             setConfig(generationConfig);
             setSelectedDocs(generationConfig.docs);
-          } else if (
-            contextKeyExists &&
-            generationConfig.context.length > 0
-          ) {
+          } else if (contextKeyExists && generationConfig.context.length > 0) {
             setHasContextKey(true);
             setHasDocumentsKey(false);
             const context = generationConfig.context;
@@ -277,52 +272,60 @@ export default function GenerateModal({
           }
         }
       } else {
-      // CREATE NEW GENERATION
-      if (data) {
-        let parsedData;
-        try {
-          parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
-          // Set config as a JSON object with keys of the parameters and values of the default values
-          setSelectedDocs([]);
-          let tempconfig: { [key: string]: any } = {};
-          if (parsedData && parsedData.parameters) {
-            tempconfig = Object.fromEntries(
-              Object.entries(parsedData.parameters).map(([key, value]) => [
-                key,
-                value.default,
-              ]),
-            );
-            // Logic to set dataset message
-            if (parsedData && parsedData._dataset) {
-              setHasDatasetKey(true);
-              // Check if the dataset display message string length is greater than 0
-              if (
-                parsedData._dataset_display_message &&
-                parsedData._dataset_display_message.length > 0
-              ) {
-                setDatasetDisplayMessage(parsedData._dataset_display_message);
-                // Add dataset display message to the config parameters
+        // CREATE NEW GENERATION
+        if (data) {
+          let parsedData;
+          try {
+            parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+            // Set config as a JSON object with keys of the parameters and values of the default values
+            setSelectedDocs([]);
+            let tempconfig: { [key: string]: any } = {};
+            if (parsedData && parsedData.parameters) {
+              tempconfig = Object.fromEntries(
+                Object.entries(parsedData.parameters).map(([key, value]) => [
+                  key,
+                  value.default,
+                ]),
+              );
+              // Logic to set dataset message
+              if (parsedData && parsedData._dataset) {
+                setHasDatasetKey(true);
+                // Check if the dataset display message string length is greater than 0
+                if (
+                  parsedData._dataset_display_message &&
+                  parsedData._dataset_display_message.length > 0
+                ) {
+                  setDatasetDisplayMessage(parsedData._dataset_display_message);
+                  // Add dataset display message to the config parameters
+                }
               }
-            }
-            // Check if parsed data parameters has a key that includes 'docs'
-            const docsKeyExists = Object.keys(parsedData.parameters).some(
-              (key) => key.toLowerCase().includes('tflabcustomui_docs'),
-            );
+              // Check if parsed data parameters has a key that includes 'docs'
+              const docsKeyExists = Object.keys(parsedData.parameters).some(
+                (key) => key.toLowerCase().includes('tflabcustomui_docs'),
+              );
 
-            const contextKeyExists = Object.keys(parsedData.parameters).some(
-              (key) => key.toLowerCase().includes('tflabcustomui_context'),
-            );
-            setHasContextKey(contextKeyExists);
-            setHasDocumentsKey(docsKeyExists);
+              const contextKeyExists = Object.keys(parsedData.parameters).some(
+                (key) => key.toLowerCase().includes('tflabcustomui_context'),
+              );
+              setHasContextKey(contextKeyExists);
+              setHasDocumentsKey(docsKeyExists);
+            }
+            setConfig(tempconfig);
+          } catch (e) {
+            console.error('Error parsing data', e);
+            parsedData = '';
           }
-          setConfig(tempconfig);
-        } catch (e) {
-          console.error('Error parsing data', e);
-          parsedData = '';
         }
-      }}
+      }
     }
-  }, [experimentInfo, pluginId, currentGenerationId, nameInput, data]);
+  }, [
+    experimentInfo,
+    pluginId,
+    currentGenerationId,
+    generationData,
+    data,
+    nameInput,
+  ]);
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -443,11 +446,12 @@ export default function GenerateModal({
       formJson.script_parameters = JSON.parse(JSON.stringify(formJson));
 
       console.log('formJson', formJson);
-
+      const template_name = formJson.template_name;
       // Run when the currentGenerationId is provided
       if (currentGenerationId && currentGenerationId !== '') {
         await updateTask(
           currentGenerationId,
+          template_name,
           '{}',
           JSON.stringify(formJson),
           '{}',
