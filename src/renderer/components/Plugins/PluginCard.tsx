@@ -49,11 +49,7 @@ function getTint(type: string) {
 function mapArchitectureToIcon(arch) {
   switch (arch) {
     case 'cuda':
-      return (
-        <>
-          <TinyNVIDIALogo /> CUDA
-        </>
-      );
+      return <TinyNVIDIALogo />;
     case 'mlx':
       return <TinyMLXLogo />;
     default:
@@ -110,8 +106,8 @@ export default function PluginCard({
     // Only show a message for incompatible plugins
     if (!isCompatible) {
       return (
-        <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
-          This plugin is not compatible with your hardware architecture
+        <Typography level="body-xs" color="warning">
+          Not compatible with your hardware
         </Typography>
       );
     }
@@ -133,11 +129,7 @@ export default function PluginCard({
         sx={{ justifyContent: 'space-between' }}
       >
         <Box>
-          {/* {JSON.stringify(plugin)} */}
-          <Typography
-            level="title-lg"
-            // startDecorator={getIcon(type)}
-          >
+          <Typography level="title-lg">
             <b>
               {plugin.name}&nbsp;
               <Chip>{type}</Chip>
@@ -171,130 +163,141 @@ export default function PluginCard({
             {plugin.description}
           </Typography>
         </Box>
-        {plugin?.supported_hardware_architectures && (
-          <Box sx={{ mt: 1 }}>
-            <Typography level="title-sm" fontSize="sm">
-              Supported Architectures:
-            </Typography>
-            <Stack flexDirection={'row'} gap={1} sx={{ alignItems: 'center' }}>
-              <ShowArchitectures
-                architectures={plugin?.supported_hardware_architectures}
-              />
-            </Stack>
-            <WillThisPluginWorkOnMyMachine
-              pluginArchitectures={plugin?.supported_hardware_architectures}
-              machineType={machineType}
-            />
-            {isExperimental && (
-              <Chip
-                color="warning"
-                variant="soft"
-                sx={{
-                  mt: 1,
-                  backgroundColor: 'warning.softBg',
-                  color: 'warning.700',
-                }}
-              >
-                This is an experimental plugin
-              </Chip>
-            )}
-          </Box>
-        )}
-
-        <ButtonGroup
-          sx={{
-            mt: 1,
-            justifyContent: 'flex-end',
-            flexWrap: 'wrap',
-          }}
+        <Box
+          display="flex"
+          flexDirection="row"
+          gap={1}
+          justifyItems="center"
+          justifyContent="space-between"
+          alignItems="center"
         >
-          {!download && (
-            <>
-              <Link
-                to={'/plugins/' + plugin.uniqueId}
-                style={{ textDecoration: 'none', color: 'white' }}
-                state={plugin}
+          {plugin?.supported_hardware_architectures && (
+            <Box sx={{ mt: 1 }}>
+              <Typography level="title-sm" fontSize="sm">
+                Supported Architectures:
+              </Typography>
+              <Stack
+                flexDirection={'row'}
+                gap={1}
+                sx={{ alignItems: 'center' }}
               >
-                <Button variant="plain" color="primary" sx={{ ml: 'auto' }}>
-                  Edit
-                </Button>
-              </Link>
-            </>
+                <ShowArchitectures
+                  architectures={plugin?.supported_hardware_architectures}
+                />
+              </Stack>
+              <WillThisPluginWorkOnMyMachine
+                pluginArchitectures={plugin?.supported_hardware_architectures}
+                machineType={machineType}
+              />
+              {isExperimental && (
+                <Chip
+                  color="warning"
+                  variant="soft"
+                  sx={{
+                    mt: 1,
+                    backgroundColor: 'warning.softBg',
+                    color: 'warning.700',
+                  }}
+                >
+                  This is an experimental plugin
+                </Chip>
+              )}
+            </Box>
           )}
-          {!download && (
-            <>
-              <Button
-                variant="plain"
-                color="danger"
-                onClick={async () => {
-                  if (confirm('Are you sure you want to delete this plugin?')) {
-                    await fetch(
-                      chatAPI.Endpoints.Experiment.DeletePlugin(
-                        experimentInfo?.id,
-                        plugin?.uniqueId,
-                      ),
-                    );
-                    parentMutate();
-                  }
-                }}
-              >
-                Delete
-              </Button>
-            </>
-          )}
-          <Button
-            variant={plugin?.installed ? 'outlined' : 'solid'}
-            size="sm"
-            color="primary"
-            aria-label="Download"
-            onClick={async () => {
-              setInstalling(plugin.uniqueId);
-              await fetch(
-                chatAPI.Endpoints.Experiment.InstallPlugin(
-                  experimentInfo?.id,
-                  plugin.uniqueId,
-                ),
-              ).then(async (response) => {
-                if (response.ok) {
-                  const responseBody = await response.json();
-                  console.log('Response Body:', responseBody);
-                  if (responseBody?.status == 'error') {
-                    alert(
-                      `Failed to install plugin:\n${responseBody?.message}`,
-                    );
-                    if (setLogsDrawerOpen) {
-                      setLogsDrawerOpen(true);
-                    }
-                  }
-                } else {
-                  alert(
-                    'Error: The API did not return a response. Plugin installation failed.',
-                  );
-                }
-              });
-              setInstalling(null);
-              parentMutate();
+          <ButtonGroup
+            sx={{
+              mt: 1,
+              justifyContent: 'flex-end',
+              flexWrap: 'wrap',
             }}
           >
-            {installing == plugin.uniqueId && (
+            {!download && (
               <>
-                <CircularProgress />
-                &nbsp;
+                <Link
+                  to={'/plugins/' + plugin.uniqueId}
+                  style={{ textDecoration: 'none', color: 'white' }}
+                  state={plugin}
+                >
+                  <Button variant="plain" color="primary" sx={{ ml: 'auto' }}>
+                    Edit
+                  </Button>
+                </Link>
               </>
             )}
-            {plugin?.installed == true ? (
+            {!download && (
               <>
-                Reinstall&nbsp;
-                <RotateCcwIcon size={16} />
-              </>
-            ) : (
-              <>
-                Install &nbsp;
-                <DownloadIcon size={16} />
+                <Button
+                  variant="plain"
+                  color="danger"
+                  onClick={async () => {
+                    if (
+                      confirm('Are you sure you want to delete this plugin?')
+                    ) {
+                      await fetch(
+                        chatAPI.Endpoints.Experiment.DeletePlugin(
+                          experimentInfo?.id,
+                          plugin?.uniqueId,
+                        ),
+                      );
+                      parentMutate();
+                    }
+                  }}
+                >
+                  Delete
+                </Button>
               </>
             )}
-          </Button>
-        </ButtonGroup>
+            <Button
+              variant={plugin?.installed ? 'outlined' : 'solid'}
+              size="sm"
+              color="primary"
+              aria-label="Download"
+              endDecorator={
+                plugin?.installed == true ? (
+                  <RotateCcwIcon size={16} />
+                ) : (
+                  <DownloadIcon size={16} />
+                )
+              }
+              onClick={async () => {
+                setInstalling(plugin.uniqueId);
+                await fetch(
+                  chatAPI.Endpoints.Experiment.InstallPlugin(
+                    experimentInfo?.id,
+                    plugin.uniqueId,
+                  ),
+                ).then(async (response) => {
+                  if (response.ok) {
+                    const responseBody = await response.json();
+                    console.log('Response Body:', responseBody);
+                    if (responseBody?.status == 'error') {
+                      alert(
+                        `Failed to install plugin:\n${responseBody?.message}`,
+                      );
+                      if (setLogsDrawerOpen) {
+                        setLogsDrawerOpen(true);
+                      }
+                    }
+                  } else {
+                    alert(
+                      'Error: The API did not return a response. Plugin installation failed.',
+                    );
+                  }
+                });
+                setInstalling(null);
+                parentMutate();
+              }}
+            >
+              {installing == plugin.uniqueId && (
+                <>
+                  <CircularProgress />
+                  &nbsp;
+                </>
+              )}
+              {plugin?.installed == true ? <>Reinstall&nbsp;</> : <>Install</>}
+            </Button>
+          </ButtonGroup>
+        </Box>
       </CardContent>
     </Card>
   );
