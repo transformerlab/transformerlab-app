@@ -194,7 +194,7 @@ function StatsBar({ connection, setConnection }) {
             opacity: 1,
             alignItems: 'center',
             justifyContent: 'right',
-            paddingRight: 20,
+            paddingRight: 1,
             paddingTop: 0,
             fontSize: 15,
             backgroundColor: 'var(--joy-palette-background-level1)',
@@ -208,16 +208,16 @@ function StatsBar({ connection, setConnection }) {
           &nbsp; Not Connected
         </div>
       ) : (
-        <div
-          style={{
-            display: 'flex',
+        <Box
+          sx={{
+            display: { xs: 'none', sm: 'none', md: 'flex' }, // Hide on everything below md
             height: '40px',
             padding: 0,
             margin: 0,
             opacity: 1,
             alignItems: 'center',
             justifyContent: 'right',
-            paddingRight: 20,
+            paddingRight: 1,
             paddingTop: 0,
             fontSize: 15,
             backgroundColor: 'var(--joy-palette-background-level1)',
@@ -322,7 +322,7 @@ function StatsBar({ connection, setConnection }) {
             </div>
             {showGPU()}
           </span>
-        </div>
+        </Box>
       )}
     </>
   );
