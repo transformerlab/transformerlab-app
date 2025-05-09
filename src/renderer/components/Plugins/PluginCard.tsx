@@ -80,6 +80,7 @@ export default function PluginCard({
   experimentInfo = {},
   machineType,
   setLogsDrawerOpen = null,
+  isExperimental = false,
 }) {
   const [installing, setInstalling] = useState(null);
 
@@ -188,6 +189,19 @@ export default function PluginCard({
                 pluginArchitectures={plugin?.supported_hardware_architectures}
                 machineType={machineType}
               />
+              {isExperimental && (
+                <Chip
+                  color="warning"
+                  variant="soft"
+                  sx={{
+                    mt: 1,
+                    backgroundColor: 'warning.softBg',
+                    color: 'warning.700',
+                  }}
+                >
+                  This is an experimental plugin
+                </Chip>
+              )}
             </Box>
           )}
           <ButtonGroup

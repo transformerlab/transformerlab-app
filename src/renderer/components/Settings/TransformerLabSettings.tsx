@@ -34,6 +34,8 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [doNotTrack, setDoNotTrack] = React.useState(false);
+  const [showExperimentalPlugins, setShowExperimentalPlugins] =
+    React.useState(false);
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -42,6 +44,26 @@ export default function TransformerLabSettings() {
     };
     fetchDoNotTrack();
   }, []);
+
+  React.useEffect(() => {
+    const fetchShowExperimental = async () => {
+      const value = await window.storage.get('SHOW_EXPERIMENTAL_PLUGINS');
+      setShowExperimentalPlugins(value === 'true');
+    };
+    fetchShowExperimental();
+  }, []);
+
+  const handleDoNotTrackChange = (event) => {
+    const checked = event.target.checked;
+    setDoNotTrack(checked);
+    window.storage.set('DO_NOT_TRACK', checked.toString());
+  };
+
+  const handleShowExperimentalChange = (event) => {
+    const checked = event.target.checked;
+    setShowExperimentalPlugins(checked);
+    window.storage.set('SHOW_EXPERIMENTAL_PLUGINS', checked.toString());
+  };
 
   const {
     data: hftoken,
@@ -85,12 +107,6 @@ export default function TransformerLabSettings() {
       />
     );
   }
-
-  const handleDoNotTrackChange = (event) => {
-    const checked = event.target.checked;
-    setDoNotTrack(checked);
-    window.storage.set('DO_NOT_TRACK', checked.toString());
-  };
 
   return (
     <Sheet
@@ -251,12 +267,27 @@ export default function TransformerLabSettings() {
               <Switch
                 checked={doNotTrack}
                 onChange={handleDoNotTrackChange}
+                color={doNotTrack ? 'success' : 'neutral'}
                 sx={{ alignSelf: 'flex-start' }}
               />
               <FormHelperText>
                 {doNotTrack
                   ? 'No tracking events will be sent'
                   : 'Anonymous usage data will be shared with Transformer Lab'}
+              </FormHelperText>
+            </FormControl>
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Show Experimental Plugins</FormLabel>
+              <Switch
+                checked={showExperimentalPlugins}
+                onChange={handleShowExperimentalChange}
+                sx={{ alignSelf: 'flex-start' }}
+                color={showExperimentalPlugins ? 'success' : 'neutral'}
+              />
+              <FormHelperText>
+                {showExperimentalPlugins
+                  ? 'Experimental plugins will be visible in the Plugin Gallery.'
+                  : 'Experimental plugins will be hidden from the Plugin Gallery.'}
               </FormHelperText>
             </FormControl>
           </TabPanel>
