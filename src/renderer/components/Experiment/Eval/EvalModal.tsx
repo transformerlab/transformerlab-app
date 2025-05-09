@@ -178,31 +178,25 @@ export default function EvalModal({
         const evalConfig = JSON.parse(evalData.config);
         if (evalConfig) {
           setConfig(evalConfig);
-          const datasetKeyExists = Object.keys(
-            evalConfig,
-          ).some((key) => key === 'dataset_name');
+          const datasetKeyExists = Object.keys(evalConfig).some(
+            (key) => key === 'dataset_name',
+          );
           setHasDatasetKey(datasetKeyExists);
           if (
             evalConfig._dataset_display_message &&
             evalConfig._dataset_display_message.length > 0
           ) {
-            setDatasetDisplayMessage(
-              evalConfig._dataset_display_message,
-            );
+            setDatasetDisplayMessage(evalConfig._dataset_display_message);
           }
-          const tasksKeyExists = Object.keys(evalConfig).some(
-            (key) => key.toLowerCase().includes('tasks'),
+          const tasksKeyExists = Object.keys(evalConfig).some((key) =>
+            key.toLowerCase().includes('tasks'),
           );
           if (tasksKeyExists) {
-            evalConfig.tasks =
-              evalConfig.tasks.split(',');
+            evalConfig.tasks = evalConfig.tasks.split(',');
             setConfig(evalConfig);
           }
 
-          if (
-            hasDatasetKey &&
-            evalConfig.dataset_name.length > 0
-          ) {
+          if (hasDatasetKey && evalConfig.dataset_name.length > 0) {
             setSelectedDataset(evalConfig.dataset_name);
           }
           if (!nameInput && evalConfig?.run_name.length > 0) {
@@ -250,7 +244,7 @@ export default function EvalModal({
         }
       }
     }
-  }, [experimentInfo, pluginId, currentEvalId, nameInput, data]);
+  }, [experimentInfo, pluginId, currentEvalId, evalData, data, nameInput]);
 
   if (!experimentInfo?.id) {
     return 'Select an Experiment';
@@ -327,8 +321,11 @@ export default function EvalModal({
         await updateTask(currentEvalId, '{}', JSON.stringify(formJson), '{}');
         setNameInput('');
         setHasDatasetKey(false);
+        setSelectedDataset(null);
+        setDatasetDisplayMessage('');
       } else {
         const template_name = formJson.template_name;
+
         // delete formJson.template_name;
         await createNewTask(
           template_name,
@@ -341,6 +338,8 @@ export default function EvalModal({
         // alert(JSON.stringify(formJson, null, 2));
         setNameInput(generateFriendlyName());
         setHasDatasetKey(false);
+        setSelectedDataset(null);
+        setDatasetDisplayMessage('');
       }
       mutateTasks();
       onClose();
