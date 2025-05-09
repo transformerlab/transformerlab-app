@@ -13,11 +13,9 @@ import {
 import {
   ChartColumnBigIcon,
   ChartColumnIncreasingIcon,
-  FileDigitIcon,
   Grid3X3Icon,
   Trash2Icon,
   LineChartIcon,
-  Type,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
@@ -29,7 +27,6 @@ import ViewPlotModal from './ViewPlotModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from '../Train/JobProgress';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
@@ -100,7 +97,7 @@ function transformMetrics(
     job_id: string;
     [key: string]: any;
   }>,
-  type: 'summary' | 'detailed' = 'summary'
+  type: 'summary' | 'detailed' = 'summary',
 ) {
   if (type === 'summary') {
     const grouped: {
@@ -116,7 +113,13 @@ function transformMetrics(
     data.forEach((entry) => {
       // Extract only the fields we care about.
       let { metric_name, score, evaluator_name, job_id } = entry;
-      if (!metric_name || score === undefined || score === null || !evaluator_name || !job_id) {
+      if (
+        !metric_name ||
+        score === undefined ||
+        score === null ||
+        !evaluator_name ||
+        !job_id
+      ) {
         return;
       }
 
@@ -150,14 +153,30 @@ function transformMetrics(
     const extraKeysSet = new Set<string>();
     data.forEach((entry) => {
       Object.keys(entry).forEach((k) => {
-        if (!['test_case_id', 'metric_name', 'job_id', 'evaluator_name', 'score'].includes(k)) {
+        if (
+          ![
+            'test_case_id',
+            'metric_name',
+            'job_id',
+            'evaluator_name',
+            'score',
+          ].includes(k)
+        ) {
           extraKeysSet.add(k);
         }
       });
     });
     const extraKeys = Array.from(extraKeysSet).sort();
 
-    const header = ['test_case_id', 'metric_name', 'job_id', 'evaluator_name', 'metric_name', 'score', ...extraKeys];
+    const header = [
+      'test_case_id',
+      'metric_name',
+      'job_id',
+      'evaluator_name',
+      'metric_name',
+      'score',
+      ...extraKeys,
+    ];
 
     const body = data.map((entry) => {
       const extraValues = extraKeys.map((key) => entry[key]);
@@ -176,7 +195,6 @@ function transformMetrics(
   }
 }
 
-
 const EvalJobsTable = () => {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
@@ -186,12 +204,14 @@ const EvalJobsTable = () => {
   const [currentJobId, setCurrentJobId] = useState('');
   const [currentData, setCurrentData] = useState('');
   const [compareChart, setCompareChart] = useState(false);
-  const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
-  const [fileNameForDetailedReport, setFileNameForDetailedReport] = useState('');
+  const [currentTensorboardForModal, setCurrentTensorboardForModal] =
+    useState(-1);
+  const [fileNameForDetailedReport, setFileNameForDetailedReport] =
+    useState('');
 
   const fetchCSV = async (jobId) => {
     const response = await fetch(
-      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId)
+      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId),
     );
     const text = await response.text();
     return text;
@@ -207,39 +227,39 @@ const EvalJobsTable = () => {
     fallbackData: [],
   });
 
-  const handleCombinedReports = async (comparisonType: 'summary' | 'detailed' = 'summary') => {
+  const handleCombinedReports = async (
+    comparisonType: 'summary' | 'detailed' = 'summary',
+  ) => {
     try {
       const jobIdsParam = selected.join(',');
-      const compareEvalsUrl = chatAPI.Endpoints.Charts.CompareEvals(jobIdsParam);
+      const compareEvalsUrl =
+        chatAPI.Endpoints.Charts.CompareEvals(jobIdsParam);
       const response = await fetch(compareEvalsUrl, { method: 'GET' });
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
       const data = await response.json();
       if (comparisonType === 'summary') {
-        const transformedData = transformMetrics(JSON.parse(data), "summary");
+        const transformedData = transformMetrics(JSON.parse(data), 'summary');
 
         setCurrentData(JSON.stringify(transformedData));
         setOpenPlotModal(true);
         setCompareChart(true);
         setCurrentJobId('-1');
       } else if (comparisonType === 'detailed') {
-          const transformedData = transformMetrics(JSON.parse(data), "detailed");
+        const transformedData = transformMetrics(JSON.parse(data), 'detailed');
 
-          setCompareData(transformedData);
-          handleOpenCSVModal('-1');
-
+        setCompareData(transformedData);
+        handleOpenCSVModal('-1');
       }
     } catch (error) {
       console.error('Failed to fetch combined reports:', error);
     }
   };
 
-
   const handleOpenCSVModal = (jobId) => {
     setCurrentJobId(jobId);
     setOpenCSVModal(true);
-
   };
 
   const handleOpenPlotModal = (jobId, score) => {
@@ -258,8 +278,8 @@ const EvalJobsTable = () => {
       <ViewCSVModal
         open={openCSVModal}
         onClose={() => {
-          setOpenCSVModal(false)
-          setCompareData(null)
+          setOpenCSVModal(false);
+          setCompareData(null);
         }}
         jobId={currentJobId}
         fetchCSV={fetchCSV}
@@ -278,10 +298,10 @@ const EvalJobsTable = () => {
         setFileName={setFileNameForDetailedReport}
         fileName={fileNameForDetailedReport}
       />
-         <TensorboardModal
-              currentTensorboard={currentTensorboardForModal}
-              setCurrentTensorboard={setCurrentTensorboardForModal}
-            />
+      <TensorboardModal
+        currentTensorboard={currentTensorboardForModal}
+        setCurrentTensorboard={setCurrentTensorboardForModal}
+      />
       <Box
         sx={{
           display: 'flex',
@@ -327,7 +347,7 @@ const EvalJobsTable = () => {
                   checked={selected.length === jobs.length}
                   onChange={(event) => {
                     setSelected(
-                      event.target.checked ? jobs.map((row) => row.id) : []
+                      event.target.checked ? jobs.map((row) => row.id) : [],
                     );
                   }}
                   color={
@@ -357,7 +377,7 @@ const EvalJobsTable = () => {
                       setSelected((ids) =>
                         event.target.checked
                           ? ids.concat(job?.id)
-                          : ids.filter((itemId) => itemId !== job?.id)
+                          : ids.filter((itemId) => itemId !== job?.id),
                       );
                     }}
                     slotProps={{
@@ -395,7 +415,7 @@ const EvalJobsTable = () => {
                       <Link
                         onClick={() => {
                           setFileNameForDetailedReport(
-                            job?.job_data?.additional_output_path
+                            job?.job_data?.additional_output_path,
                           );
                           setViewOutputFromJob(job?.id);
                         }}
@@ -422,18 +442,18 @@ const EvalJobsTable = () => {
                     variant="soft"
                     sx={{ justifyContent: 'flex-end' }}
                   >
-                          {job?.job_data?.tensorboard_output_dir && (
-                            <Button
-                              size="sm"
-                              variant="plain"
-                              onClick={() => {
-                                setCurrentTensorboardForModal(job?.id);
-                              }}
-                              startDecorator={<LineChartIcon />}
-                            >
-                              Tensorboard
-                            </Button>
-                          )}
+                    {job?.job_data?.tensorboard_output_dir && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => {
+                          setCurrentTensorboardForModal(job?.id);
+                        }}
+                        startDecorator={<LineChartIcon />}
+                      >
+                        Tensorboard
+                      </Button>
+                    )}
                     <Button
                       onClick={() => {
                         setViewOutputFromJob(job?.id);
