@@ -46,11 +46,13 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
 
 async function updateTask(
   task_id: string,
+  name: string,
   inputs: string,
   config: string,
   outputs: string,
 ) {
   const configBody = {
+    name,
     inputs,
     config,
     outputs,
@@ -315,10 +317,17 @@ export default function EvalModal({
         formJson.predefined_tasks = '';
       }
       formJson.script_parameters = JSON.parse(JSON.stringify(formJson));
+      const template_name = formJson.template_name;
 
       // Run when the currentEvalId is provided
       if (currentEvalId && currentEvalId !== '') {
-        await updateTask(currentEvalId, '{}', JSON.stringify(formJson), '{}');
+        await updateTask(
+          currentEvalId,
+          template_name,
+          '{}',
+          JSON.stringify(formJson),
+          '{}',
+        );
         setNameInput('');
         setHasDatasetKey(false);
         setSelectedDataset(null);
