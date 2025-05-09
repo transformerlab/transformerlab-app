@@ -53,44 +53,47 @@ export default function RunModelButton({
     );
   }
 
+  async function getDefaultinferenceEngines() {
+    const inferenceEngines = await fetch(
+      chatAPI.Endpoints.Experiment.ListScriptsOfType(
+        experimentInfo?.id,
+        'loader', // type
+        'model_architectures:' +
+        experimentInfo?.config?.foundation_model_architecture //filter
+      )
+    );
+    const inferenceEnginesJSON = await inferenceEngines.json();
+    const experimentId = experimentInfo?.id;
+    const engine = inferenceEnginesJSON?.[0]?.uniqueId;
+
+    await fetch(
+      chatAPI.Endpoints.Experiment.UpdateConfig(
+        experimentId,
+        'inferenceParams',
+        JSON.stringify({
+          ...inferenceSettings,
+          inferenceEngine: engine,
+        })
+      )
+    );
+    return inferenceEnginesJSON?.[0]?.uniqueId
+  }
+
   // Set a default inference Engine if there is none
   useEffect(() => {
     // Update experiment inference parameters so the Run button shows correctly
+    let objExperimentInfo = null
     if (experimentInfo?.config?.inferenceParams) {
-      setInferenceSettings(JSON.parse(experimentInfo?.config?.inferenceParams));
+      objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams)
     }
-
-    // console.log('Searching for primary inference engine');
-    // console.log(inferenceSettings);
-    (async () => {
-      if (inferenceSettings?.inferenceEngine == null) {
-        const inferenceEngines = await fetch(
-          chatAPI.Endpoints.Experiment.ListScriptsOfType(
-            experimentInfo?.id,
-            'loader', // type
-            'model_architectures:' +
-              experimentInfo?.config?.foundation_model_architecture, //filter
-          ),
-        );
-        const inferenceEnginesJSON = await inferenceEngines.json();
-        const experimentId = experimentInfo?.id;
-        const engine = inferenceEnginesJSON?.[0]?.uniqueId;
-
-        await fetch(
-          chatAPI.Endpoints.Experiment.UpdateConfig(
-            experimentId,
-            'inferenceParams',
-            JSON.stringify({
-              ...inferenceSettings,
-              inferenceEngine: engine,
-            }),
-          ),
-        );
-        setInferenceSettings({
-          inferenceEngine: inferenceEnginesJSON?.[0]?.uniqueId,
-        });
-      }
-    })();
+    if(objExperimentInfo == null){
+      (async () => {
+          const inferenceEngine = await getDefaultinferenceEngines()
+          setInferenceSettings({ inferenceEngine });
+      })()
+    }else{
+      setInferenceSettings(objExperimentInfo)
+    }
   }, [experimentInfo]);
 
   function Engine() {
