@@ -277,7 +277,9 @@ export default function SelectExperimentMenu({
               // const formJson = Object.fromEntries((formData as any).entries());
               // alert(JSON.stringify(formJson));
               const name = form.get('name');
-              const response = await fetch(chatAPI.Endpoints.Create(name));
+              const response = await fetch(
+                chatAPI.Endpoints.Experiment.Create(name),
+              );
               const newId = await response.json();
               setExperimentId(newId);
               createHandleClose(newId);
