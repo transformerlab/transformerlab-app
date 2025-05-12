@@ -25,7 +25,7 @@ export default function DataStore() {
     fetcher
   );
 
-  if (error) return 'An error has occurred.';
+  if (error) return 'Failed to load datasets from the gallery. Please check your connection or try again later.';
   if (isLoading) return <LinearProgress />;
   return (
     <Sheet

@@ -50,7 +50,7 @@ export default function LocalDatasets() {
     fetcher,
   );
 
-  if (error) return 'An error has occurred.';
+  if (error) return 'Failed to retrieve local datasets. Ensure the backend is running and accessible.';
   if (isLoading) return <LinearProgress />;
 
   console.log(data);

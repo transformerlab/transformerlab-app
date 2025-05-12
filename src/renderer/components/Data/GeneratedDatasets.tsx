@@ -49,7 +49,7 @@ export default function GeneratedDatasets() {
     fetcher
   );
 
-  if (error) return 'An error has occurred.';
+  if (error) return 'Unable to load generated datasets.';
   if (isLoading) return <LinearProgress />;
 
   console.log(data);
