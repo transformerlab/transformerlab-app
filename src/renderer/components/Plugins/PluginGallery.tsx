@@ -118,7 +118,7 @@ export default function PluginGallery({
   };
 
   if (error)
-    return `An error has occurred.${chatAPI.Endpoints.Plugins.Gallery()}${error}`;
+    return `Failed to load plugin gallery from ${chatAPI.Endpoints.Plugins.Gallery()}. Error: ${error}`;
   if (isLoading) return <LinearProgress />;
 
   // Filter plugins based on experimental flag and toggle
