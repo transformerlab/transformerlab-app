@@ -125,7 +125,7 @@ export default function Chat({
       }
     }
     scrollChatToBottom();
-  }, [debouncedText, chats, mode]);
+  }, [debouncedText, mode]);
 
   // If the model changes, check the location of the inference service
   // And reset the global pointer to the inference server
