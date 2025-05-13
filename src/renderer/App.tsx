@@ -127,8 +127,8 @@ export default function App() {
           overflow: 'hidden',
           gridTemplateColumns: '180px 1fr',
           gridTemplateRows: logsDrawerOpen
-            ? `60px 5fr ${logsDrawerHeight}px`
-            : '60px 5fr 18px',
+            ? `48px 5fr ${logsDrawerHeight}px`
+            : '48px 5fr 18px',
           gridTemplateAreas: `
           "sidebar header"
           "sidebar main"
