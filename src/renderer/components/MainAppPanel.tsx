@@ -510,6 +510,10 @@ export default function MainAppPanel({
           path="/zoo/store"
           element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
         />
+        <Route
+          path="/zoo/groups"
+          element={<ModelZoo experimentInfo={experimentInfo} tab="groups" />}
+        />
         <Route path="/data" element={<Data />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
