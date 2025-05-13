@@ -472,7 +472,12 @@ export default function MainAppPanel({
         />
         <Route
           path="/plugins"
-          element={<Plugins experimentInfo={experimentInfo} />}
+          element={
+            <Plugins
+              experimentInfo={experimentInfo}
+              setLogsDrawerOpen={setLogsDrawerOpen}
+            />
+          }
         />
         <Route
           path="/plugins/:pluginName"
@@ -504,6 +509,10 @@ export default function MainAppPanel({
         <Route
           path="/zoo/store"
           element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
+        />
+        <Route
+          path="/zoo/groups"
+          element={<ModelZoo experimentInfo={experimentInfo} tab="groups" />}
         />
         <Route path="/data" element={<Data />} />
         <Route path="/computer" element={<Computer />} />

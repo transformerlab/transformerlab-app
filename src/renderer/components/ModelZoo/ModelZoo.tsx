@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 
 export default function ModelZoo({ experimentInfo, tab = 'store' }) {
   const navigate = useNavigate();
+  const DEV_MODE = experimentInfo?.name === 'dev';
 
   return (
     <Sheet
@@ -41,6 +42,7 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
             <StoreIcon color="grey" />
             &nbsp; Model Store
           </Tab>
+          {DEV_MODE && <Tab value="groups">Model Groups</Tab>}
         </TabList>
         <TabPanel
           value="local"
@@ -64,6 +66,17 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
         >
           <ModelStore />
         </TabPanel>
+        {DEV_MODE && (
+          <TabPanel
+            value="groups"
+            sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
+          >
+            <div style={{ padding: 16 }}>
+              <h2>Developer Tools</h2>
+              <p>This tab is only visible when the selected experiment is named "dev".</p>
+            </div>
+          </TabPanel>
+        )}
       </Tabs>
     </Sheet>
   );

@@ -214,8 +214,8 @@ export default function RunModelButton({
       {isPossibleToRunAModel() ? (
         <Engine />
       ) : (
-        <Alert startDecorator={<TriangleAlertIcon />} color="warning" size="lg">
-          <Typography>
+        <Alert startDecorator={<TriangleAlertIcon />} color="warning">
+          <Typography level="body-sm">
             You do not have an installed Inference Engine that is compatible
             with this model. Go to{' '}
             <Link to="/plugins">

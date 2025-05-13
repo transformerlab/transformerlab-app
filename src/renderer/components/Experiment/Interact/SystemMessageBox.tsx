@@ -20,7 +20,7 @@ export default function SystemMessageBox({
   defaultPromptConfigForModel = {},
 }) {
   const [systemMessage, setSystemMessage] = useState(
-    experimentInfo?.config?.prompt_template?.system_message
+    experimentInfo?.config?.prompt_template?.system_message,
   );
 
   const sendSystemMessageToServer = (message) => {
@@ -33,7 +33,7 @@ export default function SystemMessageBox({
     };
     newPrompt.system_message = newSystemPrompt;
 
-    fetch(chatAPI.SAVE_EXPERIMENT_PROMPT_URL(experimentId), {
+    fetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
       method: 'POST',
       body: JSON.stringify(newPrompt),
     }).then((response) => {
@@ -57,7 +57,7 @@ export default function SystemMessageBox({
   useEffect(() => {
     setSystemMessage(
       experimentInfo?.config?.prompt_template?.system_message ||
-        defaultPromptConfigForModel?.system_message
+        defaultPromptConfigForModel?.system_message,
     );
   }, [experimentInfo?.config?.prompt_template?.system_message]);
 
@@ -110,7 +110,7 @@ export default function SystemMessageBox({
             startDecorator={<RotateCcwIcon size="14px" />}
             onClick={() => {
               sendSystemMessageToServer(
-                defaultPromptConfigForModel?.system_message || ''
+                defaultPromptConfigForModel?.system_message || '',
               );
             }}
             sx={{
