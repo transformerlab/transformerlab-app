@@ -4,8 +4,15 @@ export function API_URL() {
   return window.TransformerLab?.API_URL || null;
 }
 
+// export function INFERENCE_SERVER_URL() {
+//   return window.TransformerLab?.inferenceServerURL || API_URL();
+// }
+
 export function INFERENCE_SERVER_URL() {
-  return window.TransformerLab?.inferenceServerURL || API_URL();
+  const apiUrl = window.TransformerLab?.inferenceServerURL || API_URL();
+  if (!apiUrl) return apiUrl;
+  // Replace :8338 with :8339 if present
+  return apiUrl.replace(':8338', ':8339');
 }
 
 export function FULL_PATH(path: string) {

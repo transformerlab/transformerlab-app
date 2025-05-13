@@ -783,7 +783,7 @@ export async function getEmbeddings(model: string, text: string[]) {
   };
 
   try {
-    const response = await fetch(`${API_URL()}v1/embeddings`, {
+    const response = await fetch(`${INFERENCE_SERVER_URL()}v1/embeddings`, {
       method: 'POST', // or 'PUT'
       headers: {
         'Content-Type': 'application/json',
@@ -887,14 +887,17 @@ export async function countTokens(model: string, text: string[]) {
   };
 
   try {
-    const response = await fetch(`${API_URL()}api/v1/token_check`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    const response = await fetch(
+      `${INFERENCE_SERVER_URL()}api/v1/token_check`,
+      {
+        method: 'POST', // or 'PUT'
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
     result = await response.json();
   } catch (error) {
     console.log('There was an error', error);
@@ -922,14 +925,17 @@ export async function countChatTokens(model: string, text: any) {
   let result;
 
   try {
-    const response = await fetch(`${API_URL()}v1/chat/count_tokens`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    const response = await fetch(
+      `${INFERENCE_SERVER_URL()}v1/chat/count_tokens`,
+      {
+        method: 'POST', // or 'PUT'
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
     result = await response.json();
   } catch (error) {
     console.log('There was an error', error);
