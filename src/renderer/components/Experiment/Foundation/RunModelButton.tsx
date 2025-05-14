@@ -59,12 +59,13 @@ export default function RunModelButton({
         experimentInfo?.id,
         'loader', // type
         'model_architectures:' +
-        experimentInfo?.config?.foundation_model_architecture //filter
-      )
+          experimentInfo?.config?.foundation_model_architecture, //filter
+      ),
     );
     const inferenceEnginesJSON = await inferenceEngines.json();
     const experimentId = experimentInfo?.id;
     const engine = inferenceEnginesJSON?.[0]?.uniqueId;
+    const inferenceEngineFriendlyName = inferenceEnginesJSON?.[0]?.name || '';
 
     await fetch(
       chatAPI.Endpoints.Experiment.UpdateConfig(
@@ -73,26 +74,32 @@ export default function RunModelButton({
         JSON.stringify({
           ...inferenceSettings,
           inferenceEngine: engine,
-        })
-      )
+          inferenceEngineFriendlyName: inferenceEngineFriendlyName,
+        }),
+      ),
     );
-    return inferenceEnginesJSON?.[0]?.uniqueId
+
+    return inferenceEnginesJSON?.[0]?.uniqueId;
   }
 
   // Set a default inference Engine if there is none
   useEffect(() => {
     // Update experiment inference parameters so the Run button shows correctly
-    let objExperimentInfo = null
+    let objExperimentInfo = null;
     if (experimentInfo?.config?.inferenceParams) {
-      objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams)
+      objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
     }
-    if(objExperimentInfo == null){
+    if (objExperimentInfo == null) {
       (async () => {
-          const inferenceEngine = await getDefaultinferenceEngines()
-          setInferenceSettings({ inferenceEngine });
-      })()
-    }else{
-      setInferenceSettings(objExperimentInfo)
+        const { inferenceEngine, inferenceEngineFriendlyName } =
+          await getDefaultinferenceEngines();
+        setInferenceSettings({
+          inferenceEngine: inferenceEngine,
+          inferenceEngineFriendlyName: inferenceEngineFriendlyName,
+        });
+      })();
+    } else {
+      setInferenceSettings(objExperimentInfo);
     }
   }, [experimentInfo]);
 
