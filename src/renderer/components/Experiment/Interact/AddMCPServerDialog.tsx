@@ -21,15 +21,21 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
   const [loading, setLoading] = useState(false);
 
   const handleFilePick = async () => {
-    // For Electron, use dialog API; for web, use input[type=file]
+    // Then create and trigger the file picker
     const picker = document.createElement('input');
     picker.type = 'file';
     picker.onchange = (e: any) => {
       if (e.target.files.length > 0) {
         setFilePath(e.target.files[0].path || e.target.files[0].name);
+        // Set mode after file is selected to ensure UI is updated properly
+        setMode('file');
       }
     };
     picker.click();
+  };
+
+  const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setMode(event.target.value as 'package' | 'file');
   };
 
   const handleInstall = async () => {
@@ -60,8 +66,9 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
         <Stack spacing={2}>
           <FormLabel>Add MCP Server</FormLabel>
           <RadioGroup
+            name="mode-selector"
             value={mode}
-            onChange={(_, v) => setMode(v as 'package' | 'file')}
+            onChange={handleModeChange}
             row
           >
             <Radio value="package" label="Python Package" />
