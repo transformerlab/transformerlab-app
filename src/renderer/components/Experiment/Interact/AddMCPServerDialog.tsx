@@ -9,6 +9,7 @@ import {
   Stack,
   Radio,
   RadioGroup,
+  Typography,
 } from '@mui/joy';
 import { Endpoints } from '../../../lib/api-client/endpoints';
 
@@ -62,9 +63,17 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog>
+      <ModalDialog sx={{ minWidth: '450px' }}>
         <Stack spacing={2}>
           <FormLabel>Add MCP Server</FormLabel>
+          <Typography
+            level="body-sm"
+            sx={{ mt: -1, mb: 1, color: 'text.secondary' }}
+          >
+            We support MCP Server Python packages installable via pip and custom
+            MCP server implementations (.py) files that implement the
+            ModelContextProtocol standard for stdio communication.
+          </Typography>
           <RadioGroup
             name="mode-selector"
             value={mode}

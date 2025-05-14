@@ -135,7 +135,28 @@ export default function ChatSettingsOnLeftHandSide({
           {enableTools && (
             <>
               <FormLabel>Available Tools</FormLabel>
-              <Textarea value={tool_list} />
+              {tool_list && tool_list.length > 0 ? (
+                <Textarea
+                  value={tool_list}
+                  readOnly
+                  minRows={2}
+                  maxRows={10}
+                  sx={{
+                    mb: 1,
+                    resize: 'none',
+                    '&:focus-visible': {
+                      outline: 'none',
+                    },
+                  }}
+                />
+              ) : (
+                <Typography
+                  level="body-sm"
+                  sx={{ color: 'text.secondary', mb: 1, pl: 1 }}
+                >
+                  No tools available. Add an MCP server to enable tools.
+                </Typography>
+              )}
               <Button onClick={() => setAddDialogOpen(true)} sx={{ mb: 1 }}>
                 Add MCP Server
               </Button>
