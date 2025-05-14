@@ -1,20 +1,45 @@
-import { 
-  Box,
-  Button,
-  FormLabel,
-  FormControl,
-  Sheet,
-  Textarea
-} from '@mui/joy';
+import { Box, Button, FormLabel, FormControl, Sheet, Textarea } from '@mui/joy';
 import { useState } from 'react';
 import useSWR from 'swr';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import PreviousMessageList from './PreviousMessageList';
 import PromptSettingsModal from './PromptSettingsModal';
+import AddMCPServerDialog from './AddMCPServerDialog';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
+
+const fetchToolsWithMcp = async () => {
+  // Fetch MCP_SERVER config
+  const configResp = await fetch(chatAPI.Endpoints.Config.Get('MCP_SERVER'));
+  const configData = await configResp.json();
+  let mcp_server_file = '';
+  let mcp_args = '';
+  let mcp_env = '';
+  if (configData) {
+    try {
+      const parsed = JSON.parse(configData);
+      mcp_server_file = parsed.serverName || '';
+      mcp_args = parsed.args || '';
+      mcp_env = parsed.env || '';
+    } catch {}
+  }
+  // Build tools list URL
+  let url = chatAPI.Endpoints.Tools.List();
+  if (mcp_server_file) {
+    url += `?mcp_server_file=${encodeURIComponent(mcp_server_file)}`;
+    if (mcp_args) {
+      url += `&mcp_args=${encodeURIComponent(mcp_args)}`;
+    }
+    if (mcp_env) {
+      url += `&mcp_env=${encodeURIComponent(mcp_env)}`;
+    }
+  }
+
+  const resp = await fetch(url);
+  return resp.json();
+};
 
 export default function ChatSettingsOnLeftHandSide({
   generationParameters,
@@ -33,11 +58,16 @@ export default function ChatSettingsOnLeftHandSide({
   showPreviousMessages = true,
 }) {
   const [showPromptSettingsModal, setShowPromptSettingsModal] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   // Get a list of tools to display
-  const { data: available_tools } = useSWR(
-    chatAPI.Endpoints.Tools.List(),
-    fetcher
+  // const { data: available_tools } = useSWR(
+  //   chatAPI.Endpoints.Tools.List(),
+  //   fetcher,
+  // );
+  const { data: available_tools, mutate: mutateTools } = useSWR(
+    'tools-list-with-mcp',
+    fetchToolsWithMcp,
   );
   const tool_list =
     Array.isArray(available_tools) &&
@@ -103,10 +133,20 @@ export default function ChatSettingsOnLeftHandSide({
             </FormControl>
           </Box>
           {enableTools && (
-          <>
-            <FormLabel>Available Tools</FormLabel>
-            <Textarea value={tool_list} />
-          </>
+            <>
+              <FormLabel>Available Tools</FormLabel>
+              <Textarea value={tool_list} />
+              <Button onClick={() => setAddDialogOpen(true)} sx={{ mb: 1 }}>
+                Add MCP Server
+              </Button>
+              <AddMCPServerDialog
+                open={addDialogOpen}
+                onClose={() => setAddDialogOpen(false)}
+                onInstalled={() => {
+                  mutateTools();
+                }}
+              />
+            </>
           )}
         </Sheet>
         {showPreviousMessages && (
