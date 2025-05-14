@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import {useState} from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExportDetailsModal from './ExportDetailsModal';
 import PluginSettingsModal from './PluginSettingsModal';
+import ExportJobsTable from './ExportJobsTable';
 
 import Sheet from '@mui/joy/Sheet';
 import {
@@ -14,22 +15,32 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
-import { PlugIcon, ClockIcon, PlayIcon } from 'lucide-react';
 
 // fetcher used by SWR
-const fetcher = (url) => fetch(url).then((res) => res.json());
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function Export({ experimentInfo }) {
-  const [runningPlugin, setRunningPlugin] = useState(null);
-  const [exportDetailsJobId, setExportDetailsJobId] = useState(-1);
-  const [selectedPlugin, setSelectedPlugin] = useState(null);
+interface ExportProps {
+  experimentInfo: any;
+}
+
+interface Plugin {
+  uniqueId: string;
+  name: string;
+  description: string;
+  model_architectures: string[];
+}
+
+export default function Export({ experimentInfo }: ExportProps) {
+  const [runningPlugin, setRunningPlugin] = useState<string | null>(null);
+  const [exportDetailsJobId, setExportDetailsJobId] = useState<number>(-1);
+  const [selectedPlugin, setSelectedPlugin] = useState<Plugin | null>(null);
 
   // call plugins list endpoint and filter based on type="exporter"
   const {
     data: plugins,
     error: pluginsError,
     isLoading: pluginsIsLoading,
-  } = useSWR(
+  } = useSWR<Plugin[]>(
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
@@ -54,7 +65,7 @@ export default function Export({ experimentInfo }) {
 
   // returns true if the currently loaded foundation is in the passed array
   // supported_architectures - a list of all architectures supported by this plugin
-  function isModelValidArchitecture(supported_architectures) {
+  function isModelValidArchitecture(supported_architectures: string[]): boolean {
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
@@ -98,7 +109,6 @@ export default function Export({ experimentInfo }) {
       />
 
       <PluginSettingsModal
-        open={!!selectedPlugin}
         onClose={() => {
           // unselect active plugin and close modal
           setSelectedPlugin(null);
@@ -115,7 +125,7 @@ export default function Export({ experimentInfo }) {
           flexDirection: 'column',
         }}
       >
-        <Typography level="h1">Export Model</Typography>
+        <Typography level="h3" mb={1}>Export Model</Typography>
         <Sheet sx={{ overflowY: 'auto', overflowX: 'hidden', mb: '2rem' }}>
           <Divider sx={{ mt: 2, mb: 2 }} />
           <Typography level="title-lg" mb={2}>
@@ -135,7 +145,7 @@ export default function Export({ experimentInfo }) {
                 </tr>
               </thead>
               <tbody>
-                {plugins?.map((row) => (
+                {plugins?.map((row: Plugin) => (
                   <tr key={row.uniqueId}>
                     <td>{row.name}</td>
                     <td>{row.description}</td>
@@ -178,61 +188,10 @@ export default function Export({ experimentInfo }) {
           )}
         </Sheet>
 
-        <Typography level="title-md" startDecorator={<ClockIcon />}>
-          Previous Exports
-        </Typography>
         <Sheet
-          color="warning"
-          variant="soft"
           sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}
         >
-          <Table>
-            <thead>
-              <tr>
-                <th style={{ width: '170px' }}>Time</th>
-                <th>Type</th>
-                <th style={{ width: '35%' }}>Output</th>
-                <th style={{ width: '120px' }}>Status</th>
-                <th style={{ width: '90px' }}></th>
-              </tr>
-            </thead>
-            <tbody style={{ overflow: 'auto', height: '100%' }}>
-              {exportJobs?.map((job) => {
-                return (
-                  <tr key={job.id}>
-                    <td>{job.created_at}</td>
-                    <td>{job.job_data.exporter_name}</td>
-                    <td>{job.job_data.output_model_name}</td>
-                    <td>{job.status}</td>
-                    <td
-                      style={{
-                        display: 'flex',
-                        gap: 2,
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                      }}
-                    >
-                      {' '}
-                      <Button
-                        size="sm"
-                        disabled={
-                          !(
-                            job.status === 'COMPLETE' || job.status === 'FAILED'
-                          )
-                        }
-                        onClick={() => {
-                          setExportDetailsJobId(job.id);
-                        }}
-                      >
-                        Details
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
+          <ExportJobsTable experimentInfo={experimentInfo} />
         </Sheet>
       </Sheet>
     </>
