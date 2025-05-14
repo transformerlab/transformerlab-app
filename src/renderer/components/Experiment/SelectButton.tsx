@@ -53,12 +53,10 @@ export default function SelectButton({
         `model_architectures:${modelArchitecture}`,
       );
 
-      console.log('Fetching compatible inference engines from:', url);
       const resp = await fetch(url);
       const engines = await resp.json();
       if (engines && engines.length > 0) {
         const engine = engines[0];
-        console.log('Setting inference engine:', engine);
         // Update inferenceParams in experiment config
         await fetch(
           chatAPI.Endpoints.Experiment.UpdateConfig(
