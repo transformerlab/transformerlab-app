@@ -421,3 +421,8 @@ Endpoints.Jobs = {
 Endpoints.Global = {
   PromptLog: () => `${API_URL()}prompt_log`,
 };
+
+// Diffusion endpoints
+Endpoints.Diffusion = {
+  Generate: () => `${API_URL()}diffusion/generate`,
+};

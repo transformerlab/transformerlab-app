@@ -135,6 +135,12 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         icon={<FlaskConicalIcon />}
         disabled={!experimentInfo?.name}
       />
+      <SubNavItem
+        title="Diffusion"
+        path="/experiment/diffusion"
+        icon={<BoxesIcon />}
+        disabled={!experimentInfo?.name}
+      />
     </List>
   );
 }
