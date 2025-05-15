@@ -32,7 +32,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useNavigate } from 'react-router-dom';
-
+import useAPI from 'renderer/lib/api-client/hooks';
 import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import ImportModelsBar from './ImportModelsBar';
@@ -46,6 +46,7 @@ import {
 } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { downloadModelFromGallery } from '../../lib/transformerlab-api-sdk';
+import useAPI from 'renderer/lib/api-client/hooks';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -95,18 +96,19 @@ export default function ModelGroups() {
     isLoading,
     error,
     mutate,
-  } = useSWR(chatAPI.Endpoints.Models.ModelGroups(), fetcher);
+  } = useAPI('models', ['getModelGroups']);
 
-  const { data: modelDownloadProgress } = useSWR(
-    jobId && jobId != '-1' ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
-    fetcher,
-    { refreshInterval: 2000 },
+  const { data: modelDownloadProgress } = useAPI(
+    'jobs',
+    ['get'],
+    jobId && jobId !== '-1' ? { id: jobId } : {},
+    {
+      enabled: jobId && jobId !== '-1',
+      refreshInterval: 2000,
+    }
   );
 
-  const { data: canLogInToHuggingFace } = useSWR(
-    chatAPI.Endpoints.Models.HuggingFaceLogin(),
-    fetcher,
-  );
+  const { data: canLogInToHuggingFace } = useAPI('models', ['loginToHuggingFace']);
   const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
 
   useEffect(() => {
@@ -373,9 +375,16 @@ export default function ModelGroups() {
               );
             })}
         </Box>
+        <Box
+          sx={{
+            borderTop: '1px solid #ccc',
+            padding: 1,
+            background: 'background.body',
+          }}
+        >
+          <ImportModelsBar jobId={jobId} setJobId={setJobId} />
+        </Box>
       </Sheet>
-
-      <ImportModelsBar jobId={jobId} setJobId={setJobId} />
     </Sheet>
   );
 }

@@ -52,5 +52,21 @@
       "method": "PUT",
       "path": "config/set?k={key}&v={value}"
     }
+  },
+  "models": {
+      "getModelGroups": {
+        "method": "GET",
+        "path": "model/model_groups_list"
+      },
+      "loginToHuggingFace": {
+        "method": "GET",
+        "path": "model/login_to_huggingface"
+      }
+  },
+  "jobs": {
+    "get": {
+      "method": "GET",
+      "path": "jobs/{id}"
+    }
   }
 }
