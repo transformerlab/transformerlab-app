@@ -2,14 +2,41 @@ import { Chip, IconButton, LinearProgress, Stack, Typography } from '@mui/joy';
 import { StopCircleIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import duration from 'dayjs/plugin/duration';
 import { jobChipColor } from 'renderer/lib/utils';
+import { useEffect } from 'react';
 dayjs.extend(relativeTime);
-
-var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-export default function JobProgress({ job }) {
+interface JobData {
+  start_time?: string;
+  end_time?: string;
+  completion_status?: string;
+  completion_details?: string;
+  [key: string]: any;
+}
+
+interface JobProps {
+  job: {
+    id: string;
+    status: string;
+    progress: string | number;
+    job_data?: JobData;
+  };
+}
+
+export default function JobProgress({ job }: JobProps) {
+  // Debug job data
+  useEffect(() => {
+    console.log('JobProgress job:', job);
+  }, [job]);
+
+  // Ensure progress is a number
+  const progress = typeof job?.progress === 'string' ? 
+    parseFloat(job.progress) : 
+    (typeof job?.progress === 'number' ? job.progress : 0);
+
   return (
     <Stack>
       {job?.status == 'RUNNING' ? (
@@ -23,12 +50,12 @@ export default function JobProgress({ job }) {
             >
               {job.status}
             </Chip>
-            {job.progress == '-1'
+            {progress == -1
               ? ''
-              : Number.parseFloat(job.progress).toFixed(1) + '%'}
+              : progress.toFixed(1) + '%'}
             <LinearProgress
               determinate
-              value={job.progress}
+              value={progress}
               sx={{ my: 1 }}
             ></LinearProgress>
             <IconButton
@@ -58,9 +85,9 @@ export default function JobProgress({ job }) {
               }}
             >
               {job.status}
-              {job.progress == '-1'
+              {progress == -1
                 ? ''
-                : ' - ' + Number.parseFloat(job.progress).toFixed(1) + '%'}
+                : ' - ' + progress.toFixed(1) + '%'}
             </Chip>
             {job?.job_data?.start_time && (
               <>
