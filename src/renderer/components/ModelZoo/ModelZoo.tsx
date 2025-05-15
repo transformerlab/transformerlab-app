@@ -6,6 +6,7 @@ import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import ModelStore from './ModelStore';
 import LocalModels from './LocalModels';
 import { useNavigate } from 'react-router-dom';
+import ModelGroups from './ModelGroups';
 
 export default function ModelZoo({ experimentInfo, tab = 'store' }) {
   const navigate = useNavigate();
@@ -69,12 +70,17 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
         {DEV_MODE && (
           <TabPanel
             value="groups"
-            sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
+            sx={{
+              p: 0,
+              py: 1,
+              height: '100%',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+            }}
           >
-            <div style={{ padding: 16 }}>
-              <h2>Developer Tools</h2>
-              <p>This tab is only visible when the selected experiment is named "dev".</p>
-            </div>
+            <ModelGroups />
           </TabPanel>
         )}
       </Tabs>
