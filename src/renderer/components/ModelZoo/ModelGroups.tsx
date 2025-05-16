@@ -70,12 +70,6 @@ function filterByFilters(data, searchText = '', filters = {}) {
     if (!row.name?.toLowerCase().includes(searchText.toLowerCase()))
       return false;
     if (
-      filters.license &&
-      filters.license !== 'All' &&
-      row.license?.toLowerCase() !== filters.license.toLowerCase()
-    )
-      return false;
-    if (
       filters.architecture &&
       filters.architecture !== 'All' &&
       row.architecture?.toLowerCase() !== filters.architecture.toLowerCase()
@@ -96,7 +90,6 @@ export default function ModelGroups() {
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({
     archived: false,
-    license: 'All',
     architecture: 'All',
   });
   const [selectedGroup, setSelectedGroup] = useState(null);
@@ -104,6 +97,7 @@ export default function ModelGroups() {
   const [jobId, setJobId] = useState(null);
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [canceling, setCanceling] = useState(false);
+  const [groupSearchText, setGroupSearchText] = useState('');
 
   const {
     data: groupData,
@@ -147,6 +141,19 @@ export default function ModelGroups() {
     }
   }, [selectedGroup]);
 
+  useEffect(() => {
+    if (!selectedGroup && groupData && groupData.length > 0) {
+      const firstGroup = groupData.find(
+        (g) => g.name.toLowerCase() === 'apriel',
+      );
+      if (firstGroup) {
+        setSelectedGroup(firstGroup);
+      } else {
+        setSelectedGroup(groupData[0]); // fallback
+      }
+    }
+  }, [groupData, selectedGroup]);
+
   const getLicenseOptions = (models) => {
     const lowercaseSet = new Set();
     models?.forEach((m) => {
@@ -172,6 +179,7 @@ export default function ModelGroups() {
 
   if (isLoading) return <LinearProgress />;
   if (error) return <Typography>Error loading model groups.</Typography>;
+  if (!groupData || !selectedGroup) return null;
 
   const handleSortClick = (column) => {
     const isAsc = orderBy === column && order === 'asc';
@@ -242,7 +250,19 @@ export default function ModelGroups() {
             maxHeight: '100%',
           }}
         >
+          <Input
+            placeholder="Search groups"
+            value={groupSearchText}
+            onChange={(e) => setGroupSearchText(e.target.value)}
+            startDecorator={<SearchIcon />}
+            size="sm"
+            sx={{ mb: 1 }}
+          />
+
           {[...groupData]
+            .filter((group) =>
+              group.name.toLowerCase().includes(groupSearchText.toLowerCase()),
+            )
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((group) => {
               const isSelected = selectedGroup?.name === group.name;
@@ -294,384 +314,356 @@ export default function ModelGroups() {
             overflow: 'hidden',
           }}
         >
-          {selectedGroup ? (
-            <>
-              <Box
-                sx={{
-                  position: 'sticky',
-                  top: 0,
-                  zIndex: 20,
-                  backgroundColor: 'background.body',
-                  p: 2,
-                  borderBottom: '1px solid #ccc',
-                }}
-              >
-                <Typography level="h4" sx={{ mb: 1 }}>
-                  {selectedGroup.name.charAt(0).toUpperCase() +
-                    selectedGroup.name.slice(1)}
-                </Typography>
-                <Typography level="body-md" sx={{ mb: 2 }}>
-                  {selectedGroup.description}
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                  <FormControl sx={{ flex: 1 }} size="sm">
-                    <FormLabel>&nbsp;</FormLabel>
-                    <Input
-                      placeholder="Search"
-                      value={searchText}
-                      onChange={(e) => setSearchText(e.target.value)}
-                      startDecorator={<SearchIcon />}
-                    />
-                  </FormControl>
-                  <FormControl size="sm">
-                    <FormLabel>Status</FormLabel>
-                    <Select
-                      value={filters?.archived}
-                      onChange={(e, newValue) =>
-                        setFilters({ ...filters, archived: newValue })
-                      }
-                    >
-                      <Option value={false}>Hide Archived</Option>
-                      <Option value="All">Show Archived</Option>
-                    </Select>
-                  </FormControl>
-                  <FormControl size="sm">
-                    <FormLabel>License</FormLabel>
-                    <Select
-                      value={filters?.license}
-                      onChange={(e, newValue) =>
-                        setFilters({ ...filters, license: newValue })
-                      }
-                    >
-                      <Option value="All">All</Option>
-                      {licenseOptions.map((type) => (
-                        <Option key={type} value={type}>
-                          {type}
-                        </Option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <FormControl size="sm">
-                    <FormLabel>Architecture</FormLabel>
-                    <Select
-                      value={filters?.architecture}
-                      onChange={(e, newValue) =>
-                        setFilters({ ...filters, architecture: newValue })
-                      }
-                    >
-                      <Option value="All">All</Option>
-                      {archOptions.map((type) => (
-                        <Option key={type} value={type}>
-                          {type}
-                        </Option>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
+          <>
+            <Box
+              sx={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 20,
+                backgroundColor: 'background.body',
+                p: 2,
+                borderBottom: '1px solid #ccc',
+              }}
+            >
+              <Typography level="h4" sx={{ mb: 1 }}>
+                {selectedGroup.name.charAt(0).toUpperCase() +
+                  selectedGroup.name.slice(1)}
+              </Typography>
+              <Typography level="body-md" sx={{ mb: 2 }}>
+                {selectedGroup.description}
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+                <FormControl sx={{ flex: 1 }} size="sm">
+                  <FormLabel>&nbsp;</FormLabel>
+                  <Input
+                    placeholder="Search"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    startDecorator={<SearchIcon />}
+                  />
+                </FormControl>
+                <FormControl size="sm">
+                  <FormLabel>Status</FormLabel>
+                  <Select
+                    value={filters?.archived}
+                    onChange={(e, newValue) =>
+                      setFilters({ ...filters, archived: newValue })
+                    }
+                  >
+                    <Option value={false}>Hide Archived</Option>
+                    <Option value="All">Show Archived</Option>
+                  </Select>
+                </FormControl>
+                <FormControl size="sm">
+                  <FormLabel>Architecture</FormLabel>
+                  <Select
+                    value={filters?.architecture}
+                    onChange={(e, newValue) =>
+                      setFilters({ ...filters, architecture: newValue })
+                    }
+                  >
+                    <Option value="All">All</Option>
+                    {archOptions.map((type) => (
+                      <Option key={type} value={type}>
+                        {type}
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
+            </Box>
 
-              <Box
+            <Box
+              sx={{
+                overflowX: 'auto',
+                width: '100%',
+                maxWidth: '100%',
+                flex: 1,
+              }}
+            >
+              <Table
+                hoverRow
+                stickyHeader
                 sx={{
-                  overflowX: 'auto',
                   width: '100%',
-                  maxWidth: '100%',
-                  flex: 1,
+                  tableLayout: 'fixed',
+                  '& th, & td': {
+                    wordBreak: 'break-word',
+                    whiteSpace: 'normal',
+                    padding: '8px',
+                  },
                 }}
               >
-                <Table
-                  hoverRow
-                  stickyHeader
-                  sx={{
-                    width: '100%',
-                    tableLayout: 'fixed',
-                    '& th, & td': {
-                      wordBreak: 'break-word',
-                      whiteSpace: 'normal',
-                      padding: '8px',
-                    },
-                  }}
-                >
-                  <thead>
-                    <tr>
-                      <th style={{ width: 170, padding: 12 }}>
-                        <Link
-                          underline="none"
-                          color="primary"
-                          component="button"
-                          onClick={() => {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                            setOrderBy('name');
-                          }}
-                          fontWeight="lg"
-                          endDecorator={
-                            orderBy === 'name' && (
-                              <ChevronUpIcon
-                                color="var(--joy-palette-primary-plainColor)"
-                                style={{
-                                  transition: '0.2s',
-                                  transform:
-                                    order === 'asc'
-                                      ? 'rotate(180deg)'
-                                      : 'rotate(0deg)',
-                                }}
-                              />
-                            )
-                          }
-                          sx={{ marginLeft: 2 }}
-                        >
-                          Name
-                        </Link>
-                      </th>
-                      <th style={{ width: 120, padding: 12 }}>
-                        <Link
-                          underline="none"
-                          color="primary"
-                          component="button"
-                          onClick={() => {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                            setOrderBy('license');
-                          }}
-                          fontWeight="lg"
-                          endDecorator={
-                            orderBy === 'license' && (
-                              <ChevronUpIcon
-                                color="var(--joy-palette-primary-plainColor)"
-                                style={{
-                                  transition: '0.2s',
-                                  transform:
-                                    order === 'asc'
-                                      ? 'rotate(180deg)'
-                                      : 'rotate(0deg)',
-                                }}
-                              />
-                            )
-                          }
-                          sx={{ marginLeft: 2 }}
-                        >
-                          License
-                        </Link>
-                      </th>
-                      <th style={{ width: 170, padding: 12 }}>
-                        <Link
-                          underline="none"
-                          color="primary"
-                          component="button"
-                          onClick={() => {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                            setOrderBy('architecture');
-                          }}
-                          fontWeight="lg"
-                          endDecorator={
-                            orderBy === 'architecture' && (
-                              <ChevronUpIcon
-                                color="var(--joy-palette-primary-plainColor)"
-                                style={{
-                                  transition: '0.2s',
-                                  transform:
-                                    order === 'asc'
-                                      ? 'rotate(180deg)'
-                                      : 'rotate(0deg)',
-                                }}
-                              />
-                            )
-                          }
-                          sx={{ marginLeft: 2 }}
-                        >
-                          Engine
-                        </Link>
-                      </th>
-                      <th style={{ width: 170, padding: 12 }}>
-                        <Link
-                          underline="none"
-                          color="primary"
-                          component="button"
-                          onClick={() => {
-                            setOrder(order === 'asc' ? 'desc' : 'asc');
-                            setOrderBy('size_of_model_in_mb');
-                          }}
-                          fontWeight="lg"
-                          endDecorator={
-                            orderBy === 'size_of_model_in_mb' && (
-                              <ChevronUpIcon
-                                color="var(--joy-palette-primary-plainColor)"
-                                style={{
-                                  transition: '0.2s',
-                                  transform:
-                                    order === 'asc'
-                                      ? 'rotate(180deg)'
-                                      : 'rotate(0deg)',
-                                }}
-                              />
-                            )
-                          }
-                          sx={{ marginLeft: 2 }}
-                        >
-                          Size
-                        </Link>
-                      </th>
-                      <th style={{ width: 50, padding: 8 }}></th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stableSort(
-                      filterByFilters(
-                        selectedGroup.models,
-                        searchText,
-                        filters,
-                      ),
-                      getComparator(order, orderBy),
-                    ).map((row) => (
-                      <tr key={row.uniqueID}>
-                        <td>
-                          <Typography level="body-sm">
-                            {row.new && (
-                              <Chip size="sm" color="warning">
-                                New!
-                              </Chip>
-                            )}
-                            {row.name}&nbsp;
-                            <a
-                              href={getModelHuggingFaceURL(row)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {row.gated ? (
-                                <Chip
-                                  size="sm"
-                                  color="warning"
-                                  endDecorator={<LockKeyholeIcon size="13px" />}
-                                >
-                                  Gated
-                                </Chip>
-                              ) : (
-                                <ExternalLinkIcon size="14px" />
-                              )}
-                            </a>
-                            {row.tags?.map((tag) => (
-                              <Chip
-                                key={tag}
-                                size="sm"
-                                variant="soft"
-                                color="neutral"
-                              >
-                                {tag}
-                              </Chip>
-                            ))}
-                          </Typography>
-                        </td>
-                        <td>
-                          <Chip size="sm" variant="soft" color="neutral">
-                            {row.license}
-                          </Chip>
-                        </td>
-                        <td
-                          style={{
-                            width: 170,
-                            maxWidth: 170,
-                            wordBreak: 'break-all',
-                            whiteSpace: 'normal',
-                          }}
-                        >
-                          <Typography
-                            level="body-sm"
-                            startDecorator={
-                              row.architecture === 'MLX' && <TinyMLXLogo />
-                            }
-                          >
-                            {row.architecture}
-                          </Typography>
-                        </td>
-                        <td>
-                          <Typography level="body-sm">
-                            {formatBytes(
-                              row?.size_of_model_in_mb * 1024 * 1024,
-                            )}
-                          </Typography>
-                        </td>
-                        <td>
-                          <InfoIcon
-                            onClick={() => setModelDetailsId(row.uniqueID)}
-                          />
-                        </td>
-                        <td>
-                          {row.gated && !isHFAccessTokenSet ? (
-                            <Button
-                              size="sm"
-                              endDecorator={<LockKeyholeIcon />}
-                              color="warning"
-                              onClick={() => {
-                                if (
-                                  confirm(
-                                    'To access gated Hugging Face models you must first create a token. Go to settings',
-                                  )
-                                ) {
-                                  navigate('/settings');
-                                }
+                <thead>
+                  <tr>
+                    <th style={{ width: 170, padding: 12 }}>
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => {
+                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                          setOrderBy('name');
+                        }}
+                        fontWeight="lg"
+                        endDecorator={
+                          orderBy === 'name' && (
+                            <ChevronUpIcon
+                              color="var(--joy-palette-primary-plainColor)"
+                              style={{
+                                transition: '0.2s',
+                                transform:
+                                  order === 'asc'
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
                               }}
-                            >
-                              Unlock
-                            </Button>
-                          ) : (
-                            <Button
+                            />
+                          )
+                        }
+                        sx={{ marginLeft: 2 }}
+                      >
+                        Name
+                      </Link>
+                    </th>
+                    <th style={{ width: 120, padding: 12 }}>
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => {
+                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                          setOrderBy('license');
+                        }}
+                        fontWeight="lg"
+                        endDecorator={
+                          orderBy === 'license' && (
+                            <ChevronUpIcon
+                              color="var(--joy-palette-primary-plainColor)"
+                              style={{
+                                transition: '0.2s',
+                                transform:
+                                  order === 'asc'
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
+                              }}
+                            />
+                          )
+                        }
+                        sx={{ marginLeft: 2 }}
+                      >
+                        License
+                      </Link>
+                    </th>
+                    <th style={{ width: 170, padding: 12 }}>
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => {
+                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                          setOrderBy('architecture');
+                        }}
+                        fontWeight="lg"
+                        endDecorator={
+                          orderBy === 'architecture' && (
+                            <ChevronUpIcon
+                              color="var(--joy-palette-primary-plainColor)"
+                              style={{
+                                transition: '0.2s',
+                                transform:
+                                  order === 'asc'
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
+                              }}
+                            />
+                          )
+                        }
+                        sx={{ marginLeft: 2 }}
+                      >
+                        Engine
+                      </Link>
+                    </th>
+                    <th style={{ width: 170, padding: 12 }}>
+                      <Link
+                        underline="none"
+                        color="primary"
+                        component="button"
+                        onClick={() => {
+                          setOrder(order === 'asc' ? 'desc' : 'asc');
+                          setOrderBy('size_of_model_in_mb');
+                        }}
+                        fontWeight="lg"
+                        endDecorator={
+                          orderBy === 'size_of_model_in_mb' && (
+                            <ChevronUpIcon
+                              color="var(--joy-palette-primary-plainColor)"
+                              style={{
+                                transition: '0.2s',
+                                transform:
+                                  order === 'asc'
+                                    ? 'rotate(180deg)'
+                                    : 'rotate(0deg)',
+                              }}
+                            />
+                          )
+                        }
+                        sx={{ marginLeft: 2 }}
+                      >
+                        Size
+                      </Link>
+                    </th>
+                    <th style={{ width: 50, padding: 8 }}></th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stableSort(
+                    filterByFilters(selectedGroup.models, searchText, filters),
+                    getComparator(order, orderBy),
+                  ).map((row) => (
+                    <tr key={row.uniqueID}>
+                      <td>
+                        <Typography level="body-sm">
+                          {row.new && (
+                            <Chip size="sm" color="warning">
+                              New!
+                            </Chip>
+                          )}
+                          {row.name}&nbsp;
+                          <a
+                            href={getModelHuggingFaceURL(row)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {row.gated ? (
+                              <Chip
+                                size="sm"
+                                color="warning"
+                                endDecorator={<LockKeyholeIcon size="13px" />}
+                              >
+                                Gated
+                              </Chip>
+                            ) : (
+                              <ExternalLinkIcon size="14px" />
+                            )}
+                          </a>
+                          {row.tags?.map((tag) => (
+                            <Chip
+                              key={tag}
                               size="sm"
                               variant="soft"
-                              color="success"
-                              disabled={row.downloaded || jobId !== null}
-                              onClick={async () => {
-                                setJobId(-1);
-                                setCurrentlyDownloading(row.name);
-                                try {
-                                  let response = await fetch(
-                                    chatAPI.Endpoints.Jobs.Create(),
+                              color="neutral"
+                            >
+                              {tag}
+                            </Chip>
+                          ))}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Chip size="sm" variant="soft" color="neutral">
+                          {row.license}
+                        </Chip>
+                      </td>
+                      <td
+                        style={{
+                          width: 170,
+                          maxWidth: 170,
+                          wordBreak: 'break-all',
+                          whiteSpace: 'normal',
+                        }}
+                      >
+                        <Typography
+                          level="body-sm"
+                          startDecorator={
+                            row.architecture === 'MLX' && <TinyMLXLogo />
+                          }
+                        >
+                          {row.architecture}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography level="body-sm">
+                          {formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                        </Typography>
+                      </td>
+                      <td>
+                        <InfoIcon
+                          onClick={() => setModelDetailsId(row.uniqueID)}
+                        />
+                      </td>
+                      <td>
+                        {row.gated && !isHFAccessTokenSet ? (
+                          <Button
+                            size="sm"
+                            endDecorator={<LockKeyholeIcon />}
+                            color="warning"
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  'To access gated Hugging Face models you must first create a token. Go to settings',
+                                )
+                              ) {
+                                navigate('/settings');
+                              }
+                            }}
+                          >
+                            Unlock
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            color="success"
+                            disabled={row.downloaded || jobId !== null}
+                            onClick={async () => {
+                              setJobId(-1);
+                              setCurrentlyDownloading(row.name);
+                              try {
+                                let response = await fetch(
+                                  chatAPI.Endpoints.Jobs.Create(),
+                                );
+                                const newJobId = await response.json();
+                                setJobId(newJobId);
+                                response = await downloadModelFromGallery(
+                                  row?.uniqueID,
+                                  newJobId,
+                                );
+                                if (response?.status !== 'success') {
+                                  alert(
+                                    `Failed to download: ${response.message}`,
                                   );
-                                  const newJobId = await response.json();
-                                  setJobId(newJobId);
-                                  response = await downloadModelFromGallery(
-                                    row?.uniqueID,
-                                    newJobId,
-                                  );
-                                  if (response?.status !== 'success') {
-                                    alert(
-                                      `Failed to download: ${response.message}`,
-                                    );
-                                    setCurrentlyDownloading(null);
-                                    setJobId(null);
-                                  } else {
-                                    const updatedData = await mutate();
-                                    const updatedGroup = updatedData?.find(
-                                      (g) => g.name === selectedGroup?.name,
-                                    );
-                                    if (updatedGroup) {
-                                      setSelectedGroup(updatedGroup);
-                                    }
-                                  }
-                                } catch (e) {
-                                  alert('Failed to download');
                                   setCurrentlyDownloading(null);
                                   setJobId(null);
+                                } else {
+                                  const updatedData = await mutate();
+                                  const updatedGroup = updatedData?.find(
+                                    (g) => g.name === selectedGroup?.name,
+                                  );
+                                  if (updatedGroup) {
+                                    setSelectedGroup(updatedGroup);
+                                  }
                                 }
-                              }}
-                              startDecorator={<DownloadIcon size="18px" />}
-                              endDecorator={
-                                row.downloaded ? (
-                                  <CheckIcon size="18px" />
-                                ) : null
+                              } catch (e) {
+                                alert('Failed to download');
+                                setCurrentlyDownloading(null);
+                                setJobId(null);
                               }
-                            >
-                              Download{row.downloaded ? 'ed' : ''}
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </Box>
-            </>
-          ) : (
-            <Typography p={2}>Select a group to see its models</Typography>
-          )}
+                            }}
+                            startDecorator={<DownloadIcon size="18px" />}
+                            endDecorator={
+                              row.downloaded ? <CheckIcon size="18px" /> : null
+                            }
+                          >
+                            Download{row.downloaded ? 'ed' : ''}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </Box>
+          </>
         </Box>
       </Sheet>
 
