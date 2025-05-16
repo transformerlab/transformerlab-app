@@ -3,8 +3,6 @@
 /* eslint-disable no-console */
 /* eslint-disable import/prefer-default-export */
 
-import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './api-client/urls';
-
 export * from './api-client/endpoints';
 
 export {
@@ -43,10 +41,11 @@ export {
 } from './api-client/functions';
 
 export {
+  useAPI,
   useModelStatus,
   usePluginStatus,
   useServerStats,
   useCheckLocalConnection,
 } from './api-client/hooks';
 
-export { INFERENCE_SERVER_URL, API_URL };
+export { INFERENCE_SERVER_URL, API_URL, getFullPath } from './api-client/urls';
