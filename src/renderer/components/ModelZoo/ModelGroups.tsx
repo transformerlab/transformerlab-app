@@ -551,7 +551,7 @@ export default function ModelGroups() {
                       </Link>
                     </th>
                     <th style={{ width: 50 }}></th>
-                    <th style={{ width: 150 }}></th>
+                    <th style={{ width: 180 }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -653,7 +653,7 @@ export default function ModelGroups() {
                             variant="soft"
                             color="success"
                             disabled={row.downloaded || jobId !== null}
-                            sx={{ minWidth: 130 }}
+                            sx={{ minWidth: 160 }}
                             onClick={async () => {
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
