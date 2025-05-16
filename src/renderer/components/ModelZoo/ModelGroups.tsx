@@ -18,7 +18,6 @@ import {
 import {
   CheckIcon,
   DownloadIcon,
-  ArrowDownIcon,
   ExternalLinkIcon,
   InfoIcon,
   LockKeyholeIcon,
@@ -32,7 +31,7 @@ import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import ImportModelsBar from './ImportModelsBar';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
-import { clamp, formatBytes } from '../../lib/utils';
+import { formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { downloadModelFromGallery } from '../../lib/transformerlab-api-sdk';
 
