@@ -243,22 +243,43 @@ export default function ModelGroups() {
           sx={{
             width: '25%',
             borderRight: '1px solid #ccc',
-            p: 1,
+            pt: 0,
+            pr: 1,
+            pb: 1,
+            pl: 1,
             wordWrap: 'break-word',
             overflowWrap: 'break-word',
             overflowY: 'auto',
             maxHeight: '100%',
           }}
         >
-          <Input
-            placeholder="Search groups"
-            value={groupSearchText}
-            onChange={(e) => setGroupSearchText(e.target.value)}
-            startDecorator={<SearchIcon />}
-            size="sm"
-            sx={{ mb: 1 }}
-          />
-
+          <Box
+            sx={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
+              backgroundColor: 'var(--joy-palette-background-surface)',
+              pb: 1,
+              pt: 1,
+              px: 1,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+            }}
+          >
+            <Box
+              sx={{
+                backgroundColor: 'var(--joy-palette-background-surface)',
+                borderRadius: 'sm',
+              }}
+            >
+              <Input
+                placeholder="Search groups"
+                value={groupSearchText}
+                onChange={(e) => setGroupSearchText(e.target.value)}
+                startDecorator={<SearchIcon />}
+                size="sm"
+              />
+            </Box>
+          </Box>
           {[...groupData]
             .filter((group) =>
               group.name.toLowerCase().includes(groupSearchText.toLowerCase()),
