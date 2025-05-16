@@ -48,7 +48,7 @@ export default function PluginGallery({
     fetchShowExperimental();
   }, []);
 
-  const device = serverInfo?.device;
+  const device = serverInfo?.device_type;
 
   const renderFilters = () => (
     <FormControl size="sm" sx={{ flex: 1 }}>
@@ -93,6 +93,9 @@ export default function PluginGallery({
         plugin.supported_hardware_architectures.includes('cuda') ||
         plugin.supported_hardware_architectures.includes('cpu')
       );
+    }
+    if (machineType === 'amd') {
+      return plugin.supported_hardware_architectures.includes('amd');
     }
 
     return true; // Default to compatible for unknown machine types
