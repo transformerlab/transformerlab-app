@@ -54,8 +54,6 @@ jobs:
           VERSION=$(node -p "require('./release/app/package.json').version")
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
         shell: bash
-        outputs:
-          version: ${{ steps.package-version.outputs.version }}
 
       - name: Rename the Windows EXE to have dashes instead of spaces
         run: |
@@ -70,8 +68,8 @@ jobs:
           password: ${{ secrets.ES_PASSWORD }}
           credential_id: ${{ secrets.CREDENTIAL_ID }}
           totp_secret: ${{ secrets.ES_TOTP_SECRET }}
-          file_path: "${{ github.workspace }}/release/build/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe"
-          output_path: "${{ github.workspace }}/signed"
+          file_path: '${{ github.workspace }}/release/build/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe'
+          output_path: '${{ github.workspace }}/signed'
 
       - name: Generate latest.yml
         run: |
@@ -103,5 +101,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
-
-
