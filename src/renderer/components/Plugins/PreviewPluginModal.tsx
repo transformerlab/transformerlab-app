@@ -21,7 +21,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Preview(dataset_id),
-    fetcher
+    fetcher,
   );
 
   return (
@@ -62,7 +62,22 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
                             verticalAlign: 'top',
                           }}
                         >
-                          {v}
+                          {typeof v === 'string' &&
+                          v.startsWith('data:image/') ? (
+                            <img
+                              src={v}
+                              alt="preview"
+                              style={{
+                                maxWidth: 120,
+                                maxHeight: 120,
+                                display: 'block',
+                              }}
+                            />
+                          ) : typeof v === 'string' ? (
+                            v
+                          ) : (
+                            JSON.stringify(v)
+                          )}
                         </td>
                       ))}
                     </tr>

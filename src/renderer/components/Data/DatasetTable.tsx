@@ -42,7 +42,7 @@ const DatasetTable = ({ datasetId }) => {
   };
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Preview(datasetId, split, offset, pageSize),
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -151,7 +151,7 @@ const DatasetTable = ({ datasetId }) => {
                             'string'
                               ? data.data['columns'][key][rowIndex]
                               : JSON.stringify(
-                                  data.data['columns'][key][rowIndex]
+                                  data.data['columns'][key][rowIndex],
                                 )
                           }
                           sx={{ maxWidth: '400px' }}
@@ -167,11 +167,27 @@ const DatasetTable = ({ datasetId }) => {
                             }}
                           >
                             {typeof data.data['columns'][key][rowIndex] ===
-                            'string'
-                              ? data.data['columns'][key][rowIndex]
-                              : JSON.stringify(
-                                  data.data['columns'][key][rowIndex]
-                                )}
+                              'string' &&
+                            data.data['columns'][key][rowIndex].startsWith(
+                              'data:image/',
+                            ) ? (
+                              <img
+                                src={data.data['columns'][key][rowIndex]}
+                                alt="preview"
+                                style={{
+                                  maxWidth: 120,
+                                  maxHeight: 120,
+                                  display: 'block',
+                                }}
+                              />
+                            ) : typeof data.data['columns'][key][rowIndex] ===
+                              'string' ? (
+                              data.data['columns'][key][rowIndex]
+                            ) : (
+                              JSON.stringify(
+                                data.data['columns'][key][rowIndex],
+                              )
+                            )}
                           </div>
                         </Tooltip>
                       </td>
@@ -217,7 +233,7 @@ const DatasetTable = ({ datasetId }) => {
         {pageNumber > 4 ? '…' : <div />}
         {Array.from(
           { length: Math.min(5, numOfPages) },
-          (_, i) => pageNumber + i - 2
+          (_, i) => pageNumber + i - 2,
         )
           .filter((page) => page >= 2 && page < numOfPages)
 
