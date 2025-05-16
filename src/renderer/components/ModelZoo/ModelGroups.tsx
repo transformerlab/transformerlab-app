@@ -238,92 +238,79 @@ export default function ModelGroups() {
           borderRadius: 'md',
         }}
       >
-        <Box
-          sx={{
-            flex: 1,
-            borderRight: '1px solid #ccc',
-            pt: 0,
-            pr: 1,
-            pb: 1,
-            pl: 1,
-            wordWrap: 'break-word',
-            overflowWrap: 'break-word',
-            overflowY: 'auto',
-            maxHeight: '100%',
-          }}
-        >
+        <Box display="flex" flexDirection="column" sx={{ flex: 1 }}>
           <Box
             sx={{
-              position: 'sticky',
-              top: 0,
-              zIndex: 10,
-              pb: 1,
-              pt: 1,
-              px: 1,
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+              borderRadius: 'sm',
+              p: 1,
             }}
           >
-            <Box
-              sx={{
-                borderRadius: 'sm',
-              }}
-            >
-              <Input
-                placeholder="Search groups"
-                value={groupSearchText}
-                onChange={(e) => setGroupSearchText(e.target.value)}
-                startDecorator={<SearchIcon />}
-                size="sm"
-              />
-            </Box>
+            <Input
+              placeholder="Search groups"
+              value={groupSearchText}
+              onChange={(e) => setGroupSearchText(e.target.value)}
+              startDecorator={<SearchIcon />}
+              size="sm"
+            />
           </Box>
-          {[...groupData]
-            .filter((group) =>
-              group.name.toLowerCase().includes(groupSearchText.toLowerCase()),
-            )
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((group) => {
-              const isSelected = selectedGroup?.name === group.name;
-              return (
-                <Button
-                  key={group.name}
-                  fullWidth
-                  variant={isSelected ? 'solid' : 'soft'}
-                  onClick={() => setSelectedGroup(group)}
-                  sx={{
-                    justifyContent: 'flex-start',
-                    mb: 1,
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                  }}
-                >
-                  <Typography
-                    level="body-sm"
-                    fontWeight="bold"
-                    sx={{
-                      textAlign: 'left',
-                      width: '100%',
-                      color: isSelected ? 'common.white' : undefined,
-                    }}
-                  >
-                    {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
-                  </Typography>
-                  <Typography
-                    level="body-xs"
-                    sx={{
-                      whiteSpace: 'normal',
-                      textAlign: 'left',
-                      width: '100%',
-                      color: isSelected ? 'common.white' : undefined,
-                    }}
-                  >
-                    {group.description}
-                  </Typography>
-                </Button>
-              );
-            })}
-        </Box>
 
+          <Box
+            sx={{
+              flex: 1,
+              p: 1,
+              pt: 0,
+              overflowY: 'auto',
+            }}
+          >
+            {[...groupData]
+              .filter((group) =>
+                group.name
+                  .toLowerCase()
+                  .includes(groupSearchText.toLowerCase()),
+              )
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((group) => {
+                const isSelected = selectedGroup?.name === group.name;
+                return (
+                  <Button
+                    key={group.name}
+                    fullWidth
+                    variant={isSelected ? 'solid' : 'soft'}
+                    onClick={() => setSelectedGroup(group)}
+                    sx={{
+                      justifyContent: 'flex-start',
+                      mb: 1,
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <Typography
+                      level="body-sm"
+                      fontWeight="bold"
+                      sx={{
+                        textAlign: 'left',
+                        width: '100%',
+                        color: isSelected ? 'common.white' : undefined,
+                      }}
+                    >
+                      {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
+                    </Typography>
+                    <Typography
+                      level="body-xs"
+                      sx={{
+                        whiteSpace: 'normal',
+                        textAlign: 'left',
+                        width: '100%',
+                        color: isSelected ? 'common.white' : undefined,
+                      }}
+                    >
+                      {group.description}
+                    </Typography>
+                  </Button>
+                );
+              })}
+          </Box>
+        </Box>
         <Box
           sx={{
             flex: 3,
