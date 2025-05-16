@@ -325,10 +325,34 @@ export default function ModelGroups() {
                 borderBottom: '1px solid #ccc',
               }}
             >
-              <Typography level="h4" sx={{ mb: 1 }}>
-                {selectedGroup.name.charAt(0).toUpperCase() +
-                  selectedGroup.name.slice(1)}
-              </Typography>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  flexWrap: 'wrap',
+                  mb: 1,
+                }}
+              >
+                <Typography level="h4">
+                  {selectedGroup.name.charAt(0).toUpperCase() +
+                    selectedGroup.name.slice(1)}
+                </Typography>
+                {selectedGroup.tags?.map((tag) => (
+                  <Chip
+                    key={tag}
+                    size="sm"
+                    variant="plain"
+                    sx={{
+                      fontSize: '0.7rem',
+                      variant: 'soft',
+                      color: 'info',
+                    }}
+                  >
+                    {tag}
+                  </Chip>
+                ))}
+              </Box>
               <Typography level="body-md" sx={{ mb: 2 }}>
                 {selectedGroup.description}
               </Typography>
