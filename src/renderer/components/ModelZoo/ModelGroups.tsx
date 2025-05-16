@@ -32,7 +32,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useNavigate } from 'react-router-dom';
-import useAPI from 'renderer/lib/api-client/hooks';
+import { useAPI } from 'renderer/lib/api-client/hooks';
 import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import ImportModelsBar from './ImportModelsBar';
@@ -46,7 +46,6 @@ import {
 } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { downloadModelFromGallery } from '../../lib/transformerlab-api-sdk';
-import useAPI from 'renderer/lib/api-client/hooks';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -70,7 +69,10 @@ function getComparator<Key extends keyof any>(
     : (a, b) => -descendingComparator(a, b, orderBy);
 }
 
-function stableSort<T>(array: readonly T[], comparator: (a: T, b: T) => number) {
+function stableSort<T>(
+  array: readonly T[],
+  comparator: (a: T, b: T) => number,
+) {
   const stabilized = array.map((el, idx) => [el, idx] as [T, number]);
   stabilized.sort((a, b) => {
     const order = comparator(a[0], b[0]);
@@ -105,10 +107,12 @@ export default function ModelGroups() {
     {
       enabled: jobId && jobId !== '-1',
       refreshInterval: 2000,
-    }
+    },
   );
 
-  const { data: canLogInToHuggingFace } = useAPI('models', ['loginToHuggingFace']);
+  const { data: canLogInToHuggingFace } = useAPI('models', [
+    'loginToHuggingFace',
+  ]);
   const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
 
   useEffect(() => {
@@ -130,14 +134,15 @@ export default function ModelGroups() {
     }
   }, [modelDownloadProgress]);
 
-
   const renderFilters = () => (
     <>
       <FormControl size="sm">
         <FormLabel>Status</FormLabel>
         <Select
           value={filters?.archived}
-          onChange={(e, newValue) => setFilters({ ...filters, archived: newValue })}
+          onChange={(e, newValue) =>
+            setFilters({ ...filters, archived: newValue })
+          }
         >
           <Option value={false}>Hide Archived</Option>
           <Option value="All">Show Archived</Option>
@@ -147,18 +152,30 @@ export default function ModelGroups() {
         <FormLabel>License</FormLabel>
         <Select
           value={filters?.license}
-          onChange={(e, newValue) => setFilters({ ...filters, license: newValue })}
+          onChange={(e, newValue) =>
+            setFilters({ ...filters, license: newValue })
+          }
         >
-          {licenseTypes.map((type) => <Option key={type} value={type}>{type}</Option>)}
+          {licenseTypes.map((type) => (
+            <Option key={type} value={type}>
+              {type}
+            </Option>
+          ))}
         </Select>
       </FormControl>
       <FormControl size="sm">
         <FormLabel>Architecture</FormLabel>
         <Select
           value={filters?.architecture}
-          onChange={(e, newValue) => setFilters({ ...filters, architecture: newValue })}
+          onChange={(e, newValue) =>
+            setFilters({ ...filters, architecture: newValue })
+          }
         >
-          {modelTypes.map((type) => <Option key={type} value={type}>{type}</Option>)}
+          {modelTypes.map((type) => (
+            <Option key={type} value={type}>
+              {type}
+            </Option>
+          ))}
         </Select>
       </FormControl>
     </>
@@ -216,7 +233,10 @@ export default function ModelGroups() {
         {renderFilters()}
       </Box>
 
-      <ModelDetailsModal modelId={modelDetailsId} setModelId={setModelDetailsId} />
+      <ModelDetailsModal
+        modelId={modelDetailsId}
+        setModelId={setModelDetailsId}
+      />
 
       <Sheet
         variant="outlined"
@@ -259,15 +279,22 @@ export default function ModelGroups() {
                       if (isExpanded) {
                         // Delay scroll slightly to allow prior group to collapse
                         setTimeout(() => {
-                          const el = document.getElementById(`group-${group.name}`);
+                          const el = document.getElementById(
+                            `group-${group.name}`,
+                          );
                           if (el) {
-                            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            el.scrollIntoView({
+                              behavior: 'smooth',
+                              block: 'start',
+                            });
                           }
                         }, 100); // 100ms gives time for layout to adjust
                       }
                     }}
                   >
-                    <AccordionSummary>{group.name.charAt(0).toUpperCase() + group.name.slice(1)}</AccordionSummary>
+                    <AccordionSummary>
+                      {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
+                    </AccordionSummary>
                     <AccordionDetails>
                       <Table hoverRow stickyHeader>
                         <thead>
@@ -285,17 +312,40 @@ export default function ModelGroups() {
                             <tr key={row.uniqueID}>
                               <td>
                                 <Typography level="body-sm">
-                                  {row.new && <Chip size="sm" color="warning">New!</Chip>}
+                                  {row.new && (
+                                    <Chip size="sm" color="warning">
+                                      New!
+                                    </Chip>
+                                  )}
                                   {row.name}&nbsp;
-                                  <a href={getModelHuggingFaceURL(row)} target="_blank" rel="noopener noreferrer">
+                                  <a
+                                    href={getModelHuggingFaceURL(row)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
                                     {row.gated ? (
-                                      <Chip size="sm" color="warning" endDecorator={<LockKeyholeIcon size="13px" />}>Gated</Chip>
+                                      <Chip
+                                        size="sm"
+                                        color="warning"
+                                        endDecorator={
+                                          <LockKeyholeIcon size="13px" />
+                                        }
+                                      >
+                                        Gated
+                                      </Chip>
                                     ) : (
                                       <ExternalLinkIcon size="14px" />
                                     )}
                                   </a>
                                   {row.tags?.map((tag) => (
-                                    <Chip key={tag} size="sm" variant="soft" color="neutral">{tag}</Chip>
+                                    <Chip
+                                      key={tag}
+                                      size="sm"
+                                      variant="soft"
+                                      color="neutral"
+                                    >
+                                      {tag}
+                                    </Chip>
                                   ))}
                                 </Typography>
                               </td>
@@ -305,17 +355,30 @@ export default function ModelGroups() {
                                 </Chip>
                               </td>
                               <td>
-                                <Typography level="body-sm" startDecorator={row.architecture === 'MLX' && <TinyMLXLogo />}>
+                                <Typography
+                                  level="body-sm"
+                                  startDecorator={
+                                    row.architecture === 'MLX' && (
+                                      <TinyMLXLogo />
+                                    )
+                                  }
+                                >
                                   {row.architecture}
                                 </Typography>
                               </td>
                               <td>
                                 <Typography level="body-sm">
-                                  {formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
+                                  {formatBytes(
+                                    row?.size_of_model_in_mb * 1024 * 1024,
+                                  )}
                                 </Typography>
                               </td>
                               <td>
-                                <InfoIcon onClick={() => setModelDetailsId(row.uniqueID)} />
+                                <InfoIcon
+                                  onClick={() =>
+                                    setModelDetailsId(row.uniqueID)
+                                  }
+                                />
                               </td>
                               <td>
                                 {row.gated && !isHFAccessTokenSet ? (
@@ -324,7 +387,11 @@ export default function ModelGroups() {
                                     endDecorator={<LockKeyholeIcon />}
                                     color="warning"
                                     onClick={() => {
-                                      if (confirm('To access gated Hugging Face models you must first create a token. Go to settings')) {
+                                      if (
+                                        confirm(
+                                          'To access gated Hugging Face models you must first create a token. Go to settings',
+                                        )
+                                      ) {
                                         navigate('/settings');
                                       }
                                     }}
@@ -341,12 +408,20 @@ export default function ModelGroups() {
                                       setJobId(-1);
                                       setCurrentlyDownloading(row.name);
                                       try {
-                                        let response = await fetch(chatAPI.Endpoints.Jobs.Create());
+                                        let response = await fetch(
+                                          chatAPI.Endpoints.Jobs.Create(),
+                                        );
                                         const newJobId = await response.json();
                                         setJobId(newJobId);
-                                        response = await downloadModelFromGallery(row?.uniqueID, newJobId);
+                                        response =
+                                          await downloadModelFromGallery(
+                                            row?.uniqueID,
+                                            newJobId,
+                                          );
                                         if (response?.status !== 'success') {
-                                          alert(`Failed to download: ${response.message}`);
+                                          alert(
+                                            `Failed to download: ${response.message}`,
+                                          );
                                           setCurrentlyDownloading(null);
                                           setJobId(null);
                                         } else {
@@ -358,8 +433,14 @@ export default function ModelGroups() {
                                         setJobId(null);
                                       }
                                     }}
-                                    startDecorator={<DownloadIcon size="18px" />}
-                                    endDecorator={row.downloaded ? <CheckIcon size="18px" /> : null}
+                                    startDecorator={
+                                      <DownloadIcon size="18px" />
+                                    }
+                                    endDecorator={
+                                      row.downloaded ? (
+                                        <CheckIcon size="18px" />
+                                      ) : null
+                                    }
                                   >
                                     Download{row.downloaded ? 'ed' : ''}
                                   </Button>
