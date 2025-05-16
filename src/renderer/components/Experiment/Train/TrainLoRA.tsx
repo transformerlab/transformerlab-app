@@ -97,6 +97,7 @@ export default function TrainLoRA({ experimentInfo }) {
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
+  const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [importRecipeModalOpen, setImportRecipeModalOpen] = useState(false);
   const [templateID, setTemplateID] = useState('-1');
   const [currentPlugin, setCurrentPlugin] = useState('');
@@ -175,6 +176,8 @@ export default function TrainLoRA({ experimentInfo }) {
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
+        sweeps={viewOutputFromSweepJob}
+        setsweepJob={setViewOutputFromSweepJob}
       />
       <ImportRecipeModal
         open={importRecipeModalOpen}
@@ -450,7 +453,7 @@ export default function TrainLoRA({ experimentInfo }) {
                 <th style={{ width: '60px' }}>ID</th>
                 <th>Details</th>
                 <th>Status</th>
-                <th style={{ width: '300px' }}></th>
+                <th style={{ width: '400px' }}></th>
               </tr>
             </thead>
             <tbody style={{ overflow: 'auto', height: '100%' }}>
@@ -503,6 +506,18 @@ export default function TrainLoRA({ experimentInfo }) {
                           >
                             Output
                           </Button>
+                          {job?.job_data?.sweep_output_file && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => {
+                                setViewOutputFromSweepJob(true);
+                                setViewOutputFromJob(job?.id);
+                              }}
+                            >
+                              Sweep Output
+                            </Button>
+                          )}
                           <IconButton variant="plain">
                             <Trash2Icon
                               onClick={async () => {

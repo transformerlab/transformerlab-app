@@ -7,9 +7,20 @@ import OutputTerminal from 'renderer/components/OutputTerminal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ViewOutputModalStreaming({ jobId, setJobId }) {
+export default function ViewOutputModalStreaming({
+  jobId,
+  setJobId,
+  sweeps,
+  setsweepJob,
+}) {
   return (
-    <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
+    <Modal
+      open={jobId !== -1}
+      onClose={() => {
+        setJobId(-1);
+        setsweepJob(false);
+      }}
+    >
       <ModalDialog sx={{ width: '80vw', height: '80vh' }}>
         <ModalClose />
         <Typography level="title-lg">Output from job: {jobId}</Typography>
@@ -25,7 +36,8 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
         >
           <OutputTerminal
             logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromTrainingJob(
-              jobId
+              jobId,
+              sweeps,
             )}
             lineAnimationDelay={5}
           />
