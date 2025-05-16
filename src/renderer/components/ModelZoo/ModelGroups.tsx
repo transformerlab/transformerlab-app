@@ -429,11 +429,12 @@ export default function ModelGroups() {
                     whiteSpace: 'normal',
                     padding: '8px',
                   },
+                  minWidth: '800px',
                 }}
               >
                 <thead>
                   <tr>
-                    <th style={{ width: 170, padding: 12 }}>
+                    <th>
                       <Link
                         underline="none"
                         color="primary"
@@ -462,7 +463,7 @@ export default function ModelGroups() {
                         Name
                       </Link>
                     </th>
-                    <th style={{ width: 120, padding: 12 }}>
+                    <th style={{ width: 100 }}>
                       <Link
                         underline="none"
                         color="primary"
@@ -491,7 +492,7 @@ export default function ModelGroups() {
                         License
                       </Link>
                     </th>
-                    <th style={{ width: 170, padding: 12 }}>
+                    <th style={{ width: 170 }}>
                       <Link
                         underline="none"
                         color="primary"
@@ -520,7 +521,7 @@ export default function ModelGroups() {
                         Engine
                       </Link>
                     </th>
-                    <th style={{ width: 170, padding: 12 }}>
+                    <th style={{ width: 100 }}>
                       <Link
                         underline="none"
                         color="primary"
@@ -549,8 +550,8 @@ export default function ModelGroups() {
                         Size
                       </Link>
                     </th>
-                    <th style={{ width: 50, padding: 8 }}></th>
-                    <th></th>
+                    <th style={{ width: 50 }}></th>
+                    <th style={{ width: 150 }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -652,6 +653,7 @@ export default function ModelGroups() {
                             variant="soft"
                             color="success"
                             disabled={row.downloaded || jobId !== null}
+                            sx={{ minWidth: 130 }}
                             onClick={async () => {
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
