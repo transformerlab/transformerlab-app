@@ -10,11 +10,9 @@ import {
   Typography,
   IconButton,
 } from '@mui/joy';
-import useSWR from 'swr';
 
 import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Provider {
   name: string;
