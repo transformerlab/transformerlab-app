@@ -214,6 +214,7 @@ textarea {
   background: var(--joy-palette-primary-400);
 }
 
+.dynamic-plugin-form .MuiInput-root,
 .dynamic-plugin-form select {
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -223,7 +224,7 @@ textarea {
   border-radius: 3px;
   line-height: 1.5rem;
   height: 2rem;
-  background: #fff;
+  background: var(--joy-palette-background-level1);
   min-width: 200px;
   margin: 0 5px 5px 0;
   font-size: 14px;

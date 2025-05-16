@@ -6,9 +6,11 @@ import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import ModelStore from './ModelStore';
 import LocalModels from './LocalModels';
 import { useNavigate } from 'react-router-dom';
+import ModelGroups from './ModelGroups';
 
 export default function ModelZoo({ experimentInfo, tab = 'store' }) {
   const navigate = useNavigate();
+  const DEV_MODE = experimentInfo?.name === 'dev';
 
   return (
     <Sheet
@@ -41,6 +43,7 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
             <StoreIcon color="grey" />
             &nbsp; Model Store
           </Tab>
+          {DEV_MODE && <Tab value="groups">Model Groups</Tab>}
         </TabList>
         <TabPanel
           value="local"
@@ -64,6 +67,22 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
         >
           <ModelStore />
         </TabPanel>
+        {DEV_MODE && (
+          <TabPanel
+            value="groups"
+            sx={{
+              p: 0,
+              py: 1,
+              height: '100%',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+            }}
+          >
+            <ModelGroups />
+          </TabPanel>
+        )}
       </Tabs>
     </Sheet>
   );

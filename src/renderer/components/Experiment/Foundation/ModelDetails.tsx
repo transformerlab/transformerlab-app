@@ -124,11 +124,19 @@ export default function ModelDetails({
 
   return (
     <>
-      <Stack direction="row" sx={{ minHeight: '300px' }}>
+      <Stack
+        direction="row"
+        sx={{ minHeight: '100px', overflow: 'hidden', mx: 2 }}
+      >
         <AspectRatio
           variant="plain"
           ratio="4/4"
-          sx={{ width: 400, pr: 3, borderRadius: 'md' }}
+          sx={{
+            width: 250,
+            pr: 2,
+            borderRadius: 'md',
+            display: { xs: 'none', sm: 'none', md: 'block' }, // Hide on small screens
+          }}
           objectFit="cover"
         >
           <Skeleton loading={modelDetailsData?.logo == 'loading'}>
@@ -151,13 +159,19 @@ export default function ModelDetails({
             flexDirection: 'column',
             justifyContent: 'space-between',
             width: '100%',
+            height: '100%',
+            overflow: 'hidden',
           }}
         >
-          <Box>
-            <Typography level="h1">
+          <Box
+            display="flex"
+            flexDirection="column"
+            sx={{ overflow: 'hidden', mb: 1 }}
+          >
+            <Typography level="h3">
               {experimentInfo?.config?.foundation}
             </Typography>
-            <Typography level="h3">
+            <Typography level="title-md">
               <b>Adaptor:</b>&nbsp;
               {experimentInfo?.config?.foundation ? (
                 <>
@@ -179,31 +193,24 @@ export default function ModelDetails({
                 'None'
               )}
             </Typography>
-            <Stack direction="row" gap={8} marginTop={1}>
+            <Stack direction="row" gap={1} marginTop={0}>
               <Link
                 href={modelDetailsData?.resources?.canonicalUrl}
                 target="_blank"
-                endDecorator={<ExternalLinkIcon size="16px" />}
+                endDecorator={<ExternalLinkIcon size="12px" />}
               >
-                <Typography level="title-md">
+                <Typography level="body-sm">
                   {modelDetailsData?.author?.name}
                 </Typography>
-              </Link>
-              <Link
-                href={modelDetailsData?.resources?.downloadUrl}
-                target="_blank"
-                endDecorator={<ExternalLinkIcon size="16px" />}
-              >
-                <Typography level="title-md">Model Details</Typography>
               </Link>
             </Stack>
             <Typography
               level="body-sm"
-              paddingTop={2}
+              paddingTop={1}
               sx={{
-                maxHeight: '120px',
-                overflow: 'hidden',
                 textOverflow: 'ellipsis',
+                overflow: 'auto',
+                flexShrink: 1,
               }}
             >
               {modelDetailsData?.description}
@@ -214,6 +221,8 @@ export default function ModelDetails({
             justifyContent="space-between"
             alignItems="flex-start"
             spacing={2}
+            flexShrink={0}
+            flex={1}
           >
             <RunModelButton
               experimentInfo={experimentInfo}
@@ -231,7 +240,7 @@ export default function ModelDetails({
                 disabled={isUploadLoading}
                 endDecorator={isUploadLoading ? <CircularProgress /> : null}
               >
-                Export to Hugging Face
+                Upload to HF
               </Button>
             )}
             <Button
@@ -242,9 +251,7 @@ export default function ModelDetails({
                   chatAPI.Endpoints.Experiment.UpdateConfig(
                     experimentInfo?.id,
                     'inferenceParams',
-                    JSON.stringify({
-                      inferenceEngine: null,
-                    }),
+                    JSON.stringify({}),
                   ),
                 );
               }}
@@ -252,13 +259,19 @@ export default function ModelDetails({
               variant="outlined"
               disabled={models?.length > 0}
             >
-              Eject Model
+              <Box
+                sx={{
+                  display: { xs: 'none', sm: 'none', md: 'block' }, // Hide text on small and medium screens
+                }}
+              >
+                Eject Model
+              </Box>
             </Button>
             {/* <Button startDecorator={<SquareIcon />}>Stop</Button> */}
           </Stack>
         </Box>
       </Stack>
-      <Divider sx={{ marginTop: '30px' }} />
+      <Divider sx={{ marginTop: 1 }} />
       <Modal
         open={huggingfaceUploadDialog}
         onClose={() => {

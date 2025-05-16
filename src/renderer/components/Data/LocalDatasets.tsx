@@ -50,7 +50,7 @@ export default function LocalDatasets() {
     fetcher,
   );
 
-  if (error) return 'An error has occurred.';
+  if (error) return 'Failed to retrieve local datasets. Ensure the backend is running and accessible.';
   if (isLoading) return <LinearProgress />;
 
   console.log(data);
@@ -111,7 +111,8 @@ export default function LocalDatasets() {
             filterByFiltersDatasetID(data, searchText).map((row) => (
               <Grid xs={4}>
                 <DatasetCard
-                  name={(() => {
+                  name={row?.dataset_id}
+                  friendlyName={(() => {
                     try {
                       return (
                         (row?.json_data && JSON.parse(row.json_data)?.name) ||

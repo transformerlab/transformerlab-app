@@ -60,7 +60,7 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              fetch(chatAPI.DELETE_EXPERIMENT_URL(experimentInfo?.id));
+              fetch(chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id));
               setExperimentId(null);
             }
           }}
@@ -82,9 +82,11 @@ export default function SelectExperimentMenu({
 
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.GET_EXPERIMENTS_URL(),
+    chatAPI.API_URL() === null ? null : chatAPI.Endpoints.Experiment.GetAll(),
     fetcher,
   );
+
+  console.log('data', data);
 
   useEffect(() => {
     mutate();
@@ -275,7 +277,9 @@ export default function SelectExperimentMenu({
               // const formJson = Object.fromEntries((formData as any).entries());
               // alert(JSON.stringify(formJson));
               const name = form.get('name');
-              const response = await fetch(chatAPI.CREATE_EXPERIMENT_URL(name));
+              const response = await fetch(
+                chatAPI.Endpoints.Experiment.Create(name),
+              );
               const newId = await response.json();
               setExperimentId(newId);
               createHandleClose(newId);

@@ -50,17 +50,7 @@ function typeOfComputer(cpu, os, device) {
 }
 
 export default function Welcome() {
-  // Check number of downloaded models
-  let model_count = 0;
-  const { data: modelCountResponse } = useSWR(
-    chatAPI.Endpoints.Models.CountDownloaded(),
-    fetcher,
-  );
-  if (modelCountResponse && modelCountResponse!.data) {
-    model_count = modelCountResponse!.data;
-  }
-
-  // Open DownloadFirstModelModal if the user has no models
+  // For now disable ModelDownloadModal
   const [modelDownloadModalOpen, setModelDownloadModalOpen] =
     useState<boolean>(false);
 
@@ -98,6 +88,7 @@ export default function Welcome() {
             backgroundColor: 'var(--joy-palette-background-surface)',
             opacity: '0.85',
             padding: '2rem',
+            overflowY: 'auto',
           }}
         >
           <Typography

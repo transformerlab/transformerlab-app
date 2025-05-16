@@ -128,12 +128,6 @@ export default function ModelStore() {
   // useEffect needs it to be the exact same object, not just the same values
   const obj = useMemo(() => ({ currentlyDownloading }), [currentlyDownloading]);
 
-  // check if we have a Hugging Face access token
-  const { data: hftoken } = useSWR(
-    chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
-    fetcher,
-  );
-
   const { data: canLogInToHuggingFace } = useSWR(
     chatAPI.Endpoints.Models.HuggingFaceLogin(),
     fetcher,
@@ -141,8 +135,6 @@ export default function ModelStore() {
 
   // Set isHFAccessTokenSet to true if message in canLogInToHuggingFace is 'OK'
   const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
-
-  // const isHFAccessTokenSet = hftoken && hftoken.length > 0;
 
   // On page load, check if there are any models currently being downloaded, and if so,
   // Record the jobID and model Name
@@ -364,7 +356,7 @@ export default function ModelStore() {
                   </Link>
                 </th>
 
-                <th style={{ width: 100, padding: 12 }}>License</th>
+                <th style={{ width: 60, padding: 12 }}>License</th>
                 <th style={{ width: 100, padding: 12 }}>Engine</th>
                 <th style={{ width: 60, padding: 12 }}>
                   {' '}
