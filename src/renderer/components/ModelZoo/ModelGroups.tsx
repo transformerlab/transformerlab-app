@@ -257,7 +257,6 @@ export default function ModelGroups() {
               position: 'sticky',
               top: 0,
               zIndex: 10,
-              backgroundColor: 'var(--joy-palette-background-surface)',
               pb: 1,
               pt: 1,
               px: 1,
@@ -266,7 +265,6 @@ export default function ModelGroups() {
           >
             <Box
               sx={{
-                backgroundColor: 'var(--joy-palette-background-surface)',
                 borderRadius: 'sm',
               }}
             >
@@ -335,15 +333,16 @@ export default function ModelGroups() {
           }}
         >
           <>
-            <Box
+            <Sheet
               sx={{
                 position: 'sticky',
                 top: 0,
                 zIndex: 20,
-                backgroundColor: 'background.body',
                 p: 2,
                 borderBottom: '1px solid #ccc',
               }}
+              color="primary"
+              variant="soft"
             >
               <Box
                 sx={{
@@ -415,7 +414,7 @@ export default function ModelGroups() {
                   </Select>
                 </FormControl>
               </Box>
-            </Box>
+            </Sheet>
 
             <Box
               sx={{
