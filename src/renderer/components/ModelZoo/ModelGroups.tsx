@@ -238,7 +238,12 @@ export default function ModelGroups() {
           borderRadius: 'md',
         }}
       >
-        <Box display="flex" flexDirection="column" sx={{ flex: 1 }}>
+        <Box
+          id="model-group-left-hand-side"
+          display="flex"
+          flexDirection="column"
+          sx={{ flex: 1 }}
+        >
           <Box
             sx={{
               borderRadius: 'sm',
@@ -312,6 +317,7 @@ export default function ModelGroups() {
           </Box>
         </Box>
         <Box
+          id="model-group-right-hand-side"
           sx={{
             flex: 3,
             display: 'flex',
@@ -325,8 +331,8 @@ export default function ModelGroups() {
                 position: 'sticky',
                 top: 0,
                 zIndex: 20,
+                m: 1,
                 p: 2,
-                borderBottom: '1px solid #ccc',
               }}
               color="primary"
               variant="soft"
@@ -348,7 +354,7 @@ export default function ModelGroups() {
                   <Chip
                     key={tag}
                     size="sm"
-                    variant="plain"
+                    variant="outlined"
                     sx={{
                       fontSize: '0.7rem',
                       variant: 'soft',
@@ -409,6 +415,7 @@ export default function ModelGroups() {
                 width: '100%',
                 maxWidth: '100%',
                 flex: 1,
+                p: 1,
               }}
             >
               <Table
@@ -621,7 +628,7 @@ export default function ModelGroups() {
                           onClick={() => setModelDetailsId(row.uniqueID)}
                         />
                       </td>
-                      <td>
+                      <td style={{ textAlign: 'right' }}>
                         {row.gated && !isHFAccessTokenSet ? (
                           <Button
                             size="sm"
