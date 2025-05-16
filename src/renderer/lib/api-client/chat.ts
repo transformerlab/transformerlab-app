@@ -1,4 +1,6 @@
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
+import { getMcpServerFile } from 'renderer/components/Experiment/Interact/interactUtils';
+import * as chatAPI from './endpoints';
 
 export async function sendAndReceive(
   currentModel: String,
@@ -753,12 +755,21 @@ export async function callTool(
   function_args: Object = {},
 ) {
   const arg_string = JSON.stringify(function_args);
-  console.log(`Calling Function: ${function_name}`);
-  console.log(`with arguments ${arg_string}`);
+  const { mcp_server_file, mcp_args, mcp_env } = await getMcpServerFile();
+  let url = chatAPI.Endpoints.Tools.Call(function_name, arg_string);
 
-  const response = await fetch(Endpoints.Tools.Call(function_name, arg_string));
+  // Add query parameters if present
+  const params = [];
+  if (mcp_server_file)
+    params.push(`mcp_server_file=${encodeURIComponent(mcp_server_file)}`);
+  if (mcp_args) params.push(`mcp_args=${encodeURIComponent(mcp_args)}`);
+  if (mcp_env) params.push(`mcp_env=${encodeURIComponent(mcp_env)}`);
+  if (params.length > 0) {
+    url += (url.includes('?') ? '&' : '?') + params.join('&');
+  }
+
+  const response = await fetch(url);
   const result = await response.json();
-  console.log(result);
   return result;
 }
 
