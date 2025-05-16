@@ -40,6 +40,7 @@ const LocalModelsTable = ({
   pickAModelMode = false,
   showOnlyGeneratedModels = false,
   isEmbeddingMode = false,
+  experimentInfo = null,
 }) => {
   const [order, setOrder] = useState<Order>('desc');
   const [searchText, setSearchText] = useState('');
@@ -255,6 +256,7 @@ const LocalModelsTable = ({
                           setAdaptor={setAdaptor}
                           setEmbedding={setEmbedding}
                           model={row}
+                          experimentInfo={experimentInfo}
                         />
                       ) : (
                         <>
