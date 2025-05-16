@@ -240,7 +240,7 @@ export default function ModelGroups() {
       >
         <Box
           sx={{
-            width: '25%',
+            flex: 1,
             borderRight: '1px solid #ccc',
             pt: 0,
             pr: 1,
@@ -328,7 +328,7 @@ export default function ModelGroups() {
 
         <Box
           sx={{
-            flex: 1,
+            flex: 3,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
