@@ -55,9 +55,9 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
         shell: bash
 
-      - name: Rename the Windows EXE to TransformerLab-v{{ steps.package-version.outputs.version }}.exe
+      - name: Rename the Windows EXE to have dashes instead of spaces
         run: |
-          mv "${{ github.workspace }}/release/build/Transformer Lab Setup ${{ steps.package-version.outputs.version }}.exe" "${{ github.workspace }}/release/build/Transformer-Lab-Setup-signed-v${{ steps.package-version.outputs.version }}.exe"
+          mv "${{ github.workspace }}/release/build/Transformer Lab Setup ${{ steps.package-version.outputs.version }}.exe" "${{ github.workspace }}/release/build/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe"
         shell: bash
 
       - name: Sign Windows EXE using SSL.com eSigner
@@ -68,17 +68,36 @@ jobs:
           password: ${{ secrets.ES_PASSWORD }}
           credential_id: ${{ secrets.CREDENTIAL_ID }}
           totp_secret: ${{ secrets.ES_TOTP_SECRET }}
-          file_path: "${{ github.workspace }}/release/build/Transformer-Lab-Setup-signed-v${{ steps.package-version.outputs.version }}.exe"
-          output_path: "${{ github.workspace }}/signed"
+          file_path: '${{ github.workspace }}/release/build/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe'
+          output_path: '${{ github.workspace }}/signed'
+
+      - name: Generate latest.yml
+        run: |
+          cat <<EOF > latest.yml
+          version: ${{ steps.package-version.outputs.version }}
+          files:
+            - url: Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe
+              sha512: $(shasum -a 512 "${{ github.workspace }}/signed/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe" | awk '{print $1}')
+              size: $(stat -c%s "${{ github.workspace }}/signed/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe")
+          path: Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe
+          sha512: $(shasum -a 512 "${{ github.workspace }}/signed/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe" | awk '{print $1}')
+          releaseDate: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          EOF
+
+      - name: Upload latest.yml
+        # We have to generate a new file because the original one is based on the unsigned binary
+        run: |
+          gh release upload --clobber ${{ github.ref_name }} latest.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
 
       - name: Zip and upload static web assets
         run: |
           cd release/cloud
           tar -czvf transformerlab_web.tar.gz .
           gh release upload ${{ github.ref_name }} transformerlab_web.tar.gz
-          gh release upload --clobber ${{ github.ref_name }} "${{ github.workspace }}/signed/Transformer-Lab-Setup-signed-v${{ steps.package-version.outputs.version }}.exe"
+          gh release upload --clobber ${{ github.ref_name }} "${{ github.workspace }}/signed/Transformer-Lab-Setup-${{ steps.package-version.outputs.version }}.exe"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
-
-

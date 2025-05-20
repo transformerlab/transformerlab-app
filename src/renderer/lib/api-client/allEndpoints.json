@@ -8,23 +8,65 @@
       "method": "GET",
       "path": "tasks/{id}"
     },
+    "getByType": {
+      "method": "GET",
+      "path": "tasks/list_by_type?type={type}"
+    },
+    "getByTypeInExperiment": {
+      "method": "GET",
+      "path": "tasks/list_by_type_in_experiment?type={type}&experiment_id={experiment_id}"
+    },
     "fake": {
       "method": "GET",
       "path": "tasks/{id}/anystring/{anything}"
     },
     "create": {
       "method": "POST",
-      "path": "tasks"
+      "path": "tasks/new_task"
     },
     "delete": {
       "method": "DELETE",
-      "path": "tasks/{id}"
+      "path": "tasks/{id}/delete"
+    },
+    "update": {
+      "method": "PUT",
+      "path": "tasks/{id}/update"
+    },
+    "queue": {
+      "method": "POST",
+      "path": "tasks/{id}/queue"
     }
   },
   "server": {
     "pythonLibraries": {
       "method": "GET",
       "path": "server/python_libraries"
+    }
+  },
+  "config": {
+    "get": {
+      "method": "GET",
+      "path": "config/get/{key}"
+    },
+    "set": {
+      "method": "PUT",
+      "path": "config/set?k={key}&v={value}"
+    }
+  },
+  "models": {
+      "getModelGroups": {
+        "method": "GET",
+        "path": "model/model_groups_list"
+      },
+      "loginToHuggingFace": {
+        "method": "GET",
+        "path": "model/login_to_huggingface"
+      }
+  },
+  "jobs": {
+    "get": {
+      "method": "GET",
+      "path": "jobs/{id}"
     }
   }
 }

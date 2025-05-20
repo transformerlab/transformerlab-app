@@ -14,7 +14,7 @@ import {
   Typography,
 } from '@mui/joy';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { SearchIcon } from 'lucide-react';
 import { filterByFilters } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
@@ -38,6 +38,15 @@ export default function PluginGallery({
 
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
+  const [showExperimental, setShowExperimental] = useState(false);
+
+  useEffect(() => {
+    async function fetchShowExperimental() {
+      const value = await window.storage.get('SHOW_EXPERIMENTAL_PLUGINS');
+      setShowExperimental(value === 'true');
+    }
+    fetchShowExperimental();
+  }, []);
 
   const device = serverInfo?.device_type;
 
@@ -112,10 +121,23 @@ export default function PluginGallery({
   };
 
   if (error)
-    return `An error has occurred.${chatAPI.Endpoints.Plugins.Gallery()}${error}`;
+    return `Failed to load plugin gallery from ${chatAPI.Endpoints.Plugins.Gallery()}. Error: ${error}`;
   if (isLoading) return <LinearProgress />;
 
-  const filteredPlugins = filterByFilters(data, searchText, filters);
+  // Filter plugins based on experimental flag and toggle
+  const filteredPlugins = filterByFilters(data, searchText, filters).filter(
+    (plugin) => {
+      // If plugin is experimental, only show if toggle is enabled
+      if (
+        Array.isArray(plugin?.supports) &&
+        plugin.supports.includes('experimental')
+      ) {
+        return showExperimental;
+      }
+      // Otherwise, always show
+      return true;
+    },
+  );
   const groupedPlugins = groupByType(filteredPlugins, device);
 
   return (
@@ -194,6 +216,10 @@ export default function PluginGallery({
                       parentMutate={mutate}
                       machineType={device}
                       setLogsDrawerOpen={setLogsDrawerOpen}
+                      isExperimental={
+                        Array.isArray(plugin?.supports) &&
+                        plugin.supports.includes('experimental')
+                      }
                     />
                   </Grid>
                 ))}
@@ -228,6 +254,10 @@ export default function PluginGallery({
                           parentMutate={mutate}
                           machineType={device}
                           setLogsDrawerOpen={setLogsDrawerOpen}
+                          isExperimental={
+                            Array.isArray(plugin?.supports) &&
+                            plugin.supports.includes('experimental')
+                          }
                         />
                       </Box>
                     </Grid>

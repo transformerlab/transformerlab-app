@@ -124,11 +124,19 @@ export default function ModelDetails({
 
   return (
     <>
-      <Stack direction="row" sx={{ minHeight: '100px', overflow: 'hidden' }}>
+      <Stack
+        direction="row"
+        sx={{ minHeight: '100px', overflow: 'hidden', mx: 2 }}
+      >
         <AspectRatio
           variant="plain"
           ratio="4/4"
-          sx={{ width: 250, pr: 2, borderRadius: 'md' }}
+          sx={{
+            width: 250,
+            pr: 2,
+            borderRadius: 'md',
+            display: { xs: 'none', sm: 'none', md: 'block' }, // Hide on small screens
+          }}
           objectFit="cover"
         >
           <Skeleton loading={modelDetailsData?.logo == 'loading'}>
@@ -243,9 +251,7 @@ export default function ModelDetails({
                   chatAPI.Endpoints.Experiment.UpdateConfig(
                     experimentInfo?.id,
                     'inferenceParams',
-                    JSON.stringify({
-                      inferenceEngine: null,
-                    }),
+                    JSON.stringify({}),
                   ),
                 );
               }}
@@ -253,7 +259,13 @@ export default function ModelDetails({
               variant="outlined"
               disabled={models?.length > 0}
             >
-              Eject Model
+              <Box
+                sx={{
+                  display: { xs: 'none', sm: 'none', md: 'block' }, // Hide text on small and medium screens
+                }}
+              >
+                Eject Model
+              </Box>
             </Button>
             {/* <Button startDecorator={<SquareIcon />}>Stop</Button> */}
           </Stack>

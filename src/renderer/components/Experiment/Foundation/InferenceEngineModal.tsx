@@ -29,9 +29,9 @@ function EngineSelect({
       experimentInfo?.id,
       'loader', // type
       'model_architectures:' +
-        experimentInfo?.config?.foundation_model_architecture //filter
+        experimentInfo?.config?.foundation_model_architecture, //filter
     ),
-    fetcher
+    fetcher,
   );
   return (
     <Select
@@ -91,7 +91,7 @@ export default function InferenceEngineModal({
             // We don't want to go to the server to get the friendly name of the server
             // so we dig into the DOM to get it
             const engineFriendlyName = document.querySelector(
-              `button[name='inferenceEngine']`
+              `button[name='inferenceEngine']`,
             )?.innerHTML;
 
             const experimentId = experimentInfo?.id;
@@ -103,14 +103,15 @@ export default function InferenceEngineModal({
               inferenceEngineFriendlyName: engineFriendlyName,
             };
 
+            console.log('newInferenceSettings', newInferenceSettings);
             setInferenceSettings(newInferenceSettings);
 
             await fetch(
               chatAPI.Endpoints.Experiment.UpdateConfig(
                 experimentId,
                 'inferenceParams',
-                JSON.stringify(newInferenceSettings)
-              )
+                JSON.stringify(newInferenceSettings),
+              ),
             );
             closeModal();
           }}

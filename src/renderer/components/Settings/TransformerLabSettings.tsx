@@ -28,12 +28,15 @@ import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 import AIProvidersSettings from './AIProvidersSettings';
 import ViewJobsTab from './ViewJobsTab';
 import { alignBox } from '@nivo/core';
+import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [doNotTrack, setDoNotTrack] = React.useState(false);
+  const [showExperimentalPlugins, setShowExperimentalPlugins] =
+    React.useState(false);
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -43,15 +46,34 @@ export default function TransformerLabSettings() {
     fetchDoNotTrack();
   }, []);
 
+  React.useEffect(() => {
+    const fetchShowExperimental = async () => {
+      const value = await window.storage.get('SHOW_EXPERIMENTAL_PLUGINS');
+      setShowExperimentalPlugins(value === 'true');
+    };
+    fetchShowExperimental();
+  }, []);
+
+  const handleDoNotTrackChange = (event) => {
+    const checked = event.target.checked;
+    setDoNotTrack(checked);
+    window.storage.set('DO_NOT_TRACK', checked.toString());
+  };
+
+  const handleShowExperimentalChange = (event) => {
+    const checked = event.target.checked;
+    setShowExperimentalPlugins(checked);
+    window.storage.set('SHOW_EXPERIMENTAL_PLUGINS', checked.toString());
+  };
+
   const {
     data: hftoken,
     error: hftokenerror,
     isLoading: hftokenisloading,
     mutate: hftokenmutate,
-  } = useSWR(
-    chatAPI.Endpoints.Config.Get('HuggingfaceUserAccessToken'),
-    fetcher,
-  );
+  } = useAPI('config', ['get'], {
+    key: 'HuggingfaceUserAccessToken',
+  });
   const [showJobsOfType, setShowJobsOfType] = React.useState('NONE');
   const [showProvidersPage, setShowProvidersPage] = React.useState(false);
 
@@ -85,12 +107,6 @@ export default function TransformerLabSettings() {
       />
     );
   }
-
-  const handleDoNotTrackChange = (event) => {
-    const checked = event.target.checked;
-    setDoNotTrack(checked);
-    window.storage.set('DO_NOT_TRACK', checked.toString());
-  };
 
   return (
     <Sheet
@@ -165,10 +181,10 @@ export default function TransformerLabSettings() {
                       const token =
                         document.getElementsByName('hftoken')[0].value;
                       await fetch(
-                        chatAPI.Endpoints.Config.Set(
-                          'HuggingfaceUserAccessToken',
-                          token,
-                        ),
+                        getFullPath('config', ['set'], {
+                          key: 'HuggingfaceUserAccessToken',
+                          value: token,
+                        }),
                       );
                       // Now manually log in to Huggingface
                       await fetch(chatAPI.Endpoints.Models.HuggingFaceLogin());
@@ -209,7 +225,10 @@ export default function TransformerLabSettings() {
                     const token =
                       document.getElementsByName('wandbToken')[0].value;
                     await fetch(
-                      chatAPI.Endpoints.Config.Set('WANDB_API_KEY', token),
+                      getFullPath('config', ['set'], {
+                        key: 'WANDB_API_KEY',
+                        value: token,
+                      }),
                     );
                     await fetch(chatAPI.Endpoints.Models.wandbLogin());
                     wandbLoginMutate();
@@ -251,12 +270,27 @@ export default function TransformerLabSettings() {
               <Switch
                 checked={doNotTrack}
                 onChange={handleDoNotTrackChange}
+                color={doNotTrack ? 'success' : 'neutral'}
                 sx={{ alignSelf: 'flex-start' }}
               />
               <FormHelperText>
                 {doNotTrack
                   ? 'No tracking events will be sent'
                   : 'Anonymous usage data will be shared with Transformer Lab'}
+              </FormHelperText>
+            </FormControl>
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Show Experimental Plugins</FormLabel>
+              <Switch
+                checked={showExperimentalPlugins}
+                onChange={handleShowExperimentalChange}
+                sx={{ alignSelf: 'flex-start' }}
+                color={showExperimentalPlugins ? 'success' : 'neutral'}
+              />
+              <FormHelperText>
+                {showExperimentalPlugins
+                  ? 'Experimental plugins will be visible in the Plugin Gallery.'
+                  : 'Experimental plugins will be hidden from the Plugin Gallery.'}
               </FormHelperText>
             </FormControl>
           </TabPanel>

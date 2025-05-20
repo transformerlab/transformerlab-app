@@ -88,6 +88,7 @@ export default function Welcome() {
             backgroundColor: 'var(--joy-palette-background-surface)',
             opacity: '0.85',
             padding: '2rem',
+            overflowY: 'auto',
           }}
         >
           <Typography

@@ -62,6 +62,7 @@ export default function SelectAModel({
         mutateModels={mutate}
         setFoundation={setFoundation}
         setAdaptor={setAdaptor}
+        experimentInfo={experimentInfo}
         pickAModelMode
       />
     </Sheet>
