@@ -26,7 +26,7 @@ function setIntervalXTimes(
   callback,
   notSuccessful,
   delay,
-  repetitions,,
+  repetitions,
 ) {
   var x = 0;
   var intervalID = window.setInterval(async function () {
