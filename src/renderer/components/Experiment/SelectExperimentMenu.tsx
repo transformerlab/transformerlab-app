@@ -185,9 +185,11 @@ export default function SelectExperimentMenu({
                   backgroundColor: 'transparent !important',
                   color: 'var(--joy-palette-neutral-plainColor)',
                   paddingLeft: 1,
-                  paddingRight: 0,
+                  marginRight: 0.5,
                   minHeight: '22px',
                   height: '22px',
+                  overflow: 'hidden',
+                  justifyContent: 'flex-start',
                 }}
               >
                 {experimentInfo?.name || 'Select'}
