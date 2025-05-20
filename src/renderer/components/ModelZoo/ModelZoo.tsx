@@ -5,10 +5,11 @@ import { StoreIcon } from 'lucide-react';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
 import ModelStore from './ModelStore';
 import LocalModels from './LocalModels';
-import { useNavigate } from 'react-router-dom';
 import ModelGroups from './ModelGroups';
+import { useNavigate, useParams } from 'react-router-dom';
 
-export default function ModelZoo({ experimentInfo, tab = 'store' }) {
+export default function ModelZoo({ experimentInfo }) {
+  const { tab = 'groups' } = useParams();
   const navigate = useNavigate();
   const DEV_MODE = experimentInfo?.name === 'dev';
 
