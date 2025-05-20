@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 import useSWR from 'swr';
 
@@ -44,13 +44,21 @@ export default function LocalDatasets() {
   const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
   const [downloadingDataset, setDownloadingDataset] = useState(null);
   const [showConfigNameField, setShowConfigNameField] = useState(false);
+  const configNameInputRef = useRef<HTMLInputElement>(null);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.LocalList(false),
     fetcher,
   );
 
-  if (error) return 'Failed to retrieve local datasets. Ensure the backend is running and accessible.';
+  useEffect(() => {
+    if (showConfigNameField && configNameInputRef.current) {
+      configNameInputRef.current.focus();
+    }
+  }, [showConfigNameField]);
+
+  if (error)
+    return 'Failed to retrieve local datasets. Ensure the backend is running and accessible.';
   if (isLoading) return <LinearProgress />;
 
   console.log(data);
@@ -168,8 +176,8 @@ export default function LocalDatasets() {
                 <Input
                   placeholder="folder_name"
                   name="dataset-config-name"
-                  // Setting config name text field to 30% of the width, as they are folder names
                   sx={{ flex: 3 }}
+                  slotProps={{ input: { ref: configNameInputRef } }}
                 />
               )}
               <Button
