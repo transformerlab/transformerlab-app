@@ -40,9 +40,9 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
       datasetId,
       encodeURIComponent(template),
       offset,
-      pageSize
+      pageSize,
     ),
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -181,7 +181,7 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
         {pageNumber > 4 ? '…' : <div />}
         {Array.from(
           { length: Math.min(5, numOfPages) },
-          (_, i) => pageNumber + i - 2
+          (_, i) => pageNumber + i - 2,
         )
           .filter((page) => page >= 2 && page < numOfPages)
 
