@@ -11,8 +11,15 @@ import {
 } from '@mui/joy';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
 
-export default function Diffusion() {
-  const [model, setModel] = useState('stabilityai/stable-diffusion-2-1');
+type DiffusionProps = {
+  experimentInfo?: any;
+};
+
+export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
+  const initialModel =
+    experimentInfo?.config?.foundation || 'stabilityai/stable-diffusion-2-1';
+  const [model] = useState(initialModel);
+  console.log('Diffusion model:', model);
   const [prompt, setPrompt] = useState(
     'A fantasy landscape, trending on artstation',
   );
@@ -62,7 +69,8 @@ export default function Diffusion() {
           <FormLabel>Model</FormLabel>
           <Input
             value={model}
-            onChange={(e) => setModel(e.target.value)}
+            disabled
+            readOnly
             placeholder="Model name or path"
           />
         </FormControl>

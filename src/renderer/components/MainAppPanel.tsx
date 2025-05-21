@@ -471,7 +471,10 @@ export default function MainAppPanel({
           path="/experiment/generate"
           element={<Generate experimentInfo={experimentInfo} />}
         />
-        <Route path="/experiment/diffusion" element={<Diffusion />} />
+        <Route
+          path="/experiment/diffusion"
+          element={<Diffusion experimentInfo={experimentInfo} />}
+        />
         <Route
           path="/plugins"
           element={
