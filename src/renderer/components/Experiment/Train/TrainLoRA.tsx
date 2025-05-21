@@ -19,6 +19,7 @@ import {
   Stack,
   Table,
   Typography,
+  Box,
 } from '@mui/joy';
 
 import {
@@ -235,45 +236,47 @@ export default function TrainLoRA({ experimentInfo }) {
                   Select a training plugin from the following list:
                 </Typography>
               </MenuItem>
-              {pluginsData?.map((plugin) => (
-                <MenuItem
-                  onClick={() => {
-                    setTemplateID('-1');
-                    setCurrentPlugin(plugin.uniqueId);
-                    setOpen(true);
-                  }}
-                  key={plugin.uniqueId}
-                  disabled={
-                    plugin.model_architectures
-                      ? !plugin.model_architectures.includes(
-                          modelArchitecture,
-                        ) &&
+              <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
+                {pluginsData?.map((plugin) => (
+                  <MenuItem
+                    onClick={() => {
+                      setTemplateID('-1');
+                      setCurrentPlugin(plugin.uniqueId);
+                      setOpen(true);
+                    }}
+                    key={plugin.uniqueId}
+                    disabled={
+                      plugin.model_architectures
+                        ? !plugin.model_architectures.includes(
+                            modelArchitecture,
+                          ) &&
+                          !plugin.model_architectures.includes(
+                            embeddingModelArchitecture,
+                          )
+                        : false
+                    }
+                  >
+                    <ListItemDecorator>
+                      <Plug2Icon />
+                    </ListItemDecorator>
+                    <div>
+                      {plugin.name}
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: 'var(--joy-palette-neutral-400)' }}
+                      >
+                        {plugin.model_architectures &&
+                        !plugin.model_architectures.includes(modelArchitecture) &&
                         !plugin.model_architectures.includes(
                           embeddingModelArchitecture,
                         )
-                      : false
-                  }
-                >
-                  <ListItemDecorator>
-                    <Plug2Icon />
-                  </ListItemDecorator>
-                  <div>
-                    {plugin.name}
-                    <Typography
-                      level="body-xs"
-                      sx={{ color: 'var(--joy-palette-neutral-400)' }}
-                    >
-                      {plugin.model_architectures &&
-                      !plugin.model_architectures.includes(modelArchitecture) &&
-                      !plugin.model_architectures.includes(
-                        embeddingModelArchitecture,
-                      )
-                        ? '(Does not support this model architecture)'
-                        : ''}
-                    </Typography>
-                  </div>
-                </MenuItem>
-              ))}
+                          ? '(Does not support this model architecture)'
+                          : ''}
+                      </Typography>
+                    </div>
+                  </MenuItem>
+                ))}
+              </Box>
             </Menu>
           </Dropdown>
         </Stack>
