@@ -20,6 +20,10 @@
       {
         "type": "plugin",
         "name": "evaluation-harness"
+      },
+      {
+        "type": "workflow",
+        "name": "eval-and-deploy"
       }
     ],
     "cardImage": "https://images.unsplash.com/photo-1532614338840-ab30cf10ed36?auto=format&fit=crop&w=318"

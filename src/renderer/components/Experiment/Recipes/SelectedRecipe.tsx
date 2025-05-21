@@ -103,20 +103,21 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
                 display: 'flex',
                 flexDirection: 'column',
                 overflowY: 'auto',
-                p: 1,
+                p: 2,
                 minWidth: '400px',
                 minHeight: '60px',
+                maxHeight: '300px',
               }}
             >
               {Object.entries(groupedDependencies).map(([type, deps]) => (
-                <Box key={type} sx={{ mb: 0 }}>
+                <Box key={type} sx={{ mb: 1 }}>
                   <Typography
                     level="title-md"
                     sx={{ textTransform: 'capitalize' }}
                   >
                     {type}s
                   </Typography>
-                  <Box component="ul" sx={{ pl: 2 }}>
+                  <Box sx={{ pl: 2 }}>
                     {deps.map((dep, idx) => (
                       <Box
                         component="li"
