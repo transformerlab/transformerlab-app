@@ -1,12 +1,13 @@
-import Typography from '@mui/joy/Typography';
-import Checkbox from '@mui/joy/Checkbox';
-import Box from '@mui/joy/Box';
 import {
   Button,
   FormControl,
-  FormHelperText,
   FormLabel,
+  Typography,
   Input,
+  Box,
+  Checkbox,
+  Sheet,
+  Chip,
 } from '@mui/joy';
 import { ArrowLeftIcon } from 'lucide-react';
 
@@ -39,37 +40,53 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         {recipe?.description}
       </Typography>
       <FormControl>
-        <FormLabel>Experiment Name</FormLabel>
-        <Input placeholder="alpha" />
+        <FormLabel>Name this Experiment</FormLabel>
+        <Input placeholder="alpha" size="lg" sx={{ maxWidth: '300px' }} />
       </FormControl>
       <Typography level="title-lg" mb={0}>
         Recipe Requirements:
       </Typography>
-      <Box>
-        {Object.entries(groupedDependencies).map(([type, deps]) => (
-          <Box key={type} sx={{ mb: 2 }}>
-            <Typography
-              level="body-md"
-              sx={{ textTransform: 'capitalize', mb: 1 }}
-            >
-              {type}s
-            </Typography>
-            <Box component="ul" sx={{ pl: 2 }}>
-              {deps.map((dep, idx) => (
-                <Box
-                  component="li"
-                  key={dep.name}
-                  sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
+      {recipe?.dependencies && recipe?.dependencies.length > 0 && (
+        <>
+          <Sheet
+            variant="soft"
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'auto',
+              p: 1,
+            }}
+          >
+            {Object.entries(groupedDependencies).map(([type, deps]) => (
+              <Box key={type} sx={{ mb: 0 }}>
+                <Typography
+                  level="title-md"
+                  sx={{ textTransform: 'capitalize' }}
                 >
-                  <Checkbox disabled checked sx={{ mr: 1 }} />
-                  <Typography level="body-sm">{dep.name}</Typography>
+                  {type}s
+                </Typography>
+                <Box component="ul" sx={{ pl: 2 }}>
+                  {deps.map((dep, idx) => (
+                    <Box
+                      component="li"
+                      key={dep.name}
+                      sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
+                    >
+                      <Typography level="body-sm" mr={1}>
+                        {dep.name}
+                      </Typography>
+                      <Chip color="warning">not installed</Chip>
+                    </Box>
+                  ))}
                 </Box>
-              ))}
-            </Box>
-          </Box>
-        ))}
-      </Box>
-      <Button>Install Missing Dependencies</Button>
+              </Box>
+            ))}
+          </Sheet>
+          <Button color="warning" variant="soft">
+            Install Missing Dependencies
+          </Button>
+        </>
+      )}
       <Button disabled>Go (missing requirements)</Button>
     </>
   );

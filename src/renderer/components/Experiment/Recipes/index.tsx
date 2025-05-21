@@ -12,11 +12,7 @@ export default function RecipesModal({
   setModalOpen,
   createNewExperiment,
 }) {
-  const [selectedRecipeId, setSelectedRecipeId] = useState(null);
-
-  const selectedRecipe = recipeDetails.find(
-    (recipe) => recipe.id === selectedRecipeId,
-  );
+  const [selectedRecipe, setSelectedRecipe] = useState(null);
 
   return (
     <Modal open={modalOpen}>
@@ -28,18 +24,19 @@ export default function RecipesModal({
           width: '85vw',
           // maxWidth: '700px',
           height: '97vh',
+          overflow: 'hidden',
         }}
       >
         <ModalClose onClick={() => setModalOpen(false)} />
-        {selectedRecipeId ? (
+        {selectedRecipe ? (
           <SelectedRecipe
             recipe={selectedRecipe}
-            setSelectedRecipeId={setSelectedRecipeId}
+            setSelectedRecipeId={setSelectedRecipe}
           />
         ) : (
           <ListRecipes
             recipeDetails={recipeDetails}
-            setSelectedRecipe={setSelectedRecipeId}
+            setSelectedRecipe={setSelectedRecipe}
           />
         )}
       </ModalDialog>

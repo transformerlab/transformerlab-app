@@ -58,7 +58,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             sx={{ height: '28px', minHeight: '28px' }}
             endDecorator={<ArrowRightIcon size={16} strokeWidth={1} />}
             onClick={() => {
-              setSelectedRecipe(recipeDetails?.id);
+              setSelectedRecipe(recipeDetails);
             }}
           >
             Let&apos;s Go!

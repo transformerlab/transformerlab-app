@@ -2,22 +2,7 @@ import { Grid } from '@mui/joy';
 import Typography from '@mui/joy/Typography';
 import RecipeCard from './RecipeCard';
 
-interface RecipeDetails {
-  id: number;
-  title: string;
-  description: string;
-  cardImage: string;
-}
-
-interface ListRecipesProps {
-  recipeDetails: RecipeDetails[];
-  setSelectedRecipe: (recipeId: number | undefined) => void;
-}
-
-export default function ListRecipes({
-  recipeDetails,
-  setSelectedRecipe,
-}: ListRecipesProps) {
+export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
   return (
     <>
       <Typography level="h2" mb={2}>
