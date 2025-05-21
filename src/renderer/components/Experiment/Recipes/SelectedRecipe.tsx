@@ -9,7 +9,12 @@ import {
   Sheet,
   Chip,
 } from '@mui/joy';
-import { ArrowLeftIcon, CircleCheckIcon, DownloadIcon } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  CircleCheckIcon,
+  DownloadIcon,
+  RocketIcon,
+} from 'lucide-react';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 
 export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
@@ -30,6 +35,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         flexDirection: 'column',
         gap: 1,
         width: '100%',
+        height: '100%',
         overflow: 'auto',
         alignItems: 'flex-start',
       }}
@@ -61,7 +67,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         {recipe?.description}
       </Typography> */}
         <Typography level="title-lg" mb={0}>
-          Name:
+          Give this experiment a unique name:
         </Typography>
         <Input placeholder="alpha" size="lg" sx={{ width: '300px' }} />
         <Typography
@@ -70,6 +76,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           endDecorator={
             <CircleCheckIcon color="var(--joy-palette-success-400)" size={20} />
           }
+          mt={2}
         >
           Hardware Requirements:
         </Typography>
@@ -137,7 +144,13 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           </>
         )}
       </Box>
-      <Button size="lg" disabled sx={{ mt: 2, width: '100%' }} color="primary">
+      <Button
+        size="lg"
+        disabled
+        sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
+        color="primary"
+        startDecorator={<RocketIcon />}
+      >
         Start (missing requirements)
       </Button>
     </Sheet>
