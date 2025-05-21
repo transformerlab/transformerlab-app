@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "title": "Train a Model From Scratch",
+    "description": "Build a new machine learning model from the ground up using Nanotron. Ideal for custom use cases and datasets.",
+    "requiredMachineArchitecture": ["mlx", "cuda"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "llama3.2"
+      },
+      {
+        "type": "plugin",
+        "name": "llama-trainer"
+      },
+      {
+        "type": "dataset",
+        "name": "samsum"
+      },
+      {
+        "type": "plugin",
+        "name": "evaluation-harness"
+      },
+      {
+        "type": "workflow",
+        "name": "eval-and-deploy"
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1532614338840-ab30cf10ed36?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 2,
+    "title": "Fine-tune an Existing Model",
+    "description": "Adapt a pre-trained model to your specific needs using LoRA. Save time and resources by leveraging existing knowledge.",
+    "requiredMachineArchitecture": ["cuda"],
+    "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 3,
+    "title": "Evaluate a Model",
+    "description": "Assess the performance of your model using Eleuther Labs AI Evaluation Harness. Gain insights into accuracy and reliability.",
+    "cardImage": "https://images.unsplash.com/photo-1747607176057-175b357ef4ab?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 4,
+    "title": "Convert a Model to the MLX Format",
+    "description": "Transform your model into the MLX format for compatibility with various deployment environments.",
+    "requiredMachineArchitecture": ["mlx"],
+    "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 5,
+    "title": "Quantize a Model",
+    "description": "Optimize your model for faster inference and reduced size using Nanotron’s quantization tools.",
+    "requiredMachineArchitecture": ["mlx", "cuda"],
+    "cardImage": "https://images.unsplash.com/photo-1532614338840-ab30cf10ed36?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 6,
+    "title": "Deploy a Model to the Edge",
+    "description": "Seamlessly deploy your model to edge devices using Nanotron’s deployment tools. Ensure low-latency and efficient performance.",
+    "requiredMachineArchitecture": ["mlx"],
+    "cardImage": "https://images.unsplash.com/photo-1747607176057-175b357ef4ab?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 7,
+    "title": "Run a Model on the Edge",
+    "description": "Execute your model on edge devices using Nanotron’s runtime environment. Achieve real-time performance and low power consumption.",
+    "requiredMachineArchitecture": ["cuda"],
+    "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
+  }
+]

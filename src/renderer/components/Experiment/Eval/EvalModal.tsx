@@ -132,7 +132,10 @@ export default function EvalModal({
     data: evalData,
     error: evalError,
     isLoading: evalIsLoading,
-  } = useSWR(chatAPI.Endpoints.Tasks.GetByID(currentEvalId), fetcher);
+  } = useSWR(
+    currentEvalId ? chatAPI.Endpoints.Tasks.GetByID(currentEvalId) : null,
+    fetcher,
+  );
 
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&

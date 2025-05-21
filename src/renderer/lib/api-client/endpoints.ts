@@ -144,11 +144,12 @@ Endpoints.Plugins = {
     `${API_URL()}plugins/${pluginId}/run_installer_script`,
 };
 
-Endpoints.Config = {
-  Get: (key: string) => `${API_URL()}config/get/${key}`,
-  Set: (key: string, value: string) =>
-    `${API_URL()}config/set?k=${key}&v=${value}`,
-};
+// Following is no longer needed as it is replaced with useAPI
+// Endpoints.Config = {
+//   Get: (key: string) => `${API_URL()}config/get/${key}`,
+//   Set: (key: string, value: string) =>
+//     `${API_URL()}config/set?k=${key}&v=${value}`,
+// };
 
 Endpoints.Documents = {
   List: (experimentId: string, currentFolder: string = '') =>
@@ -373,8 +374,8 @@ Endpoints.Experiment = {
       pluginId
     }`,
   GetOutputFromJob: (jobId: string) => `${API_URL()}train/job/${jobId}/output`,
-  StreamOutputFromTrainingJob: (jobId: string) =>
-    `${API_URL()}train/job/${jobId}/stream_output`,
+  StreamOutputFromTrainingJob: (jobId: string, sweep: boolean = false) =>
+    `${API_URL()}train/job/${jobId}/stream_output?sweeps=${sweep}`,
   StreamOutputFromJob: (jobId: string) =>
     `${API_URL()}jobs/${jobId}/stream_output`,
   StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
