@@ -79,7 +79,9 @@ const ViewCSVModal = ({ open, onClose, jobId, fetchCSV }) => {
                               maxHeight: '100px',
                             }}
                           >
-                            {col}
+                            {typeof col === 'string' || typeof col === 'number'
+                              ? col
+                              : JSON.stringify(col, null, 2)}
                           </div>
                         )}
                       </td>
