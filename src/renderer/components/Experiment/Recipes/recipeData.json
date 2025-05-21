@@ -12,6 +12,14 @@
       {
         "type": "plugin",
         "name": "llama-trainer"
+      },
+      {
+        "type": "dataset",
+        "name": "samsum"
+      },
+      {
+        "type": "plugin",
+        "name": "evaluation-harness"
       }
     ],
     "cardImage": "https://images.unsplash.com/photo-1532614338840-ab30cf10ed36?auto=format&fit=crop&w=318"
@@ -34,14 +42,14 @@
     "title": "Convert a Model to the MLX Format",
     "description": "Transform your model into the MLX format for compatibility with various deployment environments.",
     "requiredMachineArchitecture": ["mlx", "cuda"],
-    "cardImage": "https://images.unsplash.com/photo-1532614338840-ab30cf10ed36?auto=format&fit=crop&w=318"
+    "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
   },
   {
     "id": 5,
     "title": "Quantize a Model",
     "description": "Optimize your model for faster inference and reduced size using Nanotron’s quantization tools.",
     "requiredMachineArchitecture": ["mlx", "cuda"],
-    "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
+    "cardImage": "https://images.unsplash.com/photo-1532614338840-ab30cf10ed36?auto=format&fit=crop&w=318"
   },
   {
     "id": 6,

@@ -23,7 +23,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   return (
     <Card variant="outlined" sx={{ width: 300, height: `100%` }}>
       <CardOverflow>
-        <AspectRatio ratio="2">
+        <AspectRatio ratio="8/3">
           <img src={recipeDetails?.cardImage} loading="lazy" alt="" />
         </AspectRatio>
       </CardOverflow>

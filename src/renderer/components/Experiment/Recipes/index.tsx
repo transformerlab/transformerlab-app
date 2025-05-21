@@ -32,19 +32,10 @@ export default function RecipesModal({
       >
         <ModalClose onClick={() => setModalOpen(false)} />
         {selectedRecipeId ? (
-          <>
-            <SelectedRecipe
-              recipe={selectedRecipe}
-              setSelectedRecipe={undefined}
-            />
-            <Button
-              onClick={() => {
-                setSelectedRecipeId(null);
-              }}
-            >
-              clear
-            </Button>
-          </>
+          <SelectedRecipe
+            recipe={selectedRecipe}
+            setSelectedRecipeId={setSelectedRecipeId}
+          />
         ) : (
           <ListRecipes
             recipeDetails={recipeDetails}
