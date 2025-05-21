@@ -46,83 +46,97 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         </Button>
         {recipe?.title}
       </Typography>
-      {/* <Typography level="body-md" mb={1}>
+      <Box
+        id="recipe-details"
+        sx={{
+          width: '80%',
+          display: 'flex',
+          gap: 1,
+          flexDirection: 'column',
+          p: 3,
+          margin: 'auto',
+        }}
+      >
+        {/* <Typography level="body-md" mb={1}>
         {recipe?.description}
       </Typography> */}
-      <Typography level="title-lg" mb={0}>
-        Name:
-      </Typography>
-      <Input placeholder="alpha" size="lg" sx={{ width: '300px' }} />
-      <Typography
-        level="title-lg"
-        mb={0}
-        endDecorator={
-          <CircleCheckIcon color="var(--joy-palette-success-400)" size={20} />
-        }
-      >
-        Hardware Requirements:
-      </Typography>
-      <ShowArchitectures architectures={recipe?.requiredMachineArchitecture} />{' '}
-      {recipe?.dependencies && recipe?.dependencies.length > 0 && (
-        <>
-          <Typography
-            level="title-lg"
-            mb={0}
-            endDecorator={
-              <CircleCheckIcon
-                color="var(--joy-palette-warning-400)"
-                size={20}
-              />
-            }
-          >
-            Dependencies:
-          </Typography>
-          <Sheet
-            variant="soft"
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              overflowY: 'auto',
-              p: 1,
-              minWidth: '400px',
-              minHeight: '60px',
-            }}
-          >
-            {Object.entries(groupedDependencies).map(([type, deps]) => (
-              <Box key={type} sx={{ mb: 0 }}>
-                <Typography
-                  level="title-md"
-                  sx={{ textTransform: 'capitalize' }}
-                >
-                  {type}s
-                </Typography>
-                <Box component="ul" sx={{ pl: 2 }}>
-                  {deps.map((dep, idx) => (
-                    <Box
-                      component="li"
-                      key={dep.name}
-                      sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
-                    >
-                      <Typography level="body-sm" mr={1}>
-                        {dep.name}
-                      </Typography>
-                      <Chip color="warning">not installed</Chip>
-                    </Box>
-                  ))}
+        <Typography level="title-lg" mb={0}>
+          Name:
+        </Typography>
+        <Input placeholder="alpha" size="lg" sx={{ width: '300px' }} />
+        <Typography
+          level="title-lg"
+          mb={0}
+          endDecorator={
+            <CircleCheckIcon color="var(--joy-palette-success-400)" size={20} />
+          }
+        >
+          Hardware Requirements:
+        </Typography>
+        <ShowArchitectures
+          architectures={recipe?.requiredMachineArchitecture}
+        />
+        {recipe?.dependencies && recipe?.dependencies.length > 0 && (
+          <>
+            <Typography
+              level="title-lg"
+              mb={0}
+              endDecorator={
+                <CircleCheckIcon
+                  color="var(--joy-palette-warning-400)"
+                  size={20}
+                />
+              }
+            >
+              Dependencies:
+            </Typography>
+            <Sheet
+              variant="soft"
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                overflowY: 'auto',
+                p: 1,
+                minWidth: '400px',
+                minHeight: '60px',
+              }}
+            >
+              {Object.entries(groupedDependencies).map(([type, deps]) => (
+                <Box key={type} sx={{ mb: 0 }}>
+                  <Typography
+                    level="title-md"
+                    sx={{ textTransform: 'capitalize' }}
+                  >
+                    {type}s
+                  </Typography>
+                  <Box component="ul" sx={{ pl: 2 }}>
+                    {deps.map((dep, idx) => (
+                      <Box
+                        component="li"
+                        key={dep.name}
+                        sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
+                      >
+                        <Typography level="body-sm" mr={1}>
+                          {dep.name}
+                        </Typography>
+                        <Chip color="warning">not installed</Chip>
+                      </Box>
+                    ))}
+                  </Box>
                 </Box>
-              </Box>
-            ))}
-          </Sheet>
-          <Button
-            color="warning"
-            size="sm"
-            variant="plain"
-            startDecorator={<DownloadIcon />}
-          >
-            Install Missing Dependencies
-          </Button>
-        </>
-      )}
+              ))}
+            </Sheet>
+            <Button
+              color="warning"
+              size="sm"
+              variant="plain"
+              startDecorator={<DownloadIcon />}
+            >
+              Install Missing Dependencies
+            </Button>
+          </>
+        )}
+      </Box>
       <Button size="lg" disabled sx={{ mt: 2, width: '100%' }} color="primary">
         Start (missing requirements)
       </Button>
