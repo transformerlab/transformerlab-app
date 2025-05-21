@@ -4,13 +4,9 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
-  CogIcon,
-  EllipsisVerticalIcon,
   PlusCircleIcon,
   SettingsIcon,
   StopCircleIcon,
-  UserPlusIcon,
-  XSquareIcon,
 } from 'lucide-react';
 import {
   FormControl,
@@ -25,9 +21,8 @@ import {
   Dropdown,
   MenuButton,
   Tooltip,
-  Sheet,
 } from '@mui/joy';
-import { useState, useEffect, MouseEvent, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
