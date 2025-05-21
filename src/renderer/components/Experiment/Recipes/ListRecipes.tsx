@@ -22,7 +22,7 @@ export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
           <RecipeCard
             recipeDetails={{
               id: -1,
-              title: 'Create a Blank Experiment',
+              title: 'Create an Empty Experiment',
               description: '',
               cardImage:
                 'https://images.unsplash.com/photo-1559311648-d46f5d8593d6?auto=format&fit=crop&w=318',

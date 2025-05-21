@@ -9,7 +9,8 @@ import {
   Sheet,
   Chip,
 } from '@mui/joy';
-import { ArrowLeftIcon } from 'lucide-react';
+import { ArrowLeftIcon, CircleCheckIcon, DownloadIcon } from 'lucide-react';
+import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 
 export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   // Group dependencies by type
@@ -23,7 +24,16 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   );
 
   return (
-    <>
+    <Sheet
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        width: '100%',
+        overflow: 'auto',
+        alignItems: 'flex-start',
+      }}
+    >
       <Typography level="h2">
         <Button
           size="sm"
@@ -42,12 +52,31 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
       <Typography level="title-lg" mb={0}>
         Name:
       </Typography>
-      <Input placeholder="alpha" size="lg" sx={{ maxWidth: '300px' }} />
-      <Typography level="title-lg" mb={0}>
-        Recipe Requirements:
+      <Input placeholder="alpha" size="lg" sx={{ width: '300px' }} />
+      <Typography
+        level="title-lg"
+        mb={0}
+        endDecorator={
+          <CircleCheckIcon color="var(--joy-palette-success-400)" size={20} />
+        }
+      >
+        Hardware Requirements:
       </Typography>
+      <ShowArchitectures architectures={recipe?.requiredMachineArchitecture} />{' '}
       {recipe?.dependencies && recipe?.dependencies.length > 0 && (
         <>
+          <Typography
+            level="title-lg"
+            mb={0}
+            endDecorator={
+              <CircleCheckIcon
+                color="var(--joy-palette-warning-400)"
+                size={20}
+              />
+            }
+          >
+            Dependencies:
+          </Typography>
           <Sheet
             variant="soft"
             sx={{
@@ -55,6 +84,8 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
               flexDirection: 'column',
               overflowY: 'auto',
               p: 1,
+              minWidth: '400px',
+              minHeight: '60px',
             }}
           >
             {Object.entries(groupedDependencies).map(([type, deps]) => (
@@ -82,12 +113,19 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
               </Box>
             ))}
           </Sheet>
-          <Button color="warning" variant="soft">
+          <Button
+            color="warning"
+            size="sm"
+            variant="plain"
+            startDecorator={<DownloadIcon />}
+          >
             Install Missing Dependencies
           </Button>
         </>
       )}
-      <Button disabled>Go (missing requirements)</Button>
-    </>
+      <Button size="lg" disabled sx={{ mt: 2 }} color="primary">
+        Go (missing requirements)
+      </Button>
+    </Sheet>
   );
 }

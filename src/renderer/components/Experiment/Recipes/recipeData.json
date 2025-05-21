@@ -3,7 +3,7 @@
     "id": 1,
     "title": "Train a Model From Scratch",
     "description": "Build a new machine learning model from the ground up using Nanotron. Ideal for custom use cases and datasets.",
-    "requiredMachineArchitecture": [],
+    "requiredMachineArchitecture": ["mlx", "cuda"],
     "dependencies": [
       {
         "type": "model",
