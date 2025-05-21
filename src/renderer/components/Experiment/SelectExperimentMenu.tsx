@@ -4,13 +4,9 @@ import MenuItem from '@mui/joy/MenuItem';
 import {
   CheckIcon,
   ChevronDownIcon,
-  CogIcon,
-  EllipsisVerticalIcon,
   PlusCircleIcon,
   SettingsIcon,
   StopCircleIcon,
-  UserPlusIcon,
-  XSquareIcon,
 } from 'lucide-react';
 import {
   FormControl,
@@ -25,12 +21,12 @@ import {
   Dropdown,
   MenuButton,
   Tooltip,
-  Sheet,
 } from '@mui/joy';
-import { useState, useEffect, MouseEvent, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import RecipesModal from './Recipes';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -86,7 +82,7 @@ export default function SelectExperimentMenu({
     fetcher,
   );
 
-  console.log('data', data);
+  const DEV_MODE = experimentInfo?.name === 'dev';
 
   useEffect(() => {
     mutate();
@@ -221,7 +217,11 @@ export default function SelectExperimentMenu({
               />
             </div>
           )}
-          <Menu className="select-experiment-menu" variant="plain">
+          <Menu
+            className="select-experiment-menu"
+            variant="plain"
+            sx={{ width: 170, overflow: 'hidden' }}
+          >
             {data &&
               data.map((experiment: any) => {
                 return (
@@ -250,14 +250,19 @@ export default function SelectExperimentMenu({
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)}>
               <ListItemDecorator>
-                <PlusCircleIcon />
+                <PlusCircleIcon strokeWidth={1} />
               </ListItemDecorator>
               New
             </MenuItem>
           </Menu>
         </Dropdown>
       </FormControl>
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+      <RecipesModal
+        modalOpen={modalOpen && DEV_MODE}
+        setModalOpen={setModalOpen}
+        createNewExperiment={undefined}
+      />
+      <Modal open={modalOpen && !DEV_MODE} onClose={() => setModalOpen(false)}>
         <ModalDialog
           aria-labelledby="basic-modal-dialog-title"
           aria-describedby="basic-modal-dialog-description"
