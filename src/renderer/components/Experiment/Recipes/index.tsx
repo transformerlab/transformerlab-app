@@ -28,7 +28,7 @@ export default function RecipesModal({
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
           width: '85vw',
           // maxWidth: '700px',
-          height: '97vh',
+          height: '93vh',
           overflow: 'hidden',
         }}
       >

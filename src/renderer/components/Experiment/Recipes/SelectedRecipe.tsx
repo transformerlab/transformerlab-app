@@ -152,7 +152,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         color="primary"
         startDecorator={<RocketIcon />}
       >
-        Start (missing requirements)
+        Start (install missing dependencies first)
       </Button>
     </Sheet>
   );
