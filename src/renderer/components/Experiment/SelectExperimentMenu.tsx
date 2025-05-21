@@ -31,6 +31,7 @@ import { useState, useEffect, MouseEvent, FormEvent } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import RecipesModal from './Recipes';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -257,7 +258,12 @@ export default function SelectExperimentMenu({
           </Menu>
         </Dropdown>
       </FormControl>
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)}>
+      <RecipesModal
+        modalOpen={modalOpen}
+        setModalOpen={setModalOpen}
+        createNewExperiment={undefined}
+      />
+      <Modal open={false} onClose={() => setModalOpen(false)}>
         <ModalDialog
           aria-labelledby="basic-modal-dialog-title"
           aria-describedby="basic-modal-dialog-description"
