@@ -39,10 +39,10 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
       <Typography level="body-md" mb={1}>
         {recipe?.description}
       </Typography>
-      <FormControl>
-        <FormLabel>Name this Experiment</FormLabel>
-        <Input placeholder="alpha" size="lg" sx={{ maxWidth: '300px' }} />
-      </FormControl>
+      <Typography level="title-lg" mb={0}>
+        Name:
+      </Typography>
+      <Input placeholder="alpha" size="lg" sx={{ maxWidth: '300px' }} />
       <Typography level="title-lg" mb={0}>
         Recipe Requirements:
       </Typography>
