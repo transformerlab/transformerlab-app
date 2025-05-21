@@ -14,8 +14,13 @@ export default function RecipesModal({
 }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
+  const handleClose = () => {
+    setModalOpen(false);
+    setSelectedRecipe(null);
+  };
+
   return (
-    <Modal open={modalOpen}>
+    <Modal open={modalOpen} onClose={() => handleClose()}>
       <ModalDialog
         sx={{
           top: '3vh', // Sit 20% from the top of the screen
@@ -27,7 +32,7 @@ export default function RecipesModal({
           overflow: 'hidden',
         }}
       >
-        <ModalClose onClick={() => setModalOpen(false)} />
+        <ModalClose onClick={() => handleClose()} />
         {selectedRecipe ? (
           <SelectedRecipe
             recipe={selectedRecipe}

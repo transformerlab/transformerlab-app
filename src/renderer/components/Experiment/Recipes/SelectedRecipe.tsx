@@ -46,9 +46,9 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         </Button>
         {recipe?.title}
       </Typography>
-      <Typography level="body-md" mb={1}>
+      {/* <Typography level="body-md" mb={1}>
         {recipe?.description}
-      </Typography>
+      </Typography> */}
       <Typography level="title-lg" mb={0}>
         Name:
       </Typography>
@@ -123,8 +123,8 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           </Button>
         </>
       )}
-      <Button size="lg" disabled sx={{ mt: 2 }} color="primary">
-        Go (missing requirements)
+      <Button size="lg" disabled sx={{ mt: 2, width: '100%' }} color="primary">
+        Start (missing requirements)
       </Button>
     </Sheet>
   );

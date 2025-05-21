@@ -21,7 +21,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   setSelectedRecipe,
 }) => {
   return (
-    <Card variant="outlined" sx={{ width: 300, height: `100%` }}>
+    <Card variant="outlined" sx={{ width: 220, height: `100%` }}>
       <CardOverflow>
         <AspectRatio ratio="8/3">
           <img src={recipeDetails?.cardImage} loading="lazy" alt="" />
@@ -29,7 +29,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       </CardOverflow>
       <CardContent>
         <Typography level="title-md">{recipeDetails?.title}</Typography>
-        <Typography level="body-sm">{recipeDetails?.description}</Typography>
+        <Typography level="body-xs" fontWeight="sm">
+          {recipeDetails?.description}
+        </Typography>
       </CardContent>
       <CardOverflow variant="soft" sx={{ bgcolor: 'background.level1' }}>
         <Divider inset="context" />
@@ -44,7 +46,6 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
                 textColor="text.secondary"
                 sx={{ fontWeight: 'md', display: 'flex', alignItems: 'center' }}
               >
-                Requires:&nbsp;&nbsp;
                 <ShowArchitectures
                   architectures={recipeDetails?.requiredMachineArchitecture}
                 />
