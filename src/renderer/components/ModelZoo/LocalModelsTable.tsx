@@ -40,6 +40,7 @@ const LocalModelsTable = ({
   pickAModelMode = false,
   showOnlyGeneratedModels = false,
   isEmbeddingMode = false,
+  experimentInfo = null,
 }) => {
   const [order, setOrder] = useState<Order>('desc');
   const [searchText, setSearchText] = useState('');
@@ -255,6 +256,7 @@ const LocalModelsTable = ({
                           setAdaptor={setAdaptor}
                           setEmbedding={setEmbedding}
                           model={row}
+                          experimentInfo={experimentInfo}
                         />
                       ) : (
                         <>
@@ -330,7 +332,7 @@ const LocalModelsTable = ({
       </Sheet>
       <Typography mt={2} level="body-sm">
         Looking for more models? Go to the{' '}
-        <ReactRouterLink to="/zoo/store">Model Store</ReactRouterLink>
+        <ReactRouterLink to="/zoo">Model Store</ReactRouterLink>
       </Typography>
     </>
   );

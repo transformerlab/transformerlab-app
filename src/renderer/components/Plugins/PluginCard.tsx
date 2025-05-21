@@ -12,6 +12,7 @@ import { useState } from 'react';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import TinyNVIDIALogo from '../Shared/TinyNVIDIALogo';
 import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
+import ShowArchitectures from '../Shared/ListArchitectures';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -44,32 +45,6 @@ function getTint(type: string) {
   // Now mix the Tint color with the background color
   // so that this works in dark and light mode
   return mixColorWithBackground(tint, '75');
-}
-
-function mapArchitectureToIcon(arch) {
-  switch (arch) {
-    case 'cuda':
-      return <TinyNVIDIALogo />;
-    case 'mlx':
-      return <TinyMLXLogo />;
-    default:
-      return (
-        <Chip key={arch} color="primary">
-          {arch}
-        </Chip>
-      );
-  }
-}
-
-function ShowArchitectures({ architectures }) {
-  if (!architectures) return null;
-  return (
-    <>
-      {architectures.map((arch) => (
-        <div key={arch}>{mapArchitectureToIcon(arch)}</div>
-      ))}
-    </>
-  );
 }
 
 export default function PluginCard({
