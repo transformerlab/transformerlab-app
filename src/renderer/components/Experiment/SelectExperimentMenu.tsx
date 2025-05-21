@@ -82,7 +82,7 @@ export default function SelectExperimentMenu({
     fetcher,
   );
 
-  console.log('data', data);
+  const DEV_MODE = experimentInfo?.name === 'dev';
 
   useEffect(() => {
     mutate();
@@ -217,7 +217,11 @@ export default function SelectExperimentMenu({
               />
             </div>
           )}
-          <Menu className="select-experiment-menu" variant="plain">
+          <Menu
+            className="select-experiment-menu"
+            variant="plain"
+            sx={{ width: 170, overflow: 'hidden' }}
+          >
             {data &&
               data.map((experiment: any) => {
                 return (
@@ -246,7 +250,7 @@ export default function SelectExperimentMenu({
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)}>
               <ListItemDecorator>
-                <PlusCircleIcon />
+                <PlusCircleIcon strokeWidth={1} />
               </ListItemDecorator>
               New
             </MenuItem>
@@ -254,11 +258,11 @@ export default function SelectExperimentMenu({
         </Dropdown>
       </FormControl>
       <RecipesModal
-        modalOpen={modalOpen}
+        modalOpen={modalOpen && DEV_MODE}
         setModalOpen={setModalOpen}
         createNewExperiment={undefined}
       />
-      <Modal open={false} onClose={() => setModalOpen(false)}>
+      <Modal open={modalOpen && !DEV_MODE} onClose={() => setModalOpen(false)}>
         <ModalDialog
           aria-labelledby="basic-modal-dialog-title"
           aria-describedby="basic-modal-dialog-description"
