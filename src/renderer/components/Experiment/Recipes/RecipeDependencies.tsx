@@ -101,7 +101,7 @@ export default function RecipeDependencies({ recipe, installed }) {
             flexDirection: 'column',
             overflowY: 'auto',
             p: 2,
-            mx: 1,
+            mr: 1,
             minWidth: '340px',
             minHeight: '60px',
             maxHeight: '300px',
