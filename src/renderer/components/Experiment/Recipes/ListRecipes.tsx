@@ -24,15 +24,15 @@ export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
           container
           spacing={2}
           sx={{
-            maxWidth: '1000px',
+            flexGrow: 1,
+            justifyContent: 'flext-start',
+            alignContent: 'flex-start',
+            overflow: 'auto',
+            maxWidth: '1000px' /* Adjust this to your desired max width */,
             margin: '0 auto',
-            // Grid properties
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-            gap: '0px',
           }}
         >
-          <Grid key={-1}>
+          <Grid key={-1} sx={{ width: '250px' }}>
             <RecipeCard
               recipeDetails={{
                 id: -1,
@@ -45,7 +45,7 @@ export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
             />
           </Grid>
           {recipeDetails.map((recipe) => (
-            <Grid key={recipe.id} sx={{}}>
+            <Grid key={recipe.id} sx={{ width: '250px' }}>
               <RecipeCard
                 recipeDetails={recipe}
                 setSelectedRecipe={setSelectedRecipe}
