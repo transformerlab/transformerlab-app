@@ -54,20 +54,6 @@ export default function RecipeDependencies({
     return dep.installed === true;
   });
 
-  function installedState(dep) {
-    if (dependenciesLoading) {
-      return false;
-    }
-    // search for the dependency in the dependencies array:
-    const foundDependency = dependencies.find(
-      (d) => d.name === dep.name && d.type === dep.type,
-    );
-    if (foundDependency) {
-      return foundDependency.installed;
-    }
-    return false;
-  }
-
   return (
     dependencies &&
     dependencies.length > 0 && (
@@ -120,7 +106,7 @@ export default function RecipeDependencies({
                     <Typography level="body-sm" mr={1}>
                       {dep.name}
                     </Typography>
-                    <InstalledStateChip state={installedState(dep)} />
+                    <InstalledStateChip state={dep?.installed} />
                   </Box>
                 ))}
               </Box>
