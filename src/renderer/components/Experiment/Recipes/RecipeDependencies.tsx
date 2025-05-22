@@ -6,7 +6,6 @@ import {
   Sheet,
   Typography,
 } from '@mui/joy';
-import { get } from 'http';
 import { CircleCheckIcon, CircleXIcon, DownloadIcon } from 'lucide-react';
 import { useState } from 'react';
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
