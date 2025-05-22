@@ -28,7 +28,7 @@ export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
             margin: '0 auto',
             // Grid properties
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
             gap: '0px',
           }}
         >

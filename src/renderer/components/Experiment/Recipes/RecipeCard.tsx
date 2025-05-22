@@ -56,7 +56,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             size="sm"
             color="primary"
             variant="solid"
-            sx={{ height: '28px', minHeight: '28px' }}
+            sx={{
+              height: '28px',
+              minHeight: '28px',
+              /* make it impossible for the text to wrap: */
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+            }}
             endDecorator={<ArrowRightIcon size={16} strokeWidth={1} />}
             onClick={() => {
               setSelectedRecipe(recipeDetails);
