@@ -37,49 +37,47 @@ function InstalledStateChip({ state }) {
   );
 }
 
-export default function RecipeDependencies({ recipe, installed }) {
+export default function RecipeDependencies({
+  dependencies,
+  dependenciesLoading,
+}) {
   // Group dependencies by type
-  const groupedDependencies = (recipe?.dependencies || []).reduce(
-    (acc, dep) => {
-      acc[dep.type] = acc[dep.type] || [];
-      acc[dep.type].push(dep);
-      return acc;
-    },
-    {},
-  );
+  const groupedDependencies = (dependencies || []).reduce((acc, dep) => {
+    acc[dep.type] = acc[dep.type] || [];
+    acc[dep.type].push(dep);
+    return acc;
+  }, {});
 
-  // for now, if any item in the array called "installed" is false, we set loading to true
-  // const loading = installed?.some((dep) => dep.installed === 'loading');
-  // combinedState is loading if any are loading, false if any are false, and true if all are true
-  let combinedState: boolean | 'loading' = 'loading';
-  if (installed?.some((dep) => dep.installed === false)) {
-    combinedState = false;
-  } else if (installed?.every((dep) => dep.installed === true)) {
-    combinedState = true;
-  }
+  // Check if all dependencies are installed
+  const combinedState = dependencies?.every((dep) => {
+    // check if dep.installed === true
+    return dep.installed === true;
+  });
 
   function installedState(dep) {
-    // find the dependency in the installed array
-    if (!installed) return false;
-    const installedDep = installed.find(
-      (d) => d.type === dep.type && d.name === dep.name,
+    if (dependenciesLoading) {
+      return false;
+    }
+    // search for the dependency in the dependencies array:
+    const foundDependency = dependencies.find(
+      (d) => d.name === dep.name && d.type === dep.type,
     );
-    if (installedDep) {
-      return installedDep.installed;
+    if (foundDependency) {
+      return foundDependency.installed;
     }
     return false;
   }
 
   return (
-    recipe?.dependencies &&
-    recipe?.dependencies.length > 0 && (
+    dependencies &&
+    dependencies.length > 0 && (
       <>
         <Typography
           level="title-lg"
           mb={0}
           endDecorator={
             <>
-              {combinedState === 'loading' && <CircularProgress size="sm" />}
+              {dependenciesLoading && <CircularProgress size="sm" />}
               {combinedState === true && (
                 <CircleCheckIcon
                   color="var(--joy-palette-success-400)"
@@ -92,7 +90,7 @@ export default function RecipeDependencies({ recipe, installed }) {
             </>
           }
         >
-          Dependencies: ({recipe?.dependencies.length})
+          Dependencies: ({dependencies.length})
         </Typography>
         <Sheet
           variant="soft"

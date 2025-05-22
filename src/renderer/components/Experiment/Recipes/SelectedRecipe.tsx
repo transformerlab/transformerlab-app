@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Button,
   Typography,
@@ -11,11 +11,15 @@ import {
 } from '@mui/joy';
 import { ArrowLeftIcon, CircleCheckIcon, RocketIcon } from 'lucide-react';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeDependencies from './RecipeDependencies';
 
 export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   const [experimentName, setExperimentName] = useState('');
-  const [installedDependencies, setInstalledDependencies] = useState(null);
+
+  const { data, isLoading } = useAPI('recipes', ['checkDependencies'], {
+    id: recipe?.id,
+  });
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -59,6 +63,8 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           overflowY: 'auto',
           pt: 2,
           justifyContent: 'space-between',
+          maxWidth: '800px',
+          margin: '0 auto',
         }}
         component="form"
         onSubmit={handleSubmit}
@@ -96,8 +102,8 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
             architectures={recipe?.requiredMachineArchitecture}
           />
           <RecipeDependencies
-            recipe={recipe}
-            installed={installedDependencies}
+            dependencies={data?.dependencies}
+            dependenciesLoading={isLoading}
           />
         </Box>
       </Box>
@@ -110,7 +116,10 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         startDecorator={<RocketIcon />}
         disabled={!experimentName}
       >
-        Start (install missing dependencies first)
+        Start &nbsp;
+        <span style={{ fontWeight: 'normal', fontSize: '0.8em' }}>
+          (install missing dependencies first)
+        </span>
       </Button>
     </Sheet>
   );

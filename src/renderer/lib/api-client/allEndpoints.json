@@ -80,11 +80,11 @@
     },
     "checkDependencies": {
       "method": "GET",
-      "path": "recipes/check_dependencies"
+      "path": "recipes/{id}/check_dependencies"
     },
     "installDependencies": {
       "method": "POST",
-      "path": "recipes/install_dependencies"
+      "path": "recipes/{id}/install_dependencies"
     },
     "createExperiment": {
       "method": "POST",
