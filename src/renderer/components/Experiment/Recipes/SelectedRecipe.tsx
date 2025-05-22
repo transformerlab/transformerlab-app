@@ -156,6 +156,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         display: 'flex',
         flexDirection: 'column',
         gap: 1,
+        px: 2,
         width: '100%',
         height: '100%',
         overflow: 'auto',
@@ -183,9 +184,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           gap: 2,
           flexDirection: { xs: 'column', md: 'row' },
           overflowY: 'auto',
-          px: 4,
           pt: 2,
-          margin: '0 auto',
           justifyContent: 'space-between',
         }}
         component="form"
