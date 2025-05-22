@@ -1,7 +1,43 @@
-import { Box, Button, Chip, Sheet, Typography } from '@mui/joy';
-import { CircleCheckIcon, DownloadIcon } from 'lucide-react';
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Sheet,
+  Typography,
+} from '@mui/joy';
+import { CircleCheckIcon, CircleXIcon, DownloadIcon } from 'lucide-react';
 
-export default function RecipeDependencies({ recipe }) {
+function InstalledStateChip({ state }) {
+  let color = 'neutral';
+  let label = 'Unknown';
+  if (state === 'loading') {
+    color = 'warning';
+    label = 'Checking...';
+  } else if (state === true) {
+    color = 'success';
+    label = 'Installed';
+  } else if (state === false) {
+    color = 'danger';
+    label = 'Not Installed';
+  }
+  return (
+    <Chip
+      variant="soft"
+      color={color}
+      size="sm"
+      sx={{
+        ml: 'auto',
+        fontSize: '0.75rem',
+        textTransform: 'capitalize',
+      }}
+    >
+      {label}
+    </Chip>
+  );
+}
+
+export default function RecipeDependencies({ recipe, installed }) {
   // Group dependencies by type
   const groupedDependencies = (recipe?.dependencies || []).reduce(
     (acc, dep) => {
@@ -11,6 +47,29 @@ export default function RecipeDependencies({ recipe }) {
     },
     {},
   );
+
+  // for now, if any item in the array called "installed" is false, we set loading to true
+  // const loading = installed?.some((dep) => dep.installed === 'loading');
+  // combinedState is loading if any are loading, false if any are false, and true if all are true
+  let combinedState: boolean | 'loading' = 'loading';
+  if (installed?.some((dep) => dep.installed === false)) {
+    combinedState = false;
+  } else if (installed?.every((dep) => dep.installed === true)) {
+    combinedState = true;
+  }
+
+  function installedState(dep) {
+    // find the dependency in the installed array
+    if (!installed) return false;
+    const installedDep = installed.find(
+      (d) => d.type === dep.type && d.name === dep.name,
+    );
+    if (installedDep) {
+      return installedDep.installed;
+    }
+    return false;
+  }
+
   return (
     recipe?.dependencies &&
     recipe?.dependencies.length > 0 && (
@@ -19,7 +78,18 @@ export default function RecipeDependencies({ recipe }) {
           level="title-lg"
           mb={0}
           endDecorator={
-            <CircleCheckIcon color="var(--joy-palette-warning-400)" size={20} />
+            <>
+              {combinedState === 'loading' && <CircularProgress size="sm" />}
+              {combinedState === true && (
+                <CircleCheckIcon
+                  color="var(--joy-palette-success-400)"
+                  size={20}
+                />
+              )}
+              {combinedState === false && (
+                <CircleXIcon color="var(--joy-palette-danger-400)" size={20} />
+              )}
+            </>
           }
         >
           Dependencies:
@@ -51,21 +121,23 @@ export default function RecipeDependencies({ recipe }) {
                     <Typography level="body-sm" mr={1}>
                       {dep.name}
                     </Typography>
-                    <Chip color="warning">not installed</Chip>
+                    <InstalledStateChip state={installedState(dep)} />
                   </Box>
                 ))}
               </Box>
             </Box>
           ))}
         </Sheet>
-        <Button
-          color="warning"
-          size="sm"
-          variant="plain"
-          startDecorator={<DownloadIcon />}
-        >
-          Install Missing Dependencies
-        </Button>
+        {combinedState === false && (
+          <Button
+            color="warning"
+            size="sm"
+            variant="plain"
+            startDecorator={<DownloadIcon />}
+          >
+            Install Missing Dependencies
+          </Button>
+        )}
       </>
     )
   );
