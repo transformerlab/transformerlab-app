@@ -92,7 +92,7 @@ export default function RecipeDependencies({ recipe, installed }) {
             </>
           }
         >
-          Dependencies:
+          Dependencies: ({recipe?.dependencies.length})
         </Typography>
         <Sheet
           variant="soft"

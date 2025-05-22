@@ -8,6 +8,7 @@ import {
   FormControl,
   FormLabel,
   FormHelperText,
+  Stack,
 } from '@mui/joy';
 import { ArrowLeftIcon, CircleCheckIcon, RocketIcon } from 'lucide-react';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
@@ -159,6 +160,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         height: '100%',
         overflow: 'auto',
         alignItems: 'flex-start',
+        justifyContent: 'space-between',
       }}
     >
       <Typography level="h2">
@@ -176,55 +178,68 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
       <Box
         id="recipe-details"
         sx={{
-          width: '80%',
+          width: '100%',
           display: 'flex',
-          gap: 1,
-          flexDirection: 'column',
-          p: 3,
-          margin: 'auto',
+          gap: 2,
+          flexDirection: { xs: 'column', md: 'row' },
+          overflowY: 'auto',
+          px: 4,
+          pt: 2,
+          margin: '0 auto',
+          justifyContent: 'space-between',
         }}
         component="form"
         onSubmit={handleSubmit}
       >
-        <FormControl required error={!experimentName}>
-          <FormLabel>Give this experiment a unique name:</FormLabel>
-          <Input
-            size="lg"
-            sx={{ width: '300px' }}
-            value={experimentName}
-            onChange={(e) => setExperimentName(e.target.value)}
-            required
-            name="experimentName"
+        <Box>
+          <FormControl required error={!experimentName}>
+            <FormLabel>Give this experiment a unique name:</FormLabel>
+            <Input
+              size="lg"
+              sx={{ width: '300px' }}
+              value={experimentName}
+              onChange={(e) => setExperimentName(e.target.value)}
+              required
+              name="experimentName"
+            />
+            {!experimentName && (
+              <FormHelperText>This field is required.</FormHelperText>
+            )}
+          </FormControl>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Typography
+            level="title-lg"
+            mb={0}
+            endDecorator={
+              <CircleCheckIcon
+                color="var(--joy-palette-success-400)"
+                size={20}
+              />
+            }
+          >
+            Hardware Requirements:
+          </Typography>
+          <ShowArchitectures
+            architectures={recipe?.requiredMachineArchitecture}
           />
-          {!experimentName && (
-            <FormHelperText>This field is required.</FormHelperText>
-          )}
-        </FormControl>
-        <Typography
-          level="title-lg"
-          mb={0}
-          endDecorator={
-            <CircleCheckIcon color="var(--joy-palette-success-400)" size={20} />
-          }
-          mt={2}
-        >
-          Hardware Requirements:
-        </Typography>
-        <ShowArchitectures
-          architectures={recipe?.requiredMachineArchitecture}
-        />
-        <RecipeDependencies recipe={recipe} installed={installedDependencies} />
-        <Button
-          type="submit"
-          size="lg"
-          sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
-          color="primary"
-          startDecorator={<RocketIcon />}
-          disabled={!experimentName}
-        >
-          Start (install missing dependencies first)
-        </Button>
+          <RecipeDependencies
+            recipe={recipe}
+            installed={installedDependencies}
+          />
+        </Box>
       </Box>
+
+      <Button
+        type="submit"
+        size="lg"
+        sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
+        color="primary"
+        startDecorator={<RocketIcon />}
+        disabled={!experimentName}
+      >
+        Start (install missing dependencies first)
+      </Button>
     </Sheet>
   );
 }
