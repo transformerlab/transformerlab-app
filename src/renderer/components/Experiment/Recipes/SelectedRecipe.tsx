@@ -1,9 +1,154 @@
-import { Button, Typography, Input, Box, Sheet } from '@mui/joy';
+import { useEffect, useState } from 'react';
+import {
+  Button,
+  Typography,
+  Input,
+  Box,
+  Sheet,
+  FormControl,
+  FormLabel,
+  FormHelperText,
+} from '@mui/joy';
 import { ArrowLeftIcon, CircleCheckIcon, RocketIcon } from 'lucide-react';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 import RecipeDependencies from './RecipeDependencies';
 
 export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
+  const [experimentName, setExperimentName] = useState('');
+  const [installedDependencies, setInstalledDependencies] = useState(null);
+
+  // Check each dependency and see if it is installed
+  useEffect(() => {
+    if (recipe?.dependencies && recipe?.dependencies.length > 0) {
+      // First go through each dependency and add it to the list of installed dependencies, setting each value to "loading"
+      const dependencies = recipe.dependencies.map((dep) => ({
+        ...dep,
+        installed: 'loading',
+      }));
+      setInstalledDependencies(dependencies);
+
+      // Check if models are installed
+      const models = recipe.dependencies.filter((dep) => dep.type === 'model');
+      // for each model, ask the backend if it is installed
+      // For now we fake this with a 1-2 second delay
+      setTimeout(() => {
+        // Go through each model in the dependencies and set the installed value to true or false, randomly
+        const updatedDependencies = dependencies.map((dep) => {
+          if (dep.type === 'model') {
+            return {
+              ...dep,
+              installed: Math.random() > 0.5,
+            };
+          }
+          return dep;
+        });
+        setInstalledDependencies((prev) => {
+          // Merge previous state with updated dependencies for plugins
+          return prev
+            ? prev.map((dep, idx) =>
+                dep.type === 'model'
+                  ? { ...dep, installed: updatedDependencies[idx].installed }
+                  : dep,
+              )
+            : updatedDependencies;
+        });
+      }, 2000);
+
+      // Now do the same for datasets:
+      const datasets = recipe.dependencies.filter(
+        (dep) => dep.type === 'dataset',
+      );
+      // for each dataset, ask the backend if it is installed
+      // For now we fake this with a 1-2 second delay
+      setTimeout(() => {
+        // Go through each dataset in the dependencies and set the installed value to true or false, randomly
+        const updatedDependencies = dependencies.map((dep) => {
+          if (dep.type === 'dataset') {
+            return {
+              ...dep,
+              installed: Math.random() > 0.5,
+            };
+          }
+          return dep;
+        });
+        setInstalledDependencies((prev) => {
+          // Merge previous state with updated dependencies for plugins
+          return prev
+            ? prev.map((dep, idx) =>
+                dep.type === 'dataset'
+                  ? { ...dep, installed: updatedDependencies[idx].installed }
+                  : dep,
+              )
+            : updatedDependencies;
+        });
+      }, 1000);
+
+      // Now do the same for plugins:
+      const plugins = recipe.dependencies.filter(
+        (dep) => dep.type === 'plugin',
+      );
+      // for each plugin, ask the backend if it is installed
+      // For now we fake this with a 1-2 second delay
+      setTimeout(() => {
+        // Go through each plugin in the dependencies and set the installed value to true or false, randomly
+        const updatedDependencies = dependencies.map((dep) => {
+          if (dep.type === 'plugin') {
+            return {
+              ...dep,
+              installed: Math.random() > 0.5,
+            };
+          }
+          return dep;
+        });
+        setInstalledDependencies((prev) => {
+          // Merge previous state with updated dependencies for plugins
+          return prev
+            ? prev.map((dep, idx) =>
+                dep.type === 'plugin'
+                  ? { ...dep, installed: updatedDependencies[idx].installed }
+                  : dep,
+              )
+            : updatedDependencies;
+        });
+      }, 3000);
+
+      // Now do the same for workflows:
+      const workflows = recipe.dependencies.filter(
+        (dep) => dep.type === 'workflow',
+      );
+      // for each plugin, ask the backend if it is installed
+      // For now we fake this with a 1-2 second delay
+      setTimeout(() => {
+        // Go through each plugin in the dependencies and set the installed value to true or false, randomly
+        const updatedDependencies = dependencies.map((dep) => {
+          if (dep.type === 'workflow') {
+            return {
+              ...dep,
+              installed: Math.random() > 0.5,
+            };
+          }
+          return dep;
+        });
+        setInstalledDependencies((prev) => {
+          // Merge previous state with updated dependencies for plugins
+          return prev
+            ? prev.map((dep, idx) =>
+                dep.type === 'workflow'
+                  ? { ...dep, installed: updatedDependencies[idx].installed }
+                  : dep,
+              )
+            : updatedDependencies;
+        });
+      }, 2000);
+    }
+  }, [recipe]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!experimentName) return;
+    // Submit logic here
+  };
+
   return (
     <Sheet
       sx={{
@@ -38,14 +183,23 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           p: 3,
           margin: 'auto',
         }}
+        component="form"
+        onSubmit={handleSubmit}
       >
-        {/* <Typography level="body-md" mb={1}>
-        {recipe?.description}
-      </Typography> */}
-        <Typography level="title-lg" mb={0}>
-          Give this experiment a unique name:
-        </Typography>
-        <Input placeholder="alpha" size="lg" sx={{ width: '300px' }} />
+        <FormControl required error={!experimentName}>
+          <FormLabel>Give this experiment a unique name:</FormLabel>
+          <Input
+            size="lg"
+            sx={{ width: '300px' }}
+            value={experimentName}
+            onChange={(e) => setExperimentName(e.target.value)}
+            required
+            name="experimentName"
+          />
+          {!experimentName && (
+            <FormHelperText>This field is required.</FormHelperText>
+          )}
+        </FormControl>
         <Typography
           level="title-lg"
           mb={0}
@@ -59,17 +213,18 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         <ShowArchitectures
           architectures={recipe?.requiredMachineArchitecture}
         />
-        <RecipeDependencies recipe={recipe} />
+        <RecipeDependencies recipe={recipe} installed={installedDependencies} />
+        <Button
+          type="submit"
+          size="lg"
+          sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
+          color="primary"
+          startDecorator={<RocketIcon />}
+          disabled={!experimentName}
+        >
+          Start (install missing dependencies first)
+        </Button>
       </Box>
-      <Button
-        size="lg"
-        disabled
-        sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
-        color="primary"
-        startDecorator={<RocketIcon />}
-      >
-        Start (install missing dependencies first)
-      </Button>
     </Sheet>
   );
 }
