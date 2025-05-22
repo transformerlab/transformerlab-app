@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import useSWR from 'swr';
 
-
 import {
   Box,
   Button,
@@ -97,7 +96,7 @@ export default function ImportRecipeModal({
       JSON.stringify({
         model_name: recipe.model.name,
         model_architecture: config.model_architecture,
-        dataset_name: recipe.datasets.name,
+        dataset_name: recipe.datasets.path,
       }),
       JSON.stringify(config),
       '{}',
@@ -131,7 +130,9 @@ export default function ImportRecipeModal({
           if (confirm(msg)) {
             // Use confirm() to get Accept/Cancel
             if (!response_data.dataset.downloaded) {
-              fetch(chatAPI.Endpoints.Dataset.Download(response_data.dataset.path))
+              fetch(
+                chatAPI.Endpoints.Dataset.Download(response_data.dataset.path),
+              )
                 .then((response) => {
                   if (!response.ok) {
                     console.log(response);
