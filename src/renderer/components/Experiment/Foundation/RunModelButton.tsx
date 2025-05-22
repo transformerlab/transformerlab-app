@@ -73,13 +73,16 @@ export default function RunModelButton({
         'inferenceParams',
         JSON.stringify({
           ...inferenceSettings,
-          inferenceEngine: engine,
-          inferenceEngineFriendlyName: inferenceEngineFriendlyName,
+          inferenceEngine: engine || null,
+          inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
         }),
       ),
     );
 
-    return inferenceEnginesJSON?.[0]?.uniqueId;
+    return {
+      inferenceEngine: engine || null,
+      inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
+    };
   }
 
   // Set a default inference Engine if there is none
@@ -94,8 +97,8 @@ export default function RunModelButton({
         const { inferenceEngine, inferenceEngineFriendlyName } =
           await getDefaultinferenceEngines();
         setInferenceSettings({
-          inferenceEngine: inferenceEngine,
-          inferenceEngineFriendlyName: inferenceEngineFriendlyName,
+          inferenceEngine: inferenceEngine || null,
+          inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
         });
       })();
     } else {

@@ -172,6 +172,19 @@ export default function PluginCard({
                     mt: 1,
                     backgroundColor: 'warning.softBg',
                     color: 'warning.700',
+                    maxWidth: 160,
+                    whiteSpace: 'normal',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    wordBreak: 'break-word',
+                    fontSize: '0.75rem',
+                    lineHeight: 1.2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    minHeight: 32,
+                    px: 1.5,
                   }}
                 >
                   This is an experimental plugin
