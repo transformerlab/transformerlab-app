@@ -222,7 +222,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           startDecorator={<RocketIcon />}
           disabled={!experimentName}
         >
-          Start
+          Start (install missing dependencies first)
         </Button>
       </Box>
     </Sheet>
