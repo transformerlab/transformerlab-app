@@ -139,13 +139,11 @@ export default function PluginCard({
             level="body-sm"
             sx={{
               display: '-webkit-box',
-              '-webkit-line-clamp':
-                '2' /* Number of lines to show before truncating */,
+              '-webkit-line-clamp': '2',
               '-webkit-box-orient': 'vertical',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              wordBreak:
-                'break-word' /* Add this line to break up long words */,
+              wordBreak: 'break-word',
             }}
           >
             {plugin.description}
