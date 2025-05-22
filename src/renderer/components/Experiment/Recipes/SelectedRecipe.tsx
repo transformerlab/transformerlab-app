@@ -13,11 +13,12 @@ import { ArrowLeftIcon, CircleCheckIcon, RocketIcon } from 'lucide-react';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeDependencies from './RecipeDependencies';
+import { dependencies } from 'webpack';
 
 export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   const [experimentName, setExperimentName] = useState('');
 
-  const { data, isLoading } = useAPI('recipes', ['checkDependencies'], {
+  const { data, isLoading, mutate } = useAPI('recipes', ['checkDependencies'], {
     id: recipe?.id,
   });
 
@@ -102,8 +103,10 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
             architectures={recipe?.requiredMachineArchitecture}
           />
           <RecipeDependencies
+            recipeId={recipe?.id}
             dependencies={data?.dependencies}
             dependenciesLoading={isLoading}
+            dependenciesMutate={mutate}
           />
         </Box>
       </Box>

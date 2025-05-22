@@ -6,7 +6,10 @@ import {
   Sheet,
   Typography,
 } from '@mui/joy';
+import { get } from 'http';
 import { CircleCheckIcon, CircleXIcon, DownloadIcon } from 'lucide-react';
+import { useState } from 'react';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 function InstalledStateChip({ state }) {
   let color = 'neutral';
@@ -38,9 +41,12 @@ function InstalledStateChip({ state }) {
 }
 
 export default function RecipeDependencies({
+  recipeId,
   dependencies,
   dependenciesLoading,
+  dependenciesMutate,
 }) {
+  const [installing, setInstalling] = useState(false);
   // Group dependencies by type
   const groupedDependencies = (dependencies || []).reduce((acc, dep) => {
     acc[dep.type] = acc[dep.type] || [];
@@ -89,8 +95,27 @@ export default function RecipeDependencies({
             minWidth: '340px',
             minHeight: '60px',
             maxHeight: '300px',
+            position: 'relative',
+            opacity: installing ? 0.5 : 1,
+            pointerEvents: installing ? 'none' : 'auto',
           }}
         >
+          {/* {installing && (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 2,
+                pointerEvents: 'auto',
+                background: 'rgba(255,255,255,0.3)',
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          )} */}
           {Object.entries(groupedDependencies).map(([type, deps]) => (
             <Box key={type} sx={{ mb: 1 }}>
               <Typography level="title-md" sx={{ textTransform: 'capitalize' }}>
@@ -118,7 +143,19 @@ export default function RecipeDependencies({
             color="warning"
             size="sm"
             variant="plain"
-            startDecorator={<DownloadIcon />}
+            startDecorator={
+              installing ? <CircularProgress size="sm" /> : <DownloadIcon />
+            }
+            onClick={async () => {
+              setInstalling(true);
+              await fetch(
+                getFullPath('recipes', ['installDependencies'], {
+                  id: recipeId,
+                }),
+              );
+              dependenciesMutate();
+              setInstalling(false);
+            }}
           >
             Install Missing Dependencies
           </Button>
