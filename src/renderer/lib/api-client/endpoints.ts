@@ -426,4 +426,5 @@ Endpoints.Global = {
 // Diffusion endpoints
 Endpoints.Diffusion = {
   Generate: () => `${API_URL()}diffusion/generate`,
+  CheckStableDiffusion: () => `${API_URL()}diffusion/is_stable_diffusion`,
 };

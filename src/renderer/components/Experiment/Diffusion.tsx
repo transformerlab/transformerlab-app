@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Button,
   FormControl,
@@ -19,7 +19,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
   const initialModel =
     experimentInfo?.config?.foundation || 'stabilityai/stable-diffusion-2-1';
   const [model] = useState(initialModel);
-  console.log('Diffusion model:', model);
   const [prompt, setPrompt] = useState(
     'A fantasy landscape, trending on artstation',
   );
@@ -29,6 +28,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
   const [imageBase64, setImageBase64] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isStableDiffusion, setIsStableDiffusion] = useState<boolean | null>(
+    null,
+  );
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -58,6 +60,28 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
       setLoading(false);
     }
   };
+
+  // Check if model is eligible for diffusion
+  const checkStableDiffusion = async () => {
+    setIsStableDiffusion(null);
+    try {
+      const response = await fetch(Endpoints.Diffusion.CheckStableDiffusion(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+      });
+      const data = await response.json();
+      setIsStableDiffusion(data.is_stable_diffusion);
+    } catch (e) {
+      setIsStableDiffusion(false);
+    }
+  };
+
+  // Check on mount and when model changes
+  useEffect(() => {
+    checkStableDiffusion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model]);
 
   return (
     <Sheet sx={{ p: 3, maxWidth: 600, mx: 'auto', mt: 4 }}>
@@ -112,13 +136,18 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
         <Button
           onClick={handleGenerate}
           loading={loading}
-          disabled={loading}
+          disabled={loading || isStableDiffusion === false}
           color="primary"
           size="lg"
         >
           Generate Image
         </Button>
         {error && <Typography color="danger">{error}</Typography>}
+        {isStableDiffusion === false && (
+          <Typography color="danger">
+            This model is not eligible for diffusion.
+          </Typography>
+        )}
         {imageBase64 && (
           <img
             src={`data:image/png;base64,${imageBase64}`}
