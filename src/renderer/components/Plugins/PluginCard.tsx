@@ -63,6 +63,18 @@ export default function PluginCard({
   function WillThisPluginWorkOnMyMachine({ pluginArchitectures, machineType }) {
     if (!pluginArchitectures) return null;
 
+    // If the architectures list is empty, show deprecated message
+    if (
+      Array.isArray(pluginArchitectures) &&
+      pluginArchitectures.length === 0
+    ) {
+      return (
+        <Typography level="body-xs" color="warning">
+          This plugin has been marked as deprecated
+        </Typography>
+      );
+    }
+
     // Check if plugin is compatible with the machine type
     let isCompatible = false;
 
@@ -132,7 +144,8 @@ export default function PluginCard({
               '-webkit-box-orient': 'vertical',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              wordBreak: 'break-word', // Add this line to break up long words
+              wordBreak:
+                'break-word' /* Add this line to break up long words */,
             }}
           >
             {plugin.description}
