@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import Modal from '@mui/joy/Modal';
 import ModalDialog from '@mui/joy/ModalDialog';
-import { Button, ModalClose } from '@mui/joy';
+import { ModalClose } from '@mui/joy';
 import { useState } from 'react';
 import recipeDetails from './recipeData.json'; // Import the JSON file with recipe details
 import ListRecipes from './ListRecipes';
