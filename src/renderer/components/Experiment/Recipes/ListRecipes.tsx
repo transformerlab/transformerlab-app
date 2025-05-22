@@ -24,10 +24,12 @@ export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
           container
           spacing={2}
           sx={{
-            flexGrow: 1,
-            justifyContent: 'flext-start',
-            alignContent: 'flex-start',
-            overflow: 'auto',
+            maxWidth: '1000px',
+            margin: '0 auto',
+            // Grid properties
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap: '0px',
           }}
         >
           <Grid key={-1}>
@@ -35,7 +37,7 @@ export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
               recipeDetails={{
                 id: -1,
                 title: 'Create an Empty Experiment',
-                description: '',
+                description: 'Start from scratch',
                 cardImage:
                   'https://images.unsplash.com/photo-1559311648-d46f5d8593d6?auto=format&fit=crop&w=318',
               }}
@@ -43,7 +45,7 @@ export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
             />
           </Grid>
           {recipeDetails.map((recipe) => (
-            <Grid key={recipe.id}>
+            <Grid key={recipe.id} sx={{}}>
               <RecipeCard
                 recipeDetails={recipe}
                 setSelectedRecipe={setSelectedRecipe}
