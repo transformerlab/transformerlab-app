@@ -54,19 +54,41 @@
     }
   },
   "models": {
-      "getModelGroups": {
-        "method": "GET",
-        "path": "model/model_groups_list"
-      },
-      "loginToHuggingFace": {
-        "method": "GET",
-        "path": "model/login_to_huggingface"
-      }
+    "getModelGroups": {
+      "method": "GET",
+      "path": "model/model_groups_list"
+    },
+    "loginToHuggingFace": {
+      "method": "GET",
+      "path": "model/login_to_huggingface"
+    }
   },
   "jobs": {
     "get": {
       "method": "GET",
       "path": "jobs/{id}"
+    }
+  },
+  "recipes": {
+    "getAll": {
+      "method": "GET",
+      "path": "recipes/list"
+    },
+    "get": {
+      "method": "GET",
+      "path": "recipes/{id}"
+    },
+    "checkDependencies": {
+      "method": "GET",
+      "path": "recipes/check_dependencies"
+    },
+    "installDependencies": {
+      "method": "POST",
+      "path": "recipes/install_dependencies"
+    },
+    "createExperiment": {
+      "method": "POST",
+      "path": "recipes/{id}/create_experiment"
     }
   }
 }

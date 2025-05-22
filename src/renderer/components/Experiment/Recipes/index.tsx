@@ -3,7 +3,6 @@ import Modal from '@mui/joy/Modal';
 import ModalDialog from '@mui/joy/ModalDialog';
 import { ModalClose } from '@mui/joy';
 import { useState } from 'react';
-import recipeDetails from './recipeData.json'; // Import the JSON file with recipe details
 import ListRecipes from './ListRecipes';
 import SelectedRecipe from './SelectedRecipe';
 
@@ -39,10 +38,7 @@ export default function RecipesModal({
             setSelectedRecipeId={setSelectedRecipe}
           />
         ) : (
-          <ListRecipes
-            recipeDetails={recipeDetails}
-            setSelectedRecipe={setSelectedRecipe}
-          />
+          <ListRecipes setSelectedRecipe={setSelectedRecipe} />
         )}
       </ModalDialog>
     </Modal>
