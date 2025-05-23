@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import {
   Divider,
   Modal,
@@ -6,9 +5,13 @@ import {
   ModalDialog,
   Sheet,
   Typography,
+  Box,
 } from '@mui/joy';
 
 import DatasetTable from './DatasetTable';
+import DatasetPreviewWithTemplate from './DatasetPreviewWithTemplate';
+import useSWR from 'swr';
+import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 const fetcher = (url) =>
   fetch(url)
@@ -16,6 +19,13 @@ const fetcher = (url) =>
     .then((data) => data);
 
 export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
+  const { data, error, isLoading } = useSWR(
+    open ? chatAPI.Endpoints.Dataset.Info(dataset_id) : null,
+    fetcher,
+  );
+
+  const isImageDataset = data?.features?.image?._type === 'Image';
+
   return (
     <Modal
       open={open}
@@ -33,14 +43,18 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
-            overflowY: 'hidden',
             width: '80vw',
             height: '80vh',
-            justifyContent: 'space-between',
+            overflow: 'hidden',
           }}
         >
-          <DatasetTable datasetId={dataset_id} />
+          <Box sx={{ flex: 1, overflow: 'auto' }}>
+            {isImageDataset ? (
+              <DatasetPreviewWithTemplate datasetId={dataset_id} template="" />
+            ) : (
+              <DatasetTable datasetId={dataset_id} />
+            )}
+          </Box>
         </Sheet>
       </ModalDialog>
     </Modal>

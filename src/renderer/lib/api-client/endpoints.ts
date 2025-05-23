@@ -87,6 +87,8 @@ Endpoints.Dataset = {
   GeneratedList: () => `${API_URL()}data/generated_datasets_list`,
   FileUpload: (datasetId: string) =>
     `${API_URL()}data/fileupload?dataset_id=${datasetId}`,
+  SaveMetadata: (datasetId: string) =>
+    `${API_URL()}data/save_metadata?dataset_id=${datasetId}`,
 };
 
 Endpoints.Models = {
