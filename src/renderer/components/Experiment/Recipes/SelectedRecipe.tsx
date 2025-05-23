@@ -54,7 +54,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   const device = serverInfo?.device;
 
   // Check if all dependencies are installed
-  let missingAnyDependencies = true;
+  let missingAnyDependencies = false;
   if (data?.dependencies) {
     missingAnyDependencies = data.dependencies.some((dep) => {
       // check if dep.installed === true
@@ -136,22 +136,27 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
             minWidth: '300px',
           }}
         >
-          <Typography
-            level="title-lg"
-            mb={0}
-            endDecorator={
-              isHardwareCompatible ? (
-                <CircleCheckIcon
-                  color="var(--joy-palette-success-400)"
-                  size={20}
-                />
-              ) : (
-                <CircleXIcon color="var(--joy-palette-danger-400)" size={20} />
-              )
-            }
-          >
-            Hardware Requirements:
-          </Typography>
+          {recipe?.requiredMachineArchitecture && (
+            <Typography
+              level="title-lg"
+              mb={0}
+              endDecorator={
+                isHardwareCompatible ? (
+                  <CircleCheckIcon
+                    color="var(--joy-palette-success-400)"
+                    size={20}
+                  />
+                ) : (
+                  <CircleXIcon
+                    color="var(--joy-palette-danger-400)"
+                    size={20}
+                  />
+                )
+              }
+            >
+              Hardware Requirements:
+            </Typography>
+          )}
           <ShowArchitectures
             architectures={recipe?.requiredMachineArchitecture}
           />
