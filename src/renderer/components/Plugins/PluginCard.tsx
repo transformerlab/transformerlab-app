@@ -70,7 +70,7 @@ export default function PluginCard({
     ) {
       return (
         <Typography level="body-xs" color="warning">
-          This plugin has been marked as deprecated
+          This plugin is no longer supported
         </Typography>
       );
     }
