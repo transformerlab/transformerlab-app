@@ -9,11 +9,39 @@ import {
   FormLabel,
   FormHelperText,
 } from '@mui/joy';
-import { ArrowLeftIcon, CircleCheckIcon, RocketIcon } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  CircleCheckIcon,
+  CircleX,
+  CircleXIcon,
+  RocketIcon,
+} from 'lucide-react';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeDependencies from './RecipeDependencies';
-import { Form } from 'react-router-dom';
+
+function isRecipeCompatibleWithDevice(recipe, device) {
+  if (!recipe?.requiredMachineArchitecture) return true;
+  if (!device) return false;
+
+  if (device === 'mps') {
+    return (
+      recipe.requiredMachineArchitecture.includes('mlx') ||
+      recipe.requiredMachineArchitecture.includes('cpu')
+    );
+  }
+  if (device === 'cuda') {
+    return (
+      recipe.requiredMachineArchitecture.includes('cuda') ||
+      recipe.requiredMachineArchitecture.includes('cpu')
+    );
+  }
+  if (device === 'cpu') {
+    return recipe.requiredMachineArchitecture.includes('cpu');
+  }
+
+  return false;
+}
 
 export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   const [experimentName, setExperimentName] = useState('');
@@ -21,6 +49,9 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   const { data, isLoading, mutate } = useAPI('recipes', ['checkDependencies'], {
     id: recipe?.id,
   });
+
+  const { data: serverInfo } = useAPI('server', ['info']);
+  const device = serverInfo?.device;
 
   // Check if all dependencies are installed
   let missingAnyDependencies = true;
@@ -30,6 +61,8 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
       return dep.installed === false;
     });
   }
+
+  const isHardwareCompatible = isRecipeCompatibleWithDevice(recipe, device);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -95,22 +128,37 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
             )}
           </FormControl>
         </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            minWidth: '300px',
+          }}
+        >
           <Typography
             level="title-lg"
             mb={0}
             endDecorator={
-              <CircleCheckIcon
-                color="var(--joy-palette-success-400)"
-                size={20}
-              />
+              isHardwareCompatible ? (
+                <CircleCheckIcon
+                  color="var(--joy-palette-success-400)"
+                  size={20}
+                />
+              ) : (
+                <CircleXIcon color="var(--joy-palette-danger-400)" size={20} />
+              )
             }
           >
-            Hardware Requirements: (todo)
+            Hardware Requirements:
           </Typography>
           <ShowArchitectures
             architectures={recipe?.requiredMachineArchitecture}
           />
+          <Typography level="body-sm" color="danger">
+            {!isHardwareCompatible &&
+              'This recipe is not compatible with your device.'}
+          </Typography>
           <RecipeDependencies
             recipeId={recipe?.id}
             dependencies={data?.dependencies}
@@ -130,10 +178,16 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         >
           Start &nbsp;
         </Button>
-        <Typography level="body-sm" color="danger" sx={{ textAlign: 'center' }}>
+        <Typography
+          level="body-sm"
+          color="danger"
+          sx={{ textAlign: 'center', mt: 0.5 }}
+        >
           {missingAnyDependencies &&
             'Install all missing dependencies before you can use this recipe.'}
           &nbsp;
+          {!isHardwareCompatible &&
+            'This recipe is not compatible with your device.'}
         </Typography>
       </div>
     </Sheet>

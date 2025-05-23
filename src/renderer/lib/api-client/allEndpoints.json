@@ -38,6 +38,10 @@
     }
   },
   "server": {
+    "info": {
+      "method": "GET",
+      "path": "server/info"
+    },
     "pythonLibraries": {
       "method": "GET",
       "path": "server/python_libraries"
