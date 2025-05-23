@@ -92,7 +92,7 @@
     },
     "createExperiment": {
       "method": "POST",
-      "path": "recipes/{id}/create_experiment"
+      "path": "recipes/{id}/create_experiment?experiment_name={experiment_name}"
     },
     "jobStatus": {
       "method": "GET",

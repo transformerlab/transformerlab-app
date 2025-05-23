@@ -27,6 +27,7 @@ import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -94,10 +95,25 @@ export default function SelectExperimentMenu({
   };
 
   const createNewExperiment = useCallback(
-    async (name: string) => {
-      alert('Creating new experiment: ' + name);
-      const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
-      const newId = await response.json();
+    async (name: string, fromRecipeId = null) => {
+      let newId = 0;
+
+      if (fromRecipeId === null) {
+        const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+        newId = await response.json();
+      } else {
+        const response = await fetch(
+          getFullPath('recipes', ['createExperiment'], {
+            id: fromRecipeId,
+            experiment_name: name,
+          }),
+          {
+            method: 'POST',
+          },
+        );
+        const responseJson = await response.json();
+        newId = responseJson.experiment_id;
+      }
       setExperimentId(newId);
       createHandleClose(newId);
       mutate();

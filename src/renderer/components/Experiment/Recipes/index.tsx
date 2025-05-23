@@ -19,21 +19,15 @@ export default function RecipesModal({
     setSelectedRecipe(null);
   };
 
-  const handleCreateNewExperiment = async (recipe, experimentName) => {
+  const handleCreateNewExperiment = async (recipeId, experimentName) => {
     console.log('hi');
-    console.log('recipe', recipe);
+    console.log('recipe', recipeId);
     console.log('experimentName', experimentName);
-    if (recipe === -1) {
+    if (recipeId === -1) {
       // This means user clicked on Create BLANK experiment
-      alert('Creating blank experiment');
       await createNewExperiment(experimentName);
     } else {
-      await fetch(
-        getFullPath('recipes', ['createExperiment'], {
-          id: recipe.id,
-          experiment_name: experimentName,
-        }),
-      );
+      await createNewExperiment(experimentName, recipeId);
     }
     handleClose();
   };
