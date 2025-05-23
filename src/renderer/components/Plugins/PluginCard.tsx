@@ -61,18 +61,6 @@ export default function PluginCard({
   function WillThisPluginWorkOnMyMachine({ pluginArchitectures, machineType }) {
     if (!pluginArchitectures) return null;
 
-    // If the architectures list is empty, show deprecated message
-    if (
-      Array.isArray(pluginArchitectures) &&
-      pluginArchitectures.length === 0
-    ) {
-      return (
-        <Typography level="body-xs" color="warning">
-          This plugin is no longer supported
-        </Typography>
-      );
-    }
-
     // Check if plugin is compatible with the machine type
     let isCompatible = false;
 
@@ -159,22 +147,33 @@ export default function PluginCard({
         >
           {plugin?.supported_hardware_architectures && (
             <Box sx={{ mt: 1 }}>
-              <Typography level="title-sm" fontSize="sm">
-                Supported Architectures:
-              </Typography>
-              <Stack
-                flexDirection={'row'}
-                gap={1}
-                sx={{ alignItems: 'center' }}
-              >
-                <ShowArchitectures
-                  architectures={plugin?.supported_hardware_architectures}
-                />
-              </Stack>
-              <WillThisPluginWorkOnMyMachine
-                pluginArchitectures={plugin?.supported_hardware_architectures}
-                machineType={machineType}
-              />
+              {Array.isArray(plugin?.supported_hardware_architectures) &&
+              plugin?.supported_hardware_architectures.length === 0 ? (
+                <Chip color="warning" variant="soft">
+                  Deprecated
+                </Chip>
+              ) : (
+                <>
+                  <Typography level="title-sm" fontSize="sm">
+                    Supported Architectures:
+                  </Typography>
+                  <Stack
+                    flexDirection={'row'}
+                    gap={1}
+                    sx={{ alignItems: 'center' }}
+                  >
+                    <ShowArchitectures
+                      architectures={plugin?.supported_hardware_architectures}
+                    />
+                  </Stack>
+                  <WillThisPluginWorkOnMyMachine
+                    pluginArchitectures={
+                      plugin?.supported_hardware_architectures
+                    }
+                    machineType={machineType}
+                  />
+                </>
+              )}
               {isExperimental && (
                 <Chip
                   color="warning"
