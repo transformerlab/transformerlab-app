@@ -19,6 +19,7 @@ type DiffusionProps = {
 export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
   const initialModel =
     experimentInfo?.config?.foundation || 'stabilityai/stable-diffusion-2-1';
+  const adaptor = experimentInfo?.config?.adaptor || '';
   const [model] = useState(initialModel);
   const [prompt, setPrompt] = useState(
     'A fantasy landscape, trending on artstation',
@@ -43,10 +44,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
+          adaptor,
           prompt,
           num_inference_steps: Number(numSteps),
           guidance_scale: Number(guidanceScale),
-          seed: seed ? Number(seed) : undefined,
+          seed: seed ? Number(seed) : 42,
         }),
       });
       const data = await response.json();
@@ -126,6 +128,17 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
               placeholder="Model name or path"
             />
           </FormControl>
+          {adaptor && (
+            <FormControl>
+              <FormLabel>Adaptor</FormLabel>
+              <Input
+                value={adaptor}
+                disabled
+                readOnly
+                placeholder="Adaptor name or path"
+              />
+            </FormControl>
+          )}
           <FormControl>
             <FormLabel>Prompt</FormLabel>
             <Textarea
