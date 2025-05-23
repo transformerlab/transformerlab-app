@@ -46,6 +46,11 @@ export default function RecipeDependencies({
   dependenciesMutate,
 }) {
   const [installing, setInstalling] = useState(false);
+
+  if (!dependencies) {
+    return null;
+  }
+
   // Group dependencies by type
   const groupedDependencies = (dependencies || []).reduce((acc, dep) => {
     acc[dep.type] = acc[dep.type] || [];
@@ -53,11 +58,9 @@ export default function RecipeDependencies({
     return acc;
   }, {});
 
-  // Check if all dependencies are installed
-  const combinedState = dependencies?.every((dep) => {
-    // check if dep.installed === true
-    return dep.installed === true;
-  });
+  const countMissingDependencies = dependencies?.filter(
+    (dep) => dep.installed === false,
+  ).length;
 
   return (
     dependencies &&
@@ -69,19 +72,19 @@ export default function RecipeDependencies({
           endDecorator={
             <>
               {dependenciesLoading && <CircularProgress size="sm" />}
-              {combinedState === true && (
+              {countMissingDependencies === 0 && (
                 <CircleCheckIcon
                   color="var(--joy-palette-success-400)"
                   size={20}
                 />
               )}
-              {combinedState === false && (
+              {countMissingDependencies > 0 && (
                 <CircleXIcon color="var(--joy-palette-danger-400)" size={20} />
               )}
             </>
           }
         >
-          Dependencies: ({dependencies.length})
+          Dependencies:
         </Typography>
         <Sheet
           variant="soft"
@@ -137,7 +140,7 @@ export default function RecipeDependencies({
             </Box>
           ))}
         </Sheet>
-        {combinedState === false && (
+        {countMissingDependencies > 0 && (
           <Button
             color="warning"
             size="sm"
@@ -156,7 +159,8 @@ export default function RecipeDependencies({
               setInstalling(false);
             }}
           >
-            Install Missing Dependencies
+            Install ({countMissingDependencies}) Missing Dependenc
+            {countMissingDependencies === 1 ? 'y' : 'ies'}
           </Button>
         )}
       </>

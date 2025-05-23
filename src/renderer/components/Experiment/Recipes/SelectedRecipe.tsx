@@ -171,8 +171,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
             architectures={recipe?.requiredMachineArchitecture}
           />
           <Typography level="body-sm" color="danger">
-            {!isHardwareCompatible &&
-              'This recipe is not compatible with your device.'}
+            {!isHardwareCompatible && 'Not compatible with your hardware.'}
           </Typography>
           <RecipeDependencies
             recipeId={recipe?.id}
@@ -202,7 +201,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
             'Install all missing dependencies before you can use this recipe.'}
           &nbsp;
           {!isHardwareCompatible &&
-            'This recipe is not compatible with your device.'}
+            'This recipe is not compatible with your hardware.'}
         </Typography>
       </div>
     </Sheet>
