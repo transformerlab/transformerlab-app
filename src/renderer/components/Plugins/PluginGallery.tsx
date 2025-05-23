@@ -88,7 +88,7 @@ export default function PluginGallery({
       );
     }
 
-    if (machineType === 'cuda') {
+    if (machineType === 'nvidia') {
       return (
         plugin.supported_hardware_architectures.includes('cuda') ||
         plugin.supported_hardware_architectures.includes('cpu')
