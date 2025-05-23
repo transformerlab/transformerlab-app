@@ -1,11 +1,11 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import Modal from '@mui/joy/Modal';
 import ModalDialog from '@mui/joy/ModalDialog';
-import { Button, ModalClose } from '@mui/joy';
+import { ModalClose } from '@mui/joy';
 import { useState } from 'react';
-import recipeDetails from './recipeData.json'; // Import the JSON file with recipe details
 import ListRecipes from './ListRecipes';
 import SelectedRecipe from './SelectedRecipe';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function RecipesModal({
   modalOpen,
@@ -17,6 +17,19 @@ export default function RecipesModal({
   const handleClose = () => {
     setModalOpen(false);
     setSelectedRecipe(null);
+  };
+
+  const handleCreateNewExperiment = async (recipeId, experimentName) => {
+    console.log('hi');
+    console.log('recipe', recipeId);
+    console.log('experimentName', experimentName);
+    if (recipeId === -1) {
+      // This means user clicked on Create BLANK experiment
+      await createNewExperiment(experimentName);
+    } else {
+      await createNewExperiment(experimentName, recipeId);
+    }
+    handleClose();
   };
 
   return (
@@ -37,12 +50,10 @@ export default function RecipesModal({
           <SelectedRecipe
             recipe={selectedRecipe}
             setSelectedRecipeId={setSelectedRecipe}
+            installRecipe={handleCreateNewExperiment}
           />
         ) : (
-          <ListRecipes
-            recipeDetails={recipeDetails}
-            setSelectedRecipe={setSelectedRecipe}
-          />
+          <ListRecipes setSelectedRecipe={setSelectedRecipe} />
         )}
       </ModalDialog>
     </Modal>
