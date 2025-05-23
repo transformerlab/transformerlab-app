@@ -93,6 +93,14 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
       />
       {DEV_MODE && (
         <SubNavItem
+          title="Diffusion"
+          path="/experiment/diffusion"
+          icon={<BoxesIcon />}
+          disabled={!experimentInfo?.name}
+        />
+      )}
+      {DEV_MODE && (
+        <SubNavItem
           title="Workflows"
           path="/experiment/workflows"
           icon={<WorkflowIcon />}

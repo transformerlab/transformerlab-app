@@ -543,7 +543,6 @@ export default function TrainingModalLoRA({
               formJson.run_sweeps = false;
             }
 
-            console.log('Form Data:', formJson);
             if (templateData && task_id) {
               //Only update if we are currently editing a template
               // For all keys in templateData.inputs that are in formJson, set the value from formJson
