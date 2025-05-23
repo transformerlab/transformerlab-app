@@ -9,7 +9,7 @@ import {
 } from '@mui/joy';
 
 import DatasetTable from './DatasetTable';
-import DatasetPreviewWithTemplate from './DatasetPreviewWithTemplate';
+import DatasetTableWithTemplateDatasetTab from './DatasetPreviewDatasetTab';
 import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
@@ -50,7 +50,10 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
         >
           <Box sx={{ flex: 1, overflow: 'auto' }}>
             {isImageDataset ? (
-              <DatasetPreviewWithTemplate datasetId={dataset_id} template="" />
+              <DatasetTableWithTemplateDatasetTab
+                datasetId={dataset_id}
+                template=""
+              />
             ) : (
               <DatasetTable datasetId={dataset_id} />
             )}
