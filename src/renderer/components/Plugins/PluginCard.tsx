@@ -68,7 +68,7 @@ export default function PluginCard({
       isCompatible =
         pluginArchitectures.includes('mlx') ||
         pluginArchitectures.includes('cpu');
-    } else if (machineType === 'cuda') {
+    } else if (machineType === 'nvidia') {
       isCompatible =
         pluginArchitectures.includes('cuda') ||
         pluginArchitectures.includes('cpu');
