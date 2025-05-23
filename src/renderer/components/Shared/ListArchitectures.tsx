@@ -1,6 +1,7 @@
 import { Box, Chip } from '@mui/joy';
 import TinyMLXLogo from './TinyMLXLogo';
 import TinyNVIDIALogo from './TinyNVIDIALogo';
+import TinyAMDLogo from './TinyAMDLogo';
 
 function mapArchitectureToIcon(arch) {
   switch (arch) {
@@ -8,6 +9,8 @@ function mapArchitectureToIcon(arch) {
       return <TinyNVIDIALogo />;
     case 'mlx':
       return <TinyMLXLogo />;
+    case 'amd':
+      return <TinyAMDLogo />;
     default:
       return (
         <Chip key={arch} color="primary">

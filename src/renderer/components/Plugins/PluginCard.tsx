@@ -9,8 +9,6 @@ import { Box, ButtonGroup, Chip, CircularProgress, Stack } from '@mui/joy';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 
-import TinyMLXLogo from '../Shared/TinyMLXLogo';
-import TinyNVIDIALogo from '../Shared/TinyNVIDIALogo';
 import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 import ShowArchitectures from '../Shared/ListArchitectures';
 
@@ -66,14 +64,16 @@ export default function PluginCard({
     // Check if plugin is compatible with the machine type
     let isCompatible = false;
 
-    if (machineType === 'mps') {
+    if (machineType === 'apple_silicon') {
       isCompatible =
         pluginArchitectures.includes('mlx') ||
         pluginArchitectures.includes('cpu');
-    } else if (machineType === 'cuda') {
+    } else if (machineType === 'nvidia') {
       isCompatible =
         pluginArchitectures.includes('cuda') ||
         pluginArchitectures.includes('cpu');
+    } else if (machineType === 'amd') {
+      isCompatible = pluginArchitectures.includes('amd');
     } else {
       isCompatible = pluginArchitectures.includes('cpu');
     }
@@ -172,6 +172,19 @@ export default function PluginCard({
                     mt: 1,
                     backgroundColor: 'warning.softBg',
                     color: 'warning.700',
+                    maxWidth: 160,
+                    whiteSpace: 'normal',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    wordBreak: 'break-word',
+                    fontSize: '0.75rem',
+                    lineHeight: 1.2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    minHeight: 32,
+                    px: 1.5,
                   }}
                 >
                   This is an experimental plugin

@@ -48,7 +48,7 @@ export default function PluginGallery({
     fetchShowExperimental();
   }, []);
 
-  const device = serverInfo?.device;
+  const device = serverInfo?.device_type;
 
   const renderFilters = () => (
     <FormControl size="sm" sx={{ flex: 1 }}>
@@ -81,18 +81,21 @@ export default function PluginGallery({
   const isPluginCompatible = (plugin, machineType) => {
     if (!plugin.supported_hardware_architectures) return true; // Default to compatible if no information
 
-    if (machineType === 'mps') {
+    if (machineType === 'apple_silicon') {
       return (
         plugin.supported_hardware_architectures.includes('mlx') ||
         plugin.supported_hardware_architectures.includes('cpu')
       );
     }
 
-    if (machineType === 'cuda') {
+    if (machineType === 'nvidia') {
       return (
         plugin.supported_hardware_architectures.includes('cuda') ||
         plugin.supported_hardware_architectures.includes('cpu')
       );
+    }
+    if (machineType === 'amd') {
+      return plugin.supported_hardware_architectures.includes('amd');
     }
 
     return true; // Default to compatible for unknown machine types

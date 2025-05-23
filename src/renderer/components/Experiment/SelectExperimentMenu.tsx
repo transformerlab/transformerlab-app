@@ -22,11 +22,12 @@ import {
   MenuButton,
   Tooltip,
 } from '@mui/joy';
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -92,6 +93,33 @@ export default function SelectExperimentMenu({
     setAnchorEl(null);
     setExperimentId(id);
   };
+
+  const createNewExperiment = useCallback(
+    async (name: string, fromRecipeId = null) => {
+      let newId = 0;
+
+      if (fromRecipeId === null) {
+        const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+        newId = await response.json();
+      } else {
+        const response = await fetch(
+          getFullPath('recipes', ['createExperiment'], {
+            id: fromRecipeId,
+            experiment_name: name,
+          }),
+          {
+            method: 'POST',
+          },
+        );
+        const responseJson = await response.json();
+        newId = responseJson.experiment_id;
+      }
+      setExperimentId(newId);
+      createHandleClose(newId);
+      mutate();
+    },
+    [setExperimentId, mutate],
+  );
 
   return (
     <div>
@@ -260,7 +288,7 @@ export default function SelectExperimentMenu({
       <RecipesModal
         modalOpen={modalOpen && DEV_MODE}
         setModalOpen={setModalOpen}
-        createNewExperiment={undefined}
+        createNewExperiment={createNewExperiment}
       />
       <Modal open={modalOpen && !DEV_MODE} onClose={() => setModalOpen(false)}>
         <ModalDialog
@@ -281,16 +309,7 @@ export default function SelectExperimentMenu({
             onSubmit={async (event: FormEvent<HTMLFormElement>) => {
               event.preventDefault();
               const form = new FormData(event.target);
-              // const formJson = Object.fromEntries((formData as any).entries());
-              // alert(JSON.stringify(formJson));
-              const name = form.get('name');
-              const response = await fetch(
-                chatAPI.Endpoints.Experiment.Create(name),
-              );
-              const newId = await response.json();
-              setExperimentId(newId);
-              createHandleClose(newId);
-              mutate();
+              createNewExperiment(form.get('name') as string);
               setModalOpen(false);
             }}
           >
