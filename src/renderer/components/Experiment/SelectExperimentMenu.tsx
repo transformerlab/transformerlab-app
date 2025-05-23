@@ -22,7 +22,7 @@ import {
   MenuButton,
   Tooltip,
 } from '@mui/joy';
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -92,6 +92,18 @@ export default function SelectExperimentMenu({
     setAnchorEl(null);
     setExperimentId(id);
   };
+
+  const createNewExperiment = useCallback(
+    async (name: string) => {
+      alert('Creating new experiment: ' + name);
+      const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+      const newId = await response.json();
+      setExperimentId(newId);
+      createHandleClose(newId);
+      mutate();
+    },
+    [setExperimentId, mutate],
+  );
 
   return (
     <div>
@@ -260,7 +272,7 @@ export default function SelectExperimentMenu({
       <RecipesModal
         modalOpen={modalOpen && DEV_MODE}
         setModalOpen={setModalOpen}
-        createNewExperiment={undefined}
+        createNewExperiment={createNewExperiment}
       />
       <Modal open={modalOpen && !DEV_MODE} onClose={() => setModalOpen(false)}>
         <ModalDialog
@@ -281,16 +293,7 @@ export default function SelectExperimentMenu({
             onSubmit={async (event: FormEvent<HTMLFormElement>) => {
               event.preventDefault();
               const form = new FormData(event.target);
-              // const formJson = Object.fromEntries((formData as any).entries());
-              // alert(JSON.stringify(formJson));
-              const name = form.get('name');
-              const response = await fetch(
-                chatAPI.Endpoints.Experiment.Create(name),
-              );
-              const newId = await response.json();
-              setExperimentId(newId);
-              createHandleClose(newId);
-              mutate();
+              createNewExperiment(form.get('name') as string);
               setModalOpen(false);
             }}
           >

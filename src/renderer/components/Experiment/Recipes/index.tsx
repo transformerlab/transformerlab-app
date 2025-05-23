@@ -5,6 +5,7 @@ import { ModalClose } from '@mui/joy';
 import { useState } from 'react';
 import ListRecipes from './ListRecipes';
 import SelectedRecipe from './SelectedRecipe';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function RecipesModal({
   modalOpen,
@@ -16,6 +17,25 @@ export default function RecipesModal({
   const handleClose = () => {
     setModalOpen(false);
     setSelectedRecipe(null);
+  };
+
+  const handleCreateNewExperiment = async (recipe, experimentName) => {
+    console.log('hi');
+    console.log('recipe', recipe);
+    console.log('experimentName', experimentName);
+    if (recipe === -1) {
+      // This means user clicked on Create BLANK experiment
+      alert('Creating blank experiment');
+      await createNewExperiment(experimentName);
+    } else {
+      await fetch(
+        getFullPath('recipes', ['createExperiment'], {
+          id: recipe.id,
+          experiment_name: experimentName,
+        }),
+      );
+    }
+    handleClose();
   };
 
   return (
@@ -36,6 +56,7 @@ export default function RecipesModal({
           <SelectedRecipe
             recipe={selectedRecipe}
             setSelectedRecipeId={setSelectedRecipe}
+            installRecipe={handleCreateNewExperiment}
           />
         ) : (
           <ListRecipes setSelectedRecipe={setSelectedRecipe} />

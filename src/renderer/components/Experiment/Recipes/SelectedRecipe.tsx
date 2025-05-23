@@ -43,7 +43,11 @@ function isRecipeCompatibleWithDevice(recipe, device) {
   return false;
 }
 
-export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
+export default function SelectedRecipe({
+  recipe,
+  setSelectedRecipeId,
+  installRecipe,
+}) {
   const [experimentName, setExperimentName] = useState('');
   const [experimentNameTouched, setExperimentNameTouched] = useState(false);
 
@@ -67,8 +71,8 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!experimentName) return;
-    // Submit logic here
+    console.log('Installing recipe:', recipe?.id);
+    installRecipe(recipe?.id, experimentName);
   };
 
   return (
@@ -111,7 +115,6 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           maxWidth: '800px',
           margin: '0 auto',
         }}
-        component="form"
         onSubmit={handleSubmit}
       >
         <Box>
@@ -184,11 +187,11 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
       </Box>
       <div style={{ width: '100%' }}>
         <Button
-          type="submit"
           size="lg"
           sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
           color="primary"
           startDecorator={<RocketIcon />}
+          onClick={handleSubmit}
           disabled={!experimentName || missingAnyDependencies || isLoading}
         >
           Start &nbsp;
