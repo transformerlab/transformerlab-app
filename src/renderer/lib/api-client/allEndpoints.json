@@ -93,6 +93,10 @@
     "createExperiment": {
       "method": "POST",
       "path": "recipes/{id}/create_experiment"
+    },
+    "jobStatus": {
+      "method": "GET",
+      "path": "recipes/jobs/{job_id}/status"
     }
   }
 }

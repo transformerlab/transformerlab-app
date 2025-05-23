@@ -105,6 +105,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           gap: 2,
           flexDirection: { xs: 'column', md: 'row' },
           overflowY: 'auto',
+          overflowX: 'hidden',
           pt: 2,
           justifyContent: 'space-between',
           maxWidth: '800px',
@@ -188,7 +189,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
           color="primary"
           startDecorator={<RocketIcon />}
-          disabled={!experimentName || missingAnyDependencies}
+          disabled={!experimentName || missingAnyDependencies || isLoading}
         >
           Start &nbsp;
         </Button>

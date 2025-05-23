@@ -3,12 +3,14 @@ import {
   Button,
   Chip,
   CircularProgress,
+  LinearProgress,
   Sheet,
   Typography,
 } from '@mui/joy';
 import { CircleCheckIcon, CircleXIcon, DownloadIcon } from 'lucide-react';
 import { useState } from 'react';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useEffect } from 'react';
 
 function InstalledStateChip({ state }) {
   let color = 'neutral';
@@ -46,13 +48,41 @@ export default function RecipeDependencies({
   dependenciesMutate,
 }) {
   const [installing, setInstalling] = useState(false);
+  const [installJobId, setInstallJobId] = useState(null);
+  const [dependenciesFromInstall, setDependenciesFromInstall] = useState(null);
+  const { data } = useAPI(
+    'recipes',
+    ['jobStatus'],
+    {
+      job_id: installJobId,
+    },
+    { refreshInterval: 2000 },
+  );
+
+  useEffect(() => {
+    if (data?.results && data?.results.length > 0) {
+      setDependenciesFromInstall(data.results);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   if (!dependencies) {
     return null;
   }
 
+  const installStatus = data?.status;
+  const installProgress = data?.progress;
+
+  if (installStatus === 'COMPLETE') {
+    setInstallJobId(null);
+    setInstalling(false);
+    dependenciesMutate();
+  }
+
+  const dependenciesToGroup = /* dependenciesFromInstall || */ dependencies;
+
   // Group dependencies by type
-  const groupedDependencies = (dependencies || []).reduce((acc, dep) => {
+  const groupedDependencies = (dependenciesToGroup || []).reduce((acc, dep) => {
     acc[dep.type] = acc[dep.type] || [];
     acc[dep.type].push(dep);
     return acc;
@@ -66,6 +96,7 @@ export default function RecipeDependencies({
     dependencies &&
     dependencies.length > 0 && (
       <>
+        {/* {JSON.stringify(dependenciesFromInstall)} */}
         <Typography
           level="title-lg"
           mb={0}
@@ -102,22 +133,6 @@ export default function RecipeDependencies({
             pointerEvents: installing ? 'none' : 'auto',
           }}
         >
-          {/* {installing && (
-            <Box
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 2,
-                pointerEvents: 'auto',
-                background: 'rgba(255,255,255,0.3)',
-              }}
-            >
-              <CircularProgress />
-            </Box>
-          )} */}
           {Object.entries(groupedDependencies).map(([type, deps]) => (
             <Box key={type} sx={{ mb: 1 }}>
               <Typography level="title-md" sx={{ textTransform: 'capitalize' }}>
@@ -140,6 +155,14 @@ export default function RecipeDependencies({
             </Box>
           ))}
         </Sheet>
+        {installing && (
+          <LinearProgress
+            determinate
+            variant="soft"
+            value={installProgress}
+            sx={{}}
+          />
+        )}
         {countMissingDependencies > 0 && (
           <Button
             color="warning"
@@ -150,13 +173,15 @@ export default function RecipeDependencies({
             }
             onClick={async () => {
               setInstalling(true);
-              await fetch(
+              const installTask = await fetch(
                 getFullPath('recipes', ['installDependencies'], {
                   id: recipeId,
                 }),
               );
-              dependenciesMutate();
-              setInstalling(false);
+              const installTaskJson = await installTask.json();
+              if (installTaskJson?.job_id) {
+                setInstallJobId(installTaskJson.job_id);
+              }
             }}
           >
             Install ({countMissingDependencies}) Missing Dependenc
