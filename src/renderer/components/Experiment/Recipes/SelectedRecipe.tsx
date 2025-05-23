@@ -13,7 +13,7 @@ import { ArrowLeftIcon, CircleCheckIcon, RocketIcon } from 'lucide-react';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeDependencies from './RecipeDependencies';
-import { dependencies } from 'webpack';
+import { Form } from 'react-router-dom';
 
 export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   const [experimentName, setExperimentName] = useState('');
@@ -21,6 +21,15 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   const { data, isLoading, mutate } = useAPI('recipes', ['checkDependencies'], {
     id: recipe?.id,
   });
+
+  // Check if all dependencies are installed
+  let missingAnyDependencies = true;
+  if (data?.dependencies) {
+    missingAnyDependencies = data.dependencies.some((dep) => {
+      // check if dep.installed === true
+      return dep.installed === false;
+    });
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -97,7 +106,7 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
               />
             }
           >
-            Hardware Requirements:
+            Hardware Requirements: (todo)
           </Typography>
           <ShowArchitectures
             architectures={recipe?.requiredMachineArchitecture}
@@ -110,20 +119,23 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
           />
         </Box>
       </Box>
-
-      <Button
-        type="submit"
-        size="lg"
-        sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
-        color="primary"
-        startDecorator={<RocketIcon />}
-        disabled={!experimentName}
-      >
-        Start &nbsp;
-        <span style={{ fontWeight: 'normal', fontSize: '0.8em' }}>
-          (install missing dependencies first)
-        </span>
-      </Button>
+      <div style={{ width: '100%' }}>
+        <Button
+          type="submit"
+          size="lg"
+          sx={{ mt: 2, width: '100%', alignSelf: 'flex-end' }}
+          color="primary"
+          startDecorator={<RocketIcon />}
+          disabled={!experimentName || missingAnyDependencies}
+        >
+          Start &nbsp;
+        </Button>
+        <Typography level="body-sm" color="danger" sx={{ textAlign: 'center' }}>
+          {missingAnyDependencies &&
+            'Install all missing dependencies before you can use this recipe.'}
+          &nbsp;
+        </Typography>
+      </div>
     </Sheet>
   );
 }
