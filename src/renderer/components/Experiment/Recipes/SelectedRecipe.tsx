@@ -45,6 +45,7 @@ function isRecipeCompatibleWithDevice(recipe, device) {
 
 export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
   const [experimentName, setExperimentName] = useState('');
+  const [experimentNameTouched, setExperimentNameTouched] = useState(false);
 
   const { data, isLoading, mutate } = useAPI('recipes', ['checkDependencies'], {
     id: recipe?.id,
@@ -113,17 +114,26 @@ export default function SelectedRecipe({ recipe, setSelectedRecipeId }) {
         onSubmit={handleSubmit}
       >
         <Box>
-          <FormControl required error={!experimentName}>
-            <FormLabel>Give this experiment a unique name:</FormLabel>
+          <FormControl
+            required
+            error={!experimentName && experimentNameTouched}
+          >
+            <FormLabel sx={{ fontWeight: 'bold' }}>
+              Give this experiment a unique name:
+            </FormLabel>
             <Input
               size="lg"
               sx={{ width: '300px' }}
               value={experimentName}
-              onChange={(e) => setExperimentName(e.target.value)}
+              onChange={(e) => {
+                setExperimentName(e.target.value);
+                if (!experimentNameTouched) setExperimentNameTouched(true);
+              }}
+              onBlur={() => setExperimentNameTouched(true)}
               required
               name="experimentName"
             />
-            {!experimentName && (
+            {!experimentName && experimentNameTouched && (
               <FormHelperText>This field is required.</FormHelperText>
             )}
           </FormControl>
