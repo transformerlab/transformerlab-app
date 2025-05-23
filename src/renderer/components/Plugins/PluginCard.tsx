@@ -63,7 +63,6 @@ export default function PluginCard({
 
     // Check if plugin is compatible with the machine type
     let isCompatible = false;
-    console.log('machineType', machineType);
 
     if (machineType === 'mps') {
       isCompatible =
@@ -78,8 +77,6 @@ export default function PluginCard({
     } else {
       isCompatible = pluginArchitectures.includes('cpu');
     }
-
-    // console.log('pluginArchitectures', pluginArchitectures);
 
     // Only show a message for incompatible plugins
     if (!isCompatible) {
