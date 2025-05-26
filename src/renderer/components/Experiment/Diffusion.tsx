@@ -36,6 +36,8 @@ type HistoryImage = {
     num_inference_steps: number;
     guidance_scale: number;
     seed: number;
+    model: string;
+    adaptor: string;
   };
 };
 
@@ -561,6 +563,27 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
                       }}
                     >
                       {selectedImage.metadata.prompt}
+                    </Typography>
+                    <Typography level="title-sm" sx={{ mb: 1 }}>
+                      Model Info:
+                    </Typography>
+                    <Typography
+                      level="body-sm"
+                      sx={{
+                        mb: 3,
+                        p: 2,
+                        backgroundColor: 'var(--joy-palette-background-level1)',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <strong>Model:</strong> {selectedImage.metadata.model}
+                      {selectedImage.metadata.adaptor && (
+                        <>
+                          <br />
+                          <strong>Adaptor:</strong>{' '}
+                          {selectedImage.metadata.adaptor}
+                        </>
+                      )}
                     </Typography>
 
                     <Typography level="title-sm" sx={{ mb: 1 }}>
