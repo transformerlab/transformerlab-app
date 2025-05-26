@@ -5,14 +5,21 @@ import useSWR from 'swr';
 import { API_URL, getFullPath } from './urls';
 import { Endpoints } from './endpoints';
 
-export default function useAPI(
+export function useAPI(
   majorEntity: string,
   pathArray: string[],
   params: Record<string, any> = {},
   options: any = {},
 ) {
-  const path = getFullPath(majorEntity, pathArray, params);
+  let path = getFullPath(majorEntity, pathArray, params);
   const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+  // If any of the params are null or undefined, return null:
+  if (
+    Object.values(params).some((param) => param === null || param === undefined)
+  ) {
+    path = null;
+  }
 
   const { data, error, isLoading, mutate } = useSWR(path, fetcher, {
     ...options,

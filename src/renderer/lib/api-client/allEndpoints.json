@@ -38,6 +38,10 @@
     }
   },
   "server": {
+    "info": {
+      "method": "GET",
+      "path": "server/info"
+    },
     "pythonLibraries": {
       "method": "GET",
       "path": "server/python_libraries"
@@ -48,9 +52,51 @@
       "method": "GET",
       "path": "config/get/{key}"
     },
-    "update": {
+    "set": {
       "method": "PUT",
       "path": "config/set?k={key}&v={value}"
+    }
+  },
+  "models": {
+    "getModelGroups": {
+      "method": "GET",
+      "path": "model/model_groups_list"
+    },
+    "loginToHuggingFace": {
+      "method": "GET",
+      "path": "model/login_to_huggingface"
+    }
+  },
+  "jobs": {
+    "get": {
+      "method": "GET",
+      "path": "jobs/{id}"
+    }
+  },
+  "recipes": {
+    "getAll": {
+      "method": "GET",
+      "path": "recipes/list"
+    },
+    "get": {
+      "method": "GET",
+      "path": "recipes/{id}"
+    },
+    "checkDependencies": {
+      "method": "GET",
+      "path": "recipes/{id}/check_dependencies"
+    },
+    "installDependencies": {
+      "method": "POST",
+      "path": "recipes/{id}/install_dependencies"
+    },
+    "createExperiment": {
+      "method": "POST",
+      "path": "recipes/{id}/create_experiment?experiment_name={experiment_name}"
+    },
+    "jobStatus": {
+      "method": "GET",
+      "path": "recipes/jobs/{job_id}/status"
     }
   }
 }

@@ -40,9 +40,9 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
       datasetId,
       encodeURIComponent(template),
       offset,
-      pageSize
+      pageSize,
     ),
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -113,25 +113,31 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
                 })} */}
                 <td>
                   <pre style={{ whiteSpace: 'pre-wrap' }}>
-                    {/* {JSON.stringify(row, null, 2)} */}
                     {Object.entries(row).map(([key, value]) => {
                       if (key.startsWith('__') && key.endsWith('__')) {
                         return null;
                       } else {
                         return (
-                          <Box>
-                            {typeof value === 'string' ? (
-                              <>
-                                <Chip>{key}</Chip>
-                                {value?.length > 200 ? (
-                                  <>
-                                    {value.substring(0, 200)}
-                                    ...
-                                  </>
-                                ) : (
-                                  value
-                                )}
-                              </>
+                          <Box key={key} sx={{ mb: 1 }}>
+                            <Chip>{key}</Chip>
+                            {typeof value === 'string' &&
+                            value.startsWith('data:image/') ? (
+                              <img
+                                src={value}
+                                alt="preview"
+                                style={{
+                                  maxWidth: 120,
+                                  maxHeight: 120,
+                                  display: 'block',
+                                  marginTop: 4,
+                                }}
+                              />
+                            ) : typeof value === 'string' ? (
+                              value.length > 200 ? (
+                                <>{value.substring(0, 200)}...</>
+                              ) : (
+                                value
+                              )
                             ) : (
                               <pre>{JSON.stringify(value, null, 2)}</pre>
                             )}
@@ -181,7 +187,7 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
         {pageNumber > 4 ? '…' : <div />}
         {Array.from(
           { length: Math.min(5, numOfPages) },
-          (_, i) => pageNumber + i - 2
+          (_, i) => pageNumber + i - 2,
         )
           .filter((page) => page >= 2 && page < numOfPages)
 

@@ -251,9 +251,7 @@ export default function ModelDetails({
                   chatAPI.Endpoints.Experiment.UpdateConfig(
                     experimentInfo?.id,
                     'inferenceParams',
-                    JSON.stringify({
-                      inferenceEngine: null,
-                    }),
+                    JSON.stringify({}),
                   ),
                 );
               }}

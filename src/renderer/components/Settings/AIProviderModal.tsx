@@ -10,11 +10,9 @@ import {
   Typography,
   IconButton,
 } from '@mui/joy';
-import useSWR from 'swr';
 
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface Provider {
   name: string;
@@ -31,26 +29,32 @@ export default function AIProviderModal({
   selectedProvider: Provider | null;
 }) {
   const [showApiKey, setShowApiKey] = React.useState(false);
-  const { data: apiKey, mutate: mutateApiKey } = useSWR(
-    chatAPI.Endpoints.Config.Get(selectedProvider?.keyName),
-    fetcher,
-  );
+
+  const { data: apiKey, mutate: mutateApiKey } = useAPI('config', ['get'], {
+    key: selectedProvider?.keyName,
+  });
 
   const saveProvider = async (provider: Provider, token: string) => {
-    await fetch(chatAPI.Endpoints.Config.Set(provider.keyName, token));
+    await fetch(
+      getFullPath('config', ['set'], { key: provider.keyName, value: token }),
+    );
     mutateApiKey();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const data = new FormData(e.target as HTMLFormElement);
-    const apiKey = data.get('apiKey') as string;
-    alert(JSON.stringify(Object.fromEntries(data.entries())));
-    if (!apiKey) {
-      saveProvider(selectedProvider!, JSON.stringify(Object.fromEntries(data.entries())));
-    }
-    else {
-      saveProvider(selectedProvider!, apiKey);
+    const key = data.get('apiKey') as string;
+    // if there is a value named apiKey, it means the thing to save
+    // is just the one value, otherwise it is a JSON object with
+    // a bunch of values as an object
+    if (!key) {
+      saveProvider(
+        selectedProvider!,
+        JSON.stringify(Object.fromEntries(data.entries())),
+      );
+    } else {
+      saveProvider(selectedProvider!, key);
     }
     setDialogOpen(false);
   };
@@ -205,8 +209,14 @@ export default function AIProviderModal({
                   </a>
                 </li>
                 <li>Create or select your Azure OpenAI resource.</li>
-                <li>Navigate to Keys and Endpoint to find your API key and endpoint.</li>
-                <li>Create a deployment in the Azure OpenAI Studio and note your deployment name.</li>
+                <li>
+                  Navigate to Keys and Endpoint to find your API key and
+                  endpoint.
+                </li>
+                <li>
+                  Create a deployment in the Azure OpenAI Studio and note your
+                  deployment name.
+                </li>
               </ol>
             </>
           )}

@@ -47,19 +47,39 @@ function ModelProviderWidget<
     custom: 'CUSTOM_MODEL_API_KEY',
   };
   const configKeysInOrder = Object.values(disabledEnvMap);
-  const configResults = configKeysInOrder.map((key) =>
-    useSWR(chatAPI.Endpoints.Config.Get(key), fetcher),
+  const [configValues, setConfigValues] = React.useState<Record<string, any>>(
+    {},
   );
-  const configValues = React.useMemo(() => {
-    const values: Record<string, any> = {};
-    configKeysInOrder.forEach((key, idx) => {
-      values[key] = configResults[idx]?.data;
-    });
-    return values;
-  }, [configKeysInOrder, configResults]);
+
+  React.useEffect(() => {
+    const fetchConfigValues = async () => {
+      const configResults = await Promise.all(
+        configKeysInOrder.map(async (key) => {
+          const response = await fetch(
+            chatAPI.getFullPath('config', ['get'], { key }),
+          );
+          if (!response.ok) {
+            console.error(`Failed to fetch config for key: ${key}`);
+            return null;
+          }
+          return response.json();
+        }),
+      );
+      console.log('Config results:', configResults);
+      const values: Record<string, any> = {};
+      configKeysInOrder.forEach((key, idx) => {
+        values[key] = configResults[idx];
+      });
+      setConfigValues(values);
+    };
+
+    fetchConfigValues();
+  }, []);
 
   // Map: label => stored value.
   const labelToCustomValue: Record<string, string> = {
+    'Claude Opus 4': 'claude-opus-4-20250514',
+    'Claude Sonnet 4': 'claude-sonnet-4-20250514',
     'Claude 3.7 Sonnet': 'claude-3-7-sonnet-latest',
     'Claude 3.5 Haiku': 'claude-3-5-haiku-latest',
     'OpenAI GPT 4o': 'gpt-4o',

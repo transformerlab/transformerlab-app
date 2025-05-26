@@ -19,6 +19,7 @@ import {
   Stack,
   Table,
   Typography,
+  Box,
 } from '@mui/joy';
 
 import {
@@ -97,6 +98,7 @@ export default function TrainLoRA({ experimentInfo }) {
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
+  const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [importRecipeModalOpen, setImportRecipeModalOpen] = useState(false);
   const [templateID, setTemplateID] = useState('-1');
   const [currentPlugin, setCurrentPlugin] = useState('');
@@ -175,6 +177,8 @@ export default function TrainLoRA({ experimentInfo }) {
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
+        sweeps={viewOutputFromSweepJob}
+        setsweepJob={setViewOutputFromSweepJob}
       />
       <ImportRecipeModal
         open={importRecipeModalOpen}
@@ -232,45 +236,47 @@ export default function TrainLoRA({ experimentInfo }) {
                   Select a training plugin from the following list:
                 </Typography>
               </MenuItem>
-              {pluginsData?.map((plugin) => (
-                <MenuItem
-                  onClick={() => {
-                    setTemplateID('-1');
-                    setCurrentPlugin(plugin.uniqueId);
-                    setOpen(true);
-                  }}
-                  key={plugin.uniqueId}
-                  disabled={
-                    plugin.model_architectures
-                      ? !plugin.model_architectures.includes(
-                          modelArchitecture,
-                        ) &&
+              <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
+                {pluginsData?.map((plugin) => (
+                  <MenuItem
+                    onClick={() => {
+                      setTemplateID('-1');
+                      setCurrentPlugin(plugin.uniqueId);
+                      setOpen(true);
+                    }}
+                    key={plugin.uniqueId}
+                    disabled={
+                      plugin.model_architectures
+                        ? !plugin.model_architectures.includes(
+                            modelArchitecture,
+                          ) &&
+                          !plugin.model_architectures.includes(
+                            embeddingModelArchitecture,
+                          )
+                        : false
+                    }
+                  >
+                    <ListItemDecorator>
+                      <Plug2Icon />
+                    </ListItemDecorator>
+                    <div>
+                      {plugin.name}
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: 'var(--joy-palette-neutral-400)' }}
+                      >
+                        {plugin.model_architectures &&
+                        !plugin.model_architectures.includes(modelArchitecture) &&
                         !plugin.model_architectures.includes(
                           embeddingModelArchitecture,
                         )
-                      : false
-                  }
-                >
-                  <ListItemDecorator>
-                    <Plug2Icon />
-                  </ListItemDecorator>
-                  <div>
-                    {plugin.name}
-                    <Typography
-                      level="body-xs"
-                      sx={{ color: 'var(--joy-palette-neutral-400)' }}
-                    >
-                      {plugin.model_architectures &&
-                      !plugin.model_architectures.includes(modelArchitecture) &&
-                      !plugin.model_architectures.includes(
-                        embeddingModelArchitecture,
-                      )
-                        ? '(Does not support this model architecture)'
-                        : ''}
-                    </Typography>
-                  </div>
-                </MenuItem>
-              ))}
+                          ? '(Does not support this model architecture)'
+                          : ''}
+                      </Typography>
+                    </div>
+                  </MenuItem>
+                ))}
+              </Box>
             </Menu>
           </Dropdown>
         </Stack>
@@ -450,7 +456,7 @@ export default function TrainLoRA({ experimentInfo }) {
                 <th style={{ width: '60px' }}>ID</th>
                 <th>Details</th>
                 <th>Status</th>
-                <th style={{ width: '300px' }}></th>
+                <th style={{ width: '400px' }}></th>
               </tr>
             </thead>
             <tbody style={{ overflow: 'auto', height: '100%' }}>
@@ -503,6 +509,18 @@ export default function TrainLoRA({ experimentInfo }) {
                           >
                             Output
                           </Button>
+                          {job?.job_data?.sweep_output_file && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => {
+                                setViewOutputFromSweepJob(true);
+                                setViewOutputFromJob(job?.id);
+                              }}
+                            >
+                              Sweep Output
+                            </Button>
+                          )}
                           <IconButton variant="plain">
                             <Trash2Icon
                               onClick={async () => {
