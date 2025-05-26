@@ -9,9 +9,9 @@ import {
   Stack,
   Radio,
   RadioGroup,
-  Typography,
 } from '@mui/joy';
 import { Endpoints } from '../../../lib/api-client/endpoints';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
   const [mode, setMode] = useState<'package' | 'file'>('package');
@@ -22,21 +22,15 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
   const [loading, setLoading] = useState(false);
 
   const handleFilePick = async () => {
-    // Then create and trigger the file picker
+    // For Electron, use dialog API; for web, use input[type=file]
     const picker = document.createElement('input');
     picker.type = 'file';
     picker.onchange = (e: any) => {
       if (e.target.files.length > 0) {
         setFilePath(e.target.files[0].path || e.target.files[0].name);
-        // Set mode after file is selected to ensure UI is updated properly
-        setMode('file');
       }
     };
     picker.click();
-  };
-
-  const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setMode(event.target.value as 'package' | 'file');
   };
 
   const handleInstall = async () => {
@@ -51,9 +45,15 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
     if (result.status === 'success') {
       // Store serverName, args, and env in config
       const configValue = JSON.stringify({ serverName, args, env });
-      await fetch(Endpoints.Config.Set('MCP_SERVER', configValue), {
-        method: 'GET',
-      });
+      await fetch(
+        chatAPI.getFullPath('config', ['set'], {
+          key: 'MCP_SERVER',
+          value: configValue,
+        }),
+      );
+      // await fetch(Endpoints.Config.Set('MCP_SERVER', configValue), {
+      //   method: 'GET',
+      // });
       onInstalled && onInstalled();
       onClose();
     } else {
@@ -63,21 +63,12 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ minWidth: '450px' }}>
+      <ModalDialog>
         <Stack spacing={2}>
           <FormLabel>Add MCP Server</FormLabel>
-          <Typography
-            level="body-sm"
-            sx={{ mt: -1, mb: 1, color: 'text.secondary' }}
-          >
-            We support MCP Server Python packages installable via pip and custom
-            MCP server implementations (.py) files that implement the
-            ModelContextProtocol standard for stdio communication.
-          </Typography>
           <RadioGroup
-            name="mode-selector"
             value={mode}
-            onChange={handleModeChange}
+            onChange={(_, v) => setMode(v as 'package' | 'file')}
             row
           >
             <Radio value="package" label="Python Package" />

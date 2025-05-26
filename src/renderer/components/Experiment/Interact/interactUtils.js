@@ -13,7 +13,9 @@ export function focusChatInput() {
 }
 
 export async function getMcpServerFile() {
-  const configResp = await fetch(chatAPI.Endpoints.Config.Get('MCP_SERVER'));
+  const configResp = await fetch(
+    chatAPI.getFullPath('config', ['get'], { key: 'MCP_SERVER' }),
+  );
   const configData = await configResp.json();
   if (configData) {
     try {

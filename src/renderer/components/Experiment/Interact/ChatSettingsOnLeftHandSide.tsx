@@ -1,4 +1,12 @@
-import { Box, Button, FormLabel, FormControl, Sheet, Textarea } from '@mui/joy';
+import {
+  Box,
+  Button,
+  FormLabel,
+  FormControl,
+  Sheet,
+  Textarea,
+  Typography,
+} from '@mui/joy';
 import { useState } from 'react';
 import useSWR from 'swr';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
@@ -11,34 +19,63 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 const fetchToolsWithMcp = async () => {
-  // Fetch MCP_SERVER config
-  const configResp = await fetch(chatAPI.Endpoints.Config.Get('MCP_SERVER'));
-  const configData = await configResp.json();
-  let mcp_server_file = '';
-  let mcp_args = '';
-  let mcp_env = '';
-  if (configData) {
-    try {
-      const parsed = JSON.parse(configData);
-      mcp_server_file = parsed.serverName || '';
-      mcp_args = parsed.args || '';
-      mcp_env = parsed.env || '';
-    } catch {}
-  }
-  // Build tools list URL
-  let url = chatAPI.Endpoints.Tools.List();
-  if (mcp_server_file) {
-    url += `?mcp_server_file=${encodeURIComponent(mcp_server_file)}`;
-    if (mcp_args) {
-      url += `&mcp_args=${encodeURIComponent(mcp_args)}`;
+  try {
+    // Fetch MCP_SERVER config
+    const configResp = await fetch(
+      chatAPI.getFullPath('config', ['get'], { key: 'MCP_SERVER' }),
+    );
+    if (!configResp.ok) {
+      console.error(
+        'Config fetch failed:',
+        configResp.status,
+        configResp.statusText,
+      );
+      throw new Error(`HTTP error! status: ${configResp.status}`);
     }
-    if (mcp_env) {
-      url += `&mcp_env=${encodeURIComponent(mcp_env)}`;
-    }
-  }
 
-  const resp = await fetch(url);
-  return resp.json();
+    const configData = await configResp.json();
+    console.log('MCP_SERVER config response:', configData);
+
+    let mcp_server_file = '';
+    let mcp_args = '';
+    let mcp_env = '';
+
+    if (configData) {
+      try {
+        const parsed = JSON.parse(configData);
+        mcp_server_file = parsed.serverName || '';
+        mcp_args = parsed.args || '';
+        mcp_env = parsed.env || '';
+      } catch (parseError) {
+        console.error('Error parsing config data:', parseError);
+      }
+    }
+
+    // Build tools list URL
+    let url = chatAPI.Endpoints.Tools.List();
+    if (mcp_server_file) {
+      url += `?mcp_server_file=${encodeURIComponent(mcp_server_file)}`;
+      if (mcp_args) {
+        url += `&mcp_args=${encodeURIComponent(mcp_args)}`;
+      }
+      if (mcp_env) {
+        url += `&mcp_env=${encodeURIComponent(mcp_env)}`;
+      }
+    }
+    console.log('Fetching tools from URL:', url);
+
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      console.error('Tools fetch failed:', resp.status, resp.statusText);
+      throw new Error(`HTTP error! status: ${resp.status}`);
+    }
+
+    return resp.json();
+  } catch (error) {
+    console.error('Error in fetchToolsWithMcp:', error);
+    // Return empty array on error to prevent SWR from failing
+    return [];
+  }
 };
 
 export default function ChatSettingsOnLeftHandSide({
@@ -76,6 +113,9 @@ export default function ChatSettingsOnLeftHandSide({
         return elem.name;
       })
       .join('\n');
+
+  console.log('Available tools:', available_tools);
+  console.log('Tool list:', tool_list);
 
   return (
     <>
