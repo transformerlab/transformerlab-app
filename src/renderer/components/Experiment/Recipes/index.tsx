@@ -20,9 +20,6 @@ export default function RecipesModal({
   };
 
   const handleCreateNewExperiment = async (recipeId, experimentName) => {
-    console.log('hi');
-    console.log('recipe', recipeId);
-    console.log('experimentName', experimentName);
     if (recipeId === -1) {
       // This means user clicked on Create BLANK experiment
       await createNewExperiment(experimentName);

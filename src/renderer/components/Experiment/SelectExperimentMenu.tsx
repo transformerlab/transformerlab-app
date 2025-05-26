@@ -112,7 +112,14 @@ export default function SelectExperimentMenu({
           },
         );
         const responseJson = await response.json();
-        newId = responseJson.experiment_id;
+        // check if success = true in the resposnseJson:
+        if (!responseJson.success) {
+          alert(
+            `Error creating experiment from recipe: ${responseJson?.message || 'Unknown error'}`,
+          );
+          return;
+        }
+        newId = responseJson?.data?.experiment_id;
       }
       setExperimentId(newId);
       createHandleClose(newId);
