@@ -64,6 +64,37 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
     }
   };
 
+  const handleSaveImage = () => {
+    if (!imageBase64) return;
+
+    // Convert base64 to blob
+    const byteCharacters = atob(imageBase64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'image/png' });
+
+    // Create download link
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+
+    // Generate filename with timestamp and truncated prompt
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19);
+    link.download = `diffusion_${timestamp}.png`;
+
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Check if model is eligible for diffusion
   const checkStableDiffusion = async () => {
     setIsStableDiffusion(null);
@@ -213,18 +244,34 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
             </Typography>
           )}
           {imageBase64 && (
-            <img
-              src={`data:image/png;base64,${imageBase64}`}
-              alt="Generated"
-              style={{
-                borderRadius: 8,
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain',
-                display: 'block',
-                margin: 'auto',
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
               }}
-            />
+            >
+              <img
+                src={`data:image/png;base64,${imageBase64}`}
+                alt="Generated"
+                style={{
+                  borderRadius: 8,
+                  maxWidth: '100%',
+                  maxHeight: 'calc(100% - 60px)',
+                  objectFit: 'contain',
+                  display: 'block',
+                }}
+              />
+              <Button
+                onClick={handleSaveImage}
+                color="neutral"
+                variant="outlined"
+                size="sm"
+              >
+                Save Image
+              </Button>
+            </Box>
           )}
         </Box>
       </Stack>
