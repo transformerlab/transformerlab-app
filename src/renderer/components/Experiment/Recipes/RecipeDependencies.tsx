@@ -66,6 +66,8 @@ export default function RecipeDependencies({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
+  if (dependenciesLoading) return <CircularProgress sx={{ mt: 1, mb: 1 }} />;
+
   if (!dependencies) {
     return null;
   }
@@ -102,7 +104,6 @@ export default function RecipeDependencies({
           mb={0}
           endDecorator={
             <>
-              {dependenciesLoading && <CircularProgress size="sm" />}
               {countMissingDependencies === 0 && (
                 <CircleCheckIcon
                   color="var(--joy-palette-success-400)"
