@@ -430,4 +430,10 @@ Endpoints.Global = {
 Endpoints.Diffusion = {
   Generate: () => `${API_URL()}diffusion/generate`,
   CheckStableDiffusion: () => `${API_URL()}diffusion/is_stable_diffusion`,
+  GetHistory: (limit: number = 50, offset: number = 0) =>
+    `${API_URL()}diffusion/history?limit=${limit}&offset=${offset}`,
+  GetImageById: (imageId: string) =>
+    `${API_URL()}diffusion/history/${imageId}/image`,
+  DeleteImage: (imageId: string) => `${API_URL()}diffusion/history/${imageId}`,
+  ClearHistory: () => `${API_URL()}diffusion/history`,
 };
