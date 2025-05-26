@@ -53,9 +53,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
     experimentInfo?.config?.foundation || 'stabilityai/stable-diffusion-2-1';
   const adaptor = experimentInfo?.config?.adaptor || '';
   const [model] = useState(initialModel);
-  const [prompt, setPrompt] = useState(
-    'A fantasy landscape, trending on artstation',
-  );
+  const [prompt, setPrompt] = useState('An astronaut floating in space');
   const [numSteps, setNumSteps] = useState(30);
   const [guidanceScale, setGuidanceScale] = useState(7.5);
   const [seed, setSeed] = useState('');
