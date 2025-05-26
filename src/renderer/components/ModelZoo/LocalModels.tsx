@@ -115,8 +115,6 @@ export default function LocalModels({
         setAdaptor={setAdaptor}
         showOnlyGeneratedModels={showOnlyGeneratedModels}
       />
-
-      <ImportModelsBar />
     </Sheet>
   );
 }

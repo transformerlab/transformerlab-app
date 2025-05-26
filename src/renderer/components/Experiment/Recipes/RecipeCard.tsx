@@ -21,7 +21,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   setSelectedRecipe,
 }) => {
   return (
-    <Card variant="outlined" sx={{ width: 220, height: `100%` }}>
+    <Card variant="outlined" sx={{ height: '100%' }}>
       <CardOverflow>
         <AspectRatio ratio="8/3">
           <img src={recipeDetails?.cardImage} loading="lazy" alt="" />
@@ -56,7 +56,13 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
             size="sm"
             color="primary"
             variant="solid"
-            sx={{ height: '28px', minHeight: '28px' }}
+            sx={{
+              height: '28px',
+              minHeight: '28px',
+              /* make it impossible for the text to wrap: */
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+            }}
             endDecorator={<ArrowRightIcon size={16} strokeWidth={1} />}
             onClick={() => {
               setSelectedRecipe(recipeDetails);

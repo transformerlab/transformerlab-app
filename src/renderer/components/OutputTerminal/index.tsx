@@ -18,50 +18,53 @@ const OutputTerminal = ({
   lineAnimationDelay = 10,
   initialMessage = '',
 }) => {
-  const terminalRef = useRef(null);
-  let term: Terminal | null = null;
-  let lineQueue: string[] = [];
-  let isProcessing = false;
-
-  const fitAddon = new FitAddon();
+  const terminalRef = useRef<HTMLDivElement | null>(null);
+  const termRef = useRef<Terminal | null>(null);
+  const fitAddon = useRef(new FitAddon());
+  const lineQueue = useRef<string[]>([]);
+  const isProcessing = useRef(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleResize = debounce(() => {
-    fitAddon.fit();
+    if (termRef.current) {
+      fitAddon.current.fit();
+    }
   }, 300);
 
   const processQueue = () => {
-    if (lineQueue.length === 0) {
-      isProcessing = false;
+    if (!termRef.current) return;
+    if (lineQueue.current.length === 0) {
+      isProcessing.current = false;
       return;
     }
 
-    isProcessing = true;
-    const line = lineQueue.shift()!;
-    term?.write(line.replace(/\n$/, '\r\n'));
+    isProcessing.current = true;
+    const line = lineQueue.current.shift()!;
+    termRef.current.write(line.replace(/\n$/, '\r\n'));
     if (terminalRef.current) {
       terminalRef.current.scrollIntoView({ behavior: 'smooth' });
     }
 
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       processQueue();
-    }, lineAnimationDelay); // 100ms delay between each line
+    }, lineAnimationDelay);
   };
 
   const addLinesOneByOne = (lines: string[]) => {
-    lineQueue = lineQueue.concat(lines);
-    if (!isProcessing) {
+    lineQueue.current = lineQueue.current.concat(lines);
+    if (!isProcessing.current) {
       processQueue();
     }
   };
 
   useEffect(() => {
-    term = new Terminal({
-      smoothScrollDuration: 200, // Set smooth scroll duration to 200ms
+    termRef.current = new Terminal({
+      smoothScrollDuration: 200,
     });
-    term.loadAddon(fitAddon);
+    termRef.current.loadAddon(fitAddon.current);
 
-    if (terminalRef.current) term.open(terminalRef.current);
-    fitAddon.fit();
+    if (terminalRef.current) termRef.current.open(terminalRef.current);
+    fitAddon.current.fit();
 
     const resizeObserver = new ResizeObserver(() => {
       handleResize();
@@ -71,11 +74,11 @@ const OutputTerminal = ({
       resizeObserver.observe(terminalRef.current);
     }
 
-    term?.writeln(initialMessage);
+    termRef.current.writeln(initialMessage);
 
     const eventSource = new EventSource(logEndpoint);
     eventSource.onmessage = (event) => {
-      if (term !== null) {
+      if (termRef.current) {
         const lines = JSON.parse(event.data);
         addLinesOneByOne(lines);
       }
@@ -86,7 +89,9 @@ const OutputTerminal = ({
 
     return () => {
       eventSource.close();
-      term?.dispose();
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      termRef.current?.dispose();
+      termRef.current = null;
       if (terminalRef.current) {
         resizeObserver.unobserve(terminalRef.current);
       }
