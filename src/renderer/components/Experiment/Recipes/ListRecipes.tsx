@@ -48,7 +48,7 @@ export default function ListRecipes({ setSelectedRecipe }) {
             />
           </Grid>
           {isLoading && <CircularProgress />}
-          {data &&
+          {Array.isArray(data) &&
             data.map((recipe) => (
               <Grid key={recipe.id} sx={{ width: '250px' }}>
                 <RecipeCard
