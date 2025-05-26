@@ -34,7 +34,6 @@ const fetchToolsWithMcp = async () => {
     }
 
     const configData = await configResp.json();
-    console.log('MCP_SERVER config response:', configData);
 
     let mcp_server_file = '';
     let mcp_args = '';
@@ -62,7 +61,6 @@ const fetchToolsWithMcp = async () => {
         url += `&mcp_env=${encodeURIComponent(mcp_env)}`;
       }
     }
-    console.log('Fetching tools from URL:', url);
 
     const resp = await fetch(url);
     if (!resp.ok) {
