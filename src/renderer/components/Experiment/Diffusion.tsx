@@ -39,6 +39,12 @@ type HistoryImage = {
     seed: number;
     model: string;
     adaptor: string;
+    upscale?: boolean;
+    upscale_factor?: number;
+    negative_prompt?: string;
+    eta?: number;
+    clip_skip?: number;
+    guidance_rescale?: number;
   };
 };
 
@@ -62,6 +68,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
   const [seed, setSeed] = useState('');
   const [upscale, setUpscale] = useState(false);
   const [upscaleFactor, setUpscaleFactor] = useState(4);
+
+  // Advanced settings
+  const [negativePrompt, setNegativePrompt] = useState('');
+  const [eta, setEta] = useState('');
+  const [clipSkip, setClipSkip] = useState('');
+  const [guidanceRescale, setGuidanceRescale] = useState('');
+
   const [imageBase64, setImageBase64] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -69,6 +82,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
     null,
   );
   const [activeTab, setActiveTab] = useState('generate');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // History state
   const [historyData, setHistoryData] = useState<HistoryData | null>(null);
@@ -83,19 +97,36 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
     setError('');
     setImageBase64('');
     try {
+      // Build the request body with basic parameters
+      const requestBody: any = {
+        model,
+        adaptor,
+        prompt,
+        num_inference_steps: Number(numSteps),
+        guidance_scale: Number(guidanceScale),
+        seed: seed ? Number(seed) : 42,
+        upscale,
+        upscale_factor: Number(upscaleFactor),
+      };
+
+      // Add advanced parameters only if they are specified
+      if (negativePrompt.trim()) {
+        requestBody.negative_prompt = negativePrompt;
+      }
+      if (eta && Number(eta) !== 0) {
+        requestBody.eta = Number(eta);
+      }
+      if (clipSkip && Number(clipSkip) !== 0) {
+        requestBody.clip_skip = Number(clipSkip);
+      }
+      if (guidanceRescale && Number(guidanceRescale) !== 0) {
+        requestBody.guidance_rescale = Number(guidanceRescale);
+      }
+
       const response = await fetch(Endpoints.Diffusion.Generate(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model,
-          adaptor,
-          prompt,
-          num_inference_steps: Number(numSteps),
-          guidance_scale: Number(guidanceScale),
-          seed: seed ? Number(seed) : 42,
-          upscale,
-          upscale_factor: Number(upscaleFactor),
-        }),
+        body: JSON.stringify(requestBody),
       });
       const data = await response.json();
       if (data.error_code !== 0) {
@@ -164,7 +195,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
       const response = await fetch(Endpoints.Diffusion.GetHistory());
       const data = await response.json();
       setHistoryData(data);
-      console.log('History loaded:', data);
     } catch (e) {
       console.error('Failed to load history:', e);
     } finally {
@@ -177,6 +207,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
     try {
       const response = await fetch(Endpoints.Diffusion.GetImageById(imageId));
       const data = await response.json();
+      console.log('Image data:', data);
       setSelectedImage(data);
       setImageModalOpen(true);
     } catch (e) {
@@ -293,94 +324,187 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
                 overflowY: 'auto',
               }}
             >
-              <FormControl>
-                <FormLabel>Model</FormLabel>
-                <Input
-                  value={model}
-                  disabled
-                  readOnly
-                  placeholder="Model name or path"
-                />
-              </FormControl>
-              {adaptor && (
+              <Stack gap={2}>
                 <FormControl>
-                  <FormLabel>Adaptor</FormLabel>
+                  <FormLabel>Model</FormLabel>
                   <Input
-                    value={adaptor}
+                    value={model}
                     disabled
                     readOnly
-                    placeholder="Adaptor name or path"
+                    placeholder="Model name or path"
                   />
                 </FormControl>
-              )}
-              <FormControl>
-                <FormLabel>Prompt</FormLabel>
-                <Textarea
-                  minRows={2}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Describe the image you want to generate"
-                />
-              </FormControl>
-              <Stack
-                gap={1}
-                sx={{
-                  flexDirection: 'row',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <FormControl sx={{ flex: 1, display: 'flex' }}>
-                  <FormLabel>Steps</FormLabel>
-                  <Input
-                    type="number"
-                    value={numSteps}
-                    sx={{ width: 100 }}
-                    onChange={(e) => setNumSteps(Number(e.target.value))}
+                {adaptor && (
+                  <FormControl>
+                    <FormLabel>Adaptor</FormLabel>
+                    <Input
+                      value={adaptor}
+                      disabled
+                      readOnly
+                      placeholder="Adaptor name or path"
+                    />
+                  </FormControl>
+                )}
+                <FormControl>
+                  <FormLabel>Prompt</FormLabel>
+                  <Textarea
+                    minRows={2}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="Describe the image you want to generate"
                   />
                 </FormControl>
-                <FormControl
+                <Stack
+                  gap={1}
                   sx={{
-                    flex: 1,
-                    display: 'flex',
-                    justifyContent: 'space-between',
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
                   }}
                 >
-                  <FormLabel>Guidance Scale</FormLabel>
-                  <Input
-                    type="number"
-                    value={guidanceScale}
-                    sx={{ width: 100 }}
-                    onChange={(e) => setGuidanceScale(Number(e.target.value))}
-                  />
-                </FormControl>
-                <FormControl
+                  <FormControl sx={{ flex: 1, display: 'flex' }}>
+                    <FormLabel>Steps</FormLabel>
+                    <Input
+                      type="number"
+                      value={numSteps}
+                      sx={{ width: 100 }}
+                      onChange={(e) => setNumSteps(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormControl
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <FormLabel>Guidance Scale</FormLabel>
+                    <Input
+                      type="number"
+                      value={guidanceScale}
+                      sx={{ width: 100 }}
+                      onChange={(e) => setGuidanceScale(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormControl
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <FormLabel>Seed (optional)</FormLabel>
+                    <Input
+                      type="number"
+                      value={seed}
+                      sx={{ width: 100 }}
+                      onChange={(e) => setSeed(e.target.value)}
+                    />
+                  </FormControl>
+                </Stack>
+                <Stack
+                  gap={1}
                   sx={{
-                    flex: 1,
-                    display: 'flex',
-                    justifyContent: 'space-between',
+                    flexDirection: 'row',
+                    alignItems: 'center',
                   }}
                 >
-                  <FormLabel>Seed (optional)</FormLabel>
-                  <Input
-                    type="number"
-                    value={seed}
-                    sx={{ width: 100 }}
-                    onChange={(e) => setSeed(e.target.value)}
+                  <Checkbox
+                    checked={upscale}
+                    onChange={(e) => {
+                      setUpscale(e.target.checked);
+                      if (e.target.checked) {
+                        setUpscaleFactor(2);
+                      }
+                    }}
+                    label="Upscale image (2x)"
                   />
-                </FormControl>
+                </Stack>
+
+                {/* Advanced Settings Toggle */}
+                <Button
+                  variant="outlined"
+                  size="sm"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  {showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
+                </Button>
+
+                {/* Advanced Settings - Collapsible */}
+                {showAdvanced && (
+                  <Stack gap={2} sx={{ mt: 1 }}>
+                    <FormControl>
+                      <FormLabel>Negative Prompt</FormLabel>
+                      <Textarea
+                        minRows={2}
+                        value={negativePrompt}
+                        onChange={(e) => setNegativePrompt(e.target.value)}
+                        placeholder="Describe what you don't want in the image"
+                      />
+                    </FormControl>
+                    <Stack
+                      gap={1}
+                      sx={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <FormControl sx={{ flex: 1 }}>
+                        <FormLabel>ETA (0.0 = default)</FormLabel>
+                        <Input
+                          type="number"
+                          value={eta}
+                          sx={{ width: 100 }}
+                          onChange={(e) => setEta(e.target.value)}
+                          placeholder="0.0"
+                          slotProps={{
+                            input: {
+                              step: 0.1,
+                              min: 0,
+                              max: 1,
+                            },
+                          }}
+                        />
+                      </FormControl>
+                      <FormControl sx={{ flex: 1 }}>
+                        <FormLabel>CLIP Skip (0 = default)</FormLabel>
+                        <Input
+                          type="number"
+                          value={clipSkip}
+                          sx={{ width: 100 }}
+                          onChange={(e) => setClipSkip(e.target.value)}
+                          placeholder="0"
+                          slotProps={{
+                            input: {
+                              step: 1,
+                              min: 0,
+                              max: 12,
+                            },
+                          }}
+                        />
+                      </FormControl>
+                      <FormControl sx={{ flex: 1 }}>
+                        <FormLabel>Guidance Rescale (0.0 = default)</FormLabel>
+                        <Input
+                          type="number"
+                          value={guidanceRescale}
+                          sx={{ width: 100 }}
+                          onChange={(e) => setGuidanceRescale(e.target.value)}
+                          placeholder="0.0"
+                          slotProps={{
+                            input: {
+                              step: 0.1,
+                              min: 0,
+                              max: 1,
+                            },
+                          }}
+                        />
+                      </FormControl>
+                    </Stack>
+                  </Stack>
+                )}
               </Stack>
-              <Stack gap={1} sx={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Checkbox
-                  checked={upscale}
-                  onChange={(e) => {
-                    setUpscale(e.target.checked);
-                    if (e.target.checked) {
-                      setUpscaleFactor(2);
-                    }
-                  }}
-                  label="Upscale image (2x)"
-                />
-              </Stack>
+
               <Button
                 onClick={handleGenerate}
                 loading={loading}
@@ -615,9 +739,48 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
                         borderRadius: '6px',
                       }}
                     >
-                      Steps: {selectedImage.metadata.num_inference_steps} |
-                      Guidance: {selectedImage.metadata.guidance_scale} | Seed:{' '}
-                      {selectedImage.metadata.seed}
+                      <strong>Steps:</strong>{' '}
+                      {selectedImage.metadata.num_inference_steps} <br />
+                      <strong>Guidance:</strong>{' '}
+                      {selectedImage.metadata.guidance_scale} <br />
+                      <strong>Seed:</strong> {selectedImage.metadata.seed}
+                      {selectedImage.metadata.upscale && (
+                        <>
+                          <br />
+                          <strong>Upscale:</strong>{' '}
+                          {selectedImage.metadata.upscale_factor}x
+                        </>
+                      )}
+                      {selectedImage.metadata.negative_prompt && (
+                        <>
+                          <br />
+                          <strong>Negative Prompt:</strong>{' '}
+                          {selectedImage.metadata.negative_prompt}
+                        </>
+                      )}
+                      {selectedImage.metadata.eta !== undefined &&
+                        selectedImage.metadata.eta !== null && (
+                          <>
+                            <br />
+                            <strong>ETA:</strong> {selectedImage.metadata.eta}
+                          </>
+                        )}
+                      {selectedImage.metadata.clip_skip !== undefined &&
+                        selectedImage.metadata.clip_skip !== null && (
+                          <>
+                            <br />
+                            <strong>CLIP Skip:</strong>{' '}
+                            {selectedImage.metadata.clip_skip}
+                          </>
+                        )}
+                      {selectedImage.metadata.guidance_rescale !== undefined &&
+                        selectedImage.metadata.guidance_rescale !== null && (
+                          <>
+                            <br />
+                            <strong>Guidance Rescale:</strong>{' '}
+                            {selectedImage.metadata.guidance_rescale}
+                          </>
+                        )}
                     </Typography>
 
                     <Box
