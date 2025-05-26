@@ -12,7 +12,6 @@ import {
 import {
   ArrowLeftIcon,
   CircleCheckIcon,
-  CircleX,
   CircleXIcon,
   RocketIcon,
 } from 'lucide-react';
@@ -84,7 +83,7 @@ export default function SelectedRecipe({
         px: 2,
         width: '100%',
         height: '100%',
-        overflow: 'auto',
+        overflow: 'hidden',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
       }}
@@ -108,7 +107,7 @@ export default function SelectedRecipe({
           display: 'flex',
           gap: 2,
           flexDirection: { xs: 'column', md: 'row' },
-          overflowY: 'auto',
+          overflowY: 'hidden',
           overflowX: 'hidden',
           pt: 2,
           justifyContent: 'space-between',
@@ -117,12 +116,12 @@ export default function SelectedRecipe({
         }}
         onSubmit={handleSubmit}
       >
-        <Box>
+        <Box id="recipe-left" sx={{ overflowY: 'auto', padding: 1 }}>
           <FormControl
             required
             error={!experimentName && experimentNameTouched}
           >
-            <FormLabel sx={{ fontWeight: 'bold' }}>
+            <FormLabel sx={{ fontWeight: 'regular' }}>
               Give this experiment a unique name:
             </FormLabel>
             <Input
@@ -143,6 +142,7 @@ export default function SelectedRecipe({
           </FormControl>
         </Box>
         <Box
+          id="recipe-right"
           sx={{
             display: 'flex',
             flexDirection: 'column',
