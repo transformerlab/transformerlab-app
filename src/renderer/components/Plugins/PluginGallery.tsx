@@ -240,7 +240,7 @@ export default function PluginGallery({
                     pb: 1,
                   }}
                 >
-                  Not compatible with your hardware architecture:
+                  Incompatibe Plugins:
                 </Typography>
                 <Grid container spacing={2} sx={{ flexGrow: 1 }}>
                   {groupedPlugins[type].incompatible.map((plugin) => (
