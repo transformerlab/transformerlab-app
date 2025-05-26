@@ -112,8 +112,7 @@ export default function SelectExperimentMenu({
           },
         );
         const responseJson = await response.json();
-        // check if success = true in the resposnseJson:
-        if (!responseJson.success) {
+        if (!(responseJson?.status === 'success')) {
           alert(
             `Error creating experiment from recipe: ${responseJson?.message || 'Unknown error'}`,
           );
