@@ -241,8 +241,8 @@ export default function EvalTasksTable({ experimentInfo }) {
             </tr>
           </thead>
           <tbody>
-            {tasks &&
-              tasks?.map((evaluations) => (
+            {Array.isArray(tasks) &&
+              tasks.map((evaluations) => (
                 <tr key={evaluations.id}>
                   <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
                     {evaluations.name}
