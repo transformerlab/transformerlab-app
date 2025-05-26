@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import Modal from '@mui/joy/Modal';
 import ModalDialog from '@mui/joy/ModalDialog';
-import { ModalClose } from '@mui/joy';
+import { CircularProgress, ModalClose, Typography } from '@mui/joy';
 import { useState } from 'react';
 import ListRecipes from './ListRecipes';
 import SelectedRecipe from './SelectedRecipe';
@@ -13,6 +13,7 @@ export default function RecipesModal({
   createNewExperiment,
 }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [isCreatingLoadingState, setIsCreatingLoadingState] = useState(false);
 
   const handleClose = () => {
     setModalOpen(false);
@@ -24,7 +25,9 @@ export default function RecipesModal({
       // This means user clicked on Create BLANK experiment
       await createNewExperiment(experimentName);
     } else {
+      setIsCreatingLoadingState(true);
       await createNewExperiment(experimentName, recipeId);
+      setIsCreatingLoadingState(false);
     }
     handleClose();
   };
@@ -43,15 +46,33 @@ export default function RecipesModal({
         }}
       >
         <ModalClose onClick={() => handleClose()} />
-        {selectedRecipe ? (
-          <SelectedRecipe
-            recipe={selectedRecipe}
-            setSelectedRecipeId={setSelectedRecipe}
-            installRecipe={handleCreateNewExperiment}
-          />
-        ) : (
-          <ListRecipes setSelectedRecipe={setSelectedRecipe} />
+        {isCreatingLoadingState && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              width: '100%',
+              flexDirection: 'column',
+            }}
+          >
+            <Typography level="body-lg" sx={{ mb: 2 }}>
+              Setting up new experiment...
+            </Typography>
+            <CircularProgress />
+          </div>
         )}
+        {!isCreatingLoadingState &&
+          (selectedRecipe ? (
+            <SelectedRecipe
+              recipe={selectedRecipe}
+              setSelectedRecipeId={setSelectedRecipe}
+              installRecipe={handleCreateNewExperiment}
+            />
+          ) : (
+            <ListRecipes setSelectedRecipe={setSelectedRecipe} />
+          ))}
       </ModalDialog>
     </Modal>
   );
