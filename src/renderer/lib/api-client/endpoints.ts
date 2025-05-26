@@ -86,6 +86,8 @@ Endpoints.Workflows = {
   ListRuns: () => API_URL() + 'workflows/list_runs',
   GetRun: (workflowRunID: string) =>
     API_URL() + 'workflows/runs/' + workflowRunID,
+  ListInExperiment: (experimentId: string) =>
+    API_URL() + 'workflows/list_in_experiment?experiment_id=' + experimentId,
 };
 
 Endpoints.Dataset = {
@@ -582,4 +584,13 @@ Endpoints.Jobs = {
 
 Endpoints.Global = {
   PromptLog: () => API_URL() + 'prompt_log',
+};
+
+Endpoints.WorkflowTriggers = {
+  ListByExperiment: (experimentId: string) => 
+    API_URL() + 'workflow_triggers/list/' + experimentId,
+  GetDetails: (triggerId: string) => 
+    API_URL() + 'workflow_triggers/' + triggerId,
+  Update: (triggerId: string) => 
+    API_URL() + 'workflow_triggers/' + triggerId,
 };

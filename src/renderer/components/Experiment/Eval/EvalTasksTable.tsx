@@ -39,7 +39,7 @@ function formatTemplateConfig(script_parameters): ReactElement {
     if (script_parameters.tasks) {
       try {
         const tasksArray = JSON.parse(script_parameters.tasks);
-        if (Array.isArray(tasksArray)) {
+        if (Array.isArray(tasksArray) && tasksArray.length > 0) {
           if (predefined_tasks && predefined_tasks !== '') {
             // Check if tasks array is empty
             if (tasksArray.length === 0) {
@@ -59,10 +59,12 @@ function formatTemplateConfig(script_parameters): ReactElement {
         }
       } catch (error) {
         // Invalid JSON; fall back to the original value
+        console.warn('Invalid JSON in script_parameters.tasks:', error);
+        return script_parameters.tasks + predefined_tasks;
       }
       return script_parameters.tasks + predefined_tasks;
     }
-    return script_parameters.tasks + predefined_tasks;
+    return predefined_tasks || 'No tasks configured';
   })();
   const dataset_name = script_parameters.dataset_name
     ? script_parameters.dataset_name
@@ -108,6 +110,7 @@ export default function EvalTasksTable({ experimentInfo }) {
   const { data: tasks, mutate: mutateTasks } = useSWR(
     chatAPI.Endpoints.Tasks.ListByTypeInExperiment('EVAL', experimentInfo?.id),
     fetcher,
+    { fallbackData: [] }
   );
 
   const {
@@ -241,8 +244,8 @@ export default function EvalTasksTable({ experimentInfo }) {
             </tr>
           </thead>
           <tbody>
-            {tasks &&
-              tasks?.map((evaluations) => (
+            {tasks && Array.isArray(tasks) &&
+              tasks.map((evaluations) => (
                 <tr key={evaluations.id}>
                   <td style={{ overflow: 'hidden', paddingLeft: '1rem' }}>
                     {evaluations.name}

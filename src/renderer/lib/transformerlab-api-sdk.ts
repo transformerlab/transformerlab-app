@@ -4,6 +4,7 @@
 /* eslint-disable import/prefer-default-export */
 
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './api-client/urls';
+import { Endpoints } from './api-client/endpoints';
 
 export function GET_EXPERIMENT_UPDATE_CONFIG_URL(
   id: string,
@@ -176,3 +177,34 @@ export {
 } from './api-client/hooks';
 
 export { INFERENCE_SERVER_URL, API_URL };
+
+export async function listWorkflowTriggers(experimentId: string) {
+  const response = await fetch(Endpoints.WorkflowTriggers.ListByExperiment(experimentId));
+  const result = await response.json();
+  return result;
+}
+
+export async function getWorkflowTriggerDetails(triggerId: string) {
+  const response = await fetch(Endpoints.WorkflowTriggers.GetDetails(triggerId));
+  const result = await response.json();
+  return result;
+}
+
+export async function updateWorkflowTrigger(triggerId: string, payload: { is_enabled: boolean, config: { workflow_ids: number[] } }) {
+  const response = await fetch(Endpoints.WorkflowTriggers.Update(triggerId), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  return result;
+}
+
+export async function listWorkflowsForExperiment(experimentId: string) {
+  const response = await fetch(Endpoints.Workflows.ListInExperiment(experimentId));
+  const result = await response.json();
+  return result;
+}
