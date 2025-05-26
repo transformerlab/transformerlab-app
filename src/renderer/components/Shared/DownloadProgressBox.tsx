@@ -9,10 +9,9 @@ import {
   Divider,
 } from '@mui/joy';
 import { ArrowDownIcon, CheckCircle2Icon, XCircleIcon } from 'lucide-react';
+import useSWR from 'swr';
 import { clamp, formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import useSWR from 'swr';
-import { useEffect, useRef, useState } from 'react';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -28,19 +27,16 @@ const getStatusIcon = (status) => {
   }
 };
 
-const EASING_FACTOR = 0.2;
-const ANIMATION_THRESHOLD = 0.5;
-
 export default function DownloadProgressBox({ jobId, assetName }) {
-  if (!jobId) return null;
-
   const { data: downloadProgress } = useSWR(
-    jobId !== '-1' ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
+    jobId && jobId !== '-1' ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
     fetcher,
     { refreshInterval: 2000 },
   );
 
-  const rawProgress = clamp(
+  if (!jobId) return null;
+
+  const progress = clamp(
     Number.isFinite(Number(downloadProgress?.progress))
       ? Number(downloadProgress?.progress)
       : 0,
@@ -48,28 +44,7 @@ export default function DownloadProgressBox({ jobId, assetName }) {
     100,
   );
 
-  const [targetProgress, setTargetProgress] = useState(0);
-  const rafRef = useRef();
-
-  useEffect(() => {
-    const update = () => {
-      setTargetProgress((prev) => {
-        const next = prev + (rawProgress - prev) * EASING_FACTOR;
-        if (Math.abs(next - rawProgress) < ANIMATION_THRESHOLD)
-          return rawProgress;
-        rafRef.current = requestAnimationFrame(update);
-        return next;
-      });
-    };
-    rafRef.current = requestAnimationFrame(update);
-    return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
-    };
-  }, [rawProgress]);
-
-  const progressPercent = Math.round(targetProgress);
+  const progressPercent = Math.round(progress);
   const downloaded = downloadProgress?.job_data?.downloaded || 0;
   const total = downloadProgress?.job_data?.total_size_of_model_in_mb || 0;
   const downloadedBytes = downloaded * 1024 * 1024;
@@ -103,22 +78,21 @@ export default function DownloadProgressBox({ jobId, assetName }) {
               <Box sx={{ position: 'relative' }}>
                 <LinearProgress
                   determinate
-                  value={targetProgress}
+                  value={progress}
                   color="success"
                   sx={(theme) => ({
                     height: 24,
                     borderRadius: 5,
-                    transition: 'all 0.3s ease-out',
+                    '&::before': {
+                      transition: 'width 2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    },
                     '--LinearProgress-radius': '5px',
                     '--LinearProgress-thickness': '24px',
                     '--LinearProgress-progressColor':
                       theme.vars.palette.success[500],
                     '--LinearProgress-trackColor':
                       theme.vars.palette.neutral.plainDisabledColor,
-                    '& .MuiLinearProgress-bar1Determinate': {
-                      transition: 'transform 0.3s ease-out',
-                      transformOrigin: 'left',
-                    },
+                    '& .MuiLinearProgress-bar1Determinate': {},
                   })}
                 />
                 <Typography
