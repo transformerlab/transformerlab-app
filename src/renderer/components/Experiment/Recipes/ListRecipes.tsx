@@ -1,8 +1,11 @@
-import { Grid, Sheet } from '@mui/joy';
+import { CircularProgress, Grid, Sheet } from '@mui/joy';
 import Typography from '@mui/joy/Typography';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeCard from './RecipeCard';
 
-export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
+export default function ListRecipes({ setSelectedRecipe }) {
+  const { data, isLoading } = useAPI('recipes', ['getAll']);
+
   return (
     <>
       <Typography level="h2">👋 Welcome to Transformer Lab!</Typography>
@@ -44,14 +47,16 @@ export default function ListRecipes({ recipeDetails, setSelectedRecipe }) {
               setSelectedRecipe={setSelectedRecipe}
             />
           </Grid>
-          {recipeDetails.map((recipe) => (
-            <Grid key={recipe.id} sx={{ width: '250px' }}>
-              <RecipeCard
-                recipeDetails={recipe}
-                setSelectedRecipe={setSelectedRecipe}
-              />
-            </Grid>
-          ))}
+          {isLoading && <CircularProgress />}
+          {Array.isArray(data) &&
+            data.map((recipe) => (
+              <Grid key={recipe.id} sx={{ width: '250px' }}>
+                <RecipeCard
+                  recipeDetails={recipe}
+                  setSelectedRecipe={setSelectedRecipe}
+                />
+              </Grid>
+            ))}
         </Grid>
       </Sheet>
     </>

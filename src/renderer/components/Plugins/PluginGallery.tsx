@@ -81,7 +81,7 @@ export default function PluginGallery({
   const isPluginCompatible = (plugin, machineType) => {
     if (!plugin.supported_hardware_architectures) return true; // Default to compatible if no information
 
-    if (machineType === 'mps') {
+    if (machineType === 'apple_silicon') {
       return (
         plugin.supported_hardware_architectures.includes('mlx') ||
         plugin.supported_hardware_architectures.includes('cpu')

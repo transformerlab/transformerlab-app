@@ -64,7 +64,7 @@ export default function PluginCard({
     // Check if plugin is compatible with the machine type
     let isCompatible = false;
 
-    if (machineType === 'mps') {
+    if (machineType === 'apple_silicon') {
       isCompatible =
         pluginArchitectures.includes('mlx') ||
         pluginArchitectures.includes('cpu');
