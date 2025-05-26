@@ -127,12 +127,11 @@ export default function PluginCard({
             level="body-sm"
             sx={{
               display: '-webkit-box',
-              '-webkit-line-clamp':
-                '2' /* Number of lines to show before truncating */,
+              '-webkit-line-clamp': '2',
               '-webkit-box-orient': 'vertical',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              wordBreak: 'break-word', // Add this line to break up long words
+              wordBreak: 'break-word',
             }}
           >
             {plugin.description}
@@ -148,22 +147,33 @@ export default function PluginCard({
         >
           {plugin?.supported_hardware_architectures && (
             <Box sx={{ mt: 1 }}>
-              <Typography level="title-sm" fontSize="sm">
-                Supported Architectures:
-              </Typography>
-              <Stack
-                flexDirection={'row'}
-                gap={1}
-                sx={{ alignItems: 'center' }}
-              >
-                <ShowArchitectures
-                  architectures={plugin?.supported_hardware_architectures}
-                />
-              </Stack>
-              <WillThisPluginWorkOnMyMachine
-                pluginArchitectures={plugin?.supported_hardware_architectures}
-                machineType={machineType}
-              />
+              {Array.isArray(plugin?.supported_hardware_architectures) &&
+              plugin?.supported_hardware_architectures.length === 0 ? (
+                <Chip color="warning" variant="soft">
+                  Deprecated
+                </Chip>
+              ) : (
+                <>
+                  <Typography level="title-sm" fontSize="sm">
+                    Supported Architectures:
+                  </Typography>
+                  <Stack
+                    flexDirection={'row'}
+                    gap={1}
+                    sx={{ alignItems: 'center' }}
+                  >
+                    <ShowArchitectures
+                      architectures={plugin?.supported_hardware_architectures}
+                    />
+                  </Stack>
+                  <WillThisPluginWorkOnMyMachine
+                    pluginArchitectures={
+                      plugin?.supported_hardware_architectures
+                    }
+                    machineType={machineType}
+                  />
+                </>
+              )}
               {isExperimental && (
                 <Chip
                   color="warning"
