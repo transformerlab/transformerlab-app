@@ -22,6 +22,7 @@ import {
   DialogTitle,
   DialogContent,
   CircularProgress,
+  Checkbox,
 } from '@mui/joy';
 import { Trash2Icon, DownloadIcon, DeleteIcon } from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
@@ -59,6 +60,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
   const [numSteps, setNumSteps] = useState(30);
   const [guidanceScale, setGuidanceScale] = useState(7.5);
   const [seed, setSeed] = useState('');
+  const [upscale, setUpscale] = useState(false);
+  const [upscaleFactor, setUpscaleFactor] = useState(4);
   const [imageBase64, setImageBase64] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -90,6 +93,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
           num_inference_steps: Number(numSteps),
           guidance_scale: Number(guidanceScale),
           seed: seed ? Number(seed) : 42,
+          upscale,
+          upscale_factor: Number(upscaleFactor),
         }),
       });
       const data = await response.json();
@@ -363,6 +368,18 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
                     onChange={(e) => setSeed(e.target.value)}
                   />
                 </FormControl>
+              </Stack>
+              <Stack gap={1} sx={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Checkbox
+                  checked={upscale}
+                  onChange={(e) => {
+                    setUpscale(e.target.checked);
+                    if (e.target.checked) {
+                      setUpscaleFactor(2);
+                    }
+                  }}
+                  label="Upscale image (2x)"
+                />
               </Stack>
               <Button
                 onClick={handleGenerate}
