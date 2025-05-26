@@ -30,7 +30,7 @@ export default function RecipesModal({
   };
 
   return (
-    <Modal open={modalOpen} onClose={() => handleClose()}>
+    <Modal open={modalOpen}>
       <ModalDialog
         sx={{
           top: '3vh', // Sit 20% from the top of the screen
