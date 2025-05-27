@@ -176,6 +176,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       <Tabs
         value={activeTab}
         onChange={(event, newValue) => setActiveTab(newValue as string)}
+        id="diffusion-tabs"
+        sx={{ height: '100%', overflow: 'hidden' }}
       >
         <TabList>
           <Tab value="generate">Generate</Tab>
@@ -484,9 +486,17 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
             </Box>
           </Stack>
         </TabPanel>
-
-        <TabPanel value="history" sx={{ p: 0, height: 'calc(100vh - 200px)' }}>
-          <History />
+        <TabPanel
+          value="history"
+          sx={{
+            p: 0,
+            height: '100%',
+            overflow: 'hidden',
+          }}
+        >
+          <Sheet sx={{ height: '100%', overflowY: 'auto' }}>
+            <History />
+          </Sheet>
         </TabPanel>
       </Tabs>
     </Sheet>

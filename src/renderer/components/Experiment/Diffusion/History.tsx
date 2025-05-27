@@ -131,52 +131,38 @@ const History: React.FC<HistoryProps> = () => {
   }, []);
 
   return (
-    <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 2,
-        }}
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        overflow: 'auto',
+        padding: 2,
+      }}
+    >
+      <Button
+        onClick={clearAllHistory}
+        color="danger"
+        variant="outlined"
+        size="sm"
+        startDecorator={<Trash2Icon size="16px" />}
+        disabled={!historyData?.images?.length}
+        sx={{ alignSelf: 'flex-end', mb: 2 }}
       >
-        <Typography level="h3">Generation History</Typography>
-        <Button
-          onClick={clearAllHistory}
-          color="danger"
-          variant="outlined"
-          size="sm"
-          startDecorator={<Trash2Icon size="16px" />}
-          disabled={!historyData?.images?.length}
-        >
-          Clear All
-        </Button>
-      </Box>
-
+        Clear All
+      </Button>
       {historyLoading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
         </Box>
       )}
-
       {historyData &&
         !historyLoading &&
         (historyData.images && historyData.images.length > 0 ? (
           <Grid container spacing={2}>
             {historyData.images.map((item: any) => (
               <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
-                <Card
-                  sx={{
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease-in-out',
-                    border: '1px solid var(--joy-palette-divider)',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: 'lg',
-                    },
-                  }}
-                  onClick={() => viewImage(item.id)}
-                >
+                <Card onClick={() => viewImage(item.id)}>
                   <CardContent sx={{ p: 1.5 }}>
                     <Typography
                       level="body-sm"
