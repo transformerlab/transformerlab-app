@@ -251,7 +251,7 @@ export default function PluginDetails({ experimentInfo }) {
         filesMutate={filesMutate}
       />
       <ListPluginFiles
-        files={files}
+        files={Array.isArray(files) ? files.filter(file => !file.endsWith('.txt')) : files}
         currentFile={currentFile}
         setCurrentFile={setCurrentFile}
         setNewFileModalOpen={setNewFileModalOpen}
