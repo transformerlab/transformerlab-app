@@ -169,10 +169,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         width: '100%',
       }}
     >
-      <Typography level="h2" mb={2}>
-        Diffusion Image Generation
-      </Typography>
-
       <Tabs
         value={activeTab}
         onChange={(event, newValue) => setActiveTab(newValue as string)}
@@ -180,11 +176,19 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         sx={{ height: '100%', overflow: 'hidden' }}
       >
         <TabList>
-          <Tab value="generate">Generate</Tab>
-          <Tab value="history">History</Tab>
+          <Tab value="generate">Generate New Image</Tab>
+          <Tab value="history">Image History</Tab>
         </TabList>
 
-        <TabPanel value="generate" sx={{ p: 0, height: 'calc(100vh - 200px)' }}>
+        <TabPanel
+          value="generate"
+          sx={{
+            p: 0,
+            flexDirection: 'column',
+            height: '100%',
+            overflow: 'hidden',
+          }}
+        >
           <Stack
             flexDirection="row"
             display="flex"
@@ -196,16 +200,18 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
             gap={2}
           >
             <Stack
-              gap={2}
+              gap={1}
               flex={1}
               flexDirection="column"
               sx={{
                 height: '100%',
                 overflowX: 'hidden',
-                overflowY: 'auto',
+                overflowY: 'hidden',
+                pt: 2,
+                pb: 1,
               }}
             >
-              <Stack gap={2}>
+              <Stack gap={2} sx={{ overflowY: 'auto', pr: 1, mb: 1 }}>
                 <FormControl>
                   <FormLabel>Model</FormLabel>
                   <Input
