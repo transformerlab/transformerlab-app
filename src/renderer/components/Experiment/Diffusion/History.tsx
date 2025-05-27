@@ -4,8 +4,6 @@ import {
   Typography,
   Button,
   Grid,
-  Card,
-  CardContent,
   CircularProgress,
   Modal,
   ModalDialog,
@@ -29,7 +27,7 @@ import {
   SquareIcon,
 } from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
-import HistoryImageModal from './HistoryImageModal';
+import HistoryCard from './HistoryCard';
 
 export type HistoryImage = {
   id: string;
@@ -141,6 +139,13 @@ const History: React.FC<HistoryProps> = () => {
 
   // Clear all history
   const clearAllHistory = async () => {
+    if (
+      !confirm(
+        'Are you sure you want to clear all history? This action cannot be undone.',
+      )
+    ) {
+      return;
+    }
     try {
       await fetch(Endpoints.Diffusion.ClearHistory(), {
         method: 'DELETE',
@@ -333,7 +338,7 @@ const History: React.FC<HistoryProps> = () => {
             startDecorator={<Trash2Icon size="16px" />}
             disabled={!historyData?.images?.length}
           >
-            Clear All
+            Delete Entire History
           </Button>
         </Box>
       </Box>
@@ -348,66 +353,13 @@ const History: React.FC<HistoryProps> = () => {
           <Grid container spacing={2}>
             {historyData.images.map((item: any) => (
               <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
-                <Card
-                  onClick={() =>
-                    selectionMode
-                      ? toggleImageSelection(item.id)
-                      : viewImage(item.id)
-                  }
-                  sx={{
-                    cursor: 'pointer',
-                    position: 'relative',
-                    border:
-                      selectionMode && selectedImages.has(item.id)
-                        ? '2px solid var(--joy-palette-primary-500)'
-                        : '1px solid var(--joy-palette-neutral-200)',
-                    '&:hover': {
-                      backgroundColor: selectionMode
-                        ? 'var(--joy-palette-primary-50)'
-                        : 'var(--joy-palette-background-level1)',
-                    },
-                  }}
-                >
-                  {selectionMode && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        zIndex: 1,
-                        pointerEvents: 'none', // Prevent checkbox from blocking card click
-                      }}
-                    >
-                      <Checkbox
-                        checked={selectedImages.has(item.id)}
-                        color="primary"
-                        size="sm"
-                        readOnly
-                      />
-                    </Box>
-                  )}
-                  <CardContent sx={{ p: 1.5 }}>
-                    <Typography
-                      level="body-sm"
-                      sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        mb: 1,
-                        minHeight: '2.5em',
-                      }}
-                    >
-                      {item.prompt}
-                    </Typography>
-                    <Typography level="body-xs" sx={{ color: 'text.tertiary' }}>
-                      {item.timestamp
-                        ? new Date(item.timestamp).toLocaleDateString()
-                        : 'Unknown date'}
-                    </Typography>
-                  </CardContent>
-                </Card>
+                <HistoryCard
+                  item={item}
+                  selectionMode={selectionMode}
+                  selectedImages={selectedImages}
+                  toggleImageSelection={toggleImageSelection}
+                  viewImage={viewImage}
+                />
               </Grid>
             ))}
           </Grid>
