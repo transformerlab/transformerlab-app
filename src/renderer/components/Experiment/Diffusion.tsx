@@ -45,6 +45,8 @@ type HistoryImage = {
     eta?: number;
     clip_skip?: number;
     guidance_rescale?: number;
+    width?: number;
+    height?: number;
   };
 };
 
@@ -74,6 +76,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
   const [eta, setEta] = useState('');
   const [clipSkip, setClipSkip] = useState('');
   const [guidanceRescale, setGuidanceRescale] = useState('');
+  const [imageWidth, setImageWidth] = useState('');
+  const [imageHeight, setImageHeight] = useState('');
 
   const [imageBase64, setImageBase64] = useState('');
   const [loading, setLoading] = useState(false);
@@ -121,6 +125,12 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
       }
       if (guidanceRescale && Number(guidanceRescale) !== 0) {
         requestBody.guidance_rescale = Number(guidanceRescale);
+      }
+      if (imageWidth && Number(imageWidth) !== 0) {
+        requestBody.width = Number(imageWidth);
+      }
+      if (imageHeight && Number(imageHeight) !== 0) {
+        requestBody.height = Number(imageHeight);
       }
 
       const response = await fetch(Endpoints.Diffusion.Generate(), {
@@ -501,6 +511,48 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
                         />
                       </FormControl>
                     </Stack>
+                    <Stack
+                      gap={1}
+                      sx={{
+                        flexDirection: 'row',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <FormControl sx={{ flex: 1 }}>
+                        <FormLabel>Image Height (px) (0 = default)</FormLabel>
+                        <Input
+                          type="number"
+                          value={imageHeight}
+                          sx={{ width: 100 }}
+                          onChange={(e) => setImageHeight(e.target.value)}
+                          placeholder="0"
+                          slotProps={{
+                            input: {
+                              step: 8,
+                              min: 0,
+                              max: 2048,
+                            },
+                          }}
+                        />
+                      </FormControl>
+                      <FormControl sx={{ flex: 1 }}>
+                        <FormLabel>Image Width (px) (0 = default)</FormLabel>
+                        <Input
+                          type="number"
+                          value={imageWidth}
+                          sx={{ width: 100 }}
+                          onChange={(e) => setImageWidth(e.target.value)}
+                          placeholder="0"
+                          slotProps={{
+                            input: {
+                              step: 8,
+                              min: 0,
+                              max: 2048,
+                            },
+                          }}
+                        />
+                      </FormControl>
+                    </Stack>
                   </Stack>
                 )}
               </Stack>
@@ -779,6 +831,22 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
                             <br />
                             <strong>Guidance Rescale:</strong>{' '}
                             {selectedImage.metadata.guidance_rescale}
+                          </>
+                        )}
+                      {selectedImage.metadata.width !== undefined &&
+                        selectedImage.metadata.width !== null && (
+                          <>
+                            <br />
+                            <strong>Width:</strong>{' '}
+                            {selectedImage.metadata.width}
+                          </>
+                        )}
+                      {selectedImage.metadata.height !== undefined &&
+                        selectedImage.metadata.height !== null && (
+                          <>
+                            <br />
+                            <strong>Height:</strong>{' '}
+                            {selectedImage.metadata.height}
                           </>
                         )}
                     </Typography>
