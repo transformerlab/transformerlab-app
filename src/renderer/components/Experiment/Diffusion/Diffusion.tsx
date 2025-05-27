@@ -14,13 +14,39 @@ import {
   Tab,
   TabPanel,
   Checkbox,
+  Tooltip,
+  IconButton,
 } from '@mui/joy';
+import { Info } from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
 import History from './History';
 
 type DiffusionProps = {
   experimentInfo?: any;
 };
+
+// Helper component for labels with tooltips
+const LabelWithTooltip = ({
+  children,
+  tooltip,
+}: {
+  children: React.ReactNode;
+  tooltip: string;
+}) => (
+  <Stack direction="row" alignItems="center" gap={0.01}>
+    <FormLabel>{children}</FormLabel>
+    <Tooltip title={tooltip} arrow placement="top">
+      <IconButton
+        size="sm"
+        variant="plain"
+        color="neutral"
+        sx={{ minHeight: 'unset', p: 0.125 }}
+      >
+        <Info size={12} />
+      </IconButton>
+    </Tooltip>
+  </Stack>
+);
 
 export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const initialModel =
@@ -224,7 +250,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
             >
               <Stack gap={2} sx={{ overflowY: 'auto', pr: 1, mb: 1 }}>
                 <FormControl>
-                  <FormLabel>Model</FormLabel>
+                  <LabelWithTooltip tooltip="The foundation model being used for image generation. This determines the style and capabilities of the generated images.">
+                    Model
+                  </LabelWithTooltip>
                   <Input
                     value={model}
                     disabled
@@ -234,7 +262,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                 </FormControl>
                 {adaptor && (
                   <FormControl>
-                    <FormLabel>Adaptor</FormLabel>
+                    <LabelWithTooltip tooltip="Optional LoRA adapter model that modifies the base model's behavior based on fine-tuned styles.">
+                      Adaptor
+                    </LabelWithTooltip>
                     <Input
                       value={adaptor}
                       disabled
@@ -244,7 +274,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   </FormControl>
                 )}
                 <FormControl>
-                  <FormLabel>Prompt</FormLabel>
+                  <LabelWithTooltip tooltip="Describe the image you want to generate. Be specific and detailed for better results.">
+                    Prompt
+                  </LabelWithTooltip>
                   <Textarea
                     minRows={2}
                     value={prompt}
@@ -260,7 +292,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   }}
                 >
                   <FormControl sx={{ flex: 1, display: 'flex' }}>
-                    <FormLabel>Steps</FormLabel>
+                    <LabelWithTooltip tooltip="Number of denoising steps. More steps generally produce higher quality images but take longer to generate. Typical values range from 20-50.">
+                      Steps
+                    </LabelWithTooltip>
                     <Input
                       type="number"
                       value={numSteps}
@@ -275,7 +309,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                       justifyContent: 'space-between',
                     }}
                   >
-                    <FormLabel>Guidance Scale</FormLabel>
+                    <LabelWithTooltip tooltip="Controls how closely the model follows your prompt. Higher values (7-15) follow the prompt more strictly, lower values (1-7) allow more creative interpretation.">
+                      Guidance Scale
+                    </LabelWithTooltip>
                     <Input
                       type="number"
                       value={guidanceScale}
@@ -290,7 +326,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                       justifyContent: 'space-between',
                     }}
                   >
-                    <FormLabel>Seed (optional)</FormLabel>
+                    <LabelWithTooltip tooltip="Random seed for reproducibility. Leave empty for random generation, or use a specific number to generate the same image repeatedly.">
+                      Seed (optional)
+                    </LabelWithTooltip>
                     <Input
                       type="number"
                       value={seed}
@@ -306,16 +344,22 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     alignItems: 'center',
                   }}
                 >
-                  <Checkbox
-                    checked={upscale}
-                    onChange={(e) => {
-                      setUpscale(e.target.checked);
-                      if (e.target.checked) {
-                        setUpscaleFactor(2);
-                      }
-                    }}
-                    label="Upscale image (2x)"
-                  />
+                  <Tooltip
+                    title="Enhance the generated image resolution by upscaling it 2x using a upscaling model. This improves detail and clarity, especially for low-resolution outputs."
+                    arrow
+                    placement="top"
+                  >
+                    <Checkbox
+                      checked={upscale}
+                      onChange={(e) => {
+                        setUpscale(e.target.checked);
+                        if (e.target.checked) {
+                          setUpscaleFactor(2);
+                        }
+                      }}
+                      label="Upscale image (2x)"
+                    />
+                  </Tooltip>
                 </Stack>
 
                 {/* Advanced Settings Toggle */}
@@ -332,7 +376,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                 {showAdvanced && (
                   <Stack gap={2} sx={{ mt: 1 }}>
                     <FormControl>
-                      <FormLabel>Negative Prompt</FormLabel>
+                      <LabelWithTooltip tooltip="Describe what you don't want to see in the generated image. This helps guide the model away from unwanted elements, styles, or features.">
+                        Negative Prompt
+                      </LabelWithTooltip>
                       <Textarea
                         minRows={2}
                         value={negativePrompt}
@@ -348,7 +394,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                       }}
                     >
                       <FormControl sx={{ flex: 1 }}>
-                        <FormLabel>ETA (0.0 = default)</FormLabel>
+                        <LabelWithTooltip tooltip="Controls the amount of noise in the denoising process. Higher values add more randomness while lower values make the process more deterministic. Leave at 0.0 for default behavior.">
+                          ETA
+                        </LabelWithTooltip>
                         <Input
                           type="number"
                           value={eta}
@@ -365,7 +413,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         />
                       </FormControl>
                       <FormControl sx={{ flex: 1 }}>
-                        <FormLabel>CLIP Skip (0 = default)</FormLabel>
+                        <LabelWithTooltip tooltip="Number of CLIP text encoder layers to skip. Higher values may result in more artistic or abstract outputs. Set to 0 for default behavior.">
+                          CLIP Skip
+                        </LabelWithTooltip>
                         <Input
                           type="number"
                           value={clipSkip}
@@ -382,7 +432,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         />
                       </FormControl>
                       <FormControl sx={{ flex: 1 }}>
-                        <FormLabel>Guidance Rescale (0.0 = default)</FormLabel>
+                        <LabelWithTooltip tooltip="Rescales the guidance scale to prevent over-saturation. Values between 0.0-1.0 can help balance prompt adherence with image quality. Leave at 0.0 for default behavior.">
+                          Guidance Rescale
+                        </LabelWithTooltip>
                         <Input
                           type="number"
                           value={guidanceRescale}
@@ -407,7 +459,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                       }}
                     >
                       <FormControl sx={{ flex: 1 }}>
-                        <FormLabel>Image Height (px) (0 = default)</FormLabel>
+                        <LabelWithTooltip tooltip="Set a custom height for the generated image in pixels. Leave at 0 to use the model's default height. Values should be multiples of 8.">
+                          Image Height
+                        </LabelWithTooltip>
                         <Input
                           type="number"
                           value={imageHeight}
@@ -424,7 +478,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         />
                       </FormControl>
                       <FormControl sx={{ flex: 1 }}>
-                        <FormLabel>Image Width (px) (0 = default)</FormLabel>
+                        <LabelWithTooltip tooltip="Set a custom width for the generated image in pixels. Leave at 0 to use the model's default width. Values should be multiples of 8.">
+                          Image Width
+                        </LabelWithTooltip>
                         <Input
                           type="number"
                           value={imageWidth}
