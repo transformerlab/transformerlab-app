@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Modal,
   ModalDialog,
+  ModalClose,
   Button,
   Input,
   FormLabel,
@@ -64,6 +65,7 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
   return (
     <Modal open={open} onClose={onClose}>
       <ModalDialog>
+        <ModalClose />
         <Stack spacing={2}>
           <FormLabel>Add MCP Server</FormLabel>
           <RadioGroup
