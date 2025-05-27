@@ -29,6 +29,7 @@ import {
   SquareIcon,
 } from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
+import HistoryImageModal from './HistoryImageModal';
 
 export type HistoryImage = {
   id: string;
