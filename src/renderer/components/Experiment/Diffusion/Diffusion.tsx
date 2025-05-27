@@ -26,7 +26,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const initialModel =
     experimentInfo?.config?.foundation || 'stabilityai/stable-diffusion-2-1';
   const adaptor = experimentInfo?.config?.adaptor || '';
-  const [model] = useState(initialModel);
+  const [model, setModel] = useState(initialModel);
   const [prompt, setPrompt] = useState('An astronaut floating in space');
   const [numSteps, setNumSteps] = useState(30);
   const [guidanceScale, setGuidanceScale] = useState(7.5);
@@ -50,6 +50,17 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   );
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Update model when experimentInfo changes
+  useEffect(() => {
+    const newModel =
+      experimentInfo?.config?.foundation || 'stabilityai/stable-diffusion-2-1';
+    if (newModel !== model) {
+      setModel(newModel);
+      // Reset isStableDiffusion when model changes
+      setIsStableDiffusion(null);
+    }
+  }, [experimentInfo?.config?.foundation]);
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -157,7 +168,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   useEffect(() => {
     checkStableDiffusion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model]);
+  }, [experimentInfo?.config?.foundation]);
 
   return (
     <Sheet
