@@ -436,4 +436,5 @@ Endpoints.Diffusion = {
     `${API_URL()}diffusion/history/${imageId}/image`,
   DeleteImage: (imageId: string) => `${API_URL()}diffusion/history/${imageId}`,
   ClearHistory: () => `${API_URL()}diffusion/history`,
+  CreateDataset: () => `${API_URL()}diffusion/dataset/create`,
 };
