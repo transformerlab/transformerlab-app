@@ -63,7 +63,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         prompt,
         num_inference_steps: Number(numSteps),
         guidance_scale: Number(guidanceScale),
-        seed: seed ? Number(seed) : 42,
+        seed: seed ? Number(seed) : -1, // -1 means random seed
         upscale,
         upscale_factor: Number(upscaleFactor),
       };
