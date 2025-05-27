@@ -48,4 +48,60 @@ export {
   useCheckLocalConnection,
 } from './api-client/hooks';
 
-export { INFERENCE_SERVER_URL, API_URL, getFullPath } from './api-client/urls';
+export { INFERENCE_SERVER_URL, API_URL };
+
+export async function listWorkflowTriggers(experimentId: string) {
+  const response = await fetch(Endpoints.WorkflowTriggers.ListByExperiment(experimentId));
+  const result = await response.json();
+  return result;
+}
+
+export async function getWorkflowTriggerDetails(triggerId: string) {
+  const response = await fetch(Endpoints.WorkflowTriggers.GetDetails(triggerId));
+  const result = await response.json();
+  return result;
+}
+
+export async function updateWorkflowTrigger(triggerId: string, payload: { is_enabled: boolean, config: { workflow_ids: number[] } }) {
+  const response = await fetch(Endpoints.WorkflowTriggers.Update(triggerId), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  const result = await response.json();
+  return result;
+}
+
+export async function listWorkflowsForExperiment(experimentId: string) {
+  const response = await fetch(Endpoints.Workflows.ListInExperiment(experimentId));
+  const result = await response.json();
+  return result;
+}
+
+export async function getPredefinedTriggers() {
+  const response = await fetch(Endpoints.Workflows.GetPredefinedTriggers());
+  const result = await response.json();
+  return result;
+}
+
+export async function getWorkflowDetails(workflowId: string) {
+  const response = await fetch(Endpoints.Workflows.GetDetails(workflowId));
+  const result = await response.json();
+  return result;
+}
+
+export async function updateWorkflowTriggerConfigs(workflowId: string, configs: Array<{trigger_type: string, is_enabled: boolean}>) {
+  const response = await fetch(Endpoints.Workflows.UpdateTriggerConfigs(workflowId), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({ configs }),
+  });
+  const result = await response.json();
+  return result;
+}

@@ -20,9 +20,19 @@ import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 const nodeTypes = { customNode: CustomNode, startNode: StartNode };
 
 function generateNodes(workflow: any): any[] {
-  const workflowConfig = JSON.parse(workflow?.config);
+  if (!workflow?.config) {
+    return [];
+  }
 
-  if (workflowConfig.nodes.length == 0) {
+  let workflowConfig;
+  try {
+    workflowConfig = JSON.parse(workflow.config);
+  } catch (e) {
+    console.error('Failed to parse workflow config:', e);
+    return [];
+  }
+
+  if (!workflowConfig?.nodes || workflowConfig.nodes.length == 0) {
     return [];
   }
 
@@ -60,10 +70,21 @@ function generateNodes(workflow: any): any[] {
 }
 
 function generateEdges(workflow: any) {
-  const workflowConfig = JSON.parse(workflow?.config);
+  if (!workflow?.config) {
+    return [];
+  }
+
+  let workflowConfig;
+  try {
+    workflowConfig = JSON.parse(workflow.config);
+  } catch (e) {
+    console.error('Failed to parse workflow config:', e);
+    return [];
+  }
+
   const workflowId = workflow?.id;
 
-  if (workflowConfig.nodes.length < 1) {
+  if (!workflowConfig?.nodes || workflowConfig.nodes.length < 1) {
     return [];
   }
 
