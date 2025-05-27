@@ -2,6 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   Table,
   Input,
+  Select,
+  Option,
   CircularProgress,
   Box,
   Alert,
@@ -12,10 +14,14 @@ import {
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
-const fetcher = (url) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((data) => data);
+const fetcher = async (url) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`HTTP ${response.status}: ${text}`);
+  }
+  return response.json();
+};
 
 const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
   const [rows, setRows] = useState([]);
@@ -28,6 +34,11 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
   const [modifiedRows, setModifiedRows] = useState(new Map());
   const limit = 50;
   const containerRef = useRef(null);
+  const [availableSplits, setAvailableSplits] = useState([]);
+  const [availableLabels, setAvailableLabels] = useState([]);
+  const [selectedSplit, setSelectedSplit] = useState('');
+  const [selectedLabel, setSelectedLabel] = useState('');
+  const [isParquet, setIsParquet] = useState(false);
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -69,6 +80,17 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
     loadMore();
   }, [loadMore]);
 
+  useEffect(() => {
+    const fetchInfo = async () => {
+      const res = await fetch(chatAPI.Endpoints.Dataset.Info(datasetId));
+      const data = await res.json();
+      setAvailableSplits(data.splits || []);
+      setAvailableLabels(data.labels || []);
+      setIsParquet(data.is_parquet || false);
+    };
+    fetchInfo();
+  }, [datasetId]);
+
   const onScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
     if (scrollHeight - scrollTop <= clientHeight + 50) {
@@ -76,12 +98,8 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
     }
   };
 
-  const imageKey = columns.find((key) => key.toLowerCase().includes('image'));
-  const textKey = columns.find(
-    (key) =>
-      key.toLowerCase().includes('text') ||
-      key.toLowerCase().includes('caption'),
-  );
+  const imageKey = columns[0]; // First column is always image
+  const textKey = columns[1]; // Second column is always description
 
   const updateCaption = (index, newText) => {
     setRows((prev) => {
@@ -89,16 +107,26 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
       updated[index] = { ...updated[index], [textKey]: newText };
       const uniqueKey = updated[index]['__index__'];
       setModifiedRows((prevMap) =>
-        new Map(prevMap).set(uniqueKey, updated[index]),
+        new Map(prevMap).set(uniqueKey, {
+          ...updated[index],
+          previous_caption: updated[index]['previous_caption'],
+          file_name: updated[index]['file_name'],
+          split: updated[index]['split'],
+        }),
       );
       return updated;
     });
   };
 
-  const filteredRows = rows.filter((row) => {
-    const text = row[textKey] || '';
-    return text.toLowerCase().includes(searchText.toLowerCase());
-  });
+  const filteredRows = rows.filter(
+    (row) =>
+      (!selectedSplit || row.split === selectedSplit) &&
+      (!selectedLabel || row.label === selectedLabel) &&
+      (typeof row[textKey] === 'string'
+        ? row[textKey].toLowerCase()
+        : ''
+      ).includes(searchText.toLowerCase()),
+  );
 
   const saveEdits = async () => {
     setSaving(true);
@@ -145,11 +173,48 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
       <Box p={1} display="flex" gap={2} alignItems="center">
         <Input
           placeholder="Search captions..."
-          fullWidth
+          sx={{ width: '400px' }} // Decrease search bar width
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
         />
-        <Button onClick={saveEdits} loading={saving} variant="soft">
+        <Typography level="body-md" sx={{ fontWeight: 'bold' }}>
+          Split:
+        </Typography>
+        <Select
+          value={selectedSplit}
+          onChange={(_, v) => setSelectedSplit(v)}
+          size="lg" // Increase dropdown size
+          sx={{ minWidth: '150px' }} // Adjust width if needed
+        >
+          <Option value="">All</Option>
+          {availableSplits.map((s) => (
+            <Option key={s} value={s}>
+              {s}
+            </Option>
+          ))}
+        </Select>
+        <Typography level="body-md" sx={{ fontWeight: 'bold' }}>
+          Label:
+        </Typography>
+        <Select
+          value={selectedLabel}
+          onChange={(_, v) => setSelectedLabel(v)}
+          size="lg" // Increase dropdown size
+          sx={{ minWidth: '150px' }} // Adjust width if needed
+        >
+          <Option value="">All</Option>
+          {availableLabels.map((l) => (
+            <Option key={l} value={l}>
+              {l}
+            </Option>
+          ))}
+        </Select>
+        <Button
+          onClick={saveEdits}
+          loading={saving}
+          variant="soft"
+          disabled={isParquet}
+        >
           Save Changes
         </Button>
       </Box>
@@ -159,6 +224,8 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
             <tr>
               <th>Image</th>
               <th>Description</th>
+              <th>Split</th>
+              <th>Label</th>
             </tr>
           </thead>
           <tbody>
@@ -185,7 +252,21 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
                     variant="soft"
                     size="sm"
                     fullWidth
+                    disabled={isParquet}
+                    sx={{
+                      whiteSpace: 'pre-wrap',
+                      overflowWrap: 'break-word',
+                      wordWrap: 'break-word',
+                      display: 'block',
+                      minHeight: '2em',
+                    }}
                   />
+                </td>
+                <td>
+                  <Typography>{row['split'] || 'N/A'}</Typography>
+                </td>
+                <td>
+                  <Typography>{row['label'] || 'N/A'}</Typography>
                 </td>
               </tr>
             ))}
