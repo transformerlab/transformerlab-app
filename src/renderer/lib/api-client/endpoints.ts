@@ -434,6 +434,7 @@ Endpoints.Diffusion = {
     `${API_URL()}diffusion/history?limit=${limit}&offset=${offset}`,
   GetImageById: (imageId: string) =>
     `${API_URL()}diffusion/history/${imageId}/info`,
+  GetImage: (imageId: string) => `${API_URL()}diffusion/history/${imageId}`,
   DeleteImage: (imageId: string) => `${API_URL()}diffusion/history/${imageId}`,
   ClearHistory: () => `${API_URL()}diffusion/history`,
   CreateDataset: () => `${API_URL()}diffusion/dataset/create`,

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardContent, Box, Typography, Checkbox } from '@mui/joy';
 import { HistoryImage } from './History';
+import { Endpoints, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 interface HistoryCardProps {
   item: HistoryImage;
@@ -55,15 +56,21 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
         </Box>
       )}
       <CardContent sx={{ p: 1.5 }}>
+        <img
+          src={Endpoints.Diffusion.GetImage(item?.id)}
+          alt="generated"
+          style={{ borderRadius: '6px' }}
+        />
         <Typography
-          level="body-sm"
+          level="title-md"
           sx={{
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
-            mb: 1,
+            mt: 2,
+            mb: 0,
             minHeight: '2.5em',
           }}
         >
