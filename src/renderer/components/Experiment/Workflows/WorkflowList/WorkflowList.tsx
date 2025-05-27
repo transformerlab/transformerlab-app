@@ -28,45 +28,50 @@ import {
   PlusCircleIcon,
   Trash2Icon,
   WorkflowIcon,
+  Zap,
+  ZapIcon,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
+import WorkflowTriggersMenu from '../WorkflowTriggers/WorkflowTriggersMenu';
+import { TriggerConfig, Workflow } from '../../../../types/workflow';
 
-function ShowCode({ code }) {
-  const config = code?.config;
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-  if (!config) {
-    return <></>;
-  }
+interface ShowCodeProps {
+  code: {
+    config?: string;
+  };
+}
 
-  let parsedConfig = {};
-
-  try {
-    parsedConfig = JSON.parse(config);
-  } catch (e) {}
-
+function ShowCode({ code }: ShowCodeProps) {
   return (
-    <Box
-      sx={{ width: '100%', backgroundColor: '#F7F9FB', overflow: 'scroll' }}
-      p={4}
-    >
-      <pre>{JSON.stringify(parsedConfig, null, 2)}</pre>
+    <Box sx={{ width: '100%', p: 2, overflow: 'auto' }}>
+      <pre>{JSON.stringify(code, null, 2)}</pre>
     </Box>
   );
 }
 
-const fetcher = (url: any) => fetch(url).then((res) => res.json());
+interface WorkflowListProps {
+  experimentInfo: {
+    id: string;
+    name: string;
+  };
+}
 
-export default function WorkflowList({ experimentInfo }) {
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
+export default function WorkflowList({ experimentInfo }: WorkflowListProps) {
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
   const [viewCodeMode, setViewCodeMode] = useState(false);
+  const [triggersMenuOpen, setTriggersMenuOpen] = useState(false);
+  const [selectedWorkflowDetails, setSelectedWorkflowDetails] = useState<Workflow | null>(null);
+  const triggersMenuRef = useRef<HTMLDivElement>(null);
 
   const {
     data: workflowsData,
@@ -74,6 +79,24 @@ export default function WorkflowList({ experimentInfo }) {
     isLoading: isLoading,
     mutate: mutateWorkflows,
   } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
+
+  // Fetch detailed workflow data when a workflow is selected
+  const {
+    data: workflowDetailsData,
+    error: workflowDetailsError,
+    isLoading: isLoadingDetails,
+    mutate: mutateWorkflowDetails,
+  } = useSWR(
+    selectedWorkflowId ? chatAPI.Endpoints.Workflows.GetDetails(selectedWorkflowId) : null,
+    fetcher
+  );
+
+  // Fetch predefined triggers from backend
+  const {
+    data: predefinedTriggersData,
+    error: predefinedTriggersError,
+    isLoading: isLoadingPredefinedTriggers,
+  } = useSWR(chatAPI.Endpoints.Workflows.GetPredefinedTriggers(), fetcher);
 
   // select the first workflow available:
   useEffect(() => {
@@ -84,15 +107,39 @@ export default function WorkflowList({ experimentInfo }) {
     }
   }, [workflowsData, selectedWorkflowId, newWorkflowModalOpen]);
 
-  const workflows = workflowsData;
+  // Close triggers menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (triggersMenuRef.current && !triggersMenuRef.current.contains(event.target as Node)) {
+        setTriggersMenuOpen(false);
+      }
+    };
 
-  const selectedWorkflow = workflows?.find(
-    (workflow) => workflow.id === selectedWorkflowId,
+    if (triggersMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [triggersMenuOpen]);
+
+  const workflows = workflowsData as Workflow[];
+
+  const selectedWorkflow = workflowDetailsData || workflows?.find(
+    (workflow: Workflow) => workflow.id === selectedWorkflowId,
   );
 
   async function runWorkflow(workflowId: string) {
     await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
   }
+
+  const handleTriggerConfigurationChange = (newConfigs: TriggerConfig[]) => {
+    // Update the workflow details with new trigger configs
+    mutateWorkflowDetails();
+    // Also refresh the workflows list in case it affects the list view
+    mutateWorkflows();
+  };
+
   return (
     <>
       <NewWorkflowModal
@@ -169,7 +216,7 @@ export default function WorkflowList({ experimentInfo }) {
             <Typography level="title-lg">
               Workflow {selectedWorkflow?.name}
             </Typography>
-            <Box pl={2} display="flex" flexDirection="row" gap={1}>
+            <Box pl={2} display="flex" flexDirection="row" gap={1} position="relative">
               <>
                 {selectedWorkflow?.status != 'RUNNING' ? (
                   <Button
@@ -184,10 +231,40 @@ export default function WorkflowList({ experimentInfo }) {
                     Running
                   </Button>
                 )}
+                <Button
+                  variant="outlined"
+                  disabled={!selectedWorkflow || isLoadingDetails || isLoadingPredefinedTriggers}
+                  startDecorator={<Zap />}
+                  onClick={() => setTriggersMenuOpen(!triggersMenuOpen)}
+                  loading={isLoadingDetails || isLoadingPredefinedTriggers}
+                  sx={{ 
+                    minWidth: '120px',
+                    position: 'relative'
+                  }}
+                >
+                  Set Triggers
+                </Button>
+                {triggersMenuOpen && selectedWorkflow && predefinedTriggersData && (
+                  <Box
+                    ref={triggersMenuRef}
+                    sx={{
+                      position: 'absolute',
+                      right: 0,
+                      top: '100%',
+                      zIndex: 1200
+                    }}
+                  >
+                    <WorkflowTriggersMenu
+                      workflowId={selectedWorkflow.id}
+                      currentTriggerConfigs={selectedWorkflow.trigger_configs || []}
+                      predefinedTriggers={predefinedTriggersData}
+                      onConfigurationChange={handleTriggerConfigurationChange}
+                    />
+                  </Box>
+                )}
                 <IconButton
                   variant="plain"
                   disabled={!selectedWorkflow}
-                  // startDecorator={<BookOpenIcon />}
                   onClick={() => setViewCodeMode(!viewCodeMode)}
                 >
                   {viewCodeMode ? <WorkflowIcon /> : <BracesIcon />}

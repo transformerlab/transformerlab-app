@@ -88,6 +88,12 @@ Endpoints.Workflows = {
     API_URL() + 'workflows/runs/' + workflowRunID,
   ListInExperiment: (experimentId: string) =>
     API_URL() + 'workflows/list_in_experiment?experiment_id=' + experimentId,
+  GetDetails: (workflowId: string) =>
+    API_URL() + 'workflows/' + workflowId,
+  UpdateTriggerConfigs: (workflowId: string) =>
+    API_URL() + 'workflows/' + workflowId + '/trigger_configs',
+  GetPredefinedTriggers: () =>
+    API_URL() + 'workflows/predefined_triggers',
 };
 
 Endpoints.Dataset = {

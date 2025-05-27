@@ -208,3 +208,28 @@ export async function listWorkflowsForExperiment(experimentId: string) {
   const result = await response.json();
   return result;
 }
+
+export async function getPredefinedTriggers() {
+  const response = await fetch(Endpoints.Workflows.GetPredefinedTriggers());
+  const result = await response.json();
+  return result;
+}
+
+export async function getWorkflowDetails(workflowId: string) {
+  const response = await fetch(Endpoints.Workflows.GetDetails(workflowId));
+  const result = await response.json();
+  return result;
+}
+
+export async function updateWorkflowTriggerConfigs(workflowId: string, configs: Array<{trigger_type: string, is_enabled: boolean}>) {
+  const response = await fetch(Endpoints.Workflows.UpdateTriggerConfigs(workflowId), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({ configs }),
+  });
+  const result = await response.json();
+  return result;
+}
