@@ -645,59 +645,57 @@ export default function Diffusion({ experimentInfo }: DiffusionProps = {}) {
               </Box>
             )}
 
-            {historyData && !historyLoading && (
-              <>
-                {historyData.images && historyData.images.length > 0 ? (
-                  <Grid container spacing={2}>
-                    {historyData.images.map((item: any) => (
-                      <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
-                        <Card
-                          sx={{
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease-in-out',
-                            border: '1px solid var(--joy-palette-divider)',
-                            '&:hover': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: 'lg',
-                            },
-                          }}
-                          onClick={() => viewImage(item.id)}
-                        >
-                          <CardContent sx={{ p: 1.5 }}>
-                            <Typography
-                              level="body-sm"
-                              sx={{
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical',
-                                mb: 1,
-                                minHeight: '2.5em',
-                              }}
-                            >
-                              {item.prompt}
-                            </Typography>
-                            <Typography
-                              level="body-xs"
-                              sx={{ color: 'text.tertiary' }}
-                            >
-                              {item.timestamp
-                                ? new Date(item.timestamp).toLocaleDateString()
-                                : 'Unknown date'}
-                            </Typography>
-                          </CardContent>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <Box sx={{ textAlign: 'center', mt: 4 }}>
-                    <Typography>No images generated yet</Typography>
-                  </Box>
-                )}
-              </>
-            )}
+            {historyData &&
+              !historyLoading &&
+              (historyData.images && historyData.images.length > 0 ? (
+                <Grid container spacing={2}>
+                  {historyData.images.map((item: any) => (
+                    <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
+                      <Card
+                        sx={{
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease-in-out',
+                          border: '1px solid var(--joy-palette-divider)',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: 'lg',
+                          },
+                        }}
+                        onClick={() => viewImage(item.id)}
+                      >
+                        <CardContent sx={{ p: 1.5 }}>
+                          <Typography
+                            level="body-sm"
+                            sx={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              mb: 1,
+                              minHeight: '2.5em',
+                            }}
+                          >
+                            {item.prompt}
+                          </Typography>
+                          <Typography
+                            level="body-xs"
+                            sx={{ color: 'text.tertiary' }}
+                          >
+                            {item.timestamp
+                              ? new Date(item.timestamp).toLocaleDateString()
+                              : 'Unknown date'}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <Box sx={{ textAlign: 'center', mt: 4 }}>
+                  <Typography>No images generated yet</Typography>
+                </Box>
+              ))}
           </Box>
         </TabPanel>
       </Tabs>
