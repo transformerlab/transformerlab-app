@@ -89,6 +89,8 @@ Endpoints.Dataset = {
     `${API_URL()}data/fileupload?dataset_id=${datasetId}`,
   SaveMetadata: (datasetId: string) =>
     `${API_URL()}data/save_metadata?dataset_id=${datasetId}`,
+  Duplicate: (datasetId: string, newDatasetId: string) =>
+    `${API_URL()}data/duplicate_dataset?dataset_id=${datasetId}&new_dataset_id=${newDatasetId}`,
 };
 
 Endpoints.Models = {

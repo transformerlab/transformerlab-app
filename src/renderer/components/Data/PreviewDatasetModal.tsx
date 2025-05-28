@@ -9,16 +9,23 @@ import {
 } from '@mui/joy';
 
 import DatasetTable from './DatasetTable';
-import DatasetTableWithTemplateDatasetTab from './DatasetPreviewDatasetTab';
+import DatasetTableWithTemplateDatasetTab from './DatasetPreviewEditImage';
 import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import DatasetPreviewEditImage from './DatasetPreviewEditImage';
+import DatasetPreviewImage from './DatasetPreviewImage';
 
 const fetcher = (url) =>
   fetch(url)
     .then((res) => res.json())
     .then((data) => data);
 
-export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
+export default function PreviewDatasetModal({
+  dataset_id,
+  open,
+  setOpen,
+  viewType = 'preview',
+}) {
   const { data, error, isLoading } = useSWR(
     open ? chatAPI.Endpoints.Dataset.Info(dataset_id) : null,
     fetcher,
@@ -49,11 +56,10 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
           }}
         >
           <Box sx={{ flex: 1, overflow: 'auto' }}>
-            {isImageDataset ? (
-              <DatasetTableWithTemplateDatasetTab
-                datasetId={dataset_id}
-                template=""
-              />
+            {viewType === 'edit' ? (
+              <DatasetPreviewEditImage datasetId={dataset_id} template="" />
+            ) : data?.is_image ? (
+              <DatasetPreviewImage datasetId={dataset_id} />
             ) : (
               <DatasetTable datasetId={dataset_id} />
             )}

@@ -117,13 +117,26 @@ export default function DatasetDetailsModal({ open, setOpen }) {
       });
 
       Object.entries(folderGroups).forEach(([folder, filesInFolder]) => {
+        const lastFolder = folder.includes('/')
+          ? folder.substring(folder.lastIndexOf('/') + 1)
+          : folder;
+        const labelValue =
+          lastFolder.toLowerCase() === 'train' ||
+          lastFolder.toLowerCase() === 'test'
+            ? 'N/A'
+            : lastFolder;
+
         const jsonl = filesInFolder
           .map((f) => {
             const relativePath = (f as any).webkitRelativePath || f.name;
             const fileName = relativePath.substring(
               relativePath.lastIndexOf('/') + 1,
             );
-            return JSON.stringify({ file_name: fileName, text: ' ' });
+            return JSON.stringify({
+              file_name: fileName,
+              text: ' ',
+              label: labelValue,
+            });
           })
           .join('\n');
         const blob = new Blob([jsonl], { type: 'application/jsonl' });

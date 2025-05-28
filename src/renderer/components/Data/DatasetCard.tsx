@@ -6,18 +6,23 @@ import {
   CardContent,
   CircularProgress,
   Typography,
+  Tooltip,
 } from '@mui/joy';
 import {
   DownloadIcon,
   FileTextIcon,
   Trash2Icon,
   CheckIcon,
+  EyeIcon,
+  Edit3Icon,
+  InfoIcon,
 } from 'lucide-react';
 
 import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import PreviewDatasetModal from './PreviewDatasetModal';
 import DatasetInfoModal from './DatasetInfoModal';
+import EditDatasetModal from './EditDatasetModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -35,6 +40,9 @@ export default function DatasetCard({
   const [installing, setInstalling] = useState(null);
   const [previewDatasetModalOpen, setPreviewDatasetModalOpen] = useState(false);
   const [datasetInfoModalOpen, setDatasetInfoModalOpen] = useState(false);
+  const [editDatasetModalOpen, setEditDatasetModalOpen] = useState(false);
+  const [previewViewType, setPreviewViewType] = useState('preview');
+  const [datasetId, setDatasetId] = useState(name);
 
   return (
     <>
@@ -42,7 +50,20 @@ export default function DatasetCard({
         <PreviewDatasetModal
           open={previewDatasetModalOpen}
           setOpen={setPreviewDatasetModalOpen}
-          dataset_id={name}
+          dataset_id={datasetId}
+          viewType={previewViewType}
+        />
+      )}
+      {editDatasetModalOpen && (
+        <EditDatasetModal
+          open={editDatasetModalOpen}
+          setOpen={setEditDatasetModalOpen}
+          dataset_id={name} // original dataset_id
+          onConfirm={(newName) => {
+            setDatasetId(newName); // Set to the new dataset
+            setPreviewViewType('edit');
+            setPreviewDatasetModalOpen(true); // Open preview on the new dataset
+          }}
         />
       )}
       <DatasetInfoModal
@@ -89,39 +110,65 @@ export default function DatasetCard({
             </Typography>
           </div>
         </CardContent>
-        <CardContent orientation="horizontal" sx={{ alignItems: 'flex-end' }}>
-          {downloaded && local && (
+        <CardContent
+          orientation="horizontal"
+          sx={{ alignItems: 'flex-end', gap: 1 }}
+        >
+          {downloaded && (
             <>
-              <Button
-                color="neutral"
-                variant="outlined"
-                onClick={async () => {
-                  if (
-                    confirm('Are you sure you want to delete this dataset?')
-                  ) {
-                    await fetch(chatAPI.Endpoints.Dataset.Delete(name));
-                    parentMutate();
-                  }
-                }}
-              >
-                <Trash2Icon />
-              </Button>
-              <Button
-                variant="solid"
-                color="primary"
-                sx={{ ml: 'auto' }}
-                onClick={() => setPreviewDatasetModalOpen(true)}
-              >
-                Preview
-              </Button>
-              <Button
-                variant="soft"
-                onClick={async () => {
-                  setDatasetInfoModalOpen(true);
-                }}
-              >
-                Info
-              </Button>
+              <Tooltip title="Delete">
+                <Button
+                  color="neutral"
+                  variant="outlined"
+                  onClick={async () => {
+                    if (
+                      confirm('Are you sure you want to delete this dataset?')
+                    ) {
+                      await fetch(chatAPI.Endpoints.Dataset.Delete(name));
+                      parentMutate();
+                    }
+                  }}
+                >
+                  <Trash2Icon />
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Preview">
+                <Button
+                  variant="solid"
+                  color="primary"
+                  sx={{ ml: 'auto' }}
+                  onClick={() => {
+                    setPreviewDatasetModalOpen(true);
+                    setPreviewViewType('preview');
+                  }}
+                >
+                  <EyeIcon />
+                </Button>
+              </Tooltip>
+
+              {location.toLowerCase() === 'local' && (
+                <Tooltip title="Edit">
+                  <Button
+                    variant="solid"
+                    color="primary"
+                    onClick={() => {
+                      setEditDatasetModalOpen(true);
+                    }}
+                  >
+                    <Edit3Icon />
+                  </Button>
+                </Tooltip>
+              )}
+
+              <Tooltip title="Info">
+                <Button
+                  variant="soft"
+                  onClick={() => setDatasetInfoModalOpen(true)}
+                >
+                  <InfoIcon />
+                </Button>
+              </Tooltip>
             </>
           )}
           {!local && (

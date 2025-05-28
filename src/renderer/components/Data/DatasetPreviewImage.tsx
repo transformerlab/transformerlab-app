@@ -23,7 +23,7 @@ const fetcher = async (url) => {
   return response.json();
 };
 
-const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
+const DatasetPreviewImage = ({ datasetId, template }) => {
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
   const [offset, setOffset] = useState(0);
@@ -209,14 +209,6 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
             </Option>
           ))}
         </Select>
-        <Button
-          onClick={saveEdits}
-          loading={saving}
-          variant="soft"
-          disabled={isParquet}
-        >
-          Save Changes
-        </Button>
       </Box>
       <Box sx={{ overflow: 'auto', flex: 1 }}>
         <Table sx={{ minWidth: '100%' }}>
@@ -243,16 +235,7 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
                     )}
                 </td>
                 <td>
-                  <Input
-                    value={row[textKey] || ''}
-                    onChange={(e) => updateCaption(idx, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    variant="soft"
-                    size="sm"
-                    fullWidth
-                    disabled={isParquet}
+                  <Typography
                     sx={{
                       whiteSpace: 'pre-wrap',
                       overflowWrap: 'break-word',
@@ -260,7 +243,9 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
                       display: 'block',
                       minHeight: '2em',
                     }}
-                  />
+                  >
+                    {row[textKey] || ''}
+                  </Typography>
                 </td>
                 <td>
                   <Typography>{row['split'] || 'N/A'}</Typography>
@@ -278,4 +263,4 @@ const DatasetTableWithTemplateDatasetTab = ({ datasetId, template }) => {
   );
 };
 
-export default DatasetTableWithTemplateDatasetTab;
+export default DatasetPreviewImage;
