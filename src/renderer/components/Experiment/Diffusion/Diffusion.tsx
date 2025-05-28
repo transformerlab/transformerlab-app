@@ -532,7 +532,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 2,
+                    gap: 1,
+                    mt: 1,
                   }}
                 >
                   <img
@@ -541,7 +542,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     style={{
                       borderRadius: 8,
                       maxWidth: '100%',
-                      maxHeight: 'calc(100% - 60px)',
+                      maxHeight: 'calc(100% - 40px)',
                       objectFit: 'contain',
                       display: 'block',
                     }}

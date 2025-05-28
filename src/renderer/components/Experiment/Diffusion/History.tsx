@@ -341,7 +341,7 @@ const History: React.FC<HistoryProps> = () => {
             startDecorator={<Trash2Icon size="16px" />}
             disabled={!historyData?.images?.length}
           >
-            Delete Entire History
+            Delete All
           </Button>
         </Box>
       </Box>
