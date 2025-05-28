@@ -1,7 +1,17 @@
 import React from 'react';
-import { Card, CardContent, Box, Typography, Checkbox } from '@mui/joy';
+import {
+  Card,
+  CardContent,
+  Box,
+  Typography,
+  Checkbox,
+  CardActions,
+  IconButton,
+  Button,
+} from '@mui/joy';
 import { HistoryImage } from './History';
 import { Endpoints, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { DownloadIcon, HeartIcon, Trash2Icon } from 'lucide-react';
 
 interface HistoryCardProps {
   item: HistoryImage;
@@ -9,6 +19,8 @@ interface HistoryCardProps {
   selectedImages: Set<string>;
   toggleImageSelection: (id: string) => void;
   viewImage: (id: string) => void;
+  setImageToDelete;
+  setDeleteConfirmOpen;
 }
 
 const HistoryCard: React.FC<HistoryCardProps> = ({
@@ -17,14 +29,12 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
   selectedImages,
   toggleImageSelection,
   viewImage,
+  setImageToDelete,
+  setDeleteConfirmOpen,
 }) => {
   return (
     <Card
-      onClick={() =>
-        selectionMode ? toggleImageSelection(item.id) : viewImage(item.id)
-      }
       sx={{
-        cursor: 'pointer',
         position: 'relative',
         border:
           selectionMode && selectedImages.has(item.id)
@@ -32,8 +42,18 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
             : '1px solid var(--joy-palette-neutral-200)',
         '&:hover': {
           backgroundColor: selectionMode
-            ? 'var(--joy-palette-primary-50)'
+            ? 'var(--joy-palette-background-level3)'
             : 'var(--joy-palette-background-level1)',
+        },
+        // Hide CardActions by default, show on hover
+        '& .history-card-actions': {
+          opacity: 0,
+          pointerEvents: 'none',
+          transition: 'opacity 0.2s',
+        },
+        '&:hover .history-card-actions': {
+          opacity: 1,
+          pointerEvents: 'auto',
         },
       }}
     >
@@ -55,7 +75,12 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
           />
         </Box>
       )}
-      <CardContent sx={{ p: 1.5 }}>
+      <CardContent
+        sx={{ cursor: 'pointer' }}
+        onClick={() =>
+          selectionMode ? toggleImageSelection(item.id) : viewImage(item.id)
+        }
+      >
         <img
           src={Endpoints.Diffusion.GetImage(item?.id)}
           alt="generated"
@@ -82,6 +107,25 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
             : 'Unknown date'}
         </Typography>
       </CardContent>
+      <CardActions
+        className="history-card-actions"
+        sx={{
+          justifyContent: 'flex-end',
+          position: 'absolute',
+          p: 1,
+          bottom: 0,
+          right: 0,
+        }}
+      >
+        <IconButton variant="plain" color="danger">
+          <Trash2Icon
+            onClick={() => {
+              setImageToDelete(item?.id);
+              setDeleteConfirmOpen(true);
+            }}
+          />
+        </IconButton>
+      </CardActions>
     </Card>
   );
 };

@@ -24,6 +24,8 @@ import {
   FileCheckIcon,
   CheckSquareIcon,
   SquareIcon,
+  SquareMinusIcon,
+  XIcon,
 } from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
 import HistoryCard from './HistoryCard';
@@ -266,18 +268,18 @@ const History: React.FC<HistoryProps> = () => {
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
           <Button
             onClick={toggleSelectionMode}
-            variant={selectionMode ? 'solid' : 'outlined'}
-            color={selectionMode ? 'primary' : 'neutral'}
+            variant={selectionMode ? 'soft' : 'outlined'}
+            color={selectionMode ? 'warning' : 'neutral'}
             size="sm"
             startDecorator={
               selectionMode ? (
-                <CheckSquareIcon size="16px" />
+                <SquareMinusIcon size="16px" />
               ) : (
                 <SquareIcon size="16px" />
               )
             }
           >
-            {selectionMode ? 'Exit Select' : 'Select'}
+            {selectionMode ? 'Cancel' : 'Select'}
           </Button>
 
           {selectionMode &&
@@ -297,6 +299,7 @@ const History: React.FC<HistoryProps> = () => {
                   variant="outlined"
                   size="sm"
                   disabled={selectedImages.size === 0}
+                  startDecorator={<XIcon size="16px" />}
                 >
                   Clear
                 </Button>
@@ -359,6 +362,8 @@ const History: React.FC<HistoryProps> = () => {
                   selectedImages={selectedImages}
                   toggleImageSelection={toggleImageSelection}
                   viewImage={viewImage}
+                  setImageToDelete={setImageToDelete}
+                  setDeleteConfirmOpen={setDeleteConfirmOpen}
                 />
               </Grid>
             ))}

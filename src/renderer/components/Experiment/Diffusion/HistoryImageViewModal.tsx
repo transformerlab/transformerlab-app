@@ -8,8 +8,9 @@ import {
   ModalDialog,
   Typography,
 } from '@mui/joy';
-import { DeleteIcon, DownloadIcon } from 'lucide-react';
+import { DeleteIcon, DownloadIcon, Trash2Icon } from 'lucide-react';
 import React from 'react';
+import { Endpoints } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function HistoryImageViewModal({
   selectedImage,
@@ -23,33 +24,25 @@ export default function HistoryImageViewModal({
   return (
     <Modal open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
       <ModalDialog
-        size="lg"
         sx={{
-          p: 3,
-          maxWidth: '95vw',
+          width: '70vw',
           maxHeight: '95vh',
-          border: '2px solid var(--joy-palette-neutral-300)',
-          borderRadius: '12px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
         }}
       >
         <ModalClose />
         {selectedImage && (
           <>
             <DialogTitle sx={{ pb: 2 }}>Generated Image</DialogTitle>
-            <DialogContent sx={{ p: 0 }}>
+            <DialogContent sx={{ p: 0, overflowY: 'auto' }}>
               <Box sx={{ textAlign: 'center' }}>
                 <Box
                   sx={{
-                    border: '1px solid var(--joy-palette-neutral-200)',
-                    borderRadius: '8px',
                     p: 1,
                     mb: 3,
-                    backgroundColor: 'var(--joy-palette-background-body)',
                   }}
                 >
                   <img
-                    src={`data:image/png;base64,${selectedImage.image_base64}`}
+                    src={Endpoints.Diffusion.GetImage(selectedImage?.id)}
                     alt="Generated"
                     style={{
                       maxWidth: '100%',
@@ -167,34 +160,31 @@ export default function HistoryImageViewModal({
                         </>
                       )}
                   </Typography>
-
-                  <Box
-                    sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}
-                  >
-                    <Button
-                      onClick={() => downloadHistoryImage(selectedImage)}
-                      startDecorator={<DownloadIcon size="16px" />}
-                      variant="solid"
-                      color="primary"
-                    >
-                      Download
-                    </Button>
-                    <Button
-                      color="danger"
-                      variant="outlined"
-                      onClick={() => {
-                        setImageToDelete(selectedImage.id);
-                        setDeleteConfirmOpen(true);
-                        setImageModalOpen(false);
-                      }}
-                      startDecorator={<DeleteIcon size="16px" />}
-                    >
-                      Delete
-                    </Button>
-                  </Box>
                 </Box>
               </Box>
             </DialogContent>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+              <Button
+                onClick={() => downloadHistoryImage(selectedImage)}
+                startDecorator={<DownloadIcon size="16px" />}
+                variant="solid"
+                color="primary"
+              >
+                Download
+              </Button>
+              <Button
+                color="danger"
+                variant="outlined"
+                onClick={() => {
+                  setImageToDelete(selectedImage.id);
+                  setDeleteConfirmOpen(true);
+                  setImageModalOpen(false);
+                }}
+                startDecorator={<Trash2Icon size="16px" />}
+              >
+                Delete
+              </Button>
+            </Box>
           </>
         )}
       </ModalDialog>
