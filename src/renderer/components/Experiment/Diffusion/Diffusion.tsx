@@ -35,7 +35,13 @@ const LabelWithTooltip = ({
 }) => (
   <Stack direction="row" alignItems="center" gap={0.01}>
     <FormLabel>{children}</FormLabel>
-    <Tooltip title={tooltip} arrow placement="top">
+    <Tooltip
+      title={tooltip}
+      arrow
+      placement="top"
+      sx={{ maxWidth: 200 }}
+      variant="soft"
+    >
       <IconButton
         size="sm"
         variant="plain"
