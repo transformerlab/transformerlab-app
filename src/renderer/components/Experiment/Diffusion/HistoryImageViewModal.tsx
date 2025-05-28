@@ -25,8 +25,8 @@ export default function HistoryImageViewModal({
     <Modal open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
       <ModalDialog
         sx={{
-          width: '70vw',
-          maxHeight: '95vh',
+          width: '90vw',
+          height: '95vh',
         }}
       >
         <ModalClose />
@@ -34,19 +34,29 @@ export default function HistoryImageViewModal({
           <>
             <DialogTitle sx={{ pb: 2 }}>Generated Image</DialogTitle>
             <DialogContent sx={{ p: 0, overflowY: 'auto' }}>
-              <Box sx={{ textAlign: 'center' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  alignItems: { xs: 'center', md: 'flex-start' },
+                  gap: 3,
+                  width: '100%',
+                }}
+              >
                 <Box
                   sx={{
                     p: 1,
-                    mb: 3,
+                    mb: { xs: 3, md: 0 },
+                    textAlign: 'center',
                   }}
+                  id="image-preview"
                 >
                   <img
                     src={Endpoints.Diffusion.GetImage(selectedImage?.id)}
                     alt="Generated"
                     style={{
                       maxWidth: '100%',
-                      maxHeight: '65vh',
+                      maxHeight: '70vh',
                       objectFit: 'contain',
                       borderRadius: '6px',
                       display: 'block',
@@ -54,7 +64,15 @@ export default function HistoryImageViewModal({
                     }}
                   />
                 </Box>
-                <Box sx={{ textAlign: 'left' }}>
+                <Box
+                  sx={{
+                    textAlign: 'left',
+                    flex: 1,
+                    width: { xs: '100%', md: 'auto' },
+                    pr: 1,
+                  }}
+                  id="image-metadata"
+                >
                   <Typography level="title-md" sx={{ mb: 1 }}>
                     Prompt:
                   </Typography>
