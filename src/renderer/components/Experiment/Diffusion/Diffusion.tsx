@@ -17,7 +17,7 @@ import {
   Tooltip,
   IconButton,
 } from '@mui/joy';
-import { Info } from 'lucide-react';
+import { ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
 import History from './History';
 
@@ -46,9 +46,9 @@ const LabelWithTooltip = ({
         size="sm"
         variant="plain"
         color="neutral"
-        sx={{ minHeight: 'unset', p: 0.125 }}
+        sx={{ minHeight: 'unset', p: 0.125, alignSelf: 'flex-start' }}
       >
-        <Info size={12} />
+        <Info size={12} color="var(--joy-palette-neutral-400)" />
       </IconButton>
     </Tooltip>
   </Stack>
@@ -297,7 +297,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     flexWrap: 'wrap',
                   }}
                 >
-                  <FormControl sx={{ flex: 1, display: 'flex' }}>
+                  <FormControl
+                    sx={{ flex: 1, justifyContent: 'space-between' }}
+                  >
                     <LabelWithTooltip tooltip="Number of denoising steps. More steps generally produce higher quality images but take longer to generate. Typical values range from 20-50.">
                       Steps
                     </LabelWithTooltip>
@@ -311,7 +313,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   <FormControl
                     sx={{
                       flex: 1,
-                      display: 'flex',
                       justifyContent: 'space-between',
                     }}
                   >
@@ -328,7 +329,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   <FormControl
                     sx={{
                       flex: 1,
-                      display: 'flex',
                       justifyContent: 'space-between',
                     }}
                   >
@@ -354,6 +354,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     title="Enhance the generated image resolution by upscaling it 2x using a upscaling model. This improves detail and clarity, especially for low-resolution outputs."
                     arrow
                     placement="top"
+                    sx={{ maxWidth: 200 }}
+                    variant="soft"
                   >
                     <Checkbox
                       checked={upscale}
@@ -367,144 +369,159 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     />
                   </Tooltip>
                 </Stack>
+                <Sheet variant="soft" sx={{ p: 2, mt: 1 }}>
+                  {/* Advanced Settings Toggle */}
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    sx={{ alignSelf: 'flex-start' }}
+                    endDecorator={
+                      showAdvanced ? (
+                        <ChevronUp size={16} />
+                      ) : (
+                        <ChevronDown size={16} />
+                      )
+                    }
+                  >
+                    {showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
+                  </Button>
 
-                {/* Advanced Settings Toggle */}
-                <Button
-                  variant="outlined"
-                  size="sm"
-                  onClick={() => setShowAdvanced(!showAdvanced)}
-                  sx={{ alignSelf: 'flex-start' }}
-                >
-                  {showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
-                </Button>
-
-                {/* Advanced Settings - Collapsible */}
-                {showAdvanced && (
-                  <Stack gap={2} sx={{ mt: 1 }}>
-                    <FormControl>
-                      <LabelWithTooltip tooltip="Describe what you don't want to see in the generated image. This helps guide the model away from unwanted elements, styles, or features.">
-                        Negative Prompt
-                      </LabelWithTooltip>
-                      <Textarea
-                        minRows={2}
-                        value={negativePrompt}
-                        onChange={(e) => setNegativePrompt(e.target.value)}
-                        placeholder="Describe what you don't want in the image"
-                      />
-                    </FormControl>
-                    <Stack
-                      gap={1}
-                      sx={{
-                        flexDirection: 'row',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <FormControl sx={{ flex: 1 }}>
-                        <LabelWithTooltip tooltip="Controls the amount of noise in the denoising process. Higher values add more randomness while lower values make the process more deterministic. Leave at 0.0 for default behavior.">
-                          ETA
+                  {/* Advanced Settings - Collapsible */}
+                  {showAdvanced && (
+                    <Stack gap={2} sx={{ mt: 1 }}>
+                      <FormControl>
+                        <LabelWithTooltip tooltip="Describe what you don't want to see in the generated image. This helps guide the model away from unwanted elements, styles, or features.">
+                          Negative Prompt
                         </LabelWithTooltip>
-                        <Input
-                          type="number"
-                          value={eta}
-                          sx={{ width: 100 }}
-                          onChange={(e) => setEta(e.target.value)}
-                          placeholder="0.0"
-                          slotProps={{
-                            input: {
-                              step: 0.1,
-                              min: 0,
-                              max: 1,
-                            },
-                          }}
+                        <Textarea
+                          minRows={2}
+                          value={negativePrompt}
+                          onChange={(e) => setNegativePrompt(e.target.value)}
+                          placeholder="Describe what you don't want in the image"
                         />
                       </FormControl>
-                      <FormControl sx={{ flex: 1 }}>
-                        <LabelWithTooltip tooltip="Number of CLIP text encoder layers to skip. Higher values may result in more artistic or abstract outputs. Set to 0 for default behavior.">
-                          CLIP Skip
-                        </LabelWithTooltip>
-                        <Input
-                          type="number"
-                          value={clipSkip}
-                          sx={{ width: 100 }}
-                          onChange={(e) => setClipSkip(e.target.value)}
-                          placeholder="0"
-                          slotProps={{
-                            input: {
-                              step: 1,
-                              min: 0,
-                              max: 12,
-                            },
-                          }}
-                        />
-                      </FormControl>
-                      <FormControl sx={{ flex: 1 }}>
-                        <LabelWithTooltip tooltip="Rescales the guidance scale to prevent over-saturation. Values between 0.0-1.0 can help balance prompt adherence with image quality. Leave at 0.0 for default behavior.">
-                          Guidance Rescale
-                        </LabelWithTooltip>
-                        <Input
-                          type="number"
-                          value={guidanceRescale}
-                          sx={{ width: 100 }}
-                          onChange={(e) => setGuidanceRescale(e.target.value)}
-                          placeholder="0.0"
-                          slotProps={{
-                            input: {
-                              step: 0.1,
-                              min: 0,
-                              max: 1,
-                            },
-                          }}
-                        />
-                      </FormControl>
+                      <Stack
+                        gap={1}
+                        sx={{
+                          flexDirection: 'row',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <FormControl
+                          sx={{ flex: 1, justifyContent: 'space-between' }}
+                        >
+                          <LabelWithTooltip tooltip="Controls the amount of noise in the denoising process. Higher values add more randomness while lower values make the process more deterministic. Leave at 0.0 for default behavior.">
+                            ETA
+                          </LabelWithTooltip>
+                          <Input
+                            type="number"
+                            value={eta}
+                            sx={{ width: 100 }}
+                            onChange={(e) => setEta(e.target.value)}
+                            placeholder="0.0"
+                            slotProps={{
+                              input: {
+                                step: 0.1,
+                                min: 0,
+                                max: 1,
+                              },
+                            }}
+                          />
+                        </FormControl>
+                        <FormControl
+                          sx={{ flex: 1, justifyContent: 'space-between' }}
+                        >
+                          <LabelWithTooltip tooltip="Number of CLIP text encoder layers to skip. Higher values may result in more artistic or abstract outputs. Set to 0 for default behavior.">
+                            CLIP Skip
+                          </LabelWithTooltip>
+                          <Input
+                            type="number"
+                            value={clipSkip}
+                            sx={{ width: 100 }}
+                            onChange={(e) => setClipSkip(e.target.value)}
+                            placeholder="0"
+                            slotProps={{
+                              input: {
+                                step: 1,
+                                min: 0,
+                                max: 12,
+                              },
+                            }}
+                          />
+                        </FormControl>
+                        <FormControl
+                          sx={{ flex: 1, justifyContent: 'space-between' }}
+                        >
+                          <LabelWithTooltip tooltip="Rescales the guidance scale to prevent over-saturation. Values between 0.0-1.0 can help balance prompt adherence with image quality. Leave at 0.0 for default behavior.">
+                            Guidance Rescale
+                          </LabelWithTooltip>
+                          <Input
+                            type="number"
+                            value={guidanceRescale}
+                            sx={{ width: 100 }}
+                            onChange={(e) => setGuidanceRescale(e.target.value)}
+                            placeholder="0.0"
+                            slotProps={{
+                              input: {
+                                step: 0.1,
+                                min: 0,
+                                max: 1,
+                              },
+                            }}
+                          />
+                        </FormControl>
+                      </Stack>
+                      <Stack
+                        gap={1}
+                        sx={{
+                          flexDirection: 'row',
+                          flexWrap: 'wrap',
+                          justifyContent: 'flex-start',
+                        }}
+                      >
+                        <FormControl sx={{}}>
+                          <LabelWithTooltip tooltip="Set a custom height for the generated image in pixels. Leave at 0 to use the model's default height. Values should be multiples of 8.">
+                            Image Height
+                          </LabelWithTooltip>
+                          <Input
+                            type="number"
+                            value={imageHeight}
+                            sx={{ width: 100 }}
+                            onChange={(e) => setImageHeight(e.target.value)}
+                            placeholder="0"
+                            slotProps={{
+                              input: {
+                                step: 8,
+                                min: 0,
+                                max: 2048,
+                              },
+                            }}
+                          />
+                        </FormControl>
+                        <FormControl sx={{}}>
+                          <LabelWithTooltip tooltip="Set a custom width for the generated image in pixels. Leave at 0 to use the model's default width. Values should be multiples of 8.">
+                            Image Width
+                          </LabelWithTooltip>
+                          <Input
+                            type="number"
+                            value={imageWidth}
+                            sx={{ width: 100 }}
+                            onChange={(e) => setImageWidth(e.target.value)}
+                            placeholder="0"
+                            slotProps={{
+                              input: {
+                                step: 8,
+                                min: 0,
+                                max: 2048,
+                              },
+                            }}
+                          />
+                        </FormControl>
+                      </Stack>
                     </Stack>
-                    <Stack
-                      gap={1}
-                      sx={{
-                        flexDirection: 'row',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <FormControl sx={{ flex: 1 }}>
-                        <LabelWithTooltip tooltip="Set a custom height for the generated image in pixels. Leave at 0 to use the model's default height. Values should be multiples of 8.">
-                          Image Height
-                        </LabelWithTooltip>
-                        <Input
-                          type="number"
-                          value={imageHeight}
-                          sx={{ width: 100 }}
-                          onChange={(e) => setImageHeight(e.target.value)}
-                          placeholder="0"
-                          slotProps={{
-                            input: {
-                              step: 8,
-                              min: 0,
-                              max: 2048,
-                            },
-                          }}
-                        />
-                      </FormControl>
-                      <FormControl sx={{ flex: 1 }}>
-                        <LabelWithTooltip tooltip="Set a custom width for the generated image in pixels. Leave at 0 to use the model's default width. Values should be multiples of 8.">
-                          Image Width
-                        </LabelWithTooltip>
-                        <Input
-                          type="number"
-                          value={imageWidth}
-                          sx={{ width: 100 }}
-                          onChange={(e) => setImageWidth(e.target.value)}
-                          placeholder="0"
-                          slotProps={{
-                            input: {
-                              step: 8,
-                              min: 0,
-                              max: 2048,
-                            },
-                          }}
-                        />
-                      </FormControl>
-                    </Stack>
-                  </Stack>
-                )}
+                  )}
+                </Sheet>
               </Stack>
 
               <Button
