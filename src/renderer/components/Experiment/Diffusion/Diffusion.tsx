@@ -19,6 +19,7 @@ import {
 } from '@mui/joy';
 import { ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
+import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import History from './History';
 
 type DiffusionProps = {
@@ -283,12 +284,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   <LabelWithTooltip tooltip="Describe the image you want to generate. Be specific and detailed for better results.">
                     Prompt
                   </LabelWithTooltip>
-                  <Textarea
-                    minRows={2}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe the image you want to generate"
-                  />
+                  <SimpleTextArea value={prompt} setValue={setPrompt} />
                 </FormControl>
                 <Stack
                   gap={1}
