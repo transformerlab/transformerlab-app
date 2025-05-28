@@ -253,11 +253,12 @@ const History: React.FC<HistoryProps> = () => {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        overflow: 'auto',
+        overflow: 'hidden',
         padding: 2,
       }}
     >
       <Box
+        id="history-header-with-selection-and-actions"
         sx={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -353,7 +354,7 @@ const History: React.FC<HistoryProps> = () => {
       {historyData &&
         !historyLoading &&
         (historyData.images && historyData.images.length > 0 ? (
-          <Grid container spacing={2}>
+          <Grid container spacing={2} sx={{ overflow: 'auto' }}>
             {historyData.images.map((item: any) => (
               <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
                 <HistoryCard

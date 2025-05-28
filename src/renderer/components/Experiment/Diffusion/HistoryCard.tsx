@@ -40,11 +40,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
           selectionMode && selectedImages.has(item.id)
             ? '2px solid var(--joy-palette-primary-500)'
             : '1px solid var(--joy-palette-neutral-200)',
-        '&:hover': {
-          backgroundColor: selectionMode
-            ? 'var(--joy-palette-background-level3)'
-            : 'var(--joy-palette-background-level1)',
-        },
+
         // Hide CardActions by default, show on hover
         '& .history-card-actions': {
           opacity: 0,
@@ -63,15 +59,18 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
             position: 'absolute',
             top: 8,
             right: 8,
-            zIndex: 1,
-            pointerEvents: 'none', // Prevent checkbox from blocking card click
+            zIndex: 100,
           }}
         >
           <Checkbox
             checked={selectedImages.has(item.id)}
-            color="primary"
+            color="success"
+            variant="outlined"
             size="sm"
             readOnly
+            onClick={() =>
+              selectionMode ? toggleImageSelection(item.id) : viewImage(item.id)
+            }
           />
         </Box>
       )}
