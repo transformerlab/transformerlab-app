@@ -56,8 +56,7 @@ const LabelWithTooltip = ({
 );
 
 export default function Diffusion({ experimentInfo }: DiffusionProps) {
-  const initialModel =
-    experimentInfo?.config?.foundation || 'stabilityai/stable-diffusion-2-1';
+  const initialModel = experimentInfo?.config?.foundation || '';
   const adaptor = experimentInfo?.config?.adaptor || '';
   const [model, setModel] = useState(initialModel);
   const [prompt, setPrompt] = useState('An astronaut floating in space');
@@ -78,6 +77,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [imageBase64, setImageBase64] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentGenerationData, setCurrentGenerationData] = useState<any>(null);
   const [isStableDiffusion, setIsStableDiffusion] = useState<boolean | null>(
     null,
   );
@@ -99,6 +99,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setLoading(true);
     setError('');
     setImageBase64('');
+    setCurrentGenerationData(null);
     try {
       // Build the request body with basic parameters
       const requestBody: any = {
@@ -142,6 +143,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         setError('Error generating image');
       } else {
         setImageBase64(data.image_base64);
+        setCurrentGenerationData(data);
       }
     } catch (e) {
       setError('Failed to generate image');
@@ -561,11 +563,19 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     style={{
                       borderRadius: 8,
                       maxWidth: '100%',
-                      maxHeight: 'calc(100% - 40px)',
+                      maxHeight: currentGenerationData?.generation_time
+                        ? 'calc(100% - 60px)'
+                        : 'calc(100% - 40px)',
                       objectFit: 'contain',
                       display: 'block',
                     }}
                   />
+                  {currentGenerationData?.generation_time && (
+                    <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
+                      Generated in{' '}
+                      {currentGenerationData.generation_time.toFixed(2)}s
+                    </Typography>
+                  )}
                   <Button
                     onClick={handleSaveImage}
                     color="neutral"

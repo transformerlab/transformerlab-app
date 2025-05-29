@@ -51,6 +51,7 @@ export type HistoryImage = {
     guidance_rescale?: number;
     width?: number;
     height?: number;
+    generation_time?: number;
   };
 };
 

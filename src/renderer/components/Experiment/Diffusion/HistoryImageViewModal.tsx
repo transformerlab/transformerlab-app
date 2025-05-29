@@ -177,6 +177,14 @@ export default function HistoryImageViewModal({
                           {selectedImage.metadata.height}
                         </>
                       )}
+                    {selectedImage.metadata.generation_time !== undefined &&
+                      selectedImage.metadata.generation_time !== null && (
+                        <>
+                          <br />
+                          <strong>Generation Time:</strong>{' '}
+                          {selectedImage.metadata.generation_time.toFixed(2)}s
+                        </>
+                      )}
                   </Typography>
                 </Box>
               </Box>
