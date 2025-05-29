@@ -3,6 +3,8 @@
 /* eslint-disable no-console */
 /* eslint-disable import/prefer-default-export */
 
+import { Endpoints } from './api-client/endpoints';
+
 export * from './api-client/endpoints';
 
 export {
@@ -48,7 +50,7 @@ export {
   useCheckLocalConnection,
 } from './api-client/hooks';
 
-export { INFERENCE_SERVER_URL, API_URL };
+export { INFERENCE_SERVER_URL, API_URL, getFullPath } from './api-client/urls';
 
 export async function listWorkflowTriggers(experimentId: string) {
   const response = await fetch(Endpoints.WorkflowTriggers.ListByExperiment(experimentId));

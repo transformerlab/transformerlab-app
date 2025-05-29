@@ -48,19 +48,19 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
       />
       <CardContent>
         <Typography level="h4" sx={{ marginBottom: 1 }}>
-          Workflow: {workflow?.name || 'Unknown Workflow'}
+          Workflow: {workflow.name}
         </Typography>
         <Typography level="body-md">
-          Status: <Chip>{run?.status || 'Unknown'}</Chip>
+          Status: <Chip>{run.status}</Chip>
         </Typography>
         <Typography level="body-md">
-          Created At: {run?.created_at || 'Unknown'} | Updated At: {run?.updated_at || 'Unknown'}
+          Created At: {run.created_at} | Updated At: {run.updated_at}
         </Typography>
         <Typography level="h4" pt={1}>
           Tasks:
         </Typography>
         <List>
-          {jobs && jobs.length > 0 ? jobs.map((job) => (
+          {jobs.map((job) => (
             <ListItem
               key={job.jobID}
               sx={{
@@ -109,11 +109,7 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
                 Output
               </Button>
             </ListItem>
-          )) : (
-            <ListItem>
-              <Typography level="body-md">No tasks found</Typography>
-            </ListItem>
-          )}
+          ))}
         </List>
       </CardContent>
     </Card>
