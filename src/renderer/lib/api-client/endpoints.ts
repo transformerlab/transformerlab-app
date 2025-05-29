@@ -51,7 +51,7 @@ Endpoints.Workflows = {
     `${API_URL()}workflows/${workflowId}/start`,
   ListRuns: () => `${API_URL()}workflows/list_runs`,
   GetRun: (workflowRunID: string) =>
-    API_URL() + 'workflows/runs/' + workflowRunID,
+    `${API_URL()}workflows/runs/${workflowRunID}`,
   ListInExperiment: (experimentId: string) =>
     `${API_URL()}workflows/list_in_experiment?experiment_id=${experimentId}`,
   GetDetails: (workflowId: string) =>
