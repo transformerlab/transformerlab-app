@@ -93,8 +93,8 @@ export default function EditDatasetModal({
         <Divider sx={{ my: 1 }} />
         <Sheet sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography level="body-md" color="neutral">
-            Datasets are immutable. In order to edit a dataset, a new copy must
-            be created with the contents of this dataset.
+            Datasets are read-only. To edit one, simply create a new copy and
+            apply your changes there.
           </Typography>
           <Typography level="body-md" color="neutral">
             Enter the name for the new Dataset:
@@ -115,12 +115,6 @@ export default function EditDatasetModal({
               autoFocus
             />
           </form>
-          <Typography
-            level="body-xs"
-            sx={{ fontStyle: 'italic', color: 'text.secondary' }}
-          >
-            Note: Parquet datasets are not editable.
-          </Typography>
 
           <div
             style={{ display: 'flex', justifyContent: 'flex-end', gap: '1em' }}
