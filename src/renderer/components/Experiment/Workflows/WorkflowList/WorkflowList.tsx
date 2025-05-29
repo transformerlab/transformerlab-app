@@ -67,7 +67,7 @@ interface WorkflowListProps {
 export default function WorkflowList({ experimentInfo }: WorkflowListProps) {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
-  const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
+  const [newNodeModalOpen, setNewNodeModalOpen] = useState(false);
   const [viewCodeMode, setViewCodeMode] = useState(false);
   const [triggersMenuOpen, setTriggersMenuOpen] = useState(false);
   const [selectedWorkflowDetails, setSelectedWorkflowDetails] = useState<Workflow | null>(null);
@@ -153,13 +153,16 @@ export default function WorkflowList({ experimentInfo }: WorkflowListProps) {
       />
       {selectedWorkflow && (
         <NewNodeModal
-          open={newNodeflowModalOpen}
+          open={newNodeModalOpen}
           onClose={() => {
-            setNewNodeflowModalOpen(false);
+            setNewNodeModalOpen(false);
             mutateWorkflows();
+            mutateWorkflowDetails();
           }}
           selectedWorkflow={selectedWorkflow}
           experimentInfo={experimentInfo}
+          mutateWorkflows={mutateWorkflows}
+          mutateWorkflowDetails={mutateWorkflowDetails}
         />
       )}
       <Box
@@ -329,8 +332,9 @@ export default function WorkflowList({ experimentInfo }: WorkflowListProps) {
               ) : (
                 <WorkflowCanvas
                   selectedWorkflow={selectedWorkflow}
-                  setNewNodeModalOpen={setNewNodeflowModalOpen}
+                  setNewNodeModalOpen={setNewNodeModalOpen}
                   mutateWorkflows={mutateWorkflows}
+                  mutateWorkflowDetails={mutateWorkflowDetails}
                 />
               )
             ) : (
