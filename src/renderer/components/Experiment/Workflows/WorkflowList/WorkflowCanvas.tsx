@@ -20,19 +20,9 @@ import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 const nodeTypes = { customNode: CustomNode, startNode: StartNode };
 
 function generateNodes(workflow: any): any[] {
-  if (!workflow?.config) {
-    return [];
-  }
+  const workflowConfig = JSON.parse(workflow?.config);
 
-  let workflowConfig;
-  try {
-    workflowConfig = JSON.parse(workflow.config);
-  } catch (e) {
-    console.error('Failed to parse workflow config:', e);
-    return [];
-  }
-
-  if (!workflowConfig?.nodes || workflowConfig.nodes.length == 0) {
+  if (workflowConfig.nodes.length == 0) {
     return [];
   }
 
@@ -70,21 +60,10 @@ function generateNodes(workflow: any): any[] {
 }
 
 function generateEdges(workflow: any) {
-  if (!workflow?.config) {
-    return [];
-  }
-
-  let workflowConfig;
-  try {
-    workflowConfig = JSON.parse(workflow.config);
-  } catch (e) {
-    console.error('Failed to parse workflow config:', e);
-    return [];
-  }
-
+  const workflowConfig = JSON.parse(workflow?.config);
   const workflowId = workflow?.id;
 
-  if (!workflowConfig?.nodes || workflowConfig.nodes.length < 1) {
+  if (workflowConfig.nodes.length < 1) {
     return [];
   }
 
@@ -137,12 +116,10 @@ const Flow = ({
   selectedWorkflow,
   setNewNodeModalOpen = (x: boolean) => {},
   mutateWorkflows,
-  mutateWorkflowDetails,
 }: {
   selectedWorkflow: any;
   setNewNodeModalOpen: (param: boolean) => void;
   mutateWorkflows: Function;
-  mutateWorkflowDetails: Function;
 }) => {
   const edgeReconnectSuccessful = useRef(true);
   const [nodes, setNodes, onNodesChange] = useNodesState(
@@ -183,7 +160,6 @@ const Flow = ({
       },
     );
     mutateWorkflows();
-    mutateWorkflowDetails();
   }, []);
 
   const onReconnectStart = useCallback(() => {
@@ -211,7 +187,6 @@ const Flow = ({
         )
           .then(() => {
             mutateWorkflows();
-            mutateWorkflowDetails();
             return updatedEdges;
           })
           .catch((error) => {
@@ -263,7 +238,6 @@ const Flow = ({
         ),
       );
       mutateWorkflows();
-      mutateWorkflowDetails();
     },
     [selectedWorkflow],
   );
@@ -293,7 +267,6 @@ const Flow = ({
           ),
         );
         mutateWorkflows();
-        mutateWorkflowDetails();
       }}
       style={{
         backgroundColor:
@@ -337,12 +310,10 @@ export default function WorkflowCanvas({
   selectedWorkflow,
   setNewNodeModalOpen = (x: boolean) => {},
   mutateWorkflows,
-  mutateWorkflowDetails,
 }: {
   selectedWorkflow: any;
   setNewNodeModalOpen: (param: boolean) => void;
   mutateWorkflows: Function;
-  mutateWorkflowDetails: Function;
 }) {
   if (!selectedWorkflow) {
     return null;
@@ -353,7 +324,6 @@ export default function WorkflowCanvas({
         selectedWorkflow={selectedWorkflow}
         setNewNodeModalOpen={setNewNodeModalOpen}
         mutateWorkflows={mutateWorkflows}
-        mutateWorkflowDetails={mutateWorkflowDetails}
       />
     </ReactFlowProvider>
   );
