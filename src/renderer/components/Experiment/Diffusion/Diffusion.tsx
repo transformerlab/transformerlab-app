@@ -478,14 +478,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         }}
                       >
                         <FormControl sx={{}}>
-                          <LabelWithTooltip tooltip="Set a custom height for the generated image in pixels. Leave at 0 to use the model's default height. Values should be multiples of 8.">
-                            Image Height
+                          <LabelWithTooltip tooltip="Set a custom width for the generated image in pixels. Leave at 0 to use the model's default width. Values should be multiples of 8.">
+                            Image Width
                           </LabelWithTooltip>
                           <Input
                             type="number"
-                            value={imageHeight}
+                            value={imageWidth}
                             sx={{ width: 100 }}
-                            onChange={(e) => setImageHeight(e.target.value)}
+                            onChange={(e) => setImageWidth(e.target.value)}
                             placeholder="0"
                             slotProps={{
                               input: {
@@ -497,14 +497,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                           />
                         </FormControl>
                         <FormControl sx={{}}>
-                          <LabelWithTooltip tooltip="Set a custom width for the generated image in pixels. Leave at 0 to use the model's default width. Values should be multiples of 8.">
-                            Image Width
+                          <LabelWithTooltip tooltip="Set a custom height for the generated image in pixels. Leave at 0 to use the model's default height. Values should be multiples of 8.">
+                            Image Height
                           </LabelWithTooltip>
                           <Input
                             type="number"
-                            value={imageWidth}
+                            value={imageHeight}
                             sx={{ width: 100 }}
-                            onChange={(e) => setImageWidth(e.target.value)}
+                            onChange={(e) => setImageHeight(e.target.value)}
                             placeholder="0"
                             slotProps={{
                               input: {
