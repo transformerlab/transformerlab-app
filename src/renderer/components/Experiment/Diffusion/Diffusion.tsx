@@ -74,6 +74,10 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [imageWidth, setImageWidth] = useState('');
   const [imageHeight, setImageHeight] = useState('');
 
+  // Image-to-image settings
+  const [inputImageBase64, setInputImageBase64] = useState('');
+  const [strength, setStrength] = useState(0.8);
+
   const [imageBase64, setImageBase64] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -91,8 +95,28 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       setModel(newModel);
       // Reset isStableDiffusion when model changes
       setIsStableDiffusion(null);
+      // Clear input image when model changes
+      setInputImageBase64('');
     }
   }, [experimentInfo?.config?.foundation]);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        // Remove the data URL prefix to get just the base64 string
+        const base64String = result.split(',')[1];
+        setInputImageBase64(base64String);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setInputImageBase64('');
+  };
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -111,6 +135,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         upscale,
         upscale_factor: Number(upscaleFactor),
       };
+
+      // Add image-to-image parameters if an input image is provided
+      if (inputImageBase64) {
+        requestBody.input_image = inputImageBase64;
+        requestBody.strength = Number(strength);
+        requestBody.is_img2img = true;
+      }
 
       // Add advanced parameters only if they are specified
       if (negativePrompt.trim()) {
@@ -287,6 +318,95 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   </LabelWithTooltip>
                   <SimpleTextArea value={prompt} setValue={setPrompt} />
                 </FormControl>
+
+                {/* Image Upload - Optional Reference Image */}
+                <FormControl>
+                  <LabelWithTooltip tooltip="Optional: Upload a reference image to modify instead of generating from scratch. The AI will use this as a starting point and modify it according to your prompt.">
+                    Reference Image (Optional)
+                  </LabelWithTooltip>
+                  {!inputImageBase64 ? (
+                    <Box>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        style={{ display: 'none' }}
+                        id="reference-image-upload"
+                      />
+                      <Button
+                        component="label"
+                        htmlFor="reference-image-upload"
+                        variant="outlined"
+                        size="sm"
+                        sx={{ alignSelf: 'flex-start' }}
+                      >
+                        Upload Reference Image
+                      </Button>
+                      <Typography
+                        level="body-xs"
+                        sx={{ mt: 0.5, color: 'text.tertiary' }}
+                      >
+                        Upload an image to use as a starting point for
+                        generation
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Stack gap={1}>
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          display: 'inline-block',
+                          maxWidth: 200,
+                        }}
+                      >
+                        <img
+                          src={`data:image/png;base64,${inputImageBase64}`}
+                          alt="Reference"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: 120,
+                            borderRadius: 4,
+                            objectFit: 'contain',
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="soft"
+                          color="danger"
+                          onClick={handleRemoveImage}
+                          sx={{
+                            position: 'absolute',
+                            top: 4,
+                            right: 4,
+                            minHeight: 'unset',
+                            p: 0.5,
+                          }}
+                        >
+                          ×
+                        </Button>
+                      </Box>
+                      <FormControl sx={{ minWidth: 120 }}>
+                        <LabelWithTooltip tooltip="Controls how much the AI modifies the reference image. Lower values (0.1-0.5) make subtle changes, higher values (0.6-1.0) make dramatic changes.">
+                          Strength
+                        </LabelWithTooltip>
+                        <Input
+                          type="number"
+                          value={strength}
+                          onChange={(e) => setStrength(Number(e.target.value))}
+                          slotProps={{
+                            input: {
+                              step: 0.1,
+                              min: 0.1,
+                              max: 1.0,
+                            },
+                          }}
+                          sx={{ width: 100 }}
+                        />
+                      </FormControl>
+                    </Stack>
+                  )}
+                </FormControl>
+
                 <Stack
                   gap={1}
                   sx={{
@@ -528,7 +648,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                 color="primary"
                 size="lg"
               >
-                Generate Image
+                {inputImageBase64 ? 'Generate from Image' : 'Generate Image'}
               </Button>
             </Stack>
             <Box

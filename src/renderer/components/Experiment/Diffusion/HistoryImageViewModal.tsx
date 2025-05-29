@@ -8,7 +8,7 @@ import {
   ModalDialog,
   Typography,
 } from '@mui/joy';
-import { DeleteIcon, DownloadIcon, Trash2Icon } from 'lucide-react';
+import { DownloadIcon, Trash2Icon } from 'lucide-react';
 import React from 'react';
 import { Endpoints } from 'renderer/lib/transformerlab-api-sdk';
 
@@ -86,6 +86,41 @@ export default function HistoryImageViewModal({
                   >
                     {selectedImage.metadata.prompt}
                   </Typography>
+
+                  {selectedImage.metadata.is_img2img &&
+                    selectedImage.metadata.input_image_path && (
+                      <>
+                        <Typography level="title-md" sx={{ mb: 1 }}>
+                          Input Image:
+                        </Typography>
+                        <Box
+                          sx={{
+                            mb: 2,
+                            p: 2,
+                            backgroundColor:
+                              'var(--joy-palette-background-level1)',
+                            borderRadius: '6px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <img
+                            src={Endpoints.Diffusion.GetInputImage(
+                              selectedImage?.id,
+                            )}
+                            alt="Input"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '200px',
+                              objectFit: 'contain',
+                              borderRadius: '6px',
+                              border:
+                                '1px solid var(--joy-palette-neutral-300)',
+                            }}
+                          />
+                        </Box>
+                      </>
+                    )}
+
                   <Typography level="title-sm" sx={{ mb: 1 }}>
                     Model Info:
                   </Typography>
@@ -104,6 +139,15 @@ export default function HistoryImageViewModal({
                         <br />
                         <strong>Adaptor:</strong>{' '}
                         {selectedImage.metadata.adaptor}
+                        {selectedImage.metadata.adaptor_scale !== undefined && (
+                          <> (Scale: {selectedImage.metadata.adaptor_scale})</>
+                        )}
+                      </>
+                    )}
+                    {selectedImage.metadata.is_img2img && (
+                      <>
+                        <br />
+                        <strong>Type:</strong> Image-to-Image Generation
                       </>
                     )}
                   </Typography>
@@ -125,6 +169,13 @@ export default function HistoryImageViewModal({
                     <strong>Guidance:</strong>{' '}
                     {selectedImage.metadata.guidance_scale} <br />
                     <strong>Seed:</strong> {selectedImage.metadata.seed}
+                    {selectedImage.metadata.is_img2img && (
+                      <>
+                        <br />
+                        <strong>Strength:</strong>{' '}
+                        {selectedImage.metadata.strength || 0.8}
+                      </>
+                    )}
                     {selectedImage.metadata.upscale && (
                       <>
                         <br />

@@ -43,6 +43,7 @@ export type HistoryImage = {
     seed: number;
     model: string;
     adaptor: string;
+    adaptor_scale?: number;
     upscale?: boolean;
     upscale_factor?: number;
     negative_prompt?: string;
@@ -52,6 +53,10 @@ export type HistoryImage = {
     width?: number;
     height?: number;
     generation_time?: number;
+    // Image-to-image specific fields
+    input_image_path?: string;
+    strength?: number;
+    is_img2img?: boolean;
   };
 };
 
