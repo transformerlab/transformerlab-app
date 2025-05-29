@@ -16,6 +16,7 @@ import {
   Checkbox,
   Tooltip,
   IconButton,
+  CircularProgress,
 } from '@mui/joy';
 import { ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
@@ -643,12 +644,16 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
               <Button
                 onClick={handleGenerate}
-                loading={loading}
                 disabled={loading || isStableDiffusion === false}
                 color="primary"
                 size="lg"
+                startDecorator={loading && <CircularProgress />}
               >
-                {inputImageBase64 ? 'Generate from Image' : 'Generate Image'}
+                {loading
+                  ? 'Generating'
+                  : inputImageBase64
+                    ? 'Generate from Image'
+                    : 'Generate Image'}
               </Button>
             </Stack>
             <Box
