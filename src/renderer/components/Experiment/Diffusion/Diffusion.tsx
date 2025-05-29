@@ -86,8 +86,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
   // Update model when experimentInfo changes
   useEffect(() => {
-    const newModel =
-      experimentInfo?.config?.foundation || 'stabilityai/stable-diffusion-2-1';
+    const newModel = experimentInfo?.config?.foundation;
     if (newModel !== model) {
       setModel(newModel);
       // Reset isStableDiffusion when model changes
