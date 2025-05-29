@@ -22,42 +22,67 @@ import {
   
   const fetcher = (url: any) => fetch(url).then((res) => res.json());
   
+  interface Task {
+    id: string;
+    name: string;
+    type: string;
+  }
+  
+  interface NewNodeModalProps {
+    open: boolean;
+    onClose: () => void;
+    selectedWorkflow: any;
+    experimentInfo: {
+      id: string;
+      name: string;
+      config?: {
+        evaluations?: string;
+      };
+    };
+    mutateWorkflows: () => void;
+    mutateWorkflowDetails: () => void;
+  }
+  
   export default function NewNodeModal({
     open,
     onClose,
     selectedWorkflow,
     experimentInfo,
-  }) {
+    mutateWorkflows,
+    mutateWorkflowDetails,
+  }: NewNodeModalProps) {
     const [mode, setMode] = useState('OTHER');
-    const [availableTasks, setAvailableTasks] = useState([]);
+    const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
   
     const {
       data: tasksData,
       error: tasksError,
       isLoading: isLoadingTasks,
-    } = useSWR(open ? chatAPI.Endpoints.Tasks.List() : null, fetcher);
+    } = useSWR<Task[]>(open ? chatAPI.Endpoints.Tasks.List() : null, fetcher);
   
     let evaluationData = [];
     try {
-      evaluationData = JSON.parse(experimentInfo?.config?.evaluations);
+      evaluationData = JSON.parse(experimentInfo?.config?.evaluations || '[]');
     } catch (error) {
       console.error('Failed to parse evaluation data:', error);
     }
   
-    const handleModeChange = (event: any, newValue: string) => {
-      setMode(newValue);
-      if (tasksData && newValue !== 'OTHER') {
-        const filteredTasks = tasksData.filter((task) => task.type === newValue);
-        setAvailableTasks(filteredTasks);
+    const handleModeChange = (
+      _event: React.MouseEvent<Element, MouseEvent> | React.KeyboardEvent<Element> | React.FocusEvent<Element, Element> | null,
+      value: string | null
+    ) => {
+      if (!value) return;
+      setMode(value);
+      if (tasksData && value !== 'OTHER') {
+        setAvailableTasks(tasksData.filter((task: Task) => task.type === value));
       } else {
         setAvailableTasks([]);
       }
     };
   
     useEffect(() => {
-      if (tasksData && mode != 'OTHER' && tasksData?.detail !== 'Not Found') {
-        const filteredTasks = tasksData.filter((task) => task.type === mode);
-        setAvailableTasks(filteredTasks);
+      if (tasksData && mode !== 'OTHER') {
+        setAvailableTasks(tasksData.filter((task: Task) => task.type === mode));
       } else {
         setAvailableTasks([]);
       }
@@ -75,7 +100,7 @@ import {
               const formData = new FormData(event.currentTarget);
               const name = formData.get('name') as string;
   
-              if (mode == 'OTHER') {
+              if (mode === 'OTHER') {
                 const node = JSON.parse(formData.get('node') as string);
                 node.name = name;
                 await fetch(
@@ -84,7 +109,7 @@ import {
                     JSON.stringify(node),
                   ),
                 );
-              } else if (mode == 'DOWNLOAD_MODEL') {
+              } else if (mode === 'DOWNLOAD_MODEL') {
                 const model = formData.get('model') as string;
                 const config = JSON.parse(selectedWorkflow.config);
                 console.log(config);
@@ -116,6 +141,8 @@ import {
                 );
               }
   
+              mutateWorkflows();
+              mutateWorkflowDetails();
               onClose();
             }}
           >
@@ -127,8 +154,6 @@ import {
               <FormControl>
                 <FormLabel>Type</FormLabel>
                 <Select
-                  labelId="mode-label"
-                  id="mode-select"
                   value={mode}
                   onChange={handleModeChange}
                   required
@@ -142,7 +167,7 @@ import {
               </FormControl>
   
               <FormControl>
-                {mode != 'OTHER' && mode != 'DOWNLOAD_MODEL' && (
+                {mode !== 'OTHER' && mode !== 'DOWNLOAD_MODEL' && (
                   <>
                     <FormLabel>Task</FormLabel>
                     <Select name="task" required>
@@ -154,7 +179,7 @@ import {
                     </Select>
                   </>
                 )}
-                {mode == 'DOWNLOAD_MODEL' && (
+                {mode === 'DOWNLOAD_MODEL' && (
                   <>
                     <FormLabel>Huggingface Model Id</FormLabel>
                     <Input autoFocus required name="model" />

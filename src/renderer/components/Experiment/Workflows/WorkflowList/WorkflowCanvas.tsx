@@ -137,10 +137,12 @@ const Flow = ({
   selectedWorkflow,
   setNewNodeModalOpen = (x: boolean) => {},
   mutateWorkflows,
+  mutateWorkflowDetails,
 }: {
   selectedWorkflow: any;
   setNewNodeModalOpen: (param: boolean) => void;
   mutateWorkflows: Function;
+  mutateWorkflowDetails: Function;
 }) => {
   const edgeReconnectSuccessful = useRef(true);
   const [nodes, setNodes, onNodesChange] = useNodesState(
@@ -181,6 +183,7 @@ const Flow = ({
       },
     );
     mutateWorkflows();
+    mutateWorkflowDetails();
   }, []);
 
   const onReconnectStart = useCallback(() => {
@@ -208,6 +211,7 @@ const Flow = ({
         )
           .then(() => {
             mutateWorkflows();
+            mutateWorkflowDetails();
             return updatedEdges;
           })
           .catch((error) => {
@@ -259,6 +263,7 @@ const Flow = ({
         ),
       );
       mutateWorkflows();
+      mutateWorkflowDetails();
     },
     [selectedWorkflow],
   );
@@ -288,6 +293,7 @@ const Flow = ({
           ),
         );
         mutateWorkflows();
+        mutateWorkflowDetails();
       }}
       style={{
         backgroundColor:
@@ -331,10 +337,12 @@ export default function WorkflowCanvas({
   selectedWorkflow,
   setNewNodeModalOpen = (x: boolean) => {},
   mutateWorkflows,
+  mutateWorkflowDetails,
 }: {
   selectedWorkflow: any;
   setNewNodeModalOpen: (param: boolean) => void;
   mutateWorkflows: Function;
+  mutateWorkflowDetails: Function;
 }) {
   if (!selectedWorkflow) {
     return null;
@@ -345,6 +353,7 @@ export default function WorkflowCanvas({
         selectedWorkflow={selectedWorkflow}
         setNewNodeModalOpen={setNewNodeModalOpen}
         mutateWorkflows={mutateWorkflows}
+        mutateWorkflowDetails={mutateWorkflowDetails}
       />
     </ReactFlowProvider>
   );
