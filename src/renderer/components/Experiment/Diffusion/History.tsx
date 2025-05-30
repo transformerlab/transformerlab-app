@@ -17,6 +17,8 @@ import {
   Textarea,
   Alert,
   Stack,
+  IconButton,
+  iconButtonClasses,
 } from '@mui/joy';
 import {
   Trash2Icon,
@@ -25,6 +27,8 @@ import {
   SquareIcon,
   SquareMinusIcon,
   XIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from 'lucide-react';
 import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import HistoryCard from './HistoryCard';
@@ -34,11 +38,21 @@ import { HistoryImage } from './types';
 type HistoryProps = {};
 
 const History: React.FC<HistoryProps> = () => {
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12; // Number of items per page
+  const offset = (currentPage - 1) * pageSize;
+
   const {
     data: historyData,
     isLoading: historyLoading,
     mutate: refreshHistory,
-  } = useAPI('diffusion', ['getHistory'], { limit: 1000, offset: 0 });
+  } = useAPI('diffusion', ['getHistory'], { limit: pageSize, offset });
+
+  // Calculate pagination info
+  const totalPages = historyData?.total
+    ? Math.ceil(historyData.total / pageSize)
+    : 1;
 
   const [selectedImage, setSelectedImage] = useState<HistoryImage | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -54,6 +68,26 @@ const History: React.FC<HistoryProps> = () => {
   const [includeMetadata, setIncludeMetadata] = useState(true);
   const [datasetLoading, setDatasetLoading] = useState(false);
   const [datasetError, setDatasetError] = useState('');
+
+  // Pagination functions
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+    // Reset selection when changing pages
+    setSelectedImages(new Set());
+    setSelectionMode(false);
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      goToPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      goToPage(currentPage + 1);
+    }
+  };
 
   // View image in modal
   const viewImage = async (imageId: string) => {
@@ -133,10 +167,11 @@ const History: React.FC<HistoryProps> = () => {
 
   const selectAllImages = () => {
     if (!historyData?.images) return;
-    const allIds = new Set<string>(
+    // Only select images on current page
+    const currentPageIds = new Set<string>(
       historyData.images.map((img: HistoryImage) => img.id),
     );
-    setSelectedImages(allIds);
+    setSelectedImages(currentPageIds);
   };
 
   const deselectAllImages = () => {
@@ -243,7 +278,7 @@ const History: React.FC<HistoryProps> = () => {
                   Clear
                 </Button>
                 <Typography level="body-sm" sx={{ ml: 1 }}>
-                  {selectedImages.size} selected
+                  {selectedImages.size} selected on this page
                 </Typography>
               </>
             )}
@@ -292,21 +327,143 @@ const History: React.FC<HistoryProps> = () => {
       {historyData &&
         !historyLoading &&
         (historyData.images && historyData.images.length > 0 ? (
-          <Grid container spacing={2} sx={{ overflow: 'auto' }}>
-            {historyData.images.map((item: any) => (
-              <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
-                <HistoryCard
-                  item={item}
-                  selectionMode={selectionMode}
-                  selectedImages={selectedImages}
-                  toggleImageSelection={toggleImageSelection}
-                  viewImage={viewImage}
-                  setImageToDelete={setImageToDelete}
-                  setDeleteConfirmOpen={setDeleteConfirmOpen}
-                />
-              </Grid>
-            ))}
-          </Grid>
+          <>
+            <Grid container spacing={2} sx={{ overflow: 'auto' }}>
+              {historyData.images.map((item: any) => (
+                <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
+                  <HistoryCard
+                    item={item}
+                    selectionMode={selectionMode}
+                    selectedImages={selectedImages}
+                    toggleImageSelection={toggleImageSelection}
+                    viewImage={viewImage}
+                    setImageToDelete={setImageToDelete}
+                    setDeleteConfirmOpen={setDeleteConfirmOpen}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  mt: 3,
+                  gap: 1,
+                  [`& .${iconButtonClasses.root}`]: { borderRadius: '50%' },
+                }}
+              >
+                {currentPage > 1 ? (
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    color="neutral"
+                    onClick={goToPreviousPage}
+                  >
+                    <ChevronLeftIcon /> Previous
+                  </Button>
+                ) : (
+                  <div style={{ width: '78px', height: '30px' }} />
+                )}
+
+                <Box sx={{ flex: 1, alignItems: 'center' }} />
+
+                {/* Page number buttons */}
+                {totalPages <= 7 ? (
+                  // For 7 or fewer pages, show all pages
+                  Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <IconButton
+                      key={page}
+                      size="sm"
+                      variant={page === currentPage ? 'outlined' : 'plain'}
+                      color="neutral"
+                      onClick={() => goToPage(page)}
+                    >
+                      {page}
+                    </IconButton>
+                  ))
+                ) : (
+                  // For more than 7 pages, use ellipsis logic
+                  <>
+                    <IconButton
+                      key={1}
+                      size="sm"
+                      variant={Number(1) === currentPage ? 'outlined' : 'plain'}
+                      color="neutral"
+                      onClick={() => goToPage(Number(1))}
+                    >
+                      {1}
+                    </IconButton>
+
+                    {/* Show ellipsis only if there's a gap between first page and visible range */}
+                    {currentPage > 4 && <Typography level="body-sm">…</Typography>}
+
+                    {/* Show middle pages */}
+                    {Array.from(
+                      { length: Math.min(5, totalPages) },
+                      (_, i) => currentPage + i - 2,
+                    )
+                      .filter((page) => page >= 2 && page < totalPages)
+                      .map((page) => (
+                        <IconButton
+                          key={page}
+                          size="sm"
+                          variant={page === currentPage ? 'outlined' : 'plain'}
+                          color="neutral"
+                          onClick={() => goToPage(Number(page))}
+                        >
+                          {page}
+                        </IconButton>
+                      ))}
+
+                    {/* Show ellipsis only if there's a gap between visible range and last page */}
+                    {currentPage < totalPages - 3 && (
+                      <Typography level="body-sm">…</Typography>
+                    )}
+
+                    {/* Show last page */}
+                    <IconButton
+                      key={totalPages}
+                      size="sm"
+                      variant={
+                        Number(totalPages) === currentPage ? 'outlined' : 'plain'
+                      }
+                      color="neutral"
+                      onClick={() => goToPage(Number(totalPages))}
+                    >
+                      {totalPages}
+                    </IconButton>
+                  </>
+                )}
+
+                <Box sx={{ flex: 1 }} />
+
+                {currentPage < totalPages ? (
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    color="neutral"
+                    onClick={goToNextPage}
+                  >
+                    Next <ChevronRightIcon />
+                  </Button>
+                ) : (
+                  <div style={{ width: '78px', height: '30px' }} />
+                )}
+              </Box>
+            )}
+
+            {/* Total count display */}
+            <Box sx={{ textAlign: 'center', mt: 2 }}>
+              <Typography level="body-sm" color="neutral">
+                Showing {historyData.images.length} of {historyData.total} total
+                images (Page {currentPage} of {totalPages})
+              </Typography>
+            </Box>
+          </>
         ) : (
           <Box sx={{ textAlign: 'center', mt: 4 }}>
             <Typography>No images generated yet</Typography>
