@@ -61,6 +61,8 @@ export default function Chat({
   supports,
 }) {
   const { models } = chatAPI.useModelStatus();
+  console.log('models:', models);
+  console.log('experimentInfo:', experimentInfo);
   const [conversationId, setConversationId] = React.useState(null);
   const [chats, setChats] = React.useState([]);
   const [isThinking, setIsThinking] = React.useState(false);
