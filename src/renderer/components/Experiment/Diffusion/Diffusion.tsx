@@ -18,7 +18,13 @@ import {
   IconButton,
   CircularProgress,
 } from '@mui/joy';
-import { ChevronDown, ChevronUp, Info } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { Endpoints } from 'renderer/lib/api-client/endpoints';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import History from './History';
@@ -81,6 +87,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [strength, setStrength] = useState(0.8);
 
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentGenerationData, setCurrentGenerationData] = useState<any>(null);
@@ -149,6 +156,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setError('');
     setGeneratedImages([]);
     setCurrentGenerationData(null);
+    setCurrentImageIndex(0); // Reset to first image
     try {
       // Build the request body with basic parameters
       const requestBody: any = {
@@ -240,6 +248,19 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     } catch (err) {
       setError('Failed to save images');
     }
+  };
+
+  // Navigation functions for multiple images
+  const handlePreviousImage = () => {
+    setCurrentImageIndex((prev) =>
+      prev > 0 ? prev - 1 : generatedImages.length - 1,
+    );
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) =>
+      prev < generatedImages.length - 1 ? prev + 1 : 0,
+    );
   };
 
   // Check if model is eligible for diffusion
@@ -746,60 +767,124 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                       Generated {generatedImages.length} image
                       {generatedImages.length > 1 ? 's' : ''} in{' '}
                       {currentGenerationData.generation_time.toFixed(2)}s
+                      {generatedImages.length > 1 && (
+                        <span style={{ marginLeft: '16px' }}>
+                          {'Image '}
+                          {currentImageIndex + 1}
+                          {' of '}
+                          {generatedImages.length}
+                        </span>
+                      )}
                     </Typography>
                   )}
 
+                  {/* Main image display with navigation */}
                   <Box
                     sx={{
-                      display: 'grid',
-                      gridTemplateColumns:
-                        generatedImages.length === 1
-                          ? '1fr'
-                          : generatedImages.length === 2
-                            ? '1fr 1fr'
-                            : 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: 2,
+                      position: 'relative',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
                       width: '100%',
-                      maxHeight: '100%',
-                      overflow: 'auto',
+                      flex: 1,
+                      minHeight: 0,
                     }}
                   >
-                    {generatedImages.map((imageUrl, index) => {
-                      const isSingleImage = generatedImages.length === 1;
-                      const maxHeight = isSingleImage
-                        ? currentGenerationData?.generation_time
-                          ? 'calc(100% - 120px)'
-                          : 'calc(100% - 100px)'
-                        : '300px';
-
-                      // Create a unique key based on the image URL or generation ID + timestamp
-                      const uniqueKey = `${currentGenerationData?.id || Date.now()}-${index}`;
-
-                      return (
-                        <Box
-                          key={uniqueKey}
+                    {/* Navigation buttons for multiple images */}
+                    {generatedImages.length > 1 && (
+                      <>
+                        <IconButton
+                          onClick={handlePreviousImage}
                           sx={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 1,
+                            position: 'absolute',
+                            left: 8,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            zIndex: 10,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            color: 'white',
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            },
+                          }}
+                        >
+                          <ChevronLeft />
+                        </IconButton>
+                        <IconButton
+                          onClick={handleNextImage}
+                          sx={{
+                            position: 'absolute',
+                            right: 8,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            zIndex: 10,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            color: 'white',
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            },
+                          }}
+                        >
+                          <ChevronRight />
+                        </IconButton>
+                      </>
+                    )}
+
+                    {/* Current image */}
+                    <img
+                      src={generatedImages[currentImageIndex]}
+                      alt={`Generated image ${currentImageIndex + 1}`}
+                      style={{
+                        borderRadius: 8,
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        display: 'block',
+                      }}
+                    />
+                  </Box>
+
+                  {/* Thumbnail navigation for multiple images */}
+                  {generatedImages.length > 1 && (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{
+                        justifyContent: 'center',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        mt: 2,
+                      }}
+                    >
+                      {generatedImages.map((imageUrl, index) => (
+                        <Box
+                          key={imageUrl}
+                          onClick={() => setCurrentImageIndex(index)}
+                          sx={{
+                            cursor: 'pointer',
+                            border:
+                              index === currentImageIndex
+                                ? '2px solid var(--joy-palette-primary-500)'
+                                : '1px solid var(--joy-palette-neutral-300)',
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                            width: 60,
+                            height: 60,
                           }}
                         >
                           <img
                             src={imageUrl}
-                            alt={`Generated image ${index + 1}`}
+                            alt={`Thumbnail ${index + 1}`}
                             style={{
-                              borderRadius: 8,
-                              maxWidth: '100%',
-                              maxHeight,
-                              objectFit: 'contain',
-                              display: 'block',
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
                             }}
                           />
                         </Box>
-                      );
-                    })}
-                  </Box>
+                      ))}
+                    </Stack>
+                  )}
 
                   {/* Single Save All Images button */}
                   <Button
