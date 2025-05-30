@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Button,
   FormControl,
@@ -24,7 +24,7 @@ import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import History from './History';
 
 type DiffusionProps = {
-  experimentInfo?: any;
+  experimentInfo: any;
 };
 
 // Helper component for labels with tooltips
@@ -74,12 +74,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [guidanceRescale, setGuidanceRescale] = useState('');
   const [imageWidth, setImageWidth] = useState('');
   const [imageHeight, setImageHeight] = useState('');
+  const [numImages, setNumImages] = useState(1);
 
   // Image-to-image settings
   const [inputImageBase64, setInputImageBase64] = useState('');
   const [strength, setStrength] = useState(0.8);
 
-  const [imageBase64, setImageBase64] = useState('');
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [currentGenerationData, setCurrentGenerationData] = useState<any>(null);
@@ -104,7 +105,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       // Reset img2img eligibility when model changes
       setIsImg2ImgEligible(null);
     }
-  }, [experimentInfo?.config?.foundation]);
+  }, [experimentInfo?.config?.foundation, model]);
 
   // Check if model is eligible for img2img
   const checkImg2ImgEligibility = async () => {
@@ -146,7 +147,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const handleGenerate = async () => {
     setLoading(true);
     setError('');
-    setImageBase64('');
+    setGeneratedImages([]);
     setCurrentGenerationData(null);
     try {
       // Build the request body with basic parameters
@@ -159,6 +160,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         seed: seed ? Number(seed) : -1, // -1 means random seed
         upscale,
         upscale_factor: Number(upscaleFactor),
+        num_images: Number(numImages),
       };
 
       // Add image-to-image parameters if an input image is provided
@@ -197,7 +199,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       if (data.error_code !== 0) {
         setError('Error generating image');
       } else {
-        setImageBase64(data.image_base64);
+        // Fetch all generated images
+        const imageUrls: string[] = [];
+        for (let i = 0; i < data.num_images; i++) {
+          const imageUrl = Endpoints.Diffusion.GetImage(data.id, i);
+          imageUrls.push(imageUrl);
+        }
+        setGeneratedImages(imageUrls);
         setCurrentGenerationData(data);
       }
     } catch (e) {
@@ -207,35 +215,31 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     }
   };
 
-  const handleSaveImage = () => {
-    if (!imageBase64) return;
-
-    // Convert base64 to blob
-    const byteCharacters = atob(imageBase64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
+  const handleSaveAllImages = async () => {
+    if (!currentGenerationData?.id) {
+      setError('No generation data available');
+      return;
     }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'image/png' });
 
-    // Create download link
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
+    try {
+      // Create a link to the new endpoint that returns a zip file
+      const link = document.createElement('a');
+      link.href = Endpoints.Diffusion.GetAllImages(currentGenerationData.id);
 
-    // Generate filename with timestamp and truncated prompt
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, '-')
-      .slice(0, 19);
-    link.download = `diffusion_${timestamp}.png`;
+      // Generate filename with timestamp
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')
+        .slice(0, 19);
+      link.download = `diffusion_images_${timestamp}.zip`;
 
-    // Trigger download
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      setError('Failed to save images');
+    }
   };
 
   // Check if model is eligible for diffusion
@@ -484,6 +488,29 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                       onChange={(e) => setSeed(e.target.value)}
                     />
                   </FormControl>
+                  <FormControl
+                    sx={{
+                      flex: 1,
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <LabelWithTooltip tooltip="Number of images to generate in parallel. Higher values will take longer but produce more options to choose from.">
+                      Number of Images
+                    </LabelWithTooltip>
+                    <Input
+                      type="number"
+                      value={numImages}
+                      sx={{ width: 100 }}
+                      onChange={(e) => setNumImages(Number(e.target.value))}
+                      slotProps={{
+                        input: {
+                          min: 1,
+                          max: 8,
+                          step: 1,
+                        },
+                      }}
+                    />
+                  </FormControl>
                 </Stack>
                 <Stack
                   gap={1}
@@ -701,42 +728,88 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   generation without the image.
                 </Typography>
               )}
-              {imageBase64 && (
+              {generatedImages.length > 0 && (
                 <Box
                   sx={{
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 1,
+                    gap: 2,
                     mt: 1,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'auto',
                   }}
                 >
-                  <img
-                    src={`data:image/png;base64,${imageBase64}`}
-                    alt="Generated"
-                    style={{
-                      borderRadius: 8,
-                      maxWidth: '100%',
-                      maxHeight: currentGenerationData?.generation_time
-                        ? 'calc(100% - 60px)'
-                        : 'calc(100% - 40px)',
-                      objectFit: 'contain',
-                      display: 'block',
-                    }}
-                  />
                   {currentGenerationData?.generation_time && (
                     <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
-                      Generated in{' '}
+                      Generated {generatedImages.length} image
+                      {generatedImages.length > 1 ? 's' : ''} in{' '}
                       {currentGenerationData.generation_time.toFixed(2)}s
                     </Typography>
                   )}
-                  <Button
-                    onClick={handleSaveImage}
-                    color="neutral"
-                    variant="outlined"
-                    size="sm"
+
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns:
+                        generatedImages.length === 1
+                          ? '1fr'
+                          : generatedImages.length === 2
+                            ? '1fr 1fr'
+                            : 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: 2,
+                      width: '100%',
+                      maxHeight: '100%',
+                      overflow: 'auto',
+                    }}
                   >
-                    Save Image
+                    {generatedImages.map((imageUrl, index) => {
+                      const isSingleImage = generatedImages.length === 1;
+                      const maxHeight = isSingleImage
+                        ? currentGenerationData?.generation_time
+                          ? 'calc(100% - 120px)'
+                          : 'calc(100% - 100px)'
+                        : '300px';
+
+                      // Create a unique key based on the image URL or generation ID + timestamp
+                      const uniqueKey = `${currentGenerationData?.id || Date.now()}-${index}`;
+
+                      return (
+                        <Box
+                          key={uniqueKey}
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 1,
+                          }}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={`Generated image ${index + 1}`}
+                            style={{
+                              borderRadius: 8,
+                              maxWidth: '100%',
+                              maxHeight,
+                              objectFit: 'contain',
+                              display: 'block',
+                            }}
+                          />
+                        </Box>
+                      );
+                    })}
+                  </Box>
+
+                  {/* Single Save All Images button */}
+                  <Button
+                    onClick={handleSaveAllImages}
+                    color="primary"
+                    variant="solid"
+                    size="md"
+                    sx={{ mt: 2 }}
+                  >
+                    Save All Images
                   </Button>
                 </Box>
               )}

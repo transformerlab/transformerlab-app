@@ -434,10 +434,15 @@ Endpoints.Diffusion = {
     `${API_URL()}diffusion/history?limit=${limit}&offset=${offset}`,
   GetImageById: (imageId: string) =>
     `${API_URL()}diffusion/history/${imageId}/info`,
-  GetImage: (imageId: string) => `${API_URL()}diffusion/history/${imageId}`,
+  GetImage: (imageId: string, index: number = 0) =>
+    `${API_URL()}diffusion/history/${imageId}?index=${index}`,
+  GetImageCount: (imageId: string) =>
+    `${API_URL()}diffusion/history/${imageId}/count`,
   GetInputImage: (imageId: string) =>
     `${API_URL()}diffusion/history/${imageId}?input_image=true`,
   DeleteImage: (imageId: string) => `${API_URL()}diffusion/history/${imageId}`,
   ClearHistory: () => `${API_URL()}diffusion/history`,
   CreateDataset: () => `${API_URL()}diffusion/dataset/create`,
+  GetAllImages: (imageId: string) =>
+    `${API_URL()}diffusion/history/${imageId}/all`,
 };
