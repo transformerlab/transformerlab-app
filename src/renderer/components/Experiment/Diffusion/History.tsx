@@ -72,9 +72,7 @@ const History: React.FC<HistoryProps> = () => {
   // Pagination functions
   const goToPage = (page: number) => {
     setCurrentPage(page);
-    // Reset selection when changing pages
-    setSelectedImages(new Set());
-    setSelectionMode(false);
+    // Keep selections and selection mode when changing pages
   };
 
   const goToPreviousPage = () => {
@@ -266,7 +264,7 @@ const History: React.FC<HistoryProps> = () => {
                   size="sm"
                   disabled={selectedImages.size === historyData.images.length}
                 >
-                  Select All
+                  Select All on Page
                 </Button>
                 <Button
                   onClick={deselectAllImages}
@@ -278,7 +276,7 @@ const History: React.FC<HistoryProps> = () => {
                   Clear
                 </Button>
                 <Typography level="body-sm" sx={{ ml: 1 }}>
-                  {selectedImages.size} selected on this page
+                  {selectedImages.size} selected in total
                 </Typography>
               </>
             )}
@@ -374,17 +372,19 @@ const History: React.FC<HistoryProps> = () => {
                 {/* Page number buttons */}
                 {totalPages <= 7 ? (
                   // For 7 or fewer pages, show all pages
-                  Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <IconButton
-                      key={page}
-                      size="sm"
-                      variant={page === currentPage ? 'outlined' : 'plain'}
-                      color="neutral"
-                      onClick={() => goToPage(page)}
-                    >
-                      {page}
-                    </IconButton>
-                  ))
+                  Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (page) => (
+                      <IconButton
+                        key={page}
+                        size="sm"
+                        variant={page === currentPage ? 'outlined' : 'plain'}
+                        color="neutral"
+                        onClick={() => goToPage(page)}
+                      >
+                        {page}
+                      </IconButton>
+                    ),
+                  )
                 ) : (
                   // For more than 7 pages, use ellipsis logic
                   <>
@@ -399,7 +399,9 @@ const History: React.FC<HistoryProps> = () => {
                     </IconButton>
 
                     {/* Show ellipsis only if there's a gap between first page and visible range */}
-                    {currentPage > 4 && <Typography level="body-sm">…</Typography>}
+                    {currentPage > 4 && (
+                      <Typography level="body-sm">…</Typography>
+                    )}
 
                     {/* Show middle pages */}
                     {Array.from(
@@ -429,7 +431,9 @@ const History: React.FC<HistoryProps> = () => {
                       key={totalPages}
                       size="sm"
                       variant={
-                        Number(totalPages) === currentPage ? 'outlined' : 'plain'
+                        Number(totalPages) === currentPage
+                          ? 'outlined'
+                          : 'plain'
                       }
                       color="neutral"
                       onClick={() => goToPage(Number(totalPages))}
