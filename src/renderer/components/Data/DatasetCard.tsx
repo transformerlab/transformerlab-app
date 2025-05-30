@@ -163,7 +163,7 @@ export default function DatasetCard({
                 </Button>
               </Tooltip>
 
-              {local && datasetInfo?.is_image && !datasetInfo?.is_parquet && (
+              {local && datasetInfo?.is_image && (
                 <Tooltip title="Edit">
                   <Button
                     variant="solid"

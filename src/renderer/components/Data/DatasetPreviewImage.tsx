@@ -4,11 +4,8 @@ import {
   Input,
   Select,
   Option,
-  CircularProgress,
   Box,
-  Alert,
   LinearProgress,
-  Button,
   Typography,
 } from '@mui/joy';
 
@@ -30,15 +27,12 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [modifiedRows, setModifiedRows] = useState(new Map());
   const limit = 50;
   const containerRef = useRef(null);
   const [availableSplits, setAvailableSplits] = useState([]);
   const [availableLabels, setAvailableLabels] = useState([]);
   const [selectedSplit, setSelectedSplit] = useState('');
   const [selectedLabel, setSelectedLabel] = useState('');
-  const [isParquet, setIsParquet] = useState(false);
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -57,6 +51,16 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
         setColumns(result.data.columns || []);
         setOffset((prev) => prev + limit);
         if (newRows.length < limit) setHasMore(false);
+
+        const allRows = [...rows, ...newRows];
+        const splits = [
+          ...new Set(allRows.map((r) => r.split).filter(Boolean)),
+        ];
+        const labels = [
+          ...new Set(allRows.map((r) => r.label).filter(Boolean)),
+        ];
+        setAvailableSplits(splits);
+        setAvailableLabels(labels);
       } else {
         setHasMore(false);
       }
@@ -65,7 +69,7 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
     } finally {
       setLoading(false);
     }
-  }, [datasetId, template, offset, loading, hasMore]);
+  }, [datasetId, template, offset, loading, hasMore, rows]);
 
   useEffect(() => {
     setRows([]);
@@ -73,23 +77,11 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
     setOffset(0);
     setHasMore(true);
     setLoading(false);
-    setModifiedRows(new Map());
   }, [datasetId, template]);
 
   useEffect(() => {
     loadMore();
   }, [loadMore]);
-
-  useEffect(() => {
-    const fetchInfo = async () => {
-      const res = await fetch(chatAPI.Endpoints.Dataset.Info(datasetId));
-      const data = await res.json();
-      setAvailableSplits(data.splits || []);
-      setAvailableLabels(data.labels || []);
-      setIsParquet(data.is_parquet || false);
-    };
-    fetchInfo();
-  }, [datasetId]);
 
   const onScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -101,23 +93,6 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
   const imageKey = columns[0]; // First column is always image
   const textKey = columns[1]; // Second column is always description
 
-  const updateCaption = (index, newText) => {
-    setRows((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [textKey]: newText };
-      const uniqueKey = updated[index]['__index__'];
-      setModifiedRows((prevMap) =>
-        new Map(prevMap).set(uniqueKey, {
-          ...updated[index],
-          previous_caption: updated[index]['previous_caption'],
-          file_name: updated[index]['file_name'],
-          split: updated[index]['split'],
-        }),
-      );
-      return updated;
-    });
-  };
-
   const filteredRows = rows.filter(
     (row) =>
       (!selectedSplit || row.split === selectedSplit) &&
@@ -127,36 +102,6 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
         : ''
       ).includes(searchText.toLowerCase()),
   );
-
-  const saveEdits = async () => {
-    setSaving(true);
-    try {
-      // Create FormData containing the modified rows
-      const formData = new FormData();
-      const blob = new Blob(
-        [JSON.stringify(Array.from(modifiedRows.values()))],
-        { type: 'application/json' },
-      );
-      formData.append('file', blob, 'metadata_updates.json'); // singular, not "files"
-      formData.append('dataset_id', datasetId); // required by backend as Form(...)
-
-      // Send POST request to the same style endpoint
-      const response = await fetch(
-        chatAPI.Endpoints.Dataset.SaveMetadata(datasetId),
-        {
-          method: 'POST',
-          body: formData,
-        },
-      );
-
-      if (!response.ok) throw new Error('Failed to save');
-      alert('Captions saved successfully!');
-    } catch (err) {
-      alert('Error saving captions');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <Box
@@ -173,7 +118,7 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
       <Box p={1} display="flex" gap={2} alignItems="center">
         <Input
           placeholder="Search captions..."
-          sx={{ width: '400px' }} // Decrease search bar width
+          sx={{ width: '400px' }}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
         />
@@ -183,8 +128,8 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
         <Select
           value={selectedSplit}
           onChange={(_, v) => setSelectedSplit(v)}
-          size="lg" // Increase dropdown size
-          sx={{ minWidth: '150px' }} // Adjust width if needed
+          size="lg"
+          sx={{ minWidth: '150px' }}
         >
           <Option value="">All</Option>
           {availableSplits.map((s) => (
@@ -199,8 +144,8 @@ const DatasetPreviewImage = ({ datasetId, template }) => {
         <Select
           value={selectedLabel}
           onChange={(_, v) => setSelectedLabel(v)}
-          size="lg" // Increase dropdown size
-          sx={{ minWidth: '150px' }} // Adjust width if needed
+          size="lg"
+          sx={{ minWidth: '150px' }}
         >
           <Option value="">All</Option>
           {availableLabels.map((l) => (

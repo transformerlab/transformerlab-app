@@ -24,7 +24,6 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
   const [availableLabels, setAvailableLabels] = useState([]);
   const [selectedSplitFilter, setSelectedSplitFilter] = useState('');
   const [selectedLabelFilter, setSelectedLabelFilter] = useState('');
-  const [isParquet, setIsParquet] = useState(false);
   const limit = 50;
   const containerRef = useRef(null);
 
@@ -42,10 +41,21 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       const result = await response.json();
       if (result.status === 'success') {
         const newRows = result.data.rows || [];
-        setRows((prev) => [...prev, ...newRows]);
+        const updatedRows = [...rows, ...newRows];
+        setRows(updatedRows);
         setColumns(result.data.columns || []);
         setOffset((prev) => prev + limit);
         if (newRows.length < limit) setHasMore(false);
+
+        // 🔥 Dynamically extract unique splits and labels
+        const splits = [
+          ...new Set(updatedRows.map((r) => r.split).filter(Boolean)),
+        ];
+        const labels = [
+          ...new Set(updatedRows.map((r) => r.label).filter(Boolean)),
+        ];
+        setAvailableSplits(splits);
+        setAvailableLabels(labels);
       } else {
         setHasMore(false);
       }
@@ -54,7 +64,7 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
     } finally {
       setLoading(false);
     }
-  }, [datasetId, template, offset, loading, hasMore]);
+  }, [datasetId, template, offset, loading, hasMore, rows]);
 
   useEffect(() => {
     setRows([]);
@@ -68,17 +78,6 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
   useEffect(() => {
     loadMore();
   }, [loadMore]);
-
-  useEffect(() => {
-    const fetchInfo = async () => {
-      const res = await fetch(chatAPI.Endpoints.Dataset.Info(datasetId));
-      const data = await res.json();
-      setAvailableSplits(data.splits || []);
-      setAvailableLabels(data.labels || []);
-      setIsParquet(data.is_parquet || false);
-    };
-    fetchInfo();
-  }, [datasetId]);
 
   const onScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -140,18 +139,24 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
         chatAPI.Endpoints.Dataset.Info(datasetName),
       );
       if (checkResponse.ok) {
-        const datasetInfo = await checkResponse.json();
-        if (
-          !(
-            datasetInfo?.status === 'error' &&
-            datasetInfo?.message === 'Dataset not found.'
-          )
-        ) {
-          alert(
-            `Dataset "${datasetName}" already exists. Please choose a different name.`,
-          );
-          setSaving(false);
-          return;
+        const checkResponse = await fetch(
+          chatAPI.Endpoints.Dataset.Info(datasetName),
+        );
+        if (checkResponse.ok) {
+          const datasetInfo = await checkResponse.json();
+          if (
+            Object.keys(datasetInfo).length !== 0 && // 🔥 Check for empty response
+            !(
+              datasetInfo?.status === 'error' &&
+              datasetInfo?.message === 'Dataset not found.'
+            )
+          ) {
+            alert(
+              `Dataset "${datasetName}" already exists. Please choose a different name.`,
+            );
+            setSaving(false);
+            return;
+          }
         }
       }
       const fullArray = rows.map((row) => {
@@ -180,7 +185,7 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
         },
       );
       if (!response.ok) throw new Error('Failed to save');
-      alert('Captions saved successfully!');
+      alert('Changes saved successfully!');
       setModifiedRows(new Map());
     } catch (err) {
       alert(`Error saving captions: ${err.message}`);
@@ -247,7 +252,6 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
           loading={saving}
           variant="soft"
           disabled={
-            isParquet ||
             rows.length === 0 ||
             newDatasetId.trim() === '' ||
             modifiedRows.size === 0

@@ -67,7 +67,6 @@ export default function DatasetDetailsModal({ open, setOpen }) {
       '.png',
       'tiff',
       'webp',
-      '.parquet',
     ];
     const isValid = (file) =>
       allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
@@ -97,6 +96,7 @@ export default function DatasetDetailsModal({ open, setOpen }) {
         f.name.toLowerCase().endsWith(ext),
       ),
     );
+
     if (!hasMetadata) {
       const imageFiles = files.filter(
         (f) =>
@@ -132,19 +132,31 @@ export default function DatasetDetailsModal({ open, setOpen }) {
             const fileName = relativePath.substring(
               relativePath.lastIndexOf('/') + 1,
             );
+
+            // Determine split by analyzing folder structure
+            const pathParts = relativePath.split('/').slice(0, -1); // Exclude file name
+            let split = 'train'; // Default split
+            for (let i = pathParts.length - 1; i >= 0; i--) {
+              const part = pathParts[i].toLowerCase();
+              if (part === 'train' || part === 'test') {
+                split = part;
+                break;
+              }
+            }
+
             return JSON.stringify({
               file_name: fileName,
               text: ' ',
               label: labelValue,
+              split: split,
             });
           })
           .join('\n');
-        const blob = new Blob([jsonl], { type: 'application/jsonl' });
 
+        const blob = new Blob([jsonl], { type: 'application/jsonl' });
         const metadataFilePath = folder
           ? `${folder}/metadata.jsonl`
           : 'metadata.jsonl';
-
         const metadataFile = new File([blob], metadataFilePath);
         formData.append('files', metadataFile);
       });
