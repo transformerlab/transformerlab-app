@@ -7,10 +7,17 @@ import {
   ModalClose,
   ModalDialog,
   Typography,
+  IconButton,
+  Stack,
 } from '@mui/joy';
-import { DownloadIcon, Trash2Icon } from 'lucide-react';
-import React from 'react';
-import { Endpoints } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  DownloadIcon,
+  Trash2Icon,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Endpoints } from 'renderer/lib/api-client/endpoints';
 
 export default function HistoryImageViewModal({
   selectedImage,
@@ -18,8 +25,67 @@ export default function HistoryImageViewModal({
   imageModalOpen,
   setImageToDelete,
   setDeleteConfirmOpen,
-  downloadHistoryImage,
+}: {
+  selectedImage: any;
+  setImageModalOpen: (open: boolean) => void;
+  imageModalOpen: boolean;
+  setImageToDelete: (id: string) => void;
+  setDeleteConfirmOpen: (open: boolean) => void;
 }) {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [numImages, setNumImages] = useState(1);
+
+  // Load all images for the selected item when modal opens
+  useEffect(() => {
+    if (selectedImage && imageModalOpen) {
+      const imageCount =
+        selectedImage.num_images || selectedImage.metadata?.num_images || 1;
+      setNumImages(imageCount);
+      setCurrentImageIndex(0);
+
+      // Generate URLs for all images
+      const urls = Array.from({ length: imageCount }, (_, index) =>
+        Endpoints.Diffusion.GetImage(selectedImage.id, index),
+      );
+      setImageUrls(urls);
+    }
+  }, [selectedImage, imageModalOpen]);
+
+  const handlePreviousImage = () => {
+    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : numImages - 1));
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => (prev < numImages - 1 ? prev + 1 : 0));
+  };
+
+  const downloadAllImages = async () => {
+    if (!selectedImage?.id) return;
+
+    try {
+      // Create a link to download all images as zip
+      const link = document.createElement('a');
+      link.href = Endpoints.Diffusion.GetAllImages(selectedImage.id);
+
+      // Generate filename with timestamp
+      const timestamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, '-')
+        .slice(0, 19);
+      link.download = `diffusion_images_${timestamp}.zip`;
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Failed to download images:', err);
+    }
+  };
+
+  // ...existing code...
+
   // Add your hooks and logic here
   return (
     <Modal open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
@@ -32,7 +98,17 @@ export default function HistoryImageViewModal({
         <ModalClose />
         {selectedImage && (
           <>
-            <DialogTitle sx={{ pb: 2 }}>Generated Image</DialogTitle>
+            <DialogTitle sx={{ pb: 2 }}>
+              Generated Image{numImages > 1 ? 's' : ''}
+              {numImages > 1 && (
+                <Typography
+                  level="body-sm"
+                  sx={{ ml: 2, color: 'text.tertiary' }}
+                >
+                  Image {currentImageIndex + 1} of {numImages}
+                </Typography>
+              )}
+            </DialogTitle>
             <DialogContent sx={{ p: 0, overflowY: 'auto' }}>
               <Box
                 sx={{
@@ -48,11 +124,58 @@ export default function HistoryImageViewModal({
                     p: 1,
                     mb: { xs: 3, md: 0 },
                     textAlign: 'center',
+                    position: 'relative',
                   }}
                   id="image-preview"
                 >
+                  {/* Navigation buttons for multiple images */}
+                  {numImages > 1 && (
+                    <>
+                      <IconButton
+                        onClick={handlePreviousImage}
+                        sx={{
+                          position: 'absolute',
+                          left: 8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          zIndex: 10,
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                          color: 'white',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          },
+                        }}
+                      >
+                        <ChevronLeft />
+                      </IconButton>
+                      <IconButton
+                        onClick={handleNextImage}
+                        sx={{
+                          position: 'absolute',
+                          right: 8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          zIndex: 10,
+                          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                          color: 'white',
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          },
+                        }}
+                      >
+                        <ChevronRight />
+                      </IconButton>
+                    </>
+                  )}
+
                   <img
-                    src={Endpoints.Diffusion.GetImage(selectedImage?.id)}
+                    src={
+                      imageUrls[currentImageIndex] ||
+                      Endpoints.Diffusion.GetImage(
+                        selectedImage?.id,
+                        currentImageIndex,
+                      )
+                    }
                     alt="Generated"
                     style={{
                       maxWidth: '100%',
@@ -63,6 +186,48 @@ export default function HistoryImageViewModal({
                       margin: '0 auto',
                     }}
                   />
+
+                  {/* Thumbnail navigation for multiple images */}
+                  {numImages > 1 && (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{
+                        mt: 2,
+                        justifyContent: 'center',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                      }}
+                    >
+                      {imageUrls.map((url, index) => (
+                        <Box
+                          key={index}
+                          onClick={() => setCurrentImageIndex(index)}
+                          sx={{
+                            cursor: 'pointer',
+                            border:
+                              index === currentImageIndex
+                                ? '2px solid var(--joy-palette-primary-500)'
+                                : '1px solid var(--joy-palette-neutral-300)',
+                            borderRadius: '4px',
+                            overflow: 'hidden',
+                            width: 60,
+                            height: 60,
+                          }}
+                        >
+                          <img
+                            src={url}
+                            alt={`Thumbnail ${index + 1}`}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                          />
+                        </Box>
+                      ))}
+                    </Stack>
+                  )}
                 </Box>
                 <Box
                   sx={{
@@ -169,6 +334,12 @@ export default function HistoryImageViewModal({
                     <strong>Guidance:</strong>{' '}
                     {selectedImage.metadata.guidance_scale} <br />
                     <strong>Seed:</strong> {selectedImage.metadata.seed}
+                    {numImages > 1 && (
+                      <>
+                        <br />
+                        <strong>Number of Images:</strong> {numImages}
+                      </>
+                    )}
                     {selectedImage.metadata.is_img2img && (
                       <>
                         <br />
@@ -242,12 +413,12 @@ export default function HistoryImageViewModal({
             </DialogContent>
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
               <Button
-                onClick={() => downloadHistoryImage(selectedImage)}
+                onClick={downloadAllImages}
                 startDecorator={<DownloadIcon size="16px" />}
                 variant="solid"
                 color="primary"
               >
-                Download
+                Download{numImages > 1 ? ` All` : ''}
               </Button>
               <Button
                 color="danger"

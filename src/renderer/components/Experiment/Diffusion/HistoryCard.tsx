@@ -7,11 +7,11 @@ import {
   Checkbox,
   CardActions,
   IconButton,
-  Button,
+  Chip,
 } from '@mui/joy';
+import { Trash2Icon } from 'lucide-react';
+import { Endpoints } from 'renderer/lib/api-client/endpoints';
 import { HistoryImage } from './History';
-import { Endpoints, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
-import { DownloadIcon, HeartIcon, Trash2Icon } from 'lucide-react';
 
 interface HistoryCardProps {
   item: HistoryImage;
@@ -19,8 +19,8 @@ interface HistoryCardProps {
   selectedImages: Set<string>;
   toggleImageSelection: (id: string) => void;
   viewImage: (id: string) => void;
-  setImageToDelete;
-  setDeleteConfirmOpen;
+  setImageToDelete: (id: string) => void;
+  setDeleteConfirmOpen: (open: boolean) => void;
 }
 
 const HistoryCard: React.FC<HistoryCardProps> = ({
@@ -32,6 +32,77 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
   setImageToDelete,
   setDeleteConfirmOpen,
 }) => {
+  const numImages = item.num_images || item.metadata?.num_images || 1;
+  const hasMultipleImages = numImages > 1;
+
+  // Function to render multiple images in a grid
+  const renderImages = () => {
+    if (hasMultipleImages) {
+      // Show first few images in a grid
+      const maxDisplayImages = Math.min(4, numImages);
+      const gridCols = maxDisplayImages === 1 ? 1 : 2;
+
+      return (
+        <Box
+          sx={{
+            position: 'relative',
+            display: 'grid',
+            gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+            gap: 0.5,
+            aspectRatio: '1',
+          }}
+        >
+          {Array.from({ length: maxDisplayImages }, (_, index) => (
+            <img
+              key={index}
+              src={Endpoints.Diffusion.GetImage(item.id, index)}
+              alt={`Generated image ${index + 1}`}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                borderRadius:
+                  index === 0 && maxDisplayImages === 1 ? '6px' : '3px',
+              }}
+            />
+          ))}
+          {numImages > maxDisplayImages && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: 4,
+                right: 4,
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                color: 'white',
+                px: 1,
+                py: 0.5,
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+              }}
+            >
+              +{numImages - maxDisplayImages}
+            </Box>
+          )}
+        </Box>
+      );
+    } else {
+      // Single image display
+      return (
+        <img
+          src={Endpoints.Diffusion.GetImage(item.id)}
+          alt="generated"
+          style={{
+            borderRadius: '6px',
+            width: '100%',
+            aspectRatio: '1',
+            objectFit: 'cover',
+          }}
+        />
+      );
+    }
+  };
+
   return (
     <Card
       sx={{
@@ -74,17 +145,35 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
           />
         </Box>
       )}
+
+      {/* Multiple images indicator */}
+      {hasMultipleImages && (
+        <Chip
+          size="sm"
+          variant="soft"
+          color="primary"
+          sx={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            zIndex: 10,
+            fontSize: '10px',
+            minHeight: 'auto',
+            py: 0.25,
+            px: 0.5,
+          }}
+        >
+          {numImages} images
+        </Chip>
+      )}
+
       <CardContent
         sx={{ cursor: 'pointer' }}
         onClick={() =>
           selectionMode ? toggleImageSelection(item.id) : viewImage(item.id)
         }
       >
-        <img
-          src={Endpoints.Diffusion.GetImage(item?.id)}
-          alt="generated"
-          style={{ borderRadius: '6px' }}
-        />
+        {renderImages()}
         <Typography
           level="title-md"
           sx={{

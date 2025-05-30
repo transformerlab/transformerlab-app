@@ -36,6 +36,7 @@ export type HistoryImage = {
   prompt: string;
   image_base64: string;
   timestamp: string;
+  num_images?: number; // Add support for multiple images
   metadata: {
     prompt: string;
     num_inference_steps: number;
@@ -53,6 +54,7 @@ export type HistoryImage = {
     width?: number;
     height?: number;
     generation_time?: number;
+    num_images?: number; // Add num_images to metadata as well
     // Image-to-image specific fields
     input_image_path?: string;
     strength?: number;
@@ -91,7 +93,41 @@ const History: React.FC<HistoryProps> = () => {
     try {
       const response = await fetch(Endpoints.Diffusion.GetHistory());
       const data = await response.json();
-      setHistoryData(data);
+
+      // For each image, fetch the count of images available
+      const enrichedImages = await Promise.all(
+        data.images.map(async (image: HistoryImage) => {
+          try {
+            const countResponse = await fetch(
+              Endpoints.Diffusion.GetImageCount(image.id),
+            );
+            const countData = await countResponse.json();
+            return {
+              ...image,
+              num_images: countData.num_images || 1,
+              metadata: {
+                ...image.metadata,
+                num_images: countData.num_images || 1,
+              },
+            };
+          } catch (e) {
+            // If count fetch fails, assume single image
+            return {
+              ...image,
+              num_images: 1,
+              metadata: {
+                ...image.metadata,
+                num_images: 1,
+              },
+            };
+          }
+        }),
+      );
+
+      setHistoryData({
+        ...data,
+        images: enrichedImages,
+      });
     } catch (e) {
       console.error('Failed to load history:', e);
     } finally {
@@ -102,7 +138,7 @@ const History: React.FC<HistoryProps> = () => {
   // View image in modal
   const viewImage = async (imageId: string) => {
     try {
-      const response = await fetch(Endpoints.Diffusion.GetImageById(imageId));
+      const response = await fetch(Endpoints.Diffusion.GetImageInfo(imageId));
       const data = await response.json();
       setSelectedImage(data);
       setImageModalOpen(true);
@@ -162,26 +198,6 @@ const History: React.FC<HistoryProps> = () => {
     } catch (e) {
       console.error('Failed to clear history:', e);
     }
-  };
-
-  // Download image from history
-  const downloadHistoryImage = (imageData: HistoryImage) => {
-    if (!imageData.image_base64) return;
-    const byteCharacters = atob(imageData.image_base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'image/png' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `diffusion_${imageData.id}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   // Selection mode handlers
@@ -388,7 +404,6 @@ const History: React.FC<HistoryProps> = () => {
         imageModalOpen={imageModalOpen}
         setImageToDelete={setImageToDelete}
         setDeleteConfirmOpen={setDeleteConfirmOpen}
-        downloadHistoryImage={downloadHistoryImage}
       />
 
       {/* Dataset Creation Modal */}

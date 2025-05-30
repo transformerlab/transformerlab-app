@@ -432,7 +432,7 @@ Endpoints.Diffusion = {
   CheckStableDiffusion: () => `${API_URL()}diffusion/is_stable_diffusion`,
   GetHistory: (limit: number = 50, offset: number = 0) =>
     `${API_URL()}diffusion/history?limit=${limit}&offset=${offset}`,
-  GetImageById: (imageId: string) =>
+  GetImageInfo: (imageId: string) =>
     `${API_URL()}diffusion/history/${imageId}/info`,
   GetImage: (imageId: string, index: number = 0) =>
     `${API_URL()}diffusion/history/${imageId}?index=${index}`,
