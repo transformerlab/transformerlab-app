@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -22,56 +22,24 @@ import {
   Trash2Icon,
   DeleteIcon,
   FileCheckIcon,
-  CheckSquareIcon,
   SquareIcon,
   SquareMinusIcon,
   XIcon,
 } from 'lucide-react';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import HistoryCard from './HistoryCard';
 import HistoryImageViewModal from './HistoryImageViewModal';
-
-export type HistoryImage = {
-  id: string;
-  prompt: string;
-  image_base64: string;
-  timestamp: string;
-  num_images?: number; // Add support for multiple images
-  metadata: {
-    prompt: string;
-    num_inference_steps: number;
-    guidance_scale: number;
-    seed: number;
-    model: string;
-    adaptor: string;
-    adaptor_scale?: number;
-    upscale?: boolean;
-    upscale_factor?: number;
-    negative_prompt?: string;
-    eta?: number;
-    clip_skip?: number;
-    guidance_rescale?: number;
-    width?: number;
-    height?: number;
-    generation_time?: number;
-    num_images?: number; // Add num_images to metadata as well
-    // Image-to-image specific fields
-    input_image_path?: string;
-    strength?: number;
-    is_img2img?: boolean;
-  };
-};
-
-export type HistoryData = {
-  images: HistoryImage[];
-  total: number;
-};
+import { HistoryImage } from './types';
 
 type HistoryProps = {};
 
 const History: React.FC<HistoryProps> = () => {
-  const [historyData, setHistoryData] = useState<HistoryData | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
+  const {
+    data: historyData,
+    isLoading: historyLoading,
+    mutate: refreshHistory,
+  } = useAPI('diffusion', ['getHistory'], { limit: 1000, offset: 0 });
+
   const [selectedImage, setSelectedImage] = useState<HistoryImage | null>(null);
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -87,58 +55,6 @@ const History: React.FC<HistoryProps> = () => {
   const [datasetLoading, setDatasetLoading] = useState(false);
   const [datasetError, setDatasetError] = useState('');
 
-  // Load history
-  const loadHistory = async () => {
-    setHistoryLoading(true);
-    try {
-      const response = await fetch(
-        getFullPath('diffusion', ['getHistory'], { limit: 50, offset: 0 }),
-      );
-      const data = await response.json();
-
-      // For each image, fetch the count of images available
-      const enrichedImages = await Promise.all(
-        data.images.map(async (image: HistoryImage) => {
-          try {
-            const countResponse = await fetch(
-              getFullPath('diffusion', ['getImageCount'], {
-                imageId: image.id,
-              }),
-            );
-            const countData = await countResponse.json();
-            return {
-              ...image,
-              num_images: countData.num_images || 1,
-              metadata: {
-                ...image.metadata,
-                num_images: countData.num_images || 1,
-              },
-            };
-          } catch (e) {
-            // If count fetch fails, assume single image
-            return {
-              ...image,
-              num_images: 1,
-              metadata: {
-                ...image.metadata,
-                num_images: 1,
-              },
-            };
-          }
-        }),
-      );
-
-      setHistoryData({
-        ...data,
-        images: enrichedImages,
-      });
-    } catch (e) {
-      console.error('Failed to load history:', e);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
   // View image in modal
   const viewImage = async (imageId: string) => {
     try {
@@ -149,7 +65,7 @@ const History: React.FC<HistoryProps> = () => {
       setSelectedImage(data);
       setImageModalOpen(true);
     } catch (e) {
-      console.error('Failed to load image:', e);
+      // Error loading image
     }
   };
 
@@ -159,11 +75,11 @@ const History: React.FC<HistoryProps> = () => {
       await fetch(getFullPath('diffusion', ['deleteImage'], { imageId }), {
         method: 'DELETE',
       });
-      await loadHistory(); // Reload history
+      refreshHistory(); // Reload history
       setDeleteConfirmOpen(false);
       setImageToDelete(null);
     } catch (e) {
-      console.error('Failed to delete image:', e);
+      // Error deleting image
     }
   };
 
@@ -178,31 +94,24 @@ const History: React.FC<HistoryProps> = () => {
           }),
         ),
       );
-      await loadHistory(); // Reload history
+      refreshHistory(); // Reload history
       setSelectedImages(new Set());
       setSelectionMode(false);
       setDeleteConfirmOpen(false);
     } catch (e) {
-      console.error('Failed to delete selected images:', e);
+      // Error deleting images
     }
   };
 
   // Clear all history
   const clearAllHistory = async () => {
-    if (
-      !confirm(
-        'Are you sure you want to clear all history? This action cannot be undone.',
-      )
-    ) {
-      return;
-    }
     try {
       await fetch(getFullPath('diffusion', ['clearHistory'], {}), {
         method: 'DELETE',
       });
-      await loadHistory(); // Reload history
+      refreshHistory(); // Reload history
     } catch (e) {
-      console.error('Failed to clear history:', e);
+      // Error clearing history
     }
   };
 
@@ -224,7 +133,9 @@ const History: React.FC<HistoryProps> = () => {
 
   const selectAllImages = () => {
     if (!historyData?.images) return;
-    const allIds = new Set(historyData.images.map((img) => img.id));
+    const allIds = new Set<string>(
+      historyData.images.map((img: HistoryImage) => img.id),
+    );
     setSelectedImages(allIds);
   };
 
@@ -273,10 +184,6 @@ const History: React.FC<HistoryProps> = () => {
       setDatasetLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadHistory();
-  }, []);
 
   return (
     <Box

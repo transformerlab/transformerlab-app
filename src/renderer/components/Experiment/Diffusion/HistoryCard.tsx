@@ -11,7 +11,7 @@ import {
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
-import { HistoryImage } from './History';
+import { HistoryImage } from './types';
 
 interface HistoryCardProps {
   item: HistoryImage;

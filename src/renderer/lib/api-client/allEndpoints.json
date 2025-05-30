@@ -105,7 +105,7 @@
       "path": "diffusion/generate"
     },
     "checkStableDiffusion": {
-      "method": "GET",
+      "method": "POST",
       "path": "diffusion/is_stable_diffusion"
     },
     "getHistory": {

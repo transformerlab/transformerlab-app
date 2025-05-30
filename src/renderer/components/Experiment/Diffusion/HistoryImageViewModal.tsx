@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { HistoryImage } from './types';
 
 export default function HistoryImageViewModal({
   selectedImage,
@@ -26,7 +27,7 @@ export default function HistoryImageViewModal({
   setImageToDelete,
   setDeleteConfirmOpen,
 }: {
-  selectedImage: any;
+  selectedImage: HistoryImage | null;
   setImageModalOpen: (open: boolean) => void;
   imageModalOpen: boolean;
   setImageToDelete: (id: string) => void;
@@ -206,7 +207,7 @@ export default function HistoryImageViewModal({
                     >
                       {imageUrls.map((url, index) => (
                         <Box
-                          key={index}
+                          key={`thumbnail-${url}`}
                           onClick={() => setCurrentImageIndex(index)}
                           sx={{
                             cursor: 'pointer',
