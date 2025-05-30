@@ -425,24 +425,3 @@ Endpoints.Jobs = {
 Endpoints.Global = {
   PromptLog: () => `${API_URL()}prompt_log`,
 };
-
-// Diffusion endpoints
-Endpoints.Diffusion = {
-  Generate: () => `${API_URL()}diffusion/generate`,
-  CheckStableDiffusion: () => `${API_URL()}diffusion/is_stable_diffusion`,
-  GetHistory: (limit: number = 50, offset: number = 0) =>
-    `${API_URL()}diffusion/history?limit=${limit}&offset=${offset}`,
-  GetImageInfo: (imageId: string) =>
-    `${API_URL()}diffusion/history/${imageId}/info`,
-  GetImage: (imageId: string, index: number = 0) =>
-    `${API_URL()}diffusion/history/${imageId}?index=${index}`,
-  GetImageCount: (imageId: string) =>
-    `${API_URL()}diffusion/history/${imageId}/count`,
-  GetInputImage: (imageId: string) =>
-    `${API_URL()}diffusion/history/${imageId}?input_image=true`,
-  DeleteImage: (imageId: string) => `${API_URL()}diffusion/history/${imageId}`,
-  ClearHistory: () => `${API_URL()}diffusion/history`,
-  CreateDataset: () => `${API_URL()}diffusion/dataset/create`,
-  GetAllImages: (imageId: string) =>
-    `${API_URL()}diffusion/history/${imageId}/all`,
-};

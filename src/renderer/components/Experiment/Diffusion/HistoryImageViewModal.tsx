@@ -17,7 +17,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-import { Endpoints } from 'renderer/lib/api-client/endpoints';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function HistoryImageViewModal({
   selectedImage,
@@ -46,7 +46,10 @@ export default function HistoryImageViewModal({
 
       // Generate URLs for all images
       const urls = Array.from({ length: imageCount }, (_, index) =>
-        Endpoints.Diffusion.GetImage(selectedImage.id, index),
+        getFullPath('diffusion', ['getImage'], {
+          imageId: selectedImage.id,
+          index,
+        }),
       );
       setImageUrls(urls);
     }
@@ -66,7 +69,9 @@ export default function HistoryImageViewModal({
     try {
       // Create a link to download all images as zip
       const link = document.createElement('a');
-      link.href = Endpoints.Diffusion.GetAllImages(selectedImage.id);
+      link.href = getFullPath('diffusion', ['getAllImages'], {
+        imageId: selectedImage.id,
+      });
 
       // Generate filename with timestamp
       const timestamp = new Date()
@@ -171,10 +176,10 @@ export default function HistoryImageViewModal({
                   <img
                     src={
                       imageUrls[currentImageIndex] ||
-                      Endpoints.Diffusion.GetImage(
-                        selectedImage?.id,
-                        currentImageIndex,
-                      )
+                      getFullPath('diffusion', ['getImage'], {
+                        imageId: selectedImage?.id,
+                        index: currentImageIndex,
+                      })
                     }
                     alt="Generated"
                     style={{
@@ -269,9 +274,9 @@ export default function HistoryImageViewModal({
                           }}
                         >
                           <img
-                            src={Endpoints.Diffusion.GetInputImage(
-                              selectedImage?.id,
-                            )}
+                            src={getFullPath('diffusion', ['getInputImage'], {
+                              imageId: selectedImage?.id,
+                            })}
                             alt="Input"
                             style={{
                               maxWidth: '100%',

@@ -25,7 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { Endpoints } from 'renderer/lib/api-client/endpoints';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import History from './History';
 
@@ -118,11 +118,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const checkImg2ImgEligibility = async () => {
     setIsImg2ImgEligible(null);
     try {
-      const response = await fetch(Endpoints.Diffusion.CheckStableDiffusion(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, is_img2img: true }),
-      });
+      const response = await fetch(
+        getFullPath('diffusion', ['checkStableDiffusion'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, is_img2img: true }),
+        },
+      );
       const data = await response.json();
       setIsImg2ImgEligible(data.is_stable_diffusion);
     } catch (e) {
@@ -198,7 +201,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         requestBody.height = Number(imageHeight);
       }
 
-      const response = await fetch(Endpoints.Diffusion.Generate(), {
+      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
@@ -210,7 +213,10 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         // Fetch all generated images
         const imageUrls: string[] = [];
         for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = Endpoints.Diffusion.GetImage(data.id, i);
+          const imageUrl = getFullPath('diffusion', ['getImage'], {
+            imageId: data.id,
+            index: i,
+          });
           imageUrls.push(imageUrl);
         }
         setGeneratedImages(imageUrls);
@@ -232,7 +238,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     try {
       // Create a link to the new endpoint that returns a zip file
       const link = document.createElement('a');
-      link.href = Endpoints.Diffusion.GetAllImages(currentGenerationData.id);
+      link.href = getFullPath('diffusion', ['getAllImages'], {
+        imageId: currentGenerationData.id,
+      });
 
       // Generate filename with timestamp
       const timestamp = new Date()
@@ -267,11 +275,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const checkStableDiffusion = async () => {
     setIsStableDiffusion(null);
     try {
-      const response = await fetch(Endpoints.Diffusion.CheckStableDiffusion(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model }),
-      });
+      const response = await fetch(
+        getFullPath('diffusion', ['checkStableDiffusion'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model }),
+        },
+      );
       const data = await response.json();
       setIsStableDiffusion(data.is_stable_diffusion);
     } catch (e) {

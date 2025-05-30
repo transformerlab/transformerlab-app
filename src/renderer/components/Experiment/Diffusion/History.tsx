@@ -27,7 +27,7 @@ import {
   SquareMinusIcon,
   XIcon,
 } from 'lucide-react';
-import { Endpoints } from 'renderer/lib/api-client/endpoints';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import HistoryCard from './HistoryCard';
 import HistoryImageViewModal from './HistoryImageViewModal';
 
@@ -91,7 +91,9 @@ const History: React.FC<HistoryProps> = () => {
   const loadHistory = async () => {
     setHistoryLoading(true);
     try {
-      const response = await fetch(Endpoints.Diffusion.GetHistory());
+      const response = await fetch(
+        getFullPath('diffusion', ['getHistory'], { limit: 50, offset: 0 }),
+      );
       const data = await response.json();
 
       // For each image, fetch the count of images available
@@ -99,7 +101,9 @@ const History: React.FC<HistoryProps> = () => {
         data.images.map(async (image: HistoryImage) => {
           try {
             const countResponse = await fetch(
-              Endpoints.Diffusion.GetImageCount(image.id),
+              getFullPath('diffusion', ['getImageCount'], {
+                imageId: image.id,
+              }),
             );
             const countData = await countResponse.json();
             return {
@@ -138,7 +142,9 @@ const History: React.FC<HistoryProps> = () => {
   // View image in modal
   const viewImage = async (imageId: string) => {
     try {
-      const response = await fetch(Endpoints.Diffusion.GetImageInfo(imageId));
+      const response = await fetch(
+        getFullPath('diffusion', ['getImageInfo'], { imageId }),
+      );
       const data = await response.json();
       setSelectedImage(data);
       setImageModalOpen(true);
@@ -150,7 +156,7 @@ const History: React.FC<HistoryProps> = () => {
   // Delete single image
   const deleteImage = async (imageId: string) => {
     try {
-      await fetch(Endpoints.Diffusion.DeleteImage(imageId), {
+      await fetch(getFullPath('diffusion', ['deleteImage'], { imageId }), {
         method: 'DELETE',
       });
       await loadHistory(); // Reload history
@@ -167,7 +173,7 @@ const History: React.FC<HistoryProps> = () => {
       // Delete all selected images
       await Promise.all(
         Array.from(selectedImages).map((imageId) =>
-          fetch(Endpoints.Diffusion.DeleteImage(imageId), {
+          fetch(getFullPath('diffusion', ['deleteImage'], { imageId }), {
             method: 'DELETE',
           }),
         ),
@@ -191,7 +197,7 @@ const History: React.FC<HistoryProps> = () => {
       return;
     }
     try {
-      await fetch(Endpoints.Diffusion.ClearHistory(), {
+      await fetch(getFullPath('diffusion', ['clearHistory'], {}), {
         method: 'DELETE',
       });
       await loadHistory(); // Reload history
@@ -234,16 +240,19 @@ const History: React.FC<HistoryProps> = () => {
     setDatasetError('');
 
     try {
-      const response = await fetch(Endpoints.Diffusion.CreateDataset(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dataset_name: datasetName,
-          image_ids: Array.from(selectedImages),
-          description: datasetDescription,
-          include_metadata: includeMetadata,
-        }),
-      });
+      const response = await fetch(
+        getFullPath('diffusion', ['createDataset'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dataset_name: datasetName,
+            image_ids: Array.from(selectedImages),
+            description: datasetDescription,
+            include_metadata: includeMetadata,
+          }),
+        },
+      );
 
       const data = await response.json();
 

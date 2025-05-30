@@ -10,7 +10,7 @@ import {
   Chip,
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
-import { Endpoints } from 'renderer/lib/api-client/endpoints';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { HistoryImage } from './History';
 
 interface HistoryCardProps {
@@ -55,7 +55,10 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
           {Array.from({ length: maxDisplayImages }, (_, index) => (
             <img
               key={index}
-              src={Endpoints.Diffusion.GetImage(item.id, index)}
+              src={getFullPath('diffusion', ['getImage'], {
+                imageId: item.id,
+                index,
+              })}
               alt={`Generated image ${index + 1}`}
               style={{
                 width: '100%',
@@ -90,7 +93,10 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
       // Single image display
       return (
         <img
-          src={Endpoints.Diffusion.GetImage(item.id)}
+          src={getFullPath('diffusion', ['getImage'], {
+            imageId: item.id,
+            index: 0,
+          })}
           alt="generated"
           style={{
             borderRadius: '6px',
