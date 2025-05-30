@@ -24,6 +24,7 @@ import {
 } from '@mui/joy';
 import { useState, useEffect, FormEvent, useCallback } from 'react';
 import useSWR from 'swr';
+import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
@@ -76,6 +77,7 @@ export default function SelectExperimentMenu({
 }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
+  const navigate = useNavigate();
 
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(
@@ -123,8 +125,13 @@ export default function SelectExperimentMenu({
       setExperimentId(newId);
       createHandleClose(newId);
       mutate();
+      
+      // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
+      if (fromRecipeId !== null && fromRecipeId !== -1) {
+        navigate('/experiment/notes');
+      }
     },
-    [setExperimentId, mutate],
+    [setExperimentId, mutate, navigate],
   );
 
   return (
