@@ -20,7 +20,9 @@ import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import PreviewDatasetModal from './PreviewDatasetModal';
 import DatasetInfoModal from './DatasetInfoModal';
-import EditDatasetModal from './EditDatasetModal';
+// Remove this line
+// import EditDatasetModal from './EditDatasetModal';
+import DatasetPreviewEditImage from './DatasetPreviewEditImage'; // Import new component
 
 export default function DatasetCard({
   name,
@@ -43,7 +45,6 @@ export default function DatasetCard({
   const [editDatasetModalOpen, setEditDatasetModalOpen] = useState(false);
   const [datasetInfo, setDatasetInfo] = useState(null);
 
-  // Fetch dataset info when the card mounts
   useEffect(() => {
     const fetchDatasetInfo = async () => {
       try {
@@ -68,18 +69,42 @@ export default function DatasetCard({
         viewType={previewModalState.viewType}
       />
 
-      <EditDatasetModal
-        open={editDatasetModalOpen}
-        setOpen={setEditDatasetModalOpen}
-        dataset_id={name}
-        onConfirm={(newName) => {
-          setPreviewModalState({
-            open: true,
-            datasetId: newName,
-            viewType: 'edit',
-          });
-        }}
-      />
+      {/* Replace EditDatasetModal with DatasetPreviewEditImage in a modal */}
+      {editDatasetModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            zIndex: 1000,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <div
+            style={{
+              width: '90%',
+              height: '90%',
+              backgroundColor: 'white',
+              padding: '1em',
+              overflow: 'auto',
+            }}
+          >
+            <Button
+              variant="plain"
+              onClick={() => setEditDatasetModalOpen(false)}
+              style={{ marginBottom: '1em' }}
+            >
+              Close
+            </Button>
+            <DatasetPreviewEditImage datasetId={name} template="default" />
+          </div>
+        </div>
+      )}
 
       <DatasetInfoModal
         open={datasetInfoModalOpen}
@@ -125,10 +150,10 @@ export default function DatasetCard({
           orientation="horizontal"
           sx={{
             display: 'flex',
-            flexWrap: 'wrap', // Allow wrapping on smaller screens
+            flexWrap: 'wrap',
             alignItems: 'flex-end',
             gap: 1,
-            justifyContent: 'flex-end', // Align buttons to the right
+            justifyContent: 'flex-end',
           }}
         >
           {downloaded && (
@@ -137,7 +162,7 @@ export default function DatasetCard({
                 <Button
                   color="neutral"
                   variant="outlined"
-                  sx={{ flex: '1 1 auto', minWidth: 120 }} // Responsive width
+                  sx={{ flex: '1 1 auto', minWidth: 120 }}
                   onClick={async () => {
                     if (
                       confirm('Are you sure you want to delete this dataset?')

@@ -6,7 +6,6 @@ import {
   Option,
   CircularProgress,
   Box,
-  Alert,
   LinearProgress,
   Button,
   Typography,
@@ -32,6 +31,7 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
   const [searchText, setSearchText] = useState('');
   const [saving, setSaving] = useState(false);
   const [modifiedRows, setModifiedRows] = useState(new Map());
+  const [newDatasetId, setNewDatasetName] = useState('');
   const limit = 50;
   const containerRef = useRef(null);
   const [availableSplits, setAvailableSplits] = useState([]);
@@ -39,13 +39,12 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
   const [selectedSplit, setSelectedSplit] = useState('');
   const [selectedLabel, setSelectedLabel] = useState('');
   const [isParquet, setIsParquet] = useState(false);
-  const [focusedRow, setFocusedRow] = useState(null);
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
     setLoading(true);
     try {
-      const url = chatAPI.Endpoints.Dataset.PreviewWithTemplate(
+      const url = chatAPI.Endpoints.Dataset.EditWithTemplate(
         datasetId,
         encodeURIComponent(template),
         offset,
@@ -99,28 +98,34 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
     }
   };
 
-  const imageKey = columns[0]; // First column is always image
-  const textKey = columns[1]; // Second column is always description
-
-  const updateCaption = (index, newText) => {
-    setRows((prev) => {
-      const updated = [...prev];
-      const row = updated[index];
-      const uniqueKey = row['__index__'];
-
-      updated[index] = { ...row, [textKey]: newText };
-
-      setModifiedRows((prevMap) =>
-        new Map(prevMap).set(uniqueKey, {
-          ...updated[index],
-          previous_caption:
-            focusedRow?.__index__ === uniqueKey
-              ? focusedRow.originalText
-              : row[textKey],
-        }),
-      );
-
+  const handleFieldUpdate = (index, field, value) => {
+    setModifiedRows((prev) => {
+      const updated = new Map(prev);
+      const original = rows.find((r) => r['__index__'] === index) || {};
+      const current = updated.get(index) || {
+        file_name: original['file_name'],
+        previous_label: original['label'],
+        previous_caption: original['text'],
+        previous_split: original['split'],
+        label: original['label'] || '',
+        caption: original['text'] || '',
+        split: original['split'] || '',
+      };
+      current[field] = value;
+      updated.set(index, current);
       return updated;
+    });
+
+    setRows((prev) => {
+      const updatedRows = [...prev];
+      const rowIndex = updatedRows.findIndex((r) => r['__index__'] === index);
+      if (rowIndex !== -1) {
+        updatedRows[rowIndex] = {
+          ...updatedRows[rowIndex],
+          [field === 'caption' ? 'text' : field]: value,
+        };
+      }
+      return updatedRows;
     });
   };
 
@@ -128,27 +133,72 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
     (row) =>
       (!selectedSplit || row.split === selectedSplit) &&
       (!selectedLabel || row.label === selectedLabel) &&
-      (typeof row[textKey] === 'string'
-        ? row[textKey].toLowerCase()
+      (typeof row['text'] === 'string'
+        ? row['text'].toLowerCase()
         : ''
       ).includes(searchText.toLowerCase()),
   );
 
   const saveEdits = async () => {
+    if (newDatasetId.trim() === '') {
+      alert('Please enter a new dataset name.');
+      return;
+    }
+
+    if (rows.length === 0) {
+      alert('No data to save.');
+      return;
+    }
+
     setSaving(true);
     try {
-      // Create FormData containing the modified rows
-      const formData = new FormData();
-      const blob = new Blob(
-        [JSON.stringify(Array.from(modifiedRows.values()))],
-        { type: 'application/json' },
+      const checkResponse = await fetch(
+        chatAPI.Endpoints.Dataset.Info(newDatasetId),
       );
-      formData.append('file', blob, 'metadata_updates.json'); // singular, not "files"
-      formData.append('dataset_id', datasetId); // required by backend as Form(...)
+      if (checkResponse.ok) {
+        const datasetInfo = await checkResponse.json();
+        if (
+          !(
+            datasetInfo?.status === 'error' &&
+            datasetInfo?.message === 'Dataset not found.'
+          )
+        ) {
+          alert(
+            `Dataset "${newDatasetId}" already exists. Please choose a different name.`,
+          );
+          setSaving(false);
+          return;
+        }
+      }
 
-      // Send POST request to the same style endpoint
+      const fullArray = rows.map((row) => {
+        const uniqueKey = row['__index__'];
+        const modified = modifiedRows.get(uniqueKey) || {};
+        return {
+          file_name: row['file_name'],
+          previous_label: row['label'] || '',
+          previous_caption: row['text'] || '',
+          previous_split: row['split'] || '',
+          label: modified.label !== undefined ? modified.label : '',
+          caption: modified.caption !== undefined ? modified.caption : '',
+          split: modified.split !== undefined ? modified.split : '',
+        };
+      });
+
+      console.log('Saving full dataset to backend:', {
+        dataset_id: datasetId,
+        new_dataset_name: newDatasetId.trim(),
+        full_data: fullArray,
+      });
+
+      const formData = new FormData();
+      const blob = new Blob([JSON.stringify(fullArray)], {
+        type: 'application/json',
+      });
+      formData.append('file', blob, 'metadata_updates.json');
+
       const response = await fetch(
-        chatAPI.Endpoints.Dataset.SaveMetadata(datasetId),
+        chatAPI.Endpoints.Dataset.SaveMetadata(datasetId, newDatasetId),
         {
           method: 'POST',
           body: formData,
@@ -158,7 +208,7 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       if (!response.ok) throw new Error('Failed to save');
       alert('Captions saved successfully!');
     } catch (err) {
-      alert('Error saving captions');
+      alert(`Error saving captions: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -178,48 +228,23 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       {loading && rows.length === 0 && <LinearProgress />}
       <Box p={1} display="flex" gap={2} alignItems="center">
         <Input
+          placeholder="New Dataset Name"
+          value={newDatasetId}
+          onChange={(e) => setNewDatasetName(e.target.value)}
+          required
+          sx={{ width: '400px' }}
+        />
+        <Input
           placeholder="Search captions..."
-          sx={{ width: '400px' }} // Decrease search bar width
+          sx={{ width: '400px' }}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
         />
-        <Typography level="body-md" sx={{ fontWeight: 'bold' }}>
-          Split:
-        </Typography>
-        <Select
-          value={selectedSplit}
-          onChange={(_, v) => setSelectedSplit(v)}
-          size="lg" // Increase dropdown size
-          sx={{ minWidth: '150px' }} // Adjust width if needed
-        >
-          <Option value="">All</Option>
-          {availableSplits.map((s) => (
-            <Option key={s} value={s}>
-              {s}
-            </Option>
-          ))}
-        </Select>
-        <Typography level="body-md" sx={{ fontWeight: 'bold' }}>
-          Label:
-        </Typography>
-        <Select
-          value={selectedLabel}
-          onChange={(_, v) => setSelectedLabel(v)}
-          size="lg" // Increase dropdown size
-          sx={{ minWidth: '150px' }} // Adjust width if needed
-        >
-          <Option value="">All</Option>
-          {availableLabels.map((l) => (
-            <Option key={l} value={l}>
-              {l}
-            </Option>
-          ))}
-        </Select>
         <Button
           onClick={saveEdits}
           loading={saving}
           variant="soft"
-          disabled={isParquet}
+          disabled={isParquet || rows.length === 0}
         >
           Save Changes
         </Button>
@@ -238,27 +263,28 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
             {filteredRows.map((row, idx) => (
               <tr key={row?.['__index__'] || idx}>
                 <td>
-                  {imageKey &&
-                    row[imageKey] &&
-                    typeof row[imageKey] === 'string' && (
-                      <img
-                        src={row[imageKey]}
-                        alt={`example-${idx}`}
-                        style={{ maxHeight: '100px' }}
-                      />
-                    )}
+                  {row['image'] && typeof row['image'] === 'string' && (
+                    <img
+                      src={row['image']}
+                      alt={`example-${idx}`}
+                      style={{ maxHeight: '100px' }}
+                    />
+                  )}
                 </td>
                 <td>
                   <Input
-                    value={row[textKey] || ''}
-                    onFocus={() =>
-                      setFocusedRow({
-                        __index__: row['__index__'],
-                        originalText: row[textKey],
-                      })
+                    value={
+                      modifiedRows.get(row['__index__'])?.caption ??
+                      row['text'] ??
+                      ''
                     }
-                    onChange={(e) => updateCaption(idx, e.target.value)}
-                    onChange={(e) => updateCaption(idx, e.target.value)}
+                    onChange={(e) =>
+                      handleFieldUpdate(
+                        row['__index__'],
+                        'caption',
+                        e.target.value,
+                      )
+                    }
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') e.currentTarget.blur();
                     }}
@@ -276,10 +302,38 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
                   />
                 </td>
                 <td>
-                  <Typography>{row['split'] || 'N/A'}</Typography>
+                  <Input
+                    value={
+                      modifiedRows.get(row['__index__'])?.split ??
+                      row['split'] ??
+                      ''
+                    }
+                    onChange={(e) =>
+                      handleFieldUpdate(
+                        row['__index__'],
+                        'split',
+                        e.target.value,
+                      )
+                    }
+                    size="sm"
+                  />
                 </td>
                 <td>
-                  <Typography>{row['label'] || 'N/A'}</Typography>
+                  <Input
+                    value={
+                      modifiedRows.get(row['__index__'])?.label ??
+                      row['label'] ??
+                      ''
+                    }
+                    onChange={(e) =>
+                      handleFieldUpdate(
+                        row['__index__'],
+                        'label',
+                        e.target.value,
+                      )
+                    }
+                    size="sm"
+                  />
                 </td>
               </tr>
             ))}
