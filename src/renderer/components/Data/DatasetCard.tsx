@@ -20,9 +20,7 @@ import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import PreviewDatasetModal from './PreviewDatasetModal';
 import DatasetInfoModal from './DatasetInfoModal';
-// Remove this line
-// import EditDatasetModal from './EditDatasetModal';
-import DatasetPreviewEditImage from './DatasetPreviewEditImage'; // Import new component
+import EditDatasetModal from './EditDatasetModal';
 
 export default function DatasetCard({
   name,
@@ -69,41 +67,13 @@ export default function DatasetCard({
         viewType={previewModalState.viewType}
       />
 
-      {/* Replace EditDatasetModal with DatasetPreviewEditImage in a modal */}
       {editDatasetModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            zIndex: 1000,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-          }}
-        >
-          <div
-            style={{
-              width: '90%',
-              height: '90%',
-              backgroundColor: 'white',
-              padding: '1em',
-              overflow: 'auto',
-            }}
-          >
-            <Button
-              variant="plain"
-              onClick={() => setEditDatasetModalOpen(false)}
-              style={{ marginBottom: '1em' }}
-            >
-              Close
-            </Button>
-            <DatasetPreviewEditImage datasetId={name} template="default" />
-          </div>
-        </div>
+        <EditDatasetModal
+          open={editDatasetModalOpen}
+          setOpen={setEditDatasetModalOpen}
+          datasetId={name}
+          template="default"
+        />
       )}
 
       <DatasetInfoModal

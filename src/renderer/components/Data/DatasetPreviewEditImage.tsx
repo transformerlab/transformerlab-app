@@ -4,23 +4,11 @@ import {
   Input,
   Select,
   Option,
-  CircularProgress,
   Box,
   LinearProgress,
   Button,
-  Typography,
 } from '@mui/joy';
-
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import useSWR from 'swr';
-const fetcher = async (url) => {
-  const response = await fetch(url);
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`HTTP ${response.status}: ${text}`);
-  }
-  return response.json();
-};
 
 const DatasetPreviewEditImage = ({ datasetId, template }) => {
   const [rows, setRows] = useState([]);
@@ -31,14 +19,14 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
   const [searchText, setSearchText] = useState('');
   const [saving, setSaving] = useState(false);
   const [modifiedRows, setModifiedRows] = useState(new Map());
-  const [newDatasetId, setNewDatasetName] = useState('');
-  const limit = 50;
-  const containerRef = useRef(null);
+  const [newDatasetId, setNewDatasetId] = useState('');
   const [availableSplits, setAvailableSplits] = useState([]);
   const [availableLabels, setAvailableLabels] = useState([]);
-  const [selectedSplit, setSelectedSplit] = useState('');
-  const [selectedLabel, setSelectedLabel] = useState('');
+  const [selectedSplitFilter, setSelectedSplitFilter] = useState('');
+  const [selectedLabelFilter, setSelectedLabelFilter] = useState('');
   const [isParquet, setIsParquet] = useState(false);
+  const limit = 50;
+  const containerRef = useRef(null);
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -50,7 +38,8 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
         offset,
         limit,
       );
-      const result = await fetcher(url);
+      const response = await fetch(url);
+      const result = await response.json();
       if (result.status === 'success') {
         const newRows = result.data.rows || [];
         setRows((prev) => [...prev, ...newRows]);
@@ -93,9 +82,7 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
 
   const onScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
-    if (scrollHeight - scrollTop <= clientHeight + 50) {
-      loadMore();
-    }
+    if (scrollHeight - scrollTop <= clientHeight + 50) loadMore();
   };
 
   const handleFieldUpdate = (index, field, value) => {
@@ -115,7 +102,6 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       updated.set(index, current);
       return updated;
     });
-
     setRows((prev) => {
       const updatedRows = [...prev];
       const rowIndex = updatedRows.findIndex((r) => r['__index__'] === index);
@@ -131,29 +117,27 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
 
   const filteredRows = rows.filter(
     (row) =>
-      (!selectedSplit || row.split === selectedSplit) &&
-      (!selectedLabel || row.label === selectedLabel) &&
+      (!selectedSplitFilter || row.split === selectedSplitFilter) &&
+      (!selectedLabelFilter || row.label === selectedLabelFilter) &&
       (typeof row['text'] === 'string'
         ? row['text'].toLowerCase()
         : ''
       ).includes(searchText.toLowerCase()),
   );
 
-  const saveEdits = async () => {
-    if (newDatasetId.trim() === '') {
+  const saveEditsWithName = async (datasetName) => {
+    if (datasetName.trim() === '') {
       alert('Please enter a new dataset name.');
       return;
     }
-
     if (rows.length === 0) {
       alert('No data to save.');
       return;
     }
-
     setSaving(true);
     try {
       const checkResponse = await fetch(
-        chatAPI.Endpoints.Dataset.Info(newDatasetId),
+        chatAPI.Endpoints.Dataset.Info(datasetName),
       );
       if (checkResponse.ok) {
         const datasetInfo = await checkResponse.json();
@@ -164,13 +148,12 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
           )
         ) {
           alert(
-            `Dataset "${newDatasetId}" already exists. Please choose a different name.`,
+            `Dataset "${datasetName}" already exists. Please choose a different name.`,
           );
           setSaving(false);
           return;
         }
       }
-
       const fullArray = rows.map((row) => {
         const uniqueKey = row['__index__'];
         const modified = modifiedRows.get(uniqueKey) || {};
@@ -179,34 +162,26 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
           previous_label: row['label'] || '',
           previous_caption: row['text'] || '',
           previous_split: row['split'] || '',
-          label: modified.label !== undefined ? modified.label : '',
-          caption: modified.caption !== undefined ? modified.caption : '',
-          split: modified.split !== undefined ? modified.split : '',
+          label: modified.label ?? '',
+          caption: modified.caption ?? '',
+          split: modified.split ?? '',
         };
       });
-
-      console.log('Saving full dataset to backend:', {
-        dataset_id: datasetId,
-        new_dataset_name: newDatasetId.trim(),
-        full_data: fullArray,
-      });
-
       const formData = new FormData();
       const blob = new Blob([JSON.stringify(fullArray)], {
         type: 'application/json',
       });
       formData.append('file', blob, 'metadata_updates.json');
-
       const response = await fetch(
-        chatAPI.Endpoints.Dataset.SaveMetadata(datasetId, newDatasetId),
+        chatAPI.Endpoints.Dataset.SaveMetadata(datasetId, datasetName),
         {
           method: 'POST',
           body: formData,
         },
       );
-
       if (!response.ok) throw new Error('Failed to save');
       alert('Captions saved successfully!');
+      setModifiedRows(new Map());
     } catch (err) {
       alert(`Error saving captions: ${err.message}`);
     } finally {
@@ -230,9 +205,10 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
         <Input
           placeholder="New Dataset Name"
           value={newDatasetId}
-          onChange={(e) => setNewDatasetName(e.target.value)}
+          onChange={(e) => setNewDatasetId(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           required
-          sx={{ width: '400px' }}
+          sx={{ width: '250px' }}
         />
         <Input
           placeholder="Search captions..."
@@ -240,11 +216,42 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
         />
+        <Select
+          value={selectedSplitFilter}
+          onChange={(_, v) => setSelectedSplitFilter(v)}
+          placeholder="Filter by Split"
+          sx={{ width: '200px' }}
+        >
+          <Option value="">All</Option>
+          {availableSplits.map((s) => (
+            <Option key={s} value={s}>
+              {s}
+            </Option>
+          ))}
+        </Select>
+        <Select
+          value={selectedLabelFilter}
+          onChange={(_, v) => setSelectedLabelFilter(v)}
+          placeholder="Filter by Label"
+          sx={{ width: '200px' }}
+        >
+          <Option value="">All</Option>
+          {availableLabels.map((l) => (
+            <Option key={l} value={l}>
+              {l}
+            </Option>
+          ))}
+        </Select>
         <Button
-          onClick={saveEdits}
+          onClick={() => saveEditsWithName(newDatasetId)}
           loading={saving}
           variant="soft"
-          disabled={isParquet || rows.length === 0}
+          disabled={
+            isParquet ||
+            rows.length === 0 ||
+            newDatasetId.trim() === '' ||
+            modifiedRows.size === 0
+          }
         >
           Save Changes
         </Button>
@@ -263,7 +270,7 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
             {filteredRows.map((row, idx) => (
               <tr key={row?.['__index__'] || idx}>
                 <td>
-                  {row['image'] && typeof row['image'] === 'string' && (
+                  {row['image'] && (
                     <img
                       src={row['image']}
                       alt={`example-${idx}`}
@@ -285,20 +292,10 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
                         e.target.value,
                       )
                     }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                    }}
-                    variant="soft"
+                    onKeyDown={(e) =>
+                      e.key === 'Enter' && e.currentTarget.blur()
+                    }
                     size="sm"
-                    fullWidth
-                    disabled={isParquet}
-                    sx={{
-                      whiteSpace: 'pre-wrap',
-                      overflowWrap: 'break-word',
-                      wordWrap: 'break-word',
-                      display: 'block',
-                      minHeight: '2em',
-                    }}
                   />
                 </td>
                 <td>
@@ -314,6 +311,9 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
                         'split',
                         e.target.value,
                       )
+                    }
+                    onKeyDown={(e) =>
+                      e.key === 'Enter' && e.currentTarget.blur()
                     }
                     size="sm"
                   />
@@ -331,6 +331,9 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
                         'label',
                         e.target.value,
                       )
+                    }
+                    onKeyDown={(e) =>
+                      e.key === 'Enter' && e.currentTarget.blur()
                     }
                     size="sm"
                   />
