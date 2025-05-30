@@ -86,6 +86,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [isStableDiffusion, setIsStableDiffusion] = useState<boolean | null>(
     null,
   );
+  const [isImg2ImgEligible, setIsImg2ImgEligible] = useState<boolean | null>(
+    null,
+  );
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -98,8 +101,26 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       setIsStableDiffusion(null);
       // Clear input image when model changes
       setInputImageBase64('');
+      // Reset img2img eligibility when model changes
+      setIsImg2ImgEligible(null);
     }
   }, [experimentInfo?.config?.foundation]);
+
+  // Check if model is eligible for img2img
+  const checkImg2ImgEligibility = async () => {
+    setIsImg2ImgEligible(null);
+    try {
+      const response = await fetch(Endpoints.Diffusion.CheckStableDiffusion(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, is_img2img: true }),
+      });
+      const data = await response.json();
+      setIsImg2ImgEligible(data.is_stable_diffusion);
+    } catch (e) {
+      setIsImg2ImgEligible(false);
+    }
+  };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -110,6 +131,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         // Remove the data URL prefix to get just the base64 string
         const base64String = result.split(',')[1];
         setInputImageBase64(base64String);
+        // Check if model supports img2img when image is uploaded
+        checkImg2ImgEligibility();
       };
       reader.readAsDataURL(file);
     }
@@ -117,6 +140,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
   const handleRemoveImage = () => {
     setInputImageBase64('');
+    setIsImg2ImgEligible(null);
   };
 
   const handleGenerate = async () => {
@@ -649,11 +673,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                 size="lg"
                 startDecorator={loading && <CircularProgress />}
               >
-                {loading
-                  ? 'Generating'
-                  : inputImageBase64
-                    ? 'Generate from Image'
-                    : 'Generate Image'}
+                {(() => {
+                  if (loading) return 'Generating';
+                  if (inputImageBase64) return 'Generate from Image';
+                  return 'Generate Image';
+                })()}
               </Button>
             </Stack>
             <Box
@@ -669,6 +693,12 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
               {isStableDiffusion === false && (
                 <Typography color="danger">
                   This model is not eligible for diffusion.
+                </Typography>
+              )}
+              {inputImageBase64 && isImg2ImgEligible === false && (
+                <Typography color="danger">
+                  This model is not eligible for img2img generation, please try
+                  generation without the image.
                 </Typography>
               )}
               {imageBase64 && (
