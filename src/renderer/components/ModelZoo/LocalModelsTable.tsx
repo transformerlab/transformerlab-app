@@ -19,6 +19,7 @@ import {
   SearchIcon,
   StoreIcon,
   Trash2Icon,
+  ImageIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -28,6 +29,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
+import { RiChatAiLine, RiImageAiLine } from 'react-icons/ri';
 
 type Order = 'asc' | 'desc';
 
@@ -180,7 +182,17 @@ const LocalModelsTable = ({
                 return (
                   <tr key={row.rowid}>
                     <td>
-                      <Typography ml={2} fontWeight="lg">
+                      <Typography
+                        ml={2}
+                        fontWeight="lg"
+                        startDecorator={
+                          row?.json_data?.model_type === 'stable-diffusion' ? (
+                            <RiImageAiLine />
+                          ) : (
+                            <RiChatAiLine />
+                          )
+                        }
+                      >
                         {row?.local_model === true ? (
                           <FlaskRoundIcon
                             color="var(--joy-palette-success-700)"
@@ -199,7 +211,7 @@ const LocalModelsTable = ({
                           />
                         ) : (
                           ''
-                        )}{' '}
+                        )}
                         {row.name}
                       </Typography>
                     </td>

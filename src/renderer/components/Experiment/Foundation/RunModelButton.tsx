@@ -43,9 +43,9 @@ export default function RunModelButton({
   });
 
   function isPossibleToRunAModel() {
-    // console.log('Is Possible?');
-    // console.log(experimentInfo);
-    // console.log(inferenceSettings);
+    console.log('Is Possible?');
+    console.log(experimentInfo);
+    console.log(inferenceSettings);
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&

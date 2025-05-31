@@ -23,7 +23,10 @@ import {
   WorkflowIcon,
   UserIcon,
   LogOutIcon,
+  ImageIcon,
 } from 'lucide-react';
+
+import { RiImageAiLine } from 'react-icons/ri';
 
 import {
   Box,
@@ -91,6 +94,14 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         icon={<MessageCircleIcon strokeWidth={9} />}
         disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
       />
+      {DEV_MODE && (
+        <SubNavItem
+          title="Diffusion"
+          path="/experiment/diffusion"
+          icon={<RiImageAiLine />}
+          disabled={!experimentInfo?.name}
+        />
+      )}
       {DEV_MODE && (
         <SubNavItem
           title="Workflows"
