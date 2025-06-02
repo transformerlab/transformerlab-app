@@ -1,28 +1,12 @@
 // This is from https://raw.githubusercontent.com/piotrrussw/react-canvas-paint/refs/heads/master/src/index.js
 // We made some fixes so copied it here
 import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { Box, Button, ButtonGroup, IconButton } from '@mui/joy';
+import { EraserIcon, PencilIcon } from 'lucide-react';
+
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import styles from './styles.module.css';
-
-function DrawingToolBox({ colors, active, onChange }) {
-  return (
-    <div className={styles.toolBoxContainer}>
-      <div className={styles.colors}>
-        {colors.map((color, key) => (
-          <button
-            key={key}
-            onClick={() => onChange(color)}
-            className={classNames(styles.color, {
-              [styles.active]: active === color,
-            })}
-            style={{ backgroundColor: color }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function ReactCanvasPaint(props) {
   const canvas = useRef(null);
@@ -116,12 +100,99 @@ function ReactCanvasPaint(props) {
   useEffect(() => {
     if (typeof props.data === 'object' && canvas.current) {
       const context = canvas.current.getContext('2d');
-      // TODO: scale imageData
-      context.putImageData(props.data, 0, 0);
+      // Clear the canvas first
+      context.clearRect(0, 0, props.width, props.height);
+
+      if (!props.data || !props.data.width || !props.data.height) {
+        console.warn('Invalid image data provided to ReactCanvasPaint');
+        return;
+      }
+
+      // If the data size matches the canvas, draw directly
+      if (
+        props.data.width === props.width &&
+        props.data.height === props.height
+      ) {
+        context.putImageData(props.data, 0, 0);
+      } else {
+        // Scale the image data to fit the canvas
+        // Draw the image data to an offscreen canvas first
+        const offscreen = document.createElement('canvas');
+        offscreen.width = props.data.width;
+        offscreen.height = props.data.height;
+        const offCtx = offscreen.getContext('2d');
+        offCtx.putImageData(props.data, 0, 0);
+        // Draw the offscreen canvas scaled to the main canvas
+        context.drawImage(
+          offscreen,
+          0,
+          0,
+          props.data.width,
+          props.data.height,
+          0,
+          0,
+          props.width,
+          props.height,
+        );
+      }
       // Set the color to the first color in the palette
       setActiveColor(props.colors[0]);
     }
-  }, [props.data]);
+  }, [props.data, props.width, props.height, props.colors]);
+
+  function clearCanvas() {
+    if (canvas.current) {
+      const context = canvas.current.getContext('2d');
+      context.clearRect(0, 0, props.width, props.height);
+      handleDraw(context.getImageData(0, 0, props.width, props.height));
+    }
+  }
+
+  function DrawingToolBox({ colors, active, onChange }) {
+    return (
+      <ButtonGroup>
+        <Button
+          onClick={() => {
+            clearCanvas();
+          }}
+        >
+          Clear
+        </Button>
+        <IconButton
+          onClick={() => {
+            props.drawMode = 'eraser';
+          }}
+        >
+          <EraserIcon />
+        </IconButton>
+        <IconButton
+          onClick={() => {
+            props.drawMode = 'pencil';
+          }}
+        >
+          <PencilIcon />
+        </IconButton>
+        {[5, 10, 15, 20, 50, 90].map((size) => (
+          <Button
+            variant={props.strokeWidth === size ? 'solid' : 'outlined'}
+            key={size}
+            onClick={() => {
+              props;
+            }}
+          >
+            <Box
+              sx={{
+                width: Math.sqrt(size) * 4,
+                height: Math.sqrt(size) * 4,
+                borderRadius: '50%',
+                backgroundColor: 'black',
+              }}
+            />
+          </Button>
+        ))}
+      </ButtonGroup>
+    );
+  }
 
   return (
     <div className={styles.container}>

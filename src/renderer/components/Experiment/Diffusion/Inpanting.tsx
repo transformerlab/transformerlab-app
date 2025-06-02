@@ -10,13 +10,16 @@ export default function Inpainting() {
   const [drawMode, setDrawMode] = React.useState<'pencil' | 'eraser'>('pencil');
   const [maskData, setMaskData] = React.useState(null);
   const [showBg, setShowBg] = React.useState(true);
+  const [dimensions, setDimensions] = React.useState({
+    width: 800,
+    height: 600,
+  });
   return (
     <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        width: '100%',
-        height: '100%',
+
         p: 3,
         m: 0,
       }}
@@ -24,11 +27,10 @@ export default function Inpainting() {
       <Typography level="h3">This is fake for now</Typography>
       <Box
         sx={{
-          position: 'relative',
-          width: 800,
-          height: 600,
-          overflow: 'hidden',
           border: '1px solid #ccc',
+          position: 'relative',
+          width: dimensions.width,
+          height: dimensions.height + 70,
         }}
       >
         {showBg && (
@@ -40,8 +42,8 @@ export default function Inpainting() {
               position: 'absolute',
               top: 0,
               left: 0,
-              width: 800,
-              height: 600,
+              width: dimensions.width,
+              height: dimensions.height,
               zIndex: 0,
             }}
           />
@@ -58,10 +60,9 @@ export default function Inpainting() {
           }}
         >
           <ReactCanvasPaint
-            width={800}
-            height={600}
+            width={dimensions.width}
+            height={dimensions.height}
             colors={['#FF0000']}
-            showPalette={false}
             strokeWidth={strokeSize}
             drawMode={drawMode}
             onDraw={(e) => {
@@ -70,7 +71,6 @@ export default function Inpainting() {
           />
         </Box>
       </Box>
-
       <Box sx={{ mt: 2 }}>
         <Button
           onClick={() => setShowBg((prev) => !prev)}
@@ -79,44 +79,16 @@ export default function Inpainting() {
         >
           {showBg ? 'Hide Image' : 'Show Image'}
         </Button>
-        <Typography level="h4">Stroke Size</Typography>
-        <ButtonGroup>
-          <IconButton
-            onClick={() => {
-              setDrawMode('eraser');
-            }}
-            disabled={drawMode === 'eraser'}
-          >
-            <EraserIcon />
-          </IconButton>
-          <IconButton
-            onClick={() => {
-              setDrawMode('pencil');
-            }}
-            disabled={drawMode === 'pencil'}
-          >
-            <PencilIcon />
-          </IconButton>
-          {[5, 10, 15, 20, 50, 90].map((size) => (
-            <Button
-              variant={strokeSize === size ? 'solid' : 'outlined'}
-              key={size}
-              onClick={() => {
-                setStrokeSize(size);
-              }}
-            >
-              <Box
-                sx={{
-                  width: Math.sqrt(size) * 4,
-                  height: Math.sqrt(size) * 4,
-                  borderRadius: '50%',
-                  backgroundColor: 'black',
-                }}
-              />
-            </Button>
-          ))}
-        </ButtonGroup>
       </Box>
+      {/* <Box sx={{ border: '1px solid #ccc', p: 2 }}>
+        Preview Mask:
+        <ReactCanvasPaint
+          viewOnly
+          width={dimensions.width / 4}
+          height={dimensions.height / 4}
+          data={maskData}
+        />
+      </Box> */}
     </Box>
   );
 }
