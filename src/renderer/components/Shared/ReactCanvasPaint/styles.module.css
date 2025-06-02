@@ -1,8 +1,6 @@
 .container {
   width: 100%;
   height: calc(100% + 30px);
-  ;
-  border: 1px solid #000000;
 }
 
 .toolBoxContainer {

@@ -9,6 +9,7 @@ export default function Inpainting() {
   const [strokeSize, setStrokeSize] = React.useState(5);
   const [drawMode, setDrawMode] = React.useState<'pencil' | 'eraser'>('pencil');
   const [maskData, setMaskData] = React.useState(null);
+  const [showBg, setShowBg] = React.useState(true);
   return (
     <Box
       sx={{
@@ -27,21 +28,24 @@ export default function Inpainting() {
           width: 800,
           height: 600,
           overflow: 'hidden',
+          border: '1px solid #ccc',
         }}
       >
-        <Box
-          component="img"
-          src="https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=620&auto=format&fit=crop&q=60&ixlib=rb-4.1.0"
-          alt="Background"
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: 800,
-            height: 600,
-            zIndex: 0,
-          }}
-        />
+        {showBg && (
+          <Box
+            component="img"
+            src="https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=620&auto=format&fit=crop&q=60&ixlib=rb-4.1.0"
+            alt="Background"
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: 800,
+              height: 600,
+              zIndex: 0,
+            }}
+          />
+        )}
         <Box
           sx={{
             position: 'absolute',
@@ -67,7 +71,14 @@ export default function Inpainting() {
         </Box>
       </Box>
 
-      <Box>
+      <Box sx={{ mt: 2 }}>
+        <Button
+          onClick={() => setShowBg((prev) => !prev)}
+          variant="outlined"
+          sx={{ mb: 2 }}
+        >
+          {showBg ? 'Hide Image' : 'Show Image'}
+        </Button>
         <Typography level="h4">Stroke Size</Typography>
         <ButtonGroup>
           <IconButton
@@ -86,7 +97,7 @@ export default function Inpainting() {
           >
             <PencilIcon />
           </IconButton>
-          {[5, 10, 15, 20, 50, 100].map((size) => (
+          {[5, 10, 15, 20, 50, 90].map((size) => (
             <Button
               variant={strokeSize === size ? 'solid' : 'outlined'}
               key={size}
@@ -96,10 +107,10 @@ export default function Inpainting() {
             >
               <Box
                 sx={{
-                  width: size,
-                  height: size,
+                  width: Math.sqrt(size) * 4,
+                  height: Math.sqrt(size) * 4,
                   borderRadius: '50%',
-                  backgroundColor: '#000',
+                  backgroundColor: 'black',
                 }}
               />
             </Button>
