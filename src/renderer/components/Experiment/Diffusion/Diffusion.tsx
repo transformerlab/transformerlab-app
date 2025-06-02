@@ -67,6 +67,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const initialModel = experimentInfo?.config?.foundation || '';
   const adaptor = experimentInfo?.config?.adaptor || '';
   const [model, setModel] = useState(initialModel);
+
+  // Generate tab state
   const [prompt, setPrompt] = useState('An astronaut floating in space');
   const [numSteps, setNumSteps] = useState(30);
   const [guidanceScale, setGuidanceScale] = useState(7.5);
@@ -74,7 +76,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [upscale, setUpscale] = useState(false);
   const [upscaleFactor, setUpscaleFactor] = useState(4);
 
-  // Advanced settings
+  // Advanced settings for Generate tab
   const [negativePrompt, setNegativePrompt] = useState('');
   const [eta, setEta] = useState('');
   const [clipSkip, setClipSkip] = useState('');
@@ -83,15 +85,31 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [imageHeight, setImageHeight] = useState('');
   const [numImages, setNumImages] = useState(1);
 
-  // Image-to-image settings
+  // Image-to-image settings for Generate tab
   const [inputImageBase64, setInputImageBase64] = useState('');
   const [strength, setStrength] = useState(0.8);
 
-  // Inpainting settings
+  // Inpainting settings for Generate tab
   const [maskImageBase64, setMaskImageBase64] = useState('');
   const [inpaintingMode, setInpaintingMode] = useState(false);
 
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+  // Separate state for Inpainting tab
+  const [inpaintingPrompt, setInpaintingPrompt] = useState(
+    'An astronaut floating in space',
+  );
+  const [inpaintingNumSteps, setInpaintingNumSteps] = useState(30);
+  const [inpaintingGuidanceScale, setInpaintingGuidanceScale] = useState(7.5);
+  const [inpaintingSeed, setInpaintingSeed] = useState('');
+  const [inpaintingNegativePrompt, setInpaintingNegativePrompt] = useState('');
+  const [inpaintingStrength, setInpaintingStrength] = useState(0.8);
+  const [inpaintingInputImageBase64, setInpaintingInputImageBase64] =
+    useState('');
+  const [inpaintingMaskImageBase64, setInpaintingMaskImageBase64] =
+    useState('');
+
+  // Separate state for generated images on each tab
+  const [generateImages, setGenerateImages] = useState<string[]>([]);
+  const [inpaintingImages, setInpaintingImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -107,6 +125,19 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   >(null);
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Helper functions to get the appropriate images based on active tab
+  const getCurrentImages = () => {
+    return activeTab === 'inpainting' ? inpaintingImages : generateImages;
+  };
+
+  const setCurrentImages = (images: string[]) => {
+    if (activeTab === 'inpainting') {
+      setInpaintingImages(images);
+    } else {
+      setGenerateImages(images);
+    }
+  };
 
   // Update model when experimentInfo changes
   useEffect(() => {
@@ -218,7 +249,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const handleGenerate = async () => {
     setLoading(true);
     setError('');
-    setGeneratedImages([]);
+    setCurrentImages([]);
     setCurrentGenerationData(null);
     setCurrentImageIndex(0); // Reset to first image
     try {
@@ -287,7 +318,75 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
           });
           imageUrls.push(imageUrl);
         }
-        setGeneratedImages(imageUrls);
+        setCurrentImages(imageUrls);
+        setCurrentGenerationData(data);
+      }
+    } catch (e) {
+      setError('Failed to generate image');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInpaintingGenerate = async () => {
+    setLoading(true);
+    setError('');
+    setInpaintingImages([]);
+    setCurrentGenerationData(null);
+    setCurrentImageIndex(0); // Reset to first image
+    try {
+      // Build the request body with inpainting parameters
+      const requestBody: any = {
+        model,
+        adaptor,
+        prompt: inpaintingPrompt,
+        num_inference_steps: Number(inpaintingNumSteps),
+        guidance_scale: Number(inpaintingGuidanceScale),
+        seed: inpaintingSeed ? Number(inpaintingSeed) : -1, // -1 means random seed
+        upscale,
+        upscale_factor: Number(upscaleFactor),
+        num_images: Number(numImages),
+      };
+
+      // Add inpainting parameters
+      if (inpaintingInputImageBase64) {
+        requestBody.input_image = inpaintingInputImageBase64;
+        requestBody.strength = Number(inpaintingStrength);
+
+        // Inpainting always requires a mask
+        if (inpaintingMaskImageBase64) {
+          requestBody.mask_image = inpaintingMaskImageBase64;
+          requestBody.is_inpainting = true;
+        } else {
+          // If no mask, treat as img2img
+          requestBody.is_img2img = true;
+        }
+      }
+
+      // Add negative prompt if specified
+      if (inpaintingNegativePrompt.trim()) {
+        requestBody.negative_prompt = inpaintingNegativePrompt;
+      }
+
+      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      const data = await response.json();
+      if (data.error_code !== 0) {
+        setError('Error generating image');
+      } else {
+        // Fetch all generated images
+        const imageUrls: string[] = [];
+        for (let i = 0; i < data.num_images; i++) {
+          const imageUrl = getFullPath('diffusion', ['getImage'], {
+            imageId: data.id,
+            index: i,
+          });
+          imageUrls.push(imageUrl);
+        }
+        setInpaintingImages(imageUrls);
         setCurrentGenerationData(data);
       }
     } catch (e) {
@@ -328,14 +427,16 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
   // Navigation functions for multiple images
   const handlePreviousImage = () => {
+    const currentImages = getCurrentImages();
     setCurrentImageIndex((prev) =>
-      prev > 0 ? prev - 1 : generatedImages.length - 1,
+      prev > 0 ? prev - 1 : currentImages.length - 1,
     );
   };
 
   const handleNextImage = () => {
+    const currentImages = getCurrentImages();
     setCurrentImageIndex((prev) =>
-      prev < generatedImages.length - 1 ? prev + 1 : 0,
+      prev < currentImages.length - 1 ? prev + 1 : 0,
     );
   };
 
@@ -376,7 +477,10 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     >
       <Tabs
         value={activeTab}
-        onChange={(event, newValue) => setActiveTab(newValue as string)}
+        onChange={(event, newValue) => {
+          setActiveTab(newValue as string);
+          setCurrentImageIndex(0); // Reset image index when switching tabs
+        }}
         id="diffusion-tabs"
         sx={{ height: '100%', overflow: 'hidden' }}
       >
@@ -928,7 +1032,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   generation without the image.
                 </Typography>
               )}
-              {generatedImages.length > 0 && (
+              {getCurrentImages().length > 0 && (
                 <Box
                   sx={{
                     display: 'flex',
@@ -943,15 +1047,15 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                 >
                   {currentGenerationData?.generation_time && (
                     <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
-                      Generated {generatedImages.length} image
-                      {generatedImages.length > 1 ? 's' : ''} in{' '}
+                      Generated {getCurrentImages().length} image
+                      {getCurrentImages().length > 1 ? 's' : ''} in{' '}
                       {currentGenerationData.generation_time.toFixed(2)}s
-                      {generatedImages.length > 1 && (
+                      {getCurrentImages().length > 1 && (
                         <span style={{ marginLeft: '16px' }}>
                           {'Image '}
                           {currentImageIndex + 1}
                           {' of '}
-                          {generatedImages.length}
+                          {getCurrentImages().length}
                         </span>
                       )}
                     </Typography>
@@ -970,7 +1074,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     }}
                   >
                     {/* Navigation buttons for multiple images */}
-                    {generatedImages.length > 1 && (
+                    {getCurrentImages().length > 1 && (
                       <>
                         <IconButton
                           onClick={handlePreviousImage}
@@ -1011,7 +1115,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
                     {/* Current image */}
                     <img
-                      src={generatedImages[currentImageIndex]}
+                      src={getCurrentImages()[currentImageIndex]}
                       alt={`Generated image ${currentImageIndex + 1}`}
                       style={{
                         borderRadius: 8,
@@ -1024,7 +1128,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   </Box>
 
                   {/* Thumbnail navigation for multiple images */}
-                  {generatedImages.length > 1 && (
+                  {getCurrentImages().length > 1 && (
                     <Stack
                       direction="row"
                       spacing={1}
@@ -1035,33 +1139,35 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         mt: 2,
                       }}
                     >
-                      {generatedImages.map((imageUrl, index) => (
-                        <Box
-                          key={imageUrl}
-                          onClick={() => setCurrentImageIndex(index)}
-                          sx={{
-                            cursor: 'pointer',
-                            border:
-                              index === currentImageIndex
-                                ? '2px solid var(--joy-palette-primary-500)'
-                                : '1px solid var(--joy-palette-neutral-300)',
-                            borderRadius: '4px',
-                            overflow: 'hidden',
-                            width: 60,
-                            height: 60,
-                          }}
-                        >
-                          <img
-                            src={imageUrl}
-                            alt={`Thumbnail ${index + 1}`}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              objectFit: 'cover',
+                      {getCurrentImages().map(
+                        (imageUrl: string, index: number) => (
+                          <Box
+                            key={imageUrl}
+                            onClick={() => setCurrentImageIndex(index)}
+                            sx={{
+                              cursor: 'pointer',
+                              border:
+                                index === currentImageIndex
+                                  ? '2px solid var(--joy-palette-primary-500)'
+                                  : '1px solid var(--joy-palette-neutral-300)',
+                              borderRadius: '4px',
+                              overflow: 'hidden',
+                              width: 60,
+                              height: 60,
                             }}
-                          />
-                        </Box>
-                      ))}
+                          >
+                            <img
+                              src={imageUrl}
+                              alt={`Thumbnail ${index + 1}`}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                              }}
+                            />
+                          </Box>
+                        ),
+                      )}
                     </Stack>
                   )}
 
@@ -1102,25 +1208,25 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         >
           <Sheet sx={{ height: '100%', overflowY: 'auto' }}>
             <Inpainting
-              prompt={prompt}
-              setPrompt={setPrompt}
-              inputImageBase64={inputImageBase64}
-              setInputImageBase64={setInputImageBase64}
-              setMaskImageBase64={setMaskImageBase64}
-              strength={strength}
-              setStrength={setStrength}
-              numSteps={numSteps}
-              setNumSteps={setNumSteps}
-              guidanceScale={guidanceScale}
-              setGuidanceScale={setGuidanceScale}
-              seed={seed}
-              setSeed={setSeed}
-              negativePrompt={negativePrompt}
-              setNegativePrompt={setNegativePrompt}
-              onGenerate={handleGenerate}
+              prompt={inpaintingPrompt}
+              setPrompt={setInpaintingPrompt}
+              inputImageBase64={inpaintingInputImageBase64}
+              setInputImageBase64={setInpaintingInputImageBase64}
+              setMaskImageBase64={setInpaintingMaskImageBase64}
+              strength={inpaintingStrength}
+              setStrength={setInpaintingStrength}
+              numSteps={inpaintingNumSteps}
+              setNumSteps={setInpaintingNumSteps}
+              guidanceScale={inpaintingGuidanceScale}
+              setGuidanceScale={setInpaintingGuidanceScale}
+              seed={inpaintingSeed}
+              setSeed={setInpaintingSeed}
+              negativePrompt={inpaintingNegativePrompt}
+              setNegativePrompt={setInpaintingNegativePrompt}
+              onGenerate={handleInpaintingGenerate}
               loading={loading}
               error={error}
-              generatedImages={generatedImages}
+              generatedImages={inpaintingImages}
               currentImageIndex={currentImageIndex}
               handlePreviousImage={handlePreviousImage}
               handleNextImage={handleNextImage}
