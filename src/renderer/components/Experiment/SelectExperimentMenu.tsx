@@ -125,7 +125,7 @@ export default function SelectExperimentMenu({
       setExperimentId(newId);
       createHandleClose(newId);
       mutate();
-      
+
       // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
       if (fromRecipeId !== null && fromRecipeId !== -1) {
         navigate('/experiment/notes');
@@ -227,6 +227,7 @@ export default function SelectExperimentMenu({
                   height: '22px',
                   overflow: 'hidden',
                   justifyContent: 'flex-start',
+                  textWrapMode: 'nowrap',
                 }}
               >
                 {experimentInfo?.name || 'Select'}
