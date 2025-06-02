@@ -108,6 +108,9 @@ Endpoints.Models = {
     )}`,
   DeletePeft: (modelId: string, peft: string) =>
     `${API_URL()}model/delete_peft?model_id=${modelId}&peft=${peft}`,
+  SearchPeft: (peft: string) => `${API_URL()}model/search_peft?peft=${peft}`,
+  InstallPeft: (modelId: string, peft: string) =>
+    `${API_URL()}model/install_peft?model_id=${modelId}&peft=${peft}`,
   ModelDetailsFromGallery: (modelId: string) =>
     `${API_URL()}model/gallery/${convertSlashInUrl(modelId)}`,
   ModelDetailsFromFilesystem: (modelId: string) =>

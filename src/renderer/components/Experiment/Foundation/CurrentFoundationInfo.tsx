@@ -1,7 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 
 import Sheet from '@mui/joy/Sheet';
-
 import {
   Box,
   Button,
@@ -15,12 +14,19 @@ import {
   TabList,
   Tab,
   TabPanel,
+  Input,
 } from '@mui/joy';
-import { Trash2Icon, Undo2Icon, LayersIcon } from 'lucide-react';
-
+import {
+  Trash2Icon,
+  Undo2Icon,
+  SearchIcon,
+  DownloadIcon,
+  CheckIcon,
+} from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
+import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -38,6 +44,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
 }
+
 const hf_config_translation = {
   architectures: 'Architecture',
   max_position_embeddings: 'Context Window',
@@ -71,11 +78,7 @@ export default function CurrentFoundationInfo({
   setAdaptor,
   setLogsDrawerOpen = null,
 }) {
-  const {
-    data: peftData,
-    error: peftError,
-    mutate: peftMutate,
-  } = useSWR(
+  const { data: peftData, mutate: peftMutate } = useSWR(
     {
       url: chatAPI.Endpoints.Models.GetPeftsForModel(),
       post: experimentInfo?.config?.foundation,
@@ -98,13 +101,110 @@ export default function CurrentFoundationInfo({
   const [activeTab, setActiveTab] = useState(0);
   const navigate = useNavigate();
 
-  // Fetch base model provenance
+  // New state for adapter search & install
+  const [adapterSearchText, setAdapterSearchText] = useState('');
+  const [adapterResults, setAdapterResults] = useState([]);
+  const [jobId, setJobId] = useState(null);
+  const [currentlyInstalling, setCurrentlyInstalling] = useState(null);
+  const [canceling, setCanceling] = useState(false);
+
+  const fetchAdapters = async () => {
+    const response = await fetch(
+      chatAPI.Endpoints.Models.SearchPeft(adapterSearchText),
+    );
+    const results = await response.json();
+    setAdapterResults(results);
+  };
+
+  const pollJobStatus = (jobId) => {
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await fetch(chatAPI.Endpoints.Jobs.Get(jobId));
+        const result = await response.json();
+
+        if (
+          result.status === 'SUCCESS' ||
+          result.status === 'FAILED' ||
+          result.status === 'UNAUTHORIZED' ||
+          result.status === 'COMPLETE'
+        ) {
+          clearInterval(intervalId);
+
+          if (result.status === 'SUCCESS' || result.status === 'COMPLETE') {
+            alert(
+              result.job_data?.success_msg || 'Adapter installed successfully!',
+            );
+          } else {
+            alert(
+              result.job_data?.error_msg ||
+                'Adapter install failed with unknown error.',
+            );
+          }
+
+          setCurrentlyInstalling(null); // 🚨 Ensure this clears
+          setJobId(null);
+          peftMutate(); // 🔄 Refresh installed adapters
+        }
+      } catch (error) {
+        console.error('Error fetching job status:', error);
+        clearInterval(intervalId);
+        setCurrentlyInstalling(null);
+        setJobId(null);
+        alert('An error occurred while checking the adapter install status.');
+      }
+    }, 3000); // Poll every 3 seconds
+  };
+
+  const installAdapter = async (adapterId) => {
+    setCurrentlyInstalling(adapterId);
+
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Models.InstallPeft(
+          experimentInfo?.config?.foundation,
+          adapterId,
+        ),
+        { method: 'POST' },
+      );
+      const result = await response.json();
+
+      if (result.status === 'started') {
+        setJobId(result.job_id);
+        pollJobStatus(result.job_id); // Start polling
+      } else {
+        alert(
+          `Failed to start adapter install: ${result.message || 'Unknown error'}`,
+        );
+        setCurrentlyInstalling(null);
+      }
+    } catch (error) {
+      console.error('Error starting adapter install:', error);
+      alert(
+        'Failed to start adapter install due to a network or server error.',
+      );
+      setCurrentlyInstalling(null);
+    }
+  };
+
+  const handleCancelDownload = async () => {
+    if (jobId) {
+      setCanceling(true);
+      const response = await fetch(chatAPI.Endpoints.Jobs.Stop(jobId));
+      if (response.ok) {
+        setJobId(null);
+        setCurrentlyInstalling(null);
+      } else {
+        alert('Failed to cancel installation');
+      }
+      setCanceling(false);
+    }
+  };
+
   const { data: baseProvenance, error: baseProvenanceError } = useSWR(
     chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
     fetcher,
   );
 
-  // Fetch adaptor provenance when selected
   const { data: adaptorProvenance, error: adaptorProvenanceError } = useSWR(
     selectedProvenanceModel && selectedProvenanceModel !== huggingfaceId
       ? chatAPI.Endpoints.Models.ModelProvenance(
@@ -114,7 +214,6 @@ export default function CurrentFoundationInfo({
     fetcher,
   );
 
-  // Show proper provenance data based on selection
   const currentProvenance =
     selectedProvenanceModel === huggingfaceId
       ? baseProvenance
@@ -124,16 +223,13 @@ export default function CurrentFoundationInfo({
       ? baseProvenanceError
       : adaptorProvenanceError;
 
-  // Reset selected provenance model when base model changes
   useEffect(() => {
     setSelectedProvenanceModel(huggingfaceId);
   }, [huggingfaceId]);
 
   const resetToDefaultEmbedding = async () => {
-    // Update local state
     setEmbeddingModel(DEFAULT_EMBEDDING_MODEL);
     try {
-      // Update backend configuration
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
@@ -141,7 +237,6 @@ export default function CurrentFoundationInfo({
           DEFAULT_EMBEDDING_MODEL,
         ),
       );
-
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
@@ -149,7 +244,6 @@ export default function CurrentFoundationInfo({
           '',
         ),
       );
-
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
@@ -164,15 +258,11 @@ export default function CurrentFoundationInfo({
   };
 
   useMemo(() => {
-    // This is a local model
     if (experimentInfo?.config?.foundation_filename) {
-      // TODO: Load in model details from the filesystem
       fetch(chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(huggingfaceId))
         .then((res) => res.json())
         .catch((error) => console.log(error));
       setHugggingfaceData({});
-
-      // Try to see if this is a HuggingFace model
     } else if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
       fetch(chatAPI.Endpoints.Models.GetLocalHFConfig(huggingfaceId))
         .then((res) => res.json())
@@ -183,7 +273,6 @@ export default function CurrentFoundationInfo({
     }
   }, [experimentInfo]);
 
-  // Add useEffect to update embeddingModel when experimentInfo changes
   useEffect(() => {
     if (experimentInfo?.config?.embedding_model) {
       setEmbeddingModel(experimentInfo.config.embedding_model);
@@ -331,63 +420,151 @@ export default function CurrentFoundationInfo({
           <Typography level="title-lg" marginBottom={2}>
             Available Adaptors
           </Typography>
-          <Stack
-            direction="column"
-            spacing={2}
-            style={{ overflow: 'auto', maxHeight: '500px' }}
-          >
-            {peftData && peftData.length === 0 && (
-              <Typography level="body-sm" color="neutral">
-                No Adaptors available for this model. Train one!
-              </Typography>
-            )}
-            {peftData &&
-              peftData.map((peft) => (
-                <Sheet
-                  key={peft}
-                  variant="outlined"
-                  sx={{
-                    p: 2,
-                    borderRadius: 'sm',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Typography level="title-md">{peft}</Typography>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      variant={adaptor === peft ? 'solid' : 'soft'}
-                      color="primary"
-                      onClick={() => {
-                        setAdaptor(peft);
-                      }}
-                    >
-                      {adaptor === peft ? 'Selected' : 'Select'}
-                    </Button>
-                    <IconButton
-                      variant="plain"
-                      color="danger"
-                      onClick={() => {
-                        confirm(
-                          'Are you sure you want to delete this adaptor?',
-                        ) &&
-                          fetch(
-                            chatAPI.Endpoints.Models.DeletePeft(
-                              experimentInfo?.config?.foundation,
-                              peft,
-                            ),
-                          ).then(() => {
-                            peftMutate();
-                          });
-                      }}
-                    >
-                      <Trash2Icon />
-                    </IconButton>
-                  </Box>
-                </Sheet>
-              ))}
-          </Stack>
+
+          {/* Download progress box */}
+          {currentlyInstalling && jobId && (
+            <Box sx={{ position: 'relative', marginBottom: 2 }}>
+              <DownloadProgressBox
+                jobId={jobId}
+                assetName={currentlyInstalling}
+              />
+              <Button
+                variant="outlined"
+                size="sm"
+                color="danger"
+                disabled={canceling}
+                onClick={handleCancelDownload}
+                sx={{ position: 'absolute', top: '1rem', right: '1rem' }}
+              >
+                {canceling ? 'Stopping...' : 'Cancel Installation'}
+              </Button>
+            </Box>
+          )}
+
+          {/* Search bar */}
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
+            <Input
+              placeholder="Search adapters"
+              value={adapterSearchText}
+              onChange={(e) => setAdapterSearchText(e.target.value)}
+              startDecorator={<SearchIcon />}
+            />
+            <Button onClick={fetchAdapters}>Search</Button>
+          </Box>
+
+          {/* Scrollable adapter results */}
+          <Box sx={{ maxHeight: 400, overflowY: 'auto', mb: 2 }}>
+            <Table stickyHeader hoverRow>
+              <thead>
+                <tr>
+                  <th>Adapter ID</th>
+                  <th>Description</th>
+                  <th>Downloads</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {adapterResults.length === 0 ? (
+                  <tr>
+                    <td colSpan={4}>
+                      <Typography level="body-sm" textAlign="center">
+                        No adapters found.
+                      </Typography>
+                    </td>
+                  </tr>
+                ) : (
+                  adapterResults.map((adapter) => (
+                    <tr key={adapter.adapter_id}>
+                      <td>{adapter.adapter_id}</td>
+                      <td>{adapter.description || 'N/A'}</td>
+                      <td>{adapter.downloads || 0}</td>
+                      <td>
+                        <Button
+                          size="sm"
+                          variant="soft"
+                          color="success"
+                          startDecorator={<DownloadIcon />}
+                          endDecorator={
+                            currentlyInstalling === adapter.adapter_id ? (
+                              <CheckIcon />
+                            ) : null
+                          }
+                          disabled={jobId !== null}
+                          onClick={() => installAdapter(adapter.adapter_id)}
+                        >
+                          Install
+                          {currentlyInstalling === adapter.adapter_id
+                            ? 'ing'
+                            : ''}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </Box>
+
+          {/* Installed adapters section */}
+          <Typography level="title-md" marginTop={4}>
+            Installed Adaptors
+          </Typography>
+          <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+            <Stack direction="column" spacing={2}>
+              {peftData && peftData.length === 0 && (
+                <Typography level="body-sm" color="neutral">
+                  No adaptors installed. Train one!
+                </Typography>
+              )}
+              {peftData &&
+                peftData.map((peft) => (
+                  <Sheet
+                    key={peft}
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 'sm',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Typography level="title-md">{peft}</Typography>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant={adaptor === peft ? 'solid' : 'soft'}
+                        color="primary"
+                        onClick={() => setAdaptor(peft)}
+                      >
+                        {adaptor === peft ? 'Selected' : 'Select'}
+                      </Button>
+                      <IconButton
+                        variant="plain"
+                        color="danger"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              'Are you sure you want to delete this adaptor?',
+                            )
+                          ) {
+                            fetch(
+                              chatAPI.Endpoints.Models.DeletePeft(
+                                experimentInfo?.config?.foundation,
+                                peft,
+                              ),
+                            ).then(() => {
+                              peftMutate();
+                            });
+                          }
+                        }}
+                      >
+                        <Trash2Icon />
+                      </IconButton>
+                    </Box>
+                  </Sheet>
+                ))}
+            </Stack>
+          </Box>
         </TabPanel>
 
         {/* Provenance Tab */}
