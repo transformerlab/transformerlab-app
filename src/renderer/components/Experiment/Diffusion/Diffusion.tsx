@@ -28,7 +28,7 @@ import {
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import History from './History';
-import Inpainting from './Inpanting';
+import Inpainting from './Inpainting';
 
 type DiffusionProps = {
   experimentInfo: any;
@@ -87,6 +87,10 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [inputImageBase64, setInputImageBase64] = useState('');
   const [strength, setStrength] = useState(0.8);
 
+  // Inpainting settings
+  const [maskImageBase64, setMaskImageBase64] = useState('');
+  const [inpaintingMode, setInpaintingMode] = useState(false);
+
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -98,6 +102,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [isImg2ImgEligible, setIsImg2ImgEligible] = useState<boolean | null>(
     null,
   );
+  const [isInpaintingEligible, setIsInpaintingEligible] = useState<
+    boolean | null
+  >(null);
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -110,8 +117,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       setIsStableDiffusion(null);
       // Clear input image when model changes
       setInputImageBase64('');
+      // Clear mask image when model changes
+      setMaskImageBase64('');
       // Reset img2img eligibility when model changes
       setIsImg2ImgEligible(null);
+      // Reset inpainting eligibility when model changes
+      setIsInpaintingEligible(null);
+      // Reset inpainting mode when model changes
+      setInpaintingMode(false);
     }
   }, [experimentInfo?.config?.foundation, model]);
 
@@ -134,6 +147,25 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     }
   };
 
+  // Check if model is eligible for inpainting
+  const checkInpaintingEligibility = async () => {
+    setIsInpaintingEligible(null);
+    try {
+      const response = await fetch(
+        getFullPath('diffusion', ['checkStableDiffusion'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, is_inpainting: true }),
+        },
+      );
+      const data = await response.json();
+      setIsInpaintingEligible(data.is_stable_diffusion);
+    } catch (e) {
+      setIsInpaintingEligible(false);
+    }
+  };
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -153,6 +185,34 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const handleRemoveImage = () => {
     setInputImageBase64('');
     setIsImg2ImgEligible(null);
+    // Also clear mask and inpainting mode when removing reference image
+    setMaskImageBase64('');
+    setInpaintingMode(false);
+    setIsInpaintingEligible(null);
+  };
+
+  const handleMaskUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        // Remove the data URL prefix to get just the base64 string
+        const base64String = result.split(',')[1];
+        setMaskImageBase64(base64String);
+        // Enable inpainting mode when mask is uploaded
+        setInpaintingMode(true);
+        // Check if model supports inpainting when mask is uploaded
+        checkInpaintingEligibility();
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveMask = () => {
+    setMaskImageBase64('');
+    setInpaintingMode(false);
+    setIsInpaintingEligible(null);
   };
 
   const handleGenerate = async () => {
@@ -179,7 +239,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       if (inputImageBase64) {
         requestBody.input_image = inputImageBase64;
         requestBody.strength = Number(strength);
-        requestBody.is_img2img = true;
+
+        // Check if this is inpainting (has both image and mask)
+        if (maskImageBase64) {
+          requestBody.mask_image = maskImageBase64;
+          requestBody.is_inpainting = true;
+        } else {
+          requestBody.is_img2img = true;
+        }
       }
 
       // Add advanced parameters only if they are specified
@@ -469,6 +536,105 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     </Stack>
                   )}
                 </FormControl>
+
+                {/* Inpainting Controls - Show when reference image is uploaded */}
+                {inputImageBase64 && (
+                  <FormControl>
+                    <Stack gap={1} sx={{ alignItems: 'flex-start' }}>
+                      <Checkbox
+                        label="Enable Inpainting Mode"
+                        checked={inpaintingMode}
+                        onChange={(event) => {
+                          const { checked } = event.target;
+                          setInpaintingMode(checked);
+                          if (!checked) {
+                            setMaskImageBase64('');
+                            setIsInpaintingEligible(null);
+                          }
+                        }}
+                      />
+                      <Typography
+                        level="body-xs"
+                        sx={{ color: 'text.tertiary' }}
+                      >
+                        Paint over areas of the reference image you want to
+                        regenerate
+                      </Typography>
+                    </Stack>
+                  </FormControl>
+                )}
+
+                {/* Mask Image Upload - Show when inpainting mode is enabled */}
+                {inputImageBase64 && inpaintingMode && (
+                  <FormControl>
+                    <LabelWithTooltip tooltip="Upload a black and white mask image where white areas will be regenerated and black areas will be preserved. You can also use the inpainting tab to create a mask interactively.">
+                      Mask Image
+                    </LabelWithTooltip>
+                    {!maskImageBase64 ? (
+                      <Box>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleMaskUpload}
+                          style={{ display: 'none' }}
+                          id="mask-image-upload"
+                        />
+                        <Button
+                          component="label"
+                          htmlFor="mask-image-upload"
+                          variant="outlined"
+                          size="sm"
+                          sx={{ alignSelf: 'flex-start' }}
+                        >
+                          Upload Mask Image
+                        </Button>
+                        <Typography
+                          level="body-xs"
+                          sx={{ mt: 0.5, color: 'text.tertiary' }}
+                        >
+                          Or use the Inpainting tab to paint a mask
+                          interactively
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Stack gap={1}>
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            display: 'inline-block',
+                            maxWidth: 200,
+                          }}
+                        >
+                          <img
+                            src={`data:image/png;base64,${maskImageBase64}`}
+                            alt="Mask"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: 120,
+                              borderRadius: 4,
+                              objectFit: 'contain',
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            variant="soft"
+                            color="danger"
+                            onClick={handleRemoveMask}
+                            sx={{
+                              position: 'absolute',
+                              top: 4,
+                              right: 4,
+                              minHeight: 'unset',
+                              p: 0.5,
+                            }}
+                          >
+                            ×
+                          </Button>
+                        </Box>
+                      </Stack>
+                    )}
+                  </FormControl>
+                )}
 
                 <Stack
                   gap={1}
@@ -935,7 +1101,32 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
           }}
         >
           <Sheet sx={{ height: '100%', overflowY: 'auto' }}>
-            <Inpainting />
+            <Inpainting
+              prompt={prompt}
+              setPrompt={setPrompt}
+              inputImageBase64={inputImageBase64}
+              setInputImageBase64={setInputImageBase64}
+              setMaskImageBase64={setMaskImageBase64}
+              strength={strength}
+              setStrength={setStrength}
+              numSteps={numSteps}
+              setNumSteps={setNumSteps}
+              guidanceScale={guidanceScale}
+              setGuidanceScale={setGuidanceScale}
+              seed={seed}
+              setSeed={setSeed}
+              negativePrompt={negativePrompt}
+              setNegativePrompt={setNegativePrompt}
+              onGenerate={handleGenerate}
+              loading={loading}
+              error={error}
+              generatedImages={generatedImages}
+              currentImageIndex={currentImageIndex}
+              handlePreviousImage={handlePreviousImage}
+              handleNextImage={handleNextImage}
+              handleSaveAllImages={handleSaveAllImages}
+              currentGenerationData={currentGenerationData}
+            />
           </Sheet>
         </TabPanel>
       </Tabs>
