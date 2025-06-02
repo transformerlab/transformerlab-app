@@ -22,10 +22,11 @@ export type HistoryImage = {
     height?: number;
     generation_time?: number;
     num_images?: number; // Add num_images to metadata as well
-    // Image-to-image specific fields
     input_image_path?: string;
     strength?: number;
     is_img2img?: boolean;
+    mask_image_path?: string;
+    is_inpainting?: boolean;
   };
 };
 

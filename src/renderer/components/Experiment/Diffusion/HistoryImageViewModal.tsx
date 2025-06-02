@@ -292,6 +292,74 @@ export default function HistoryImageViewModal({
                       </>
                     )}
 
+                  {selectedImage.metadata.is_inpainting &&
+                    selectedImage.metadata.input_image_path && (
+                      <>
+                        <Typography level="title-md" sx={{ mb: 1 }}>
+                          Input Image:
+                        </Typography>
+                        <Box
+                          sx={{
+                            mb: 2,
+                            p: 2,
+                            backgroundColor:
+                              'var(--joy-palette-background-level1)',
+                            borderRadius: '6px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <img
+                            src={getFullPath('diffusion', ['getInputImage'], {
+                              imageId: selectedImage?.id,
+                            })}
+                            alt="Input"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '200px',
+                              objectFit: 'contain',
+                              borderRadius: '6px',
+                              border:
+                                '1px solid var(--joy-palette-neutral-300)',
+                            }}
+                          />
+                        </Box>
+                      </>
+                    )}
+
+                  {selectedImage.metadata.is_inpainting &&
+                    selectedImage.metadata.mask_image_path && (
+                      <>
+                        <Typography level="title-md" sx={{ mb: 1 }}>
+                          Mask Image:
+                        </Typography>
+                        <Box
+                          sx={{
+                            mb: 2,
+                            p: 2,
+                            backgroundColor:
+                              'var(--joy-palette-background-level1)',
+                            borderRadius: '6px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <img
+                            src={getFullPath('diffusion', ['getMaskImage'], {
+                              imageId: selectedImage?.id,
+                            })}
+                            alt="Mask"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '200px',
+                              objectFit: 'contain',
+                              borderRadius: '6px',
+                              border:
+                                '1px solid var(--joy-palette-neutral-300)',
+                            }}
+                          />
+                        </Box>
+                      </>
+                    )}
+
                   <Typography level="title-sm" sx={{ mb: 1 }}>
                     Model Info:
                   </Typography>
@@ -321,6 +389,12 @@ export default function HistoryImageViewModal({
                         <strong>Type:</strong> Image-to-Image Generation
                       </>
                     )}
+                    {selectedImage.metadata.is_inpainting && (
+                      <>
+                        <br />
+                        <strong>Type:</strong> Inpainting Generation
+                      </>
+                    )}
                   </Typography>
 
                   <Typography level="title-sm" sx={{ mb: 1 }}>
@@ -346,7 +420,8 @@ export default function HistoryImageViewModal({
                         <strong>Number of Images:</strong> {numImages}
                       </>
                     )}
-                    {selectedImage.metadata.is_img2img && (
+                    {(selectedImage.metadata.is_img2img ||
+                      selectedImage.metadata.is_inpainting) && (
                       <>
                         <br />
                         <strong>Strength:</strong>{' '}

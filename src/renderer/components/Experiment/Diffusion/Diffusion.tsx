@@ -381,9 +381,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         sx={{ height: '100%', overflow: 'hidden' }}
       >
         <TabList>
-          <Tab value="generate">Generate New Image</Tab>
-          <Tab value="history">Image History</Tab>
+          <Tab value="generate">Generate Image</Tab>
           <Tab value="inpainting">Inpainting</Tab>
+          <Tab value="history">Image History</Tab>
         </TabList>
 
         <TabPanel

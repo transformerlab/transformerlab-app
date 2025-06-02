@@ -128,6 +128,10 @@
       "method": "GET",
       "path": "diffusion/history/{imageId}?input_image=true"
     },
+    "getMaskImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?mask_image=true"
+    },
     "deleteImage": {
       "method": "DELETE",
       "path": "diffusion/history/{imageId}"
