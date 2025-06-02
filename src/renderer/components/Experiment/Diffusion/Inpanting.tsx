@@ -2,7 +2,7 @@ import { Box, Button, ButtonGroup, IconButton, Typography } from '@mui/joy';
 import React from 'react';
 
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
-import 'react-canvas-paint/dist/index.css';
+
 import { EraserIcon, Icon, Pen, PencilIcon } from 'lucide-react';
 
 export default function Inpainting() {
