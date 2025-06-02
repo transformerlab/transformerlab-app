@@ -42,7 +42,7 @@ const DatasetTable = ({ datasetId }) => {
   };
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Preview(datasetId, split, offset, pageSize),
-    fetcher
+    fetcher,
   );
 
   useEffect(() => {
@@ -101,7 +101,7 @@ const DatasetTable = ({ datasetId }) => {
           loading={isLoading}
         />
       )}
-      <Box sx={{ overflow: 'auto', height: '100%' }}>
+      <Box sx={{ height: '100%' }}>
         {isLoading && (
           <>
             {Array.from({ length: 8 }).map((_, index) => (
@@ -149,9 +149,11 @@ const DatasetTable = ({ datasetId }) => {
                           title={
                             typeof data.data['columns'][key][rowIndex] ===
                             'string'
-                              ? data.data['columns'][key][rowIndex]
+                              ? data.data['columns'][key][rowIndex].length > 100
+                                ? `${data.data['columns'][key][rowIndex].substring(0, 100)}...`
+                                : data.data['columns'][key][rowIndex]
                               : JSON.stringify(
-                                  data.data['columns'][key][rowIndex]
+                                  data.data['columns'][key][rowIndex],
                                 )
                           }
                           sx={{ maxWidth: '400px' }}
@@ -166,12 +168,26 @@ const DatasetTable = ({ datasetId }) => {
                               textOverflow: 'ellipsis',
                             }}
                           >
-                            {typeof data.data['columns'][key][rowIndex] ===
-                            'string'
-                              ? data.data['columns'][key][rowIndex]
-                              : JSON.stringify(
-                                  data.data['columns'][key][rowIndex]
-                                )}
+                            {key === Object.keys(data.data['columns'])[0] ? (
+                              <img
+                                src={
+                                  data.data['columns'][key][
+                                    rowIndex
+                                  ].startsWith('data:image/')
+                                    ? data.data['columns'][key][rowIndex]
+                                    : `data:image/png;base64,${data.data['columns'][key][rowIndex]}`
+                                }
+                                alt="preview"
+                                style={{ maxHeight: '100px' }}
+                              />
+                            ) : typeof data.data['columns'][key][rowIndex] ===
+                              'string' ? (
+                              data.data['columns'][key][rowIndex]
+                            ) : (
+                              JSON.stringify(
+                                data.data['columns'][key][rowIndex],
+                              )
+                            )}
                           </div>
                         </Tooltip>
                       </td>
@@ -217,7 +233,7 @@ const DatasetTable = ({ datasetId }) => {
         {pageNumber > 4 ? '…' : <div />}
         {Array.from(
           { length: Math.min(5, numOfPages) },
-          (_, i) => pageNumber + i - 2
+          (_, i) => pageNumber + i - 2,
         )
           .filter((page) => page >= 2 && page < numOfPages)
 
