@@ -164,7 +164,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsImg2ImgEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkStableDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -172,7 +172,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         },
       );
       const data = await response.json();
-      setIsImg2ImgEligible(data.is_stable_diffusion);
+      setIsImg2ImgEligible(data.is_valid_diffusion_model);
     } catch (e) {
       setIsImg2ImgEligible(false);
     }
@@ -183,7 +183,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsInpaintingEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkStableDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -191,7 +191,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         },
       );
       const data = await response.json();
-      setIsInpaintingEligible(data.is_stable_diffusion);
+      setIsInpaintingEligible(data.is_valid_diffusion_model);
     } catch (e) {
       setIsInpaintingEligible(false);
     }
@@ -441,11 +441,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   };
 
   // Check if model is eligible for diffusion
-  const checkStableDiffusion = async () => {
+  const checkValidDiffusion = async () => {
     setIsStableDiffusion(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkStableDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -453,7 +453,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         },
       );
       const data = await response.json();
-      setIsStableDiffusion(data.is_stable_diffusion);
+      setIsStableDiffusion(data.is_valid_diffusion_model);
     } catch (e) {
       setIsStableDiffusion(false);
     }
@@ -461,7 +461,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
   // Check on mount and when model changes
   useEffect(() => {
-    checkStableDiffusion();
+    checkValidDiffusion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [experimentInfo?.config?.foundation]);
 
@@ -480,6 +480,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         onChange={(event, newValue) => {
           setActiveTab(newValue as string);
           setCurrentImageIndex(0); // Reset image index when switching tabs
+
+          // Check inpainting eligibility when switching to inpainting tab
+          if (newValue === 'inpainting') {
+            checkInpaintingEligibility();
+          }
         }}
         id="diffusion-tabs"
         sx={{ height: '100%', overflow: 'hidden' }}
@@ -1232,6 +1237,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
               handleNextImage={handleNextImage}
               handleSaveAllImages={handleSaveAllImages}
               currentGenerationData={currentGenerationData}
+              isInpaintingEligible={isInpaintingEligible}
             />
           </Sheet>
         </TabPanel>

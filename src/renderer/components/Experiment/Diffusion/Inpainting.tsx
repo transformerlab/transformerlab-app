@@ -8,7 +8,6 @@ import {
   Stack,
   FormControl,
   Input,
-  Textarea,
   CircularProgress,
   FormLabel,
   Tooltip,
@@ -52,6 +51,7 @@ interface InpaintingProps {
   handleNextImage: () => void;
   handleSaveAllImages: () => void;
   currentGenerationData: any;
+  isInpaintingEligible: boolean | null;
 }
 
 export default function Inpainting({
@@ -79,15 +79,12 @@ export default function Inpainting({
   handleNextImage,
   handleSaveAllImages,
   currentGenerationData,
+  isInpaintingEligible = null,
 }: InpaintingProps) {
   const [strokeSize, setStrokeSize] = useState(20);
   const [drawMode, setDrawMode] = useState<'pencil' | 'eraser'>('pencil');
   const [canvasKey, setCanvasKey] = useState(0);
   const [imageDimensions, setImageDimensions] = useState({
-    width: 0,
-    height: 0,
-  });
-  const [containerDimensions, setContainerDimensions] = useState({
     width: 0,
     height: 0,
   });
@@ -100,11 +97,6 @@ export default function Inpainting({
     if (imageRef.current && containerRef.current) {
       const container = containerRef.current;
       const containerRect = container.getBoundingClientRect();
-
-      setContainerDimensions({
-        width: containerRect.width,
-        height: containerRect.height,
-      });
 
       // Load the image to get its natural dimensions
       const img = new Image();
@@ -459,13 +451,29 @@ export default function Inpainting({
 
         <Button
           onClick={handleInpaintingGenerate}
-          disabled={loading || !inputImageBase64}
+          disabled={
+            loading || !inputImageBase64 || isInpaintingEligible === false
+          }
           color="primary"
           size="lg"
           startDecorator={loading && <CircularProgress size="sm" />}
         >
           {loading ? 'Generating...' : 'Generate Inpainting'}
         </Button>
+
+        {/* Inpainting Eligibility Check */}
+        {isInpaintingEligible === false && (
+          <Typography color="danger" level="body-sm">
+            This model does not support inpainting. Please select a different
+            model or use the Generate tab for basic image generation.
+          </Typography>
+        )}
+
+        {isInpaintingEligible === null && inputImageBase64 && (
+          <Typography color="warning" level="body-sm">
+            Checking model compatibility for inpainting...
+          </Typography>
+        )}
 
         {error && (
           <Typography color="danger" level="body-sm">
