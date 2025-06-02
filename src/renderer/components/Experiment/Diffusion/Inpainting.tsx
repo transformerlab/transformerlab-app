@@ -11,6 +11,7 @@ import {
   Textarea,
   CircularProgress,
   FormLabel,
+  Tooltip,
 } from '@mui/joy';
 import {
   EraserIcon,
@@ -20,6 +21,9 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+
+import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
+
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
 
 interface InpaintingProps {
@@ -88,6 +92,7 @@ export default function Inpainting({
   });
   const containerRef = React.useRef<HTMLDivElement>(null);
   const imageRef = React.useRef<HTMLImageElement>(null);
+  const [maskRenderStyle, setMaskRenderStyle] = useState('red');
 
   // Calculate actual image dimensions and canvas positioning
   const updateCanvasDimensions = useCallback(() => {
@@ -212,6 +217,16 @@ export default function Inpainting({
     onGenerate();
   };
 
+  let maskCSSFilter = '';
+  if (maskRenderStyle === 'masked') {
+    maskCSSFilter = 'invert(0)';
+  }
+  if (maskRenderStyle === 'red') {
+    maskCSSFilter = 'invert(0.6) sepia(1) saturate(30) hue-rotate(-30deg)';
+  }
+  if (maskRenderStyle === 'maskonly') {
+    maskCSSFilter = 'invert(1)';
+  }
   return (
     <Stack
       direction="row"
@@ -301,7 +316,7 @@ export default function Inpainting({
         {inputImageBase64 && (
           <>
             <FormControl>
-              <FormLabel>Painting Tools</FormLabel>
+              <FormLabel>Tools</FormLabel>
               <ButtonGroup>
                 <IconButton
                   variant={drawMode === 'pencil' ? 'solid' : 'outlined'}
@@ -315,6 +330,21 @@ export default function Inpainting({
                 >
                   <EraserIcon />
                 </IconButton>
+                <Tooltip title="Apply Mask to Image">
+                  <IconButton onClick={() => setMaskRenderStyle('masked')}>
+                    <RxMaskOn />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Red Mask Style">
+                  <IconButton onClick={() => setMaskRenderStyle('red')}>
+                    <RxMaskOn color="red" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Show Mask Only">
+                  <IconButton onClick={() => setMaskRenderStyle('maskonly')}>
+                    <RxMaskOff />
+                  </IconButton>
+                </Tooltip>
               </ButtonGroup>
             </FormControl>
 
@@ -477,15 +507,16 @@ export default function Inpainting({
                 objectFit: 'contain',
                 zIndex: 1,
                 pointerEvents: 'none',
+                // set opacity to 0 if maskRenderStyle is 'maskonly'
+                opacity: maskRenderStyle === 'maskonly' ? 0 : 1,
               }}
             />
             {imageDimensions.width > 0 && imageDimensions.height > 0 && (
               <Box
                 sx={{
-                  position: 'absolute',
-                  width: imageDimensions.width,
-                  height: imageDimensions.height,
                   zIndex: 2,
+                  opacity: maskRenderStyle === 'red' ? 0.8 : 1,
+                  filter: maskCSSFilter,
                 }}
               >
                 <ReactCanvasPaint
@@ -518,9 +549,8 @@ export default function Inpainting({
             }}
           >
             <Stack spacing={2} alignItems="center">
-              <Upload size={48} color="var(--joy-palette-neutral-400)" />
               <Typography level="body-lg" color="neutral">
-                Upload an image to start inpainting
+                No image uploaded
               </Typography>
             </Stack>
           </Box>
