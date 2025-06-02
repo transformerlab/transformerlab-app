@@ -431,7 +431,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                 </FormControl>
                 {adaptor && (
                   <FormControl>
-                    <LabelWithTooltip tooltip="Optional LoRA adapter model that modifies the base model's behavior based on fine-tuned styles.">
+                    <LabelWithTooltip tooltip="Optional LoRA adaptor model that modifies the base model's behavior based on fine-tuned styles.">
                       Adaptor
                     </LabelWithTooltip>
                     <Input

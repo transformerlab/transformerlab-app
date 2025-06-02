@@ -379,7 +379,10 @@ export default function HistoryImageViewModal({
                         <strong>Adaptor:</strong>{' '}
                         {selectedImage.metadata.adaptor}
                         {selectedImage.metadata.adaptor_scale !== undefined && (
-                          <> (Scale: {selectedImage.metadata.adaptor_scale})</>
+                          <>
+                            {' '}
+                            (Strength: {selectedImage.metadata.adaptor_scale})
+                          </>
                         )}
                       </>
                     )}
