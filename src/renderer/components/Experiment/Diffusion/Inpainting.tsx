@@ -24,6 +24,7 @@ import {
 
 import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
 
+import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
 
 interface InpaintingProps {
@@ -396,21 +397,15 @@ export default function Inpainting({
         {/* Generation Settings */}
         <FormControl>
           <FormLabel>Prompt</FormLabel>
-          <Textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            minRows={3}
-            placeholder="Describe what you want to generate in the masked areas"
-          />
+          <SimpleTextArea value={prompt} setValue={setPrompt} />
         </FormControl>
 
         <FormControl>
           <FormLabel>Negative Prompt</FormLabel>
-          <Textarea
+          <SimpleTextArea
             value={negativePrompt}
-            onChange={(e) => setNegativePrompt(e.target.value)}
-            minRows={2}
-            placeholder="What you don't want to see"
+            setValue={setNegativePrompt}
+            rows={2}
           />
         </FormControl>
 
