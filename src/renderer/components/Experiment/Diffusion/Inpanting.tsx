@@ -15,24 +15,8 @@ export default function Inpainting() {
     height: 600,
   });
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-
-        p: 3,
-        m: 0,
-      }}
-    >
-      <Typography level="h3">This is fake for now</Typography>
-      <Box
-        sx={{
-          border: '1px solid #ccc',
-          position: 'relative',
-          width: dimensions.width,
-          height: dimensions.height + 70,
-        }}
-      >
+    <Box>
+      <Box sx={{}}>
         {showBg && (
           <Box
             component="img"
@@ -42,20 +26,14 @@ export default function Inpainting() {
               position: 'absolute',
               top: 0,
               left: 0,
-              width: dimensions.width,
-              height: dimensions.height,
               zIndex: 0,
             }}
           />
         )}
         <Box
           sx={{
-            position: 'absolute',
             top: 0,
             left: 0,
-            width: '100%',
-            height: '100%',
-            zIndex: 1,
             opacity: 0.7,
           }}
         >

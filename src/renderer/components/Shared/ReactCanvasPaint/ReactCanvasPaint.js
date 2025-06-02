@@ -13,6 +13,8 @@ function ReactCanvasPaint(props) {
   const [drawing, setDrawing] = useState(false);
   const [position, setPosition] = useState(null);
   const [activeColor, setActiveColor] = useState(props.colors[0]);
+  const [drawMode, setDrawMode] = useState(props.drawMode);
+  const [strokeWidth, setStrokeWidth] = useState(props.strokeWidth);
 
   const onDown = useCallback((event) => {
     const coordinates = getCoordinates(event);
@@ -70,8 +72,8 @@ function ReactCanvasPaint(props) {
     const context = canvas.current.getContext('2d');
 
     if (context) {
-      // Use drawMode prop to determine eraser or pencil
-      if (props.drawMode === 'eraser') {
+      // Use drawMode state to determine eraser or pencil
+      if (drawMode === 'eraser') {
         context.globalCompositeOperation = 'destination-out';
         context.strokeStyle = 'rgba(0,0,0,1)';
       } else {
@@ -79,7 +81,7 @@ function ReactCanvasPaint(props) {
         context.strokeStyle = activeColor;
       }
       context.lineJoin = 'round';
-      context.lineWidth = props.strokeWidth;
+      context.lineWidth = strokeWidth;
 
       context.beginPath();
       context.moveTo(originalPosition.x, originalPosition.y);
@@ -137,8 +139,17 @@ function ReactCanvasPaint(props) {
       }
       // Set the color to the first color in the palette
       setActiveColor(props.colors[0]);
+      setDrawMode(props.drawMode);
+      setStrokeWidth(props.strokeWidth);
     }
-  }, [props.data, props.width, props.height, props.colors]);
+  }, [
+    props.data,
+    props.width,
+    props.height,
+    props.colors,
+    props.drawMode,
+    props.strokeWidth,
+  ]);
 
   function clearCanvas() {
     if (canvas.current) {
@@ -160,24 +171,26 @@ function ReactCanvasPaint(props) {
         </Button>
         <IconButton
           onClick={() => {
-            props.drawMode = 'eraser';
+            setDrawMode('eraser');
           }}
+          disabled={drawMode === 'eraser'}
         >
           <EraserIcon />
         </IconButton>
         <IconButton
           onClick={() => {
-            props.drawMode = 'pencil';
+            setDrawMode('pencil');
           }}
+          disabled={drawMode === 'pencil'}
         >
           <PencilIcon />
         </IconButton>
         {[5, 10, 15, 20, 50, 90].map((size) => (
           <Button
-            variant={props.strokeWidth === size ? 'solid' : 'outlined'}
+            variant={strokeWidth === size ? 'solid' : 'outlined'}
             key={size}
             onClick={() => {
-              props;
+              setStrokeWidth(size);
             }}
           >
             <Box
