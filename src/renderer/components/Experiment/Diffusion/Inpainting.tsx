@@ -331,17 +331,28 @@ export default function Inpainting({
                   <EraserIcon />
                 </IconButton>
                 <Tooltip title="Apply Mask to Image">
-                  <IconButton onClick={() => setMaskRenderStyle('masked')}>
+                  <IconButton
+                    onClick={() => setMaskRenderStyle('masked')}
+                    variant={maskRenderStyle === 'masked' ? 'soft' : 'outlined'}
+                  >
                     <RxMaskOn />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Red Mask Style">
-                  <IconButton onClick={() => setMaskRenderStyle('red')}>
+                  <IconButton
+                    onClick={() => setMaskRenderStyle('red')}
+                    variant={maskRenderStyle === 'red' ? 'soft' : 'outlined'}
+                  >
                     <RxMaskOn color="red" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Show Mask Only">
-                  <IconButton onClick={() => setMaskRenderStyle('maskonly')}>
+                  <IconButton
+                    onClick={() => setMaskRenderStyle('maskonly')}
+                    variant={
+                      maskRenderStyle === 'maskonly' ? 'soft' : 'outlined'
+                    }
+                  >
                     <RxMaskOff />
                   </IconButton>
                 </Tooltip>
