@@ -28,6 +28,7 @@ import {
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import History from './History';
+import Inpainting from './Inpanting';
 
 type DiffusionProps = {
   experimentInfo: any;
@@ -315,6 +316,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         <TabList>
           <Tab value="generate">Generate New Image</Tab>
           <Tab value="history">Image History</Tab>
+          <Tab value="inpainting">Inpainting</Tab>
         </TabList>
 
         <TabPanel
@@ -922,6 +924,18 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         >
           <Sheet sx={{ height: '100%', overflowY: 'auto' }}>
             <History />
+          </Sheet>
+        </TabPanel>
+        <TabPanel
+          value="inpainting"
+          sx={{
+            p: 0,
+            height: '100%',
+            overflow: 'hidden',
+          }}
+        >
+          <Sheet sx={{ height: '100%', overflowY: 'auto' }}>
+            <Inpainting />
           </Sheet>
         </TabPanel>
       </Tabs>
