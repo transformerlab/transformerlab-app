@@ -77,6 +77,7 @@ export default function Inpainting({
 }: InpaintingProps) {
   const [strokeSize, setStrokeSize] = useState(20);
   const [drawMode, setDrawMode] = useState<'pencil' | 'eraser'>('pencil');
+  const [canvasKey, setCanvasKey] = useState(0);
   const [imageDimensions, setImageDimensions] = useState({
     width: 0,
     height: 0,
@@ -160,6 +161,8 @@ export default function Inpainting({
 
   const handleClearMask = () => {
     setMaskImageBase64('');
+    // Force canvas to re-render and clear by changing the key
+    setCanvasKey((prev) => prev + 1);
   };
 
   const handleCanvasDraw = useCallback(
@@ -486,6 +489,7 @@ export default function Inpainting({
                 }}
               >
                 <ReactCanvasPaint
+                  key={canvasKey}
                   width={imageDimensions.width}
                   height={imageDimensions.height}
                   colors={['#FFFFFF']}
