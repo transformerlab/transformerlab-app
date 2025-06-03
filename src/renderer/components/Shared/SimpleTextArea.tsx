@@ -1,9 +1,23 @@
+import React from 'react';
+
+interface SimpleTextAreaProps {
+  value: string;
+  setValue: (value: string) => void;
+  rows?: number;
+  placeholder?: string;
+}
+
 /** *****
  * Here we implement our own simple textarea component. This is to be used instead
  * of MUI Joy's Textarea because MUI Joy has a bug where the resize observer keeps
  * causing issues.
  ***** */
-export default function SimpleTextArea({ value, setValue, rows = 6 }) {
+export default function SimpleTextArea({
+  value,
+  setValue,
+  rows = 6,
+  placeholder = 'Describe the image you want to generate',
+}: SimpleTextAreaProps) {
   return (
     <div
       style={{
@@ -17,7 +31,7 @@ export default function SimpleTextArea({ value, setValue, rows = 6 }) {
         rows={rows}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Describe the image you want to generate"
+        placeholder={placeholder}
         style={{
           resize: 'none',
           width: '100%',

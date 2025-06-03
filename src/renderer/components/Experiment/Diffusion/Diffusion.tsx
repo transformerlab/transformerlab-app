@@ -7,7 +7,6 @@ import {
   Sheet,
   Stack,
   Typography,
-  Textarea,
   Box,
   Tabs,
   TabList,
@@ -763,10 +762,10 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         <LabelWithTooltip tooltip="Describe what you don't want to see in the generated image. This helps guide the model away from unwanted elements, styles, or features.">
                           Negative Prompt
                         </LabelWithTooltip>
-                        <Textarea
-                          minRows={2}
+                        <SimpleTextArea
+                          rows={2}
                           value={negativePrompt}
-                          onChange={(e) => setNegativePrompt(e.target.value)}
+                          setValue={setNegativePrompt}
                           placeholder="Describe what you don't want in the image"
                         />
                       </FormControl>
