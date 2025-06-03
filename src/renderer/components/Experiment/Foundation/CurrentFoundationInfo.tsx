@@ -103,18 +103,41 @@ export default function CurrentFoundationInfo({
 
   // New state for adapter search & install
   const [adapterSearchText, setAdapterSearchText] = useState('');
-  const [adapterResults, setAdapterResults] = useState([]);
   const [jobId, setJobId] = useState(null);
   const [currentlyInstalling, setCurrentlyInstalling] = useState(null);
   const [canceling, setCanceling] = useState(false);
+  const { data: baseProvenance, error: baseProvenanceError } = useSWR(
+    chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
+    fetcher,
+  );
 
-  const fetchAdapters = async () => {
-    const response = await fetch(
-      chatAPI.Endpoints.Models.SearchPeft(adapterSearchText),
-    );
-    const results = await response.json();
-    setAdapterResults(results);
-  };
+  const { data: serverInfo } = useSWR(
+    chatAPI.Endpoints.ServerInfo.Get(),
+    fetcher,
+  );
+  const device = serverInfo?.device;
+
+  const { data: adaptorProvenance, error: adaptorProvenanceError } = useSWR(
+    selectedProvenanceModel && selectedProvenanceModel !== huggingfaceId
+      ? chatAPI.Endpoints.Models.ModelProvenance(
+          `${huggingfaceId}_${selectedProvenanceModel}`,
+        )
+      : null,
+    fetcher,
+  );
+
+  const currentProvenance =
+    selectedProvenanceModel === huggingfaceId
+      ? baseProvenance
+      : adaptorProvenance;
+  const currentProvenanceError =
+    selectedProvenanceModel === huggingfaceId
+      ? baseProvenanceError
+      : adaptorProvenanceError;
+
+  useEffect(() => {
+    setSelectedProvenanceModel(huggingfaceId);
+  }, [huggingfaceId]);
 
   const pollJobStatus = (jobId) => {
     const intervalId = setInterval(async () => {
@@ -186,6 +209,81 @@ export default function CurrentFoundationInfo({
     }
   };
 
+  const handleAdapterDownload = async () => {
+    const adapterId = adapterSearchText.trim();
+    if (!adapterId) {
+      alert('Please enter an adapter ID.');
+      return;
+    }
+    const installedResponse = await fetch(
+      chatAPI.Endpoints.Models.GetPeftsForModel(),
+      {
+        method: 'POST',
+        body: experimentInfo.config.foundation,
+      },
+    );
+    const installed = await installedResponse.json(); // sanitized names (e.g., sheenrooff_Llama...)
+    const secureAdapterId = adapterSearchText.replace(/\//g, '_');
+
+    if (installed.includes(secureAdapterId)) {
+      const shouldReplace = confirm(
+        'This adapter is already installed. Do you want to install it again? This will replace the existing version.',
+      );
+      if (!shouldReplace) return;
+
+      // 🔥 Delete existing adapter first
+      await fetch(
+        chatAPI.Endpoints.Models.DeletePeft(
+          experimentInfo.config.foundation,
+          secureAdapterId,
+        ),
+      );
+    }
+
+    const response = await fetch(
+      chatAPI.Endpoints.Models.SearchPeft(
+        adapterId,
+        experimentInfo?.config?.foundation,
+        device,
+      ),
+    );
+    const results = await response.json();
+
+    const adapter = results[0];
+    if (adapter?.check_status?.error === 'not found') {
+      alert(`Adapter "${adapterId}" not found.`);
+      return;
+    }
+
+    const status = adapter.check_status || {};
+
+    // Hard fail: base model mismatch
+    if (status.base_model_name === 'fail') {
+      alert('Download rejected: base model mismatch.');
+      return;
+    }
+
+    // Soft fail: one or more status fields explicitly failed
+    const failed = Object.entries(status).find(([k, v]) => v === 'fail');
+    if (failed) {
+      alert(`Download rejected: check failed for "${failed[0]}"`);
+      return;
+    }
+
+    // Unknown fields: prompt confirmation
+    const unknowns = Object.entries(status).filter(([_, v]) => v === 'unknown');
+    if (unknowns.length > 0) {
+      const unknownKeys = unknowns.map(([k]) => k).join(', ');
+      const proceed = confirm(
+        `Some compatibility checks couldn't be determined: ${unknownKeys}. Proceed with download?`,
+      );
+      if (!proceed) return;
+    }
+
+    // If all passed or user confirmed unknowns → proceed with install
+    await installAdapter(adapterId);
+  };
+
   const handleCancelDownload = async () => {
     if (jobId) {
       setCanceling(true);
@@ -199,33 +297,6 @@ export default function CurrentFoundationInfo({
       setCanceling(false);
     }
   };
-
-  const { data: baseProvenance, error: baseProvenanceError } = useSWR(
-    chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
-    fetcher,
-  );
-
-  const { data: adaptorProvenance, error: adaptorProvenanceError } = useSWR(
-    selectedProvenanceModel && selectedProvenanceModel !== huggingfaceId
-      ? chatAPI.Endpoints.Models.ModelProvenance(
-          `${huggingfaceId}_${selectedProvenanceModel}`,
-        )
-      : null,
-    fetcher,
-  );
-
-  const currentProvenance =
-    selectedProvenanceModel === huggingfaceId
-      ? baseProvenance
-      : adaptorProvenance;
-  const currentProvenanceError =
-    selectedProvenanceModel === huggingfaceId
-      ? baseProvenanceError
-      : adaptorProvenanceError;
-
-  useEffect(() => {
-    setSelectedProvenanceModel(huggingfaceId);
-  }, [huggingfaceId]);
 
   const resetToDefaultEmbedding = async () => {
     setEmbeddingModel(DEFAULT_EMBEDDING_MODEL);
@@ -418,98 +489,62 @@ export default function CurrentFoundationInfo({
         {/* Adaptors Tab */}
         <TabPanel value={2} sx={{ p: 2 }}>
           <Typography level="title-lg" marginBottom={2}>
-            Available Adaptors
+            Download an Adapter from HuggingFace 🤗
           </Typography>
 
           {/* Download progress box */}
           {currentlyInstalling && jobId && (
-            <Box sx={{ position: 'relative', marginBottom: 2 }}>
-              <DownloadProgressBox
-                jobId={jobId}
-                assetName={currentlyInstalling}
-              />
-              <Button
-                variant="outlined"
-                size="sm"
-                color="danger"
-                disabled={canceling}
-                onClick={handleCancelDownload}
-                sx={{ position: 'absolute', top: '1rem', right: '1rem' }}
-              >
-                {canceling ? 'Stopping...' : 'Cancel Installation'}
-              </Button>
-            </Box>
+            <Sheet
+              sx={{
+                borderRadius: 'md',
+                p: 2,
+                my: 2,
+                position: 'relative',
+              }}
+            >
+              <Box sx={{ position: 'relative', marginBottom: 2 }}>
+                <DownloadProgressBox
+                  jobId={jobId}
+                  assetName={currentlyInstalling}
+                />
+
+                {jobId && (
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    color="neutral"
+                    disabled={canceling}
+                    onClick={handleCancelDownload}
+                    sx={{ position: 'absolute', top: '1rem', right: '1rem' }}
+                  >
+                    {canceling ? 'Stopping...' : 'Cancel Installation'}
+                  </Button>
+                )}
+              </Box>
+            </Sheet>
           )}
 
           {/* Search bar */}
           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
             <Input
-              placeholder="Search adapters"
+              placeholder="Enter Adapter ID here"
               value={adapterSearchText}
               onChange={(e) => setAdapterSearchText(e.target.value)}
-              startDecorator={<SearchIcon />}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleAdapterDownload();
+                }
+              }}
+              startDecorator={<DownloadIcon />}
             />
-            <Button onClick={fetchAdapters}>Search</Button>
-          </Box>
-
-          {/* Scrollable adapter results */}
-          <Box sx={{ maxHeight: 400, overflowY: 'auto', mb: 2 }}>
-            <Table stickyHeader hoverRow>
-              <thead>
-                <tr>
-                  <th>Adapter ID</th>
-                  <th>Description</th>
-                  <th>Downloads</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {adapterResults.length === 0 ? (
-                  <tr>
-                    <td colSpan={4}>
-                      <Typography level="body-sm" textAlign="center">
-                        No adapters found.
-                      </Typography>
-                    </td>
-                  </tr>
-                ) : (
-                  adapterResults.map((adapter) => (
-                    <tr key={adapter.adapter_id}>
-                      <td>{adapter.adapter_id}</td>
-                      <td>{adapter.description || 'N/A'}</td>
-                      <td>{adapter.downloads || 0}</td>
-                      <td>
-                        <Button
-                          size="sm"
-                          variant="soft"
-                          color="success"
-                          startDecorator={<DownloadIcon />}
-                          endDecorator={
-                            currentlyInstalling === adapter.adapter_id ? (
-                              <CheckIcon />
-                            ) : null
-                          }
-                          disabled={jobId !== null}
-                          onClick={() => installAdapter(adapter.adapter_id)}
-                        >
-                          Install
-                          {currentlyInstalling === adapter.adapter_id
-                            ? 'ing'
-                            : ''}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </Table>
+            <Button onClick={handleAdapterDownload}>Download</Button>
           </Box>
 
           {/* Installed adapters section */}
           <Typography level="title-md" marginTop={4}>
-            Installed Adaptors
+            Available Adaptors
           </Typography>
-          <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+          <Box sx={{ maxHeight: 400, overflowY: 'auto', pr: 1 }}>
             <Stack direction="column" spacing={2}>
               {peftData && peftData.length === 0 && (
                 <Typography level="body-sm" color="neutral">
@@ -529,7 +564,9 @@ export default function CurrentFoundationInfo({
                       alignItems: 'center',
                     }}
                   >
-                    <Typography level="title-md">{peft}</Typography>
+                    <Typography level="title-md">
+                      {peft.replace('_', '/')}
+                    </Typography>
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Button
                         variant={adaptor === peft ? 'solid' : 'soft'}
