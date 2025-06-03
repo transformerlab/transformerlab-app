@@ -24,6 +24,8 @@ import {
   Info,
   ChevronLeft,
   ChevronRight,
+  XIcon,
+  ImageIcon,
 } from 'lucide-react';
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
@@ -582,6 +584,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         variant="outlined"
                         size="sm"
                         sx={{ alignSelf: 'flex-start' }}
+                        startDecorator={<ImageIcon size={16} />}
                       >
                         Upload Reference Image
                       </Button>
@@ -595,13 +598,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     </Box>
                   ) : (
                     <Stack gap={1}>
-                      <Box
-                        sx={{
-                          position: 'relative',
-                          display: 'inline-block',
-                          maxWidth: 200,
-                        }}
-                      >
+                      <Box sx={{ display: 'flex' }}>
                         <img
                           src={`data:image/png;base64,${inputImageBase64}`}
                           alt="Reference"
@@ -618,14 +615,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                           color="danger"
                           onClick={handleRemoveImage}
                           sx={{
-                            position: 'absolute',
-                            top: 4,
-                            right: 4,
                             minHeight: 'unset',
                             p: 0.5,
                           }}
                         >
-                          ×
+                          <XIcon size={16} />
                         </Button>
                       </Box>
                       <FormControl sx={{ minWidth: 120 }}>
