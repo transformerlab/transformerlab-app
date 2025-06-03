@@ -971,6 +971,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
               sx={{
                 overflow: 'hidden',
                 display: 'flex',
+                flexDirection: 'column',
                 paddingBottom: 1,
                 paddingRight: 1,
               }}
@@ -988,10 +989,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   startDecorator={<AlertTriangleIcon />}
                   sx={{
                     mt: 1,
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 10,
-                    boxShadow: 'md',
+                    maxWidth: '100%',
+                    alignSelf: 'flex-start',
                   }}
                 >
                   <Typography level="body-sm">
