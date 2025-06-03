@@ -1150,6 +1150,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         >
           <Sheet sx={{ height: '100%', overflowY: 'auto' }}>
             <Inpainting
+              model={model}
+              adaptor={adaptor}
               prompt={inpaintingPrompt}
               setPrompt={setInpaintingPrompt}
               inputImageBase64={inpaintingInputImageBase64}

@@ -62,6 +62,8 @@ const LabelWithTooltip = ({
 );
 
 interface InpaintingProps {
+  model: string;
+  adaptor: string;
   prompt: string;
   setPrompt: Dispatch<SetStateAction<string>>;
   inputImageBase64: string;
@@ -97,6 +99,8 @@ interface InpaintingProps {
 }
 
 export default function Inpainting({
+  model,
+  adaptor,
   prompt,
   setPrompt,
   inputImageBase64,
@@ -289,9 +293,9 @@ export default function Inpainting({
       {/* Left Panel - Controls */}
       <Stack
         sx={{
-          width: '25%',
-          minWidth: 320,
-          maxWidth: 400,
+          width: '30%',
+          minWidth: 380,
+          maxWidth: 480,
           height: '100%',
           overflow: 'auto',
           p: 2,
@@ -300,6 +304,32 @@ export default function Inpainting({
         spacing={2}
       >
         <Typography level="h4">Inpainting</Typography>
+
+        {/* Model and Adaptor Fields */}
+        <FormControl>
+          <LabelWithTooltip tooltip="The foundation model being used for image generation. This determines the style and capabilities of the generated images.">
+            Model
+          </LabelWithTooltip>
+          <Input
+            value={model}
+            disabled
+            readOnly
+            placeholder="Model name or path"
+          />
+        </FormControl>
+        {adaptor && (
+          <FormControl>
+            <LabelWithTooltip tooltip="Optional LoRA adaptor model that modifies the base model's behavior based on fine-tuned styles.">
+              Adaptor
+            </LabelWithTooltip>
+            <Input
+              value={adaptor}
+              disabled
+              readOnly
+              placeholder="Adaptor name or path"
+            />
+          </FormControl>
+        )}
 
         {/* Image Upload */}
         <FormControl>
