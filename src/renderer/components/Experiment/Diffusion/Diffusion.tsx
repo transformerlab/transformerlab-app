@@ -609,7 +609,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     </Box>
                   ) : (
                     <Stack gap={1}>
-                      <Box sx={{ display: 'flex' }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 0.5,
+                        }}
+                      >
                         <img
                           src={`data:image/png;base64,${inputImageBase64}`}
                           alt="Reference"
