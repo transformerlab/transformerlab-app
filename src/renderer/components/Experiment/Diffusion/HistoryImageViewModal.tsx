@@ -36,7 +36,7 @@ export default function HistoryImageViewModal({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [numImages, setNumImages] = useState(1);
-  const [hoveringMainImage, setHoveringMainImage] = useState(false);
+  // const [hoveringMainImage, setHoveringMainImage] = useState(false);
 
   // Load all images for the selected item when modal opens
   useEffect(() => {
@@ -134,10 +134,11 @@ export default function HistoryImageViewModal({
                     position: 'relative',
                   }}
                   id="image-preview"
-                  onMouseEnter={() => {
-                    setHoveringMainImage(true);
-                  }}
-                  onMouseLeave={() => setHoveringMainImage(false)}
+                  // onMouseEnter={() => {
+                  //   setHoveringMainImage(true);
+                  // }}
+                  // onMouseLeave={() => setHoveringMainImage(false)
+                  // }
                 >
                   {/* Navigation buttons for multiple images */}
                   {numImages > 1 && (
@@ -194,11 +195,12 @@ export default function HistoryImageViewModal({
                       objectFit: 'contain',
                       borderRadius: '6px',
                       margin: '0 auto',
-                      display:
-                        hoveringMainImage &&
-                        selectedImage.metadata.is_inpainting
-                          ? 'none'
-                          : 'block',
+                      display: 'block',
+                      // display:
+                      //   hoveringMainImage &&
+                      //   selectedImage.metadata.is_inpainting
+                      //     ? 'none'
+                      //     : 'block',
                     }}
                   />
                   {selectedImage.metadata.is_inpainting &&
@@ -215,10 +217,11 @@ export default function HistoryImageViewModal({
                             objectFit: 'contain',
                             borderRadius: '6px',
                             margin: '0 auto',
-                            display: hoveringMainImage ? 'block' : 'none',
+                            display: 'none',
+                            // display: hoveringMainImage ? 'block' : 'none',
                           }}
                         />
-                        {hoveringMainImage ? (
+                        {/* {hoveringMainImage ? (
                           <Typography level="body-sm" sx={{ mt: 1 }}>
                             Original Image
                           </Typography>
@@ -226,7 +229,7 @@ export default function HistoryImageViewModal({
                           <Typography level="body-sm" sx={{ mt: 1 }}>
                             Hover to view original image
                           </Typography>
-                        )}
+                        )} */}
                       </>
                     )}
                   {/* Thumbnail navigation for multiple images */}
