@@ -458,7 +458,15 @@ export default function Inpainting({
           <SimpleTextArea value={prompt} setValue={setPrompt} />
         </FormControl>
 
-        <Stack direction="row" spacing={1}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            rowGap: 2,
+            columnGap: 1,
+          }}
+        >
           <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
             <LabelWithTooltip tooltip="Number of denoising steps. More steps generally produce higher quality images but take longer to generate. Typical values range from 20-50.">
               Steps
@@ -481,9 +489,6 @@ export default function Inpainting({
               onChange={(e) => setGuidanceScale(Number(e.target.value))}
             />
           </FormControl>
-        </Stack>
-
-        <Stack direction="row" spacing={1}>
           <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
             <LabelWithTooltip tooltip="Controls how much the AI modifies the masked regions. Lower values (0.1-0.5) make subtle changes, higher values (0.6-1.0) make dramatic changes.">
               Strength
@@ -514,9 +519,6 @@ export default function Inpainting({
               placeholder="Random"
             />
           </FormControl>
-        </Stack>
-
-        <Stack direction="row" spacing={1}>
           <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
             <LabelWithTooltip tooltip="Number of images to generate in parallel. Higher values will take longer but produce more options to choose from.">
               Number of Images
@@ -535,7 +537,7 @@ export default function Inpainting({
               }}
             />
           </FormControl>
-        </Stack>
+        </Box>
 
         <Sheet variant="soft" sx={{ p: 2, mt: 1 }}>
           {/* Advanced Settings Toggle */}

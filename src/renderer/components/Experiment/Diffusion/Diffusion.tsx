@@ -660,11 +660,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   )}
                 </FormControl>
 
-                <Stack
-                  gap={1}
+                <Box
                   sx={{
+                    display: 'flex',
                     flexDirection: 'row',
                     flexWrap: 'wrap',
+                    rowGap: 2,
+                    columnGap: 1,
                   }}
                 >
                   <FormControl
@@ -735,7 +737,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                       }}
                     />
                   </FormControl>
-                </Stack>
+                </Box>
 
                 <Sheet variant="soft" sx={{ p: 2, mt: 1 }}>
                   {/* Advanced Settings Toggle */}
