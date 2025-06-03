@@ -303,7 +303,9 @@ export default function Inpainting({
 
         {/* Image Upload */}
         <FormControl>
-          <FormLabel>Reference Image</FormLabel>
+          <LabelWithTooltip tooltip="Upload an image to use as a reference for inpainting. The image will be displayed for you to mask areas that you want to modify.">
+            Reference Image
+          </LabelWithTooltip>
           {!inputImageBase64 ? (
             <Stack spacing={1}>
               <input
