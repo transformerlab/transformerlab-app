@@ -186,7 +186,8 @@ const LocalModelsTable = ({
                         ml={2}
                         fontWeight="lg"
                         startDecorator={
-                          row?.json_data?.model_type === 'stable-diffusion' ? (
+                          row?.json_data?.model_type === 'stable-diffusion' ||
+                          row?.json_data?.model_type === 'diffusion' ? (
                             <RiImageAiLine />
                           ) : (
                             <RiChatAiLine />
