@@ -555,7 +555,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   <LabelWithTooltip tooltip="Describe the image you want to generate. Be specific and detailed for better results.">
                     Prompt
                   </LabelWithTooltip>
-                  <SimpleTextArea value={prompt} setValue={setPrompt} />
+                  <SimpleTextArea
+                    value={prompt}
+                    setValue={setPrompt}
+                    rows={4}
+                  />
                 </FormControl>
 
                 {/* Image Upload - Optional Reference Image */}
@@ -821,32 +825,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     />
                   </FormControl>
                 </Stack>
-                <Stack
-                  gap={1}
-                  sx={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Tooltip
-                    title="Enhance the generated image resolution by upscaling it 2x using a upscaling model. This improves detail and clarity, especially for low-resolution outputs."
-                    arrow
-                    placement="top"
-                    sx={{ maxWidth: 200 }}
-                    variant="soft"
-                  >
-                    <Checkbox
-                      checked={upscale}
-                      onChange={(e) => {
-                        setUpscale(e.target.checked);
-                        if (e.target.checked) {
-                          setUpscaleFactor(2);
-                        }
-                      }}
-                      label="Upscale image (2x)"
-                    />
-                  </Tooltip>
-                </Stack>
+
                 <Sheet variant="soft" sx={{ p: 2, mt: 1 }}>
                   {/* Advanced Settings Toggle */}
                   <Button
@@ -996,6 +975,32 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                             }}
                           />
                         </FormControl>
+                      </Stack>
+                      <Stack
+                        gap={1}
+                        sx={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Tooltip
+                          title="Enhance the generated image resolution by upscaling it 2x using a upscaling model. This improves detail and clarity, especially for low-resolution outputs."
+                          arrow
+                          placement="top"
+                          sx={{ maxWidth: 200 }}
+                          variant="soft"
+                        >
+                          <Checkbox
+                            checked={upscale}
+                            onChange={(e) => {
+                              setUpscale(e.target.checked);
+                              if (e.target.checked) {
+                                setUpscaleFactor(2);
+                              }
+                            }}
+                            label="Upscale image (2x)"
+                          />
+                        </Tooltip>
                       </Stack>
                     </Stack>
                   )}
