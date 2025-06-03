@@ -16,6 +16,7 @@ import {
   Tooltip,
   IconButton,
   CircularProgress,
+  Alert,
 } from '@mui/joy';
 import {
   ChevronDown,
@@ -26,8 +27,12 @@ import {
   XIcon,
   ImageIcon,
   HistoryIcon,
+  AlertTriangleIcon,
 } from 'lucide-react';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getFullPath,
+  useServerStats,
+} from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import History from './History';
 import Inpainting from './Inpainting';
@@ -70,6 +75,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const initialModel = experimentInfo?.config?.foundation || '';
   const adaptor = experimentInfo?.config?.adaptor || '';
   const [model, setModel] = useState(initialModel);
+
+  // Get server stats for machine type detection
+  const { server } = useServerStats();
 
   // Generate tab state
   const [prompt, setPrompt] = useState('An astronaut floating in space');
@@ -144,6 +152,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     } else {
       setGenerateImages(images);
     }
+  };
+
+  // Helper function to detect if machine is Apple Silicon
+  const isAppleSilicon = () => {
+    return server?.device_type === 'apple_silicon';
   };
 
   // Update model when experimentInfo changes
@@ -967,6 +980,28 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                 <Typography color="danger">
                   This model is not eligible for diffusion.
                 </Typography>
+              )}
+              {isAppleSilicon() && (
+                <Alert
+                  color="danger"
+                  variant="soft"
+                  startDecorator={<AlertTriangleIcon />}
+                  sx={{
+                    mt: 1,
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    boxShadow: 'md',
+                  }}
+                >
+                  <Typography level="body-sm">
+                    <strong>
+                      MLX is not currently supported for Diffusion.
+                    </strong>{' '}
+                    Any diffusion operations would use the CPU, which may be
+                    significantly slower.
+                  </Typography>
+                </Alert>
               )}
               {inputImageBase64 && isImg2ImgEligible === false && (
                 <Typography color="danger">
