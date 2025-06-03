@@ -264,7 +264,7 @@ export default function RunModelButton({
             <Link to="/experiment/diffusion">
               <RiImageAiLine
                 size="16px"
-                style={{ verticalAlign: 'middle', marginRight: '1.5px' }}
+                style={{ verticalAlign: 'middle', marginRight: '2px' }}
               />
               Diffusion
             </Link>{' '}
