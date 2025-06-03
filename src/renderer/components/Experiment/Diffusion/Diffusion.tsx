@@ -25,11 +25,13 @@ import {
   ChevronRight,
   XIcon,
   ImageIcon,
+  HistoryIcon,
 } from 'lucide-react';
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import History from './History';
 import Inpainting from './Inpainting';
+import HistoryImageSelector from './HistoryImageSelector';
 
 type DiffusionProps = {
   experimentInfo: any;
@@ -129,6 +131,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   >(null);
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   // Helper functions to get the appropriate images based on active tab
   const getCurrentImages = () => {
@@ -224,6 +227,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setMaskImageBase64('');
     setInpaintingMode(false);
     setIsInpaintingEligible(null);
+  };
+
+  const handleSelectFromHistory = (imageBase64: string) => {
+    setInputImageBase64(imageBase64);
+    setHistoryModalOpen(false);
+    // Check if model supports img2img when image is selected from history
+    checkImg2ImgEligibility();
   };
 
   const handleMaskUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -588,16 +598,25 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         style={{ display: 'none' }}
                         id="reference-image-upload"
                       />
-                      <Button
-                        component="label"
-                        htmlFor="reference-image-upload"
-                        variant="outlined"
-                        size="sm"
-                        sx={{ alignSelf: 'flex-start' }}
-                        startDecorator={<ImageIcon size={16} />}
-                      >
-                        Upload Reference Image
-                      </Button>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          component="label"
+                          htmlFor="reference-image-upload"
+                          variant="outlined"
+                          size="sm"
+                          startDecorator={<ImageIcon size={16} />}
+                        >
+                          Upload Reference Image
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          size="sm"
+                          startDecorator={<HistoryIcon size={16} />}
+                          onClick={() => setHistoryModalOpen(true)}
+                        >
+                          From History
+                        </Button>
+                      </Stack>
                       <Typography
                         level="body-xs"
                         sx={{ mt: 0.5, color: 'text.tertiary' }}
@@ -1167,6 +1186,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
           </Sheet>
         </TabPanel>
       </Tabs>
+
+      {/* History Image Selector Modal */}
+      <HistoryImageSelector
+        open={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        onSelectImage={handleSelectFromHistory}
+      />
     </Sheet>
   );
 }
