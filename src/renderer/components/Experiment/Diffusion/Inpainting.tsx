@@ -19,12 +19,14 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  HistoryIcon,
 } from 'lucide-react';
 
 import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
 
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
+import HistoryImageSelector from './HistoryImageSelector';
 
 interface InpaintingProps {
   prompt: string;
@@ -91,6 +93,7 @@ export default function Inpainting({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const imageRef = React.useRef<HTMLImageElement>(null);
   const [maskRenderStyle, setMaskRenderStyle] = useState('red');
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   // Calculate actual image dimensions and canvas positioning
   const updateCanvasDimensions = useCallback(() => {
@@ -155,6 +158,11 @@ export default function Inpainting({
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSelectFromHistory = (imageBase64: string) => {
+    setInputImageBase64(imageBase64);
+    setHistoryModalOpen(false);
   };
 
   const handleClearMask = () => {
@@ -249,7 +257,7 @@ export default function Inpainting({
         <FormControl>
           <FormLabel>Reference Image</FormLabel>
           {!inputImageBase64 ? (
-            <Box>
+            <Stack spacing={1}>
               <input
                 type="file"
                 accept="image/*"
@@ -266,7 +274,15 @@ export default function Inpainting({
               >
                 Upload Image
               </Button>
-            </Box>
+              <Button
+                variant="outlined"
+                startDecorator={<HistoryIcon />}
+                onClick={() => setHistoryModalOpen(true)}
+                fullWidth
+              >
+                From History
+              </Button>
+            </Stack>
           ) : (
             <Stack spacing={1}>
               <Box
@@ -423,11 +439,12 @@ export default function Inpainting({
         </Stack>
 
         <Stack direction="row" spacing={1}>
-          <FormControl sx={{ flex: 1 }}>
+          <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
             <FormLabel>Strength</FormLabel>
             <Input
               type="number"
               value={strength}
+              sx={{ width: 100 }}
               onChange={(e) => setStrength(Number(e.target.value))}
               slotProps={{
                 input: {
@@ -438,11 +455,12 @@ export default function Inpainting({
               }}
             />
           </FormControl>
-          <FormControl sx={{ flex: 1 }}>
+          <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
             <FormLabel>Seed</FormLabel>
             <Input
               type="number"
               value={seed}
+              sx={{ width: 100 }}
               onChange={(e) => setSeed(e.target.value)}
               placeholder="Random"
             />
@@ -662,6 +680,13 @@ export default function Inpainting({
           </Stack>
         )}
       </Stack>
+
+      {/* History Image Selector Modal */}
+      <HistoryImageSelector
+        open={historyModalOpen}
+        onClose={() => setHistoryModalOpen(false)}
+        onSelectImage={handleSelectFromHistory}
+      />
     </Stack>
   );
 }
