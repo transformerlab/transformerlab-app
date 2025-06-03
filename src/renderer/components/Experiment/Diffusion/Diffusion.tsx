@@ -108,6 +108,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     useState('');
   const [inpaintingMaskImageBase64, setInpaintingMaskImageBase64] =
     useState('');
+  const [inpaintingImageWidth, setInpaintingImageWidth] = useState('');
+  const [inpaintingImageHeight, setInpaintingImageHeight] = useState('');
+  const [inpaintingNumImages, setInpaintingNumImages] = useState(1);
 
   // Separate state for generated images on each tab
   const [generateImages, setGenerateImages] = useState<string[]>([]);
@@ -347,7 +350,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         seed: inpaintingSeed ? Number(inpaintingSeed) : -1, // -1 means random seed
         upscale,
         upscale_factor: Number(upscaleFactor),
-        num_images: Number(numImages),
+        num_images: Number(inpaintingNumImages) || 1, // Default to 1 if not specified
       };
 
       // Add inpainting parameters
@@ -368,6 +371,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       // Add negative prompt if specified
       if (inpaintingNegativePrompt.trim()) {
         requestBody.negative_prompt = inpaintingNegativePrompt;
+      }
+
+      // Add advanced parameters only if they are specified
+      if (inpaintingImageWidth && Number(inpaintingImageWidth) !== 0) {
+        requestBody.width = Number(inpaintingImageWidth);
+      }
+      if (inpaintingImageHeight && Number(inpaintingImageHeight) !== 0) {
+        requestBody.height = Number(inpaintingImageHeight);
       }
 
       const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
@@ -1133,11 +1144,18 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
               error={error}
               generatedImages={inpaintingImages}
               currentImageIndex={currentImageIndex}
+              setCurrentImageIndex={setCurrentImageIndex}
               handlePreviousImage={handlePreviousImage}
               handleNextImage={handleNextImage}
               handleSaveAllImages={handleSaveAllImages}
               currentGenerationData={currentGenerationData}
               isInpaintingEligible={isInpaintingEligible}
+              imageWidth={inpaintingImageWidth}
+              setImageWidth={setInpaintingImageWidth}
+              imageHeight={inpaintingImageHeight}
+              setImageHeight={setInpaintingImageHeight}
+              numImages={inpaintingNumImages}
+              setNumImages={setInpaintingNumImages}
             />
           </Sheet>
         </TabPanel>

@@ -11,6 +11,8 @@ import {
   CircularProgress,
   FormLabel,
   Tooltip,
+  Sheet,
+  Textarea,
 } from '@mui/joy';
 import {
   EraserIcon,
@@ -30,6 +32,35 @@ import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
 import HistoryImageSelector from './HistoryImageSelector';
+
+// Helper component for labels with tooltips
+const LabelWithTooltip = ({
+  children,
+  tooltip,
+}: {
+  children: React.ReactNode;
+  tooltip: string;
+}) => (
+  <Stack direction="row" alignItems="center" gap={0.01}>
+    <FormLabel>{children}</FormLabel>
+    <Tooltip
+      title={tooltip}
+      arrow
+      placement="top"
+      sx={{ maxWidth: 200 }}
+      variant="soft"
+    >
+      <IconButton
+        size="sm"
+        variant="plain"
+        color="neutral"
+        sx={{ minHeight: 'unset', p: 0.125, alignSelf: 'flex-start' }}
+      >
+        <Info size={12} color="var(--joy-palette-neutral-400)" />
+      </IconButton>
+    </Tooltip>
+  </Stack>
+);
 
 interface InpaintingProps {
   prompt: string;
@@ -52,11 +83,18 @@ interface InpaintingProps {
   error: string;
   generatedImages: string[];
   currentImageIndex: number;
+  setCurrentImageIndex: Dispatch<SetStateAction<number>>;
   handlePreviousImage: () => void;
   handleNextImage: () => void;
   handleSaveAllImages: () => void;
   currentGenerationData: any;
   isInpaintingEligible: boolean | null;
+  imageWidth: string;
+  setImageWidth: Dispatch<SetStateAction<string>>;
+  imageHeight: string;
+  setImageHeight: Dispatch<SetStateAction<string>>;
+  numImages: number;
+  setNumImages: Dispatch<SetStateAction<number>>;
 }
 
 export default function Inpainting({
@@ -80,11 +118,18 @@ export default function Inpainting({
   error,
   generatedImages,
   currentImageIndex,
+  setCurrentImageIndex,
   handlePreviousImage,
   handleNextImage,
   handleSaveAllImages,
   currentGenerationData,
   isInpaintingEligible = null,
+  imageWidth,
+  setImageWidth,
+  imageHeight,
+  setImageHeight,
+  numImages,
+  setNumImages,
 }: InpaintingProps) {
   const [strokeSize, setStrokeSize] = useState(20);
   const [drawMode, setDrawMode] = useState<'pencil' | 'eraser'>('pencil');
@@ -97,6 +142,7 @@ export default function Inpainting({
   const imageRef = React.useRef<HTMLImageElement>(null);
   const [maskRenderStyle, setMaskRenderStyle] = useState('red');
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Calculate actual image dimensions and canvas positioning
   const updateCanvasDimensions = useCallback(() => {
@@ -407,22 +453,17 @@ export default function Inpainting({
 
         {/* Generation Settings */}
         <FormControl>
-          <FormLabel>Prompt</FormLabel>
+          <LabelWithTooltip tooltip="Describe the image you want to generate in the masked areas. Be specific and detailed for better results.">
+            Prompt
+          </LabelWithTooltip>
           <SimpleTextArea value={prompt} setValue={setPrompt} />
-        </FormControl>
-
-        <FormControl>
-          <FormLabel>Negative Prompt</FormLabel>
-          <SimpleTextArea
-            value={negativePrompt}
-            setValue={setNegativePrompt}
-            rows={2}
-          />
         </FormControl>
 
         <Stack direction="row" spacing={1}>
           <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
-            <FormLabel>Steps</FormLabel>
+            <LabelWithTooltip tooltip="Number of denoising steps. More steps generally produce higher quality images but take longer to generate. Typical values range from 20-50.">
+              Steps
+            </LabelWithTooltip>
             <Input
               type="number"
               value={numSteps}
@@ -431,7 +472,9 @@ export default function Inpainting({
             />
           </FormControl>
           <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
-            <FormLabel>Guidance</FormLabel>
+            <LabelWithTooltip tooltip="Controls how closely the model follows your prompt. Higher values (7-15) follow the prompt more strictly, lower values (1-7) allow more creative interpretation.">
+              Guidance Scale
+            </LabelWithTooltip>
             <Input
               type="number"
               value={guidanceScale}
@@ -443,10 +486,13 @@ export default function Inpainting({
 
         <Stack direction="row" spacing={1}>
           <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
-            <FormLabel>Strength</FormLabel>
+            <LabelWithTooltip tooltip="Controls how much the AI modifies the masked regions. Lower values (0.1-0.5) make subtle changes, higher values (0.6-1.0) make dramatic changes.">
+              Strength
+            </LabelWithTooltip>
             <Input
               type="number"
               value={strength}
+              sx={{ width: 100 }}
               onChange={(e) => setStrength(Number(e.target.value))}
               slotProps={{
                 input: {
@@ -458,15 +504,116 @@ export default function Inpainting({
             />
           </FormControl>
           <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
-            <FormLabel>Seed</FormLabel>
+            <LabelWithTooltip tooltip="Random seed for reproducibility. Leave empty for random generation, or use a specific number to generate the same image repeatedly.">
+              Seed (optional)
+            </LabelWithTooltip>
             <Input
               type="number"
               value={seed}
+              sx={{ width: 100 }}
               onChange={(e) => setSeed(e.target.value)}
               placeholder="Random"
             />
           </FormControl>
         </Stack>
+
+        <Stack direction="row" spacing={1}>
+          <FormControl sx={{ flex: 1, justifyContent: 'space-between' }}>
+            <LabelWithTooltip tooltip="Number of images to generate in parallel. Higher values will take longer but produce more options to choose from.">
+              Number of Images
+            </LabelWithTooltip>
+            <Input
+              type="number"
+              value={numImages}
+              sx={{ width: 100 }}
+              onChange={(e) => setNumImages(Number(e.target.value))}
+              slotProps={{
+                input: {
+                  min: 1,
+                  max: 8,
+                  step: 1,
+                },
+              }}
+            />
+          </FormControl>
+        </Stack>
+
+        <Sheet variant="soft" sx={{ p: 2, mt: 1 }}>
+          {/* Advanced Settings Toggle */}
+          <Button
+            variant="outlined"
+            size="sm"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            sx={{ alignSelf: 'flex-start' }}
+            endDecorator={
+              showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+            }
+          >
+            {showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
+          </Button>
+
+          {/* Advanced Settings - Collapsible */}
+          {showAdvanced && (
+            <Stack gap={2} sx={{ mt: 1 }}>
+              <FormControl>
+                <LabelWithTooltip tooltip="Describe what you don't want to see in the generated image. This helps guide the model away from unwanted elements, styles, or features.">
+                  Negative Prompt
+                </LabelWithTooltip>
+                <Textarea
+                  minRows={2}
+                  value={negativePrompt}
+                  onChange={(e) => setNegativePrompt(e.target.value)}
+                  placeholder="Describe what you don't want in the image"
+                />
+              </FormControl>
+              <Stack
+                gap={1}
+                sx={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  justifyContent: 'flex-start',
+                }}
+              >
+                <FormControl sx={{}}>
+                  <LabelWithTooltip tooltip="Set a custom width for the generated image in pixels. Leave at 0 to use the model's default width. Values should be multiples of 8.">
+                    Image Width
+                  </LabelWithTooltip>
+                  <Input
+                    type="number"
+                    value={imageWidth}
+                    sx={{ width: 100 }}
+                    onChange={(e) => setImageWidth(e.target.value)}
+                    placeholder="0"
+                    slotProps={{
+                      input: {
+                        step: 8,
+                        min: 0,
+                      },
+                    }}
+                  />
+                </FormControl>
+                <FormControl sx={{}}>
+                  <LabelWithTooltip tooltip="Set a custom height for the generated image in pixels. Leave at 0 to use the model's default height. Values should be multiples of 8.">
+                    Image Height
+                  </LabelWithTooltip>
+                  <Input
+                    type="number"
+                    value={imageHeight}
+                    sx={{ width: 100 }}
+                    onChange={(e) => setImageHeight(e.target.value)}
+                    placeholder="0"
+                    slotProps={{
+                      input: {
+                        step: 8,
+                        min: 0,
+                      },
+                    }}
+                  />
+                </FormControl>
+              </Stack>
+            </Stack>
+          )}
+        </Sheet>
 
         <Button
           onClick={handleInpaintingGenerate}
@@ -670,6 +817,48 @@ export default function Inpainting({
                 }}
               />
             </Box>
+
+            {/* Thumbnail navigation for multiple images */}
+            {generatedImages.length > 1 && (
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  justifyContent: 'center',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                  mt: 2,
+                }}
+              >
+                {generatedImages.map((imageUrl: string, index: number) => (
+                  <Box
+                    key={imageUrl}
+                    onClick={() => setCurrentImageIndex(index)}
+                    sx={{
+                      cursor: 'pointer',
+                      border:
+                        index === currentImageIndex
+                          ? '2px solid var(--joy-palette-primary-500)'
+                          : '1px solid var(--joy-palette-neutral-300)',
+                      borderRadius: '4px',
+                      overflow: 'hidden',
+                      width: 60,
+                      height: 60,
+                    }}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Thumbnail ${index + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                      }}
+                    />
+                  </Box>
+                ))}
+              </Stack>
+            )}
 
             <Button
               onClick={handleSaveAllImages}
