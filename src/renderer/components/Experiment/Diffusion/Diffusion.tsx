@@ -78,7 +78,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [seed, setSeed] = useState('');
   const [upscale, setUpscale] = useState(false);
   const [upscaleFactor, setUpscaleFactor] = useState(4);
-  const [useMultiGPU, setUseMultiGPU] = useState(false);
 
   // Advanced settings for Generate tab
   const [negativePrompt, setNegativePrompt] = useState('');
@@ -279,7 +278,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         upscale,
         upscale_factor: Number(upscaleFactor),
         num_images: Number(numImages),
-        use_multi_gpu: useMultiGPU,
       };
 
       // Add image-to-image parameters if an input image is provided
@@ -362,7 +360,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         upscale,
         upscale_factor: Number(upscaleFactor),
         num_images: Number(inpaintingNumImages) || 1, // Default to 1 if not specified
-        use_multi_gpu: useMultiGPU,
       };
 
       // Add inpainting parameters
@@ -934,19 +931,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                               }
                             }}
                             label="Upscale image (2x)"
-                          />
-                        </Tooltip>
-                        <Tooltip
-                          title="Utilize all available GPUs for faster image generation. This can significantly improve performance when multiple GPUs are available."
-                          arrow
-                          placement="top"
-                          sx={{ maxWidth: 200 }}
-                          variant="soft"
-                        >
-                          <Checkbox
-                            checked={useMultiGPU}
-                            onChange={(e) => setUseMultiGPU(e.target.checked)}
-                            label="Use all available GPUs"
                           />
                         </Tooltip>
                       </Stack>
