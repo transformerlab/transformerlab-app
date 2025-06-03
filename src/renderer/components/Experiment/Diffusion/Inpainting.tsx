@@ -738,7 +738,7 @@ export default function Inpainting({
 
         {/* Generated Images */}
         {generatedImages.length > 0 && (
-          <Stack spacing={2}>
+          <Stack spacing={2} sx={{ height: '50%' }}>
             <Typography level="h4">Generated Results</Typography>
 
             {currentGenerationData?.generation_time && (
