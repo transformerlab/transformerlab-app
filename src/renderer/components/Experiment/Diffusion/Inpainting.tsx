@@ -614,7 +614,7 @@ export default function Inpainting({
                 borderRadius: 2,
                 overflow: 'hidden',
                 aspectRatio: '1 / 1',
-                maxHeight: '400px',
+                maxHeight: '500px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
