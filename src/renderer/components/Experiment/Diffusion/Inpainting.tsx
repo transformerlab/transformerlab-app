@@ -20,6 +20,9 @@ import {
   ChevronLeft,
   ChevronRight,
   HistoryIcon,
+  ChevronDown,
+  ChevronUp,
+  Info,
 } from 'lucide-react';
 
 import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
@@ -444,7 +447,6 @@ export default function Inpainting({
             <Input
               type="number"
               value={strength}
-              sx={{ width: 100 }}
               onChange={(e) => setStrength(Number(e.target.value))}
               slotProps={{
                 input: {
@@ -460,7 +462,6 @@ export default function Inpainting({
             <Input
               type="number"
               value={seed}
-              sx={{ width: 100 }}
               onChange={(e) => setSeed(e.target.value)}
               placeholder="Random"
             />
