@@ -43,6 +43,12 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
     { limit: pageSize, offset },
   );
 
+  // Reset selection when changing pages
+  React.useEffect(() => {
+    setSelectedImageId(null);
+    setSelectedImageIndex(0);
+  }, [currentPage]);
+
   const handleImageSelect = (imageId: string, imageIndex: number = 0) => {
     setSelectedImageId(imageId);
     setSelectedImageIndex(imageIndex);
@@ -208,11 +214,29 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog size="lg" sx={{ maxWidth: '80vw', maxHeight: '80vh' }}>
+      <ModalDialog 
+        size="lg" 
+        sx={{ 
+          width: '80vw', 
+          height: '80vh',
+          maxWidth: '1200px',
+          maxHeight: '800px',
+          minWidth: '600px',
+          minHeight: '500px',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
         <ModalClose />
         <DialogTitle>Select Image from History</DialogTitle>
-
-        <DialogContent sx={{ overflow: 'auto', p: 0 }}>
+        
+        <DialogContent sx={{ 
+          overflow: 'auto', 
+          p: 0, 
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
           {historyLoading ? (
             <Box display="flex" justifyContent="center" p={4}>
               <CircularProgress />
@@ -222,16 +246,17 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
               <Typography level="body-lg" color="neutral">
                 No images found in history
               </Typography>
-            </Box>
-          ) : (
-            <Box p={2}>
-              <Grid container spacing={2}>
-                {historyData.images.map((item: HistoryImage) => (
-                  <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
-                    {renderImageCard(item)}
-                  </Grid>
-                ))}
-              </Grid>
+            </Box>          ) : (
+            <Box p={2} sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ flex: 1, minHeight: 0 }}>
+                <Grid container spacing={2}>
+                  {historyData.images.map((item: HistoryImage) => (
+                    <Grid key={item.id} xs={12} sm={6} md={4} lg={3}>
+                      {renderImageCard(item)}
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
 
               {/* Pagination */}
               {totalPages > 1 && (
@@ -241,6 +266,7 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
                   justifyContent="center"
                   alignItems="center"
                   mt={3}
+                  sx={{ flexShrink: 0 }}
                 >
                   <IconButton
                     variant="outlined"
@@ -249,11 +275,11 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
                   >
                     <ChevronLeftIcon />
                   </IconButton>
-
+                  
                   <Typography level="body-sm">
                     Page {currentPage} of {totalPages}
                   </Typography>
-
+                  
                   <IconButton
                     variant="outlined"
                     disabled={currentPage === totalPages}
