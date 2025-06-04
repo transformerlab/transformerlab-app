@@ -5,7 +5,6 @@ import '@xyflow/react/dist/style.css';
 
 import WorkflowList from './WorkflowList/WorkflowList';
 import WorkflowRuns from './WorkflowRuns/WorkflowRuns';
-import WorkflowTriggers from './WorkflowTriggers/WorkflowTriggers';
 
 export default function Workflows({ experimentInfo }) {
   return (
@@ -34,7 +33,6 @@ export default function Workflows({ experimentInfo }) {
           <TabList>
             <Tab>Workflows</Tab>
             <Tab>Runs</Tab>
-            <Tab>Triggers</Tab>
           </TabList>
           <TabPanel
             value={0}
@@ -44,9 +42,6 @@ export default function Workflows({ experimentInfo }) {
           </TabPanel>
           <TabPanel value={1} sx={{ width: '100%', overflow: 'hidden' }}>
             <WorkflowRuns experimentInfo={experimentInfo} />
-          </TabPanel>
-          <TabPanel value={2} sx={{ width: '100%', overflow: 'hidden' }}>
-            <WorkflowTriggers experimentInfo={experimentInfo} />
           </TabPanel>
         </Tabs>
       </Sheet>
