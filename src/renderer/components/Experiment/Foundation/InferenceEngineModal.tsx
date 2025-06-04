@@ -122,7 +122,7 @@ export default function InferenceEngineModal({
     <Modal open={showModal} onClose={closeModal}>
       <ModalDialog
         sx={{
-          minWidth: showUnsupported ? 350 : 350,
+          minWidth: showUnsupported ? 350 : 350, // Adjusted width and height to prevent css issues.
           minHeight: showUnsupported ? 440 : 300,
         }}
       >
