@@ -168,17 +168,19 @@ const DatasetTable = ({ datasetId }) => {
                               textOverflow: 'ellipsis',
                             }}
                           >
-                            {key === Object.keys(data.data['columns'])[0] ? (
+                            {typeof data.data['columns'][key][rowIndex] ===
+                              'string' &&
+                            data.data['columns'][key][rowIndex].startsWith(
+                              'data:image/',
+                            ) ? (
                               <img
-                                src={
-                                  data.data['columns'][key][
-                                    rowIndex
-                                  ].startsWith('data:image/')
-                                    ? data.data['columns'][key][rowIndex]
-                                    : `data:image/png;base64,${data.data['columns'][key][rowIndex]}`
-                                }
+                                src={data.data['columns'][key][rowIndex]}
                                 alt="preview"
-                                style={{ maxHeight: '100px' }}
+                                style={{
+                                  maxWidth: 120,
+                                  maxHeight: 120,
+                                  display: 'block',
+                                }}
                               />
                             ) : typeof data.data['columns'][key][rowIndex] ===
                               'string' ? (

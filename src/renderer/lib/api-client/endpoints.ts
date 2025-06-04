@@ -214,6 +214,8 @@ Endpoints.BatchedPrompts = {
   List: () => `${API_URL()}batch/list`,
   New: () => `${API_URL()}batch/new`,
   Delete: (promptId: string) => `${API_URL()}batch/delete/${promptId}`,
+  InstallMcpPlugin: (serverName: string) =>
+    `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
 };
 
 Endpoints.Tools = {
@@ -221,6 +223,8 @@ Endpoints.Tools = {
     `${API_URL()}tools/call/${function_name}?params=${function_arguments}`,
   Prompt: () => `${API_URL()}tools/prompt`,
   List: () => `${API_URL()}tools/list`,
+  InstallMcpPlugin: (serverName: string) =>
+    `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
 };
 
 Endpoints.Recipes = {

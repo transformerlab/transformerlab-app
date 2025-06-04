@@ -91,14 +91,12 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         icon={<MessageCircleIcon strokeWidth={9} />}
         disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
       />
-      {DEV_MODE && (
-        <SubNavItem
-          title="Workflows"
-          path="/experiment/workflows"
-          icon={<WorkflowIcon />}
-          disabled={!experimentInfo?.name}
-        />
-      )}
+      <SubNavItem
+        title="Workflows"
+        path="/experiment/workflows"
+        icon={<WorkflowIcon />}
+        disabled={!experimentInfo?.name}
+      />
       <SubNavItem
         title="Train"
         path="/experiment/training"
