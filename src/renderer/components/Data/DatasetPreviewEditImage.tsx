@@ -7,7 +7,13 @@ import {
   Box,
   LinearProgress,
   Button,
+  Stack,
+  Modal,
+  ModalDialog,
+  ModalClose,
+  Typography,
 } from '@mui/joy';
+import { Plus, Minus } from 'lucide-react';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 const DatasetPreviewEditImage = ({ datasetId, template }) => {
@@ -24,6 +30,10 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
   const [availableLabels, setAvailableLabels] = useState([]);
   const [selectedSplitFilter, setSelectedSplitFilter] = useState('');
   const [selectedLabelFilter, setSelectedLabelFilter] = useState('');
+  const [addColumnModalOpen, setAddColumnModalOpen] = useState(false);
+  const [removeColumnModalOpen, setRemoveColumnModalOpen] = useState(false);
+  const [columnNameInput, setColumnNameInput] = useState('');
+  const [columnToRemove, setColumnToRemove] = useState('');
   const limit = 50;
   const containerRef = useRef(null);
 
@@ -41,13 +51,26 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       const result = await response.json();
       if (result.status === 'success') {
         const newRows = result.data.rows || [];
-        const updatedRows = [...rows, ...newRows];
+        const updatedRows = [...rows, ...newRows].map((r) => ({
+          ...r,
+          label: r.label ?? '',
+        }));
+
+        const dynamicColumns = Array.from(
+          new Set(updatedRows.flatMap((r) => Object.keys(r))),
+        ).filter((c) => c !== 'image' && !c.startsWith('__'));
+
+        const orderedColumns = [
+          'split',
+          'label',
+          ...dynamicColumns.filter((c) => !['split', 'label'].includes(c)),
+        ];
+
         setRows(updatedRows);
-        setColumns(result.data.columns || []);
+        setColumns(orderedColumns);
         setOffset((prev) => prev + limit);
         if (newRows.length < limit) setHasMore(false);
 
-        // 🔥 Dynamically extract unique splits and labels
         const splits = [
           ...new Set(updatedRows.map((r) => r.split).filter(Boolean)),
         ];
@@ -84,46 +107,6 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
     if (scrollHeight - scrollTop <= clientHeight + 50) loadMore();
   };
 
-  const handleFieldUpdate = (index, field, value) => {
-    setModifiedRows((prev) => {
-      const updated = new Map(prev);
-      const original = rows.find((r) => r['__index__'] === index) || {};
-      const current = updated.get(index) || {
-        file_name: original['file_name'],
-        previous_label: original['label'],
-        previous_caption: original['text'],
-        previous_split: original['split'],
-        label: original['label'] || '',
-        caption: original['text'] || '',
-        split: original['split'] || '',
-      };
-      current[field] = value;
-      updated.set(index, current);
-      return updated;
-    });
-    setRows((prev) => {
-      const updatedRows = [...prev];
-      const rowIndex = updatedRows.findIndex((r) => r['__index__'] === index);
-      if (rowIndex !== -1) {
-        updatedRows[rowIndex] = {
-          ...updatedRows[rowIndex],
-          [field === 'caption' ? 'text' : field]: value,
-        };
-      }
-      return updatedRows;
-    });
-  };
-
-  const filteredRows = rows.filter(
-    (row) =>
-      (!selectedSplitFilter || row.split === selectedSplitFilter) &&
-      (!selectedLabelFilter || row.label === selectedLabelFilter) &&
-      (typeof row['text'] === 'string'
-        ? row['text'].toLowerCase()
-        : ''
-      ).includes(searchText.toLowerCase()),
-  );
-
   const saveEditsWithName = async (datasetName) => {
     if (datasetName.trim() === '') {
       alert('Please enter a new dataset name.');
@@ -138,40 +121,27 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       const checkResponse = await fetch(
         chatAPI.Endpoints.Dataset.Info(datasetName),
       );
-      if (checkResponse.ok) {
-        const checkResponse = await fetch(
-          chatAPI.Endpoints.Dataset.Info(datasetName),
+      const datasetInfo = await checkResponse.json();
+      if (
+        Object.keys(datasetInfo).length !== 0 &&
+        datasetInfo.status !== 'error'
+      ) {
+        alert(
+          `Dataset "${datasetName}" already exists. Please choose a different name.`,
         );
-        if (checkResponse.ok) {
-          const datasetInfo = await checkResponse.json();
-          if (
-            Object.keys(datasetInfo).length !== 0 && // 🔥 Check for empty response
-            !(
-              datasetInfo?.status === 'error' &&
-              datasetInfo?.message === 'Dataset not found.'
-            )
-          ) {
-            alert(
-              `Dataset "${datasetName}" already exists. Please choose a different name.`,
-            );
-            setSaving(false);
-            return;
-          }
-        }
+        setSaving(false);
+        return;
       }
+
       const fullArray = rows.map((row) => {
         const uniqueKey = row['__index__'];
         const modified = modifiedRows.get(uniqueKey) || {};
         return {
-          file_name: row['file_name'],
-          previous_label: row['label'] || '',
-          previous_caption: row['text'] || '',
-          previous_split: row['split'] || '',
-          label: modified.label ?? '',
-          caption: modified.caption ?? '',
-          split: modified.split ?? '',
+          ...row,
+          ...modified,
         };
       });
+
       const formData = new FormData();
       const blob = new Blob([JSON.stringify(fullArray)], {
         type: 'application/json',
@@ -194,6 +164,86 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
     }
   };
 
+  const handleFieldUpdate = (index, field, value) => {
+    setModifiedRows((prev) => {
+      const updated = new Map(prev);
+      const original = rows.find((r) => r['__index__'] === index) || {};
+      const current = updated.get(index) || { ...original };
+      current[field] = value;
+      updated.set(index, current);
+      return updated;
+    });
+    setRows((prev) => {
+      const updatedRows = [...prev];
+      const rowIndex = updatedRows.findIndex((r) => r['__index__'] === index);
+      if (rowIndex !== -1) {
+        updatedRows[rowIndex] = {
+          ...updatedRows[rowIndex],
+          [field]: value,
+        };
+      }
+      return updatedRows;
+    });
+  };
+
+  const handleAddColumn = () => {
+    const col = columnNameInput.trim();
+    const isValid = col && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(col);
+    if (!isValid) {
+      alert(
+        'Invalid column name. Use letters, numbers, and underscores. Must not start with a digit.',
+      );
+      return;
+    }
+    if (columns.includes(col)) {
+      alert('This column already exists.');
+      setAddColumnModalOpen(false);
+      setColumnNameInput('');
+      return;
+    }
+    setColumns([...columns, col]);
+    setRows(rows.map((r) => ({ ...r, [col]: '' })));
+    setAddColumnModalOpen(false);
+    setColumnNameInput('');
+  };
+
+  const handleRemoveColumn = () => {
+    const protectedCols = ['image', 'file_name', 'split', 'label'];
+    if (!columns.includes(columnToRemove)) {
+      alert('Column not found.');
+      setRemoveColumnModalOpen(false);
+      setColumnToRemove('');
+      return;
+    }
+    if (protectedCols.includes(columnToRemove)) {
+      alert(`"${columnToRemove}" is a required column and cannot be removed.`);
+      setRemoveColumnModalOpen(false);
+      setColumnToRemove('');
+      return;
+    }
+
+    setColumns(columns.filter((c) => c !== columnToRemove));
+    setRows(
+      rows.map((r) => {
+        const newRow = { ...r };
+        delete newRow[columnToRemove];
+        return newRow;
+      }),
+    );
+    setRemoveColumnModalOpen(false);
+    setColumnToRemove('');
+  };
+
+  const filteredRows = rows.filter(
+    (row) =>
+      (!selectedSplitFilter || row.split === selectedSplitFilter) &&
+      (!selectedLabelFilter || row.label === selectedLabelFilter) &&
+      (typeof row['text'] === 'string'
+        ? row['text'].toLowerCase()
+        : ''
+      ).includes(searchText.toLowerCase()),
+  );
+
   return (
     <Box
       ref={containerRef}
@@ -205,14 +255,17 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
         flexDirection: 'column',
       }}
     >
-      {loading && rows.length === 0 && <LinearProgress />}
+      {loading && rows.length > 0 && (
+        <Box p={1} display="flex" justifyContent="center">
+          <LinearProgress sx={{ width: '100%' }} />
+        </Box>
+      )}
+
       <Box p={1} display="flex" gap={2} alignItems="center">
         <Input
           placeholder="New Dataset Name"
           value={newDatasetId}
           onChange={(e) => setNewDatasetId(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-          required
           sx={{ width: '250px' }}
         />
         <Input
@@ -259,15 +312,29 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
         >
           Save Changes
         </Button>
+        <Button onClick={() => setAddColumnModalOpen(true)}>
+          <Plus size={16} />
+        </Button>
+        <Button onClick={() => setRemoveColumnModalOpen(true)}>
+          <Minus size={16} />
+        </Button>
       </Box>
-      <Box sx={{ overflow: 'auto', flex: 1 }}>
-        <Table sx={{ minWidth: '100%' }}>
+
+      <Box sx={{ overflowX: 'auto', flex: 1, width: '100%' }}>
+        <Table
+          sx={{
+            minWidth: 'max-content',
+            width: 'max-content',
+            tableLayout: 'auto',
+            whiteSpace: 'nowrap',
+          }}
+        >
           <thead>
             <tr>
               <th>Image</th>
-              <th>Description</th>
-              <th>Split</th>
-              <th>Label</th>
+              {columns.map((col) => (
+                <th key={col}>{col}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -282,72 +349,79 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
                     />
                   )}
                 </td>
-                <td>
-                  <Input
-                    value={
-                      modifiedRows.get(row['__index__'])?.caption ??
-                      row['text'] ??
-                      ''
-                    }
-                    onChange={(e) =>
-                      handleFieldUpdate(
-                        row['__index__'],
-                        'caption',
-                        e.target.value,
-                      )
-                    }
-                    onKeyDown={(e) =>
-                      e.key === 'Enter' && e.currentTarget.blur()
-                    }
-                    size="sm"
-                  />
-                </td>
-                <td>
-                  <Input
-                    value={
-                      modifiedRows.get(row['__index__'])?.split ??
-                      row['split'] ??
-                      ''
-                    }
-                    onChange={(e) =>
-                      handleFieldUpdate(
-                        row['__index__'],
-                        'split',
-                        e.target.value,
-                      )
-                    }
-                    onKeyDown={(e) =>
-                      e.key === 'Enter' && e.currentTarget.blur()
-                    }
-                    size="sm"
-                  />
-                </td>
-                <td>
-                  <Input
-                    value={
-                      modifiedRows.get(row['__index__'])?.label ??
-                      row['label'] ??
-                      ''
-                    }
-                    onChange={(e) =>
-                      handleFieldUpdate(
-                        row['__index__'],
-                        'label',
-                        e.target.value,
-                      )
-                    }
-                    onKeyDown={(e) =>
-                      e.key === 'Enter' && e.currentTarget.blur()
-                    }
-                    size="sm"
-                  />
-                </td>
+                {columns.map((col) => (
+                  <td key={col}>
+                    <Input
+                      value={
+                        modifiedRows.get(row['__index__'])?.[col] ??
+                        row[col] ??
+                        ''
+                      }
+                      onChange={(e) =>
+                        handleFieldUpdate(row['__index__'], col, e.target.value)
+                      }
+                      size="sm"
+                    />
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>
         </Table>
       </Box>
       {loading && rows.length > 0 && <LinearProgress />}
+
+      <Modal
+        open={addColumnModalOpen}
+        onClose={() => setAddColumnModalOpen(false)}
+      >
+        <ModalDialog>
+          <ModalClose />
+          <Typography level="h4">Add Column</Typography>
+          <Input
+            slotProps={{ input: { autoFocus: true } }}
+            placeholder="New column name"
+            value={columnNameInput}
+            onChange={(e) => setColumnNameInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleAddColumn();
+                setAddColumnModalOpen(false);
+                setColumnNameInput('');
+              }
+            }}
+          />
+          <Button onClick={handleAddColumn}>Add</Button>
+        </ModalDialog>
+      </Modal>
+
+      <Modal
+        open={removeColumnModalOpen}
+        onClose={() => setRemoveColumnModalOpen(false)}
+      >
+        <ModalDialog>
+          <ModalClose />
+          <Typography level="h4">Remove Column</Typography>
+          <Input
+            slotProps={{ input: { autoFocus: true } }}
+            placeholder="Column name to remove"
+            value={columnToRemove}
+            onChange={(e) => setColumnToRemove(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleRemoveColumn();
+                setRemoveColumnModalOpen(false);
+                setColumnToRemove('');
+              }
+            }}
+          />
+          <Button color="danger" onClick={handleRemoveColumn}>
+            Confirm Remove
+          </Button>
+        </ModalDialog>
+      </Modal>
     </Box>
   );
 };
