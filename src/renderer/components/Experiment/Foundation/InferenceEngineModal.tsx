@@ -8,7 +8,6 @@ import {
   Select,
   Stack,
   Option,
-  Switch,
   Button,
   Typography,
   Checkbox,
@@ -24,34 +23,43 @@ function EngineSelect({
   experimentInfo,
   inferenceSettings,
   setSelectedPlugin,
+  showUnsupported,
+  setShowUnsupported,
 }) {
   const { data, error, isLoading } = useSWR(
-    chatAPI.Endpoints.Experiment.ListScriptsOfType(
-      experimentInfo?.id,
-      'loader',
-      '', // no filter
-    ),
-    fetcher,
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Experiment.ListScriptsOfType(
+          experimentInfo.id,
+          'loader',
+          ''
+        )
+      : null,
+    fetcher
   );
 
-  const archTag = experimentInfo?.config?.foundation_model_architecture;
-  const [showUnsupported, setShowUnsupported] = useState(false);
+  const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
 
-  const supported = data?.filter(
-    (row) =>
-      Array.isArray(row.model_architectures) &&
-      row.model_architectures.some(
-        (arch) => arch.toLowerCase() === archTag.toLowerCase(),
-      ),
-  );
+  const supported = React.useMemo(() => {
+    if (!data) return [];
+    return data.filter(
+      (row) =>
+        Array.isArray(row.model_architectures) &&
+        row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase()
+        )
+    );
+  }, [data, archTag]);
 
-  const unsupported = data?.filter(
-    (row) =>
-      !Array.isArray(row.model_architectures) ||
-      !row.model_architectures.some(
-        (arch) => arch.toLowerCase() === archTag.toLowerCase(),
-      ),
-  );
+  const unsupported = React.useMemo(() => {
+    if (!data) return [];
+    return data.filter(
+      (row) =>
+        !Array.isArray(row.model_architectures) ||
+        !row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase()
+        )
+    );
+  }, [data, archTag]);
 
   return (
     <Stack spacing={1}>
@@ -71,17 +79,14 @@ function EngineSelect({
           setSelectedPlugin(newValue);
         }}
       >
-        {supported?.length > 0 && (
-          <>
-            {supported.map((row) => (
-              <Option value={row.uniqueId} key={row.uniqueId}>
-                {row.name}
-              </Option>
-            ))}
-          </>
-        )}
+        {supported.length > 0 &&
+          supported.map((row) => (
+            <Option value={row.uniqueId} key={row.uniqueId}>
+              {row.name}
+            </Option>
+          ))}
 
-        {showUnsupported && unsupported?.length > 0 && (
+        {showUnsupported && unsupported.length > 0 && (
           <>
             <Option disabled>── Unsupported ──</Option>
             {unsupported.map((row) => (
@@ -96,8 +101,6 @@ function EngineSelect({
   );
 }
 
-
-
 export default function InferenceEngineModal({
   showModal,
   setShowModal,
@@ -107,8 +110,9 @@ export default function InferenceEngineModal({
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
-  // Call this on either cancel or save, but only after any changes are saved
-  // It resets the selected plugin to whatever the saved experiment settings are (overwriting whatever the user selected)
+  // New state for showUnsupported moved here to control dialog size & checkbox
+  const [showUnsupported, setShowUnsupported] = useState(false);
+
   function closeModal() {
     setShowModal(false);
     setSelectedPlugin(inferenceSettings?.inferenceEngine);
@@ -116,14 +120,15 @@ export default function InferenceEngineModal({
 
   return (
     <Modal open={showModal} onClose={closeModal}>
-      <ModalDialog sx={{
-    minWidth: 300,   //set this to ensure all options are clickable despite CSS issues.
-    minHeight: 440,  
-  }}>
+      <ModalDialog
+        sx={{
+          minWidth: showUnsupported ? 350 : 350,
+          minHeight: showUnsupported ? 440 : 300,
+        }}
+      >
         <DialogTitle>Inference Engine Settings</DialogTitle>
         <ModalClose variant="plain" sx={{ m: 1 }} />
 
-        {/* <DialogContent>Fill in the information of the project.</DialogContent> */}
         <form
           onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
@@ -134,12 +139,11 @@ export default function InferenceEngineModal({
 
             if (!engine) {
               closeModal();
+              return;
             }
 
-            // We don't want to go to the server to get the friendly name of the server
-            // so we dig into the DOM to get it
             const engineFriendlyName = document.querySelector(
-              `button[name='inferenceEngine']`,
+              `button[name='inferenceEngine']`
             )?.innerHTML;
 
             const experimentId = experimentInfo?.id;
@@ -151,37 +155,40 @@ export default function InferenceEngineModal({
               inferenceEngineFriendlyName: engineFriendlyName,
             };
 
-            console.log('newInferenceSettings', newInferenceSettings);
             setInferenceSettings(newInferenceSettings);
 
             await fetch(
               chatAPI.Endpoints.Experiment.UpdateConfig(
                 experimentId,
                 'inferenceParams',
-                JSON.stringify(newInferenceSettings),
-              ),
+                JSON.stringify(newInferenceSettings)
+              )
             );
+
             closeModal();
           }}
         >
           <Stack spacing={0}>
-            {/* {JSON.stringify(inferenceSettings)} */}
             <FormControl>
               <FormLabel>Engine</FormLabel>
               <EngineSelect
                 experimentInfo={experimentInfo}
                 inferenceSettings={inferenceSettings}
                 setSelectedPlugin={setSelectedPlugin}
+                showUnsupported={showUnsupported}
+                setShowUnsupported={setShowUnsupported}
               />
             </FormControl>
 
             <Typography level="title-md" paddingTop={2}>
               Engine Configuration:
             </Typography>
+
             <DynamicPluginForm
               experimentInfo={experimentInfo}
               plugin={selectedPlugin}
             />
+
             <Button type="submit">Save</Button>
           </Stack>
         </form>
