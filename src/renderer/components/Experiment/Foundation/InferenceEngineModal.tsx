@@ -11,6 +11,7 @@ import {
   Switch,
   Button,
   Typography,
+  Checkbox,
 } from '@mui/joy';
 import React, { useState } from 'react';
 import DynamicPluginForm from '../DynamicPluginForm';
@@ -27,31 +28,70 @@ function EngineSelect({
   const { data, error, isLoading } = useSWR(
     chatAPI.Endpoints.Experiment.ListScriptsOfType(
       experimentInfo?.id,
-      'loader', // type
-      'model_architectures:' +
-        experimentInfo?.config?.foundation_model_architecture, //filter
+      'loader',
+      '', // no filter
     ),
     fetcher,
   );
+
+  const archTag = experimentInfo?.config?.foundation_model_architecture;
+  const [showUnsupported, setShowUnsupported] = useState(false);
+
+  const supported = data?.filter(
+    (row) =>
+      Array.isArray(row.model_architectures) &&
+      row.model_architectures.some(
+        (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+      ),
+  );
+
+  const unsupported = data?.filter(
+    (row) =>
+      !Array.isArray(row.model_architectures) ||
+      !row.model_architectures.some(
+        (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+      ),
+  );
+
   return (
-    <Select
-      placeholder={isLoading ? 'Loading...' : 'Select Engine'}
-      variant="soft"
-      size="lg"
-      name="inferenceEngine"
-      defaultValue="Select Engine"
-      onChange={(e, newValue) => {
-        setSelectedPlugin(newValue);
-      }}
-    >
-      {data?.map((row) => (
-        <Option value={row.uniqueId} key={row.uniqueId}>
-          {row.name}
-        </Option>
-      ))}
-    </Select>
+    <Stack spacing={1}>
+      <Checkbox
+        checked={showUnsupported}
+        onChange={(e) => setShowUnsupported(e.target.checked)}
+        label="Show unsupported engines"
+      />
+
+      <FormControl>
+        <FormLabel>Engine</FormLabel>
+        <Select
+          placeholder={isLoading ? 'Loading...' : 'Select Engine'}
+          variant="soft"
+          size="lg"
+          name="inferenceEngine"
+          onChange={(e, newValue) => {
+            setSelectedPlugin(newValue);
+          }}
+        >
+          {supported?.length > 0 &&
+            supported.map((row) => (
+              <Option value={row.uniqueId} key={row.uniqueId}>
+                {row.name}
+              </Option>
+            ))}
+
+          {showUnsupported &&
+            unsupported?.length > 0 &&
+            unsupported.map((row) => (
+              <Option value={row.uniqueId} key={row.uniqueId}>
+                {row.name}
+              </Option>
+            ))}
+        </Select>
+      </FormControl>
+    </Stack>
   );
 }
+
 
 export default function InferenceEngineModal({
   showModal,
