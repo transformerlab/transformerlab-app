@@ -1,5 +1,6 @@
 import {
   DialogTitle,
+  FormControl,
   FormLabel,
   Modal,
   ModalClose,
@@ -95,6 +96,8 @@ function EngineSelect({
   );
 }
 
+
+
 export default function InferenceEngineModal({
   showModal,
   setShowModal,
@@ -104,6 +107,8 @@ export default function InferenceEngineModal({
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
+  // Call this on either cancel or save, but only after any changes are saved
+  // It resets the selected plugin to whatever the saved experiment settings are (overwriting whatever the user selected)
   function closeModal() {
     setShowModal(false);
     setSelectedPlugin(inferenceSettings?.inferenceEngine);
@@ -111,10 +116,14 @@ export default function InferenceEngineModal({
 
   return (
     <Modal open={showModal} onClose={closeModal}>
-      <ModalDialog>
+      <ModalDialog sx={{
+    minWidth: 300,   //set this to ensure all options are clickable despite CSS issues.
+    minHeight: 440,  
+  }}>
         <DialogTitle>Inference Engine Settings</DialogTitle>
         <ModalClose variant="plain" sx={{ m: 1 }} />
 
+        {/* <DialogContent>Fill in the information of the project.</DialogContent> */}
         <form
           onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
@@ -125,9 +134,10 @@ export default function InferenceEngineModal({
 
             if (!engine) {
               closeModal();
-              return;
             }
 
+            // We don't want to go to the server to get the friendly name of the server
+            // so we dig into the DOM to get it
             const engineFriendlyName = document.querySelector(
               `button[name='inferenceEngine']`,
             )?.innerHTML;
@@ -151,27 +161,27 @@ export default function InferenceEngineModal({
                 JSON.stringify(newInferenceSettings),
               ),
             );
-
             closeModal();
           }}
         >
-          <Stack spacing={2}>
-            <FormLabel>Engine</FormLabel>
-            <EngineSelect
-              experimentInfo={experimentInfo}
-              inferenceSettings={inferenceSettings}
-              setSelectedPlugin={setSelectedPlugin}
-            />
+          <Stack spacing={0}>
+            {/* {JSON.stringify(inferenceSettings)} */}
+            <FormControl>
+              <FormLabel>Engine</FormLabel>
+              <EngineSelect
+                experimentInfo={experimentInfo}
+                inferenceSettings={inferenceSettings}
+                setSelectedPlugin={setSelectedPlugin}
+              />
+            </FormControl>
 
             <Typography level="title-md" paddingTop={2}>
               Engine Configuration:
             </Typography>
-
             <DynamicPluginForm
               experimentInfo={experimentInfo}
               plugin={selectedPlugin}
             />
-
             <Button type="submit">Save</Button>
           </Stack>
         </form>
