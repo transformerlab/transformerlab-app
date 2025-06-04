@@ -49,7 +49,7 @@ export default function RunModelButton({
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
-      inferenceSettings?.inferenceEngine != null
+      // inferenceSettings?.inferenceEngine != null
     );
   }
 
