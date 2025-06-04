@@ -164,9 +164,9 @@ export default function CurrentFoundationInfo({
             );
           }
 
-          setCurrentlyInstalling(null); // 🚨 Ensure this clears
+          setCurrentlyInstalling(null);
           setJobId(null);
-          peftMutate(); // 🔄 Refresh installed adapters
+          peftMutate(); // Refresh installed adapters
         }
       } catch (error) {
         console.error('Error fetching job status:', error);
@@ -200,7 +200,7 @@ export default function CurrentFoundationInfo({
       );
       if (!shouldReplace) return;
 
-      // 🔥 Delete existing adapter first
+      // Delete existing adapter first
       await fetch(
         chatAPI.Endpoints.Models.DeletePeft(
           experimentInfo.config.foundation,
