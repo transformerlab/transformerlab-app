@@ -178,37 +178,6 @@ export default function CurrentFoundationInfo({
     }, 3000); // Poll every 3 seconds
   };
 
-  const installAdapter = async (adapterId) => {
-    setCurrentlyInstalling(adapterId);
-
-    try {
-      const response = await fetch(
-        chatAPI.Endpoints.Models.InstallPeft(
-          experimentInfo?.config?.foundation,
-          adapterId,
-        ),
-        { method: 'POST' },
-      );
-      const result = await response.json();
-
-      if (result.status === 'started') {
-        setJobId(result.job_id);
-        pollJobStatus(result.job_id); // Start polling
-      } else {
-        alert(
-          `Failed to start adapter install: ${result.message || 'Unknown error'}`,
-        );
-        setCurrentlyInstalling(null);
-      }
-    } catch (error) {
-      console.error('Error starting adapter install:', error);
-      alert(
-        'Failed to start adapter install due to a network or server error.',
-      );
-      setCurrentlyInstalling(null);
-    }
-  };
-
   const handleAdapterDownload = async () => {
     const adapterId = adapterSearchText.trim();
     if (!adapterId) {
@@ -240,48 +209,44 @@ export default function CurrentFoundationInfo({
       );
     }
 
-    const response = await fetch(
-      chatAPI.Endpoints.Models.SearchPeft(
-        adapterId,
-        experimentInfo?.config?.foundation,
-        device,
-      ),
-    );
-    const results = await response.json();
+    setCurrentlyInstalling(adapterId); // track progress immediately
 
-    const adapter = results[0];
-    if (adapter?.check_status?.error === 'not found') {
-      alert(`Adapter "${adapterId}" not found.`);
-      return;
-    }
-
-    const status = adapter.check_status || {};
-
-    // Hard fail: base model mismatch
-    if (status.base_model_name === 'fail') {
-      alert('Download rejected: base model mismatch.');
-      return;
-    }
-
-    // Soft fail: one or more status fields explicitly failed
-    const failed = Object.entries(status).find(([k, v]) => v === 'fail');
-    if (failed) {
-      alert(`Download rejected: check failed for "${failed[0]}"`);
-      return;
-    }
-
-    // Unknown fields: prompt confirmation
-    const unknowns = Object.entries(status).filter(([_, v]) => v === 'unknown');
-    if (unknowns.length > 0) {
-      const unknownKeys = unknowns.map(([k]) => k).join(', ');
-      const proceed = confirm(
-        `Some compatibility checks couldn't be determined: ${unknownKeys}. Proceed with download?`,
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Models.InstallPeft(
+          experimentInfo?.config?.foundation,
+          adapterId,
+        ),
+        { method: 'POST' },
       );
-      if (!proceed) return;
-    }
 
-    // If all passed or user confirmed unknowns → proceed with install
-    await installAdapter(adapterId);
+      const result = await response.json();
+      const status = result.check_status || {};
+
+      const warnings = Object.entries(status).filter(
+        ([_, v]) => v === 'fail' || v === 'unknown',
+      );
+      if (warnings.length > 0) {
+        const warningKeys = warnings.map(([k]) => k).join(', ');
+        alert(
+          `⚠️ Warning: Compatibility issues detected for: ${warningKeys}. Adapter installation will proceed anyway.`,
+        );
+      }
+
+      if (result.status === 'started') {
+        setJobId(result.job_id);
+        pollJobStatus(result.job_id);
+      } else {
+        alert(
+          `Failed to start adapter install: ${result.message || 'Unknown error'}`,
+        );
+        setCurrentlyInstalling(null);
+      }
+    } catch (error) {
+      console.error('Error during install:', error);
+      alert('Install failed due to a server or network error.');
+      setCurrentlyInstalling(null);
+    }
   };
 
   const handleCancelDownload = async () => {
