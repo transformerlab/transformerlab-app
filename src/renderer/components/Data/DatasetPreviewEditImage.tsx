@@ -51,8 +51,9 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       const result = await response.json();
       if (result.status === 'success') {
         const newRows = result.data.rows || [];
-        const updatedRows = [...rows, ...newRows].map((r) => ({
+        const updatedRows = [...rows, ...newRows].map((r, i) => ({
           ...r,
+          __index__: offset + i,
           label: r.label ?? '',
         }));
 
@@ -350,7 +351,7 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
                   )}
                 </td>
                 {columns.map((col) => (
-                  <td key={col}>
+                  <td key={`${row['__index__']}-${col}`}>
                     <Input
                       value={
                         modifiedRows.get(row['__index__'])?.[col] ??

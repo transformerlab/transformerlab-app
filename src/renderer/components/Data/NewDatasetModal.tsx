@@ -146,7 +146,6 @@ export default function DatasetDetailsModal({ open, setOpen }) {
 
             return JSON.stringify({
               file_name: fileName,
-              text: ' ',
               label: labelValue,
               split: split,
             });
