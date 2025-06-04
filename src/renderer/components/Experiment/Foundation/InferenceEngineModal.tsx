@@ -1,6 +1,5 @@
 import {
   DialogTitle,
-  FormControl,
   FormLabel,
   Modal,
   ModalClose,
@@ -61,37 +60,40 @@ function EngineSelect({
         label="Show unsupported engines"
       />
 
-      <FormControl>
-        <FormLabel>Engine</FormLabel>
-        <Select
-          placeholder={isLoading ? 'Loading...' : 'Select Engine'}
-          variant="soft"
-          size="lg"
-          name="inferenceEngine"
-          onChange={(e, newValue) => {
-            setSelectedPlugin(newValue);
-          }}
-        >
-          {supported?.length > 0 &&
-            supported.map((row) => (
+      <Select
+        placeholder={isLoading ? 'Loading...' : 'Select Engine'}
+        variant="soft"
+        size="lg"
+        name="inferenceEngine"
+        defaultValue="Select Engine"
+        onChange={(e, newValue) => {
+          setSelectedPlugin(newValue);
+        }}
+      >
+        {supported?.length > 0 && (
+          <>
+            {supported.map((row) => (
               <Option value={row.uniqueId} key={row.uniqueId}>
                 {row.name}
               </Option>
             ))}
+          </>
+        )}
 
-          {showUnsupported &&
-            unsupported?.length > 0 &&
-            unsupported.map((row) => (
+        {showUnsupported && unsupported?.length > 0 && (
+          <>
+            <Option disabled>── Unsupported ──</Option>
+            {unsupported.map((row) => (
               <Option value={row.uniqueId} key={row.uniqueId}>
                 {row.name}
               </Option>
             ))}
-        </Select>
-      </FormControl>
+          </>
+        )}
+      </Select>
     </Stack>
   );
 }
-
 
 export default function InferenceEngineModal({
   showModal,
@@ -102,8 +104,6 @@ export default function InferenceEngineModal({
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
-  // Call this on either cancel or save, but only after any changes are saved
-  // It resets the selected plugin to whatever the saved experiment settings are (overwriting whatever the user selected)
   function closeModal() {
     setShowModal(false);
     setSelectedPlugin(inferenceSettings?.inferenceEngine);
@@ -115,7 +115,6 @@ export default function InferenceEngineModal({
         <DialogTitle>Inference Engine Settings</DialogTitle>
         <ModalClose variant="plain" sx={{ m: 1 }} />
 
-        {/* <DialogContent>Fill in the information of the project.</DialogContent> */}
         <form
           onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
@@ -126,10 +125,9 @@ export default function InferenceEngineModal({
 
             if (!engine) {
               closeModal();
+              return;
             }
 
-            // We don't want to go to the server to get the friendly name of the server
-            // so we dig into the DOM to get it
             const engineFriendlyName = document.querySelector(
               `button[name='inferenceEngine']`,
             )?.innerHTML;
@@ -153,27 +151,27 @@ export default function InferenceEngineModal({
                 JSON.stringify(newInferenceSettings),
               ),
             );
+
             closeModal();
           }}
         >
-          <Stack spacing={0}>
-            {/* {JSON.stringify(inferenceSettings)} */}
-            <FormControl>
-              <FormLabel>Engine</FormLabel>
-              <EngineSelect
-                experimentInfo={experimentInfo}
-                inferenceSettings={inferenceSettings}
-                setSelectedPlugin={setSelectedPlugin}
-              />
-            </FormControl>
+          <Stack spacing={2}>
+            <FormLabel>Engine</FormLabel>
+            <EngineSelect
+              experimentInfo={experimentInfo}
+              inferenceSettings={inferenceSettings}
+              setSelectedPlugin={setSelectedPlugin}
+            />
 
             <Typography level="title-md" paddingTop={2}>
               Engine Configuration:
             </Typography>
+
             <DynamicPluginForm
               experimentInfo={experimentInfo}
               plugin={selectedPlugin}
             />
+
             <Button type="submit">Save</Button>
           </Stack>
         </form>
