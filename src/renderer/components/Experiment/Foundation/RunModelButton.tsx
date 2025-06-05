@@ -52,6 +52,13 @@ export default function RunModelButton({
       // inferenceSettings?.inferenceEngine != null
     );
   }
+  function isSupportedEngineAvailable() {
+    return (
+      experimentInfo != null &&
+      experimentInfo?.config?.foundation !== '' &&
+      inferenceSettings?.inferenceEngine != null
+    );
+  }
 
   async function getDefaultinferenceEngines() {
     const inferenceEngines = await fetch(
@@ -221,7 +228,7 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {isPossibleToRunAModel() ? (
+      {isSupportedEngineAvailable() ? (
         <Engine />
       ) : (
         <Alert startDecorator={<TriangleAlertIcon />} color="warning">
