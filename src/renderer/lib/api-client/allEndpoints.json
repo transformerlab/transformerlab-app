@@ -126,6 +126,10 @@
     }
   },
   "diffusion": {
+    "generateId": {
+      "method": "POST",
+      "path": "diffusion/generate_id"
+    },
     "generate": {
       "method": "POST",
       "path": "diffusion/generate"

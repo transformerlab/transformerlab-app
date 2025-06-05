@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Button,
   FormControl,
@@ -102,6 +102,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
   // Inpainting settings for Generate tab
   const [maskImageBase64, setMaskImageBase64] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [inpaintingMode, setInpaintingMode] = useState(false);
 
   // Separate state for Inpainting tab
@@ -140,6 +141,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+
+  // Intermediate image generation state
+  const [showIntermediateImages, setShowIntermediateImages] = useState(false);
+  const [currentIntermediateImage, setCurrentIntermediateImage] = useState<
+    string | null
+  >(null);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isPolling, setIsPolling] = useState(false);
 
   // Helper functions to get the appropriate images based on active tab
   const getCurrentImages = () => {
@@ -273,13 +282,125 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   //   setIsInpaintingEligible(null);
   // };
 
+  // Intermediate image generation helper functions
+  const getGenerationId = async (): Promise<string | null> => {
+    try {
+      const response = await fetch(
+        getFullPath('diffusion', ['generateId'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
+      const data = await response.json();
+      return data.generation_id;
+    } catch (e) {
+      setError('Failed to get generation ID');
+      return null;
+    }
+  };
+
+  // Ref to store polling cleanup function
+  const pollingCleanupRef = useRef<(() => void) | null>(null);
+
+  // Function to start polling for intermediate images
+  const startPollingForIntermediateImages = (
+    genId: string,
+    totalSteps: number,
+  ) => {
+    // Only start polling if intermediate images are enabled
+    if (!showIntermediateImages) {
+      return () => {}; // Return empty cleanup function
+    }
+
+    setIsPolling(true);
+    setCurrentIntermediateImage(null);
+    setCurrentStep(0);
+
+    let lastImageUrl: string | null = null;
+    const pollInterval = 1000; // Poll every second
+    let pollTimeoutId: number;
+
+    const poll = async () => {
+      // Poll for the latest step image (backend overwrites the same step.png file)
+      try {
+        const baseUrl = getFullPath('diffusion', ['getImage'], {
+          imageId: genId,
+          index: 0,
+        });
+        const response = await fetch(`${baseUrl}&step=true`); // Add timestamp to prevent caching
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const imageUrl = URL.createObjectURL(blob);
+
+          // Only update if we got a new image (different blob)
+          if (imageUrl !== lastImageUrl) {
+            // Clean up the previous blob URL to prevent memory leaks
+            if (lastImageUrl) {
+              URL.revokeObjectURL(lastImageUrl);
+            }
+
+            setCurrentIntermediateImage(imageUrl);
+            lastImageUrl = imageUrl;
+
+            // We can't determine exact step number from API, so we just increment
+            setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+          }
+        } else if (response.status === 404) {
+          // Don't update anything, just continue polling - image might not be ready yet
+        }
+      } catch (e) {
+        // Continue polling even if there's an error
+      }
+
+      // Schedule next poll - continue polling until we explicitly stop
+      pollTimeoutId = window.setTimeout(poll, pollInterval);
+    };
+
+    // Start polling
+    pollTimeoutId = window.setTimeout(poll, pollInterval);
+
+    // Return cleanup function to clear timeout
+    return () => {
+      if (pollTimeoutId) {
+        clearTimeout(pollTimeoutId);
+      }
+      setIsPolling(false);
+      // Clean up the last image URL
+      if (lastImageUrl) {
+        URL.revokeObjectURL(lastImageUrl);
+      }
+    };
+  };
+
+  // Stop polling when loading becomes false
+  useEffect(() => {
+    if (!loading && pollingCleanupRef.current) {
+      pollingCleanupRef.current();
+      pollingCleanupRef.current = null;
+    }
+  }, [loading]);
+
   const handleGenerate = async () => {
     setLoading(true);
     setError('');
     setCurrentImages([]);
     setCurrentGenerationData(null);
     setCurrentImageIndex(0); // Reset to first image
+
+    // Reset intermediate image state
+    setCurrentIntermediateImage(null);
+    setCurrentStep(0);
+
     try {
+      // First, get a generation ID to enable intermediate image polling
+      const genId = await getGenerationId();
+      if (!genId) {
+        setError('Failed to initialize generation');
+        return;
+      }
+
       // Build the request body with basic parameters
       const requestBody: any = {
         model,
@@ -291,6 +412,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         upscale,
         upscale_factor: Number(upscaleFactor),
         num_images: Number(numImages),
+        generation_id: genId, // Include the generation ID
       };
 
       // Add image-to-image parameters if an input image is provided
@@ -327,6 +449,12 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         requestBody.height = Number(imageHeight);
       }
 
+      // Start polling for intermediate images BEFORE making the generation request
+      pollingCleanupRef.current = startPollingForIntermediateImages(
+        genId,
+        Number(numSteps),
+      );
+
       const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -335,6 +463,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       const data = await response.json();
       if (data.error_code !== 0) {
         setError('Error generating image');
+        // Stop polling on error
+        if (pollingCleanupRef.current) pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
       } else {
         // Fetch all generated images
         const imageUrls: string[] = [];
@@ -347,9 +478,17 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         }
         setCurrentImages(imageUrls);
         setCurrentGenerationData(data);
+
+        // Stop polling when generation is complete
+        if (pollingCleanupRef.current) pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
       }
     } catch (e) {
       setError('Failed to generate image');
+      setIsPolling(false);
+      // Stop polling on error
+      if (pollingCleanupRef.current) pollingCleanupRef.current();
+      pollingCleanupRef.current = null;
     } finally {
       setLoading(false);
     }
@@ -499,6 +638,13 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     checkValidDiffusion();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [experimentInfo?.config?.foundation]);
+
+  // Cleanup effect to stop polling when component unmounts
+  useEffect(() => {
+    return () => {
+      setIsPolling(false);
+    };
+  }, []);
 
   return (
     <Sheet
@@ -947,6 +1093,29 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                           />
                         </Tooltip>
                       </Stack>
+                      <Stack
+                        gap={1}
+                        sx={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Tooltip
+                          title="Show intermediate images during generation process. This allows you to see the image evolving step by step as it's being generated."
+                          arrow
+                          placement="top"
+                          sx={{ maxWidth: 200 }}
+                          variant="soft"
+                        >
+                          <Checkbox
+                            checked={showIntermediateImages}
+                            onChange={(e) =>
+                              setShowIntermediateImages(e.target.checked)
+                            }
+                            label="Show intermediate images"
+                          />
+                        </Tooltip>
+                      </Stack>
                     </Stack>
                   )}
                 </Sheet>
@@ -959,11 +1128,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                 size="lg"
                 startDecorator={loading && <CircularProgress />}
               >
-                {(() => {
-                  if (loading) return 'Generating';
-                  if (inputImageBase64) return 'Generate from Image';
-                  return 'Generate Image';
-                })()}
+                {loading && 'Generating'}
+                {!loading && inputImageBase64 && 'Generate from Image'}
+                {!loading && !inputImageBase64 && 'Generate Image'}
               </Button>
             </Stack>
             <Box
@@ -1159,6 +1326,50 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                       ? 'Save All Images'
                       : 'Save Image'}
                   </Button>
+                </Box>
+              )}
+
+              {/* Intermediate image display during generation */}
+              {showIntermediateImages && (loading || isPolling) && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 2,
+                    mt: 1,
+                    width: '100%',
+                  }}
+                >
+                  <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
+                    Generating... Step {currentStep + 1} of {numSteps}
+                  </Typography>
+
+                  {/* Show current intermediate image if available */}
+                  {currentIntermediateImage && (
+                    <Box
+                      sx={{
+                        position: 'relative',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        width: '100%',
+                        maxHeight: '400px',
+                      }}
+                    >
+                      <img
+                        src={currentIntermediateImage || ''}
+                        alt={`Step ${currentStep + 1}`}
+                        style={{
+                          borderRadius: 8,
+                          maxWidth: '100%',
+                          maxHeight: '400px',
+                          objectFit: 'contain',
+                          display: 'block',
+                        }}
+                      />
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>
