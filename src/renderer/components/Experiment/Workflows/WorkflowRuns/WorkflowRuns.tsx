@@ -18,22 +18,12 @@ import WorkflowRunDisplay from './WorkflowRunDisplay';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
-interface WorkflowRun {
-  id: string;
-  status: string;
-  workflow_name: string;
-}
 
 function ListOfWorkflowRuns({
   workflowRuns,
   isLoading,
   selectedWorkflowRun,
   setSelectedWorkflowRun,
-}: {
-  workflowRuns: WorkflowRun[] | undefined;
-  isLoading: boolean;
-  selectedWorkflowRun: WorkflowRun | null;
-  setSelectedWorkflowRun: (run: WorkflowRun | null) => void;
 }) {
   useEffect(() => {
     // if no workflow runs are selected, select the first one
@@ -55,7 +45,7 @@ function ListOfWorkflowRuns({
   return (
     <List sx={{ overflowY: 'auto', height: '100%' }}>
       {/* <pre>{JSON.stringify(workflowRuns, null, 2)}</pre> */}
-      {runs.map((run: WorkflowRun) => (
+      {runs.map((run) => (
         <ListItem key={run.id}>
           <ListItemButton
             selected={run.id === selectedWorkflowRun?.id}
@@ -89,7 +79,7 @@ function ListOfWorkflowRuns({
   );
 }
 
-function ShowSelectedWorkflowRun({ selectedWorkflowRun }: { selectedWorkflowRun: WorkflowRun | null }) {
+function ShowSelectedWorkflowRun({ selectedWorkflowRun }) {
   if (!selectedWorkflowRun) {
     return <div>No workflow run selected.</div>;
   }
@@ -105,8 +95,8 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun }: { selectedWorkflowRun:
   );
 }
 
-export default function WorkflowRuns({ experimentInfo }: { experimentInfo: { id: string } }) {
-  const [selectedWorkflowRun, setSelectedWorkflowRun] = useState<WorkflowRun | null>(null);
+export default function WorkflowRuns({ experimentInfo }) {
+  const [selectedWorkflowRun, setSelectedWorkflowRun] = useState(null);
 
   const { data, error, isLoading, mutate } = useSWR<WorkflowRun[]>(
     experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListRunsInExperiment(experimentInfo.id) : null,
