@@ -2,10 +2,6 @@ import { useNavigate } from 'react-router-dom';
 
 import List from '@mui/joy/List';
 import Divider from '@mui/joy/Divider';
-import ListItem from '@mui/joy/ListItem';
-import ListItemButton from '@mui/joy/ListItemButton';
-import ListItemDecorator from '@mui/joy/ListItemDecorator';
-import ListItemContent from '@mui/joy/ListItemContent';
 
 import {
   CodeIcon,
@@ -26,8 +22,7 @@ import {
   ChartColumnIncreasingIcon,
   WorkflowIcon,
   UserIcon,
-  LogOutIcon,
-  DownloadIcon,
+  LogOutIcon
 } from 'lucide-react';
 
 import {
@@ -39,7 +34,6 @@ import {
   Typography,
 } from '@mui/joy';
 
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import {
   useModelStatus,
   usePluginStatus,
@@ -50,25 +44,7 @@ import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 
-interface ExperimentMenuItemsProps {
-  DEV_MODE: boolean;
-  experimentInfo: any;
-  models: any[];
-}
-
-interface GlobalMenuItemsProps {
-  DEV_MODE: boolean;
-  experimentInfo: any;
-  outdatedPluginsCount: number;
-}
-
-interface BottomMenuItemsProps {
-  DEV_MODE: boolean;
-  navigate: any;
-  themeSetter: any;
-}
-
-function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }: ExperimentMenuItemsProps) {
+function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   function activeModelIsNotSameAsFoundation() {
     if (models === null) {
       return true;
