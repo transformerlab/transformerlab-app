@@ -132,14 +132,12 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           disabled={!experimentInfo?.name}
         />
       )}
-      {DEV_MODE && (
-        <SubNavItem
-          title="Workflows"
-          path="/experiment/workflows"
-          icon={<WorkflowIcon />}
-          disabled={!experimentInfo?.name}
-        />
-      )}
+      <SubNavItem
+        title="Workflows"
+        path="/experiment/workflows"
+        icon={<WorkflowIcon />}
+        disabled={!experimentInfo?.name}
+      />
       <SubNavItem
         title="Train"
         path="/experiment/training"
