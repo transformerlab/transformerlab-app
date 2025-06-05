@@ -78,6 +78,8 @@ function ModelProviderWidget<
 
   // Map: label => stored value.
   const labelToCustomValue: Record<string, string> = {
+    'Claude Opus 4': 'claude-opus-4-20250514',
+    'Claude Sonnet 4': 'claude-sonnet-4-20250514',
     'Claude 3.7 Sonnet': 'claude-3-7-sonnet-latest',
     'Claude 3.5 Haiku': 'claude-3-5-haiku-latest',
     'OpenAI GPT 4o': 'gpt-4o',

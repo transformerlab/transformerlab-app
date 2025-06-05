@@ -332,7 +332,7 @@ const LocalModelsTable = ({
       </Sheet>
       <Typography mt={2} level="body-sm">
         Looking for more models? Go to the{' '}
-        <ReactRouterLink to="/zoo/store">Model Store</ReactRouterLink>
+        <ReactRouterLink to="/zoo">Model Store</ReactRouterLink>
       </Typography>
     </>
   );
