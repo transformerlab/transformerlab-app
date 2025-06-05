@@ -147,7 +147,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [currentIntermediateImage, setCurrentIntermediateImage] = useState<
     string | null
   >(null);
-  const [currentStep, setCurrentStep] = useState(0);
+  // const [currentStep, setCurrentStep] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
 
   // Helper functions to get the appropriate images based on active tab
@@ -315,13 +315,15 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
     setIsPolling(true);
     setCurrentIntermediateImage(null);
-    setCurrentStep(0);
+    // setCurrentStep(0);
 
+    let isActive = true; // flag to control active polling
     let lastImageUrl: string | null = null;
     const pollInterval = 1000; // Poll every second
     let pollTimeoutId: number;
 
     const poll = async () => {
+      if (!isActive) return; // stop if no longer active
       // Poll for the latest step image (backend overwrites the same step.png file)
       try {
         const baseUrl = getFullPath('diffusion', ['getImage'], {
@@ -334,18 +336,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
           const blob = await response.blob();
           const imageUrl = URL.createObjectURL(blob);
 
-          // Only update if we got a new image (different blob)
           if (imageUrl !== lastImageUrl) {
-            // Clean up the previous blob URL to prevent memory leaks
             if (lastImageUrl) {
               URL.revokeObjectURL(lastImageUrl);
             }
 
             setCurrentIntermediateImage(imageUrl);
             lastImageUrl = imageUrl;
-
-            // We can't determine exact step number from API, so we just increment
-            setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+            // setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
           }
         } else if (response.status === 404) {
           // Don't update anything, just continue polling - image might not be ready yet
@@ -354,20 +352,22 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         // Continue polling even if there's an error
       }
 
-      // Schedule next poll - continue polling until we explicitly stop
-      pollTimeoutId = window.setTimeout(poll, pollInterval);
+      // Schedule next poll only if still active
+      if (isActive) {
+        pollTimeoutId = window.setTimeout(poll, pollInterval);
+      }
     };
 
     // Start polling
     pollTimeoutId = window.setTimeout(poll, pollInterval);
 
-    // Return cleanup function to clear timeout
+    // Return cleanup function to stop further polls
     return () => {
+      isActive = false;
       if (pollTimeoutId) {
         clearTimeout(pollTimeoutId);
       }
       setIsPolling(false);
-      // Clean up the last image URL
       if (lastImageUrl) {
         URL.revokeObjectURL(lastImageUrl);
       }
@@ -391,7 +391,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
     // Reset intermediate image state
     setCurrentIntermediateImage(null);
-    setCurrentStep(0);
+    // setCurrentStep(0);
 
     try {
       // First, get a generation ID to enable intermediate image polling
@@ -642,7 +642,10 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   // Cleanup effect to stop polling when component unmounts
   useEffect(() => {
     return () => {
-      setIsPolling(false);
+      if (pollingCleanupRef.current) {
+        pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+      }
     };
   }, []);
 
@@ -1342,7 +1345,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   }}
                 >
                   <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
-                    Generating... Step {currentStep + 1} of {numSteps}
+                    Generating...
                   </Typography>
 
                   {/* Show current intermediate image if available */}
@@ -1359,7 +1362,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     >
                       <img
                         src={currentIntermediateImage || ''}
-                        alt={`Step ${currentStep + 1}`}
+                        alt=""
                         style={{
                           borderRadius: 8,
                           maxWidth: '100%',
