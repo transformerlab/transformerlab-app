@@ -12,11 +12,12 @@ import {
   ModalDialog,
   ModalClose,
   Typography,
+  Tooltip,
 } from '@mui/joy';
 import { Plus, Minus } from 'lucide-react';
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
-const DatasetPreviewEditImage = ({ datasetId, template }) => {
+const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
   const [offset, setOffset] = useState(0);
@@ -36,6 +37,12 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
   const [columnToRemove, setColumnToRemove] = useState('');
   const limit = 50;
   const containerRef = useRef(null);
+
+  useEffect(() => {
+    alert(
+      `Datasets are not editable in place.\n\nEdits you make here will be saved to a *new* dataset after clicking 'Save Changes'. This will copy the original dataset into a new one with your modifications.\n\nTo enable 'Save Changes', you must:\n1. Enter a new dataset name\n2. Make at least one change.`,
+    );
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
@@ -164,6 +171,9 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       );
       if (!response.ok) throw new Error('Failed to save');
       alert('Changes saved successfully!');
+      if (typeof onClose === 'function') {
+        onClose();
+      }
       setModifiedRows(new Map());
     } catch (err) {
       alert(`Error saving captions: ${err.message}`);
@@ -230,6 +240,7 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       return;
     }
 
+    // Update columns and rows
     setColumns(columns.filter((c) => c !== columnToRemove));
     setRows(
       rows.map((r) => {
@@ -238,6 +249,17 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
         return newRow;
       }),
     );
+
+    // Clean up modifiedRows
+    setModifiedRows((prev) => {
+      const updated = new Map();
+      for (const [index, modRow] of prev.entries()) {
+        const { [columnToRemove]: _, ...rest } = modRow;
+        updated.set(index, rest);
+      }
+      return updated;
+    });
+
     setRemoveColumnModalOpen(false);
     setColumnToRemove('');
   };
@@ -270,18 +292,22 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       )}
 
       <Box p={1} display="flex" gap={2} alignItems="center">
-        <Input
-          placeholder="New Dataset Name"
-          value={newDatasetId}
-          onChange={(e) => setNewDatasetId(e.target.value)}
-          sx={{ width: '250px' }}
-        />
-        <Input
-          placeholder="Search captions..."
-          sx={{ width: '400px' }}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-        />
+        <Tooltip title="Required to save changes as a new dataset">
+          <Input
+            placeholder="New Dataset Name"
+            value={newDatasetId}
+            onChange={(e) => setNewDatasetId(e.target.value)}
+            sx={{ width: '250px' }}
+          />
+        </Tooltip>
+        <Tooltip title="Filter rows by caption content (text field)">
+          <Input
+            placeholder="Search captions..."
+            sx={{ width: '400px' }}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+          />
+        </Tooltip>
         <Select
           value={selectedSplitFilter}
           onChange={(_, v) => setSelectedSplitFilter(v)}
@@ -308,24 +334,34 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
             </Option>
           ))}
         </Select>
-        <Button
-          onClick={() => saveEditsWithName(newDatasetId)}
-          loading={saving}
-          variant="soft"
-          disabled={
-            rows.length === 0 ||
-            newDatasetId.trim() === '' ||
-            modifiedRows.size === 0
-          }
-        >
-          Save Changes
-        </Button>
-        <Button onClick={() => setAddColumnModalOpen(true)}>
-          <Plus size={16} />
-        </Button>
-        <Button onClick={() => setRemoveColumnModalOpen(true)}>
-          <Minus size={16} />
-        </Button>
+        <Tooltip title="Save changes to a new dataset. Requires a new name and at least one edit.">
+          <span>
+            <Button
+              onClick={() => saveEditsWithName(newDatasetId)}
+              loading={saving}
+              variant="soft"
+              disabled={
+                rows.length === 0 ||
+                newDatasetId.trim() === '' ||
+                modifiedRows.size === 0
+              }
+            >
+              Save Changes
+            </Button>
+          </span>
+        </Tooltip>
+
+        <Tooltip title="Add a new column">
+          <Button onClick={() => setAddColumnModalOpen(true)}>
+            <Plus size={16} />
+          </Button>
+        </Tooltip>
+
+        <Tooltip title="Remove a column">
+          <Button onClick={() => setRemoveColumnModalOpen(true)}>
+            <Minus size={16} />
+          </Button>
+        </Tooltip>
       </Box>
 
       <Box sx={{ overflowX: 'auto', flex: 1, width: '100%' }}>
