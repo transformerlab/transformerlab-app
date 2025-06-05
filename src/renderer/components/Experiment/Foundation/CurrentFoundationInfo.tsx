@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
 import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
@@ -202,10 +203,10 @@ export default function CurrentFoundationInfo({
 
       // Delete existing adapter first
       await fetch(
-        chatAPI.Endpoints.Models.DeletePeft(
-          experimentInfo.config.foundation,
-          secureAdapterId,
-        ),
+        getFullPath('models', ['deletePeft'], {
+          modelId: experimentInfo.config.foundation,
+          peft: secureAdapterId,
+        }),
       );
     }
 
@@ -213,10 +214,10 @@ export default function CurrentFoundationInfo({
 
     try {
       const response = await fetch(
-        chatAPI.Endpoints.Models.InstallPeft(
-          experimentInfo?.config?.foundation,
-          adapterId,
-        ),
+        getFullPath('models', ['installPeft'], {
+          modelId: experimentInfo?.config?.foundation,
+          peft: adapterId,
+        }),
         { method: 'POST' },
       );
 
@@ -252,7 +253,7 @@ export default function CurrentFoundationInfo({
   const handleCancelDownload = async () => {
     if (jobId) {
       setCanceling(true);
-      const response = await fetch(chatAPI.Endpoints.Jobs.Stop(jobId));
+      const response = await fetch(getFullPath('jobs', ['stop'], { jobId }));
       if (response.ok) {
         setJobId(null);
         setCurrentlyInstalling(null);
@@ -550,10 +551,10 @@ export default function CurrentFoundationInfo({
                             )
                           ) {
                             fetch(
-                              chatAPI.Endpoints.Models.DeletePeft(
-                                experimentInfo?.config?.foundation,
+                              getFullPath('models', ['deletePeft'], {
+                                modelId: experimentInfo?.config?.foundation,
                                 peft,
-                              ),
+                              }),
                             ).then(() => {
                               peftMutate();
                             });

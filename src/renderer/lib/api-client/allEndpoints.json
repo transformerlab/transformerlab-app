@@ -54,19 +54,31 @@
     }
   },
   "models": {
-      "getModelGroups": {
-        "method": "GET",
-        "path": "model/model_groups_list"
-      },
-      "loginToHuggingFace": {
-        "method": "GET",
-        "path": "model/login_to_huggingface"
-      }
+    "getModelGroups": {
+      "method": "GET",
+      "path": "model/model_groups_list"
+    },
+    "loginToHuggingFace": {
+      "method": "GET",
+      "path": "model/login_to_huggingface"
+    },
+    "deletePeft": {
+      "method": "GET",
+      "path": "model/delete_peft?model_id={modelId}&peft={peft}"
+    },
+    "installPeft": {
+      "method": "POST",
+      "path": "model/install_peft?peft={peft}&model_id={modelId}"
+    }
   },
   "jobs": {
     "get": {
       "method": "GET",
       "path": "jobs/{id}"
+    },
+    "stop": {
+      "method": "GET",
+      "path": "jobs/{jobId}/stop"
     }
   }
 }
