@@ -18,7 +18,6 @@ import WorkflowRunDisplay from './WorkflowRunDisplay';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
-
 function ListOfWorkflowRuns({
   workflowRuns,
   isLoading,

@@ -37,7 +37,7 @@ import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
 
-function ShowCode({ code }: { code: any }) {
+function ShowCode({ code }) {
   const config = code?.config;
 
   if (!config) {
