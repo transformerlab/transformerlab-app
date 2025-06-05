@@ -22,7 +22,7 @@ import {
   ChartColumnIncreasingIcon,
   WorkflowIcon,
   UserIcon,
-  LogOutIcon
+  LogOutIcon,
 } from 'lucide-react';
 
 import {
