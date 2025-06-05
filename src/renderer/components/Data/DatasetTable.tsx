@@ -101,7 +101,7 @@ const DatasetTable = ({ datasetId }) => {
           loading={isLoading}
         />
       )}
-      <Box sx={{ overflow: 'auto', height: '100%' }}>
+      <Box sx={{ height: '100%' }}>
         {isLoading && (
           <>
             {Array.from({ length: 8 }).map((_, index) => (
@@ -149,7 +149,9 @@ const DatasetTable = ({ datasetId }) => {
                           title={
                             typeof data.data['columns'][key][rowIndex] ===
                             'string'
-                              ? data.data['columns'][key][rowIndex]
+                              ? data.data['columns'][key][rowIndex].length > 100
+                                ? `${data.data['columns'][key][rowIndex].substring(0, 100)}...`
+                                : data.data['columns'][key][rowIndex]
                               : JSON.stringify(
                                   data.data['columns'][key][rowIndex],
                                 )
