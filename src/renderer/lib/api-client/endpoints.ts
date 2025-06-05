@@ -24,6 +24,8 @@ Endpoints.Tasks = {
 
 Endpoints.Workflows = {
   List: () => `${API_URL()}workflows/list`,
+  ListInExperiment: (experimentId: string) => 
+    `${API_URL()}workflows/list_in_experiment?experiment_id=${experimentId}`,
   CreateEmpty: (name: string, experimentId: string) =>
     `${API_URL()}workflows/create_empty` +
     `?name=${name}&experiment_id=${experimentId}`,
@@ -50,6 +52,8 @@ Endpoints.Workflows = {
   RunWorkflow: (workflowId: string) =>
     `${API_URL()}workflows/${workflowId}/start`,
   ListRuns: () => `${API_URL()}workflows/list_runs`,
+  ListRunsInExperiment: (experimentId: string) =>
+    `${API_URL()}workflows/list_runs_in_experiment?experiment_id=${experimentId}`,
   GetRun: (workflowRunID: string) =>
     `${API_URL()}workflows/runs/${workflowRunID}`,
 };

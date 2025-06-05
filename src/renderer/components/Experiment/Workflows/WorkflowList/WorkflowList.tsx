@@ -37,7 +37,7 @@ import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
 
-function ShowCode({ code }) {
+function ShowCode({ code }: { code: any }) {
   const config = code?.config;
 
   if (!config) {
@@ -62,7 +62,7 @@ function ShowCode({ code }) {
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
-export default function WorkflowList({ experimentInfo }) {
+export default function WorkflowList({ experimentInfo }: { experimentInfo: { id: string } }) {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
@@ -73,7 +73,10 @@ export default function WorkflowList({ experimentInfo }) {
     error: workflowsError,
     isLoading: isLoading,
     mutate: mutateWorkflows,
-  } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
+  } = useSWR(
+    experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id) : null,
+    fetcher,
+  );
 
   // select the first workflow available:
   useEffect(() => {
@@ -87,7 +90,7 @@ export default function WorkflowList({ experimentInfo }) {
   const workflows = workflowsData;
 
   const selectedWorkflow = workflows?.find(
-    (workflow) => workflow.id === selectedWorkflowId,
+    (workflow: { id: string }) => workflow.id === selectedWorkflowId,
   );
 
   async function runWorkflow(workflowId: string) {
