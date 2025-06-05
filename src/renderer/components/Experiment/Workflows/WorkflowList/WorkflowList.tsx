@@ -73,7 +73,10 @@ export default function WorkflowList({ experimentInfo }) {
     error: workflowsError,
     isLoading: isLoading,
     mutate: mutateWorkflows,
-  } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
+  } = useSWR<Workflow[]>(
+    experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id) : null,
+    fetcher,
+  );
 
   // select the first workflow available:
   useEffect(() => {
@@ -84,7 +87,7 @@ export default function WorkflowList({ experimentInfo }) {
     }
   }, [workflowsData, selectedWorkflowId, newWorkflowModalOpen]);
 
-  const workflows = workflowsData;
+  const workflows = Array.isArray(workflowsData) ? workflowsData : [];
 
   const selectedWorkflow = workflows?.find(
     (workflow) => workflow.id === selectedWorkflowId,
