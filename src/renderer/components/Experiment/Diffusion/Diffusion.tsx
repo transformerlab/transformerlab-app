@@ -1092,7 +1092,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     {/* Current image */}
                     <img
                       src={getCurrentImages()[currentImageIndex]}
-                      alt={`Generated image ${currentImageIndex + 1}`}
+                      alt={`Generated ${currentImageIndex + 1}`}
                       style={{
                         borderRadius: 8,
                         maxWidth: '100%',
@@ -1155,7 +1155,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     size="md"
                     sx={{ mt: 2 }}
                   >
-                    Save All Images
+                    {getCurrentImages().length > 1
+                      ? 'Save All Images'
+                      : 'Save Image'}
                   </Button>
                 </Box>
               )}
