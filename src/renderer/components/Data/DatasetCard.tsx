@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import PreviewDatasetModal from './PreviewDatasetModal';
 import DatasetInfoModal from './DatasetInfoModal';
 import EditDatasetModal from './EditDatasetModal';
@@ -41,22 +42,10 @@ export default function DatasetCard({
   });
   const [datasetInfoModalOpen, setDatasetInfoModalOpen] = useState(false);
   const [editDatasetModalOpen, setEditDatasetModalOpen] = useState(false);
-  const [datasetInfo, setDatasetInfo] = useState(null);
 
-  useEffect(() => {
-    const fetchDatasetInfo = async () => {
-      try {
-        const response = await fetch(chatAPI.Endpoints.Dataset.Info(name));
-        const data = await response.json();
-        if (data?.status !== 'error') {
-          setDatasetInfo(data);
-        }
-      } catch (err) {
-        console.error(`Failed to fetch dataset info for ${name}`, err);
-      }
-    };
-    fetchDatasetInfo();
-  }, [name]);
+  const { data: datasetInfo } = useAPI('datasets', ['info'], {
+    datasetId: name,
+  });
 
   return (
     <>
