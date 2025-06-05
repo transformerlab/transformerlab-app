@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import {
   Divider,
   Modal,
@@ -6,16 +5,35 @@ import {
   ModalDialog,
   Sheet,
   Typography,
+  Box,
 } from '@mui/joy';
 
 import DatasetTable from './DatasetTable';
+import useSWR from 'swr';
+import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import DatasetPreviewEditImage from './DatasetPreviewEditImage';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) =>
   fetch(url)
     .then((res) => res.json())
     .then((data) => data);
 
-export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
+export default function PreviewDatasetModal({
+  dataset_id,
+  open,
+  setOpen,
+  viewType = 'preview',
+}) {
+  const { data, error, isLoading } = useAPI(
+    'datasets',
+    ['info'],
+    { dataset_id },
+    { enabled: open },
+  );
+
+  const isImageDataset = data?.features?.image?._type === 'Image';
+
   return (
     <Modal
       open={open}
@@ -33,14 +51,18 @@ export default function PreviewDatasetModal({ dataset_id, open, setOpen }) {
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
-            overflowY: 'hidden',
             width: '80vw',
             height: '80vh',
-            justifyContent: 'space-between',
+            overflow: 'hidden',
           }}
         >
-          <DatasetTable datasetId={dataset_id} />
+          <Box sx={{ flex: 1, overflow: 'auto' }}>
+            {viewType === 'edit' ? (
+              <DatasetPreviewEditImage datasetId={dataset_id} template="" />
+            ) : (
+              <DatasetTable datasetId={dataset_id} />
+            )}
+          </Box>
         </Sheet>
       </ModalDialog>
     </Modal>
