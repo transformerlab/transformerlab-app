@@ -46,14 +46,16 @@ function ListOfWorkflowRuns({
     return <CircularProgress />;
   }
 
-  if (workflowRuns.length === 0) {
+  const runs = Array.isArray(workflowRuns) ? workflowRuns : [];
+
+  if (runs.length === 0) {
     return <div>No workflow runs found.</div>;
   }
 
   return (
     <List sx={{ overflowY: 'auto', height: '100%' }}>
       {/* <pre>{JSON.stringify(workflowRuns, null, 2)}</pre> */}
-      {workflowRuns.map((run: WorkflowRun) => (
+      {runs.map((run: WorkflowRun) => (
         <ListItem key={run.id}>
           <ListItemButton
             selected={run.id === selectedWorkflowRun?.id}
@@ -106,11 +108,13 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun }: { selectedWorkflowRun:
 export default function WorkflowRuns({ experimentInfo }: { experimentInfo: { id: string } }) {
   const [selectedWorkflowRun, setSelectedWorkflowRun] = useState<WorkflowRun | null>(null);
 
-  const { data, error, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR<WorkflowRun[]>(
     experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListRunsInExperiment(experimentInfo.id) : null,
     fetcher,
     { refreshInterval: 2000 },
   );
+
+  const workflowRuns = Array.isArray(data) ? data : [];
 
   return (
     <Sheet
@@ -124,7 +128,7 @@ export default function WorkflowRuns({ experimentInfo }: { experimentInfo: { id:
     >
       <Box flex="1" sx={{ minWidth: '200px' }}>
         <ListOfWorkflowRuns
-          workflowRuns={data}
+          workflowRuns={workflowRuns}
           isLoading={isLoading}
           selectedWorkflowRun={selectedWorkflowRun}
           setSelectedWorkflowRun={setSelectedWorkflowRun}

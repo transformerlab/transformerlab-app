@@ -37,6 +37,13 @@ import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
 
+interface Workflow {
+  id: string;
+  name: string;
+  status?: string;
+  config?: string;
+}
+
 function ShowCode({ code }: { code: any }) {
   const config = code?.config;
 
@@ -63,7 +70,7 @@ function ShowCode({ code }: { code: any }) {
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
 export default function WorkflowList({ experimentInfo }: { experimentInfo: { id: string } }) {
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
   const [viewCodeMode, setViewCodeMode] = useState(false);
@@ -73,7 +80,7 @@ export default function WorkflowList({ experimentInfo }: { experimentInfo: { id:
     error: workflowsError,
     isLoading: isLoading,
     mutate: mutateWorkflows,
-  } = useSWR(
+  } = useSWR<Workflow[]>(
     experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id) : null,
     fetcher,
   );
@@ -87,11 +94,11 @@ export default function WorkflowList({ experimentInfo }: { experimentInfo: { id:
     }
   }, [workflowsData, selectedWorkflowId, newWorkflowModalOpen]);
 
-  const workflows = workflowsData;
+  const workflows = Array.isArray(workflowsData) ? workflowsData : [];
 
-  const selectedWorkflow = workflows?.find(
-    (workflow: { id: string }) => workflow.id === selectedWorkflowId,
-  );
+  const selectedWorkflow = workflows.find(
+    (workflow: Workflow) => workflow.id === selectedWorkflowId,
+  ) || null;
 
   async function runWorkflow(workflowId: string) {
     await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
@@ -131,8 +138,8 @@ export default function WorkflowList({ experimentInfo }: { experimentInfo: { id:
           </Typography>
           <List sx={{ overflowY: 'auto', height: '100%' }}>
             {workflows &&
-              workflows?.length > 0 &&
-              workflows?.map((workflow) => (
+              workflows.length > 0 &&
+              workflows.map((workflow: Workflow) => (
                 <ListItem key={workflow.id}>
                   <ListItemButton
                     onClick={() => setSelectedWorkflowId(workflow.id)}
@@ -178,7 +185,11 @@ export default function WorkflowList({ experimentInfo }: { experimentInfo: { id:
                   <Button
                     disabled={!selectedWorkflow}
                     startDecorator={<PlayIcon />}
-                    onClick={() => runWorkflow(selectedWorkflow.id)}
+                    onClick={() => {
+                      if (selectedWorkflow) {
+                        runWorkflow(selectedWorkflow.id);
+                      }
+                    }}
                   >
                     Run
                   </Button>
