@@ -56,13 +56,17 @@ export default function EditDatasetModal({
             }}
           >
             <Box sx={{ flex: 1, overflow: 'auto' }}>
-              <DatasetPreviewEditImage
-                datasetId={datasetId}
-                template={template}
-                onModifiedRowsChange={setModifiedRows}
-                onDatasetNameChange={setNewDatasetId}
-                onClose={() => setOpen(false)}
-              />
+              {alert(
+                `Datasets are not editable in place.\n\nEdits you make here will be saved to a *new* dataset after clicking 'Save Changes'. This will copy the original dataset into a new one with your modifications.\n\nTo enable 'Save Changes', you must:\n1. Enter a new dataset name\n2. Make at least one change.`,
+              ) || (
+                <DatasetPreviewEditImage
+                  datasetId={datasetId}
+                  template={template}
+                  onModifiedRowsChange={setModifiedRows}
+                  onDatasetNameChange={setNewDatasetId}
+                  onClose={() => setOpen(false)}
+                />
+              )}
             </Box>
           </Sheet>
         </ModalDialog>

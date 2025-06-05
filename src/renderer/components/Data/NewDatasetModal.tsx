@@ -267,15 +267,26 @@ export default function DatasetDetailsModal({ open, setOpen }) {
 
                     const items = event.dataTransfer?.items;
                     const allFiles: File[] = [];
+                    let hasFolder = false;
 
                     if (items) {
                       for (const item of items) {
                         const entry = item.webkitGetAsEntry?.();
                         if (entry) {
+                          if (entry.isDirectory) {
+                            hasFolder = true;
+                          }
                           const files = await traverseFileTree(entry);
                           allFiles.push(...files);
                         }
                       }
+                    }
+
+                    if (!hasFolder) {
+                      alert(
+                        'Please drag and drop a folder, not individual files.',
+                      );
+                      return;
                     }
 
                     const validFiles = allFiles.filter(
