@@ -231,19 +231,26 @@ export default function RunModelButton({
       {isSupportedEngineAvailable() ? (
         <Engine />
       ) : (
-        <Alert startDecorator={<TriangleAlertIcon />} color="warning">
-          <Typography level="body-sm">
-            You do not have an installed Inference Engine that is compatible
-            with this model. Go to{' '}
-            <Link to="/plugins">
-              <Plug2Icon size="15px" />
-              Plugins
-            </Link>{' '}
-            and install an Inference Engine. <b>FastChat Server</b> is a good
-            default for systems with a GPU. <b>Apple MLX Server</b> is the best
-            default for MacOS with Apple Silicon.
-          </Typography>
-        </Alert>
+        <div>
+          <Alert startDecorator={<TriangleAlertIcon />} color="warning">
+            <Typography level="body-sm">
+              You do not have an installed Inference Engine that is compatible
+              with this model. Go to{' '}
+              <Link to="/plugins">
+                <Plug2Icon size="15px" />
+                Plugins
+              </Link>{' '}
+              and install an Inference Engine. <b>FastChat Server</b> is a good
+              default for systems with a GPU. <b>Apple MLX Server</b> is the best
+              default for MacOS with Apple Silicon.
+              <br />
+              However, you can also try using an unsupported engine below.
+            </Typography>
+          </Alert>
+          <div style={{ marginTop: 16 }}>
+            <Engine />
+          </div>
+        </div>
       )}
       <InferenceEngineModal
         showModal={showRunSettings}
