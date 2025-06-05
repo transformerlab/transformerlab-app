@@ -75,15 +75,6 @@ Endpoints.Dataset = {
     `${API_URL()}data/preview_with_template?dataset_id=${datasetId}&template=${
       template
     }&offset=${offset}&limit=${limit}`,
-  EditWithTemplate: (
-    datasetId: string,
-    template: string,
-    offset: number,
-    limit: number,
-  ) =>
-    `${API_URL()}data/edit_with_template?dataset_id=${datasetId}&template=${
-      template
-    }&offset=${offset}&limit=${limit}`,
   Delete: (datasetId: string) =>
     `${API_URL()}data/delete?dataset_id=${datasetId}`,
   Create: (datasetId: string) => `${API_URL()}data/new?dataset_id=${datasetId}`,
@@ -96,8 +87,6 @@ Endpoints.Dataset = {
   GeneratedList: () => `${API_URL()}data/generated_datasets_list`,
   FileUpload: (datasetId: string) =>
     `${API_URL()}data/fileupload?dataset_id=${datasetId}`,
-  SaveMetadata: (datasetId: string, newDatasetId: string) =>
-    `${API_URL()}data/save_metadata?dataset_id=${datasetId}&new_dataset_id=${newDatasetId}`,
 };
 
 Endpoints.Models = {

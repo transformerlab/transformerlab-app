@@ -14,7 +14,7 @@ import {
   Typography,
 } from '@mui/joy';
 import { Plus, Minus } from 'lucide-react';
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 const DatasetPreviewEditImage = ({ datasetId, template }) => {
   const [rows, setRows] = useState([]);
@@ -41,12 +41,13 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
     if (loading || !hasMore) return;
     setLoading(true);
     try {
-      const url = chatAPI.Endpoints.Dataset.EditWithTemplate(
+      const url = getFullPath('datasets', ['editWithTemplate'], {
         datasetId,
-        encodeURIComponent(template),
+        template: encodeURIComponent(template),
         offset,
         limit,
-      );
+      });
+
       const response = await fetch(url);
       const result = await response.json();
       if (result.status === 'success') {
@@ -59,7 +60,9 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
 
         const dynamicColumns = Array.from(
           new Set(updatedRows.flatMap((r) => Object.keys(r))),
-        ).filter((c) => c !== 'image' && !c.startsWith('__'));
+        ).filter(
+          (c) => c !== 'image' && c !== 'file_name' && !c.startsWith('__'),
+        );
 
         const orderedColumns = [
           'split',
@@ -120,7 +123,9 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
     setSaving(true);
     try {
       const checkResponse = await fetch(
-        chatAPI.Endpoints.Dataset.Info(datasetName),
+        getFullPath('datasets', ['info'], {
+          datasetId: datasetName,
+        }),
       );
       const datasetInfo = await checkResponse.json();
       if (
@@ -137,10 +142,9 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       const fullArray = rows.map((row) => {
         const uniqueKey = row['__index__'];
         const modified = modifiedRows.get(uniqueKey) || {};
-        return {
-          ...row,
-          ...modified,
-        };
+        const merged = { ...row, ...modified };
+        const { image, ...rest } = merged; // remove `image`
+        return rest;
       });
 
       const formData = new FormData();
@@ -149,7 +153,10 @@ const DatasetPreviewEditImage = ({ datasetId, template }) => {
       });
       formData.append('file', blob, 'metadata_updates.json');
       const response = await fetch(
-        chatAPI.Endpoints.Dataset.SaveMetadata(datasetId, datasetName),
+        getFullPath('datasets', ['saveMetadata'], {
+          datasetId,
+          newDatasetId: datasetName,
+        }),
         {
           method: 'POST',
           body: formData,

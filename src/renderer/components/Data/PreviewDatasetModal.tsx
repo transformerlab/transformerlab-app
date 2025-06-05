@@ -12,6 +12,7 @@ import DatasetTable from './DatasetTable';
 import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import DatasetPreviewEditImage from './DatasetPreviewEditImage';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) =>
   fetch(url)
@@ -24,9 +25,11 @@ export default function PreviewDatasetModal({
   setOpen,
   viewType = 'preview',
 }) {
-  const { data, error, isLoading } = useSWR(
-    open ? chatAPI.Endpoints.Dataset.Info(dataset_id) : null,
-    fetcher,
+  const { data, error, isLoading } = useAPI(
+    'datasets',
+    ['info'],
+    { dataset_id },
+    { enabled: open },
   );
 
   const isImageDataset = data?.features?.image?._type === 'Image';
