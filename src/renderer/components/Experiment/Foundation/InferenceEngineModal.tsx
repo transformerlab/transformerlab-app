@@ -14,7 +14,6 @@ import {
 } from '@mui/joy';
 import React, { useState } from 'react';
 import DynamicPluginForm from '../DynamicPluginForm';
-import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -25,42 +24,10 @@ function EngineSelect({
   setSelectedPlugin,
   showUnsupported,
   setShowUnsupported,
+  supported,
+  unsupported,
+  isLoading,
 }) {
-  const { data, error, isLoading } = useSWR(
-    experimentInfo?.id
-      ? chatAPI.Endpoints.Experiment.ListScriptsOfType(
-          experimentInfo.id,
-          'loader',
-          ''
-        )
-      : null,
-    fetcher
-  );
-
-  const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
-
-  const supported = React.useMemo(() => {
-    if (!data) return [];
-    return data.filter(
-      (row) =>
-        Array.isArray(row.model_architectures) &&
-        row.model_architectures.some(
-          (arch) => arch.toLowerCase() === archTag.toLowerCase()
-        )
-    );
-  }, [data, archTag]);
-
-  const unsupported = React.useMemo(() => {
-    if (!data) return [];
-    return data.filter(
-      (row) =>
-        !Array.isArray(row.model_architectures) ||
-        !row.model_architectures.some(
-          (arch) => arch.toLowerCase() === archTag.toLowerCase()
-        )
-    );
-  }, [data, archTag]);
-
   return (
     <Stack spacing={1}>
       <Checkbox
@@ -107,6 +74,9 @@ export default function InferenceEngineModal({
   experimentInfo,
   inferenceSettings,
   setInferenceSettings,
+  supported,
+  unsupported,
+  isLoading,
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
@@ -143,7 +113,7 @@ export default function InferenceEngineModal({
             }
 
             const engineFriendlyName = document.querySelector(
-              `button[name='inferenceEngine']`
+              `button[name='inferenceEngine']`,
             )?.innerHTML;
 
             const experimentId = experimentInfo?.id;
@@ -161,8 +131,8 @@ export default function InferenceEngineModal({
               chatAPI.Endpoints.Experiment.UpdateConfig(
                 experimentId,
                 'inferenceParams',
-                JSON.stringify(newInferenceSettings)
-              )
+                JSON.stringify(newInferenceSettings),
+              ),
             );
 
             closeModal();
@@ -177,6 +147,9 @@ export default function InferenceEngineModal({
                 setSelectedPlugin={setSelectedPlugin}
                 showUnsupported={showUnsupported}
                 setShowUnsupported={setShowUnsupported}
+                supported={supported}
+                unsupported={unsupported}
+                isLoading={isLoading}
               />
             </FormControl>
 

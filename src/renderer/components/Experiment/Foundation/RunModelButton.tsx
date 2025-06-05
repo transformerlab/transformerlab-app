@@ -13,6 +13,8 @@ import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
 import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
+import useSWR from 'swr';
+import React, { useState } from 'react';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -42,13 +44,47 @@ export default function RunModelButton({
     inferenceEngineFriendlyName: '',
   });
 
+  const { data, error, isLoading } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Experiment.ListScriptsOfType(
+          experimentInfo.id,
+          'loader',
+          '',
+        )
+      : null,
+    fetcher,
+  );
+
+  const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
+
+  const supported = React.useMemo(() => {
+    if (!data) return [];
+    return data.filter(
+      (row) =>
+        Array.isArray(row.model_architectures) &&
+        row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        ),
+    );
+  }, [data, archTag]);
+
+  const unsupported = React.useMemo(() => {
+    if (!data) return [];
+    return data.filter(
+      (row) =>
+        !Array.isArray(row.model_architectures) ||
+        !row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        ),
+    );
+  }, [data, archTag]);
+
   function isPossibleToRunAModel() {
     // console.log('Is Possible?');
     // console.log(experimentInfo);
     // console.log(inferenceSettings);
     return (
-      experimentInfo != null &&
-      experimentInfo?.config?.foundation !== ''
+      experimentInfo != null && experimentInfo?.config?.foundation !== ''
       // inferenceSettings?.inferenceEngine != null
     );
   }
@@ -230,7 +266,7 @@ export default function RunModelButton({
       {/* {JSON.stringify(inferenceSettings)} */}
       {isSupportedEngineAvailable() ? (
         <Engine />
-      ) : (
+      ) : unsupported.length > 0 ? (
         <div>
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">
             <Typography level="body-sm">
@@ -241,8 +277,8 @@ export default function RunModelButton({
                 Plugins
               </Link>{' '}
               and install an Inference Engine. <b>FastChat Server</b> is a good
-              default for systems with a GPU. <b>Apple MLX Server</b> is the best
-              default for MacOS with Apple Silicon.
+              default for systems with a GPU. <b>Apple MLX Server</b> is the
+              best default for MacOS with Apple Silicon.
               <br />
               However, you can also try using an unsupported engine below.
             </Typography>
@@ -251,6 +287,22 @@ export default function RunModelButton({
             <Engine />
           </div>
         </div>
+      ) : (
+        <Alert startDecorator={<TriangleAlertIcon />} color="warning">
+          <Typography level="body-sm">
+            You do not have an installed Inference Engine that is compatible
+            with this model. Go to{' '}
+            <Link to="/plugins">
+              <Plug2Icon size="15px" />
+              Plugins
+            </Link>{' '}
+            and install an Inference Engine. <b>FastChat Server</b> is a good
+            default for systems with a GPU. <b>Apple MLX Server</b> is the best
+            default for MacOS with Apple Silicon.
+            <br />
+            However, you can also try using an unsupported engine below.
+          </Typography>
+        </Alert>
       )}
       <InferenceEngineModal
         showModal={showRunSettings}
@@ -258,6 +310,9 @@ export default function RunModelButton({
         experimentInfo={experimentInfo}
         inferenceSettings={inferenceSettings}
         setInferenceSettings={setInferenceSettings}
+        supported={supported}
+        unsupported={unsupported}
+        isLoading={isLoading}
       />
     </div>
   );
