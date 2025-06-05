@@ -163,58 +163,33 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }: ExperimentMen
 
 function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   return (
-    <>
-      <List
-        sx={{
-          '--ListItem-radius': '6px',
-          '--ListItem-minHeight': '32px',
-          overflowY: 'auto',
-          flex: 1,
-        }}
-      >
-        <Divider sx={{ marginBottom: 1 }} />
+    <List
+      sx={{
+        '--ListItem-radius': '6px',
+        '--ListItem-minHeight': '32px',
+        overflowY: 'auto',
+        flex: 1,
+      }}
+    >
+      <Divider sx={{ marginBottom: 1 }} />
 
-        <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
-        <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
-        <SubNavItem
-          title="API"
-          path="/api"
-          icon={<CodeIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
-        <SubNavItem
-          title="Plugins"
-          path="/plugins"
-          icon={<PlugIcon />}
-          counter={outdatedPluginsCount}
-        />
-        <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
-      </List>
-      <ListItem sx={{ '--ListItem-radius': '6px', '--ListItem-minHeight': '32px' }}>
-        <ListItemButton
-          onClick={() => {
-            if (experimentInfo?.id) {
-              fetch(`${chatAPI.API_URL()}experiment/${experimentInfo.id}/export`);
-            }
-          }}
-          disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
-          variant="plain"
-          sx={{
-            fontWeight: 'normal',
-            fontSize: 'sm',
-            pl: '8px',
-          }}
-        >
-          <ListItemDecorator sx={{ minInlineSize: '30px', color: 'inherit' }}>
-            <DownloadIcon size="18px" strokeWidth={1.5} />
-          </ListItemDecorator>
-          <ListItemContent>
-            <Typography level="body-sm">Quick Export</Typography>
-          </ListItemContent>
-        </ListItemButton>
-      </ListItem>
-    </>
+      <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
+      <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
+      <SubNavItem
+        title="API"
+        path="/api"
+        icon={<CodeIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
+      <SubNavItem
+        title="Plugins"
+        path="/plugins"
+        icon={<PlugIcon />}
+        counter={outdatedPluginsCount}
+      />
+      <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
+    </List>
   );
 }
 
