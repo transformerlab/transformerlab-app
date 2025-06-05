@@ -107,7 +107,7 @@ export default function ModelGroups() {
   const { data: modelDownloadProgress } = useAPI(
     'jobs',
     ['get'],
-    jobId && jobId !== '-1' ? { id: jobId } : {},
+    { id: (jobId && jobId !== '-1') ? jobId : null },
     { enabled: jobId && jobId !== '-1', refreshInterval: 2000 },
   );
   const { data: canLogInToHuggingFace } = useAPI('models', [
