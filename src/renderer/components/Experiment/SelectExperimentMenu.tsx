@@ -51,6 +51,17 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
       <Menu variant="soft" className="select-experiment-menu">
         <MenuItem
           variant="soft"
+          onClick={() => {
+            if (experimentInfo?.id) {
+              fetch(`${chatAPI.API_URL()}experiment/${experimentInfo.id}/export`);
+            }
+          }}
+          disabled={!experimentInfo?.config?.foundation}
+        >
+          Export {experimentInfo?.name}
+        </MenuItem>
+        <MenuItem
+          variant="soft"
           color="danger"
           onClick={() => {
             if (
