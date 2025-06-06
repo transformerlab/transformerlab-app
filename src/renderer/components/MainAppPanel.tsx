@@ -62,7 +62,27 @@ export const SegmentProvider = ({ children }) => {
 
 // Hook to use Segment analytics in components
 export const useAnalytics = () => {
-  return useContext(SegmentContext);
+  const analytics = useContext(SegmentContext);
+
+  // Proxy that checks the latest DO_NOT_TRACK and environment on every call
+  const analyticsProxy = new Proxy(
+    {},
+    {
+      get: (_, prop) => {
+        // Return a function that checks the flags before calling analytics
+        return async (...args) => {
+          if (window.platform?.environment === 'development') return;
+          const doNotTrack = await window.storage.get('DO_NOT_TRACK');
+          if (doNotTrack === 'true') return;
+          if (typeof analytics[prop] === 'function') {
+            return analytics[prop](...args);
+          }
+        };
+      },
+    },
+  );
+
+  return analyticsProxy;
 };
 
 // // Define the app version
