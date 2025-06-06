@@ -365,9 +365,6 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
                 value={newDatasetId}
                 onChange={(e) => setNewDatasetId(e.target.value)}
               />
-              <FormHelperText>
-                Edits will be saved to a new dataset (original unchanged)
-              </FormHelperText>
             </FormControl>
 
             <FormControl sx={{ flex: 2, minWidth: '300px' }}>
