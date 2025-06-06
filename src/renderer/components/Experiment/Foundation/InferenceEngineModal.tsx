@@ -11,6 +11,7 @@ import {
   Button,
   Typography,
   Checkbox,
+  Box,
 } from '@mui/joy';
 import React, { useState } from 'react';
 import DynamicPluginForm from '../DynamicPluginForm';
@@ -30,40 +31,42 @@ function EngineSelect({
 }) {
   return (
     <Stack spacing={1}>
+      <Box>
+        <Select
+          placeholder={isLoading ? 'Loading...' : 'Select Engine'}
+          variant="soft"
+          size="lg"
+          name="inferenceEngine"
+          defaultValue="Select Engine"
+          onChange={(e, newValue) => {
+            setSelectedPlugin(newValue);
+          }}
+          listboxSx={{ zIndex: 1400 }}
+        >
+          {supported.length > 0 &&
+            supported.map((row) => (
+              <Option value={row.uniqueId} key={row.uniqueId}>
+                {row.name}
+              </Option>
+            ))}
+
+          {showUnsupported && unsupported.length > 0 && (
+            <>
+              <Option disabled>── Unsupported ──</Option>
+              {unsupported.map((row) => (
+                <Option value={row.uniqueId} key={row.uniqueId}>
+                  {row.name}
+                </Option>
+              ))}
+            </>
+          )}
+        </Select>
+      </Box>
       <Checkbox
         checked={showUnsupported}
         onChange={(e) => setShowUnsupported(e.target.checked)}
         label="Show unsupported engines"
       />
-
-      <Select
-        placeholder={isLoading ? 'Loading...' : 'Select Engine'}
-        variant="soft"
-        size="lg"
-        name="inferenceEngine"
-        defaultValue="Select Engine"
-        onChange={(e, newValue) => {
-          setSelectedPlugin(newValue);
-        }}
-      >
-        {supported.length > 0 &&
-          supported.map((row) => (
-            <Option value={row.uniqueId} key={row.uniqueId}>
-              {row.name}
-            </Option>
-          ))}
-
-        {showUnsupported && unsupported.length > 0 && (
-          <>
-            <Option disabled>── Unsupported ──</Option>
-            {unsupported.map((row) => (
-              <Option value={row.uniqueId} key={row.uniqueId}>
-                {row.name}
-              </Option>
-            ))}
-          </>
-        )}
-      </Select>
     </Stack>
   );
 }
