@@ -124,5 +124,11 @@
       "method": "GET",
       "path": "recipes/jobs/{job_id}/status"
     }
+  },
+  "users": {
+    "me": {
+      "method": "GET",
+      "path": "users/me"
+    }
   }
 }
