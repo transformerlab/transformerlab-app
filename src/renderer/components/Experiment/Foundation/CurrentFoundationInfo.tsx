@@ -537,7 +537,29 @@ export default function CurrentFoundationInfo({
                       <Button
                         variant={adaptor === peft ? 'solid' : 'soft'}
                         color="primary"
-                        onClick={() => setAdaptor(peft)}
+                        onClick={() => {
+                          if (adaptor === peft) {
+                            fetch(
+                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+                                experimentInfo?.id,
+                                'adaptor',
+                                '',
+                              ),
+                            ).then(() => {
+                              setAdaptor('');
+                            });
+                          } else {
+                            fetch(
+                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+                                experimentInfo?.id,
+                                'adaptor',
+                                peft,
+                              ),
+                            ).then(() => {
+                              setAdaptor(peft);
+                            });
+                          }
+                        }}
                       >
                         {adaptor === peft ? 'Selected' : 'Select'}
                       </Button>
