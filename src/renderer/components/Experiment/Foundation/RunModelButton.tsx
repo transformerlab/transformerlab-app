@@ -6,9 +6,13 @@ import {
   StopCircleIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
+import { RiImageAiLine } from 'react-icons/ri';
 import { useEffect, useState } from 'react';
 
-import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  activateWorker,
+  getFullPath,
+} from 'renderer/lib/transformerlab-api-sdk';
 
 import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -41,11 +45,14 @@ export default function RunModelButton({
     inferenceEngine: null,
     inferenceEngineFriendlyName: '',
   });
+  const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
+    boolean | null
+  >(null);
 
   function isPossibleToRunAModel() {
-    // console.log('Is Possible?');
-    // console.log(experimentInfo);
-    // console.log(inferenceSettings);
+    console.log('Is Possible?');
+    console.log(experimentInfo);
+    console.log(inferenceSettings);
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
@@ -105,6 +112,33 @@ export default function RunModelButton({
       setInferenceSettings(objExperimentInfo);
     }
   }, [experimentInfo]);
+
+  // Check if the current foundation model is a diffusion model
+  useEffect(() => {
+    const checkValidDiffusion = async () => {
+      if (!experimentInfo?.config?.foundation) {
+        setIsValidDiffusionModel(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          getFullPath('diffusion', ['checkValidDiffusion'], {}),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: experimentInfo.config.foundation }),
+          },
+        );
+        const data = await response.json();
+        setIsValidDiffusionModel(data.is_valid_diffusion_model);
+      } catch (e) {
+        setIsValidDiffusionModel(false);
+      }
+    };
+
+    checkValidDiffusion();
+  }, [experimentInfo?.config?.foundation]);
 
   function Engine() {
     return (
@@ -223,6 +257,20 @@ export default function RunModelButton({
       {/* {JSON.stringify(inferenceSettings)} */}
       {isPossibleToRunAModel() ? (
         <Engine />
+      ) : isValidDiffusionModel === true ? (
+        <Alert startDecorator={<InfoIcon />} color="warning">
+          <Typography level="body-sm">
+            You can now run inference using this diffusion model. Go to{' '}
+            <Link to="/experiment/diffusion">
+              <RiImageAiLine
+                size="16px"
+                style={{ verticalAlign: 'middle', marginRight: '2px' }}
+              />
+              Diffusion
+            </Link>{' '}
+            and perform inference with it.
+          </Typography>
+        </Alert>
       ) : (
         <Alert startDecorator={<TriangleAlertIcon />} color="warning">
           <Typography level="body-sm">

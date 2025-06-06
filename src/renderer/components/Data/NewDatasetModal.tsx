@@ -215,7 +215,9 @@ export default function DatasetDetailsModal({ open, setOpen }) {
       <Modal open={showUploadDialog} onClose={handleClose}>
         <ModalDialog>
           <ModalClose />
-          <Typography level="title-lg">Upload {datasetType} Dataset</Typography>
+          <Typography level="title-lg" sx={{ textTransform: 'capitalize' }}>
+            Upload {datasetType} Dataset
+          </Typography>
           <Divider sx={{ my: 2 }} />
           <Box
             sx={{

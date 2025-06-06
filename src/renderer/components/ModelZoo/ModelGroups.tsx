@@ -23,6 +23,7 @@ import {
   LockKeyholeIcon,
   SearchIcon,
   ChevronUpIcon,
+  ImageIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -276,6 +277,11 @@ export default function ModelGroups() {
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((group) => {
                 const isSelected = selectedGroup?.name === group.name;
+                let isImageModel = false;
+                // isImageModel is true if "Image Generation" is in the tags array:
+                if (group.tags?.includes('Image Generation')) {
+                  isImageModel = true;
+                }
                 return (
                   <Button
                     key={group.name}
@@ -297,6 +303,7 @@ export default function ModelGroups() {
                         width: '100%',
                         color: isSelected ? 'common.white' : undefined,
                       }}
+                      startDecorator={isImageModel && <ImageIcon size="18px" />}
                     >
                       {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
                     </Typography>
