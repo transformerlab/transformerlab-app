@@ -16,8 +16,6 @@ import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import React, { useState } from 'react';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
 import { Link } from 'react-router-dom';
 
 function removeServerFromEndOfString(str) {
