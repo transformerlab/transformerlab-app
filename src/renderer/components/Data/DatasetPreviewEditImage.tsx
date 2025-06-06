@@ -15,15 +15,22 @@ import {
   FormControl,
   FormLabel,
   FormHelperText,
+  IconButton,
   Tooltip,
+  Divider,
 } from '@mui/joy';
-import { Plus, Minus } from 'lucide-react';
+import {
+  Plus,
+  Minus,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Info,
+} from 'lucide-react';
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
-  const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -38,25 +45,33 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
   const [removeColumnModalOpen, setRemoveColumnModalOpen] = useState(false);
   const [columnNameInput, setColumnNameInput] = useState('');
   const [columnToRemove, setColumnToRemove] = useState('');
-  const limit = 50;
-  const containerRef = useRef(null);
+  const [datasetLen, setDatasetLen] = useState(null);
+  const [numOfPages, setNumOfPages] = useState(1);
+  const [pageNumber, setPageNumber] = useState(1);
+  const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const pageSize = 50;
+  const offset = (pageNumber - 1) * pageSize;
 
-  const loadMore = useCallback(async () => {
-    if (loading || !hasMore) return;
+  const loadPage = useCallback(async () => {
     setLoading(true);
     try {
       const url = getFullPath('datasets', ['editWithTemplate'], {
         datasetId,
         template: encodeURIComponent(template),
         offset,
-        limit,
+        limit: pageSize,
       });
 
       const response = await fetch(url);
       const result = await response.json();
+      if (result?.data?.len && datasetLen === null) {
+        setDatasetLen(result.data.len);
+        setNumOfPages(Math.ceil(result.data.len / pageSize));
+      }
+
       if (result.status === 'success') {
         const newRows = result.data.rows || [];
-        const updatedRows = [...rows, ...newRows].map((r, i) => ({
+        const updatedRows = newRows.map((r, i) => ({
           ...r,
           __index__: offset + i,
           label: r.label ?? '',
@@ -76,8 +91,6 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
 
         setRows(updatedRows);
         setColumns(orderedColumns);
-        setOffset((prev) => prev + limit);
-        if (newRows.length < limit) setHasMore(false);
 
         const splits = [
           ...new Set(updatedRows.map((r) => r.split).filter(Boolean)),
@@ -88,32 +101,35 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
         setAvailableSplits(splits);
         setAvailableLabels(labels);
       } else {
-        setHasMore(false);
+        setRows([]);
       }
     } catch (e) {
-      setHasMore(false);
+      setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [datasetId, template, offset, loading, hasMore, rows]);
+  }, [datasetId, template, offset]);
 
   useEffect(() => {
     setRows([]);
     setColumns([]);
-    setOffset(0);
     setHasMore(true);
     setLoading(false);
     setModifiedRows(new Map());
+    setDatasetLen(null);
+    setNumOfPages(1);
   }, [datasetId, template]);
 
   useEffect(() => {
-    loadMore();
-  }, [loadMore]);
+    setRows([]);
+    setColumns([]);
+    setModifiedRows(new Map());
+    setPageNumber(1);
+  }, [datasetId, template]);
 
-  const onScroll = (e) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.target;
-    if (scrollHeight - scrollTop <= clientHeight + 50) loadMore();
-  };
+  useEffect(() => {
+    loadPage();
+  }, [loadPage]);
 
   const saveEditsWithName = async (datasetName) => {
     if (datasetName.trim() === '') {
@@ -272,8 +288,6 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
 
   return (
     <Box
-      ref={containerRef}
-      onScroll={onScroll}
       sx={{
         overflow: 'auto',
         height: '100%',
@@ -287,119 +301,170 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
         </Box>
       )}
 
-      <Box p={2} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {/* Group 1: Dataset name, search, column buttons */}
+      <Box
+        p={2}
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 2,
+          width: '100%',
+        }}
+      >
+        {/* Left: grouped controls */}
         <Box
           sx={{
+            flexGrow: 1,
             display: 'flex',
+            flexDirection: 'column',
             gap: 2,
-            alignItems: 'flex-end',
-            flexWrap: 'wrap',
+            width: '100%',
           }}
         >
-          <FormControl sx={{ width: '250px' }}>
-            <FormLabel>New Dataset Name</FormLabel>
-            <Input
-              placeholder="e.g. my-augmented-dataset"
-              value={newDatasetId}
-              onChange={(e) => setNewDatasetId(e.target.value)}
-            />
-          </FormControl>
+          {/* Top Row: New Dataset Name + Search */}
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexWrap: 'wrap',
+              width: '100%',
+            }}
+          >
+            <FormControl sx={{ flex: 1, minWidth: '250px' }}>
+              <FormLabel>New Dataset Name</FormLabel>
+              <Input
+                placeholder="e.g. my-augmented-dataset"
+                value={newDatasetId}
+                onChange={(e) => setNewDatasetId(e.target.value)}
+              />
+            </FormControl>
 
-          <FormControl sx={{ width: '400px' }}>
-            <FormLabel>Search Captions</FormLabel>
-            <Input
-              placeholder="Search across all fields"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-            />
-          </FormControl>
-        </Box>
+            <FormControl sx={{ flex: 2, minWidth: '300px' }}>
+              <FormLabel>Search Captions</FormLabel>
+              <Input
+                placeholder="Search across all fields"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+              />
+            </FormControl>
+          </Box>
 
-        {/* Group 2: filters and save */}
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 2,
-            alignItems: 'flex-end',
-            flexWrap: 'wrap',
-          }}
-        >
-          <FormControl sx={{ width: '200px' }}>
-            <FormLabel>Split</FormLabel>
-            <Select
-              value={selectedSplitFilter}
-              onChange={(_, v) => setSelectedSplitFilter(v)}
-              placeholder="All"
-            >
-              <Option value="">All</Option>
-              {availableSplits.map((s) => (
-                <Option key={s} value={s}>
-                  {s}
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
+          {/* Bottom Row: Left = Filters, Right = Buttons */}
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              alignItems: 'flex-end',
+              gap: 2,
+              width: '100%',
+            }}
+          >
+            {/* Left side: Filters */}
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              <FormControl sx={{ minWidth: '200px' }}>
+                <FormLabel>Split</FormLabel>
+                <Select
+                  value={selectedSplitFilter}
+                  onChange={(_, v) => setSelectedSplitFilter(v)}
+                  placeholder="All"
+                >
+                  <Option value="">All</Option>
+                  {availableSplits.map((s) => (
+                    <Option key={s} value={s}>
+                      {s}
+                    </Option>
+                  ))}
+                </Select>
+              </FormControl>
 
-          <FormControl sx={{ width: '200px' }}>
-            <FormLabel>Label</FormLabel>
-            <Select
-              value={selectedLabelFilter}
-              onChange={(_, v) => setSelectedLabelFilter(v)}
-              placeholder="All"
-            >
-              <Option value="">All</Option>
-              {availableLabels.map((l) => (
-                <Option key={l} value={l}>
-                  {l}
-                </Option>
-              ))}
-            </Select>
-          </FormControl>
-          <Tooltip title="Add a new column">
-            <Button
-              onClick={() => setAddColumnModalOpen(true)}
-              variant="outlined"
-              sx={{ minWidth: 'fit-content', height: '40px' }}
-            >
-              <Plus size={16} />
-            </Button>
-          </Tooltip>
+              <FormControl sx={{ minWidth: '200px' }}>
+                <FormLabel>Label</FormLabel>
+                <Select
+                  value={selectedLabelFilter}
+                  onChange={(_, v) => setSelectedLabelFilter(v)}
+                  placeholder="All"
+                >
+                  <Option value="">All</Option>
+                  {availableLabels.map((l) => (
+                    <Option key={l} value={l}>
+                      {l}
+                    </Option>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
-          <Tooltip title="Remove a column">
-            <Button
-              onClick={() => setRemoveColumnModalOpen(true)}
-              variant="outlined"
-              sx={{ minWidth: 'fit-content', height: '40px' }}
+            {/* Right side: Info + + - Save */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-end',
+                gap: 2,
+                flexWrap: 'wrap',
+              }}
             >
-              <Minus size={16} />
-            </Button>
-          </Tooltip>
-          <Tooltip title="Save changes to a new dataset. Requires a new name and at least one edit.">
-            <span>
-              <Button
-                onClick={() => saveEditsWithName(newDatasetId)}
-                loading={saving}
-                variant="soft"
-                disabled={
-                  rows.length === 0 ||
-                  newDatasetId.trim() === '' ||
-                  modifiedRows.size === 0
-                }
-                sx={{ height: '40px', width: '110px', whiteSpace: 'nowrap' }}
-              >
-                Save Changes
-              </Button>
-            </span>
-          </Tooltip>
+              <Tooltip title="Edit Instructions.">
+                <IconButton
+                  variant="soft"
+                  color="neutral"
+                  onClick={() => setInfoModalOpen(true)}
+                >
+                  <Info size={20} />
+                </IconButton>
+              </Tooltip>
+
+              <Tooltip title="Add a new column">
+                <Button
+                  onClick={() => setAddColumnModalOpen(true)}
+                  variant="outlined"
+                  sx={{ minWidth: 'fit-content', height: '40px' }}
+                >
+                  <Plus size={16} />
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Remove a column">
+                <Button
+                  onClick={() => setRemoveColumnModalOpen(true)}
+                  variant="outlined"
+                  sx={{ minWidth: 'fit-content', height: '40px' }}
+                >
+                  <Minus size={16} />
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Save changes to a new dataset. Requires a new name and at least one edit.">
+                <span>
+                  <Button
+                    onClick={() => saveEditsWithName(newDatasetId)}
+                    loading={saving}
+                    variant="soft"
+                    disabled={
+                      rows.length === 0 ||
+                      newDatasetId.trim() === '' ||
+                      modifiedRows.size === 0
+                    }
+                    sx={{
+                      height: '40px',
+                      width: '130px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                </span>
+              </Tooltip>
+            </Box>
+          </Box>
         </Box>
       </Box>
 
       <Box sx={{ overflowX: 'auto', flex: 1, width: '100%' }}>
         <Table
           sx={{
-            minWidth: 'max-content',
-            width: 'max-content',
+            minWidth: '100%',
             tableLayout: 'auto',
             whiteSpace: 'nowrap',
           }}
@@ -444,6 +509,43 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
           </tbody>
         </Table>
       </Box>
+      <Divider sx={{ mt: 2 }} />
+
+      <Box
+        className="Pagination"
+        sx={{
+          pt: 2,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 2,
+        }}
+      >
+        <Button
+          size="sm"
+          variant="outlined"
+          color="neutral"
+          onClick={() => setPageNumber((prev) => Math.max(prev - 1, 1))}
+          disabled={pageNumber === 1}
+        >
+          <ChevronLeftIcon />
+          Previous
+        </Button>
+
+        <Typography level="body-sm">Page {pageNumber}</Typography>
+
+        <Button
+          size="sm"
+          variant="outlined"
+          color="neutral"
+          onClick={() => setPageNumber((prev) => prev + 1)}
+          disabled={pageNumber >= numOfPages}
+        >
+          Next
+          <ChevronRightIcon />
+        </Button>
+      </Box>
+
       {loading && rows.length > 0 && <LinearProgress />}
 
       <Modal
@@ -495,6 +597,23 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
           <Button color="danger" onClick={handleRemoveColumn}>
             Confirm Remove
           </Button>
+        </ModalDialog>
+      </Modal>
+      <Modal open={infoModalOpen} onClose={() => setInfoModalOpen(false)}>
+        <ModalDialog>
+          <ModalClose />
+          <Typography level="h4">How This Editor Works</Typography>
+          <Typography level="body-md" sx={{ mt: 2, whiteSpace: 'pre-wrap' }}>
+            {`Datasets are not editable in place.
+
+      Edits you make here will be saved to a *new* dataset after clicking 'Save Changes'. This will copy the original dataset into a new one with your modifications.
+
+      To enable 'Save Changes', you must:
+      1. Enter a new dataset name
+      2. Make at least one change
+
+      Additionally, splits can only have 'train', 'test', or 'valid' values. Other values will default back to 'train'.`}
+          </Typography>
         </ModalDialog>
       </Modal>
     </Box>
