@@ -46,11 +46,10 @@ export default function RunModelButton({
 
   const { data, error, isLoading } = useAPI(
     'experiment',
-    ['getScriptsOfType'],
+    ['getScriptsOfTypeWithoutFilter'],
     {
       experimentId: experimentInfo?.id,
       type: 'loader',
-      filter: '',
     },
     {
       skip: !experimentInfo?.id,

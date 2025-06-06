@@ -100,9 +100,13 @@
     }
   },
   "experiment":{
-    "getScriptsOfType": {
+    "getScriptsOfTypeWithFilter": {
       "method": "GET",
       "path": "experiment/{experimentId}/plugins/list?type={type}&filter={filter}"
+    },
+    "getScriptsOfTypeWithoutFilter": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/plugins/list?type={type}"
     }
 
   }
