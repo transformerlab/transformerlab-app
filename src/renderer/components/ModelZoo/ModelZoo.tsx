@@ -11,6 +11,8 @@ import ModelGroups from './ModelGroups';
 export default function ModelZoo({ experimentInfo, tab = 'store' }) {
   const navigate = useNavigate();
   const DEV_MODE = experimentInfo?.name === 'dev';
+  const [showGroups, setShowGroups] = useState(true);
+  const toggleView = () => setShowGroups((prev) => !prev);
 
   return (
     <Sheet
@@ -73,7 +75,11 @@ export default function ModelZoo({ experimentInfo, tab = 'store' }) {
             flex: 1,
           }}
         >
-          <ModelGroups />
+          {showGroups ? (
+            <ModelGroups toggleView={toggleView} showGroups={showGroups} />
+          ) : (
+            <ModelStore toggleView={toggleView} showGroups={showGroups} />
+          )}
         </TabPanel>
       </Tabs>
     </Sheet>
