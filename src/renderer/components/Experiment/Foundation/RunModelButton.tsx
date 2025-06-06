@@ -84,7 +84,8 @@ export default function RunModelButton({
     // console.log(experimentInfo);
     // console.log(inferenceSettings);
     return (
-      experimentInfo != null && experimentInfo?.config?.foundation !== '' &&
+      experimentInfo != null &&
+      experimentInfo?.config?.foundation !== '' &&
       inferenceSettings?.inferenceEngine != null
     );
   }
@@ -263,17 +264,16 @@ export default function RunModelButton({
         <div>
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">
             <Typography level="body-sm">
-              You do not have an installed Inference Engine that is compatible
-              with this model. Go to{' '}
+              None of the installed Inference Engines list this model
+              architecture as supported. You can try finding an engine that
+              supports this model in{' '}
               <Link to="/plugins">
                 <Plug2Icon size="15px" />
                 Plugins
               </Link>{' '}
-              and install an Inference Engine. <b>FastChat Server</b> is a good
-              default for systems with a GPU. <b>Apple MLX Server</b> is the
-              best default for MacOS with Apple Silicon.
-              <br />
-              However, you can also try using an unsupported engine below.
+              , or you can click <code>Show unsupported engines</code> to try
+              running one of your installed Inference Engines if you think it
+              may be able to run this model.
             </Typography>
           </Alert>
           <div style={{ marginTop: 16 }}>
@@ -292,8 +292,6 @@ export default function RunModelButton({
             and install an Inference Engine. <b>FastChat Server</b> is a good
             default for systems with a GPU. <b>Apple MLX Server</b> is the best
             default for MacOS with Apple Silicon.
-            <br />
-            However, you can also try using an unsupported engine below.
           </Typography>
         </Alert>
       )}
