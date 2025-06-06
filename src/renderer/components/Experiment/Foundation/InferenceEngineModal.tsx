@@ -41,7 +41,6 @@ function EngineSelect({
           onChange={(e, newValue) => {
             setSelectedPlugin(newValue);
           }}
-          listboxSx={{ zIndex: 1400 }}
         >
           {supported.length > 0 &&
             supported.map((row) => (
@@ -82,8 +81,6 @@ export default function InferenceEngineModal({
   isLoading,
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
-
-  // New state for showUnsupported moved here to control dialog size & checkbox
   const [showUnsupported, setShowUnsupported] = useState(false);
 
   function closeModal() {
@@ -95,12 +92,12 @@ export default function InferenceEngineModal({
     <Modal open={showModal} onClose={closeModal}>
       <ModalDialog
         sx={{
-          minWidth: showUnsupported ? 350 : 350, // Adjusted width and height to prevent css issues.
-          minHeight: showUnsupported ? 440 : 300,
+          minWidth: 350,
+          minHeight: 440,
         }}
       >
         <DialogTitle>Inference Engine Settings</DialogTitle>
-        <ModalClose variant="plain" sx={{ m: 1 }} />
+        <ModalClose variant="plain" />
 
         <form
           onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {

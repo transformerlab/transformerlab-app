@@ -271,9 +271,10 @@ export default function RunModelButton({
                 <Plug2Icon size="15px" />
                 Plugins
               </Link>{' '}
-              , or you can click <code>Show unsupported engines</code> to try
-              running one of your installed Inference Engines if you think it
-              may be able to run this model.
+              , or you can click <b>using Engine</b> below and check{' '}
+              <b>Show unsupported engines</b> to try running one of your
+              installed Inference Engines if you think it may be able to run
+              this model.
             </Typography>
           </Alert>
           <div style={{ marginTop: 16 }}>
