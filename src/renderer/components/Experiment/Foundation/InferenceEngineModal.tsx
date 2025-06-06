@@ -8,13 +8,13 @@ import {
   Select,
   Stack,
   Option,
-  Switch,
   Button,
   Typography,
+  Checkbox,
+  Box,
 } from '@mui/joy';
 import React, { useState } from 'react';
 import DynamicPluginForm from '../DynamicPluginForm';
-import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -23,33 +23,50 @@ function EngineSelect({
   experimentInfo,
   inferenceSettings,
   setSelectedPlugin,
+  supported,
+  unsupported,
+  isLoading,
 }) {
-  const { data, error, isLoading } = useSWR(
-    chatAPI.Endpoints.Experiment.ListScriptsOfType(
-      experimentInfo?.id,
-      'loader', // type
-      'model_architectures:' +
-        experimentInfo?.config?.foundation_model_architecture, //filter
-    ),
-    fetcher,
-  );
+  const [showUnsupported, setShowUnsupported] = useState(false);
+
   return (
-    <Select
-      placeholder={isLoading ? 'Loading...' : 'Select Engine'}
-      variant="soft"
-      size="lg"
-      name="inferenceEngine"
-      defaultValue="Select Engine"
-      onChange={(e, newValue) => {
-        setSelectedPlugin(newValue);
-      }}
-    >
-      {data?.map((row) => (
-        <Option value={row.uniqueId} key={row.uniqueId}>
-          {row.name}
-        </Option>
-      ))}
-    </Select>
+    <Stack spacing={1}>
+      <Box>
+        <Select
+          placeholder={isLoading ? 'Loading...' : 'Select Engine'}
+          variant="soft"
+          size="lg"
+          name="inferenceEngine"
+          defaultValue="Select Engine"
+          onChange={(e, newValue) => {
+            setSelectedPlugin(newValue);
+          }}
+        >
+          {supported.length > 0 &&
+            supported.map((row) => (
+              <Option value={row.uniqueId} key={row.uniqueId}>
+                {row.name}
+              </Option>
+            ))}
+
+          {showUnsupported && unsupported.length > 0 && (
+            <>
+              <Option disabled>── Unsupported ──</Option>
+              {unsupported.map((row) => (
+                <Option value={row.uniqueId} key={row.uniqueId}>
+                  {row.name}
+                </Option>
+              ))}
+            </>
+          )}
+        </Select>
+      </Box>
+      <Checkbox
+        checked={showUnsupported}
+        onChange={(e) => setShowUnsupported(e.target.checked)}
+        label="Show unsupported engines"
+      />
+    </Stack>
   );
 }
 
@@ -59,11 +76,12 @@ export default function InferenceEngineModal({
   experimentInfo,
   inferenceSettings,
   setInferenceSettings,
+  supported,
+  unsupported,
+  isLoading,
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
 
-  // Call this on either cancel or save, but only after any changes are saved
-  // It resets the selected plugin to whatever the saved experiment settings are (overwriting whatever the user selected)
   function closeModal() {
     setShowModal(false);
     setSelectedPlugin(inferenceSettings?.inferenceEngine);
@@ -71,11 +89,15 @@ export default function InferenceEngineModal({
 
   return (
     <Modal open={showModal} onClose={closeModal}>
-      <ModalDialog>
+      <ModalDialog
+        sx={{
+          minWidth: 350,
+          minHeight: 440,
+        }}
+      >
         <DialogTitle>Inference Engine Settings</DialogTitle>
-        <ModalClose variant="plain" sx={{ m: 1 }} />
+        <ModalClose variant="plain" />
 
-        {/* <DialogContent>Fill in the information of the project.</DialogContent> */}
         <form
           onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
@@ -86,10 +108,9 @@ export default function InferenceEngineModal({
 
             if (!engine) {
               closeModal();
+              return;
             }
 
-            // We don't want to go to the server to get the friendly name of the server
-            // so we dig into the DOM to get it
             const engineFriendlyName = document.querySelector(
               `button[name='inferenceEngine']`,
             )?.innerHTML;
@@ -103,7 +124,6 @@ export default function InferenceEngineModal({
               inferenceEngineFriendlyName: engineFriendlyName,
             };
 
-            console.log('newInferenceSettings', newInferenceSettings);
             setInferenceSettings(newInferenceSettings);
 
             await fetch(
@@ -113,27 +133,32 @@ export default function InferenceEngineModal({
                 JSON.stringify(newInferenceSettings),
               ),
             );
+
             closeModal();
           }}
         >
           <Stack spacing={0}>
-            {/* {JSON.stringify(inferenceSettings)} */}
             <FormControl>
               <FormLabel>Engine</FormLabel>
               <EngineSelect
                 experimentInfo={experimentInfo}
                 inferenceSettings={inferenceSettings}
                 setSelectedPlugin={setSelectedPlugin}
+                supported={supported}
+                unsupported={unsupported}
+                isLoading={isLoading}
               />
             </FormControl>
 
             <Typography level="title-md" paddingTop={2}>
               Engine Configuration:
             </Typography>
+
             <DynamicPluginForm
               experimentInfo={experimentInfo}
               plugin={selectedPlugin}
             />
+
             <Button type="submit">Save</Button>
           </Stack>
         </form>

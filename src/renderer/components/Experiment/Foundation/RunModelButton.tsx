@@ -13,8 +13,8 @@ import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
 import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import React, { useState } from 'react';
 
 import { Link } from 'react-router-dom';
 
@@ -41,6 +41,42 @@ export default function RunModelButton({
     inferenceEngine: null,
     inferenceEngineFriendlyName: '',
   });
+
+  const { data, error, isLoading } = useAPI(
+    'experiment',
+    ['getScriptsOfTypeWithoutFilter'],
+    {
+      experimentId: experimentInfo?.id,
+      type: 'loader',
+    },
+    {
+      skip: !experimentInfo?.id,
+    },
+  );
+
+  const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
+
+  const supported = React.useMemo(() => {
+    if (!data) return [];
+    return data.filter(
+      (row) =>
+        Array.isArray(row.model_architectures) &&
+        row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        ),
+    );
+  }, [data, archTag]);
+
+  const unsupported = React.useMemo(() => {
+    if (!data) return [];
+    return data.filter(
+      (row) =>
+        !Array.isArray(row.model_architectures) ||
+        !row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        ),
+    );
+  }, [data, archTag]);
 
   function isPossibleToRunAModel() {
     // console.log('Is Possible?');
@@ -221,8 +257,29 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {isPossibleToRunAModel() ? (
+      {supported.length > 0 ? (
         <Engine />
+      ) : unsupported.length > 0 ? (
+        <div>
+          <Alert startDecorator={<TriangleAlertIcon />} color="warning">
+            <Typography level="body-sm">
+              None of the installed Inference Engines list this model
+              architecture as supported. You can try finding an engine that
+              supports this model in{' '}
+              <Link to="/plugins">
+                <Plug2Icon size="15px" />
+                Plugins
+              </Link>{' '}
+              , or you can click <b>using Engine</b> below and check{' '}
+              <b>Show unsupported engines</b> to try running one of your
+              installed Inference Engines if you think it may be able to run
+              this model.
+            </Typography>
+          </Alert>
+          <div style={{ marginTop: 16 }}>
+            <Engine />
+          </div>
+        </div>
       ) : (
         <Alert startDecorator={<TriangleAlertIcon />} color="warning">
           <Typography level="body-sm">
@@ -244,6 +301,9 @@ export default function RunModelButton({
         experimentInfo={experimentInfo}
         inferenceSettings={inferenceSettings}
         setInferenceSettings={setInferenceSettings}
+        supported={supported}
+        unsupported={unsupported}
+        isLoading={isLoading}
       />
     </div>
   );
