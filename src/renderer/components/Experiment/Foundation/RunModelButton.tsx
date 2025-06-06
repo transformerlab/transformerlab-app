@@ -84,14 +84,7 @@ export default function RunModelButton({
     // console.log(experimentInfo);
     // console.log(inferenceSettings);
     return (
-      experimentInfo != null && experimentInfo?.config?.foundation !== ''
-      // inferenceSettings?.inferenceEngine != null
-    );
-  }
-  function isSupportedEngineAvailable() {
-    return (
-      experimentInfo != null &&
-      experimentInfo?.config?.foundation !== '' &&
+      experimentInfo != null && experimentInfo?.config?.foundation !== '' &&
       inferenceSettings?.inferenceEngine != null
     );
   }
@@ -264,7 +257,7 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {isSupportedEngineAvailable() ? (
+      {supported.length > 0 ? (
         <Engine />
       ) : unsupported.length > 0 ? (
         <div>
