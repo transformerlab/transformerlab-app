@@ -23,12 +23,12 @@ function EngineSelect({
   experimentInfo,
   inferenceSettings,
   setSelectedPlugin,
-  showUnsupported,
-  setShowUnsupported,
   supported,
   unsupported,
   isLoading,
 }) {
+  const [showUnsupported, setShowUnsupported] = useState(false);
+
   return (
     <Stack spacing={1}>
       <Box>
@@ -81,7 +81,6 @@ export default function InferenceEngineModal({
   isLoading,
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
-  const [showUnsupported, setShowUnsupported] = useState(false);
 
   function closeModal() {
     setShowModal(false);
@@ -145,8 +144,6 @@ export default function InferenceEngineModal({
                 experimentInfo={experimentInfo}
                 inferenceSettings={inferenceSettings}
                 setSelectedPlugin={setSelectedPlugin}
-                showUnsupported={showUnsupported}
-                setShowUnsupported={setShowUnsupported}
                 supported={supported}
                 unsupported={unsupported}
                 isLoading={isLoading}
