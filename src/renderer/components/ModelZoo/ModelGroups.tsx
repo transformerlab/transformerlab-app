@@ -82,7 +82,7 @@ function filterByFilters(data, searchText = '', filters = {}) {
   });
 }
 
-export default function ModelGroups() {
+export default function ModelGroups({ toggleView, showGroups }) {
   const navigate = useNavigate();
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('name');
@@ -326,6 +326,11 @@ export default function ModelGroups() {
           }}
         >
           <>
+            <Box display="flex" justifyContent="flex-end" sx={{ mb: 2 }}>
+              <Button size="sm" variant="outlined" onClick={toggleView}>
+                Switch to {showGroups ? 'Flat Store' : 'Grouped View'}
+              </Button>
+            </Box>
             <Sheet
               sx={{
                 position: 'sticky',

@@ -98,7 +98,7 @@ function getModelHuggingFaceURL(model) {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ModelStore() {
+export default function ModelStore({ toggleView, showGroups }) {
   const [order, setOrder] = useState<Order>('asc');
   const [orderBy, setOrderBy] = useState('name');
   // jobId is null if there is no current download in progress,
@@ -263,6 +263,11 @@ export default function ModelStore() {
             {canceling ? 'Stopping..' : 'Cancel Download'}
           </Button>
         )}
+      </Box>
+      <Box display="flex" justifyContent="flex-end" sx={{ mb: 2 }}>
+        <Button size="sm" variant="outlined" onClick={toggleView}>
+          Switch to {showGroups ? 'Flat Store' : 'Grouped View'}
+        </Button>
       </Box>
       <Box
         className="SearchAndFilters-tabletUp"
