@@ -13,7 +13,7 @@ import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
 import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
-import useSWR from 'swr';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import React, { useState } from 'react';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -44,15 +44,17 @@ export default function RunModelButton({
     inferenceEngineFriendlyName: '',
   });
 
-  const { data, error, isLoading } = useSWR(
-    experimentInfo?.id
-      ? chatAPI.Endpoints.Experiment.ListScriptsOfType(
-          experimentInfo.id,
-          'loader',
-          '',
-        )
-      : null,
-    fetcher,
+  const { data, error, isLoading } = useAPI(
+    'experiment',
+    ['getScriptsOfType'],
+    {
+      experimentId: experimentInfo?.id,
+      type: 'loader',
+      filter: '',
+    },
+    {
+      skip: !experimentInfo?.id,
+    },
   );
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';

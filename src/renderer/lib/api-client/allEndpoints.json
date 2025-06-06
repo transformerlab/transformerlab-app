@@ -98,5 +98,12 @@
       "method": "GET",
       "path": "recipes/jobs/{job_id}/status"
     }
+  },
+  "experiment":{
+    "getScriptsOfType": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/plugins/list?type={type}&filter={filter}"
+    }
+
   }
 }
