@@ -1,5 +1,50 @@
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
 
+export async function login(
+  username: string,
+  password: string
+) {
+  const loginURL = `${API_URL()}auth/jwt/login`;
+
+  // Login data needs to be provided as form data
+  const formData = new FormData();
+  formData.append('username', username);
+  formData.append('password', password);
+
+  let result = {};
+  try {
+    const response = await fetch(loginURL, {
+      method: 'POST',
+      body: formData,
+    });
+    result = await response.json();
+
+    // Error during fetch
+  } catch (error) {
+    return {
+      status: "error",
+      message: "Login exception: " + error,
+    };
+  }
+
+  // API Successfully returned, but was the authentication successful?
+  const accessToken = result?.access_token;
+  if (accessToken) {
+    window.storage.set('accessToken', accessToken);
+    return {
+      status: "success",
+      message: "Logged in as " + username
+
+    };
+  } else {
+    return {
+      status: "unauthorized",
+      message: "Username or password incorrect",
+    }
+  }
+
+}
+
 export async function downloadModelFromHuggingFace(
   modelName: string,
   job_id = null,
