@@ -263,7 +263,7 @@ function StatsBar({ connection, setConnection }) {
                         <>
                           <Typography>
                             <b>GPU 1: </b>
-                            MacBook GPU
+                            Mac Silicon GPU
                           </Typography>
                           {server.mac_metrics.gpu_usage && (
                             <Typography>
