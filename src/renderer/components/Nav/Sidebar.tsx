@@ -235,10 +235,9 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           </Typography>
         </Box>
         <IconButton size="sm" variant="plain" color="neutral">
-          <LogOutIcon 
-            size="18px" 
+          <LogOutIcon
+            size="18px"
             onClick={async() => {
-              e.stopPropagation();
               const result = await login("test@transformerlab.ai", "strawberrry");
               alert(result?.message);
             }}
