@@ -98,7 +98,6 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
       <Card
         key={item.id}
         variant={isSelected ? 'solid' : 'outlined'}
-        color={isSelected ? 'primary' : 'neutral'}
         sx={{
           cursor: 'pointer',
           position: 'relative',
@@ -128,8 +127,8 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
               position: 'absolute',
               top: 8,
               right: 8,
-              backgroundColor: 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
+              backgroundColor: 'var(--joy-palette-primary-500)',
+              color: 'var(--joy-palette-neutral-50)',
               px: 1,
               py: 0.5,
               borderRadius: 1,
@@ -147,8 +146,8 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
               position: 'absolute',
               top: 8,
               left: 8,
-              backgroundColor: 'primary.500',
-              color: 'white',
+              backgroundColor: 'var(--joy-palette-primary-500)',
+              color: 'var(--joy-palette-neutral-50)',
               borderRadius: '50%',
               width: 24,
               height: 24,
@@ -168,6 +167,9 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              color: isSelected
+                ? 'var(--joy-palette-primary-100)'
+                : 'var(--joy-palette-neutral-700)',
             }}
           >
             {item.prompt}
@@ -188,7 +190,14 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
                 <ChevronLeftIcon size={14} />
               </IconButton>
 
-              <Typography level="body-xs">
+              <Typography
+                level="body-xs"
+                sx={{
+                  color: isSelected
+                    ? 'var(--joy-palette-primary-100)'
+                    : 'var(--joy-palette-neutral-700)',
+                }}
+              >
                 {selectedImageIndex + 1} / {imageCount}
               </Typography>
 
@@ -214,29 +223,31 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog 
-        size="lg" 
-        sx={{ 
-          width: '80vw', 
+      <ModalDialog
+        size="lg"
+        sx={{
+          width: '80vw',
           height: '80vh',
           maxWidth: '1200px',
           maxHeight: '800px',
           minWidth: '600px',
           minHeight: '500px',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
         }}
       >
         <ModalClose />
         <DialogTitle>Select Image from History</DialogTitle>
-        
-        <DialogContent sx={{ 
-          overflow: 'auto', 
-          p: 0, 
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
+
+        <DialogContent
+          sx={{
+            overflow: 'auto',
+            p: 0,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           {historyLoading ? (
             <Box display="flex" justifyContent="center" p={4}>
               <CircularProgress />
@@ -246,8 +257,12 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
               <Typography level="body-lg" color="neutral">
                 No images found in history
               </Typography>
-            </Box>          ) : (
-            <Box p={2} sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            </Box>
+          ) : (
+            <Box
+              p={2}
+              sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+            >
               <Box sx={{ flex: 1, minHeight: 0 }}>
                 <Grid container spacing={2}>
                   {historyData.images.map((item: HistoryImage) => (
@@ -275,11 +290,11 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
                   >
                     <ChevronLeftIcon />
                   </IconButton>
-                  
+
                   <Typography level="body-sm">
                     Page {currentPage} of {totalPages}
                   </Typography>
-                  
+
                   <IconButton
                     variant="outlined"
                     disabled={currentPage === totalPages}
