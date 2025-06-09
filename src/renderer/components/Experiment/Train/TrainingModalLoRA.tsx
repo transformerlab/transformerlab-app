@@ -528,7 +528,7 @@ export default function TrainingModalLoRA({
             height: '100%',
             justifyContent: 'space-between',
           }}
-          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+          onSubmit={async (event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             let formJson = Object.fromEntries((formData as any).entries());
@@ -566,7 +566,7 @@ export default function TrainingModalLoRA({
                 }
               }
 
-              updateTask(
+              await updateTask(
                 task_id,
                 formJson.template_name,
                 JSON.stringify(templateDataInputs),
@@ -575,7 +575,7 @@ export default function TrainingModalLoRA({
               );
               templateMutate(); //Need to mutate template data after updating
             } else {
-              createNewTask(
+              await createNewTask(
                 formJson.template_name,
                 formJson.plugin_name,
                 experimentInfo?.id,
