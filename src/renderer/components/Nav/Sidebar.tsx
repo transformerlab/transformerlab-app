@@ -89,8 +89,16 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
             body: JSON.stringify({ model: experimentInfo.config.foundation }),
           },
         );
+
+        // Handle 404 or other non-ok responses
+        if (!response.ok) {
+          setIsValidDiffusionModel(false);
+          return;
+        }
+
         const data = await response.json();
-        setIsValidDiffusionModel(data.is_valid_diffusion_model);
+        // Handle case where is_valid_diffusion_model property doesn't exist
+        setIsValidDiffusionModel(data.is_valid_diffusion_model ?? false);
       } catch (e) {
         setIsValidDiffusionModel(false);
       }
