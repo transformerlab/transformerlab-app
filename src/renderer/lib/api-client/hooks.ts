@@ -12,7 +12,38 @@ export function useAPI(
   options: any = {},
 ) {
   let path = getFullPath(majorEntity, pathArray, params);
-  const fetcher = (url: string) => fetch(url).then((res) => res.json());
+  const fetcher = (url: string) => {
+    const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3O…I3OX0._w7OVSI-WRWAR_nNWyGseqAyOI8T1JO8sUNGRXp4xkE";
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': TOKEN ? `Bearer ${TOKEN}` : '',
+        'Content-Type': 'application/json',
+      }
+    }).then((res) => {
+
+      // Check for HTTP 401 which means user is not authorized
+      if (res.status === 401) {
+        return {
+          "status": "unauthorized",
+          "message": "User not authorized"
+        }
+      }
+
+      // If there was an error then report in standard API format
+      if (!res.ok) {
+        console.log("Unexpected API response:");
+        console.log(res);
+        return {
+          "status": "error",
+          "message": "API returned HTTP " + res.status
+        }
+      }
+
+      // Otherwise return the JSON contained in the API response
+      return res.json();
+    });
+  };
 
   // If any of the params are null or undefined, return null:
   if (

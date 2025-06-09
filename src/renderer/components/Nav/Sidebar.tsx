@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 import List from '@mui/joy/List';
 import Divider from '@mui/joy/Divider';
@@ -38,6 +39,8 @@ import {
 import {
   useModelStatus,
   usePluginStatus,
+  useAPI,
+  login
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
@@ -173,6 +176,22 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
 
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [userModalOpen, setUserModalOpen] = React.useState(false);
+  const { data: userInfo, error: userError, isLoading: userLoading } = useAPI('users', ['me'], {});
+  console.log("User stuff");
+  console.log(userInfo);
+  console.log(userError);
+  console.log(userLoading);
+
+  useEffect(() => {
+    if (userInfo && userInfo.id) {
+      console.log("New user info:");
+      console.log(userInfo);
+    } else {
+      console.log("User not logged in");
+      console.log(userInfo);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInfo]);
 
   return (
     <>
@@ -215,16 +234,15 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
             user@test.com
           </Typography>
         </Box>
-        <IconButton 
-          size="sm" 
-          variant="plain" 
-          color="neutral"
-          onClick={(e) => {
-            e.stopPropagation();
-            // Handle logout here
-          }}
-        >
-          <LogOutIcon size="18px" />
+        <IconButton size="sm" variant="plain" color="neutral">
+          <LogOutIcon 
+            size="18px" 
+            onClick={async() => {
+              e.stopPropagation();
+              const result = await login("test@transformerlab.ai", "strawberrry");
+              alert(result?.message);
+            }}
+          />
         </IconButton>
       </Box>
       <ButtonGroup
