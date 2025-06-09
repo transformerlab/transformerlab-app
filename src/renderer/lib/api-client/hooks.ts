@@ -13,7 +13,25 @@ export function useAPI(
 ) {
   let path = getFullPath(majorEntity, pathArray, params);
   const fetcher = (url: string) => {
-    return fetch(url).then((res) => {
+
+    // check for an access token
+    const accessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3OGMyNGY5YS1iODQ3LTQ4MDUtYWYwNy02NTcwNmY1ODU3YTEiLCJhdWQiOlsiZmFzdGFwaS11c2VyczphdXRoIl0sImV4cCI6MTc0OTUwNjUxNX0.repiVi5rRDhNz4yd121hK1T7hz8RQxHPkP-IDMD9Oyc';
+    console.log(accessToken);
+
+    return fetch(url, {
+      headers: {
+        'Authorization': accessToken ? `Bearer ${accessToken}` : '',
+        'Content-Type': 'application/json',
+      }
+    }).then((res) => {
+
+      // Check for HTTP 401 which means user is not authorized
+      if (res.status === 401) {
+        return {
+          "status": "unauthorized",
+          "message": "User not authorized"
+        }
+      }
 
       // If there was an error then report in standard API format
       if (!res.ok) {
