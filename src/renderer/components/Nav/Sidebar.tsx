@@ -1,3 +1,4 @@
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import List from '@mui/joy/List';
@@ -40,6 +41,7 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
+import UserModal from '../User/UserModal';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
@@ -170,9 +172,10 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
 }
 
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
+  const [userModalOpen, setUserModalOpen] = React.useState(false);
+
   return (
     <>
-      {' '}
       <Divider sx={{ my: 2 }} />
       <Box
         sx={{
@@ -181,13 +184,14 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           alignItems: 'center',
           mb: 1,
           maxWidth: '180px',
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: 'var(--joy-palette-neutral-100)',
+            borderRadius: 'sm',
+          },
         }}
+        onClick={() => setUserModalOpen(true)}
       >
-        {/* <Avatar
-variant="outlined"
-size="sm"
-src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=286"
-/> */}
         <UserIcon />
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
@@ -211,7 +215,15 @@ src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fi
             user@test.com
           </Typography>
         </Box>
-        <IconButton size="sm" variant="plain" color="neutral">
+        <IconButton 
+          size="sm" 
+          variant="plain" 
+          color="neutral"
+          onClick={(e) => {
+            e.stopPropagation();
+            // Handle logout here
+          }}
+        >
           <LogOutIcon size="18px" />
         </IconButton>
       </Box>
@@ -251,6 +263,7 @@ src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fi
           </IconButton>
         </Tooltip>
       </ButtonGroup>
+      <UserModal open={userModalOpen} onClose={() => setUserModalOpen(false)} />
     </>
   );
 }
