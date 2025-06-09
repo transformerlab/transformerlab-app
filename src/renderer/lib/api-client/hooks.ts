@@ -13,6 +13,19 @@ export function useAPI(
 ) {
   let path = getFullPath(majorEntity, pathArray, params);
   const fetcher = (url: string) => {
+    return fetch(url).then((res) => {
+
+      // If there was an error then report in standard API format
+      if (!res.ok) {
+        console.log("Unexpected API response:");
+        console.log(res);
+        return {
+          "status": "error",
+          "message": "API returned HTTP " + res.status
+        }
+      }
+
+      // Otherwise return the JSON contained in the API response
       return res.json();
     });
   };
