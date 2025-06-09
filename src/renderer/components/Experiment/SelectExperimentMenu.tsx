@@ -53,7 +53,7 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
           variant="soft"
           onClick={() => {
             if (experimentInfo?.id) {
-              fetch(`${chatAPI.API_URL()}experiment/${experimentInfo.id}/export`);
+              fetch(`${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`);
             }
           }}
           disabled={!experimentInfo?.config?.foundation}
