@@ -263,7 +263,8 @@ function StatsBar({ connection, setConnection }) {
                         <>
                           <Typography>
                             <b>GPU 1: </b>
-                            Mac Silicon GPU
+                            {server.mac_metrics.soc?.chip_name ||
+                              'Mac Silicon GPU'}
                           </Typography>
                           {server.mac_metrics.gpu_usage && (
                             <Typography>
