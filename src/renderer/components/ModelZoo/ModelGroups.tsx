@@ -297,37 +297,6 @@ export default function ModelGroups() {
                     }}
                   >
                     <Stack direction="row" spacing={2}>
-                      <Box
-                        sx={{
-                          width: '40px',
-                          height: '40px',
-                          flexShrink: 0,
-                          alignSelf: 'center',
-                        }}
-                      >
-                        {group?.image ? (
-                          <img
-                            src={group.image}
-                            alt={group.name}
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              borderRadius: '4px',
-                              objectFit: 'cover',
-                            }}
-                          />
-                        ) : (
-                          <Box
-                            sx={{
-                              width: '100%',
-                              height: '100%',
-                              borderRadius: '4px',
-                              backgroundColor:
-                                'var(--joy-palette-background-level2)',
-                            }}
-                          />
-                        )}
-                      </Box>
                       <Box>
                         <Typography
                           level="body-sm"
@@ -352,6 +321,24 @@ export default function ModelGroups() {
                         >
                           {group.description}
                         </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          alignSelf: 'center',
+                        }}
+                      >
+                        {group?.image && (
+                          <img
+                            src={group.image}
+                            alt={group.name}
+                            style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '4px',
+                              objectFit: 'cover',
+                            }}
+                          />
+                        )}
                       </Box>
                     </Stack>
                   </Button>
