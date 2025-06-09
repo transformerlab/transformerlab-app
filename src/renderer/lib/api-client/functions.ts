@@ -45,6 +45,10 @@ export async function login(
 
 }
 
+export async function getAccessToken() {
+    return window.storage.get('accessToken');
+}
+
 export async function downloadModelFromHuggingFace(
   modelName: string,
   job_id = null,
