@@ -14,6 +14,7 @@ import {
   Table,
   Typography,
   Link,
+  Stack,
 } from '@mui/joy';
 import {
   CheckIcon,
@@ -295,29 +296,64 @@ export default function ModelGroups() {
                       alignItems: 'flex-start',
                     }}
                   >
-                    <Typography
-                      level="body-sm"
-                      fontWeight="bold"
-                      sx={{
-                        textAlign: 'left',
-                        width: '100%',
-                        color: isSelected ? 'common.white' : undefined,
-                      }}
-                      startDecorator={isImageModel && <ImageIcon size="18px" />}
-                    >
-                      {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
-                    </Typography>
-                    <Typography
-                      level="body-xs"
-                      sx={{
-                        whiteSpace: 'normal',
-                        textAlign: 'left',
-                        width: '100%',
-                        color: isSelected ? 'common.white' : undefined,
-                      }}
-                    >
-                      {group.description}
-                    </Typography>
+                    <Stack direction="row" spacing={2}>
+                      <Box
+                        sx={{
+                          width: '40px',
+                          height: '40px',
+                          flexShrink: 0,
+                          alignSelf: 'center',
+                        }}
+                      >
+                        {group?.image ? (
+                          <img
+                            src={group.image}
+                            alt={group.name}
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              borderRadius: '4px',
+                              objectFit: 'cover',
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              borderRadius: '4px',
+                              backgroundColor:
+                                'var(--joy-palette-background-level2)',
+                            }}
+                          />
+                        )}
+                      </Box>
+                      <Box>
+                        <Typography
+                          level="body-sm"
+                          fontWeight="bold"
+                          sx={{
+                            textAlign: 'left',
+                            width: '100%',
+                            color: isSelected ? 'common.white' : undefined,
+                          }}
+                        >
+                          {group.name.charAt(0).toUpperCase() +
+                            group.name.slice(1)}
+                        </Typography>
+                        <Typography
+                          level="body-xs"
+                          sx={{
+                            whiteSpace: 'normal',
+                            textAlign: 'left',
+                            width: '100%',
+                            color: isSelected ? 'common.white' : undefined,
+                          }}
+                        >
+                          {group.description}
+                        </Typography>
+                      </Box>
+                    </Stack>
                   </Button>
                 );
               })}
