@@ -39,7 +39,8 @@ import {
   useModelStatus,
   usePluginStatus,
   useAPI,
-  login
+  login,
+  logout
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
@@ -196,7 +197,12 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           },
         }}
       >
-        <UserIcon />
+        <UserIcon
+            onClick={async() => {
+              const result = await login("test@transformerlab.ai", "strawberrry");
+              alert(result?.message);
+            }}
+        />
         <Box 
           sx={{ minWidth: 0, flex: 1 }}
           onClick={() => setUserLoginModalOpen(true)}
@@ -226,8 +232,8 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           <LogOutIcon
             size="18px"
             onClick={async() => {
-              const result = await login("test@transformerlab.ai", "strawberrry");
-              alert(result?.message);
+              await logout();
+              alert("User logged out.");
             }}
           />
         </IconButton>
