@@ -55,7 +55,7 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
             if (experimentInfo?.id) {
               fetch(`${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`)
                 .then(() => {
-                  alert(`Your experiment was exported in .transformerlab/workspace titled ${experimentInfo.name}_export.json`);
+                  alert(`Your experiment was exported as a recipe to ~/.transformerlab/workspace/${experimentInfo.name}_export.json`);
                 });
             }
           }}
