@@ -23,6 +23,7 @@ export {
 
 export {
   login,
+  logout,
   getAccessToken,
   downloadModelFromHuggingFace,
   downloadModelFromGallery,
