@@ -204,7 +204,18 @@ function UserDetailsPanel({userDetails, mutate}) {
         </Typography>
       </Box>
 
-      <IconButton size="sm" variant="plain" color="neutral">
+      <IconButton
+        size="sm"
+        variant="plain"
+        color="neutral"
+        sx={{
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: 'var(--joy-palette-neutral-100)',
+            borderRadius: 'sm',
+          },
+        }}
+      >
         <LogOutIcon
           size="18px"
           onClick={async() => {
@@ -252,11 +263,6 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           alignItems: 'center',
           mb: 1,
           maxWidth: '180px',
-          cursor: 'pointer',
-          '&:hover': {
-            backgroundColor: 'var(--joy-palette-neutral-100)',
-            borderRadius: 'sm',
-          },
         }}
       >
 
