@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import List from '@mui/joy/List';
 import Divider from '@mui/joy/Divider';
@@ -175,9 +175,7 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   );
 }
 
-function UserDetailsPanel({userDetails, setUserDetails}) {
-  console.log("Opening user details:");
-  console.log(userDetails);
+function UserDetailsPanel({userDetails, mutate}) {
   return (
     <>
       <UserIcon />
@@ -211,7 +209,7 @@ function UserDetailsPanel({userDetails, setUserDetails}) {
           size="18px"
           onClick={async() => {
             await logout();
-            setUserDetails(null);
+            mutate();
             alert("User logged out.");
           }}
         />
@@ -223,7 +221,26 @@ function UserDetailsPanel({userDetails, setUserDetails}) {
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const [userDetails, setUserDetails] = useState(null);
-  const { data: userInfo, error: userError, isLoading: userLoading } = useAPI('users', ['me'], {});
+  const { data: userInfo, error: userError, isLoading: userLoading, mutate: userMutate } = useAPI('users', ['me'], {});
+
+  // Update UserDetails used for diplay when API result updates
+  useEffect(() => {
+
+    // If userInfo was from a successful login then
+    // it will have an id field
+    if (userInfo && userInfo.id) {
+      const newuserdeets = {
+        "name": userInfo.name,
+        "email": userInfo.email,
+        "avatar": ""
+      };
+      setUserDetails(newuserdeets);
+    } else {
+      console.log("User API response triggered logout:");
+      console.log(userInfo);
+      setUserDetails(null);
+    }
+  }, [userInfo]);
 
   return (
     <>
@@ -246,7 +263,7 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
       {userDetails ? (
         <UserDetailsPanel
           userDetails={userDetails}
-          setUserDetails={setUserDetails}
+          mutate={userMutate}
         />
       ) : (
         <Box
@@ -266,14 +283,9 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
             setUserLoginModalOpen(true);
             const result = await login("test@transformerlab.ai", "strawberrry");
             alert(result?.message);
-            const newuserdeets = {
-              "name": "This is a test",
-              "email": "test@testy.com",
-              "avatar": ""
-            };
-            console.log("Here's the object that's fucking up:");
-            console.log(userDetails);
-            setUserDetails(newuserdeets);
+            console.log("Login attempt:");
+            console.log(result);
+            userMutate();
           }}
         >
           <Typography
@@ -330,7 +342,13 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           </IconButton>
         </Tooltip>
       </ButtonGroup>
-      <UserLoginModal open={userLoginModalOpen} onClose={() => setUserLoginModalOpen(false)} />
+      <UserLoginModal
+        open={userLoginModalOpen}
+        onClose={() => {
+          setUserLoginModalOpen(false);
+          userMutate();
+        }}
+      />
     </>
   );
 }
