@@ -48,7 +48,9 @@ export async function login(
 }
 
 export async function getAccessToken() {
-    return window.storage.get('accessToken');
+    const access_token = await window.storage.get('accessToken');
+    console.log("Getting access token:" + access_token);
+    return access_token;
 }
 
 export async function downloadModelFromHuggingFace(
