@@ -15,9 +15,8 @@ export function useAPI(
   let path = getFullPath(majorEntity, pathArray, params);
   const fetcher = async (url: string) => {
 
-    // check for an access token
+    // check for an access token. Will be "" if user not logged in.
     const accessToken = await getAccessToken();
-    console.log(accessToken);
 
     return fetch(url, {
       headers: {
