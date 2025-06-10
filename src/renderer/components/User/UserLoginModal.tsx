@@ -14,6 +14,10 @@ import {
   Alert,
 } from '@mui/joy';
 
+import {
+  login,
+} from 'renderer/lib/transformerlab-api-sdk';
+
 export default function UserLoginModal({ open, onClose }) {
   const commonTabPanelSx = {
     p: 1,
@@ -54,9 +58,13 @@ export default function UserLoginModal({ open, onClose }) {
               </Typography>
             </Alert>
             <form
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
                 // Handle login logic here
+                const result = await login("test@transformerlab.ai", "strawberrry");
+                alert(result?.message);
+                console.log("Login attempt:");
+                console.log(result);
               }}
             >
               <Stack spacing={2}>

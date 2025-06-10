@@ -40,7 +40,6 @@ import {
   useModelStatus,
   usePluginStatus,
   useAPI,
-  login,
   logout
 } from 'renderer/lib/transformerlab-api-sdk';
 
@@ -287,11 +286,6 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           }}
           onClick={async() => {
             setUserLoginModalOpen(true);
-            const result = await login("test@transformerlab.ai", "strawberrry");
-            alert(result?.message);
-            console.log("Login attempt:");
-            console.log(result);
-            userMutate();
           }}
         >
           <Typography
