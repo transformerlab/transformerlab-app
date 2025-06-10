@@ -4,6 +4,7 @@
 import useSWR from 'swr';
 import { API_URL, getFullPath } from './urls';
 import { Endpoints } from './endpoints';
+import { getAccessToken } from './functions';
 
 export function useAPI(
   majorEntity: string,
@@ -12,10 +13,10 @@ export function useAPI(
   options: any = {},
 ) {
   let path = getFullPath(majorEntity, pathArray, params);
-  const fetcher = (url: string) => {
+  const fetcher = async (url: string) => {
 
     // check for an access token
-    const accessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3OGMyNGY5YS1iODQ3LTQ4MDUtYWYwNy02NTcwNmY1ODU3YTEiLCJhdWQiOlsiZmFzdGFwaS11c2VyczphdXRoIl0sImV4cCI6MTc0OTUwNjUxNX0.repiVi5rRDhNz4yd121hK1T7hz8RQxHPkP-IDMD9Oyc';
+    const accessToken = await getAccessToken();
     console.log(accessToken);
 
     return fetch(url, {
