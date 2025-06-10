@@ -43,7 +43,7 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
-import UserModal from '../User/UserModal';
+import UserModal from '../User/UserLoginModal';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
