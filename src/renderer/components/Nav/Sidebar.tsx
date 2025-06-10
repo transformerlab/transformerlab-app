@@ -1,6 +1,5 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import List from '@mui/joy/List';
 import Divider from '@mui/joy/Divider';
@@ -175,7 +174,7 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
 }
 
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
-  const [userModalOpen, setUserModalOpen] = React.useState(false);
+  const [userModalOpen, setUserModalOpen] = useState(false);
   const { data: userInfo, error: userError, isLoading: userLoading } = useAPI('users', ['me'], {});
   console.log("User stuff");
   console.log(userInfo);
