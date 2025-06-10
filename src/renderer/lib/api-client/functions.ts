@@ -52,6 +52,10 @@ export async function getAccessToken() {
     return access_token || "";
 }
 
+export async function logout() {
+    await window.storage.delete('accessToken');
+}
+
 export async function downloadModelFromHuggingFace(
   modelName: string,
   job_id = null,
