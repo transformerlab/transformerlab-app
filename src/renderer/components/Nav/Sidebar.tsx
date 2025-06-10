@@ -43,7 +43,7 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
-import UserModal from '../User/UserLoginModal';
+import UserLoginModal from '../User/UserLoginModal';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
@@ -174,7 +174,7 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
 }
 
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
-  const [userModalOpen, setUserModalOpen] = useState(false);
+  const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const { data: userInfo, error: userError, isLoading: userLoading } = useAPI('users', ['me'], {});
   console.log("User stuff");
   console.log(userInfo);
@@ -208,7 +208,7 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
             borderRadius: 'sm',
           },
         }}
-        onClick={() => setUserModalOpen(true)}
+        onClick={() => setUserLoginModalOpen(true)}
       >
         <UserIcon />
         <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -279,7 +279,7 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           </IconButton>
         </Tooltip>
       </ButtonGroup>
-      <UserModal open={userModalOpen} onClose={() => setUserModalOpen(false)} />
+      <UserLoginModal open={userLoginModalOpen} onClose={() => setUserLoginModalOpen(false)} />
     </>
   );
 }

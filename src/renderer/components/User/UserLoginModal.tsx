@@ -14,7 +14,7 @@ import {
   Alert,
 } from '@mui/joy';
 
-export default function UserModal({ open, onClose }) {
+export default function UserLoginModal({ open, onClose }) {
   const commonTabPanelSx = {
     p: 1,
     pt: 4,
