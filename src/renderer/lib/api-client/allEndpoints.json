@@ -130,5 +130,11 @@
       "method": "GET",
       "path": "users/me"
     }
+  },
+  "auth": {
+    "login": {
+      "method": "POST",
+      "path": "auth/jwt/login"
+    }
   }
 }

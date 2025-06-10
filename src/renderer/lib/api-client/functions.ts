@@ -1,10 +1,12 @@
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
 
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+
 export async function login(
   username: string,
   password: string
 ) {
-  const loginURL = `${API_URL()}auth/jwt/login`;
+  const loginURL = getFullPath('auth', ['login'], {});
 
   // Login data needs to be provided as form data
   const formData = new FormData();
