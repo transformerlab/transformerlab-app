@@ -208,10 +208,12 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
             borderRadius: 'sm',
           },
         }}
-        onClick={() => setUserLoginModalOpen(true)}
       >
         <UserIcon />
-        <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Box 
+          sx={{ minWidth: 0, flex: 1 }}
+          onClick={() => setUserLoginModalOpen(true)}
+        >
           <Typography
             level="title-sm"
             sx={{
