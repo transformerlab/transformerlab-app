@@ -5,6 +5,7 @@ import { Button, LinearProgress, Stack } from '@mui/joy';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { PlayIcon } from 'lucide-react';
+import { useAnalytics } from 'renderer/components/MainAppPanel';
 
 export default function LoRATrainingRunButton({
   initialMessage,
@@ -14,13 +15,33 @@ export default function LoRATrainingRunButton({
   experimentId,
 }) {
   const [progress, setProgress] = useState(0);
+  const analytics = useAnalytics();
+
+  // The name of the training template is stored in an unparsed JSON string
+  // in the `config` field of the training template.
   let job_data = trainingTemplate;
+  let jobConfig = job_data?.config;
+  let pluginName = '';
+  if (jobConfig) {
+    try {
+      jobConfig = JSON.parse(jobConfig);
+    } catch (e) {
+      console.error('Failed to parse jobConfig:', e);
+      jobConfig = {};
+    }
+    pluginName = jobConfig?.plugin_name || '';
+  }
   return (
     <Button
       variant="solid"
       color="primary"
       endDecorator={<PlayIcon size="14px" />}
       onClick={async () => {
+        // Track the event with analytics
+        analytics.track('Job Queued', {
+          task_type: 'TRAIN',
+          plugin_name: pluginName,
+        });
         await fetch(
           chatAPI.Endpoints.Tasks.Queue(trainingTemplate.template_id),
         );
