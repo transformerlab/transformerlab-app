@@ -1356,8 +1356,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
-                        width: '100%',
-                        maxHeight: '400px',
+                        width: '90%',
                       }}
                     >
                       <img
@@ -1365,8 +1364,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         alt=""
                         style={{
                           borderRadius: 8,
-                          maxWidth: '100%',
-                          maxHeight: '400px',
+                          width: '90%',
                           objectFit: 'contain',
                           display: 'block',
                         }}
