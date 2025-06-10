@@ -24,6 +24,7 @@ import {
   WorkflowIcon,
   UserIcon,
   LogOutIcon,
+  LogInIcon,
 } from 'lucide-react';
 
 import {
@@ -174,11 +175,55 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   );
 }
 
+function UserDetailsPanel({userDetails, setUserDetails}) {
+  console.log("Opening user details:");
+  console.log(userDetails);
+  return (
+    <>
+      <UserIcon />
+      <Box
+        sx={{ minWidth: 0, flex: 1 }}
+      >
+        <Typography
+          level="title-sm"
+          sx={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {userDetails?.name}
+        </Typography>
+        <Typography
+          level="body-xs"
+          sx={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {userDetails?.email}
+        </Typography>
+      </Box>
+
+      <IconButton size="sm" variant="plain" color="neutral">
+        <LogOutIcon
+          size="18px"
+          onClick={async() => {
+            await logout();
+            setUserDetails(null);
+            alert("User logged out.");
+          }}
+        />
+      </IconButton>
+    </>
+  );
+}
+
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
+  const [userDetails, setUserDetails] = useState(null);
   const { data: userInfo, error: userError, isLoading: userLoading } = useAPI('users', ['me'], {});
-  console.log("User stuff:");
-  console.log(userInfo);
 
   return (
     <>
@@ -197,15 +242,39 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           },
         }}
       >
-        <UserIcon
-            onClick={async() => {
-              const result = await login("test@transformerlab.ai", "strawberrry");
-              alert(result?.message);
-            }}
+
+      {userDetails ? (
+        <UserDetailsPanel
+          userDetails={userDetails}
+          setUserDetails={setUserDetails}
         />
-        <Box 
-          sx={{ minWidth: 0, flex: 1 }}
-          onClick={() => setUserLoginModalOpen(true)}
+      ) : (
+        <Box
+          sx={{
+            display: DEV_MODE ? 'flex' : 'none',
+            gap: 1,
+            alignItems: 'center',
+            mb: 1,
+            maxWidth: '180px',
+            cursor: 'pointer',
+            '&:hover': {
+              backgroundColor: 'var(--joy-palette-neutral-100)',
+              borderRadius: 'sm',
+            },
+          }}
+          onClick={async() => {
+            setUserLoginModalOpen(true);
+            const result = await login("test@transformerlab.ai", "strawberrry");
+            alert(result?.message);
+            const newuserdeets = {
+              "name": "This is a test",
+              "email": "test@testy.com",
+              "avatar": ""
+            };
+            console.log("Here's the object that's fucking up:");
+            console.log(userDetails);
+            setUserDetails(newuserdeets);
+          }}
         >
           <Typography
             level="title-sm"
@@ -215,28 +284,15 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
               textOverflow: 'ellipsis',
             }}
           >
-            User Name
+            Login
           </Typography>
-          <Typography
-            level="body-xs"
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            user@test.com
-          </Typography>
+          <IconButton size="sm" variant="plain" color="neutral">
+            <LogInIcon
+              size="18px"
+            />
+          </IconButton>
         </Box>
-        <IconButton size="sm" variant="plain" color="neutral">
-          <LogOutIcon
-            size="18px"
-            onClick={async() => {
-              await logout();
-              alert("User logged out.");
-            }}
-          />
-        </IconButton>
+      )}
       </Box>
       <ButtonGroup
         sx={{
