@@ -143,7 +143,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
 
   // Intermediate image generation state
-  const [showIntermediateImages, setShowIntermediateImages] = useState(false);
+  const showIntermediateImages = true; // Always show intermediate images
   const [currentIntermediateImage, setCurrentIntermediateImage] = useState<
     string | null
   >(null);
@@ -308,11 +308,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     genId: string,
     totalSteps: number,
   ) => {
-    // Only start polling if intermediate images are enabled
-    if (!showIntermediateImages) {
-      return () => {}; // Return empty cleanup function
-    }
-
     setIsPolling(true);
     setCurrentIntermediateImage(null);
     // setCurrentStep(0);
@@ -1093,29 +1088,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                               }
                             }}
                             label="Upscale image (2x)"
-                          />
-                        </Tooltip>
-                      </Stack>
-                      <Stack
-                        gap={1}
-                        sx={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Tooltip
-                          title="Show intermediate images during generation process. This allows you to see the image evolving step by step as it's being generated."
-                          arrow
-                          placement="top"
-                          sx={{ maxWidth: 200 }}
-                          variant="soft"
-                        >
-                          <Checkbox
-                            checked={showIntermediateImages}
-                            onChange={(e) =>
-                              setShowIntermediateImages(e.target.checked)
-                            }
-                            label="Show intermediate images"
                           />
                         </Tooltip>
                       </Stack>
