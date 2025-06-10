@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import List from '@mui/joy/List';
 import Divider from '@mui/joy/Divider';
@@ -176,21 +176,8 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const { data: userInfo, error: userError, isLoading: userLoading } = useAPI('users', ['me'], {});
-  console.log("User stuff");
+  console.log("User stuff:");
   console.log(userInfo);
-  console.log(userError);
-  console.log(userLoading);
-
-  useEffect(() => {
-    if (userInfo && userInfo.id) {
-      console.log("New user info:");
-      console.log(userInfo);
-    } else {
-      console.log("User not logged in");
-      console.log(userInfo);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userInfo]);
 
   return (
     <>
