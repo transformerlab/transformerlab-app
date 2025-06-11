@@ -503,6 +503,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setCurrentGenerationData(null);
     setCurrentImageIndex(0); // Reset to first image
     try {
+      analytics.track('Inpainting Generated', {
+        model,
+      });
       // Build the request body with inpainting parameters
       const requestBody: any = {
         model,
