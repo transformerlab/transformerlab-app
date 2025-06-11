@@ -145,7 +145,65 @@ export default function Computer() {
                         title="Mac Monitoring Metrics"
                         sx={{ maxHeight: 'none', overflowY: 'visible' }}
                       >
-                        <Typography level="title-sm" mb={1}>
+                        {server.mac_metrics.soc && (
+                          <>
+                            <Typography level="title-sm" mb={1}>
+                              System on Chip (SoC)
+                            </Typography>
+                            <StatRow
+                              title="Chip"
+                              value={server.mac_metrics.soc.chip_name}
+                            />
+                            <StatRow
+                              title="Mac Model"
+                              value={server.mac_metrics.soc.mac_model}
+                            />
+                            <StatRow
+                              title="Memory"
+                              value={`${server.mac_metrics.soc.memory_gb} GB`}
+                            />
+                            <StatRow
+                              title="CPU Cores"
+                              value={`${server.mac_metrics.soc.ecpu_cores} E-cores, ${server.mac_metrics.soc.pcpu_cores} P-cores`}
+                            />
+                            <StatRow
+                              title="GPU Cores"
+                              value={server.mac_metrics.soc.gpu_cores}
+                            />
+                            <StatRow
+                              title="CPU Frequencies"
+                              value={`${Math.min(...server.mac_metrics.soc.ecpu_freqs)} - ${Math.max(...server.mac_metrics.soc.ecpu_freqs)} MHz (E), ${Math.min(...server.mac_metrics.soc.pcpu_freqs)} - ${Math.max(...server.mac_metrics.soc.pcpu_freqs)} MHz (P)`}
+                            />
+                            <StatRow
+                              title="GPU Frequencies"
+                              value={`${Math.min(...server.mac_metrics.soc.gpu_freqs.filter((f: number) => f > 0))} - ${Math.max(...server.mac_metrics.soc.gpu_freqs)} MHz`}
+                            />
+                          </>
+                        )}
+
+                        <Typography level="title-sm" mt={2} mb={1}>
+                          Usage
+                        </Typography>
+                        {server.mac_metrics.ecpu_usage && (
+                          <StatRow
+                            title="ECPU Usage"
+                            value={`${server.mac_metrics.ecpu_usage[0]} MHz, ${(server.mac_metrics.ecpu_usage[1] * 100).toFixed(2)}%`}
+                          />
+                        )}
+                        {server.mac_metrics.pcpu_usage && (
+                          <StatRow
+                            title="PCPU Usage"
+                            value={`${server.mac_metrics.pcpu_usage[0]} MHz, ${(server.mac_metrics.pcpu_usage[1] * 100).toFixed(2)}%`}
+                          />
+                        )}
+                        {server.mac_metrics.gpu_usage && (
+                          <StatRow
+                            title="GPU Usage"
+                            value={`${server.mac_metrics.gpu_usage[0]} MHz, ${(server.mac_metrics.gpu_usage[1] * 100).toFixed(2)}%`}
+                          />
+                        )}
+
+                        <Typography level="title-sm" mt={2} mb={1}>
                           Temperature
                         </Typography>
                         <StatRow
@@ -180,28 +238,6 @@ export default function Computer() {
                           title="System Power"
                           value={`${server.mac_metrics.sys_power.toFixed(2)} W`}
                         />
-
-                        <Typography level="title-sm" mt={2} mb={1}>
-                          Usage
-                        </Typography>
-                        {server.mac_metrics.ecpu_usage && (
-                          <StatRow
-                            title="ECPU Usage"
-                            value={`${server.mac_metrics.ecpu_usage[0]} MHz, ${(server.mac_metrics.ecpu_usage[1] * 100).toFixed(2)}%`}
-                          />
-                        )}
-                        {server.mac_metrics.pcpu_usage && (
-                          <StatRow
-                            title="PCPU Usage"
-                            value={`${server.mac_metrics.pcpu_usage[0]} MHz, ${(server.mac_metrics.pcpu_usage[1] * 100).toFixed(2)}%`}
-                          />
-                        )}
-                        {server.mac_metrics.gpu_usage && (
-                          <StatRow
-                            title="GPU Usage"
-                            value={`${server.mac_metrics.gpu_usage[0]} MHz, ${(server.mac_metrics.gpu_usage[1] * 100).toFixed(2)}%`}
-                          />
-                        )}
                       </ComputerCard>
                     </Grid>
                   ) : (

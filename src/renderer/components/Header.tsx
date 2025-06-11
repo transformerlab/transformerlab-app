@@ -257,20 +257,42 @@ function StatsBar({ connection, setConnection }) {
                         <b>CPU: </b>
                         {server?.cpu}
                       </Typography>
-                      {server?.gpu?.map((gpu, index) => (
-                        <div key={index}>
+
+                      {/* Mac-specific metrics */}
+                      {server?.mac_metrics ? (
+                        <>
                           <Typography>
-                            <b>GPU {index + 1}: </b>
-                            {gpu.name === 'cpu' ? 'N/A' : gpu.name}
+                            <b>GPU 1: </b>
+                            {server.mac_metrics.soc?.chip_name ||
+                              'Mac Silicon GPU'}
                           </Typography>
-                          <Typography>
-                            <b>GPU Memory: </b>
-                            {formatBytes(gpu.total_memory) === '0 Bytes'
-                              ? 'N/A'
-                              : formatBytes(gpu.total_memory)}
-                          </Typography>
-                        </div>
-                      ))}
+                          {server.mac_metrics.gpu_usage && (
+                            <Typography>
+                              <b>GPU Usage: </b>
+                              {(server.mac_metrics.gpu_usage[1] * 100).toFixed(
+                                1,
+                              )}
+                              %
+                            </Typography>
+                          )}
+                        </>
+                      ) : (
+                        // Regular GPU display for non-Mac systems
+                        server?.gpu?.map((gpu, index) => (
+                          <div key={index}>
+                            <Typography>
+                              <b>GPU {index + 1}: </b>
+                              {gpu.name === 'cpu' ? 'N/A' : gpu.name}
+                            </Typography>
+                            <Typography>
+                              <b>GPU Memory: </b>
+                              {formatBytes(gpu.total_memory) === '0 Bytes'
+                                ? 'N/A'
+                                : formatBytes(gpu.total_memory)}
+                            </Typography>
+                          </div>
+                        ))
+                      )}
                       <Typography p={1}>
                         <ReactRouterLink to="/computer">
                           More about this computer
@@ -280,7 +302,7 @@ function StatsBar({ connection, setConnection }) {
                       <Button
                         variant="solid"
                         color="danger"
-                        size="small"
+                        size="sm"
                         sx={{ m: 0, p: 1 }}
                         onClick={() => {
                           setConnection('');
