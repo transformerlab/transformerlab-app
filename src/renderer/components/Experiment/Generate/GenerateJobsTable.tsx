@@ -7,16 +7,24 @@ import {
   Sheet,
   Table,
   Typography,
-  Link
+  Link,
+  Modal,
+  ModalDialog,
+  ModalClose,
 } from '@mui/joy';
-import { ChartColumnBigIcon, FileDigitIcon, Trash2Icon,  Grid3X3Icon,} from 'lucide-react';
+import {
+  ChartColumnBigIcon,
+  FileDigitIcon,
+  Trash2Icon,
+  Grid3X3Icon,
+} from 'lucide-react';
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCSVModal from './ViewCSVModal';
-
+import DatasetTable from 'renderer/components/Data/DatasetTable';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -67,12 +75,11 @@ function RenderScore({ score }) {
   ));
 }
 
-
-
 const GenerateJobsTable = () => {
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
-  const [currentJobId, setCurrentJobId] = useState('');
+  const [currentJob, setCurrentJob] = useState(null);
+  const [currentJobId, setCurrentJobId] = useState(null);
 
   const {
     data: jobs,
@@ -87,20 +94,20 @@ const GenerateJobsTable = () => {
     // Component did mount logic here
   }, []);
 
-  const handleOpenCSVModal = (jobId) => {
-    setCurrentJobId(jobId);
+  const handleOpenCSVModal = (job) => {
+    console.log('Dataset Preview clicked – job_data:', job.job_data);
+    setCurrentJobId(job.id);
+    setCurrentJob(job);
     setOpenCSVModal(true);
   };
 
   const fetchGenerateCSV = async (jobId) => {
-      const response = await fetch(
-        chatAPI.Endpoints.Experiment.GetGeneratedDataset(jobId)
-      );
-      const text = await response.text();
-      return text;
-    };
-
-
+    const response = await fetch(
+      chatAPI.Endpoints.Experiment.GetGeneratedDataset(jobId),
+    );
+    const text = await response.text();
+    return text;
+  };
 
   return (
     <>
@@ -108,12 +115,19 @@ const GenerateJobsTable = () => {
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
       />
-      <ViewCSVModal
-        open={openCSVModal}
-        onClose={() => setOpenCSVModal(false)}
-        jobId={currentJobId}
-        fetchCSV={fetchGenerateCSV}
-      />
+      {openCSVModal && currentJob && (
+        <Modal open={openCSVModal} onClose={() => setOpenCSVModal(false)}>
+          <ModalDialog sx={{ width: '90vw', height: '90vh' }}>
+            <ModalClose />
+            <Typography level="h4" mb={2}>
+              Dataset Preview – Job #{currentJob.id}
+            </Typography>
+            <Box sx={{ overflow: 'auto', height: '100%' }}>
+              <DatasetTable datasetId={currentJob.job_data.dataset_id} />
+            </Box>
+          </ModalDialog>
+        </Modal>
+      )}
       <Typography level="h3">Executions</Typography>
       <Sheet sx={{ overflowY: 'scroll' }}>
         <Table stickyHeader>
@@ -152,12 +166,12 @@ const GenerateJobsTable = () => {
                 <td>
                   {/* <RenderScore score={job?.job_data?.score} /> */}
                   <Link
-                      onClick={() => handleOpenCSVModal(job?.id)}
-                      sx={{ mt: 1, ml: 1 }}
-                      startDecorator={<Grid3X3Icon size="14px" />}
-                    >
-                      Dataset Preview
-                    </Link>
+                    onClick={() => handleOpenCSVModal(job)}
+                    sx={{ mt: 1, ml: 1 }}
+                    startDecorator={<Grid3X3Icon size="14px" />}
+                  >
+                    Dataset Preview
+                  </Link>
                 </td>
 
                 <td>
