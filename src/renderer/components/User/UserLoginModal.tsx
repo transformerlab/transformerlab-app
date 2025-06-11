@@ -61,8 +61,9 @@ export default function UserLoginModal({ open, onClose }) {
               onSubmit={async (event) => {
                 event.preventDefault();
                 // Handle login logic here
-                const username = "test@transformerlab.ai";
-                const password = "strawberrry";
+                const formData = new FormData(event.currentTarget);
+                const username = formData.get('email') as string;
+                const password = formData.get('password') as string;
                 const result = await login(username, password);
                 console.log("Login attempt:");
                 console.log(result);
