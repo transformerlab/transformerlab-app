@@ -3,6 +3,10 @@ import { useState, useEffect } from 'react';
 
 import List from '@mui/joy/List';
 import Divider from '@mui/joy/Divider';
+import ListItem from '@mui/joy/ListItem';
+import ListItemContent from '@mui/joy/ListItemContent';
+import ListItemDecorator from '@mui/joy/ListItemDecorator';
+import ListItemButton from '@mui/joy/ListItemButton';
 
 import {
   CodeIcon,
@@ -271,39 +275,34 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           mutate={userMutate}
         />
       ) : (
-        <Box
+        <List
           sx={{
-            display: DEV_MODE ? 'flex' : 'none',
-            gap: 1,
-            alignItems: 'center',
-            mb: 1,
-            maxWidth: '180px',
-            cursor: 'pointer',
-            '&:hover': {
-              backgroundColor: 'var(--joy-palette-neutral-100)',
-              borderRadius: 'sm',
-            },
-          }}
-          onClick={async() => {
-            setUserLoginModalOpen(true);
+            '--ListItem-radius': '6px',
+            '--ListItem-minHeight': '32px',
+            overflowY: 'auto',
+            flex: 1,
           }}
         >
-          <Typography
-            level="title-sm"
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            Login
-          </Typography>
-          <IconButton size="sm" variant="plain" color="neutral">
-            <LogInIcon
-              size="18px"
-            />
-          </IconButton>
-        </Box>
+          <ListItem className="FirstSidebar_Content">
+            <ListItemButton
+              variant='plain'
+              onClick={() => setUserLoginModalOpen(true)}
+            >
+              <ListItemDecorator sx={{ minInlineSize: '30px' }}>
+                <LogInIcon />
+              </ListItemDecorator>
+              <ListItemContent
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'flex-start',
+                  alignContent: 'center',
+                }}
+              >
+                <Typography level="body-sm">Login</Typography>
+              </ListItemContent>
+            </ListItemButton>
+          </ListItem>
+        </List>
       )}
       </Box>
       <ButtonGroup
