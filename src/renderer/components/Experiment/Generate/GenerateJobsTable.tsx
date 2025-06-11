@@ -123,9 +123,7 @@ const GenerateJobsTable = () => {
               Dataset Preview – Job #{currentJob.id}
             </Typography>
             <Box sx={{ overflow: 'auto', height: '100%' }}>
-              <DatasetTable
-                datasetId={currentJob.job_data.dataset_id?.toLowerCase()}
-              />
+              <DatasetTable datasetId={currentJob.job_data.dataset_id} />
             </Box>
           </ModalDialog>
         </Modal>
