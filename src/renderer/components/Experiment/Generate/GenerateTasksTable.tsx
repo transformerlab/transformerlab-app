@@ -33,43 +33,6 @@ function listGenerations(generationString) {
   return result;
 }
 
-function formatTemplateConfig(script_parameters): ReactElement {
-  // const c = JSON.parse(script_parameters);
-
-  // Remove the author/full path from the model name for cleanliness
-  // const short_model_name = c.model_name.split('/').pop();
-  // Set main_task as either or the metric name from the script parameters
-  const main_task = script_parameters?.generation_type;
-  let docs_file_name_actual = '';
-  // Only keep the first 3 words of the main task
-
-  // Set docs_file_name as script parameters docs or N/A depending upon main task and if it has the words 'docs'  in it
-  const docs_file_name =
-    main_task && main_task.toLowerCase().includes('docs')
-      ? script_parameters.docs || 'N/A'
-      : 'N/A';
-  const is_docs = docs_file_name !== 'N/A';
-  if (is_docs) {
-    docs_file_name_actual = script_parameters.docs.split('/').pop();
-  }
-  const generation_model = script_parameters?.generation_model
-    ? script_parameters.generation_model
-    : 'N/A';
-
-  return (
-    <>
-      <b>Type:</b> {main_task} <br />
-      <b>Model:</b> {generation_model} <br />
-      {is_docs && (
-        <>
-          <b>Docs:</b> {docs_file_name_actual} <FileTextIcon size={14} />
-          <br />
-        </>
-      )}
-    </>
-  );
-}
-
 async function generationRun(taskId: string) {
   await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
 }
@@ -83,6 +46,41 @@ export default function GenerateTasksTable({
   setCurrentGenerationId,
 }) {
   const [open, setOpen] = useState(false);
+
+  function formatTemplateConfig(script_parameters): ReactElement {
+    const main_task = script_parameters?.generation_type;
+    let docs_file_name_actual = '';
+
+    const docs_file_name =
+      main_task && main_task.toLowerCase().includes('docs')
+        ? script_parameters.docs || 'N/A'
+        : 'N/A';
+    const is_docs = docs_file_name !== 'N/A';
+    if (is_docs) {
+      docs_file_name_actual = script_parameters.docs.split('/').pop();
+    }
+
+    const raw_model = script_parameters?.generation_model;
+    const use_fallback =
+      !raw_model || raw_model === 'N/A' || raw_model === 'local';
+
+    const generation_model = use_fallback
+      ? experimentInfo?.config?.foundation || 'N/A'
+      : raw_model;
+
+    return (
+      <>
+        <b>Type:</b> {main_task} <br />
+        <b>Model:</b> {generation_model} <br />
+        {is_docs && (
+          <>
+            <b>Docs:</b> {docs_file_name_actual} <FileTextIcon size={14} />
+            <br />
+          </>
+        )}
+      </>
+    );
+  }
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Tasks.ListByTypeInExperiment(
