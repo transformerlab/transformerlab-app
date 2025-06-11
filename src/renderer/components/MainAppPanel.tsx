@@ -46,12 +46,13 @@ import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
 import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
+import { useAnalytics } from './Shared/useAnalytics';
 
 export const analytics = new AnalyticsBrowser();
 analytics.load({ writeKey: 'UYXFr71CWmsdxDqki5oFXIs2PSR5XGCE' });
 
 // Segment context provider to make analytics available throughout the app
-export const SegmentContext = createContext();
+export const SegmentContext = createContext<any>(null);
 
 export const SegmentProvider = ({ children }) => {
   return (
@@ -59,31 +60,6 @@ export const SegmentProvider = ({ children }) => {
       {children}
     </SegmentContext.Provider>
   );
-};
-
-// Hook to use Segment analytics in components
-export const useAnalytics = () => {
-  const analytics = useContext(SegmentContext);
-
-  // Proxy that checks the latest DO_NOT_TRACK and environment on every call
-  const analyticsProxy = new Proxy(
-    {},
-    {
-      get: (_, prop) => {
-        // Return a function that checks the flags before calling analytics
-        return async (...args) => {
-          if (window.platform?.environment === 'development') return;
-          const doNotTrack = await window.storage.get('DO_NOT_TRACK');
-          if (doNotTrack === 'true') return;
-          if (typeof analytics[prop] === 'function') {
-            return analytics[prop](...args);
-          }
-        };
-      },
-    },
-  );
-
-  return analyticsProxy;
 };
 
 // // Define the app version
