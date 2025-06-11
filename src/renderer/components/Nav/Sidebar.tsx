@@ -1,7 +1,12 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 import List from '@mui/joy/List';
 import Divider from '@mui/joy/Divider';
+import ListItem from '@mui/joy/ListItem';
+import ListItemContent from '@mui/joy/ListItemContent';
+import ListItemDecorator from '@mui/joy/ListItemDecorator';
+import ListItemButton from '@mui/joy/ListItemButton';
 
 import {
   CodeIcon,
@@ -23,6 +28,7 @@ import {
   WorkflowIcon,
   UserIcon,
   LogOutIcon,
+  LogInIcon,
 } from 'lucide-react';
 
 import {
@@ -37,9 +43,12 @@ import {
 import {
   useModelStatus,
   usePluginStatus,
+  useAPI,
+  logout
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
+import UserLoginModal from '../User/UserLoginModal';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
@@ -169,10 +178,86 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   );
 }
 
-function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
+function UserDetailsPanel({userDetails, mutate}) {
   return (
     <>
-      {' '}
+      <UserIcon />
+      <Box
+        sx={{ minWidth: 0, flex: 1 }}
+      >
+        <Typography
+          level="title-sm"
+          sx={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {userDetails?.name}
+        </Typography>
+        <Typography
+          level="body-xs"
+          sx={{
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {userDetails?.email}
+        </Typography>
+      </Box>
+
+      <IconButton
+        size="sm"
+        variant="plain"
+        color="neutral"
+        sx={{
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: 'var(--joy-palette-neutral-100)',
+            borderRadius: 'sm',
+          },
+        }}
+      >
+        <LogOutIcon
+          size="18px"
+          onClick={async() => {
+            await logout();
+            mutate();
+            alert("User logged out.");
+          }}
+        />
+      </IconButton>
+    </>
+  );
+}
+
+function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
+  const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
+  const [userDetails, setUserDetails] = useState(null);
+  const { data: userInfo, error: userError, isLoading: userLoading, mutate: userMutate } = useAPI('users', ['me'], {});
+
+  // Update UserDetails used for diplay when API result updates
+  useEffect(() => {
+
+    // If userInfo was from a successful login then
+    // it will have an id field
+    if (userInfo && userInfo.id) {
+      const newuserdeets = {
+        "name": userInfo.name,
+        "email": userInfo.email,
+        "avatar": ""
+      };
+      setUserDetails(newuserdeets);
+    } else {
+      console.log("User API response triggered logout:");
+      console.log(userInfo);
+      setUserDetails(null);
+    }
+  }, [userInfo]);
+
+  return (
+    <>
       <Divider sx={{ my: 2 }} />
       <Box
         sx={{
@@ -183,37 +268,42 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           maxWidth: '180px',
         }}
       >
-        {/* <Avatar
-variant="outlined"
-size="sm"
-src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=286"
-/> */}
-        <UserIcon />
-        <Box sx={{ minWidth: 0, flex: 1 }}>
-          <Typography
-            level="title-sm"
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            User Name
-          </Typography>
-          <Typography
-            level="body-xs"
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            user@test.com
-          </Typography>
-        </Box>
-        <IconButton size="sm" variant="plain" color="neutral">
-          <LogOutIcon size="18px" />
-        </IconButton>
+
+      {userDetails ? (
+        <UserDetailsPanel
+          userDetails={userDetails}
+          mutate={userMutate}
+        />
+      ) : (
+        <List
+          sx={{
+            '--ListItem-radius': '6px',
+            '--ListItem-minHeight': '32px',
+            overflowY: 'auto',
+            flex: 1,
+          }}
+        >
+          <ListItem className="FirstSidebar_Content">
+            <ListItemButton
+              variant='plain'
+              onClick={() => setUserLoginModalOpen(true)}
+            >
+              <ListItemDecorator sx={{ minInlineSize: '30px' }}>
+                <LogInIcon />
+              </ListItemDecorator>
+              <ListItemContent
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'flex-start',
+                  alignContent: 'center',
+                }}
+              >
+                <Typography level="body-sm">Login</Typography>
+              </ListItemContent>
+            </ListItemButton>
+          </ListItem>
+        </List>
+      )}
       </Box>
       <ButtonGroup
         sx={{
@@ -251,6 +341,13 @@ src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fi
           </IconButton>
         </Tooltip>
       </ButtonGroup>
+      <UserLoginModal
+        open={userLoginModalOpen}
+        onClose={() => {
+          setUserLoginModalOpen(false);
+          userMutate();
+        }}
+      />
     </>
   );
 }

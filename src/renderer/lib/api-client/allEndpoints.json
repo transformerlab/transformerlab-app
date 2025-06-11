@@ -124,5 +124,17 @@
       "method": "GET",
       "path": "recipes/jobs/{job_id}/status"
     }
+  },
+  "users": {
+    "me": {
+      "method": "GET",
+      "path": "users/me"
+    }
+  },
+  "auth": {
+    "login": {
+      "method": "POST",
+      "path": "auth/jwt/login"
+    }
   }
 }
