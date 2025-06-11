@@ -60,14 +60,23 @@ export default function UserLoginModal({ open, onClose }) {
             <form
               onSubmit={async (event) => {
                 event.preventDefault();
-                // Handle login logic here
+
+                // Read login data from the form and submit
                 const formData = new FormData(event.currentTarget);
                 const username = formData.get('email') as string;
                 const password = formData.get('password') as string;
                 const result = await login(username, password);
-                console.log("Login attempt:");
-                console.log(result);
-                onClose();
+
+                // Check if login was successful. If not, stay on screen
+                if (result?.status == "success") {
+                  console.log(`Login attempt successful for user ${username}`);
+                  onClose();
+                } else if (result?.status == "error") {
+                  alert(result?.message);
+                } else { // unauthorized
+                  (event.target as HTMLFormElement).reset();
+                  alert(result?.message);
+                }
               }}
             >
               <Stack spacing={2}>
