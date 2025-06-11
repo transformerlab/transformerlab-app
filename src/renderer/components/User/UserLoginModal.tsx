@@ -18,7 +18,7 @@ import {
   login,
 } from 'renderer/lib/transformerlab-api-sdk';
 
-export default function UserLoginModal({ open, setOpen, onClose }) {
+export default function UserLoginModal({ open, onClose }) {
   const commonTabPanelSx = {
     p: 1,
     pt: 4,
@@ -61,10 +61,12 @@ export default function UserLoginModal({ open, setOpen, onClose }) {
               onSubmit={async (event) => {
                 event.preventDefault();
                 // Handle login logic here
-                const result = await login("test@transformerlab.ai", "strawberrry");
+                const username = "test@transformerlab.ai";
+                const password = "strawberrry";
+                const result = await login(username, password);
                 console.log("Login attempt:");
                 console.log(result);
-                setOpen(false);
+                onClose();
               }}
             >
               <Stack spacing={2}>

@@ -344,8 +344,8 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
       </ButtonGroup>
       <UserLoginModal
         open={userLoginModalOpen}
-        setOpen={setUserLoginModalOpen}
         onClose={() => {
+          setUserLoginModalOpen(false);
           userMutate();
         }}
       />
