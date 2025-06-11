@@ -38,7 +38,7 @@ export default function LoRATrainingRunButton({
       endDecorator={<PlayIcon size="14px" />}
       onClick={async () => {
         // Track the event with analytics
-        analytics.track('Job Queued', {
+        analytics.track('Task Queued', {
           task_type: 'TRAIN',
           plugin_name: pluginName,
         });
