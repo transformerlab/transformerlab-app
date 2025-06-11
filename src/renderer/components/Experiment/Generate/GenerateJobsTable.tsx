@@ -95,6 +95,7 @@ const GenerateJobsTable = () => {
   }, []);
 
   const handleOpenCSVModal = (job) => {
+    console.log('Dataset Preview clicked – job_data:', job.job_data);
     setCurrentJobId(job.id);
     setCurrentJob(job);
     setOpenCSVModal(true);
@@ -122,7 +123,9 @@ const GenerateJobsTable = () => {
               Dataset Preview – Job #{currentJob.id}
             </Typography>
             <Box sx={{ overflow: 'auto', height: '100%' }}>
-              <DatasetTable datasetId={currentJob.job_data.dataset_id} />
+              <DatasetTable
+                datasetId={currentJob.job_data.dataset_id?.toLowerCase()}
+              />
             </Box>
           </ModalDialog>
         </Modal>
