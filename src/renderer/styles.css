@@ -56,20 +56,6 @@ td {
   margin-left: auto;
 }
 
-button.hoverEditButton {
-  display: none;
-}
-
-.editableSheet:hover .editableSheetContent {
-  opacity: 0.3;
-  transition: opacity 0.1s ease-in-out;
-}
-
-.editableSheet:hover button.hoverEditButton {
-  display: inline-flex;
-  opacity: 1;
-}
-
 /* Make sure that if you have clickable things
   in the header, they themselves are not draggable
   otherwise you can't click on them */

@@ -14,6 +14,7 @@ import {
   Table,
   Typography,
   Link,
+  Stack,
 } from '@mui/joy';
 import {
   CheckIcon,
@@ -23,6 +24,7 @@ import {
   LockKeyholeIcon,
   SearchIcon,
   ChevronUpIcon,
+  ImageIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -276,6 +278,11 @@ export default function ModelGroups() {
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((group) => {
                 const isSelected = selectedGroup?.name === group.name;
+                let isImageModel = false;
+                // isImageModel is true if "Image Generation" is in the tags array:
+                if (group.tags?.includes('Image Generation')) {
+                  isImageModel = true;
+                }
                 return (
                   <Button
                     key={group.name}
@@ -289,28 +296,51 @@ export default function ModelGroups() {
                       alignItems: 'flex-start',
                     }}
                   >
-                    <Typography
-                      level="body-sm"
-                      fontWeight="bold"
-                      sx={{
-                        textAlign: 'left',
-                        width: '100%',
-                        color: isSelected ? 'common.white' : undefined,
-                      }}
-                    >
-                      {group.name.charAt(0).toUpperCase() + group.name.slice(1)}
-                    </Typography>
-                    <Typography
-                      level="body-xs"
-                      sx={{
-                        whiteSpace: 'normal',
-                        textAlign: 'left',
-                        width: '100%',
-                        color: isSelected ? 'common.white' : undefined,
-                      }}
-                    >
-                      {group.description}
-                    </Typography>
+                    <Stack direction="row" spacing={2}>
+                      <Box>
+                        <Typography
+                          level="body-sm"
+                          fontWeight="bold"
+                          sx={{
+                            textAlign: 'left',
+                            width: '100%',
+                            color: isSelected ? 'common.white' : undefined,
+                          }}
+                        >
+                          {group.name.charAt(0).toUpperCase() +
+                            group.name.slice(1)}
+                        </Typography>
+                        <Typography
+                          level="body-xs"
+                          sx={{
+                            whiteSpace: 'normal',
+                            textAlign: 'left',
+                            width: '100%',
+                            color: isSelected ? 'common.white' : undefined,
+                          }}
+                        >
+                          {group.description}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          alignSelf: 'center',
+                        }}
+                      >
+                        {group?.image && (
+                          <img
+                            src={group.image}
+                            alt={group.name}
+                            style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '4px',
+                              objectFit: 'cover',
+                            }}
+                          />
+                        )}
+                      </Box>
+                    </Stack>
                   </Button>
                 );
               })}

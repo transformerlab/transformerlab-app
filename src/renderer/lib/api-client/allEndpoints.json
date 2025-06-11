@@ -124,5 +124,59 @@
       "method": "GET",
       "path": "recipes/jobs/{job_id}/status"
     }
+  },
+  "diffusion": {
+    "generateId": {
+      "method": "POST",
+      "path": "diffusion/generate_id"
+    },
+    "generate": {
+      "method": "POST",
+      "path": "diffusion/generate"
+    },
+    "checkValidDiffusion": {
+      "method": "POST",
+      "path": "diffusion/is_valid_diffusion_model"
+    },
+    "getHistory": {
+      "method": "GET",
+      "path": "diffusion/history?limit={limit}&offset={offset}"
+    },
+    "getImageInfo": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/info"
+    },
+    "getImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?index={index}"
+    },
+    "getImageCount": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/count"
+    },
+    "getInputImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?input_image=true"
+    },
+    "getMaskImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?mask_image=true"
+    },
+    "deleteImage": {
+      "method": "DELETE",
+      "path": "diffusion/history/{imageId}"
+    },
+    "clearHistory": {
+      "method": "DELETE",
+      "path": "diffusion/history"
+    },
+    "createDataset": {
+      "method": "POST",
+      "path": "diffusion/dataset/create"
+    },
+    "getAllImages": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/all"
+    }
   }
 }

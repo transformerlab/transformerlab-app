@@ -38,6 +38,7 @@ import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
 import Rag from './Experiment/Rag';
 import Tokenize from './Experiment/Interact/Tokenize';
+import Diffusion from './Experiment/Diffusion/Diffusion';
 
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
@@ -489,6 +490,10 @@ export default function MainAppPanel({
         <Route
           path="/experiment/generate"
           element={<Generate experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/experiment/diffusion"
+          element={<Diffusion experimentInfo={experimentInfo} />}
         />
         <Route
           path="/plugins"

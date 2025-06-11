@@ -425,6 +425,9 @@ Endpoints.Jobs = {
       type
     }&config=${config}`,
   Stop: (jobId: string) => `${API_URL()}jobs/${jobId}/stop`,
+  GetEvalImages: (jobId: string) => `${API_URL()}jobs/${jobId}/get_eval_images`,
+  GetEvalImage: (jobId: string, filename: string) =>
+    `${API_URL()}jobs/${jobId}/image/${filename}`,
 };
 
 Endpoints.Global = {

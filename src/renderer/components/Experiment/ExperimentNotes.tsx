@@ -110,7 +110,7 @@ export default function ExperimentNotes({ experimentInfo }) {
             flexDirection: 'column',
             mt: 1,
             height: '100%',
-            p: 3,
+            px: 2,
             boxShadow:
               'rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px',
           }}
@@ -125,24 +125,8 @@ export default function ExperimentNotes({ experimentInfo }) {
               {data}
             </Markdown>
           </Box>
-          <Button
-            onClick={() => {
-              setIsEditing(true);
-            }}
-            sx={{
-              mt: 1,
-              ml: 'auto',
-              position: 'absolute',
-            }}
-            variant="solid"
-            className="hoverEditButton"
-            startDecorator={<PencilIcon size="18px" />}
-          >
-            Edit
-          </Button>
         </Sheet>
       )}
-
       {isEditing && (
         <Sheet
           sx={{
@@ -186,35 +170,50 @@ export default function ExperimentNotes({ experimentInfo }) {
               onMount={handleEditorDidMount}
             />
           </Sheet>
-          <Box
-            display="flex"
-            flexDirection="row"
-            gap={1}
-            sx={{
-              width: '100%',
-              justifyContent: 'flex-end',
-              alignContent: 'center',
-              mt: 1,
-            }}
-          >
+        </Sheet>
+      )}
+      <Box
+        display="flex"
+        flexDirection="row"
+        gap={1}
+        sx={{
+          width: '100%',
+          justifyContent: 'flex-end',
+          alignContent: 'center',
+          mt: 1,
+        }}
+      >
+        {isEditing ? (
+          <>
             <Button
               onClick={() => {
                 saveValue();
               }}
-              sx={{}}
+              color="success"
             >
               Save
             </Button>
             <Button
-              variant="soft"
-              sx={{ ml: 1 }}
+              variant="plain"
+              color="danger"
               onClick={() => setIsEditing(false)}
             >
               Cancel
             </Button>
-          </Box>
-        </Sheet>
-      )}
+          </>
+        ) : (
+          <Button
+            onClick={() => {
+              setIsEditing(true);
+            }}
+            color="primary"
+            variant="solid"
+            startDecorator={<PencilIcon size="18px" />}
+          >
+            Edit
+          </Button>
+        )}
+      </Box>
     </Sheet>
   );
 }

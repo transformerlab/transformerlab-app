@@ -208,8 +208,8 @@ export default function GenerateTasksTable({
                         color="success"
                         onClick={async () => {
                           analytics.track('Task Queued', {
-                            task_type: 'EVAL',
-                            plugin_name: evaluations.plugin,
+                            task_type: 'GENERATE',
+                            plugin_name: generations.plugin,
                           });
                           await generationRun(generations.id);
                         }}

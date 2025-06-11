@@ -276,7 +276,16 @@ export default function SelectExperimentMenu({
           <Menu
             className="select-experiment-menu"
             variant="plain"
-            sx={{ width: 170, overflow: 'hidden' }}
+            sx={{
+              width: 170,
+              overflowX: 'hidden',
+              overflowY: 'auto',
+              maxHeight: '80dvh',
+              // make scrollbar thin:
+              scrollbarWidth: 'thin',
+              scrollbarColor:
+                'var(--joy-palette-neutral-plainColor) transparent',
+            }}
           >
             {data &&
               data.map((experiment: any) => {

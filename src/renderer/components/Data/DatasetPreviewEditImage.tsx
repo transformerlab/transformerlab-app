@@ -15,7 +15,6 @@ import {
   FormControl,
   FormLabel,
   FormHelperText,
-  IconButton,
   Tooltip,
   Divider,
 } from '@mui/joy';
@@ -48,7 +47,7 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
   const [datasetLen, setDatasetLen] = useState(null);
   const [numOfPages, setNumOfPages] = useState(1);
   const [pageNumber, setPageNumber] = useState(1);
-  const [infoModalOpen, setInfoModalOpen] = useState(false);
+
   const pageSize = 50;
   const offset = (pageNumber - 1) * pageSize;
 
@@ -301,6 +300,34 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
         </Box>
       )}
 
+      {/* Contextual Info Banner */}
+      <Box
+        sx={{
+          mx: 2,
+          mt: 2,
+          p: 2,
+          bgcolor: 'primary.softBg',
+          borderRadius: 'sm',
+          border: '1px solid',
+          borderColor: 'primary.outlinedBorder',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 2,
+        }}
+      >
+        <Info size={18} style={{ marginTop: '2px', flexShrink: 0 }} />
+        <Box>
+          <Typography level="body-sm" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+            Dataset Editor
+          </Typography>
+          <Typography level="body-xs" sx={{ color: 'text.secondary' }}>
+            Changes create a new dataset (original unchanged). Requires new name
+            + at least one edit to save. Edited split values must be one of:
+            &apos;train&apos;, &apos;test&apos;, or &apos;valid&apos;.
+          </Typography>
+        </Box>
+      </Box>
+
       <Box
         p={2}
         sx={{
@@ -396,7 +423,7 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
               </FormControl>
             </Box>
 
-            {/* Right side: Info + + - Save */}
+            {/* Right side: + - Save */}
             <Box
               sx={{
                 display: 'flex',
@@ -405,16 +432,6 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
                 flexWrap: 'wrap',
               }}
             >
-              <Tooltip title="Edit Instructions.">
-                <IconButton
-                  variant="soft"
-                  color="neutral"
-                  onClick={() => setInfoModalOpen(true)}
-                >
-                  <Info size={20} />
-                </IconButton>
-              </Tooltip>
-
               <Tooltip title="Add a new column">
                 <Button
                   onClick={() => setAddColumnModalOpen(true)}
@@ -597,23 +614,6 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
           <Button color="danger" onClick={handleRemoveColumn}>
             Confirm Remove
           </Button>
-        </ModalDialog>
-      </Modal>
-      <Modal open={infoModalOpen} onClose={() => setInfoModalOpen(false)}>
-        <ModalDialog>
-          <ModalClose />
-          <Typography level="h4">How This Editor Works</Typography>
-          <Typography level="body-md" sx={{ mt: 2, whiteSpace: 'pre-wrap' }}>
-            {`Datasets are not editable in place.
-
-      Edits you make here will be saved to a *new* dataset after clicking 'Save Changes'. This will copy the original dataset into a new one with your modifications.
-
-      To enable 'Save Changes', you must:
-      1. Enter a new dataset name
-      2. Make at least one change
-
-      Additionally, splits can only have 'train', 'test', or 'valid' values. Other values will default back to 'train'.`}
-          </Typography>
         </ModalDialog>
       </Modal>
     </Box>
