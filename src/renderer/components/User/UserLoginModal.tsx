@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import {
   Modal,
   ModalDialog,
@@ -19,6 +21,8 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function UserLoginModal({ open, onClose }) {
+  const [loginErrorMessage, setLoginErrorMessage] = useState(null);
+
   const commonTabPanelSx = {
     p: 1,
     pt: 4,
@@ -34,7 +38,13 @@ export default function UserLoginModal({ open, onClose }) {
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal
+      open={open}
+      onClose={() => {
+        setLoginErrorMessage(null);
+        onClose();
+      }}
+    >
       <ModalDialog
         sx={{
           top: '5vh',
@@ -54,7 +64,10 @@ export default function UserLoginModal({ open, onClose }) {
           <TabPanel value="login" sx={commonTabPanelSx}>
             <Alert variant="plain" sx={descriptionAlertSx}>
               <Typography level="body-sm" textColor="text.tertiary">
-                Login with your existing account credentials.
+                {loginErrorMessage ?
+                  loginErrorMessage :
+                  "Login with your existing account credentials."
+                }
               </Typography>
             </Alert>
             <form
@@ -70,12 +83,13 @@ export default function UserLoginModal({ open, onClose }) {
                 // Check if login was successful. If not, stay on screen
                 if (result?.status == "success") {
                   console.log(`Login attempt successful for user ${username}`);
+                  setLoginErrorMessage(null);
                   onClose();
                 } else if (result?.status == "error") {
-                  alert(result?.message);
-                } else { // unauthorized
+                  setLoginErrorMessage(result?.message);
+                } else { // unauthorized - reset fields
                   (event.target as HTMLFormElement).reset();
-                  alert(result?.message);
+                   setLoginErrorMessage(result?.message);
                 }
               }}
             >
