@@ -34,6 +34,7 @@ import {
   useServerStats,
 } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
+import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
 import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
@@ -72,6 +73,8 @@ const LabelWithTooltip = ({
 );
 
 export default function Diffusion({ experimentInfo }: DiffusionProps) {
+  const analytics = useAnalytics();
+
   const initialModel = experimentInfo?.config?.foundation || '';
   const adaptor = experimentInfo?.config?.adaptor || '';
   const [model, setModel] = useState(initialModel);
@@ -397,6 +400,10 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         return;
       }
 
+      analytics.track('Diffusion Generated', {
+        model,
+      });
+
       // Build the request body with basic parameters
       const requestBody: any = {
         model,
@@ -498,6 +505,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setCurrentGenerationData(null);
     setCurrentImageIndex(0); // Reset to first image
     try {
+      analytics.track('Inpainting Generated', {
+        model,
+      });
       // Build the request body with inpainting parameters
       const requestBody: any = {
         model,
