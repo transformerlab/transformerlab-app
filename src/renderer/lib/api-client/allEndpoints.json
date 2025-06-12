@@ -135,6 +135,10 @@
     "login": {
       "method": "POST",
       "path": "auth/jwt/login"
+    },
+    "register": {
+      "method": "POST",
+      "path": "auth/register"
     }
   }
 }
