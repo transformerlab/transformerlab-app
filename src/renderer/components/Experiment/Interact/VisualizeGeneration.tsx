@@ -11,7 +11,13 @@ import {
   Slider,
   Tooltip,
 } from '@mui/joy';
-import { SendIcon, StopCircle, ChevronLeft, ChevronRight, ConstructionIcon } from 'lucide-react';
+import {
+  SendIcon,
+  StopCircle,
+  ChevronLeft,
+  ChevronRight,
+  ConstructionIcon,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
@@ -47,7 +53,6 @@ export default function VisualizeGeneration({
 
   const abortControllerRef = useRef(null);
 
-
   // Clean up fetch when component unmounts
   useEffect(() => {
     return () => {
@@ -61,7 +66,7 @@ export default function VisualizeGeneration({
     if (!tokenData) return;
 
     // Add to history
-    setTokenHistory(prev => [...prev, tokenData]);
+    setTokenHistory((prev) => [...prev, tokenData]);
 
     // Display this token's data
     const {
@@ -70,30 +75,35 @@ export default function VisualizeGeneration({
       mlp_activations,
       attention_entropy,
       top_predictions,
-      finish_reason
+      finish_reason,
     } = tokenData;
 
     setGeneratedText(text || '');
     setCurrentTokenId(token_id);
 
     // Process mlp_activations
-    const flattenedActivations = mlp_activations ?
-      mlp_activations.map(innerArray => {
-        let value = Array.isArray(innerArray) && innerArray.length > 0
-          ? innerArray[0]
-          : innerArray;
+    const flattenedActivations = mlp_activations
+      ? mlp_activations.map((innerArray) => {
+          let value =
+            Array.isArray(innerArray) && innerArray.length > 0
+              ? innerArray[0]
+              : innerArray;
 
-        return isNaN(Number(value)) ? 0 : Number(value);
-      }) : [];
+          return isNaN(Number(value)) ? 0 : Number(value);
+        })
+      : [];
     setMlpActivations(flattenedActivations);
 
     // Process attention_entropy
-    const processedEntropy = attention_entropy ?
-      attention_entropy.map(value => isNaN(Number(value)) ? 0 : Number(value)) : [];
+    const processedEntropy = attention_entropy
+      ? attention_entropy.map((value) =>
+          isNaN(Number(value)) ? 0 : Number(value),
+        )
+      : [];
     setAttentionEntropy(processedEntropy);
 
     setTopPredictions(top_predictions || []);
-    setCurrentHistoryIndex(prev => prev + 1);
+    setCurrentHistoryIndex((prev) => prev + 1);
 
     if (finish_reason) {
       setIsGenerating(false);
@@ -112,7 +122,6 @@ export default function VisualizeGeneration({
     setTopPredictions([]);
     setTokenHistory([]);
     setCurrentHistoryIndex(-1);
-
 
     // Abort any existing connection
     if (abortControllerRef.current) {
@@ -133,7 +142,8 @@ export default function VisualizeGeneration({
         max_tokens: generationParameters?.maxTokens || 100,
         temperature: generationParameters?.temperature || 0.7,
         top_p: generationParameters?.topP || 1.0,
-        stream: true
+        min_p: generationParameters?.minP || 0.0,
+        stream: true,
       };
 
       // Make fetch request
@@ -143,11 +153,13 @@ export default function VisualizeGeneration({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(params),
-        signal
+        signal,
       });
 
       if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}: ${response.statusText}`);
+        throw new Error(
+          `Server responded with ${response.status}: ${response.statusText}`,
+        );
       }
 
       // Get a reader from the response body
@@ -193,23 +205,21 @@ export default function VisualizeGeneration({
 
                 // Add to processing queue instead of immediate processing
                 processTokenData(parsedData);
-
               } catch (err) {
-                console.error("Error parsing event data:", err);
+                console.error('Error parsing event data:', err);
               }
             }
           }
         }
       };
 
-      processStream().catch(err => {
+      processStream().catch((err) => {
         // Ignore abort errors as they're intentional
         if (err.name !== 'AbortError') {
           setError(`Stream processing error: ${err.message}`);
           setIsGenerating(false);
         }
       });
-
     } catch (err) {
       // Ignore abort errors as they're intentional
       if (err.name !== 'AbortError') {
@@ -234,7 +244,6 @@ export default function VisualizeGeneration({
     // Update all relevant state
     setIsGenerating(false);
     setIsPaused(false);
-
   };
 
   const navigateHistory = (direction) => {
@@ -242,7 +251,10 @@ export default function VisualizeGeneration({
       const newIndex = currentHistoryIndex - 1;
       setCurrentHistoryIndex(newIndex);
       displayHistoryItem(tokenHistory[newIndex]);
-    } else if (direction === 'next' && currentHistoryIndex < tokenHistory.length - 1) {
+    } else if (
+      direction === 'next' &&
+      currentHistoryIndex < tokenHistory.length - 1
+    ) {
       const newIndex = currentHistoryIndex + 1;
       setCurrentHistoryIndex(newIndex);
       displayHistoryItem(tokenHistory[newIndex]);
@@ -256,19 +268,24 @@ export default function VisualizeGeneration({
     setCurrentTokenId(item.token_id);
 
     // Process mlp_activations
-    const flattenedActivations = item.mlp_activations ?
-      item.mlp_activations.map(innerArray => {
-        let value = Array.isArray(innerArray) && innerArray.length > 0
-          ? innerArray[0]
-          : innerArray;
+    const flattenedActivations = item.mlp_activations
+      ? item.mlp_activations.map((innerArray) => {
+          let value =
+            Array.isArray(innerArray) && innerArray.length > 0
+              ? innerArray[0]
+              : innerArray;
 
-        return isNaN(Number(value)) ? 0 : Number(value);
-      }) : [];
+          return isNaN(Number(value)) ? 0 : Number(value);
+        })
+      : [];
     setMlpActivations(flattenedActivations);
 
     // Process attention_entropy
-    const processedEntropy = item.attention_entropy ?
-      item.attention_entropy.map(value => isNaN(Number(value)) ? 0 : Number(value)) : [];
+    const processedEntropy = item.attention_entropy
+      ? item.attention_entropy.map((value) =>
+          isNaN(Number(value)) ? 0 : Number(value),
+        )
+      : [];
     setAttentionEntropy(processedEntropy);
 
     setTopPredictions(item.top_predictions || []);
@@ -300,7 +317,7 @@ export default function VisualizeGeneration({
         experimentInfoMutate={experimentInfoMutate}
       />
 
-<Sheet
+      <Sheet
         sx={{
           display: 'flex',
           flexDirection: 'column',
@@ -309,13 +326,14 @@ export default function VisualizeGeneration({
           overflow: 'hidden',
         }}
       >
-      <Alert
-           color="neutral"
-           variant="outlined"
-           startDecorator={<ConstructionIcon />}
-         >
-           This feature is currently in developement. It only works with Fastchat and MLX Server currently.
-         </Alert>
+        <Alert
+          color="neutral"
+          variant="outlined"
+          startDecorator={<ConstructionIcon />}
+        >
+          This feature is currently in developement. It only works with Fastchat
+          and MLX Server currently.
+        </Alert>
         <Typography level="h2" sx={{ mb: 2, px: 2, pt: 2 }}>
           Model Activations
         </Typography>
@@ -335,57 +353,57 @@ export default function VisualizeGeneration({
             sx={{ mb: 1 }}
           />
 
-        <Stack direction="row" justifyContent="space-between" spacing={1}>
-          {/* History navigation controls */}
-          {tokenHistory.length > 0 && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <IconButton
-                color="neutral"
-                disabled={currentHistoryIndex <= 0}
-                onClick={() => navigateHistory('prev')}
-              >
-                <ChevronLeft />
-              </IconButton>
-              <Typography sx={{ alignSelf: 'center' }}>
-                {currentHistoryIndex + 1} / {tokenHistory.length}
-              </Typography>
-              <IconButton
-                color="neutral"
-                disabled={currentHistoryIndex >= tokenHistory.length - 1}
-                onClick={() => navigateHistory('next')}
-              >
-                <ChevronRight />
-              </IconButton>
-
-            </Box>
-          )}
-
-          <Stack direction="row" spacing={1}>
-          {isGenerating && (
-              <IconButton
-                color="danger"
-                onClick={handleStopGeneration}
-                aria-label="Stop generation"
-              >
-                <StopCircle />
-              </IconButton>
+          <Stack direction="row" justifyContent="space-between" spacing={1}>
+            {/* History navigation controls */}
+            {tokenHistory.length > 0 && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <IconButton
+                  color="neutral"
+                  disabled={currentHistoryIndex <= 0}
+                  onClick={() => navigateHistory('prev')}
+                >
+                  <ChevronLeft />
+                </IconButton>
+                <Typography sx={{ alignSelf: 'center' }}>
+                  {currentHistoryIndex + 1} / {tokenHistory.length}
+                </Typography>
+                <IconButton
+                  color="neutral"
+                  disabled={currentHistoryIndex >= tokenHistory.length - 1}
+                  onClick={() => navigateHistory('next')}
+                >
+                  <ChevronRight />
+                </IconButton>
+              </Box>
             )}
 
-
-            <Button
-              color="neutral"
-              disabled={isGenerating || !prompt.trim()}
-              endDecorator={isGenerating ? (
-                <CircularProgress thickness={2} size="sm" color="neutral" />
-              ) : (
-                <SendIcon size="20px" />
+            <Stack direction="row" spacing={1}>
+              {isGenerating && (
+                <IconButton
+                  color="danger"
+                  onClick={handleStopGeneration}
+                  aria-label="Stop generation"
+                >
+                  <StopCircle />
+                </IconButton>
               )}
-              onClick={handleGenerate}
-            >
-              {isGenerating ? "Generating..." : "Visualize"}
-            </Button>
+
+              <Button
+                color="neutral"
+                disabled={isGenerating || !prompt.trim()}
+                endDecorator={
+                  isGenerating ? (
+                    <CircularProgress thickness={2} size="sm" color="neutral" />
+                  ) : (
+                    <SendIcon size="20px" />
+                  )
+                }
+                onClick={handleGenerate}
+              >
+                {isGenerating ? 'Generating...' : 'Visualize'}
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
         </Box>
 
         <Box
@@ -404,7 +422,13 @@ export default function VisualizeGeneration({
               <Typography level="title-md">Generated Text</Typography>
               <Sheet
                 variant="outlined"
-                sx={{ p: 2, mt: 1, whiteSpace: 'pre-wrap', maxHeight: '200px', overflow: 'auto' }}
+                sx={{
+                  p: 2,
+                  mt: 1,
+                  whiteSpace: 'pre-wrap',
+                  maxHeight: '200px',
+                  overflow: 'auto',
+                }}
               >
                 {generatedText}
               </Sheet>
@@ -427,8 +451,12 @@ export default function VisualizeGeneration({
                         bgcolor: idx === 0 ? 'success.100' : 'neutral.50',
                       }}
                     >
-                      <Typography color={idx === 0 ? 'success' : 'neutral'} fontWeight={idx === 0 ? 'bold' : 'normal'}>
-                        {prediction.token} ({(prediction.prob * 100).toFixed(1)}%, {prediction.logit.toFixed(2)})
+                      <Typography
+                        color={idx === 0 ? 'success' : 'neutral'}
+                        fontWeight={idx === 0 ? 'bold' : 'normal'}
+                      >
+                        {prediction.token} ({(prediction.prob * 100).toFixed(1)}
+                        %, {prediction.logit.toFixed(2)})
                       </Typography>
                     </Box>
                   ))}
@@ -437,30 +465,49 @@ export default function VisualizeGeneration({
             </Box>
           )}
 
-          <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', md: 'row' } }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexDirection: { xs: 'column', md: 'row' },
+            }}
+          >
             {mlpActivations.length > 0 && (
               <Box sx={{ flex: 1 }}>
                 <Typography level="title-md">MLP Activations</Typography>
-                <Sheet variant="outlined" sx={{ p: 2, mt: 1, height: '300px', overflow: 'auto' }}>
+                <Sheet
+                  variant="outlined"
+                  sx={{ p: 2, mt: 1, height: '300px', overflow: 'auto' }}
+                >
                   {mlpActivations.map((value, idx) => {
                     const absValue = Math.abs(value);
-                    const maxValue = Math.max(...mlpActivations.map(v => Math.abs(v)));
+                    const maxValue = Math.max(
+                      ...mlpActivations.map((v) => Math.abs(v)),
+                    );
                     const barWidth = (absValue / maxValue) * 100;
                     const isPositive = value >= 0;
 
                     return (
-                      <Box key={idx} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Box
+                        key={idx}
+                        sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
+                      >
                         <Typography level="body-sm" sx={{ width: '60px' }}>
                           Layer {idx}
                         </Typography>
-                        <Box sx={{
-                          width: `${barWidth}%`,
-                          height: '12px',
-                          maxWidth: 'calc(100% - 120px)',
-                          bgcolor: isPositive ? 'success.300' : 'warning.300',
-                          borderRadius: 'sm'
-                        }} />
-                        <Typography level="body-sm" sx={{ ml: 1, width: '60px' }}>
+                        <Box
+                          sx={{
+                            width: `${barWidth}%`,
+                            height: '12px',
+                            maxWidth: 'calc(100% - 120px)',
+                            bgcolor: isPositive ? 'success.300' : 'warning.300',
+                            borderRadius: 'sm',
+                          }}
+                        />
+                        <Typography
+                          level="body-sm"
+                          sx={{ ml: 1, width: '60px' }}
+                        >
                           {value.toFixed(3)}
                         </Typography>
                       </Box>
@@ -473,24 +520,35 @@ export default function VisualizeGeneration({
             {attentionEntropy.length > 0 && (
               <Box sx={{ flex: 1 }}>
                 <Typography level="title-md">Attention Entropy</Typography>
-                <Sheet variant="outlined" sx={{ p: 2, mt: 1, height: '300px', overflow: 'auto' }}>
+                <Sheet
+                  variant="outlined"
+                  sx={{ p: 2, mt: 1, height: '300px', overflow: 'auto' }}
+                >
                   {attentionEntropy.map((value, idx) => {
                     const maxValue = Math.max(...attentionEntropy);
                     const barWidth = (value / maxValue) * 100;
 
                     return (
-                      <Box key={idx} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Box
+                        key={idx}
+                        sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
+                      >
                         <Typography level="body-sm" sx={{ width: '60px' }}>
                           Layer {idx}
                         </Typography>
-                        <Box sx={{
-                          width: `${barWidth}%`,
-                          height: '12px',
-                          maxWidth: 'calc(100% - 120px)',
-                          bgcolor: 'primary.300',
-                          borderRadius: 'sm'
-                        }} />
-                        <Typography level="body-sm" sx={{ ml: 1, width: '60px' }}>
+                        <Box
+                          sx={{
+                            width: `${barWidth}%`,
+                            height: '12px',
+                            maxWidth: 'calc(100% - 120px)',
+                            bgcolor: 'primary.300',
+                            borderRadius: 'sm',
+                          }}
+                        />
+                        <Typography
+                          level="body-sm"
+                          sx={{ ml: 1, width: '60px' }}
+                        >
                           {value.toFixed(3)}
                         </Typography>
                       </Box>
