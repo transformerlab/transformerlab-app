@@ -18,6 +18,7 @@ import {
 
 import {
   login,
+  registerUser
 } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function UserLoginModal({ open, onClose }) {
@@ -125,9 +126,23 @@ export default function UserLoginModal({ open, onClose }) {
               </Typography>
             </Alert>
             <form
-              onSubmit={(event) => {
+              onSubmit={async (event) => {
                 event.preventDefault();
-                // Handle registration logic here
+
+                // Read user data from the form and submit
+                const formData = new FormData(event.currentTarget);
+                const name = formData.get('name') as string;
+                const email = formData.get('email') as string;
+                const password = formData.get('password') as string;
+                const result = await registerUser(name, email, password);
+
+                // Check if login was successful. If not, stay on screen
+                if (result?.status == "success") {
+                  alert(`Registered new user ${email}`);
+                  onClose();
+                } else {
+                  alert(result?.message);
+                }
               }}
             >
               <Stack spacing={2}>
