@@ -56,6 +56,51 @@ export async function logout() {
     await window.storage.delete('accessToken');
 }
 
+export async function registerUser(
+  name: string,
+  email: string,
+  password: string
+) {
+  const registerURL = getFullPath('auth', ['register'], {});
+  const userJSON = {
+    "name": name,
+    "email": email,
+    "password": password
+  }
+
+  let result = {};
+  try {
+    const response = await fetch(registerURL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userJSON),
+    });
+    result = await response.json();
+
+    // Error during fetch
+  } catch (error) {
+    return {
+      status: "error",
+      message: "Register user exception: " + error,
+    };
+  }
+
+  console.log(result);
+  if (result?.email) {
+    return {
+      status: "success",
+      message: `User ${result?.email} added.`,
+    }
+  } else {
+    return {
+      status: "error",
+      message: result?.message,
+    }
+  }
+}
+
 export async function downloadModelFromHuggingFace(
   modelName: string,
   job_id = null,
