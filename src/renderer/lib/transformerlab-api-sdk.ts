@@ -25,6 +25,7 @@ export {
   login,
   logout,
   getAccessToken,
+  registerUser,
   downloadModelFromHuggingFace,
   downloadModelFromGallery,
   activeModels,
