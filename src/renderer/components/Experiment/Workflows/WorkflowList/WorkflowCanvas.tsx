@@ -116,10 +116,12 @@ const Flow = ({
   selectedWorkflow,
   setNewNodeModalOpen = (x: boolean) => {},
   mutateWorkflows,
+  experimentInfo,
 }: {
   selectedWorkflow: any;
   setNewNodeModalOpen: (param: boolean) => void;
   mutateWorkflows: Function;
+  experimentInfo: any;
 }) => {
   const edgeReconnectSuccessful = useRef(true);
   const [nodes, setNodes, onNodesChange] = useNodesState(
@@ -149,16 +151,17 @@ const Flow = ({
       },
     };
     setEdges((els) => addEdge(newEdge, els));
-    fetch(
-      chatAPI.Endpoints.Workflows.AddEdge(
-        selectedWorkflow?.id,
-        params.source,
-        params.target,
-      ),
-      {
-        method: 'POST',
-      },
-    );
+          fetch(
+        chatAPI.Endpoints.Workflows.AddEdge(
+          selectedWorkflow?.id,
+          params.source,
+          params.target,
+          experimentInfo.id
+        ),
+        {
+          method: 'POST',
+        },
+      );
     mutateWorkflows();
   }, []);
 
@@ -180,6 +183,7 @@ const Flow = ({
             selectedWorkflow?.id,
             edge.source,
             edge.target,
+            experimentInfo.id
           ),
           {
             method: 'POST',
@@ -235,6 +239,7 @@ const Flow = ({
           workflowId,
           node?.id,
           metadata,
+          experimentInfo.id
         ),
       );
       mutateWorkflows();
@@ -263,7 +268,7 @@ const Flow = ({
       onDelete={async ({ nodes, edges }) => {
         await Promise.all(
           nodes.map((node) =>
-            fetch(chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id)),
+                         fetch(chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id, experimentInfo.id)),
           ),
         );
         mutateWorkflows();
@@ -308,22 +313,26 @@ const Flow = ({
 
 export default function WorkflowCanvas({
   selectedWorkflow,
-  setNewNodeModalOpen = (x: boolean) => {},
+  setNewNodeModalOpen,
   mutateWorkflows,
+  experimentInfo,
 }: {
   selectedWorkflow: any;
   setNewNodeModalOpen: (param: boolean) => void;
   mutateWorkflows: Function;
+  experimentInfo: any;
 }) {
   if (!selectedWorkflow) {
-    return null;
+    return <div>No workflow selected</div>;
   }
+
   return (
     <ReactFlowProvider>
       <Flow
         selectedWorkflow={selectedWorkflow}
         setNewNodeModalOpen={setNewNodeModalOpen}
         mutateWorkflows={mutateWorkflows}
+        experimentInfo={experimentInfo}
       />
     </ReactFlowProvider>
   );

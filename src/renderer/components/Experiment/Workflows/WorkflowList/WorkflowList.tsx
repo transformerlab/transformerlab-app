@@ -94,7 +94,7 @@ export default function WorkflowList({ experimentInfo }) {
   );
 
   async function runWorkflow(workflowId: string) {
-    await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
+    await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId, experimentInfo.id));
   }
   return (
     <>
@@ -223,6 +223,7 @@ export default function WorkflowList({ experimentInfo }) {
                           await fetch(
                             chatAPI.Endpoints.Workflows.DeleteWorkflow(
                               selectedWorkflow?.id,
+                              experimentInfo.id
                             ),
                           );
                           mutateWorkflows();
@@ -257,6 +258,7 @@ export default function WorkflowList({ experimentInfo }) {
                   selectedWorkflow={selectedWorkflow}
                   setNewNodeModalOpen={setNewNodeflowModalOpen}
                   mutateWorkflows={mutateWorkflows}
+                  experimentInfo={experimentInfo}
                 />
               )
             ) : (

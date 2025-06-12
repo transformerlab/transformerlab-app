@@ -78,13 +78,13 @@ function ListOfWorkflowRuns({
   );
 }
 
-function ShowSelectedWorkflowRun({ selectedWorkflowRun }) {
+function ShowSelectedWorkflowRun({ selectedWorkflowRun, experimentInfo }) {
   if (!selectedWorkflowRun) {
     return <div>No workflow run selected.</div>;
   }
 
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Workflows.GetRun(selectedWorkflowRun.id),
+    chatAPI.Endpoints.Workflows.GetRun(selectedWorkflowRun.id, experimentInfo.id),
     fetcher,
   );
   return (
@@ -124,7 +124,7 @@ export default function WorkflowRuns({ experimentInfo }) {
         />
       </Box>
       <Box flex="3" sx={{}}>
-        <ShowSelectedWorkflowRun selectedWorkflowRun={selectedWorkflowRun} />
+        <ShowSelectedWorkflowRun selectedWorkflowRun={selectedWorkflowRun} experimentInfo={experimentInfo} />
       </Box>
     </Sheet>
   );
