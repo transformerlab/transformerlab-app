@@ -341,6 +341,7 @@ export default function Chat({
       systemMessage,
       generationParameters?.stop_str,
       image,
+      generationParameters?.minP,
     );
 
     clearTimeout(timeoutId);
@@ -505,6 +506,7 @@ export default function Chat({
       systemMessage,
       generationParameters?.stop_str,
       image,
+      generationParameters?.minP,
     );
 
     // The model may make repeated tool calls but don't let it get stuck in a loop
@@ -584,6 +586,7 @@ export default function Chat({
             systemMessage,
             generationParameters?.stop_str,
             image,
+            generationParameters?.minP,
           );
         }
       }

@@ -75,7 +75,7 @@ export default function Batched({
 
     try {
       generationParameters.stop_str = JSON.parse(
-        generationParameters?.stop_str
+        generationParameters?.stop_str,
       );
     } catch (e) {
       console.log('Error parsing stop strings as JSON');
@@ -95,7 +95,8 @@ export default function Batched({
         generationParameters?.topP,
         false,
         generationParameters?.stop_str,
-        repeatTimes
+        repeatTimes,
+        generationParameters?.minP,
       );
     } else {
       result = [];
@@ -108,7 +109,8 @@ export default function Batched({
           generationParameters?.maxTokens,
           generationParameters?.topP,
           false,
-          generationParameters?.stop_str
+          generationParameters?.stop_str,
+          generationParameters?.minP,
         );
         // r is an array, add the elements of r to the result array
         result = [...result, ...r];
@@ -278,7 +280,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
 
   const { data: batchedPrompts, mutate: mutateBatchedPrompts } = useSWR(
     chatAPI.Endpoints.BatchedPrompts.List(),
-    fetcher
+    fetcher,
   );
 
   async function addQuery(query) {
@@ -336,7 +338,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
                 <IconButton
                   onClick={async () => {
                     await fetch(
-                      chatAPI.Endpoints.BatchedPrompts.Delete(query.name)
+                      chatAPI.Endpoints.BatchedPrompts.Delete(query.name),
                     );
                     mutateBatchedPrompts();
                   }}

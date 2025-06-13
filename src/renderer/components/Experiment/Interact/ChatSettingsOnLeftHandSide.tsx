@@ -112,8 +112,8 @@ export default function ChatSettingsOnLeftHandSide({
       })
       .join('\n');
 
-  console.log('Available tools:', available_tools);
-  console.log('Tool list:', tool_list);
+  // console.log('Available tools:', available_tools);
+  // console.log('Tool list:', tool_list);
 
   return (
     <>

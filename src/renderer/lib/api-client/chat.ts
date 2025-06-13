@@ -9,6 +9,7 @@ export async function sendAndReceive(
   maxTokens: number,
   topP: number,
   systemMessage: string,
+  minP?: number,
 ) {
   const shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -23,6 +24,7 @@ export async function sendAndReceive(
     max_tokens: maxTokens,
     top_p: topP,
     system_message: systemMessage,
+    ...(minP !== undefined ? { min_p: minP } : {}),
   };
 
   let result;
@@ -44,7 +46,7 @@ export async function sendAndReceive(
     console.log('There was an error', error);
   }
 
-  if (result.choices) {
+  if (result?.choices) {
     return { id: result.id, text: result.choices[0].message.content };
   }
   return null;
@@ -68,6 +70,7 @@ export async function sendAndReceiveStreaming(
   systemMessage: string,
   stopString = null,
   image?: string,
+  minP?: number,
 ) {
   let shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -78,7 +81,7 @@ export async function sendAndReceiveStreaming(
   let messages = [];
   messages.push({ role: 'system', content: systemMessage });
   messages = messages.concat(texts);
-  const data = {
+  const data: any = {
     model: shortModelName,
     adaptor: currentAdaptor,
     stream: true, // For streaming responses
@@ -88,7 +91,10 @@ export async function sendAndReceiveStreaming(
     top_p: topP,
     frequency_penalty: freqencyPenalty,
     system_message: systemMessage,
+    ...(minP !== undefined ? { min_p: minP } : {}),
   };
+
+  console.log('data', data);
 
   if (stopString) {
     data.stop = stopString;
@@ -226,6 +232,7 @@ export async function sendCompletion(
   stopString = null,
   targetElementForStreaming,
   logprobs = false,
+  minP?: number = 0.0,
 ) {
   console.log('sent completion request');
   let model = '';
@@ -251,6 +258,7 @@ export async function sendCompletion(
     max_tokens: maxTokens,
     top_p: topP,
     logprobs: logprobs,
+    ...(minP !== undefined ? { min_p: minP } : {}), // add min_p if provided
   };
 
   if (stopString) {
@@ -563,6 +571,7 @@ export async function sendBatchedCompletion(
   useLongModelName = true,
   stopString = null,
   repeatTimes = 1,
+  minP?: number = 0.0,
 ) {
   let model = '';
   if (useLongModelName) {
@@ -588,6 +597,7 @@ export async function sendBatchedCompletion(
       max_tokens: maxTokens,
       top_p: topP,
       n: repeatTimes,
+      ...(minP !== undefined ? { min_p: minP } : {}),
     };
 
     if (stopString) {
@@ -669,6 +679,7 @@ export async function sendBatchedChat(
   topP: number = 1.0,
   useLongModelName = true,
   stopString = null,
+  minP?: number = 0.0,
 ) {
   let model = '';
   if (useLongModelName) {
@@ -690,6 +701,7 @@ export async function sendBatchedChat(
     max_tokens: maxTokens,
     top_p: topP,
     inference_url: `${INFERENCE_SERVER_URL()}v1/chat/completions`,
+    ...(minP !== undefined ? { min_p: minP } : {}),
   };
 
   if (stopString) {

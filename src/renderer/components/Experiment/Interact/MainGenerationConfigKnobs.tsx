@@ -83,6 +83,24 @@ export default function MainGenerationConfigKnobs({
             />
           </Box>
         )}
+        {showAllKnobs && (
+          <Box sx={{ flex: 1, minWidth: '200px' }}>
+            <ThinSlider
+              title="Min P"
+              value={generationParameters?.minP}
+              onChange={(event: Event, newValue: number | number[]) => {
+                setGenerationParameters({
+                  ...generationParameters,
+                  minP: newValue as number,
+                });
+              }}
+              min={0}
+              max={1}
+              step={0.01}
+              valueLabelDisplay="auto"
+            />
+          </Box>
+        )}
       </Sheet>
     </>
   );
