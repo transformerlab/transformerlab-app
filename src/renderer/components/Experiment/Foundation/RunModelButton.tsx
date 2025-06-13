@@ -169,6 +169,7 @@ export default function RunModelButton({
                 const response = await activateWorker(
                   experimentInfo?.config?.foundation,
                   experimentInfo?.config?.foundation_filename,
+                  experimentInfo?.config?.foundation_model_architecture,
                   experimentInfo?.config?.adaptor,
                   inferenceEngine,
                   inferenceSettings,
