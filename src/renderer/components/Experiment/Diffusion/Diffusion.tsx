@@ -142,6 +142,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [isInpaintingEligible, setIsInpaintingEligible] = useState<
     boolean | null
   >(null);
+  const [controlNetType, setControlNetType] = useState('off');
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -416,6 +417,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         upscale_factor: Number(upscaleFactor),
         num_images: Number(numImages),
         generation_id: genId, // Include the generation ID
+        is_controlnet: controlNetType,
         scheduler, // include scheduler
       };
 
@@ -1138,6 +1140,27 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                             label="Upscale image (2x)"
                           />
                         </Tooltip>
+                        <FormControl sx={{ minWidth: 160 }}>
+                          <LabelWithTooltip tooltip="Choose a ControlNet to guide generation. Use with a matching reference image (e.g., edge map or pose).">
+                            ControlNet
+                          </LabelWithTooltip>
+                          <select
+                            value={controlNetType}
+                            onChange={(e) => setControlNetType(e.target.value)}
+                            style={{
+                              width: '100%',
+                              height: 32,
+                              borderRadius: 4,
+                              border: '1px solid #ccc',
+                              padding: '4px 8px',
+                              fontSize: '14px',
+                            }}
+                          >
+                            <option value="off">Off</option>
+                            <option value="canny">Canny</option>
+                            <option value="openpose">OpenPose</option>
+                          </select>
+                        </FormControl>
                       </Stack>
                     </Stack>
                   )}
