@@ -530,6 +530,13 @@ export default function HistoryImageViewModal({
                           {selectedImage.metadata.generation_time.toFixed(2)}s
                         </>
                       )}
+                    {selectedImage.metadata.scheduler && (
+                      <>
+                        <br />
+                        <strong>Scheduler:</strong>{' '}
+                        {selectedImage.metadata.scheduler}
+                      </>
+                    )}
                   </Typography>
                 </Box>
               </Box>

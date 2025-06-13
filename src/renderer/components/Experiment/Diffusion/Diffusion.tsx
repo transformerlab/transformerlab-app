@@ -98,6 +98,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [imageWidth, setImageWidth] = useState('');
   const [imageHeight, setImageHeight] = useState('');
   const [numImages, setNumImages] = useState(1);
+  const [scheduler, setScheduler] = useState('default');
 
   // Image-to-image settings for Generate tab
   const [inputImageBase64, setInputImageBase64] = useState('');
@@ -415,6 +416,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         upscale_factor: Number(upscaleFactor),
         num_images: Number(numImages),
         generation_id: genId, // Include the generation ID
+        scheduler, // include scheduler
       };
 
       // Add image-to-image parameters if an input image is provided
@@ -922,6 +924,42 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         },
                       }}
                     />
+                  </FormControl>
+                  <FormControl
+                    sx={{
+                      flex: 1,
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <LabelWithTooltip tooltip="Select the sampling scheduler used to generate the image. Different schedulers can produce slightly different results in terms of quality and style.">
+                      Scheduler
+                    </LabelWithTooltip>
+                    <select
+                      value={scheduler}
+                      onChange={(e) => setScheduler(e.target.value)}
+                      style={{
+                        width: 150,
+                        height: 32,
+                        borderRadius: 4,
+                        border: '1px solid #ccc',
+                        padding: '4px 8px',
+                        fontSize: '14px',
+                      }}
+                    >
+                      <option value="default">Default</option>
+                      <option value="EulerDiscreteScheduler">
+                        EulerDiscreteScheduler
+                      </option>
+                      <option value="LMSDiscreteScheduler">
+                        LMSDiscreteScheduler
+                      </option>
+                      <option value="EulerAncestralDiscreteScheduler">
+                        EulerAncestralDiscreteScheduler
+                      </option>
+                      <option value="DPMSolverMultistepScheduler">
+                        DPMSolverMultistepScheduler
+                      </option>
+                    </select>
                   </FormControl>
                 </Box>
 
