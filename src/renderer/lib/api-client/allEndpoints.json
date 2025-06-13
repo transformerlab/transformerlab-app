@@ -158,6 +158,10 @@
       "method": "GET",
       "path": "diffusion/history/{imageId}?input_image=true"
     },
+    "getProcessedImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?preprocessed=true"
+    },
     "getMaskImage": {
       "method": "GET",
       "path": "diffusion/history/{imageId}?mask_image=true"

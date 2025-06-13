@@ -40,13 +40,12 @@ export default function HistoryImageViewModal({
 
   // Load all images for the selected item when modal opens
   useEffect(() => {
-    if (selectedImage && imageModalOpen) {
+    if (selectedImage?.metadata && imageModalOpen) {
       const imageCount =
         selectedImage.num_images || selectedImage.metadata?.num_images || 1;
       setNumImages(imageCount);
       setCurrentImageIndex(0);
 
-      // Generate URLs for all images
       const urls = Array.from({ length: imageCount }, (_, index) =>
         getFullPath('diffusion', ['getImage'], {
           imageId: selectedImage.id,
@@ -54,6 +53,12 @@ export default function HistoryImageViewModal({
         }),
       );
       setImageUrls(urls);
+
+      console.log(
+        'is_controlnet type and value:',
+        typeof selectedImage.metadata.is_controlnet,
+        selectedImage.metadata.is_controlnet,
+      );
     }
   }, [selectedImage, imageModalOpen]);
 
@@ -232,6 +237,64 @@ export default function HistoryImageViewModal({
                         )} */}
                       </>
                     )}
+                  {selectedImage.metadata.is_controlnet && (
+                    <>
+                      {selectedImage.metadata.input_image_path && (
+                        <>
+                          <Typography
+                            level="body-sm"
+                            sx={{ mt: 1, textAlign: 'center' }}
+                          >
+                            Input Image
+                          </Typography>
+                          <img
+                            src={getFullPath('diffusion', ['getInputImage'], {
+                              imageId: selectedImage?.id,
+                            })}
+                            alt="Input"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '70vh',
+                              objectFit: 'contain',
+                              borderRadius: '6px',
+                              margin: '0 auto',
+                              display: 'block',
+                            }}
+                          />
+                        </>
+                      )}
+
+                      {selectedImage.metadata.processed_image && (
+                        <>
+                          <Typography
+                            level="body-sm"
+                            sx={{ mt: 1, textAlign: 'center' }}
+                          >
+                            Preprocessed Image
+                          </Typography>
+                          <img
+                            src={getFullPath(
+                              'diffusion',
+                              ['getProcessedImage'],
+                              {
+                                imageId: selectedImage?.id,
+                                processed: true,
+                              },
+                            )}
+                            alt="Preprocessed"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '70vh',
+                              objectFit: 'contain',
+                              borderRadius: '6px',
+                              margin: '0 auto',
+                              display: 'block',
+                            }}
+                          />
+                        </>
+                      )}
+                    </>
+                  )}
                   {/* Thumbnail navigation for multiple images */}
                   {numImages > 1 && (
                     <Stack
