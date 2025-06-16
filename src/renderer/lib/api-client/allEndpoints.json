@@ -125,17 +125,6 @@
       "path": "recipes/jobs/{job_id}/status"
     }
   },
-  "experiment":{
-    "getScriptsOfTypeWithFilter": {
-      "method": "GET",
-      "path": "experiment/{experimentId}/plugins/list?type={type}&filter={filter}"
-    },
-    "getScriptsOfTypeWithoutFilter": {
-      "method": "GET",
-      "path": "experiment/{experimentId}/plugins/list?type={type}"
-    }
-
-  },
   "diffusion": {
     "generateId": {
       "method": "POST",
