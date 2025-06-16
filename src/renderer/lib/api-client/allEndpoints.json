@@ -181,6 +181,18 @@
     "getAllImages": {
       "method": "GET",
       "path": "diffusion/history/{imageId}/all"
+    },
+    "listControlnets": {
+      "method": "GET",
+      "path": "diffusion/controlnets"
+    },
+    "deleteControlnet": {
+      "method": "GET",
+      "path": "diffusion/delete_controlnet?controlnet={controlnet}"
+    },
+    "installControlnet": {
+      "method": "POST",
+      "path": "diffusion/install_controlnet?controlnet_id={controlnet_id}"
     }
   }
 }

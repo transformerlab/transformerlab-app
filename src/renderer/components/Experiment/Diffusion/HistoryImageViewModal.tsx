@@ -15,6 +15,7 @@ import {
   Trash2Icon,
   ChevronLeft,
   ChevronRight,
+  ArrowRight,
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
@@ -41,6 +42,7 @@ export default function HistoryImageViewModal({
   // Load all images for the selected item when modal opens
   useEffect(() => {
     if (selectedImage?.metadata && imageModalOpen) {
+      console.log('Selected image metadata:', selectedImage?.metadata);
       const imageCount =
         selectedImage.num_images || selectedImage.metadata?.num_images || 1;
       setNumImages(imageCount);
@@ -52,13 +54,28 @@ export default function HistoryImageViewModal({
           index,
         }),
       );
-      setImageUrls(urls);
 
-      console.log(
-        'is_controlnet type and value:',
-        typeof selectedImage.metadata.is_controlnet,
-        selectedImage.metadata.is_controlnet,
-      );
+      // Append input and processed ControlNet images if present
+      if (selectedImage.metadata.is_controlnet !== 'off') {
+        if (selectedImage.metadata.input_image_path) {
+          urls.push(
+            getFullPath('diffusion', ['getInputImage'], {
+              imageId: selectedImage.id,
+            }),
+          );
+        }
+
+        if (selectedImage.metadata.processed_image) {
+          urls.push(
+            getFullPath('diffusion', ['getProcessedImage'], {
+              imageId: selectedImage.id,
+              processed: true,
+            }),
+          );
+        }
+      }
+      console.log('URLs: ', urls);
+      setImageUrls(urls);
     }
   }, [selectedImage, imageModalOpen]);
 
@@ -237,64 +254,6 @@ export default function HistoryImageViewModal({
                         )} */}
                       </>
                     )}
-                  {selectedImage.metadata.is_controlnet && (
-                    <>
-                      {selectedImage.metadata.input_image_path && (
-                        <>
-                          <Typography
-                            level="body-sm"
-                            sx={{ mt: 1, textAlign: 'center' }}
-                          >
-                            Input Image
-                          </Typography>
-                          <img
-                            src={getFullPath('diffusion', ['getInputImage'], {
-                              imageId: selectedImage?.id,
-                            })}
-                            alt="Input"
-                            style={{
-                              maxWidth: '100%',
-                              maxHeight: '70vh',
-                              objectFit: 'contain',
-                              borderRadius: '6px',
-                              margin: '0 auto',
-                              display: 'block',
-                            }}
-                          />
-                        </>
-                      )}
-
-                      {selectedImage.metadata.processed_image && (
-                        <>
-                          <Typography
-                            level="body-sm"
-                            sx={{ mt: 1, textAlign: 'center' }}
-                          >
-                            Preprocessed Image
-                          </Typography>
-                          <img
-                            src={getFullPath(
-                              'diffusion',
-                              ['getProcessedImage'],
-                              {
-                                imageId: selectedImage?.id,
-                                processed: true,
-                              },
-                            )}
-                            alt="Preprocessed"
-                            style={{
-                              maxWidth: '100%',
-                              maxHeight: '70vh',
-                              objectFit: 'contain',
-                              borderRadius: '6px',
-                              margin: '0 auto',
-                              display: 'block',
-                            }}
-                          />
-                        </>
-                      )}
-                    </>
-                  )}
                   {/* Thumbnail navigation for multiple images */}
                   {numImages > 1 && (
                     <Stack
@@ -461,7 +420,73 @@ export default function HistoryImageViewModal({
                         </Box>
                       </>
                     )}
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    justifyContent="center"
+                    alignItems="center"
+                    flexWrap="nowrap"
+                  >
+                    {selectedImage.metadata.input_image_path && (
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography level="body-sm" sx={{ mb: 1 }}>
+                          Input
+                        </Typography>
+                        <img
+                          src={getFullPath('diffusion', ['getInputImage'], {
+                            imageId: selectedImage?.id,
+                          })}
+                          alt="ControlNet Input"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '200px',
+                            objectFit: 'contain',
+                            borderRadius: '6px',
+                            border: '1px solid var(--joy-palette-neutral-300)',
+                          }}
+                        />
+                      </Box>
+                    )}
 
+                    {selectedImage.metadata.input_image_path &&
+                      selectedImage.metadata.processed_image && (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            px: 1,
+                          }}
+                        >
+                          <ArrowRight />
+                          <Typography level="body-xs" sx={{ mt: 0.5 }}>
+                            Processed
+                          </Typography>
+                        </Box>
+                      )}
+
+                    {selectedImage.metadata.processed_image && (
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography level="body-sm" sx={{ mb: 1 }}>
+                          Output
+                        </Typography>
+                        <img
+                          src={getFullPath('diffusion', ['getProcessedImage'], {
+                            imageId: selectedImage?.id,
+                            processed: true,
+                          })}
+                          alt="Preprocessed"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '200px',
+                            objectFit: 'contain',
+                            borderRadius: '6px',
+                            border: '1px solid var(--joy-palette-neutral-300)',
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Stack>
                   <Typography level="title-sm" sx={{ mb: 1 }}>
                     Model Info:
                   </Typography>
@@ -598,6 +623,13 @@ export default function HistoryImageViewModal({
                         <br />
                         <strong>Scheduler:</strong>{' '}
                         {selectedImage.metadata.scheduler}
+                      </>
+                    )}
+                    {selectedImage.metadata.is_controlnet !== 'off' && (
+                      <>
+                        <br />
+                        <strong>ControlNet:</strong>{' '}
+                        {selectedImage.metadata.is_controlnet}
                       </>
                     )}
                   </Typography>

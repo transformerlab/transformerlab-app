@@ -38,6 +38,7 @@ import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
 import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
+import ControlNetModal from './ControlNetModal';
 
 type DiffusionProps = {
   experimentInfo: any;
@@ -143,6 +144,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     boolean | null
   >(null);
   const [controlNetType, setControlNetType] = useState('off');
+  const [controlnetModalOpen, setControlnetModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -1141,25 +1143,18 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                           />
                         </Tooltip>
                         <FormControl sx={{ minWidth: 160 }}>
-                          <LabelWithTooltip tooltip="Choose a ControlNet to guide generation. Use with a matching reference image (e.g., edge map or pose).">
-                            ControlNet
+                          <LabelWithTooltip tooltip="Manage and select a ControlNet to guide image generation.">
+                            ControlNets
                           </LabelWithTooltip>
-                          <select
-                            value={controlNetType}
-                            onChange={(e) => setControlNetType(e.target.value)}
-                            style={{
-                              width: '100%',
-                              height: 32,
-                              borderRadius: 4,
-                              border: '1px solid #ccc',
-                              padding: '4px 8px',
-                              fontSize: '14px',
-                            }}
+                          <Button
+                            size="sm"
+                            variant="outlined"
+                            onClick={() => setControlnetModalOpen(true)}
                           >
-                            <option value="off">Off</option>
-                            <option value="canny">Canny</option>
-                            <option value="openpose">OpenPose</option>
-                          </select>
+                            {controlNetType === 'off'
+                              ? 'Select ControlNet'
+                              : controlNetType}
+                          </Button>
                         </FormControl>
                       </Stack>
                     </Stack>
@@ -1485,6 +1480,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         open={historyModalOpen}
         onClose={() => setHistoryModalOpen(false)}
         onSelectImage={handleSelectFromHistory}
+      />
+      <ControlNetModal
+        open={controlnetModalOpen}
+        onClose={() => setControlnetModalOpen(false)}
+        selectedControlnet={controlNetType}
+        onSelect={(selected: string) => {
+          setControlNetType(selected);
+        }}
       />
     </Sheet>
   );
