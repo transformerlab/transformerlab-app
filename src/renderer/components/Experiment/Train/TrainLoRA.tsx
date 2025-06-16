@@ -44,6 +44,7 @@ import LoRATrainingRunButton from './LoRATrainingRunButton';
 import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
 import ImportRecipeModal from './ImportRecipeModal';
+import ViewEvalImagesModal from './ViewEvalImagesModal';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -100,6 +101,7 @@ export default function TrainLoRA({ experimentInfo }) {
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [importRecipeModalOpen, setImportRecipeModalOpen] = useState(false);
+  const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [templateID, setTemplateID] = useState('-1');
   const [currentPlugin, setCurrentPlugin] = useState('');
 
@@ -186,6 +188,11 @@ export default function TrainLoRA({ experimentInfo }) {
         mutate={mutate}
         experiment_id={experimentInfo?.id}
       />
+      <ViewEvalImagesModal
+        open={viewEvalImagesFromJob !== -1}
+        onClose={() => setViewEvalImagesFromJob(-1)}
+        jobId={viewEvalImagesFromJob}
+      />
       <Sheet
         sx={{
           display: 'flex',
@@ -266,7 +273,9 @@ export default function TrainLoRA({ experimentInfo }) {
                         sx={{ color: 'var(--joy-palette-neutral-400)' }}
                       >
                         {plugin.model_architectures &&
-                        !plugin.model_architectures.includes(modelArchitecture) &&
+                        !plugin.model_architectures.includes(
+                          modelArchitecture,
+                        ) &&
                         !plugin.model_architectures.includes(
                           embeddingModelArchitecture,
                         )
@@ -509,6 +518,17 @@ export default function TrainLoRA({ experimentInfo }) {
                           >
                             Output
                           </Button>
+                          {job?.job_data?.eval_images_dir && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => {
+                                setViewEvalImagesFromJob(job?.id);
+                              }}
+                            >
+                              View Eval Images
+                            </Button>
+                          )}
                           {job?.job_data?.sweep_output_file && (
                             <Button
                               size="sm"

@@ -54,7 +54,7 @@ export default function TemplatedCompletion({
 
   const { data: templates, mutate: templatesMutate } = useSWR(
     chatAPI.Endpoints.Prompts.List(),
-    fetcher
+    fetcher,
   );
 
   const sendTemplatedCompletionToLLM = async (element, target) => {
@@ -91,7 +91,7 @@ export default function TemplatedCompletion({
     try {
       console.log(generationParameters?.stop_str);
       generationParameters.stop_str = JSON.parse(
-        generationParameters?.stop_str
+        generationParameters?.stop_str,
       );
     } catch (e) {
       console.log('Error parsing stop strings as JSON');
@@ -106,7 +106,8 @@ export default function TemplatedCompletion({
       generationParameters?.topP,
       false,
       generationParameters?.stop_str,
-      target
+      target,
+      generationParameters?.minP, // add minP as the last argument
     );
 
     setOutputText(result?.text || '');
@@ -169,7 +170,7 @@ export default function TemplatedCompletion({
                 return;
               }
               const newSelectedTemplate = templates?.find(
-                (t) => t.id === newValue
+                (t) => t.id === newValue,
               );
               setSelectedTemplate(newSelectedTemplate);
             }}
@@ -233,7 +234,7 @@ export default function TemplatedCompletion({
                       confirm('Are you sure you want to delete this template?')
                     ) {
                       await fetch(
-                        chatAPI.Endpoints.Prompts.Delete(selectedTemplate.id)
+                        chatAPI.Endpoints.Prompts.Delete(selectedTemplate.id),
                       );
                       templatesMutate();
                     }
@@ -349,7 +350,7 @@ export default function TemplatedCompletion({
                   document.getElementsByName('output-text')[0].value = '';
                   await sendTemplatedCompletionToLLM(
                     document.getElementsByName('completion-text')?.[0],
-                    document.getElementById('completion-textarea')
+                    document.getElementById('completion-textarea'),
                   );
 
                   const endTime = performance.now();

@@ -38,6 +38,7 @@ import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
 import Rag from './Experiment/Rag';
 import Tokenize from './Experiment/Interact/Tokenize';
+import Diffusion from './Experiment/Diffusion/Diffusion';
 
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
@@ -45,12 +46,13 @@ import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
 import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
+import { useAnalytics } from './Shared/useAnalytics';
 
 export const analytics = new AnalyticsBrowser();
 analytics.load({ writeKey: 'UYXFr71CWmsdxDqki5oFXIs2PSR5XGCE' });
 
 // Segment context provider to make analytics available throughout the app
-export const SegmentContext = createContext();
+export const SegmentContext = createContext<any>(null);
 
 export const SegmentProvider = ({ children }) => {
   return (
@@ -58,11 +60,6 @@ export const SegmentProvider = ({ children }) => {
       {children}
     </SegmentContext.Provider>
   );
-};
-
-// Hook to use Segment analytics in components
-export const useAnalytics = () => {
-  return useContext(SegmentContext);
 };
 
 // // Define the app version
@@ -469,6 +466,10 @@ export default function MainAppPanel({
         <Route
           path="/experiment/generate"
           element={<Generate experimentInfo={experimentInfo} />}
+        />
+        <Route
+          path="/experiment/diffusion"
+          element={<Diffusion experimentInfo={experimentInfo} />}
         />
         <Route
           path="/plugins"

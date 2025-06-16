@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import useSWR from 'swr';
-
 import {
   Button,
   Divider,
@@ -12,83 +11,160 @@ import {
   Typography,
   Box,
   CircularProgress,
+  Select,
+  Option,
 } from '@mui/joy';
 import { PlusCircleIcon } from 'lucide-react';
 import Dropzone from 'react-dropzone';
 import { IoCloudUploadOutline } from 'react-icons/io5';
-
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function DatasetDetailsModal({ open, setOpen }) {
   const [newDatasetName, setNewDatasetName] = useState('');
+  const [datasetType, setDatasetType] = useState('text');
   const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [trainFileUploaded, setTrainFileUploaded] = useState(false);
-  const [evalFileUploaded, setEvalFileUploaded] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [dropzoneActive, setDropzoneActive] = React.useState(false);
+  const [dropzoneActive, setDropzoneActive] = useState(false);
 
-  // Reset newDatasetName when the modal is open/closed
-  // useEffect(() => {
-  //   setNewDatasetName('');
-  // }, [open]);
-  const { data, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.LocalList(false),
-    fetcher
-  );
-  //Resetting state variables
+  const swrKey = open ? chatAPI.Endpoints.Dataset.LocalList(false) : null;
+  const { data, isLoading, mutate } = useSWR(swrKey, fetcher);
+
   const handleClose = () => {
     setOpen(false);
     setShowUploadDialog(false);
     setNewDatasetName('');
-    setEvalFileUploaded(false);
-    setTrainFileUploaded(false);
     mutate();
   };
 
   const uploadFiles = async (formData) => {
-    setUploading(true); //This is for the loading spinner
-    //Create the dataset before uploading
+    setUploading(true);
     const response = await fetch(
-      chatAPI.Endpoints.Dataset.Create(newDatasetName)
+      chatAPI.Endpoints.Dataset.Create(newDatasetName),
     );
     const data = await response.json();
-    if (data.status == 'error') {
+    if (data.status === 'error') {
       alert(data.message);
     } else {
-      fetch(chatAPI.Endpoints.Dataset.FileUpload(newDatasetName), {
+      await fetch(chatAPI.Endpoints.Dataset.FileUpload(newDatasetName), {
         method: 'POST',
         body: formData,
-      })
-        .then((response) => {
-          if (response.ok) {
-            return response.json();
-          } else {
-            throw new Error('File upload failed');
-          }
-        })
-        .then((data) => {
-          console.log('Server response:', data);
-        })
-        .catch((error) => {
-          console.error('Error uploading file:', error);
-        });
+      });
     }
     setUploading(false);
     handleClose();
   };
+
+  const validateFiles = (files) => {
+    const allowedExtensions = [
+      '.json',
+      '.jsonl',
+      '.csv',
+      '.zip',
+      '.jpg',
+      '.jpeg',
+      '.png',
+      'tiff',
+      'webp',
+    ];
+    const isValid = (file) =>
+      allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext));
+    const invalidFiles = files.filter((f) => !isValid(f));
+    return invalidFiles;
+  };
+
+  const previewSample = (file) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = reader.result;
+      try {
+        const preview = file.name.endsWith('.jsonl')
+          ? JSON.parse(content.split('\n')[0])
+          : JSON.parse(content);
+        console.log('Preview sample:', preview);
+      } catch (e) {
+        console.error('Invalid JSON preview:', e);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const maybeAddGeneratedMetadata = (files, formData) => {
+    const hasMetadata = files.some((f) =>
+      ['.json', '.jsonl', '.csv'].some((ext) =>
+        f.name.toLowerCase().endsWith(ext),
+      ),
+    );
+
+    if (!hasMetadata) {
+      const imageFiles = files.filter(
+        (f) =>
+          f.type.startsWith('image/') ||
+          ['.jpg', '.jpeg', '.png', '.webp', '.tiff'].some((ext) =>
+            f.name.toLowerCase().endsWith(ext),
+          ),
+      );
+
+      const folderGroups = {};
+      imageFiles.forEach((f) => {
+        const relativePath = (f as any).webkitRelativePath || f.name;
+        const folder = relativePath.includes('/')
+          ? relativePath.substring(0, relativePath.lastIndexOf('/'))
+          : '';
+        if (!folderGroups[folder]) folderGroups[folder] = [];
+        folderGroups[folder].push(f);
+      });
+
+      Object.entries(folderGroups).forEach(([folder, filesInFolder]) => {
+        const lastFolder = folder.includes('/')
+          ? folder.substring(folder.lastIndexOf('/') + 1)
+          : folder;
+        const labelValue =
+          lastFolder.toLowerCase() === 'train' ||
+          lastFolder.toLowerCase() === 'test'
+            ? 'N/A'
+            : lastFolder;
+
+        const jsonl = filesInFolder
+          .map((f) => {
+            const relativePath = (f as any).webkitRelativePath || f.name;
+            const fileName = relativePath.substring(
+              relativePath.lastIndexOf('/') + 1,
+            );
+
+            // Determine split by analyzing folder structure
+            const pathParts = relativePath.split('/').slice(0, -1); // Exclude file name
+            let split = 'train'; // Default split
+            for (let i = pathParts.length - 1; i >= 0; i--) {
+              const part = pathParts[i].toLowerCase();
+              if (part === 'train' || part === 'test') {
+                split = part;
+                break;
+              }
+            }
+
+            return JSON.stringify({
+              file_name: fileName,
+              label: labelValue,
+              split: split,
+            });
+          })
+          .join('\n');
+
+        const blob = new Blob([jsonl], { type: 'application/jsonl' });
+        const metadataFilePath = folder
+          ? `${folder}/metadata.jsonl`
+          : 'metadata.jsonl';
+        const metadataFile = new File([blob], metadataFilePath);
+        formData.append('files', metadataFile);
+      });
+    }
+  };
+
   return (
     <>
-      <Modal
-        open={open}
-        onClose={() => {
-          //Dont need to reset every variable here as these variables are only altered in the second modal
-          setOpen(false);
-          setShowUploadDialog(false);
-          setNewDatasetName('');
-        }}
-      >
+      <Modal open={open} onClose={handleClose}>
         <ModalDialog>
           <ModalClose />
           <Typography level="title-lg">
@@ -103,31 +179,33 @@ export default function DatasetDetailsModal({ open, setOpen }) {
                   flexDirection: 'column',
                   gap: '10px',
                 }}
-                onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
-                  event.preventDefault();
-                  const name =
-                    event.currentTarget.elements['dataset-name']?.value;
-                  // Check if the dataset name already exists
-                  // data is local list output
-                  const datasetNames = data.map((item) => item.dataset_id);
-                  if (datasetNames.includes(name)) {
-                    alert('Dataset name already exists. Please try again.');
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const name = e.currentTarget.elements['dataset-name']?.value;
+                  if (data.map((item) => item.dataset_id).includes(name)) {
+                    alert('Dataset name already exists.');
                     return;
-                  } else {
-                    setNewDatasetName(name);
-                    setShowUploadDialog(true);
-                    setOpen(false);
                   }
+                  setNewDatasetName(name);
+                  setShowUploadDialog(true);
+                  setOpen(false);
                 }}
               >
                 <Input
                   placeholder="Dataset Name"
                   name="dataset-name"
-                  required //Making title a required field
+                  required
                 />
+                <Select
+                  value={datasetType}
+                  onChange={(e, newVal) => setDatasetType(newVal)}
+                  required
+                >
+                  <Option value="text">Text</Option>
+                  <Option value="image">Image</Option>
+                </Select>
                 <Button type="submit" disabled={isLoading}>
-                  {/* Adding this to assume that data is loaded when the button is clicked */}{' '}
-                  {isLoading ? <CircularProgress /> : 'Create'}
+                  {isLoading ? <CircularProgress /> : 'Next'}
                 </Button>
               </form>
             )}
@@ -137,88 +215,271 @@ export default function DatasetDetailsModal({ open, setOpen }) {
       <Modal open={showUploadDialog} onClose={handleClose}>
         <ModalDialog>
           <ModalClose />
-          <Typography level="title-lg">Upload Dataset</Typography>
+          <Typography level="title-lg" sx={{ textTransform: 'capitalize' }}>
+            Upload {datasetType} Dataset
+          </Typography>
           <Divider sx={{ my: 2 }} />
-          <Box //Making the modal a set size
+          <Box
             sx={{
               display: 'flex',
               flexDirection: 'column',
               gap: 2,
-              overflowY: 'hidden',
               width: '25vw',
-              justifyContent: 'center',
             }}
           >
-            <Dropzone
-              onDrop={async (acceptedFiles) => {
-                setDropzoneActive(false);
+            {datasetType === 'image' ? (
+              <>
+                <Typography level="body-sm" color="neutral">
+                  Supported formats: image folder (with supported image types)
+                </Typography>
+                <Dropzone
+                  noClick
+                  onDragEnter={() => setDropzoneActive(true)}
+                  onDragLeave={() => setDropzoneActive(false)}
+                  onDrop={async (acceptedFiles, fileRejections, event) => {
+                    setDropzoneActive(false);
 
-                const formData = new FormData();
-                for (const file of acceptedFiles) {
-                  formData.append('files', file);
-                }
-                await uploadFiles(formData);
-              }}
-              onDragEnter={() => {
-                setDropzoneActive(true);
-              }}
-              onDragLeave={() => {
-                setDropzoneActive(false);
-              }}
-              noClick
-            >
-              {({ getRootProps, getInputProps }) => (
-                <div id="dropzone_baby" {...getRootProps()}>
-                  <Sheet
-                    color="primary"
-                    variant="soft"
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      marginBottom: '0rem',
-                      overflow: 'hidden',
-                      minHeight: '130px',
-                      border: dropzoneActive
-                        ? '2px solid var(--joy-palette-warning-400)'
-                        : '2px dashed var(--joy-palette-neutral-300)',
-                      borderRadius: '8px',
-                      flex: 1,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      color: 'var(--joy-palette-neutral-400)',
-                    }}
-                  >
-                    <IoCloudUploadOutline size="36px" /> Drag files here
-                    <Typography level="body-xs" color="neutral" mt={3}>
-                      Allowed filetypes: .jsonl, .json
-                    </Typography>
-                  </Sheet>
-                </div>
-              )}
-            </Dropzone>
-            <Button
-              startDecorator={<PlusCircleIcon />}
-              onClick={() => {
-                var input = document.createElement('input');
-                input.type = 'file';
-                input.multiple = true; //Allow multiple files
+                    const fileToPathMap = new Map<File, string>();
 
-                // input.accept = '.jsonl'; //Only allow JSONL files
-                input.onchange = async (e) => {
-                  let files = Array.from(input.files);
-                  console.log(files);
-                  const formData = new FormData();
-                  for (const file of files) {
-                    formData.append('files', file);
-                  }
-                  await uploadFiles(formData);
-                };
-                input.click();
-              }}
-              disabled={uploading}
-            >
-              {uploading ? <CircularProgress /> : 'Add files'}
-            </Button>
+                    async function traverseFileTree(
+                      item: any,
+                      path = '',
+                    ): Promise<File[]> {
+                      return new Promise((resolve) => {
+                        if (item.isFile) {
+                          item.file((file: File) => {
+                            fileToPathMap.set(file, path + file.name);
+                            resolve([file]);
+                          });
+                        } else if (item.isDirectory) {
+                          const dirReader = item.createReader();
+                          dirReader.readEntries(async (entries: any[]) => {
+                            const filesArrays = await Promise.all(
+                              entries.map((entry) =>
+                                traverseFileTree(entry, path + item.name + '/'),
+                              ),
+                            );
+                            resolve(filesArrays.flat());
+                          });
+                        } else {
+                          resolve([]);
+                        }
+                      });
+                    }
+
+                    const items = event.dataTransfer?.items;
+                    const allFiles: File[] = [];
+                    let hasFolder = false;
+
+                    if (items) {
+                      for (const item of items) {
+                        const entry = item.webkitGetAsEntry?.();
+                        if (entry) {
+                          if (entry.isDirectory) {
+                            hasFolder = true;
+                          }
+                          const files = await traverseFileTree(entry);
+                          allFiles.push(...files);
+                        }
+                      }
+                    }
+
+                    if (!hasFolder) {
+                      alert(
+                        'Please drag and drop a folder, not individual files.',
+                      );
+                      return;
+                    }
+
+                    const validFiles = allFiles.filter(
+                      (file) => validateFiles([file]).length === 0,
+                    );
+
+                    if (validFiles.length === 0) {
+                      alert('No supported files found in the selected folder.');
+                      return;
+                    }
+
+                    const formData = new FormData();
+                    for (const file of validFiles) {
+                      const relPath = fileToPathMap.get(file) || file.name;
+                      formData.append('files', file, relPath);
+                    }
+
+                    maybeAddGeneratedMetadata(validFiles, formData);
+                    await uploadFiles(formData);
+                  }}
+                  getFilesFromEvent={() => Promise.resolve([])}
+                >
+                  {({ getRootProps, getInputProps }) => (
+                    <div {...getRootProps()}>
+                      <Sheet
+                        color="primary"
+                        variant="soft"
+                        sx={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          minHeight: '130px',
+                          border: dropzoneActive
+                            ? '2px solid orange'
+                            : '2px dashed grey',
+                          borderRadius: '8px',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <IoCloudUploadOutline size="36px" />
+                        <Typography level="body-md" mt={1}>
+                          Drag & drop image folders here
+                        </Typography>
+                        <Typography level="body-xs" mt={1}>
+                          Or use the button below
+                        </Typography>
+                      </Sheet>
+                    </div>
+                  )}
+                </Dropzone>
+
+                <Button
+                  startDecorator={<PlusCircleIcon />}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.multiple = true;
+                    input.setAttribute('webkitdirectory', '');
+                    input.onchange = async (e) => {
+                      const files = Array.from(input.files);
+                      const rootFiles = files.filter((file) => {
+                        const relativePath =
+                          (file as any).webkitRelativePath || '';
+                        return (
+                          !relativePath.includes('/') &&
+                          validateFiles([file]).length === 0
+                        );
+                      });
+                      const validFiles = files.filter(
+                        (file) => validateFiles([file]).length === 0,
+                      );
+                      if (validFiles.length === 0 && rootFiles.length === 0) {
+                        alert(
+                          'No supported files found in the selected folder.',
+                        );
+                        return;
+                      }
+                      const formData = new FormData();
+                      rootFiles.forEach((file) => {
+                        formData.append('files', file, file.name);
+                      });
+                      validFiles.forEach((file) => {
+                        const relativePath =
+                          (file as any).webkitRelativePath || file.name;
+                        formData.append('files', file, relativePath);
+                      });
+                      maybeAddGeneratedMetadata(validFiles, formData);
+                      await uploadFiles(formData);
+                    };
+                    input.click();
+                  }}
+                  disabled={uploading}
+                >
+                  {uploading ? <CircularProgress /> : 'Browse Image Folder'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Typography level="body-sm" color="neutral">
+                  Supported formats: JSON (.json) or JSONL (.jsonl)
+                </Typography>
+                <Dropzone
+                  onDrop={async (acceptedFiles) => {
+                    setDropzoneActive(false);
+                    const invalidFiles = validateFiles(acceptedFiles);
+                    if (invalidFiles.length > 0) {
+                      alert(
+                        `Unsupported file types: ${invalidFiles.map((f) => f.name).join(', ')}`,
+                      );
+                      return;
+                    }
+                    if (
+                      acceptedFiles.length > 0 &&
+                      ['.json', '.jsonl'].some((ext) =>
+                        acceptedFiles[0].name.endsWith(ext),
+                      )
+                    ) {
+                      previewSample(acceptedFiles[0]);
+                    }
+                    const formData = new FormData();
+                    acceptedFiles.forEach((file) =>
+                      formData.append('files', file),
+                    );
+                    maybeAddGeneratedMetadata(acceptedFiles, formData);
+                    await uploadFiles(formData);
+                  }}
+                  onDragEnter={() => setDropzoneActive(true)}
+                  onDragLeave={() => setDropzoneActive(false)}
+                  noClick
+                >
+                  {({ getRootProps, getInputProps }) => (
+                    <div {...getRootProps()}>
+                      <Sheet
+                        color="primary"
+                        variant="soft"
+                        sx={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          minHeight: '130px',
+                          border: dropzoneActive
+                            ? '2px solid orange'
+                            : '2px dashed grey',
+                          borderRadius: '8px',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <IoCloudUploadOutline size="36px" /> Drag & drop files
+                        here
+                        <Typography level="body-xs" mt={2}>
+                          Or use the button below
+                        </Typography>
+                      </Sheet>
+                    </div>
+                  )}
+                </Dropzone>
+                <Button
+                  startDecorator={<PlusCircleIcon />}
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.multiple = true;
+                    input.onchange = async (e) => {
+                      const files = Array.from(input.files);
+                      const invalidFiles = validateFiles(files);
+                      if (invalidFiles.length > 0) {
+                        alert(
+                          `Unsupported file types: ${invalidFiles.map((f) => f.name).join(', ')}`,
+                        );
+                        return;
+                      }
+                      if (
+                        files.length > 0 &&
+                        ['.json', '.jsonl'].some((ext) =>
+                          files[0].name.endsWith(ext),
+                        )
+                      ) {
+                        previewSample(files[0]);
+                      }
+                      const formData = new FormData();
+                      files.forEach((file) => formData.append('files', file));
+                      await uploadFiles(formData);
+                    };
+                    input.click();
+                  }}
+                  disabled={uploading}
+                >
+                  {uploading ? <CircularProgress /> : 'Browse files'}
+                </Button>
+              </>
+            )}
           </Box>
         </ModalDialog>
       </Modal>

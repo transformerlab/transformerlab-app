@@ -65,12 +65,38 @@
     "loginToHuggingFace": {
       "method": "GET",
       "path": "model/login_to_huggingface"
+    },
+    "deletePeft": {
+      "method": "GET",
+      "path": "model/delete_peft?model_id={modelId}&peft={peft}"
+    },
+    "installPeft": {
+      "method": "POST",
+      "path": "model/install_peft?peft={peft}&model_id={modelId}"
     }
   },
   "jobs": {
     "get": {
       "method": "GET",
       "path": "jobs/{id}"
+    },
+    "stop": {
+      "method": "GET",
+      "path": "jobs/{jobId}/stop"
+    }
+  },
+  "datasets": {
+    "editWithTemplate": {
+      "method": "GET",
+      "path": "data/edit_with_template?dataset_id={datasetId}&template={template}&offset={offset}&limit={limit}"
+    },
+    "saveMetadata": {
+      "method": "POST",
+      "path": "data/save_metadata?dataset_id={datasetId}&new_dataset_id={newDatasetId}"
+    },
+    "info": {
+      "method": "GET",
+      "path": "data/info?dataset_id={datasetId}"
     }
   },
   "recipes": {
@@ -109,5 +135,59 @@
       "path": "experiment/{experimentId}/plugins/list?type={type}"
     }
 
+  },
+  "diffusion": {
+    "generateId": {
+      "method": "POST",
+      "path": "diffusion/generate_id"
+    },
+    "generate": {
+      "method": "POST",
+      "path": "diffusion/generate"
+    },
+    "checkValidDiffusion": {
+      "method": "POST",
+      "path": "diffusion/is_valid_diffusion_model"
+    },
+    "getHistory": {
+      "method": "GET",
+      "path": "diffusion/history?limit={limit}&offset={offset}"
+    },
+    "getImageInfo": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/info"
+    },
+    "getImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?index={index}"
+    },
+    "getImageCount": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/count"
+    },
+    "getInputImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?input_image=true"
+    },
+    "getMaskImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?mask_image=true"
+    },
+    "deleteImage": {
+      "method": "DELETE",
+      "path": "diffusion/history/{imageId}"
+    },
+    "clearHistory": {
+      "method": "DELETE",
+      "path": "diffusion/history"
+    },
+    "createDataset": {
+      "method": "POST",
+      "path": "diffusion/dataset/create"
+    },
+    "getAllImages": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/all"
+    }
   }
 }

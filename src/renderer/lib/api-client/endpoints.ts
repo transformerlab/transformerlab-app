@@ -23,7 +23,8 @@ Endpoints.Tasks = {
 };
 
 Endpoints.Workflows = {
-  List: () => `${API_URL()}workflows/list`,
+  ListInExperiment: (experimentId: string) => 
+    `${API_URL()}experiment/${experimentId}/workflows/list`,
   CreateEmpty: (name: string, experimentId: string) =>
     `${API_URL()}workflows/create_empty` +
     `?name=${name}&experiment_id=${experimentId}`,
@@ -49,7 +50,8 @@ Endpoints.Workflows = {
     `?end_node_id=${to}`,
   RunWorkflow: (workflowId: string) =>
     `${API_URL()}workflows/${workflowId}/start`,
-  ListRuns: () => `${API_URL()}workflows/list_runs`,
+  ListRunsInExperiment: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/runs`,
   GetRun: (workflowRunID: string) =>
     `${API_URL()}workflows/runs/${workflowRunID}`,
 };
@@ -108,6 +110,8 @@ Endpoints.Models = {
     )}`,
   DeletePeft: (modelId: string, peft: string) =>
     `${API_URL()}model/delete_peft?model_id=${modelId}&peft=${peft}`,
+  InstallPeft: (modelId: string, peft: string) =>
+    `${API_URL()}model/install_peft?model_id=${modelId}&peft=${peft}`,
   ModelDetailsFromGallery: (modelId: string) =>
     `${API_URL()}model/gallery/${convertSlashInUrl(modelId)}`,
   ModelDetailsFromFilesystem: (modelId: string) =>
@@ -421,6 +425,9 @@ Endpoints.Jobs = {
       type
     }&config=${config}`,
   Stop: (jobId: string) => `${API_URL()}jobs/${jobId}/stop`,
+  GetEvalImages: (jobId: string) => `${API_URL()}jobs/${jobId}/get_eval_images`,
+  GetEvalImage: (jobId: string, filename: string) =>
+    `${API_URL()}jobs/${jobId}/image/${filename}`,
 };
 
 Endpoints.Global = {

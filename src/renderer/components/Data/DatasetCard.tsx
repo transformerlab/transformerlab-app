@@ -1,25 +1,27 @@
-import { useState } from 'react';
-
+import { useState, useEffect } from 'react';
 import {
   Button,
   Card,
   CardContent,
   CircularProgress,
   Typography,
+  Tooltip,
 } from '@mui/joy';
 import {
   DownloadIcon,
   FileTextIcon,
   Trash2Icon,
   CheckIcon,
+  EyeIcon,
+  Edit3Icon,
+  InfoIcon,
 } from 'lucide-react';
-
 import { formatBytes } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import PreviewDatasetModal from './PreviewDatasetModal';
 import DatasetInfoModal from './DatasetInfoModal';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import EditDatasetModal from './EditDatasetModal';
 
 export default function DatasetCard({
   name,
@@ -33,23 +35,42 @@ export default function DatasetCard({
   friendlyName = null,
 }) {
   const [installing, setInstalling] = useState(null);
-  const [previewDatasetModalOpen, setPreviewDatasetModalOpen] = useState(false);
+  const [previewModalState, setPreviewModalState] = useState({
+    open: false,
+    datasetId: null,
+    viewType: 'preview',
+  });
   const [datasetInfoModalOpen, setDatasetInfoModalOpen] = useState(false);
+  const [editDatasetModalOpen, setEditDatasetModalOpen] = useState(false);
+
+  const { data: datasetInfo } = useAPI('datasets', ['info'], {
+    datasetId: name,
+  });
 
   return (
     <>
-      {previewDatasetModalOpen && (
-        <PreviewDatasetModal
-          open={previewDatasetModalOpen}
-          setOpen={setPreviewDatasetModalOpen}
-          dataset_id={name}
+      <PreviewDatasetModal
+        open={previewModalState.open}
+        setOpen={(open) => setPreviewModalState({ ...previewModalState, open })}
+        dataset_id={previewModalState.datasetId}
+        viewType={previewModalState.viewType}
+      />
+
+      {editDatasetModalOpen && (
+        <EditDatasetModal
+          open={editDatasetModalOpen}
+          setOpen={setEditDatasetModalOpen}
+          datasetId={name}
+          template="default"
         />
       )}
+
       <DatasetInfoModal
         open={datasetInfoModalOpen}
         dataset_id={name}
         setOpen={setDatasetInfoModalOpen}
       />
+
       <Card variant="outlined" sx={{ height: '100%' }}>
         <CardContent
           orientation="vertical"
@@ -66,12 +87,7 @@ export default function DatasetCard({
               {location === 'local' && ' '}
             </Typography>
             <div style={{ overflow: 'clip' }}>
-              <Typography
-                level="body-sm"
-                sx={{
-                  overflow: 'auto',
-                }}
-              >
+              <Typography level="body-sm" sx={{ overflow: 'auto' }}>
                 {description}
               </Typography>
             </div>
@@ -89,48 +105,85 @@ export default function DatasetCard({
             </Typography>
           </div>
         </CardContent>
-        <CardContent orientation="horizontal" sx={{ alignItems: 'flex-end' }}>
-          {downloaded && local && (
+        <CardContent
+          orientation="horizontal"
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'flex-end',
+            gap: 1,
+            justifyContent: 'flex-end',
+          }}
+        >
+          {downloaded && (
             <>
-              <Button
-                color="neutral"
-                variant="outlined"
-                onClick={async () => {
-                  if (
-                    confirm('Are you sure you want to delete this dataset?')
-                  ) {
-                    await fetch(chatAPI.Endpoints.Dataset.Delete(name));
-                    parentMutate();
-                  }
-                }}
-              >
-                <Trash2Icon />
-              </Button>
-              <Button
-                variant="solid"
-                color="primary"
-                sx={{ ml: 'auto' }}
-                onClick={() => setPreviewDatasetModalOpen(true)}
-              >
-                Preview
-              </Button>
-              <Button
-                variant="soft"
-                onClick={async () => {
-                  setDatasetInfoModalOpen(true);
-                }}
-              >
-                Info
-              </Button>
+              <Tooltip title="Delete">
+                <Button
+                  color="neutral"
+                  variant="outlined"
+                  sx={{ flex: '1 1 auto', minWidth: 120 }}
+                  onClick={async () => {
+                    if (
+                      confirm('Are you sure you want to delete this dataset?')
+                    ) {
+                      await fetch(chatAPI.Endpoints.Dataset.Delete(name));
+                      parentMutate();
+                    }
+                  }}
+                >
+                  <Trash2Icon />
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Preview">
+                <Button
+                  variant="solid"
+                  color="primary"
+                  sx={{ flex: '1 1 auto', minWidth: 120 }}
+                  onClick={() => {
+                    setPreviewModalState({
+                      open: true,
+                      datasetId: name,
+                      viewType: 'preview',
+                    });
+                  }}
+                >
+                  <EyeIcon />
+                </Button>
+              </Tooltip>
+
+              {local && datasetInfo?.is_image && (
+                <Tooltip title="Edit">
+                  <Button
+                    variant="solid"
+                    color="primary"
+                    sx={{ flex: '1 1 auto', minWidth: 120 }}
+                    onClick={() => setEditDatasetModalOpen(true)}
+                  >
+                    <Edit3Icon />
+                  </Button>
+                </Tooltip>
+              )}
+
+              <Tooltip title="Info">
+                <Button
+                  variant="soft"
+                  sx={{ flex: '1 1 auto', minWidth: 120 }}
+                  onClick={() => setDatasetInfoModalOpen(true)}
+                >
+                  <InfoIcon />
+                </Button>
+              </Tooltip>
             </>
           )}
+
           {!local && (
             <Button
               variant="solid"
               size="sm"
               color="primary"
               aria-label="Download"
-              sx={{ ml: 'auto' }}
+              sx={{ flex: '1 1 auto', minWidth: 120 }}
               disabled={downloaded || installing}
               endDecorator={
                 downloaded ? (
@@ -143,8 +196,6 @@ export default function DatasetCard({
               }
               onClick={() => {
                 setInstalling(true);
-
-                // Datasets can be very large so do this asynchronously
                 fetch(chatAPI.Endpoints.Dataset.Download(repo))
                   .then((response) => {
                     if (!response.ok) {
@@ -171,7 +222,7 @@ export default function DatasetCard({
                 ? 'Downloaded'
                 : installing
                   ? 'Downloading'
-                  : 'Download'}{' '}
+                  : 'Download'}
             </Button>
           )}
         </CardContent>
