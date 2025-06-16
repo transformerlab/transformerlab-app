@@ -27,7 +27,7 @@ function EngineSelect({
   unsupportedEngines,
   isLoading,
 }) {
-  const [showUnEngines, setShowUnsupportedEngines] = useState(false);
+  const [showUnsupportedEngines, setShowUnsupportedEngines] = useState(false);
 
   return (
     <Stack spacing={1}>
@@ -49,7 +49,7 @@ function EngineSelect({
               </Option>
             ))}
 
-          {setShowUnsupportedEngines && unsupportedEngines.length > 0 && (
+          {showUnsupportedEngines && unsupportedEngines.length > 0 && (
             <>
               <Option disabled>── Unsupported ──</Option>
               {unsupportedEngines.map((row) => (
@@ -62,7 +62,7 @@ function EngineSelect({
         </Select>
       </Box>
       <Checkbox
-        checked={setShowUnsupportedEngines}
+        checked={showUnsupportedEngines}
         onChange={(e) => setShowUnsupportedEngines(e.target.checked)}
         label="Show unsupported engines"
       />
