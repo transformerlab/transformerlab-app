@@ -17,8 +17,8 @@ import {
 import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import React, { useState } from 'react';
 
 import { Link } from 'react-router-dom';
 
@@ -45,6 +45,42 @@ export default function RunModelButton({
     inferenceEngine: null,
     inferenceEngineFriendlyName: '',
   });
+
+  const { data, error, isLoading } = useAPI(
+    'experiment',
+    ['getScriptsOfTypeWithoutFilter'],
+    {
+      experimentId: experimentInfo?.id,
+      type: 'loader',
+    },
+    {
+      skip: !experimentInfo?.id,
+    },
+  );
+
+  const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
+
+  const supportedEngines = React.useMemo(() => {
+    if (!data) return [];
+    return data.filter(
+      (row) =>
+        Array.isArray(row.model_architectures) &&
+        row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        ),
+    );
+  }, [data, archTag]);
+
+  const unsupportedEngines = React.useMemo(() => {
+    if (!data) return [];
+    return data.filter(
+      (row) =>
+        !Array.isArray(row.model_architectures) ||
+        !row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        ),
+    );
+  }, [data, archTag]);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
   >(null);
@@ -255,7 +291,7 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {isPossibleToRunAModel() ? (
+      {supportedEngines.length > 0 ? (
         <Engine />
       ) : isValidDiffusionModel === true ? (
         <Alert startDecorator={<InfoIcon />} color="warning">
@@ -271,6 +307,24 @@ export default function RunModelButton({
             and perform inference with it.
           </Typography>
         </Alert>
+      ) : unsupportedEngines.length > 0 ? (
+        <div>
+          <Alert startDecorator={<TriangleAlertIcon />} color="warning">
+            <Typography level="body-sm">
+              None of the installed Engines currently support this model architecture.
+               You can try a different engine in{' '}
+              <Link to="/plugins">
+                <Plug2Icon size="15px" />
+                Plugins
+              </Link>{' '}
+              , or you can try running with an unsupported Engine by clicking <b>using Engine</b> below and check{' '}
+              <b>Show unsupported engines</b>.
+            </Typography>
+          </Alert>
+          <div style={{ marginTop: 16 }}>
+            <Engine />
+          </div>
+        </div>
       ) : (
         <Alert startDecorator={<TriangleAlertIcon />} color="warning">
           <Typography level="body-sm">
@@ -292,6 +346,9 @@ export default function RunModelButton({
         experimentInfo={experimentInfo}
         inferenceSettings={inferenceSettings}
         setInferenceSettings={setInferenceSettings}
+        supportedEngines={supportedEngines}
+        unsupportedEngines={unsupportedEngines}
+        isLoading={isLoading}
       />
     </div>
   );
