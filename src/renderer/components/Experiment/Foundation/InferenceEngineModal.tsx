@@ -23,11 +23,11 @@ function EngineSelect({
   experimentInfo,
   inferenceSettings,
   setSelectedPlugin,
-  supported,
-  unsupported,
+  supportedEngines,
+  unsupportedEngines,
   isLoading,
 }) {
-  const [showUnsupported, setShowUnsupported] = useState(false);
+  const [showUnEngines, setShowUnsupportedEngines] = useState(false);
 
   return (
     <Stack spacing={1}>
@@ -42,17 +42,17 @@ function EngineSelect({
             setSelectedPlugin(newValue);
           }}
         >
-          {supported.length > 0 &&
-            supported.map((row) => (
+          {supportedEngines.length > 0 &&
+            supportedEngines.map((row) => (
               <Option value={row.uniqueId} key={row.uniqueId}>
                 {row.name}
               </Option>
             ))}
 
-          {showUnsupported && unsupported.length > 0 && (
+          {setShowUnsupportedEngines && unsupportedEngines.length > 0 && (
             <>
               <Option disabled>── Unsupported ──</Option>
-              {unsupported.map((row) => (
+              {unsupportedEngines.map((row) => (
                 <Option value={row.uniqueId} key={row.uniqueId}>
                   {row.name}
                 </Option>
@@ -62,8 +62,8 @@ function EngineSelect({
         </Select>
       </Box>
       <Checkbox
-        checked={showUnsupported}
-        onChange={(e) => setShowUnsupported(e.target.checked)}
+        checked={setShowUnsupportedEngines}
+        onChange={(e) => setShowUnsupportedEngines(e.target.checked)}
         label="Show unsupported engines"
       />
     </Stack>
@@ -76,8 +76,8 @@ export default function InferenceEngineModal({
   experimentInfo,
   inferenceSettings,
   setInferenceSettings,
-  supported,
-  unsupported,
+  supportedEngines,
+  unsupportedEngines,
   isLoading,
 }) {
   const [selectedPlugin, setSelectedPlugin] = useState(null);
@@ -144,8 +144,8 @@ export default function InferenceEngineModal({
                 experimentInfo={experimentInfo}
                 inferenceSettings={inferenceSettings}
                 setSelectedPlugin={setSelectedPlugin}
-                supported={supported}
-                unsupported={unsupported}
+                supportedEngines={supportedEngines}
+                unsupportedEngines={unsupportedEngines}
                 isLoading={isLoading}
               />
             </FormControl>

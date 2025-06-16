@@ -60,7 +60,7 @@ export default function RunModelButton({
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
 
-  const supported = React.useMemo(() => {
+  const supportedEngines = React.useMemo(() => {
     if (!data) return [];
     return data.filter(
       (row) =>
@@ -71,7 +71,7 @@ export default function RunModelButton({
     );
   }, [data, archTag]);
 
-  const unsupported = React.useMemo(() => {
+  const unsupportedEngines = React.useMemo(() => {
     if (!data) return [];
     return data.filter(
       (row) =>
@@ -291,7 +291,7 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {supported.length > 0 ? (
+      {supportedEngines.length > 0 ? (
         <Engine />
       ) : isValidDiffusionModel === true ? (
         <Alert startDecorator={<InfoIcon />} color="warning">
@@ -307,7 +307,7 @@ export default function RunModelButton({
             and perform inference with it.
           </Typography>
         </Alert>
-      ) : unsupported.length > 0 ? (
+      ) : unsupportedEngines.length > 0 ? (
         <div>
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">
             <Typography level="body-sm">
@@ -349,8 +349,8 @@ export default function RunModelButton({
         experimentInfo={experimentInfo}
         inferenceSettings={inferenceSettings}
         setInferenceSettings={setInferenceSettings}
-        supported={supported}
-        unsupported={unsupported}
+        supportedEngines={supportedEngines}
+        unsupportedEngines={unsupportedEngines}
         isLoading={isLoading}
       />
     </div>
