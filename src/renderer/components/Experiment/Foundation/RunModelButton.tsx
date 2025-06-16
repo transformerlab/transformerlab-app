@@ -317,7 +317,7 @@ export default function RunModelButton({
                 <Plug2Icon size="15px" />
                 Plugins
               </Link>{' '}
-              , or you can try running with an unsupported Engine by clicking <b>using Engine</b> below and check{' '}
+              , or you can try running it with an unsupported Engine by clicking <b>using Engine</b> below and check{' '}
               <b>Show unsupported engines</b>.
             </Typography>
           </Alert>
