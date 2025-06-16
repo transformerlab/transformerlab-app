@@ -311,17 +311,14 @@ export default function RunModelButton({
         <div>
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">
             <Typography level="body-sm">
-              None of the installed Inference Engines list this model
-              architecture as supported. You can try finding an engine that
-              supports this model in{' '}
+              None of the installed Engines currently support this model architecture.
+               You can try a different engine in{' '}
               <Link to="/plugins">
                 <Plug2Icon size="15px" />
                 Plugins
               </Link>{' '}
-              , or you can click <b>using Engine</b> below and check{' '}
-              <b>Show unsupported engines</b> to try running one of your
-              installed Inference Engines if you think it may be able to run
-              this model.
+              , or you can try running with an unsupported Engine by clicking <b>using Engine</b> below and check{' '}
+              <b>Show unsupported engines</b>.
             </Typography>
           </Alert>
           <div style={{ marginTop: 16 }}>
