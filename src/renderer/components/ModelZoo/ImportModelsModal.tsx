@@ -331,7 +331,7 @@ export default function ImportModelsModal({ open, setOpen }) {
             <Button
               variant="soft"
               type="submit"
-              disabled={models?.length == 0 && importing}
+              disabled={importing || isLoading || models?.length == 0}
               startDecorator={
                 importing
                   ? <CircularProgress />
