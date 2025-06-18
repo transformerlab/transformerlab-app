@@ -94,7 +94,21 @@ export default function WorkflowList({ experimentInfo }) {
   );
 
   async function runWorkflow(workflowId: string) {
-    await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId, experimentInfo.id));
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Workflows.RunWorkflow(workflowId, experimentInfo.id),
+      );
+
+      if (response.ok) {
+        alert(
+          'Your workflow has started! Navigate to the runs page to view its progress.',
+        );
+      } else {
+        alert('Failed to start workflow. Please try again.');
+      }
+    } catch (error) {
+      alert('Failed to start workflow. Please try again.');
+    }
   }
   return (
     <>
