@@ -29,6 +29,7 @@ import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
 import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
+import { ChatTemplateSection } from './ChatTemplate';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -330,8 +331,8 @@ export default function CurrentFoundationInfo({
   return (
     <Sheet
       sx={{
-        height: '100%',
-        display: 'flex',
+        // height: '100%',
+        //display: 'flex',
         flexDirection: 'column',
         paddingBottom: '20px',
       }}
@@ -360,6 +361,7 @@ export default function CurrentFoundationInfo({
           <Tab>Embedding Models</Tab>
           <Tab>Adaptors</Tab>
           <Tab>Provenance</Tab>
+          <Tab>Chat Template</Tab>
         </TabList>
 
         {/* Overview Tab */}
@@ -704,6 +706,13 @@ export default function CurrentFoundationInfo({
               )}
             </Box>
           </Box>
+        </TabPanel>
+        
+        {/* Chat Template Tab */}
+        <TabPanel value={4} >
+          <ChatTemplateSection
+            modelName={experimentInfo?.config?.foundation} 
+          />
         </TabPanel>
       </Tabs>
     </Sheet>
