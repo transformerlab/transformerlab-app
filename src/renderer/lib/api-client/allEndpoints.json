@@ -47,6 +47,40 @@
       "path": "server/python_libraries"
     }
   },
+  "network": {
+    "info": {
+      "method": "GET",
+      "path": "network/info"
+    },
+    "machines": {
+      "method": "GET",
+      "path": "network/machines"
+    },
+    "status": {
+      "method": "GET",
+      "path": "network/status"
+    },
+    "addMachine": {
+      "method": "POST",
+      "path": "network/machines"
+    },
+    "getMachine": {
+      "method": "GET",
+      "path": "network/machines/{machineId}"
+    },
+    "removeMachine": {
+      "method": "DELETE",
+      "path": "network/machines/{machineId}"
+    },
+    "pingMachine": {
+      "method": "POST",
+      "path": "network/machines/{machineId}/ping"
+    },
+    "healthCheck": {
+      "method": "POST",
+      "path": "network/health-check"
+    }
+  },
   "config": {
     "get": {
       "method": "GET",

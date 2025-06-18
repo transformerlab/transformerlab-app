@@ -23,7 +23,7 @@ Endpoints.Tasks = {
 };
 
 Endpoints.Workflows = {
-  ListInExperiment: (experimentId: string) => 
+  ListInExperiment: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/list`,
   CreateEmpty: (name: string, experimentId: string) =>
     `${API_URL()}workflows/create_empty` +
