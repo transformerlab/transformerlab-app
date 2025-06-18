@@ -185,10 +185,6 @@
     "listControlnets": {
       "method": "GET",
       "path": "diffusion/controlnets"
-    },
-    "installControlnet": {
-      "method": "POST",
-      "path": "diffusion/install_controlnet?controlnet_id={controlnet_id}"
     }
   }
 }
