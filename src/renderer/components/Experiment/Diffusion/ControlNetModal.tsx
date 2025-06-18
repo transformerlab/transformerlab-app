@@ -37,9 +37,10 @@ export default function ControlNetModal({
         getFullPath('diffusion', ['listControlnets'], {}),
       );
       const models = await response.json();
-      const names = (models.controlnets || []).map((m) =>
-        (m.name || m.id || '').replace(/_/g, '/'),
+      const names = (models.controlnets || []).map(
+        (m) => m.model_id || m.name || m.id || '',
       );
+
       setControlNets(names);
     } catch (e) {
       console.error('❌ Failed to fetch controlnets:', e);
@@ -147,9 +148,7 @@ export default function ControlNetModal({
   };
 
   const handleDelete = async (id: string) => {
-    await fetch(
-      getFullPath('diffusion', ['deleteControlnet'], { controlnet: id }),
-    );
+    await fetch(chatAPI.Endpoints.Models.Delete(id, true));
     if (selectedControlnet === id) onSelect('off');
     refresh();
   };
