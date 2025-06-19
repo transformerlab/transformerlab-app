@@ -142,8 +142,7 @@ export default function RunModelButton({
       objExperimentInfo == null ||
       objExperimentInfo?.inferenceEngine == null
     ) {
-      // If there is no inference
-      // If there are supportedEngines, set the first one as default
+      // If there are supportedEngines, set the first one from supported engines as default
       if (supportedEngines.length > 0) {
         const firstEngine = supportedEngines[0];
         setInferenceSettings({
@@ -151,6 +150,7 @@ export default function RunModelButton({
           inferenceEngineFriendlyName: firstEngine.name || '',
         });
       } else {
+        // This preserves the older logic where we try to get the default inference engine for a blank experiment
         (async () => {
           const { inferenceEngine, inferenceEngineFriendlyName } =
             await getDefaultinferenceEngines();
