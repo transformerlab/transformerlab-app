@@ -159,7 +159,7 @@
       "path": "recipes/jobs/{job_id}/status"
     }
   },
-  "experiment":{
+  "experiment": {
     "getScriptsOfTypeWithFilter": {
       "method": "GET",
       "path": "experiment/{experimentId}/plugins/list?type={type}&filter={filter}"
@@ -168,7 +168,6 @@
       "method": "GET",
       "path": "experiment/{experimentId}/plugins/list?type={type}"
     }
-
   },
   "diffusion": {
     "generateId": {

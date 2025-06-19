@@ -53,6 +53,8 @@ import CurrentDownloadBox from 'renderer/components/currentDownloadBox';
 import DownloadProgressBox from 'renderer/components/Shared/DownloadProgressBox';
 import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from './JobProgress';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -155,6 +157,9 @@ export default function TrainLoRA({ experimentInfo }) {
 
   const embeddingModelArchitecture =
     experimentInfo?.config?.embedding_model_architecture;
+
+  const { data: machinesData } = useAPI('network', ['machines']);
+  const machines = machinesData?.data || [];
 
   if (!experimentInfo) {
     return 'No experiment selected';
@@ -365,8 +370,9 @@ export default function TrainLoRA({ experimentInfo }) {
                                   'unknown',
                                 config: row.config,
                               }}
-                              jobsMutate={jobsMutate}
                               experimentId={experimentInfo?.id}
+                              machines={machines}
+                              onTaskQueued={jobsMutate}
                             />
                             <Button
                               onClick={() => {
