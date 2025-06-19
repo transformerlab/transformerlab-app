@@ -107,7 +107,7 @@ export default function WorkflowList({ experimentInfo }) {
         alert('Failed to start workflow. Please try again.');
       }
     } catch (error) {
-      alert('Failed to start workflow. Please try again.');
+      alert('Failed to start workflow with error: ' + error);
     }
   }
   return (
