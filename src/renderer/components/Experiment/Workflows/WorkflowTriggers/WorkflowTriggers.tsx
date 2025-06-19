@@ -96,7 +96,7 @@ export default function WorkflowTriggers({ experimentInfo }) {
   const [selectedTrigger, setSelectedTrigger] = useState(null);
 
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Workflows.ListRuns(),
+    experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListRunsInExperiment(experimentInfo.id) : null,
     fetcher,
   );
 

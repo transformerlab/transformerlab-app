@@ -61,34 +61,38 @@ export default function RunModelButton({
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
 
   const supportedEngines = React.useMemo(() => {
-    if (!data) return [];
-    return data.filter(
+    if (!data) {
+      return [];
+    }
+    const filtered = data.filter(
       (row) =>
         Array.isArray(row.model_architectures) &&
         row.model_architectures.some(
           (arch) => arch.toLowerCase() === archTag.toLowerCase(),
         ),
     );
+    return filtered;
   }, [data, archTag]);
 
   const unsupportedEngines = React.useMemo(() => {
-    if (!data) return [];
-    return data.filter(
+    if (!data) {
+      return [];
+    }
+    const filtered = data.filter(
       (row) =>
         !Array.isArray(row.model_architectures) ||
         !row.model_architectures.some(
           (arch) => arch.toLowerCase() === archTag.toLowerCase(),
         ),
     );
+    return filtered;
   }, [data, archTag]);
+
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
   >(null);
 
   function isPossibleToRunAModel() {
-    console.log('Is Possible?');
-    console.log(experimentInfo);
-    console.log(inferenceSettings);
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
@@ -130,24 +134,36 @@ export default function RunModelButton({
 
   // Set a default inference Engine if there is none
   useEffect(() => {
-    // Update experiment inference parameters so the Run button shows correctly
     let objExperimentInfo = null;
     if (experimentInfo?.config?.inferenceParams) {
       objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
     }
-    if (objExperimentInfo == null) {
-      (async () => {
-        const { inferenceEngine, inferenceEngineFriendlyName } =
-          await getDefaultinferenceEngines();
+    if (
+      objExperimentInfo == null ||
+      objExperimentInfo?.inferenceEngine == null
+    ) {
+      // If there are supportedEngines, set the first one from supported engines as default
+      if (supportedEngines.length > 0) {
+        const firstEngine = supportedEngines[0];
         setInferenceSettings({
-          inferenceEngine: inferenceEngine || null,
-          inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
+          inferenceEngine: firstEngine.uniqueId || null,
+          inferenceEngineFriendlyName: firstEngine.name || '',
         });
-      })();
+      } else {
+        // This preserves the older logic where we try to get the default inference engine for a blank experiment
+        (async () => {
+          const { inferenceEngine, inferenceEngineFriendlyName } =
+            await getDefaultinferenceEngines();
+          setInferenceSettings({
+            inferenceEngine: inferenceEngine || null,
+            inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
+          });
+        })();
+      }
     } else {
       setInferenceSettings(objExperimentInfo);
     }
-  }, [experimentInfo]);
+  }, [experimentInfo, supportedEngines]);
 
   // Check if the current foundation model is a diffusion model
   useEffect(() => {
@@ -312,13 +328,14 @@ export default function RunModelButton({
         <div>
           <Alert startDecorator={<TriangleAlertIcon />} color="warning">
             <Typography level="body-sm">
-              None of the installed Engines currently support this model architecture.
-               You can try a different engine in{' '}
+              None of the installed Engines currently support this model
+              architecture. You can try a different engine in{' '}
               <Link to="/plugins">
                 <Plug2Icon size="15px" />
                 Plugins
               </Link>{' '}
-              , or you can try running it with an unsupported Engine by clicking <b>using Engine</b> below and check{' '}
+              , or you can try running it with an unsupported Engine by clicking{' '}
+              <b>using Engine</b> below and check{' '}
               <b>Show unsupported engines</b>.
             </Typography>
           </Alert>

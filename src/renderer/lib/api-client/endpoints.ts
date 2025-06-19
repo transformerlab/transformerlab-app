@@ -26,34 +26,40 @@ Endpoints.Workflows = {
   ListInExperiment: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/list`,
   CreateEmpty: (name: string, experimentId: string) =>
-    `${API_URL()}workflows/create_empty` +
-    `?name=${name}&experiment_id=${experimentId}`,
-  UpdateName: (workflowId: string, new_name: string) =>
-    `${API_URL()}workflows/${workflowId}/update_name?new_name=${new_name}`,
-  DeleteWorkflow: (workflowId: string) =>
-    `${API_URL()}workflows/delete/${workflowId}`,
-  AddNode: (workflowId: string, node: string) =>
-    `${API_URL()}workflows/${workflowId}/add_node?node=${node}`,
-  DeleteNode: (workflowId: string, nodeId: string) =>
-    `${API_URL()}workflows/${workflowId}/${nodeId}/delete_node`,
-  UpdateNode: (workflowId: string, nodeId: string, node: string) =>
-    `${API_URL()}workflows/${workflowId}/${nodeId}/update_node` +
+    `${API_URL()}experiment/${experimentId}/workflows/create_empty` +
+    `?name=${name}`,
+  UpdateName: (workflowId: string, new_name: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/update_name?new_name=${new_name}`,
+  DeleteWorkflow: (workflowId: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/delete/${workflowId}`,
+  AddNode: (workflowId: string, node: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/add_node?node=${node}`,
+  DeleteNode: (workflowId: string, nodeId: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${nodeId}/delete_node`,
+  UpdateNode: (workflowId: string, nodeId: string, node: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${nodeId}/update_node` +
     `?node=${node}`,
-  EditNodeMetadata: (workflowId: string, nodeId: string, metadata: string) =>
-    `${API_URL()}workflows/${workflowId}/${nodeId}/edit_node_metadata` +
+  EditNodeMetadata: (workflowId: string, nodeId: string, metadata: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${nodeId}/edit_node_metadata` +
     `?metadata=${metadata}`,
-  AddEdge: (workflowId: string, from: string, to: string) =>
-    `${API_URL()}workflows/${workflowId}/${from}/add_edge` +
+  AddEdge: (workflowId: string, from: string, to: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${from}/add_edge` +
     `?end_node_id=${to}`,
-  RemoveEdge: (workflowId: string, start_node_id: string, to: string) =>
-    `${API_URL()}workflows/${workflowId}/${start_node_id}/remove_edge` +
+  RemoveEdge: (workflowId: string, start_node_id: string, to: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${start_node_id}/remove_edge` +
     `?end_node_id=${to}`,
-  RunWorkflow: (workflowId: string) =>
-    `${API_URL()}workflows/${workflowId}/start`,
+  RunWorkflow: (workflowId: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/start`,
   ListRunsInExperiment: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/runs`,
-  GetRun: (workflowRunID: string) =>
-    `${API_URL()}workflows/runs/${workflowRunID}`,
+  GetRun: (workflowRunID: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/runs/${workflowRunID}`,
+  ExportToYAML: (workflowId: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/export_to_yaml`,
+  ImportFromYAML: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/import_from_yaml`,
+  StartNextStep: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/start_next_step`,
 };
 
 Endpoints.Dataset = {

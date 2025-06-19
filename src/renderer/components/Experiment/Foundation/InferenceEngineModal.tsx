@@ -117,12 +117,23 @@ export default function InferenceEngineModal({
 
             const experimentId = experimentInfo?.id;
 
-            const newInferenceSettings = {
-              ...inferenceSettings,
-              ...formObject,
-              inferenceEngine: engine,
-              inferenceEngineFriendlyName: engineFriendlyName,
-            };
+            // We do this if else condition here because we have leftover parameters which aren't accepted by another engine also getting sent when we switch engines.
+            // So we need to reset the inference settings to only include the parameters for the selected engine;
+            let newInferenceSettings;
+            if (inferenceSettings?.inferenceEngine === engine) {
+              newInferenceSettings = {
+                ...inferenceSettings,
+                ...formObject,
+                inferenceEngine: engine,
+                inferenceEngineFriendlyName: engineFriendlyName,
+              };
+            } else {
+              newInferenceSettings = {
+                ...formObject,
+                inferenceEngine: engine,
+                inferenceEngineFriendlyName: engineFriendlyName,
+              };
+            }
 
             setInferenceSettings(newInferenceSettings);
 
