@@ -12,7 +12,7 @@ import {
 } from '@mui/joy';
 import useSWR from 'swr';
 import TinyCircle from 'renderer/components/Shared/TinyCircle';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import WorkflowRunDisplay from './WorkflowRunDisplay';
 
@@ -96,6 +96,19 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun, experimentInfo }) {
 
 export default function WorkflowRuns({ experimentInfo }) {
   const [selectedWorkflowRun, setSelectedWorkflowRun] = useState(null);
+  const prevExperimentIdRef = useRef(null);
+
+  // Reset selectedWorkflowRun when experiment actually changes (not on initial load)
+  useEffect(() => {
+    const currentExperimentId = experimentInfo?.id;
+    const prevExperimentId = prevExperimentIdRef.current;
+
+    if (prevExperimentId !== null && prevExperimentId !== currentExperimentId) {
+      setSelectedWorkflowRun(null);
+    }
+
+    prevExperimentIdRef.current = currentExperimentId;
+  }, [experimentInfo?.id]);
 
   const { data, error, isLoading, mutate } = useSWR<WorkflowRun[]>(
     experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListRunsInExperiment(experimentInfo.id) : null,
