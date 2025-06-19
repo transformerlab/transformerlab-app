@@ -117,12 +117,21 @@ export default function InferenceEngineModal({
 
             const experimentId = experimentInfo?.id;
 
-            const newInferenceSettings = {
-              ...inferenceSettings,
-              ...formObject,
-              inferenceEngine: engine,
-              inferenceEngineFriendlyName: engineFriendlyName,
-            };
+            let newInferenceSettings;
+            if (inferenceSettings?.inferenceEngine === engine) {
+              newInferenceSettings = {
+                ...inferenceSettings,
+                ...formObject,
+                inferenceEngine: engine,
+                inferenceEngineFriendlyName: engineFriendlyName,
+              };
+            } else {
+              newInferenceSettings = {
+                ...formObject,
+                inferenceEngine: engine,
+                inferenceEngineFriendlyName: engineFriendlyName,
+              };
+            }
 
             setInferenceSettings(newInferenceSettings);
 
