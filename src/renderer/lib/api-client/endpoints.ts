@@ -23,7 +23,7 @@ Endpoints.Tasks = {
 };
 
 Endpoints.Workflows = {
-  ListInExperiment: (experimentId: string) => 
+  ListInExperiment: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/list`,
   CreateEmpty: (name: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/create_empty` +
@@ -54,6 +54,8 @@ Endpoints.Workflows = {
     `${API_URL()}experiment/${experimentId}/workflows/runs`,
   GetRun: (workflowRunID: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/runs/${workflowRunID}`,
+  CancelRun: (workflowRunID: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowRunID}/cancel`,
   ExportToYAML: (workflowId: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/export_to_yaml`,
   ImportFromYAML: (experimentId: string) =>
