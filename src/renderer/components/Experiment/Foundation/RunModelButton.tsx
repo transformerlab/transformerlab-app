@@ -94,8 +94,9 @@ export default function RunModelButton({
 
   function isPossibleToRunAModel() {
     return (
-      experimentInfo != null && experimentInfo?.config?.foundation !== ''
-      // inferenceSettings?.inferenceEngine != null
+      experimentInfo != null &&
+      experimentInfo?.config?.foundation !== '' &&
+      inferenceSettings?.inferenceEngine != null
     );
   }
 
