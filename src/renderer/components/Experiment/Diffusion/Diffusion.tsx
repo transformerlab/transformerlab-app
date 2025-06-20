@@ -1195,20 +1195,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                             label="Upscale image (2x)"
                           />
                         </Tooltip>
-                        <FormControl sx={{ minWidth: 160 }}>
-                          <LabelWithTooltip tooltip="Manage and select a ControlNet to guide image generation.">
-                            ControlNets
-                          </LabelWithTooltip>
-                          <Button
-                            size="sm"
-                            variant="outlined"
-                            onClick={() => setControlnetModalOpen(true)}
-                          >
-                            {controlNetType === 'off'
-                              ? 'Select ControlNet'
-                              : controlNetType}
-                          </Button>
-                        </FormControl>
                       </Stack>
                     </Stack>
                   )}
