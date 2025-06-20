@@ -34,7 +34,7 @@ import {
   useServerStats,
 } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
-import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
+import { useAnalytics } from '../../Shared/analytics/AnalyticsContext';
 import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
