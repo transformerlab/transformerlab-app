@@ -1251,12 +1251,16 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   </Typography>
                 </Alert>
               )}
-              {inputImageBase64 && isImg2ImgEligible === false && (
-                <Typography color="danger">
-                  This model is not eligible for img2img generation, please try
-                  generation without the image.
-                </Typography>
-              )}
+              {inputImageBase64 &&
+                isImg2ImgEligible === false &&
+                controlNetType === 'off' && (
+                  <Typography color="danger">
+                    This model does not support direct image-to-image
+                    generation. To use a reference image, please enable a
+                    ControlNet.
+                  </Typography>
+                )}
+
               {getCurrentImages().length > 0 && (
                 <Box
                   sx={{
