@@ -1,3 +1,4 @@
+import { ReactElement, useState } from 'react';
 import {
   Alert,
   Button,
@@ -12,17 +13,12 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
-import {
-  FileTextIcon,
-  PlayIcon,
-  PlusCircleIcon,
-  Trash2Icon,
-} from 'lucide-react';
+import { FileTextIcon, PlusCircleIcon, Trash2Icon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { useState } from 'react';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
-import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
 import GenerateModal from './GenerateModal';
+import GenerateRunButton from './GenerateRunButton';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -71,10 +67,6 @@ function formatTemplateConfig(script_parameters): ReactElement {
   );
 }
 
-async function generationRun(taskId: string) {
-  await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
-}
-
 export default function GenerateTasksTable({
   experimentInfo,
   experimentInfoMutate,
@@ -106,7 +98,9 @@ export default function GenerateTasksTable({
     fetcher,
   );
 
-  const analytics = useAnalytics();
+  // Fetch available machines for remote execution
+  const { data: machinesData } = useAPI('network', ['machines']);
+  const machines = machinesData?.data || [];
 
   function openModalForPLugin(pluginId) {
     setCurrentPlugin(pluginId);
@@ -203,20 +197,13 @@ export default function GenerateTasksTable({
                       variant="soft"
                       sx={{ justifyContent: 'flex-end' }}
                     >
-                      <Button
-                        startDecorator={<PlayIcon />}
-                        variant="soft"
-                        color="success"
-                        onClick={async () => {
-                          analytics.track('Task Queued', {
-                            task_type: 'GENERATE',
-                            plugin_name: generations.plugin,
-                          });
-                          await generationRun(generations.id);
-                        }}
-                      >
-                        Queue
-                      </Button>
+                      <GenerateRunButton
+                        generationId={generations.id}
+                        pluginName={generations.plugin}
+                        experimentId={experimentInfo?.id}
+                        machines={machines}
+                        onTaskQueued={mutate}
+                      />
                       <Button
                         variant="outlined"
                         onClick={() => {
