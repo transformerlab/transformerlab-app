@@ -1209,37 +1209,6 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                               : controlNetType}
                           </Button>
                         </FormControl>
-                        {controlNetType !== 'off' && (
-                          <FormControl sx={{ minWidth: 160 }}>
-                            <LabelWithTooltip tooltip="Select how to process the reference image for the ControlNet model.">
-                              ControlNet Process Type
-                            </LabelWithTooltip>
-                            <select
-                              value={processType}
-                              onChange={(e) => setProcessType(e.target.value)}
-                              style={{
-                                width: 150,
-                                height: 32,
-                                borderRadius: 4,
-                                border: '1px solid #ccc',
-                                padding: '4px 8px',
-                                fontSize: '14px',
-                              }}
-                            >
-                              <option value="">Select Type</option>
-                              <option value="Canny">Canny</option>
-                              <option value="OpenPose">OpenPose</option>
-                              <option value="Zoe">Zoe</option>
-                              <option value="Depth">Depth</option>
-                              <option value="HED">HED</option>
-                              <option value="Scribble">Scribble</option>
-                              <option value="SoftEdge">SoftEdge</option>
-                              <option value="Seg">Seg</option>
-                              <option value="Normal">Normal</option>
-                              <option value="LineArt">LineArt</option>
-                            </select>
-                          </FormControl>
-                        )}
                       </Stack>
                     </Stack>
                   )}
