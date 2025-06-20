@@ -12,7 +12,7 @@ import {
 } from '@mui/joy';
 import useSWR from 'swr';
 import TinyCircle from 'renderer/components/Shared/TinyCircle';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import WorkflowRunDisplay from './WorkflowRunDisplay';
 
@@ -24,27 +24,17 @@ function ListOfWorkflowRuns({
   selectedWorkflowRun,
   setSelectedWorkflowRun,
 }) {
-  useEffect(() => {
-    // if no workflow runs are selected, select the first one
-    if (workflowRuns && workflowRuns.length > 0 && !selectedWorkflowRun) {
-      setSelectedWorkflowRun(workflowRuns[0]);
-    }
-  }, [workflowRuns, selectedWorkflowRun, setSelectedWorkflowRun]);
-
   if (!workflowRuns || isLoading) {
     return <CircularProgress />;
   }
 
-  const runs = Array.isArray(workflowRuns) ? workflowRuns : [];
-
-  if (runs.length === 0) {
+  if (workflowRuns.length === 0) {
     return <div>No workflow runs found.</div>;
   }
 
   return (
     <List sx={{ overflowY: 'auto', height: '100%' }}>
-      {/* <pre>{JSON.stringify(workflowRuns, null, 2)}</pre> */}
-      {runs.map((run) => (
+      {workflowRuns.map((run) => (
         <ListItem key={run.id}>
           <ListItemButton
             selected={run.id === selectedWorkflowRun?.id}
@@ -79,14 +69,17 @@ function ListOfWorkflowRuns({
 }
 
 function ShowSelectedWorkflowRun({ selectedWorkflowRun, experimentInfo }) {
-  if (!selectedWorkflowRun) {
+  const { data, error, isLoading, mutate } = useSWR(
+    selectedWorkflowRun && experimentInfo?.id
+      ? chatAPI.Endpoints.Workflows.GetRun(selectedWorkflowRun.id, experimentInfo.id)
+      : null,
+    fetcher
+  );
+
+  if (!selectedWorkflowRun || isLoading || !data) {
     return <div>No workflow run selected.</div>;
   }
 
-  const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Workflows.GetRun(selectedWorkflowRun.id, experimentInfo.id),
-    fetcher,
-  );
   return (
     <Sheet variant="soft" sx={{ height: '100%', p: 2, overflowY: 'auto' }}>
       <WorkflowRunDisplay selectedWorkflowRun={data} />
@@ -96,19 +89,6 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun, experimentInfo }) {
 
 export default function WorkflowRuns({ experimentInfo }) {
   const [selectedWorkflowRun, setSelectedWorkflowRun] = useState(null);
-  const prevExperimentIdRef = useRef(null);
-
-  // Reset selectedWorkflowRun when experiment actually changes (not on initial load)
-  useEffect(() => {
-    const currentExperimentId = experimentInfo?.id;
-    const prevExperimentId = prevExperimentIdRef.current;
-
-    if (prevExperimentId !== null && prevExperimentId !== currentExperimentId) {
-      setSelectedWorkflowRun(null);
-    }
-
-    prevExperimentIdRef.current = currentExperimentId;
-  }, [experimentInfo?.id]);
 
   const { data, error, isLoading, mutate } = useSWR<WorkflowRun[]>(
     experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListRunsInExperiment(experimentInfo.id) : null,
@@ -117,6 +97,16 @@ export default function WorkflowRuns({ experimentInfo }) {
   );
 
   const workflowRuns = Array.isArray(data) ? data : [];
+
+  useEffect(() => {
+    if (!experimentInfo?.id) return;
+
+    if (workflowRuns.length === 0) {
+      setSelectedWorkflowRun(null);
+    } else {
+      setSelectedWorkflowRun(workflowRuns[0]);
+    }
+  }, [experimentInfo?.id, workflowRuns]);
 
   return (
     <Sheet
@@ -136,8 +126,11 @@ export default function WorkflowRuns({ experimentInfo }) {
           setSelectedWorkflowRun={setSelectedWorkflowRun}
         />
       </Box>
-      <Box flex="3" sx={{}}>
-        <ShowSelectedWorkflowRun selectedWorkflowRun={selectedWorkflowRun} experimentInfo={experimentInfo} />
+      <Box flex="3">
+        <ShowSelectedWorkflowRun
+          selectedWorkflowRun={selectedWorkflowRun}
+          experimentInfo={experimentInfo}
+        />
       </Box>
     </Sheet>
   );
