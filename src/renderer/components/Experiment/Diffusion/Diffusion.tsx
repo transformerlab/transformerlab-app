@@ -38,6 +38,7 @@ import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
 import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
+import ControlNetModal from './ControlNetModal';
 
 type DiffusionProps = {
   experimentInfo: any;
@@ -99,6 +100,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [imageHeight, setImageHeight] = useState('');
   const [numImages, setNumImages] = useState(1);
   const [scheduler, setScheduler] = useState('default');
+  const [processType, setProcessType] = useState(null);
 
   // Image-to-image settings for Generate tab
   const [inputImageBase64, setInputImageBase64] = useState('');
@@ -142,6 +144,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [isInpaintingEligible, setIsInpaintingEligible] = useState<
     boolean | null
   >(null);
+  const [controlNetType, setControlNetType] = useState('off');
+  const [controlnetModalOpen, setControlnetModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('generate');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
@@ -253,6 +257,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setMaskImageBase64('');
     setInpaintingMode(false);
     setIsInpaintingEligible(null);
+    setControlNetType('off');
+    setProcessType(null);
   };
 
   const handleSelectFromHistory = (imageBase64: string) => {
@@ -416,6 +422,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         upscale_factor: Number(upscaleFactor),
         num_images: Number(numImages),
         generation_id: genId, // Include the generation ID
+        is_controlnet: controlNetType,
         scheduler, // include scheduler
       };
 
@@ -452,7 +459,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       if (imageHeight && Number(imageHeight) !== 0) {
         requestBody.height = Number(imageHeight);
       }
-
+      if (controlNetType !== 'off' && processType) {
+        requestBody.process_type = processType;
+      }
       // Start polling for intermediate images BEFORE making the generation request
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
@@ -844,6 +853,56 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                           sx={{ width: 100 }}
                         />
                       </FormControl>
+                      {inputImageBase64 && (
+                        <Stack direction="row" spacing={2} alignItems="center">
+                          <FormControl sx={{ minWidth: 160 }}>
+                            <LabelWithTooltip tooltip="Manage and select a ControlNet to guide image generation.">
+                              ControlNet
+                            </LabelWithTooltip>
+                            <Button
+                              size="sm"
+                              variant="outlined"
+                              onClick={() => setControlnetModalOpen(true)}
+                            >
+                              {controlNetType === 'off'
+                                ? 'Select ControlNet'
+                                : controlNetType}
+                            </Button>
+                          </FormControl>
+
+                          {controlNetType !== 'off' && (
+                            <FormControl sx={{ minWidth: 160 }}>
+                              <LabelWithTooltip tooltip="Select how to process the reference image for the ControlNet model.">
+                                Process Type
+                              </LabelWithTooltip>
+                              <select
+                                value={processType}
+                                onChange={(e) => setProcessType(e.target.value)}
+                                style={{
+                                  width: 150,
+                                  height: 32,
+                                  borderRadius: 4,
+                                  border: '1px solid #ccc',
+                                  padding: '4px 8px',
+                                  fontSize: '14px',
+                                }}
+                              >
+                                <option value="">Select Type</option>
+                                <option value="Canny">Canny</option>
+                                <option value="OpenPose">OpenPose</option>
+                                <option value="Zoe">Zoe</option>
+                                <option value="Depth">Depth</option>
+                                <option value="HED">HED</option>
+                                <option value="Scribble">Scribble</option>
+                                <option value="SoftEdge">SoftEdge</option>
+                                <option value="Seg">Seg</option>
+                                <option value="Normal">Normal</option>
+                                <option value="LineArt">LineArt</option>
+                              </select>
+                            </FormControl>
+                          )}
+                        </Stack>
+                      )}
                     </Stack>
                   )}
                 </FormControl>
@@ -1192,12 +1251,16 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   </Typography>
                 </Alert>
               )}
-              {inputImageBase64 && isImg2ImgEligible === false && (
-                <Typography color="danger">
-                  This model is not eligible for img2img generation, please try
-                  generation without the image.
-                </Typography>
-              )}
+              {inputImageBase64 &&
+                isImg2ImgEligible === false &&
+                controlNetType === 'off' && (
+                  <Typography color="danger">
+                    This model does not support direct image-to-image
+                    generation. To use a reference image, please enable a
+                    ControlNet.
+                  </Typography>
+                )}
+
               {getCurrentImages().length > 0 && (
                 <Box
                   sx={{
@@ -1462,6 +1525,15 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         open={historyModalOpen}
         onClose={() => setHistoryModalOpen(false)}
         onSelectImage={handleSelectFromHistory}
+      />
+      <ControlNetModal
+        open={controlnetModalOpen}
+        onClose={() => setControlnetModalOpen(false)}
+        selectedControlnet={controlNetType}
+        onSelect={(selected: string) => {
+          setControlNetType(selected);
+          if (selected === 'off') setProcessType(null);
+        }}
       />
     </Sheet>
   );
