@@ -347,14 +347,13 @@ export default function CurrentFoundationInfo({
       );
       const result = await response.json();
 
-      if (result.chat_template) {
-        setChatTemplate(result.chat_template);
+      if (result.data) {
+        setChatTemplate(result.data);
       } else {
         const msg = result.message || 'No chat template found.';
         setChatTemplateError(msg);
       }
     } catch (error) {
-      console.error('Failed to fetch chat template:', error);
       setChatTemplateError('Fetch failed due to a server or network error.');
     } finally {
       setChatTemplateLoading(false);
