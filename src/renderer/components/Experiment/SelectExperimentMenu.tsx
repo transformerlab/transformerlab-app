@@ -53,10 +53,13 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
           variant="soft"
           onClick={() => {
             if (experimentInfo?.id) {
-              fetch(`${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`)
-                .then(() => {
-                  alert(`Your experiment was exported as a recipe to ~/.transformerlab/workspace/${experimentInfo.name}_export.json`);
-                });
+              fetch(
+                `${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`,
+              ).then(() => {
+                alert(
+                  `Your experiment was exported as a recipe to ~/.transformerlab/workspace/${experimentInfo.name}_export.json`,
+                );
+              });
             }
           }}
           disabled={!experimentInfo?.config?.foundation}
@@ -105,7 +108,7 @@ export default function SelectExperimentMenu({
     mutate();
   }, [experimentInfo]);
 
-  const createHandleClose = (id: string) => () => {
+  const createHandleClose = (id: number) => () => {
     setAnchorEl(null);
     setExperimentId(id);
   };

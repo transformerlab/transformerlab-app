@@ -25,7 +25,7 @@ import AutoUpdateModal from './components/AutoUpdateModal';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function App() {
-  const [experimentId, setExperimentId] = useState('');
+  const [experimentId, setExperimentId] = useState<number | null>(null);
 
   const [connection, setConnection] = useState('');
 
@@ -44,7 +44,7 @@ export default function App() {
         ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
         : 1;
       if (experimentId) {
-        setExperimentId(experimentId);
+        setExperimentId(Number(experimentId));
       } else if (connection !== '') {
         // If there's no stored experiment and we are connected
         // then default to to the first experiment
@@ -59,7 +59,7 @@ export default function App() {
     window.TransformerLab.API_URL = connection;
 
     if (connection == '') {
-      setExperimentId('');
+      setExperimentId(null);
       return;
     }
 
@@ -68,7 +68,7 @@ export default function App() {
 
   useEffect(() => {
     // if there is no experiment or window.storage isn't setup then skip
-    if (experimentId == '' || !window.storage) return;
+    if (experimentId === null || !window.storage) return;
     const connectionWithoutDots = connection.replace(/\./g, '-');
     window.storage.set(`experimentId.${connectionWithoutDots}`, experimentId);
   }, [experimentId]);

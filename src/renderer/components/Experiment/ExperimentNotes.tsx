@@ -86,7 +86,7 @@ export default function ExperimentNotes({ experimentInfo }) {
     return '';
   }
 
-  if (!experimentInfo || experimentInfo.id == '') {
+  if (!experimentInfo || !experimentInfo.id) {
     return '';
   }
 
