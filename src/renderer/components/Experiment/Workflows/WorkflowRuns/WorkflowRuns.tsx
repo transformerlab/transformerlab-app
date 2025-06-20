@@ -126,7 +126,7 @@ export default function WorkflowRuns({ experimentInfo }) {
           setSelectedWorkflowRun={setSelectedWorkflowRun}
         />
       </Box>
-      <Box flex="3">
+      <Box flex="3" sx={{}}>
         <ShowSelectedWorkflowRun selectedWorkflowRun={selectedWorkflowRun} experimentInfo={experimentInfo} />
       </Box>
     </Sheet>
