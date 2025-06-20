@@ -342,8 +342,7 @@ export default function CurrentFoundationInfo({
       setChatTemplateError('');
 
       const response = await fetch(
-        getFullPath('models', ['chatTemplate'], { modelName }),
-        { method: 'POST' },
+        getFullPath('models', ['chatTemplate'], { modelName: modelName })
       );
       const result = await response.json();
 
