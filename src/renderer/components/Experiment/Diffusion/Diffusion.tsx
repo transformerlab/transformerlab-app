@@ -100,7 +100,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [imageHeight, setImageHeight] = useState('');
   const [numImages, setNumImages] = useState(1);
   const [scheduler, setScheduler] = useState('default');
-  const [processType, setProcessType] = useState('');
+  const [processType, setProcessType] = useState(null);
 
   // Image-to-image settings for Generate tab
   const [inputImageBase64, setInputImageBase64] = useState('');
@@ -257,6 +257,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setMaskImageBase64('');
     setInpaintingMode(false);
     setIsInpaintingEligible(null);
+    setControlNetType('off');
+    setProcessType(null);
   };
 
   const handleSelectFromHistory = (imageBase64: string) => {
@@ -1526,7 +1528,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         selectedControlnet={controlNetType}
         onSelect={(selected: string) => {
           setControlNetType(selected);
-          if (selected === 'off') setProcessType('');
+          if (selected === 'off') setProcessType(null);
         }}
       />
     </Sheet>
