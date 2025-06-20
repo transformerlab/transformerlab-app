@@ -15,6 +15,10 @@ import {
   Tab,
   TabPanel,
   Input,
+  Textarea,
+  FormControl,
+  FormLabel,
+  FormHelperText,
 } from '@mui/joy';
 import {
   Trash2Icon,
@@ -327,11 +331,45 @@ export default function CurrentFoundationInfo({
     });
   };
 
+  const [chatTemplate, setChatTemplate] = useState('');
+  const [chatTemplateError, setChatTemplateError] = useState('');
+  const [chatTemplateLoading, setChatTemplateLoading] = useState(false);
+
+  async function fetchChatTemplate(modelName: string) {
+    try {
+      setChatTemplateLoading(true);
+      setChatTemplate('');
+      setChatTemplateError('');
+
+      const response = await fetch(
+        getFullPath('models', ['chatTemplate'], { modelName }),
+        { method: 'POST' },
+      );
+      const result = await response.json();
+
+      if (result.chat_template) {
+        setChatTemplate(result.chat_template);
+      } else {
+        const msg = result.message || 'No chat template found.';
+        setChatTemplateError(msg);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chat template:', error);
+      setChatTemplateError('Fetch failed due to a server or network error.');
+    } finally {
+      setChatTemplateLoading(false);
+    }
+  }
+  useEffect(() => {
+    if (!huggingfaceId) return;
+    fetchChatTemplate(huggingfaceId);
+  }, [huggingfaceId]);
+
   return (
     <Sheet
       sx={{
         height: '100%',
-        display: 'flex',
+        //display: 'flex',
         flexDirection: 'column',
         paddingBottom: '20px',
       }}
@@ -360,6 +398,7 @@ export default function CurrentFoundationInfo({
           <Tab>Embedding Models</Tab>
           <Tab>Adaptors</Tab>
           <Tab>Provenance</Tab>
+          <Tab>Chat Template Tokenizer</Tab>
         </TabList>
 
         {/* Overview Tab */}
@@ -704,6 +743,54 @@ export default function CurrentFoundationInfo({
               )}
             </Box>
           </Box>
+        </TabPanel>
+
+        {/* Chat Template Tab */}
+        <TabPanel
+          value={4}
+          sx={{
+            p: 2,
+            height: '100%',
+            overflowY: 'auto',
+          }}
+        >
+          <FormControl sx={{ mb: 2 }}>
+            <FormLabel>Chat Template (Jinja2-style)</FormLabel>
+            <Textarea
+              minRows={10}
+              value={chatTemplate}
+              readOnly
+              onChange={(e) => {
+                setChatTemplate(e.target.value);
+              }}
+              sx={{
+                fontFamily: 'monospace',
+                whiteSpace: 'pre',
+                overflow: 'auto',
+                maxHeight: 400,
+                width: '100%',
+                '@media (max-width: 600px)': {
+                  maxHeight: 200,
+                },
+              }}
+            />
+            <FormHelperText>
+              This template defines how chat messages are formatted as model
+              input during training or inference. It uses Jinja2 syntax.
+            </FormHelperText>
+          </FormControl>
+
+          {chatTemplateError && (
+            <Typography level="body-sm" color="danger" mt={1}>
+              Error loading template: {chatTemplateError}
+            </Typography>
+          )}
+
+          {chatTemplateLoading && (
+            <Typography level="body-sm" color="neutral" mt={1}>
+              Loading chat template...
+            </Typography>
+          )}
         </TabPanel>
       </Tabs>
     </Sheet>
