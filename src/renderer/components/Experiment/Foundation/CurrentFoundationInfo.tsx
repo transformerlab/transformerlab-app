@@ -35,6 +35,7 @@ import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const DEFAULT_EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5';
 
@@ -331,37 +332,13 @@ export default function CurrentFoundationInfo({
     });
   };
 
-  const [chatTemplate, setChatTemplate] = useState('');
-  const [chatTemplateError, setChatTemplateError] = useState('');
-  const [chatTemplateLoading, setChatTemplateLoading] = useState(false);
-
-  async function fetchChatTemplate(modelName: string) {
-    try {
-      setChatTemplateLoading(true);
-      setChatTemplate('');
-      setChatTemplateError('');
-
-      const response = await fetch(
-        getFullPath('models', ['chatTemplate'], { modelName: modelName })
-      );
-      const result = await response.json();
-
-      if (result.data) {
-        setChatTemplate(result.data);
-      } else {
-        const msg = result.message || 'No chat template found.';
-        setChatTemplateError(msg);
-      }
-    } catch (error) {
-      setChatTemplateError('Fetch failed due to a server or network error.');
-    } finally {
-      setChatTemplateLoading(false);
-    }
-  }
-  useEffect(() => {
-    if (!huggingfaceId) return;
-    fetchChatTemplate(huggingfaceId);
-  }, [huggingfaceId]);
+  const { data, error, isLoading } = useAPI(
+    'models',
+    ['chatTemplate'],
+    { modelName: huggingfaceId },
+    { enabled: !!huggingfaceId },
+  );
+  console.log('data', data);
 
   return (
     <Sheet
@@ -748,28 +725,21 @@ export default function CurrentFoundationInfo({
           value={4}
           sx={{
             p: 2,
-            height: '100%',
             overflowY: 'auto',
+            maxHeight: '500px',
           }}
         >
           <FormControl sx={{ mb: 2 }}>
             <FormLabel>Chat Template (Jinja2-style)</FormLabel>
             <Textarea
               minRows={10}
-              value={chatTemplate}
+              value={data?.data ?? ''}
               readOnly
-              onChange={(e) => {
-                setChatTemplate(e.target.value);
-              }}
               sx={{
                 fontFamily: 'monospace',
                 whiteSpace: 'pre',
-                overflow: 'auto',
-                maxHeight: 400,
                 width: '100%',
-                '@media (max-width: 600px)': {
-                  maxHeight: 200,
-                },
+                '@media (max-width: 600px)': {},
               }}
             />
             <FormHelperText>
@@ -778,13 +748,13 @@ export default function CurrentFoundationInfo({
             </FormHelperText>
           </FormControl>
 
-          {chatTemplateError && (
+          {error && (
             <Typography level="body-sm" color="danger" mt={1}>
-              Error loading template: {chatTemplateError}
+              Error loading template: {data?.message}
             </Typography>
           )}
 
-          {chatTemplateLoading && (
+          {isLoading && (
             <Typography level="body-sm" color="neutral" mt={1}>
               Loading chat template...
             </Typography>
