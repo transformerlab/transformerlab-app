@@ -100,6 +100,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const [imageHeight, setImageHeight] = useState('');
   const [numImages, setNumImages] = useState(1);
   const [scheduler, setScheduler] = useState('default');
+  const [processType, setProcessType] = useState('');
 
   // Image-to-image settings for Generate tab
   const [inputImageBase64, setInputImageBase64] = useState('');
@@ -456,7 +457,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       if (imageHeight && Number(imageHeight) !== 0) {
         requestBody.height = Number(imageHeight);
       }
-
+      if (controlNetType !== 'off' && processType) {
+        requestBody.process_type = processType;
+      }
       // Start polling for intermediate images BEFORE making the generation request
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
@@ -848,6 +851,56 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                           sx={{ width: 100 }}
                         />
                       </FormControl>
+                      {inputImageBase64 && (
+                        <Stack direction="row" spacing={2} alignItems="center">
+                          <FormControl sx={{ minWidth: 160 }}>
+                            <LabelWithTooltip tooltip="Manage and select a ControlNet to guide image generation.">
+                              ControlNet
+                            </LabelWithTooltip>
+                            <Button
+                              size="sm"
+                              variant="outlined"
+                              onClick={() => setControlnetModalOpen(true)}
+                            >
+                              {controlNetType === 'off'
+                                ? 'Select ControlNet'
+                                : controlNetType}
+                            </Button>
+                          </FormControl>
+
+                          {controlNetType !== 'off' && (
+                            <FormControl sx={{ minWidth: 160 }}>
+                              <LabelWithTooltip tooltip="Select how to process the reference image for the ControlNet model.">
+                                Process Type
+                              </LabelWithTooltip>
+                              <select
+                                value={processType}
+                                onChange={(e) => setProcessType(e.target.value)}
+                                style={{
+                                  width: 150,
+                                  height: 32,
+                                  borderRadius: 4,
+                                  border: '1px solid #ccc',
+                                  padding: '4px 8px',
+                                  fontSize: '14px',
+                                }}
+                              >
+                                <option value="">Select Type</option>
+                                <option value="Canny">Canny</option>
+                                <option value="OpenPose">OpenPose</option>
+                                <option value="Zoe">Zoe</option>
+                                <option value="Depth">Depth</option>
+                                <option value="HED">HED</option>
+                                <option value="Scribble">Scribble</option>
+                                <option value="SoftEdge">SoftEdge</option>
+                                <option value="Seg">Seg</option>
+                                <option value="Normal">Normal</option>
+                                <option value="LineArt">LineArt</option>
+                              </select>
+                            </FormControl>
+                          )}
+                        </Stack>
+                      )}
                     </Stack>
                   )}
                 </FormControl>
@@ -1156,6 +1209,37 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                               : controlNetType}
                           </Button>
                         </FormControl>
+                        {controlNetType !== 'off' && (
+                          <FormControl sx={{ minWidth: 160 }}>
+                            <LabelWithTooltip tooltip="Select how to process the reference image for the ControlNet model.">
+                              ControlNet Process Type
+                            </LabelWithTooltip>
+                            <select
+                              value={processType}
+                              onChange={(e) => setProcessType(e.target.value)}
+                              style={{
+                                width: 150,
+                                height: 32,
+                                borderRadius: 4,
+                                border: '1px solid #ccc',
+                                padding: '4px 8px',
+                                fontSize: '14px',
+                              }}
+                            >
+                              <option value="">Select Type</option>
+                              <option value="Canny">Canny</option>
+                              <option value="OpenPose">OpenPose</option>
+                              <option value="Zoe">Zoe</option>
+                              <option value="Depth">Depth</option>
+                              <option value="HED">HED</option>
+                              <option value="Scribble">Scribble</option>
+                              <option value="SoftEdge">SoftEdge</option>
+                              <option value="Seg">Seg</option>
+                              <option value="Normal">Normal</option>
+                              <option value="LineArt">LineArt</option>
+                            </select>
+                          </FormControl>
+                        )}
                       </Stack>
                     </Stack>
                   )}
@@ -1487,6 +1571,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         selectedControlnet={controlNetType}
         onSelect={(selected: string) => {
           setControlNetType(selected);
+          if (selected === 'off') setProcessType('');
         }}
       />
     </Sheet>
