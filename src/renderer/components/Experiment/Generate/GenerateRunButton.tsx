@@ -12,7 +12,7 @@ import {
   Box,
 } from '@mui/joy';
 import { PlayIcon, ChevronDownIcon, ServerIcon } from 'lucide-react';
-import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 interface Machine {

@@ -12,12 +12,8 @@ import {
   Box,
   MenuButton,
 } from '@mui/joy';
-import {
-  PlayIcon,
-  ChevronDownIcon,
-  ServerIcon,
-} from 'lucide-react';
-import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
+import { PlayIcon, ChevronDownIcon, ServerIcon } from 'lucide-react';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 interface Machine {

@@ -12,7 +12,7 @@ import {
   Box,
 } from '@mui/joy';
 import { PlayIcon, ChevronDownIcon, ServerIcon } from 'lucide-react';
-import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 interface Machine {
@@ -41,8 +41,7 @@ export default function EvalRunButton({
     analytics.track('Task Queued Remote', {
       task_type: 'EVAL',
       plugin_name: pluginName,
-      machine_id: machineId,
-      experiment_id: experimentId,
+      machine_id: 'local',
     });
     await fetch(chatAPI.Endpoints.Tasks.QueueRemote(evaluationId, machineId));
     onTaskQueued?.();
@@ -59,7 +58,6 @@ export default function EvalRunButton({
           analytics.track('Task Queued', {
             task_type: 'EVAL',
             plugin_name: pluginName,
-            experiment_id: experimentId,
           });
           await fetch(chatAPI.Endpoints.Tasks.Queue(evaluationId));
           onTaskQueued?.();
