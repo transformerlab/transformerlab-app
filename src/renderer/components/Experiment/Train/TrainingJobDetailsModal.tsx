@@ -23,7 +23,7 @@ export default function TrainingJobDetailsModal({ jobId, setJobId }) {
     modelId == null
       ? null
       : chatAPI.Endpoints.Models.ModelDetailsFromGallery(modelId),
-    fetcher
+    fetcher,
   );
 
   return (

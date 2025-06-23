@@ -296,7 +296,7 @@ export default function ChatSubmit({
               >
                 <IconButton variant="plain" color="neutral">
                   {multimodalModelArchitectures.includes(
-                    currentModelArchitecture
+                    currentModelArchitecture,
                   ) ? (
                     <AttachImageButton />
                   ) : (

@@ -82,7 +82,7 @@ export default function NewNodeModal({
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
                   JSON.stringify(node),
-                  experimentInfo.id
+                  experimentInfo.id,
                 ),
               );
             } else if (mode == 'DOWNLOAD_MODEL') {
@@ -98,7 +98,7 @@ export default function NewNodeModal({
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
                   JSON.stringify(node),
-                  experimentInfo.id
+                  experimentInfo.id,
                 ),
               );
             } else {
@@ -114,7 +114,7 @@ export default function NewNodeModal({
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
                   JSON.stringify(node),
-                  experimentInfo.id
+                  experimentInfo.id,
                 ),
               );
             }

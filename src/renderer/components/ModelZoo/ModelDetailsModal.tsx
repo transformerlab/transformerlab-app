@@ -27,7 +27,7 @@ export default function ModelDetailsModal({ modelId, setModelId }) {
     modelId == null
       ? null
       : chatAPI.Endpoints.Models.ModelDetailsFromGallery(modelId),
-    fetcher
+    fetcher,
   );
 
   return (

@@ -35,7 +35,8 @@ export default function LocalPlugins({
 
   const device = serverInfo?.device_type;
 
-  if (error) return 'Failed to fetch plugins for the selected experiment. Please verify the experiment ID and server availability.';
+  if (error)
+    return 'Failed to fetch plugins for the selected experiment. Please verify the experiment ID and server availability.';
   if (isLoading) return <LinearProgress />;
   if (!experimentInfo?.id) return 'No experiment selected.';
   return (

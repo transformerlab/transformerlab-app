@@ -26,11 +26,14 @@ interface JobDetails {
   };
 }
 
-export default function ViewOutputModalStreaming({ jobId, setJobId }: ViewOutputModalStreamingProps) {
+export default function ViewOutputModalStreaming({
+  jobId,
+  setJobId,
+}: ViewOutputModalStreamingProps) {
   const { data: jobDetails } = useSWR<JobDetails>(
     jobId && jobId !== -1 ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
     fetcher,
-    { refreshInterval: 2000 }
+    { refreshInterval: 2000 },
   );
 
   // Log job details for debugging
@@ -41,8 +44,9 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }: ViewOutput
   }, [jobDetails]);
 
   // Create a custom endpoint for export job output
-  const experimentId = jobDetails?.experiment_id || jobDetails?.job_data?.experiment_id;
-  const outputEndpoint = experimentId 
+  const experimentId =
+    jobDetails?.experiment_id || jobDetails?.job_data?.experiment_id;
+  const outputEndpoint = experimentId
     ? `${API_URL()}experiment/${experimentId}/export/job/${jobId}/stream_output`
     : chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
 
@@ -66,12 +70,9 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }: ViewOutput
             width: '100%',
           }}
         >
-          <OutputTerminal
-            logEndpoint={outputEndpoint}
-            lineAnimationDelay={5}
-          />
+          <OutputTerminal logEndpoint={outputEndpoint} lineAnimationDelay={5} />
         </Box>
       </ModalDialog>
     </Modal>
   );
-} 
+}

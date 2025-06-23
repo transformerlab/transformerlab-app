@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { Modal, ModalClose, Sheet, Typography } from '@mui/joy';
 import HexLogoSpinner from './Shared/HexLogoSpinner';
 
-export default function AutoUpdateModal({ }) {
+export default function AutoUpdateModal({}) {
   const [open, setOpen] = React.useState<boolean>(true);
   const [message, setMessage] = React.useState<string>('Looking for updates');
 

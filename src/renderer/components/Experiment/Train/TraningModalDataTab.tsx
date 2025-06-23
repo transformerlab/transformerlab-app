@@ -41,9 +41,9 @@ export default function TrainingModalDataTab({
       chatAPI.Endpoints.Experiment.ScriptGetFile(
         experimentInfo?.id,
         pluginId,
-        'index.json'
+        'index.json',
       ),
-    fetcher
+    fetcher,
   );
 
   let parsedData;

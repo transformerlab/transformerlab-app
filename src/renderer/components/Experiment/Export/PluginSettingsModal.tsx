@@ -14,10 +14,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import {
-    ArrowRightFromLineIcon,
-} from 'lucide-react';
-
+import { ArrowRightFromLineIcon } from 'lucide-react';
 
 import DynamicPluginForm from '../DynamicPluginForm';
 
@@ -32,8 +29,12 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
  * onClose is a function that gets executed anytime this modal gets closed (cancel or submit)
  * onSubmit is a function that gets executed only when this form is submitted
  */
-export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo, plugin}) {
-
+export default function PluginSettingsModal({
+  onClose,
+  onSubmit,
+  experimentInfo,
+  plugin,
+}) {
   const currentModelName = experimentInfo?.config?.foundation;
 
   if (!experimentInfo?.id) {
@@ -42,8 +43,10 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
 
   // create a default output model name that can be overridden in the UI
   function defaultOutputModelName(input_model_name, plugin) {
-    const short_model_name = input_model_name.substring(input_model_name.lastIndexOf('/')+1);
-    return short_model_name + " - " + plugin.uniqueId;
+    const short_model_name = input_model_name.substring(
+      input_model_name.lastIndexOf('/') + 1,
+    );
+    return short_model_name + ' - ' + plugin.uniqueId;
   }
 
   return (
@@ -73,11 +76,14 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             const form_data = new FormData(event.currentTarget);
             const form_json = Object.fromEntries((form_data as any).entries());
 
-            onSubmit(plugin.uniqueId, plugin.export_architecture, JSON.stringify(form_json));
+            onSubmit(
+              plugin.uniqueId,
+              plugin.export_architecture,
+              JSON.stringify(form_json),
+            );
             onClose();
           }}
         >
-         
           <Stack spacing={2}>
             {/**
             <FormControl>
@@ -96,28 +102,28 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
             </FormControl>
             */}
             <Stack direction="row" justifyContent="space-evenly" gap={2}>
-                <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Input Model:</FormLabel>
-                    <Typography variant="soft">{currentModelName}</Typography>
-                </FormControl>
-                <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Input Architecture:</FormLabel>
-                    <Typography variant="soft">
-                      {experimentInfo?.config?.foundation_model_architecture}
-                    </Typography>
-                </FormControl>
+              <FormControl sx={{ flex: 1 }}>
+                <FormLabel>Input Model:</FormLabel>
+                <Typography variant="soft">{currentModelName}</Typography>
+              </FormControl>
+              <FormControl sx={{ flex: 1 }}>
+                <FormLabel>Input Architecture:</FormLabel>
+                <Typography variant="soft">
+                  {experimentInfo?.config?.foundation_model_architecture}
+                </Typography>
+              </FormControl>
             </Stack>
             <Stack direction="row" justifyContent="space-evenly" gap={2}>
-                <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Exporter plugin ID:</FormLabel>
-                    <Typography variant="soft">{plugin?.uniqueId}</Typography>
-                </FormControl>
-                <FormControl sx={{ flex: 1 }}>
-                    <FormLabel>Export Architecture:</FormLabel>
-                    <Typography variant="soft">
-                      {plugin?.export_architecture}
-                    </Typography>
-                </FormControl>
+              <FormControl sx={{ flex: 1 }}>
+                <FormLabel>Exporter plugin ID:</FormLabel>
+                <Typography variant="soft">{plugin?.uniqueId}</Typography>
+              </FormControl>
+              <FormControl sx={{ flex: 1 }}>
+                <FormLabel>Export Architecture:</FormLabel>
+                <Typography variant="soft">
+                  {plugin?.export_architecture}
+                </Typography>
+              </FormControl>
             </Stack>
 
             <Typography level="h3">Plugin Parameters</Typography>
@@ -132,9 +138,10 @@ export default function PluginSettingsModal({ onClose, onSubmit, experimentInfo,
               Cancel
             </Button>
             <Button
-                variant="soft"
-                type="submit"
-                startDecorator={<ArrowRightFromLineIcon />}>
+              variant="soft"
+              type="submit"
+              startDecorator={<ArrowRightFromLineIcon />}
+            >
               Export
             </Button>
           </Stack>

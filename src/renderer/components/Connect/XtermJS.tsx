@@ -48,7 +48,7 @@ export default function XtermJSDrawer({
               (item) =>
                 item.host === sshConnection.host &&
                 item.username === sshConnection.username &&
-                item.sshkeylocation === sshConnection.sshkeylocation
+                item.sshkeylocation === sshConnection.sshkeylocation,
             );
             if (index > -1) {
               recentSSHConnections.splice(index, 1);
@@ -110,14 +110,14 @@ export default function XtermJSDrawer({
         `Resize Terminal: ${JSON.stringify({
           cols: term.cols,
           rows: term.rows,
-        })}`
+        })}`,
       );
     }
 
     terminalContainerRef.current.addEventListener(
       'resize',
       resizeScreen,
-      false
+      false,
     );
 
     term.onData((data) => {

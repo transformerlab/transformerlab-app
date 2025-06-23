@@ -7,7 +7,7 @@ import {
   Typography,
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
-import { useState} from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -43,24 +43,26 @@ interface Job {
 }
 
 const ExportJobsTable = ({ experimentInfo }: ExportJobsTableProps) => {
-  const [viewOutputFromJob, setViewOutputFromJob] = useState<string | number>(-1);
+  const [viewOutputFromJob, setViewOutputFromJob] = useState<string | number>(
+    -1,
+  );
 
   const {
     data: jobs,
     error,
     isLoading,
-    mutate: jobsMutate
+    mutate: jobsMutate,
   } = useSWR<Job[]>(
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.GetExportJobs(experimentInfo?.id),
     fetcher,
     {
       refreshInterval: 2000,
-    }
+    },
   );
 
   // Update status so progress bar displays
-  jobs?.forEach(job => {
+  jobs?.forEach((job) => {
     if (job.status === 'Started') {
       job.status = 'RUNNING';
     }
@@ -72,7 +74,9 @@ const ExportJobsTable = ({ experimentInfo }: ExportJobsTableProps) => {
         jobId={viewOutputFromJob}
         setJobId={setViewOutputFromJob}
       />
-      <Typography level="h3" sx={{ mt: 2, mb: 1 }}>Executions</Typography>
+      <Typography level="h3" sx={{ mt: 2, mb: 1 }}>
+        Executions
+      </Typography>
       <Sheet sx={{ overflowY: 'scroll' }}>
         <Table stickyHeader>
           <thead>
@@ -88,15 +92,11 @@ const ExportJobsTable = ({ experimentInfo }: ExportJobsTableProps) => {
             {jobs?.map((job: Job) => (
               <tr key={job.id}>
                 <td>{job.id}</td>
-                <td>
-                  {job?.job_data?.plugin}
-                </td>
+                <td>{job?.job_data?.plugin}</td>
                 <td>
                   <JobProgress job={job} />
                 </td>
-                <td>
-                  {job?.job_data?.output_model_name}
-                </td>
+                <td>{job?.job_data?.output_model_name}</td>
                 <td>
                   <ButtonGroup
                     variant="soft"
@@ -128,4 +128,4 @@ const ExportJobsTable = ({ experimentInfo }: ExportJobsTableProps) => {
   );
 };
 
-export default ExportJobsTable; 
+export default ExportJobsTable;

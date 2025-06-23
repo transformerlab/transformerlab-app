@@ -1,12 +1,6 @@
 import { useState } from 'react';
 
-import {
-  Button,
-  FormControl,
-  Input,
-  Box,
-  CircularProgress,
-} from '@mui/joy';
+import { Button, FormControl, Input, Box, CircularProgress } from '@mui/joy';
 
 import { PlusIcon } from 'lucide-react';
 
@@ -36,7 +30,6 @@ export default function ImportModelsBar({ jobId, setJobId }) {
           alignSelf: 'flex-end',
         }}
       >
-
         <div
           style={{
             width: '100%',
@@ -53,32 +46,36 @@ export default function ImportModelsBar({ jobId, setJobId }) {
               endDecorator={
                 <Button
                   onClick={async (e) => {
-                    const model = document.getElementsByName('download-model-name')[0].value;
+                    const model = document.getElementsByName(
+                      'download-model-name',
+                    )[0].value;
 
                     // only download if valid model is entered
                     if (model) {
                       setJobId(-1);
                       try {
-
                         const jobResponse = await fetch(
-                          chatAPI.Endpoints.Jobs.Create()
+                          chatAPI.Endpoints.Jobs.Create(),
                         );
                         const newJobId = await jobResponse.json();
                         setJobId(newJobId);
 
                         // Try downloading the model
-                        const response = await chatAPI.downloadModelFromHuggingFace(
-                          model,
-                          newJobId
-                        );
+                        const response =
+                          await chatAPI.downloadModelFromHuggingFace(
+                            model,
+                            newJobId,
+                          );
                         console.log(response);
-                        if (response?.status == 'error' || response?.status == 'unauthorized') {
+                        if (
+                          response?.status == 'error' ||
+                          response?.status == 'unauthorized'
+                        ) {
                           alert('Download failed!\n' + response.message);
                         }
 
                         // download complete
                         setJobId(null);
-
                       } catch (e) {
                         setJobId(null);
                         console.log(e);
@@ -87,17 +84,10 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                     }
                   }}
                   startDecorator={
-                    jobId ? (
-                      <CircularProgress size="sm" thickness={2} />
-                    ) : (
-                      ""
-                    )}
+                    jobId ? <CircularProgress size="sm" thickness={2} /> : ''
+                  }
                 >
-                  {jobId ? (
-                    "Downloading"
-                  ) : (
-                    "Download 🤗 Model"
-                  )}
+                  {jobId ? 'Downloading' : 'Download 🤗 Model'}
                 </Button>
               }
               sx={{ width: '500px' }}

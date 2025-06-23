@@ -72,7 +72,7 @@ export default function NewBatchModal({
     setUploading(true); //This is for the loading spinner
     //Create the dataset before uploading
     const response = await fetch(
-      chatAPI.Endpoints.Dataset.Create('testali123')
+      chatAPI.Endpoints.Dataset.Create('testali123'),
     );
     const data = await response.json();
     if (data.status == 'error') {
@@ -161,7 +161,7 @@ export default function NewBatchModal({
 
                 const formData = new FormData(event.currentTarget);
                 const formJson = Object.fromEntries(
-                  (formData as any).entries()
+                  (formData as any).entries(),
                 );
 
                 console.log(formJson);
@@ -204,8 +204,8 @@ export default function NewBatchModal({
                         onChange={(event) => {
                           setPrompts(
                             prompts.map((p, i) =>
-                              i === index ? event.target.value : p
-                            )
+                              i === index ? event.target.value : p,
+                            ),
                           );
                         }}
                       />

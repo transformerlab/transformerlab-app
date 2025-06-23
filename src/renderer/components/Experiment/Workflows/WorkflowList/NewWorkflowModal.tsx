@@ -44,14 +44,14 @@ export default function NewWorkflowModal({
                 chatAPI.Endpoints.Workflows.UpdateName(
                   selectedWorkflow.id,
                   workflowName,
-                  experimentId
+                  experimentId,
                 ),
               );
             } else {
               await fetch(
                 chatAPI.Endpoints.Workflows.CreateEmpty(
                   workflowName,
-                  experimentId
+                  experimentId,
                 ),
               );
             }

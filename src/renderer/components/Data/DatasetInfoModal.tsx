@@ -24,7 +24,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function DatasetInfoModal({ dataset_id, open, setOpen }) {
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Info(dataset_id),
-    fetcher
+    fetcher,
   );
 
   return (
