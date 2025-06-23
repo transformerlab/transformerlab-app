@@ -33,6 +33,40 @@ function listGenerations(generationString) {
   return result;
 }
 
+function formatTemplateConfig(experimentInfo, scriptParameters): ReactElement {
+  const mainTask = scriptParameters?.generation_type;
+  let docsFileNameActual = '';
+
+  const docsFileName =
+    mainTask && mainTask.toLowerCase().includes('docs')
+      ? scriptParameters.docs || 'N/A'
+      : 'N/A';
+  const isDocs = docsFileName !== 'N/A';
+  if (isDocs) {
+    docsFileNameActual = scriptParameters.docs.split('/').pop();
+  }
+
+  const rawModel = scriptParameters?.model_name;
+  const useFallback = !rawModel || rawModel === 'N/A' || rawModel === 'local';
+
+  const generationModel = useFallback
+    ? experimentInfo?.config?.foundation || 'N/A'
+    : rawModel;
+
+  return (
+    <>
+      <b>Type:</b> {mainTask} <br />
+      <b>Model:</b> {generationModel} <br />
+      {isDocs && (
+        <>
+          <b>Docs:</b> {docsFileNameActual} <FileTextIcon size={14} />
+          <br />
+        </>
+      )}
+    </>
+  );
+}
+
 async function generationRun(taskId: string) {
   await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
 }
@@ -46,41 +80,6 @@ export default function GenerateTasksTable({
   setCurrentGenerationId,
 }) {
   const [open, setOpen] = useState(false);
-
-  function formatTemplateConfig(script_parameters): ReactElement {
-    const main_task = script_parameters?.generation_type;
-    let docs_file_name_actual = '';
-
-    const docs_file_name =
-      main_task && main_task.toLowerCase().includes('docs')
-        ? script_parameters.docs || 'N/A'
-        : 'N/A';
-    const is_docs = docs_file_name !== 'N/A';
-    if (is_docs) {
-      docs_file_name_actual = script_parameters.docs.split('/').pop();
-    }
-
-    const raw_model = script_parameters?.generation_model;
-    const use_fallback =
-      !raw_model || raw_model === 'N/A' || raw_model === 'local';
-
-    const generation_model = use_fallback
-      ? experimentInfo?.config?.foundation || 'N/A'
-      : raw_model;
-
-    return (
-      <>
-        <b>Type:</b> {main_task} <br />
-        <b>Model:</b> {generation_model} <br />
-        {is_docs && (
-          <>
-            <b>Docs:</b> {docs_file_name_actual} <FileTextIcon size={14} />
-            <br />
-          </>
-        )}
-      </>
-    );
-  }
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Tasks.ListByTypeInExperiment(
@@ -192,7 +191,10 @@ export default function GenerateTasksTable({
                     {generations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {formatTemplateConfig(JSON.parse(generations.config))}
+                    {formatTemplateConfig(
+                      experimentInfo,
+                      JSON.parse(generations.config),
+                    )}
                   </td>
                   <td>{generations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>
