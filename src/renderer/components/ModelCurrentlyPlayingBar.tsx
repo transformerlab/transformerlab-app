@@ -108,10 +108,10 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
           {experimentInfo?.config == null
             ? 'Select an Experiment'
             : models?.[0]?.id
-            ? models?.[0]?.id
-            : experimentInfo?.config?.foundation
-            ? experimentInfo?.config?.foundation
-            : 'Select Foundation'}
+              ? models?.[0]?.id
+              : experimentInfo?.config?.foundation
+                ? experimentInfo?.config?.foundation
+                : 'Select Foundation'}
         </span>
         {models?.[0]?.id && experimentInfo?.config?.inferenceParams ? (
           <span

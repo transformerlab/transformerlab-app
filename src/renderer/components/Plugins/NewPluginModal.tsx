@@ -46,8 +46,8 @@ export default function NewPluginModal({
                 await fetch(
                   chatAPI.Endpoints.Experiment.ScriptCreateNew(
                     experimentInfo?.id,
-                    name
-                  )
+                    name,
+                  ),
                 );
                 mutate();
                 setOpen(false);

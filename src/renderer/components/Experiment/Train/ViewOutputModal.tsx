@@ -13,7 +13,7 @@ export default function ViewOutputModal({ jobId, setJobId }) {
     fetcher,
     {
       refreshInterval: 5000, //refresh every 5 seconds
-    }
+    },
   );
 
   // The following code prevents a crash if the output file doesn't exist

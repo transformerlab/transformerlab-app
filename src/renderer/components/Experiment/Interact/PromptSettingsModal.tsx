@@ -128,12 +128,12 @@ export default function BasicModalDialog({
                             sx={{ ml: 0.2 }}
                             onClick={() => {
                               setStopStrings(
-                                stopStrings.filter((s) => s !== stopString)
+                                stopStrings.filter((s) => s !== stopString),
                               );
                               setGenerationParameters({
                                 ...generationParameters,
                                 stop_str: stopStrings.filter(
-                                  (s) => s !== stopString
+                                  (s) => s !== stopString,
                                 ),
                               });
                             }}

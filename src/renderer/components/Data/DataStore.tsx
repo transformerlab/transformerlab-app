@@ -22,10 +22,11 @@ export default function DataStore() {
   const [searchText, setSearchText] = useState('');
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.Gallery(),
-    fetcher
+    fetcher,
   );
 
-  if (error) return 'Failed to load datasets from the gallery. Please check your connection or try again later.';
+  if (error)
+    return 'Failed to load datasets from the gallery. Please check your connection or try again later.';
   if (isLoading) return <LinearProgress />;
   return (
     <Sheet

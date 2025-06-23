@@ -95,14 +95,14 @@ export default function PreviousMessageList({
                         fetch(
                           chatAPI.Endpoints.Experiment.DeleteConversation(
                             experimentInfo?.id,
-                            c?.id
+                            c?.id,
                           ),
                           {
                             method: 'DELETE',
                             headers: {
                               'Content-Type': 'application/json',
                             },
-                          }
+                          },
                         ).then((response) => {
                           conversationsMutate();
                         });

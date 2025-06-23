@@ -33,9 +33,12 @@ export default function JobProgress({ job }: JobProps) {
   }, [job]);
 
   // Ensure progress is a number
-  const progress = typeof job?.progress === 'string' ? 
-    parseFloat(job.progress) : 
-    (typeof job?.progress === 'number' ? job.progress : 0);
+  const progress =
+    typeof job?.progress === 'string'
+      ? parseFloat(job.progress)
+      : typeof job?.progress === 'number'
+        ? job.progress
+        : 0;
 
   return (
     <Stack>
@@ -50,9 +53,7 @@ export default function JobProgress({ job }: JobProps) {
             >
               {job.status}
             </Chip>
-            {progress == -1
-              ? ''
-              : progress.toFixed(1) + '%'}
+            {progress == -1 ? '' : progress.toFixed(1) + '%'}
             <LinearProgress
               determinate
               value={progress}
@@ -122,9 +123,7 @@ export default function JobProgress({ job }: JobProps) {
               }}
             >
               {job.status}
-              {progress == -1
-                ? ''
-                : ' - ' + progress.toFixed(1) + '%'}
+              {progress == -1 ? '' : ' - ' + progress.toFixed(1) + '%'}
             </Chip>
             {job?.job_data?.start_time && (
               <>

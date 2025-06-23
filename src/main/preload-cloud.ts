@@ -24,8 +24,8 @@ const ipcRenderer = {
       }, 1); // Simulate async operation with 1 ms delay
     });
   },
-  on: (_channel: string, _func: (...args: unknown[]) => void) => { },
-  once: (_channel: string, _func: (...args: unknown[]) => void) => { },
+  on: (_channel: string, _func: (...args: unknown[]) => void) => {},
+  once: (_channel: string, _func: (...args: unknown[]) => void) => {},
   invoke: async (_channel: string, ..._args: unknown[]) => {
     console.log(`Invoking ${_channel} with args:`, _args);
     return new Promise((resolve) => {
@@ -34,7 +34,7 @@ const ipcRenderer = {
       }, 1); // Simulate async operation with 1 ms delay
     });
   },
-  removeAllListeners: (_channel: string) => { },
+  removeAllListeners: (_channel: string) => {},
 };
 
 // write to the browser window to break the HTML:

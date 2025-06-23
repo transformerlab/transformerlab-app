@@ -1,11 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 
-import {
-  Typography,
-  Sheet,
-  Button,
-  Box,
-} from '@mui/joy';
+import { Typography, Sheet, Button, Box } from '@mui/joy';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
@@ -22,10 +17,12 @@ export default function SelectEmbeddingModel({
   const navigate = useNavigate();
 
   // Fetch available models - using embedding=true parameter to get embedding models
-  const { data: models, error, isLoading, mutate } = useSWR(
-    `${chatAPI.Endpoints.Models.LocalList()}?embedding=true`,
-    fetcher
-  );
+  const {
+    data: models,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(`${chatAPI.Endpoints.Models.LocalList()}?embedding=true`, fetcher);
 
   const handleSelectModel = (model) => {
     let model_name = '';
@@ -51,22 +48,22 @@ export default function SelectEmbeddingModel({
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'embedding_model',
-          model_name
-        )
+          model_name,
+        ),
       );
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'embedding_model_filename',
-          model_filename
-        )
+          model_filename,
+        ),
       );
       await fetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'embedding_model_architecture',
-          model_architecture
-        )
+          model_architecture,
+        ),
       );
 
       // Call the parent's setEmbedding function
@@ -84,10 +81,21 @@ export default function SelectEmbeddingModel({
   };
 
   return (
-    <Sheet sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Sheet
+      sx={{ display: 'flex', flexDirection: 'column', height: '100%', p: 2 }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 3,
+        }}
+      >
         <Typography level="h1">Select Embedding Model</Typography>
-        <Button onClick={handleBackClick} variant="outlined">Back</Button>
+        <Button onClick={handleBackClick} variant="outlined">
+          Back
+        </Button>
       </Box>
 
       {isLoading ? (
