@@ -17,6 +17,8 @@ import {
   IconButton,
   CircularProgress,
   Alert,
+  Select,
+  Option,
 } from '@mui/joy';
 import {
   ChevronDown,
@@ -875,9 +877,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                               <LabelWithTooltip tooltip="Select how to process the reference image for the ControlNet model.">
                                 Process Type
                               </LabelWithTooltip>
-                              <select
+                              <Select
                                 value={processType}
-                                onChange={(e) => setProcessType(e.target.value)}
+                                onChange={(_, value) => setProcessType(value)}
                                 style={{
                                   width: 150,
                                   height: 32,
@@ -887,18 +889,18 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                                   fontSize: '14px',
                                 }}
                               >
-                                <option value="">Select Type</option>
-                                <option value="Canny">Canny</option>
-                                <option value="OpenPose">OpenPose</option>
-                                <option value="Zoe">Zoe</option>
-                                <option value="Depth">Depth</option>
-                                <option value="HED">HED</option>
-                                <option value="Scribble">Scribble</option>
-                                <option value="SoftEdge">SoftEdge</option>
-                                <option value="Seg">Seg</option>
-                                <option value="Normal">Normal</option>
-                                <option value="LineArt">LineArt</option>
-                              </select>
+                                <Option value="">Select Type</Option>
+                                <Option value="Canny">Canny</Option>
+                                <Option value="OpenPose">OpenPose</Option>
+                                <Option value="Zoe">Zoe</Option>
+                                <Option value="Depth">Depth</Option>
+                                <Option value="HED">HED</Option>
+                                <Option value="Scribble">Scribble</Option>
+                                <Option value="SoftEdge">SoftEdge</Option>
+                                <Option value="Seg">Seg</Option>
+                                <Option value="Normal">Normal</Option>
+                                <Option value="LineArt">LineArt</Option>
+                              </Select>
                             </FormControl>
                           )}
                         </Stack>
@@ -993,9 +995,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                     <LabelWithTooltip tooltip="Select the sampling scheduler used to generate the image. Different schedulers can produce slightly different results in terms of quality and style.">
                       Scheduler
                     </LabelWithTooltip>
-                    <select
+                    <Select
                       value={scheduler}
-                      onChange={(e) => setScheduler(e.target.value)}
+                      onChange={(_, value) => setScheduler(value)}
                       style={{
                         width: 150,
                         height: 32,
@@ -1005,20 +1007,20 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                         fontSize: '14px',
                       }}
                     >
-                      <option value="default">Default</option>
-                      <option value="EulerDiscreteScheduler">
+                      <Option value="default">Default</Option>
+                      <Option value="EulerDiscreteScheduler">
                         EulerDiscreteScheduler
-                      </option>
-                      <option value="LMSDiscreteScheduler">
+                      </Option>
+                      <Option value="LMSDiscreteScheduler">
                         LMSDiscreteScheduler
-                      </option>
-                      <option value="EulerAncestralDiscreteScheduler">
+                      </Option>
+                      <Option value="EulerAncestralDiscreteScheduler">
                         EulerAncestralDiscreteScheduler
-                      </option>
-                      <option value="DPMSolverMultistepScheduler">
+                      </Option>
+                      <Option value="DPMSolverMultistepScheduler">
                         DPMSolverMultistepScheduler
-                      </option>
-                    </select>
+                      </Option>
+                    </Select>
                   </FormControl>
                 </Box>
 
