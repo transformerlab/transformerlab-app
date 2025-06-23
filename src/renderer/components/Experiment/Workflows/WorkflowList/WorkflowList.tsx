@@ -74,7 +74,9 @@ export default function WorkflowList({ experimentInfo }) {
     isLoading: isLoading,
     mutate: mutateWorkflows,
   } = useSWR<Workflow[]>(
-    experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id) : null,
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id)
+      : null,
     fetcher,
   );
 
@@ -237,7 +239,7 @@ export default function WorkflowList({ experimentInfo }) {
                           await fetch(
                             chatAPI.Endpoints.Workflows.DeleteWorkflow(
                               selectedWorkflow?.id,
-                              experimentInfo.id
+                              experimentInfo.id,
                             ),
                           );
                           mutateWorkflows();

@@ -151,17 +151,17 @@ const Flow = ({
       },
     };
     setEdges((els) => addEdge(newEdge, els));
-          fetch(
-        chatAPI.Endpoints.Workflows.AddEdge(
-          selectedWorkflow?.id,
-          params.source,
-          params.target,
-          experimentInfo.id
-        ),
-        {
-          method: 'POST',
-        },
-      );
+    fetch(
+      chatAPI.Endpoints.Workflows.AddEdge(
+        selectedWorkflow?.id,
+        params.source,
+        params.target,
+        experimentInfo.id,
+      ),
+      {
+        method: 'POST',
+      },
+    );
     mutateWorkflows();
   }, []);
 
@@ -183,7 +183,7 @@ const Flow = ({
             selectedWorkflow?.id,
             edge.source,
             edge.target,
-            experimentInfo.id
+            experimentInfo.id,
           ),
           {
             method: 'POST',
@@ -239,7 +239,7 @@ const Flow = ({
           workflowId,
           node?.id,
           metadata,
-          experimentInfo.id
+          experimentInfo.id,
         ),
       );
       mutateWorkflows();
@@ -268,7 +268,13 @@ const Flow = ({
       onDelete={async ({ nodes, edges }) => {
         await Promise.all(
           nodes.map((node) =>
-                         fetch(chatAPI.Endpoints.Workflows.DeleteNode(workflowId, node?.id, experimentInfo.id)),
+            fetch(
+              chatAPI.Endpoints.Workflows.DeleteNode(
+                workflowId,
+                node?.id,
+                experimentInfo.id,
+              ),
+            ),
           ),
         );
         mutateWorkflows();

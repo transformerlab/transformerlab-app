@@ -98,7 +98,7 @@ function SkeletonRows({ isLoading }) {
 export default function Logs({}) {
   const { data, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Global.PromptLog,
-    fetcher
+    fetcher,
   );
 
   React.useEffect(() => {

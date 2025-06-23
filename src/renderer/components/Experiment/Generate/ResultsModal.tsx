@@ -24,8 +24,8 @@ export default function ResultsModal({
       fetch(
         chatAPI.Endpoints.Experiment.GetGenerationOutput(
           experimentInfo?.id,
-          generator
-        )
+          generator,
+        ),
       ).then((res) => {
         if (res.ok) {
           res.text().then((text) => {

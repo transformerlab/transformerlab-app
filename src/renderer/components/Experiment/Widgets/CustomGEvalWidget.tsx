@@ -10,23 +10,23 @@ type GEvalTask = {
 
 const parseValue = (val: any): GEvalTask[] => {
   if (Array.isArray(val)) {
-    if (val.every(item => typeof item === "string")) {
+    if (val.every((item) => typeof item === 'string')) {
       try {
         const joined = val.join(',');
         const parsed = JSON.parse(joined);
         return Array.isArray(parsed) ? parsed : [];
       } catch (err) {
-        console.error("Error parsing geval tasks widget value:", err);
+        console.error('Error parsing geval tasks widget value:', err);
         return [];
       }
     } else {
       return val;
     }
-  } else if (typeof val === "string") {
+  } else if (typeof val === 'string') {
     try {
       return JSON.parse(val);
     } catch (err) {
-      console.error("Error parsing geval tasks widget value string:", err);
+      console.error('Error parsing geval tasks widget value string:', err);
       return [];
     }
   }
@@ -41,7 +41,7 @@ const GEvalTasksWidget = (props: WidgetProps<any>) => {
   const handleAddTask = () => {
     const updatedTasks = [
       ...tasks,
-      { name: '', description: '', include_context: 'No' }
+      { name: '', description: '', include_context: 'No' },
     ];
     onChange(updatedTasks);
   };
@@ -49,10 +49,10 @@ const GEvalTasksWidget = (props: WidgetProps<any>) => {
   const handleTaskChange = (
     index: number,
     field: keyof GEvalTask,
-    newValue: string
+    newValue: string,
   ) => {
     const updated = tasks.map((task, i) =>
-      i === index ? { ...task, [field]: newValue } : task
+      i === index ? { ...task, [field]: newValue } : task,
     );
     onChange(updated);
   };
@@ -70,15 +70,13 @@ const GEvalTasksWidget = (props: WidgetProps<any>) => {
           style={{
             marginBottom: '1rem',
             border: '1px solid #ccc',
-            padding: '0.5rem'
+            padding: '0.5rem',
           }}
         >
           <Input
             placeholder="Evaluation Name"
             value={task.name}
-            onChange={(e) =>
-              handleTaskChange(index, 'name', e.target.value)
-            }
+            onChange={(e) => handleTaskChange(index, 'name', e.target.value)}
             disabled={disabled || readonly}
             style={{ marginBottom: '0.5rem' }}
           />
@@ -93,7 +91,7 @@ const GEvalTasksWidget = (props: WidgetProps<any>) => {
               marginBottom: '0.5rem',
               width: '100%',
               minHeight: '100px',
-              padding: '8px'
+              padding: '8px',
             }}
           />
           <Select

@@ -28,7 +28,7 @@ function TrainingModalDataTemplatingTab({
   pluginId,
 }) {
   const [template, setTemplate] = useState(
-    'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}'
+    'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}',
   );
   useEffect(() => {
     //initialize the template with the saved value
@@ -43,9 +43,9 @@ function TrainingModalDataTemplatingTab({
       chatAPI.Endpoints.Experiment.ScriptGetFile(
         experimentInfo?.id,
         pluginId,
-        'index.json'
+        'index.json',
       ),
-    fetcher
+    fetcher,
   );
 
   const [debouncedTemplate] = useDebounce(template, 3000);

@@ -71,9 +71,12 @@ function ListOfWorkflowRuns({
 function ShowSelectedWorkflowRun({ selectedWorkflowRun, experimentInfo }) {
   const { data, error, isLoading, mutate } = useSWR(
     selectedWorkflowRun && experimentInfo?.id
-      ? chatAPI.Endpoints.Workflows.GetRun(selectedWorkflowRun.id, experimentInfo.id)
+      ? chatAPI.Endpoints.Workflows.GetRun(
+          selectedWorkflowRun.id,
+          experimentInfo.id,
+        )
       : null,
-    fetcher
+    fetcher,
   );
 
   if (!selectedWorkflowRun || isLoading || !data) {
@@ -91,7 +94,9 @@ export default function WorkflowRuns({ experimentInfo }) {
   const [selectedWorkflowRun, setSelectedWorkflowRun] = useState(null);
 
   const { data, error, isLoading, mutate } = useSWR<WorkflowRun[]>(
-    experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListRunsInExperiment(experimentInfo.id) : null,
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Workflows.ListRunsInExperiment(experimentInfo.id)
+      : null,
     fetcher,
     { refreshInterval: 2000 },
   );
@@ -127,7 +132,10 @@ export default function WorkflowRuns({ experimentInfo }) {
         />
       </Box>
       <Box flex="3" sx={{}}>
-        <ShowSelectedWorkflowRun selectedWorkflowRun={selectedWorkflowRun} experimentInfo={experimentInfo} />
+        <ShowSelectedWorkflowRun
+          selectedWorkflowRun={selectedWorkflowRun}
+          experimentInfo={experimentInfo}
+        />
       </Box>
     </Sheet>
   );

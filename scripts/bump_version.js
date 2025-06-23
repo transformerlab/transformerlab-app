@@ -33,14 +33,14 @@ function bumpVersion(filePath, newVersion) {
 const versionPart = process.argv[2];
 if (versionPart === undefined) {
   console.error(
-    'No argument provided. Must provide either "major", "minor", or "patch"'
+    'No argument provided. Must provide either "major", "minor", or "patch"',
   );
   process.exit(1);
 }
 
 if (versionPart && !['major', 'minor', 'patch'].includes(versionPart)) {
   console.error(
-    'Invalid argument. Must be either "major", "minor", or "patch"'
+    'Invalid argument. Must be either "major", "minor", or "patch"',
   );
   process.exit(1);
 }
@@ -81,7 +81,7 @@ rl.question(`Do you want to continue? (y/n) `, (answer) => {
     execSync(`git tag v${newVersion}`);
 
     console.log(
-      'A new commit and tag have been created. Please push the changes to the remote repository to trigger a new build.'
+      'A new commit and tag have been created. Please push the changes to the remote repository to trigger a new build.',
     );
   }
 });

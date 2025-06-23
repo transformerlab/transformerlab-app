@@ -5,7 +5,7 @@ import { StoreIcon } from 'lucide-react';
 
 import DataStore from './DataStore';
 import LocalDatasets from './LocalDatasets';
-import GeneratedDatasets from './GeneratedDatasets'
+import GeneratedDatasets from './GeneratedDatasets';
 
 export default function Data() {
   return (
