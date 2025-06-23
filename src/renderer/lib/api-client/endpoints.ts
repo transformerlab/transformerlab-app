@@ -461,3 +461,35 @@ Endpoints.Jobs = {
 Endpoints.Global = {
   PromptLog: () => `${API_URL()}prompt_log`,
 };
+
+// Distributed Training Endpoints
+Endpoints.Distributed = {
+  SuggestMachines: () => `${API_URL()}tasks/distributed/suggest_machines`,
+  Plan: () => `${API_URL()}network/distributed/plan`,
+  Status: (jobId: string) => `${API_URL()}network/distributed/status/${jobId}`,
+  Stop: (jobId: string) => `${API_URL()}network/distributed/stop/${jobId}`,
+};
+
+// Network Machine Endpoints
+Endpoints.Network = {
+  Machines: () => `${API_URL()}network/machines`,
+  AddMachine: () => `${API_URL()}network/machines`,
+  RemoveMachine: (machineId: string) =>
+    `${API_URL()}network/machines/${machineId}`,
+  HealthCheck: () => `${API_URL()}network/health-check`,
+  PingMachine: (machineId: string) =>
+    `${API_URL()}network/machines/${machineId}/ping`,
+  Status: () => `${API_URL()}network/status`,
+};
+
+// Extend Tasks endpoints for distributed training
+Endpoints.Tasks.QueueDistributed = (
+  taskId: string,
+  machineIds: number[],
+  masterMachineId: number,
+  distributedConfig: any,
+) => {
+  const machineIdsStr = machineIds.join(',');
+  const configStr = encodeURIComponent(JSON.stringify(distributedConfig));
+  return `${API_URL()}tasks/${taskId}/queue_distributed?machine_ids=${machineIdsStr}&master_machine_id=${masterMachineId}&distributed_config=${configStr}`;
+};

@@ -19,6 +19,7 @@ import {
   Tabs,
   Sheet,
   Switch,
+  Typography,
 } from '@mui/joy';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from './TraningModalDataTab';
@@ -608,6 +609,7 @@ export default function TrainingModalLoRA({
               <Tab>Dataset</Tab>
               <Tab>Data Template</Tab>
               <Tab>Plugin Config</Tab>
+              <Tab>Distributed</Tab>
               {runSweeps && <Tab>Sweep Config</Tab>}
             </TabList>
             <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
@@ -673,8 +675,26 @@ export default function TrainingModalLoRA({
                 config={config}
               />
             </TabPanel>
+            <TabPanel value={5} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <Typography level="title-md" sx={{ mb: 2 }}>
+                Distributed Training Configuration
+              </Typography>
+              <Typography level="body-sm" sx={{ mb: 2 }}>
+                Configure distributed training settings for training across one
+                or multiple machines. This will be applied when the training job
+                is queued with distributed options.
+              </Typography>
+              {/* Placeholder for distributed training settings */}
+              <Typography level="body-xs" color="neutral">
+                Distributed training settings will be configured during job
+                execution. Use the &quot;Distributed Training&quot; option in
+                the run menu to configure and start distributed training. Single
+                machine distributed training uses multiple GPUs on the same
+                machine.
+              </Typography>
+            </TabPanel>
             {runSweeps && (
-              <TabPanel value={5} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TabPanel value={6} sx={{ p: 2, overflow: 'auto' }} keepMounted>
                 <SweepConfigTab
                   trainingTypeData={trainingTypeData}
                   sweepConfig={sweepConfig}

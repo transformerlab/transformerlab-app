@@ -45,6 +45,7 @@ import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
 import ImportRecipeModal from './ImportRecipeModal';
 import ViewEvalImagesModal from './ViewEvalImagesModal';
+import DistributedJobMonitor from './DistributedJobMonitor';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -164,6 +165,23 @@ export default function TrainLoRA({ experimentInfo }) {
   if (!experimentInfo) {
     return 'No experiment selected';
   }
+
+  // Handle stopping distributed jobs
+  const handleStopDistributedJob = async (distributedJobId: string) => {
+    try {
+      await fetch(chatAPI.Endpoints.Distributed.Stop(distributedJobId), {
+        method: 'POST',
+      });
+      jobsMutate(); // Refresh jobs list
+    } catch (error) {
+      // Handle error silently
+    }
+  };
+
+  // Handle viewing distributed job logs
+  const handleViewDistributedLogs = (jobId: string) => {
+    setViewOutputFromJob(parseInt(jobId, 10));
+  };
 
   return (
     <>
@@ -477,6 +495,22 @@ export default function TrainLoRA({ experimentInfo }) {
             <tbody style={{ overflow: 'auto', height: '100%' }}>
               {jobs?.length > 0 &&
                 jobs?.map((job) => {
+                  // Check if this is a distributed job and render special component
+                  if (job.is_distributed) {
+                    return (
+                      <tr key={job.id}>
+                        <td colSpan={4}>
+                          <DistributedJobMonitor
+                            job={job}
+                            onStopJob={handleStopDistributedJob}
+                            onViewLogs={handleViewDistributedLogs}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  // Regular job display
                   return (
                     <tr key={job.id}>
                       <td>
