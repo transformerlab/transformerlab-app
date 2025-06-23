@@ -24,8 +24,8 @@ export default function ResultsModal({
       fetch(
         chatAPI.Endpoints.Experiment.GetEvalOutput(
           experimentInfo?.id,
-          evaluator
-        )
+          evaluator,
+        ),
       ).then((res) => {
         if (res.ok) {
           res.text().then((text) => {

@@ -10,25 +10,25 @@ type EvaluationField = {
 
 const parseValue = (val: any): EvaluationField[] => {
   if (Array.isArray(val)) {
-    if (val.every(item => typeof item === "string")) {
+    if (val.every((item) => typeof item === 'string')) {
       // If every element is a string: join them and parse the result.
       try {
         const joined = val.join(',');
         const parsed = JSON.parse(joined);
         return Array.isArray(parsed) ? parsed : [];
       } catch (err) {
-        console.error("Error parsing evaluation widget value:", err);
+        console.error('Error parsing evaluation widget value:', err);
         return [];
       }
     } else {
       // If not all elements are strings, assume it's already an array of EvaluationField.
       return val;
     }
-  } else if (typeof val === "string") {
+  } else if (typeof val === 'string') {
     try {
       return JSON.parse(val);
     } catch (err) {
-      console.error("Error parsing evaluation widget value string:", err);
+      console.error('Error parsing evaluation widget value string:', err);
       return [];
     }
   }
@@ -39,12 +39,15 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
   const { id, value, onChange, disabled, readonly } = props;
 
   // Directly derive evaluation metrics from the value prop.
-  const evalMetrics: EvaluationField[] = React.useMemo(() => parseValue(value), [value]);
+  const evalMetrics: EvaluationField[] = React.useMemo(
+    () => parseValue(value),
+    [value],
+  );
 
   const handleAddField = () => {
     const updatedMetrics = [
       ...evalMetrics,
-      { name: '', expression: '', return_type: 'boolean' }
+      { name: '', expression: '', return_type: 'boolean' },
     ];
     onChange(updatedMetrics);
   };
@@ -52,10 +55,10 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
   const handleFieldChange = (
     index: number,
     field: keyof EvaluationField,
-    newValue: string
+    newValue: string,
   ) => {
     const updated = evalMetrics.map((evaluation, i) =>
-      i === index ? { ...evaluation, [field]: newValue } : evaluation
+      i === index ? { ...evaluation, [field]: newValue } : evaluation,
     );
     onChange(updated);
   };
@@ -73,15 +76,13 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
           style={{
             marginBottom: '1rem',
             border: '1px solid #ccc',
-            padding: '0.5rem'
+            padding: '0.5rem',
           }}
         >
           <Input
             placeholder="Evaluation Name"
             value={evaluation.name}
-            onChange={(e) =>
-              handleFieldChange(index, 'name', e.target.value)
-            }
+            onChange={(e) => handleFieldChange(index, 'name', e.target.value)}
             disabled={disabled || readonly}
             style={{ marginBottom: '0.5rem' }}
           />
@@ -127,7 +128,12 @@ const CustomEvaluationWidget = (props: WidgetProps<any>) => {
         Add Field
       </Button>
       {/* Hidden input to capture the JSON result on form submission */}
-      <input type="hidden" id={id} name={id} value={JSON.stringify(evalMetrics)} />
+      <input
+        type="hidden"
+        id={id}
+        name={id}
+        value={JSON.stringify(evalMetrics)}
+      />
     </div>
   );
 };

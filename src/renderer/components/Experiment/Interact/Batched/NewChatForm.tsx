@@ -31,7 +31,7 @@ export default function NewChatForm({ submitChat, defaultChats = [] }) {
   function editSystemMessageValue(value) {
     const newChats = [...chats];
     const systemMessageIndex = newChats.findIndex(
-      (chat) => chat.role === 'system'
+      (chat) => chat.role === 'system',
     );
     newChats[systemMessageIndex].content = value;
     setChats(newChats);

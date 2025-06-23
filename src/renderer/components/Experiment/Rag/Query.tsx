@@ -49,8 +49,8 @@ export default function Query({ experimentInfo }) {
         experimentInfo.id,
         experimentInfo?.config?.foundation,
         query,
-        settings
-      )
+        settings,
+      ),
     );
     const data = await response.json();
     // console.log(data);
@@ -90,7 +90,7 @@ export default function Query({ experimentInfo }) {
                     const query = document.getElementsByName('query')[0].value;
                     getResponse(
                       query,
-                      experimentInfo?.config?.rag_engine_settings
+                      experimentInfo?.config?.rag_engine_settings,
                     );
                   }}
                 />
@@ -100,7 +100,7 @@ export default function Query({ experimentInfo }) {
                   const query = document.getElementsByName('query')[0].value;
                   getResponse(
                     query,
-                    experimentInfo?.config?.rag_engine_settings
+                    experimentInfo?.config?.rag_engine_settings,
                   );
                 }
               }}

@@ -43,7 +43,7 @@ export default function PickADocumentMenu({
           <Option key={row.name} value={row.name}>
             {row.name}
           </Option>
-        )
+        ),
       )}
     </Select>
   );

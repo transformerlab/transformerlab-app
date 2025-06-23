@@ -7,7 +7,7 @@ import { FitAddon } from '@xterm/addon-fit';
 
 export default function LogViewer({
   triggerStrings = [],
-  triggerFunction = () => { },
+  triggerFunction = () => {},
 }) {
   const terminalRef = useRef(null);
   let term: Terminal | null = null;
@@ -65,7 +65,7 @@ export default function LogViewer({
       //send message to stop the server log listening service:
       window.electron.ipcRenderer.sendMessage('serverLog:stopListening');
       window.electron.ipcRenderer.removeAllListeners(
-        'serverLog:startListening'
+        'serverLog:startListening',
       );
       window.electron.ipcRenderer.removeAllListeners('serverLog:onUpdate');
       console.log('Stopped listening for server log updates');

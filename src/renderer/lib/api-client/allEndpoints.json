@@ -125,7 +125,7 @@
       "path": "recipes/jobs/{job_id}/status"
     }
   },
-  "experiment":{
+  "experiment": {
     "getScriptsOfTypeWithFilter": {
       "method": "GET",
       "path": "experiment/{experimentId}/plugins/list?type={type}&filter={filter}"
@@ -134,7 +134,6 @@
       "method": "GET",
       "path": "experiment/{experimentId}/plugins/list?type={type}"
     }
-
   },
   "diffusion": {
     "generateId": {
@@ -169,6 +168,10 @@
       "method": "GET",
       "path": "diffusion/history/{imageId}?input_image=true"
     },
+    "getProcessedImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?preprocessed=true"
+    },
     "getMaskImage": {
       "method": "GET",
       "path": "diffusion/history/{imageId}?mask_image=true"
@@ -188,6 +191,10 @@
     "getAllImages": {
       "method": "GET",
       "path": "diffusion/history/{imageId}/all"
+    },
+    "listControlnets": {
+      "method": "GET",
+      "path": "diffusion/controlnets"
     }
   }
 }

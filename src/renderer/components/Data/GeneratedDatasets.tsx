@@ -46,7 +46,7 @@ export default function GeneratedDatasets() {
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Dataset.GeneratedList(),
-    fetcher
+    fetcher,
   );
 
   if (error) return 'Unable to load generated datasets.';
@@ -125,8 +125,8 @@ export default function GeneratedDatasets() {
 
           {data?.length === 0 && (
             <Typography level="body-lg" justifyContent="center" margin={5}>
-              You do not have any generated datasets. You can
-              download a dataset by going to the Generate Tab in an experiment.
+              You do not have any generated datasets. You can download a dataset
+              by going to the Generate Tab in an experiment.
               {/* <ReactRouterLink to="/generate">
                 <StoreIcon />
                 Generated Tab
@@ -208,7 +208,7 @@ export default function GeneratedDatasets() {
             >
               New
             </Button> */}
-          {/* </>
+      {/* </>
         </>
       </Box> */}
     </Sheet>

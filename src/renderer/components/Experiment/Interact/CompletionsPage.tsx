@@ -46,7 +46,7 @@ export default function CompletionsPage({
 
     const result = await sendCompletionToLLM(
       inputRef.current,
-      inputRef.current
+      inputRef.current,
     );
 
     if (result) {
