@@ -21,7 +21,7 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import useSWR from 'swr';
-import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import GenerateModal from './GenerateModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());

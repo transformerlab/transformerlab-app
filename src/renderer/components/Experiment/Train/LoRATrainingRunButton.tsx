@@ -5,7 +5,7 @@ import { Button, LinearProgress, Stack } from '@mui/joy';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { PlayIcon } from 'lucide-react';
-import { useAnalytics } from 'renderer/components/Shared/useAnalytics';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 
 export default function LoRATrainingRunButton({
   initialMessage,
