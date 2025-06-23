@@ -36,6 +36,7 @@ import useSWR from 'swr';
 import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
+import { useNotification } from '../../../Shared/NotificationSystem';
 
 function ShowCode({ code }) {
   const config = code?.config;
@@ -67,6 +68,7 @@ export default function WorkflowList({ experimentInfo }) {
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
   const [viewCodeMode, setViewCodeMode] = useState(false);
+  const { addNotification } = useNotification();
 
   const {
     data: workflowsData,
@@ -74,7 +76,9 @@ export default function WorkflowList({ experimentInfo }) {
     isLoading: isLoading,
     mutate: mutateWorkflows,
   } = useSWR<Workflow[]>(
-    experimentInfo?.id ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id) : null,
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id)
+      : null,
     fetcher,
   );
 
@@ -100,14 +104,22 @@ export default function WorkflowList({ experimentInfo }) {
       );
 
       if (response.ok) {
-        alert(
-          'Your workflow has started! Navigate to the runs page to view its progress.',
-        );
+        addNotification({
+          type: 'success',
+          message:
+            'Your workflow has started! Navigate to the runs page to view its progress.',
+        });
       } else {
-        alert('Failed to start workflow. Please try again.');
+        addNotification({
+          type: 'danger',
+          message: 'Failed to start workflow. Please try again.',
+        });
       }
     } catch (error) {
-      alert('Failed to start workflow with error: ' + error);
+      addNotification({
+        type: 'danger',
+        message: `Failed to start workflow with error: ${error}`,
+      });
     }
   }
   return (
@@ -237,7 +249,7 @@ export default function WorkflowList({ experimentInfo }) {
                           await fetch(
                             chatAPI.Endpoints.Workflows.DeleteWorkflow(
                               selectedWorkflow?.id,
-                              experimentInfo.id
+                              experimentInfo.id,
                             ),
                           );
                           mutateWorkflows();
