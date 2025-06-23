@@ -56,7 +56,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
         ...notification,
         id,
         autoClose: notification.autoClose ?? true,
-        duration: notification.duration ?? 5000,
+        duration: notification.duration ?? 7000,
       };
 
       setNotifications((prev) => [...prev, newNotification]);
