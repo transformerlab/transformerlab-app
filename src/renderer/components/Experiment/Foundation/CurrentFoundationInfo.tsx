@@ -730,18 +730,7 @@ export default function CurrentFoundationInfo({
           }}
         >
           <FormControl sx={{ mb: 2 }}>
-            <FormLabel>Chat Template (Jinja2-style)</FormLabel>
-            <Textarea
-              minRows={10}
-              value={data?.data ?? ''}
-              readOnly
-              sx={{
-                fontFamily: 'monospace',
-                whiteSpace: 'pre',
-                width: '100%',
-                '@media (max-width: 600px)': {},
-              }}
-            />
+            <textarea rows={11} value={data?.data ?? ''} readOnly />
             <FormHelperText>
               This template defines how chat messages are formatted as model
               input during training or inference. It uses Jinja2 syntax.
