@@ -6,15 +6,19 @@ import {
   StopCircleIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
+import { RiImageAiLine } from 'react-icons/ri';
 import { useEffect, useState } from 'react';
 
-import { activateWorker } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  activateWorker,
+  getFullPath,
+} from 'renderer/lib/transformerlab-api-sdk';
 
 import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import React, { useState } from 'react';
 
 import { Link } from 'react-router-dom';
 
@@ -42,10 +46,53 @@ export default function RunModelButton({
     inferenceEngineFriendlyName: '',
   });
 
+  const { data, error, isLoading } = useAPI(
+    'experiment',
+    ['getScriptsOfTypeWithoutFilter'],
+    {
+      experimentId: experimentInfo?.id,
+      type: 'loader',
+    },
+    {
+      skip: !experimentInfo?.id,
+    },
+  );
+
+  const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
+
+  const supportedEngines = React.useMemo(() => {
+    if (!data) {
+      return [];
+    }
+    const filtered = data.filter(
+      (row) =>
+        Array.isArray(row.model_architectures) &&
+        row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        ),
+    );
+    return filtered;
+  }, [data, archTag]);
+
+  const unsupportedEngines = React.useMemo(() => {
+    if (!data) {
+      return [];
+    }
+    const filtered = data.filter(
+      (row) =>
+        !Array.isArray(row.model_architectures) ||
+        !row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        ),
+    );
+    return filtered;
+  }, [data, archTag]);
+
+  const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
+    boolean | null
+  >(null);
+
   function isPossibleToRunAModel() {
-    // console.log('Is Possible?');
-    // console.log(experimentInfo);
-    // console.log(inferenceSettings);
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
@@ -87,24 +134,63 @@ export default function RunModelButton({
 
   // Set a default inference Engine if there is none
   useEffect(() => {
-    // Update experiment inference parameters so the Run button shows correctly
     let objExperimentInfo = null;
     if (experimentInfo?.config?.inferenceParams) {
       objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
     }
-    if (objExperimentInfo == null) {
-      (async () => {
-        const { inferenceEngine, inferenceEngineFriendlyName } =
-          await getDefaultinferenceEngines();
+    if (
+      objExperimentInfo == null ||
+      objExperimentInfo?.inferenceEngine == null
+    ) {
+      // If there are supportedEngines, set the first one from supported engines as default
+      if (supportedEngines.length > 0) {
+        const firstEngine = supportedEngines[0];
         setInferenceSettings({
-          inferenceEngine: inferenceEngine || null,
-          inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
+          inferenceEngine: firstEngine.uniqueId || null,
+          inferenceEngineFriendlyName: firstEngine.name || '',
         });
-      })();
+      } else {
+        // This preserves the older logic where we try to get the default inference engine for a blank experiment
+        (async () => {
+          const { inferenceEngine, inferenceEngineFriendlyName } =
+            await getDefaultinferenceEngines();
+          setInferenceSettings({
+            inferenceEngine: inferenceEngine || null,
+            inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
+          });
+        })();
+      }
     } else {
       setInferenceSettings(objExperimentInfo);
     }
-  }, [experimentInfo]);
+  }, [experimentInfo, supportedEngines]);
+
+  // Check if the current foundation model is a diffusion model
+  useEffect(() => {
+    const checkValidDiffusion = async () => {
+      if (!experimentInfo?.config?.foundation) {
+        setIsValidDiffusionModel(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          getFullPath('diffusion', ['checkValidDiffusion'], {}),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: experimentInfo.config.foundation }),
+          },
+        );
+        const data = await response.json();
+        setIsValidDiffusionModel(data.is_valid_diffusion_model);
+      } catch (e) {
+        setIsValidDiffusionModel(false);
+      }
+    };
+
+    checkValidDiffusion();
+  }, [experimentInfo?.config?.foundation]);
 
   function Engine() {
     return (
@@ -135,6 +221,7 @@ export default function RunModelButton({
                 const response = await activateWorker(
                   experimentInfo?.config?.foundation,
                   experimentInfo?.config?.foundation_filename,
+                  experimentInfo?.config?.foundation_model_architecture,
                   experimentInfo?.config?.adaptor,
                   inferenceEngine,
                   inferenceSettings,
@@ -221,8 +308,41 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {isPossibleToRunAModel() ? (
+      {supportedEngines.length > 0 ? (
         <Engine />
+      ) : isValidDiffusionModel === true ? (
+        <Alert startDecorator={<InfoIcon />} color="warning">
+          <Typography level="body-sm">
+            You can now run inference using this diffusion model. Go to{' '}
+            <Link to="/experiment/diffusion">
+              <RiImageAiLine
+                size="16px"
+                style={{ verticalAlign: 'middle', marginRight: '2px' }}
+              />
+              Diffusion
+            </Link>{' '}
+            and perform inference with it.
+          </Typography>
+        </Alert>
+      ) : unsupportedEngines.length > 0 ? (
+        <div>
+          <Alert startDecorator={<TriangleAlertIcon />} color="warning">
+            <Typography level="body-sm">
+              None of the installed Engines currently support this model
+              architecture. You can try a different engine in{' '}
+              <Link to="/plugins">
+                <Plug2Icon size="15px" />
+                Plugins
+              </Link>{' '}
+              , or you can try running it with an unsupported Engine by clicking{' '}
+              <b>using Engine</b> below and check{' '}
+              <b>Show unsupported engines</b>.
+            </Typography>
+          </Alert>
+          <div style={{ marginTop: 16 }}>
+            <Engine />
+          </div>
+        </div>
       ) : (
         <Alert startDecorator={<TriangleAlertIcon />} color="warning">
           <Typography level="body-sm">
@@ -244,6 +364,9 @@ export default function RunModelButton({
         experimentInfo={experimentInfo}
         inferenceSettings={inferenceSettings}
         setInferenceSettings={setInferenceSettings}
+        supportedEngines={supportedEngines}
+        unsupportedEngines={unsupportedEngines}
+        isLoading={isLoading}
       />
     </div>
   );

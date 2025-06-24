@@ -347,7 +347,13 @@ export default function CurrentFoundationInfo({
         aria-label="Model tabs"
         value={activeTab}
         onChange={(event, value) => setActiveTab(value)}
-        sx={{ mt: 2, overflow: 'hidden' }}
+        sx={{
+          mt: 2,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          flexGrow: 1,
+        }}
       >
         <TabList>
           <Tab>Overview</Tab>
@@ -453,7 +459,16 @@ export default function CurrentFoundationInfo({
         </TabPanel>
 
         {/* Adaptors Tab */}
-        <TabPanel value={2} sx={{ p: 2 }}>
+        <TabPanel
+          value={2}
+          sx={{
+            p: 1,
+            height: '100%',
+            overflowY: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <Typography level="title-lg" marginBottom={2}>
             Download an Adapter from HuggingFace 🤗
           </Typography>
@@ -491,9 +506,9 @@ export default function CurrentFoundationInfo({
           )}
 
           {/* Search bar */}
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 1 }}>
             <Input
-              placeholder="Enter Adapter ID here"
+              placeholder="Enter Adapter ID"
               value={adapterSearchText}
               onChange={(e) => setAdapterSearchText(e.target.value)}
               onKeyDown={(e) => {
@@ -507,11 +522,11 @@ export default function CurrentFoundationInfo({
           </Box>
 
           {/* Installed adapters section */}
-          <Typography level="title-md" marginTop={4}>
+          <Typography level="title-lg" mt={1}>
             Available Adaptors
           </Typography>
           <Box sx={{ maxHeight: 400, overflowY: 'auto', pr: 1 }}>
-            <Stack direction="column" spacing={2}>
+            <Stack direction="column" gap={1}>
               {peftData && peftData.length === 0 && (
                 <Typography level="body-sm" color="neutral">
                   No adaptors installed. Train one!
@@ -523,7 +538,7 @@ export default function CurrentFoundationInfo({
                     key={peft}
                     variant="outlined"
                     sx={{
-                      p: 2,
+                      p: 1,
                       borderRadius: 'sm',
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -537,7 +552,29 @@ export default function CurrentFoundationInfo({
                       <Button
                         variant={adaptor === peft ? 'solid' : 'soft'}
                         color="primary"
-                        onClick={() => setAdaptor(peft)}
+                        onClick={() => {
+                          if (adaptor === peft) {
+                            fetch(
+                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+                                experimentInfo?.id,
+                                'adaptor',
+                                '',
+                              ),
+                            ).then(() => {
+                              setAdaptor('');
+                            });
+                          } else {
+                            fetch(
+                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+                                experimentInfo?.id,
+                                'adaptor',
+                                peft,
+                              ),
+                            ).then(() => {
+                              setAdaptor(peft);
+                            });
+                          }
+                        }}
                       >
                         {adaptor === peft ? 'Selected' : 'Select'}
                       </Button>

@@ -24,13 +24,6 @@ function ListOfWorkflowRuns({
   selectedWorkflowRun,
   setSelectedWorkflowRun,
 }) {
-  useEffect(() => {
-    // if no workflow runs are selected, select the first one
-    if (workflowRuns && workflowRuns.length > 0 && !selectedWorkflowRun) {
-      setSelectedWorkflowRun(workflowRuns[0]);
-    }
-  }, [workflowRuns, selectedWorkflowRun, setSelectedWorkflowRun]);
-
   if (!workflowRuns || isLoading) {
     return <CircularProgress />;
   }
@@ -41,7 +34,6 @@ function ListOfWorkflowRuns({
 
   return (
     <List sx={{ overflowY: 'auto', height: '100%' }}>
-      {/* <pre>{JSON.stringify(workflowRuns, null, 2)}</pre> */}
       {workflowRuns.map((run) => (
         <ListItem key={run.id}>
           <ListItemButton
@@ -76,15 +68,21 @@ function ListOfWorkflowRuns({
   );
 }
 
-function ShowSelectedWorkflowRun({ selectedWorkflowRun }) {
-  if (!selectedWorkflowRun) {
+function ShowSelectedWorkflowRun({ selectedWorkflowRun, experimentInfo }) {
+  const { data, error, isLoading, mutate } = useSWR(
+    selectedWorkflowRun && experimentInfo?.id
+      ? chatAPI.Endpoints.Workflows.GetRun(
+          selectedWorkflowRun.id,
+          experimentInfo.id,
+        )
+      : null,
+    fetcher,
+  );
+
+  if (!selectedWorkflowRun || isLoading || !data) {
     return <div>No workflow run selected.</div>;
   }
 
-  const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Workflows.GetRun(selectedWorkflowRun.id),
-    fetcher,
-  );
   return (
     <Sheet variant="soft" sx={{ height: '100%', p: 2, overflowY: 'auto' }}>
       <WorkflowRunDisplay selectedWorkflowRun={data} />
@@ -95,11 +93,25 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun }) {
 export default function WorkflowRuns({ experimentInfo }) {
   const [selectedWorkflowRun, setSelectedWorkflowRun] = useState(null);
 
-  const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Workflows.ListRuns(),
+  const { data, error, isLoading, mutate } = useSWR<WorkflowRun[]>(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Workflows.ListRunsInExperiment(experimentInfo.id)
+      : null,
     fetcher,
     { refreshInterval: 2000 },
   );
+
+  const workflowRuns = Array.isArray(data) ? data : [];
+
+  useEffect(() => {
+    if (!experimentInfo?.id) return;
+
+    if (workflowRuns.length === 0) {
+      setSelectedWorkflowRun(null);
+    } else {
+      setSelectedWorkflowRun(workflowRuns[0]);
+    }
+  }, [experimentInfo?.id, workflowRuns]);
 
   return (
     <Sheet
@@ -113,14 +125,17 @@ export default function WorkflowRuns({ experimentInfo }) {
     >
       <Box flex="1" sx={{ minWidth: '200px' }}>
         <ListOfWorkflowRuns
-          workflowRuns={data}
+          workflowRuns={workflowRuns}
           isLoading={isLoading}
           selectedWorkflowRun={selectedWorkflowRun}
           setSelectedWorkflowRun={setSelectedWorkflowRun}
         />
       </Box>
       <Box flex="3" sx={{}}>
-        <ShowSelectedWorkflowRun selectedWorkflowRun={selectedWorkflowRun} />
+        <ShowSelectedWorkflowRun
+          selectedWorkflowRun={selectedWorkflowRun}
+          experimentInfo={experimentInfo}
+        />
       </Box>
     </Sheet>
   );

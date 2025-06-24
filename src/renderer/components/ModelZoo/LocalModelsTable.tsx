@@ -19,6 +19,7 @@ import {
   SearchIcon,
   StoreIcon,
   Trash2Icon,
+  ImageIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -28,6 +29,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
+import { RiChatAiLine, RiImageAiLine } from 'react-icons/ri';
 
 type Order = 'asc' | 'desc';
 
@@ -173,141 +175,159 @@ const LocalModelsTable = ({
           </thead>
           <tbody>
             {models &&
-              filterByFilters(models, searchText, filters).map((row) => {
-                if (showOnlyGeneratedModels && !row?.local_model == true) {
-                  return null;
-                }
-                return (
-                  <tr key={row.rowid}>
-                    <td>
-                      <Typography ml={2} fontWeight="lg">
-                        {row?.local_model === true ? (
-                          <FlaskRoundIcon
-                            color="var(--joy-palette-success-700)"
-                            style={{
-                              verticalAlign: 'middle',
-                              marginRight: '5px',
-                            }}
-                          />
-                        ) : row?.source && row?.source != 'transformerlab' ? (
-                          <ArrowRightToLineIcon
-                            color="var(--joy-palette-success-700)"
-                            style={{
-                              verticalAlign: 'middle',
-                              marginRight: '5px',
-                            }}
-                          />
-                        ) : (
-                          ''
-                        )}{' '}
-                        {row.name}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography style={{ overflow: 'hidden' }}>
-                        {' '}
-                        {row?.json_data?.architecture == 'MLX' && (
-                          <>
-                            <TinyMLXLogo />
-                            &nbsp;
-                          </>
-                        )}
-                        {row?.json_data?.architecture == 'GGUF' && (
-                          <>
-                            <img
-                              src="https://avatars.githubusercontent.com/ggerganov"
-                              width="24"
-                              valign="middle"
-                              style={{ borderRadius: '50%' }}
-                            />{' '}
-                            &nbsp;
-                          </>
-                        )}
-                        {[
-                          'FalconForCausalLM',
-                          'Gemma2ForCausalLM',
-                          'GPTBigCodeForCausalLM',
-                          'LlamaForCausalLM',
-                          'MistralForCausalLM',
-                          'Phi3ForCausalLM',
-                          'Qwen2ForCausalLM',
-                          'T5ForConditionalGeneration',
-                        ].includes(row?.json_data?.architecture) && (
-                          <>🤗 &nbsp;</>
-                        )}
-                        {row?.json_data?.architecture}
-                      </Typography>
-                    </td>
-                    <td>{row?.json_data?.parameters}</td>
-                    {/* <td>{JSON.stringify(row)}</td> */}
-                    {/* <td>
+              filterByFilters(models, searchText, filters)
+                .filter(
+                  (row) =>
+                    !String(row?.json_data?.architecture || '')
+                      .toLowerCase()
+                      .includes('controlnet'),
+                )
+                .map((row) => {
+                  if (showOnlyGeneratedModels && !row?.local_model == true) {
+                    return null;
+                  }
+                  return (
+                    <tr key={row.rowid}>
+                      <td>
+                        <Typography
+                          ml={2}
+                          fontWeight="lg"
+                          startDecorator={
+                            row?.json_data?.model_type === 'stable-diffusion' ||
+                            row?.json_data?.model_type === 'diffusion' ? (
+                              <RiImageAiLine />
+                            ) : (
+                              <RiChatAiLine />
+                            )
+                          }
+                        >
+                          {row?.local_model === true ? (
+                            <FlaskRoundIcon
+                              color="var(--joy-palette-success-700)"
+                              style={{
+                                verticalAlign: 'middle',
+                                marginRight: '5px',
+                              }}
+                            />
+                          ) : row?.source && row?.source != 'transformerlab' ? (
+                            <ArrowRightToLineIcon
+                              color="var(--joy-palette-success-700)"
+                              style={{
+                                verticalAlign: 'middle',
+                                marginRight: '5px',
+                              }}
+                            />
+                          ) : (
+                            ''
+                          )}
+                          {row.name}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography style={{ overflow: 'hidden' }}>
+                          {' '}
+                          {row?.json_data?.architecture == 'MLX' && (
+                            <>
+                              <TinyMLXLogo />
+                              &nbsp;
+                            </>
+                          )}
+                          {row?.json_data?.architecture == 'GGUF' && (
+                            <>
+                              <img
+                                src="https://avatars.githubusercontent.com/ggerganov"
+                                width="24"
+                                valign="middle"
+                                style={{ borderRadius: '50%' }}
+                              />{' '}
+                              &nbsp;
+                            </>
+                          )}
+                          {[
+                            'FalconForCausalLM',
+                            'Gemma2ForCausalLM',
+                            'GPTBigCodeForCausalLM',
+                            'LlamaForCausalLM',
+                            'MistralForCausalLM',
+                            'Phi3ForCausalLM',
+                            'Qwen2ForCausalLM',
+                            'T5ForConditionalGeneration',
+                          ].includes(row?.json_data?.architecture) && (
+                            <>🤗 &nbsp;</>
+                          )}
+                          {row?.json_data?.architecture}
+                        </Typography>
+                      </td>
+                      <td>{row?.json_data?.parameters}</td>
+                      {/* <td>{JSON.stringify(row)}</td> */}
+                      {/* <td>
                       <Box
                         sx={{ display: "flex", gap: 2, alignItems: "center" }}
                       ></Box>
                     </td> */}
-                    <td>{row.model_id}</td>
-                    <td style={{ textAlign: 'right' }}>
-                      {/* <Link fontWeight="lg" component="button" color="neutral">
+                      <td>{row.model_id}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {/* <Link fontWeight="lg" component="button" color="neutral">
                           Archive
                         </Link> */}
-                      {pickAModelMode === true ? (
-                        <SelectButton
-                          setFoundation={setFoundation}
-                          setAdaptor={setAdaptor}
-                          setEmbedding={setEmbedding}
-                          model={row}
-                          experimentInfo={experimentInfo}
-                        />
-                      ) : (
-                        <>
-                          <InfoIcon
-                            onClick={() => {
-                              alert(JSON.stringify(row?.json_data));
-                            }}
+                        {pickAModelMode === true ? (
+                          <SelectButton
+                            setFoundation={setFoundation}
+                            setAdaptor={setAdaptor}
+                            setEmbedding={setEmbedding}
+                            model={row}
+                            experimentInfo={experimentInfo}
                           />
-                          &nbsp;
-                          <Trash2Icon
-                            color="var(--joy-palette-danger-600)"
-                            onClick={async () => {
-                              if (
-                                confirm(
-                                  "Are you sure you want to delete model '" +
-                                    row.model_id +
-                                    "'?",
-                                )
-                              ) {
+                        ) : (
+                          <>
+                            <InfoIcon
+                              onClick={() => {
+                                alert(JSON.stringify(row?.json_data));
+                              }}
+                            />
+                            &nbsp;
+                            <Trash2Icon
+                              color="var(--joy-palette-danger-600)"
+                              onClick={async () => {
                                 if (
                                   confirm(
-                                    "Do you want to delete model '" +
+                                    "Are you sure you want to delete model '" +
                                       row.model_id +
-                                      "' from your local Huggingface cache as well (if present) ?",
+                                      "'?",
                                   )
                                 ) {
-                                  await fetch(
-                                    chatAPI.Endpoints.Models.Delete(
-                                      row.model_id,
-                                      true,
-                                    ),
-                                  );
-                                  mutateModels();
-                                } else {
-                                  await fetch(
-                                    chatAPI.Endpoints.Models.Delete(
-                                      row.model_id,
-                                      false,
-                                    ),
-                                  );
-                                  mutateModels();
+                                  if (
+                                    confirm(
+                                      "Do you want to delete model '" +
+                                        row.model_id +
+                                        "' from your local Huggingface cache as well (if present) ?",
+                                    )
+                                  ) {
+                                    await fetch(
+                                      chatAPI.Endpoints.Models.Delete(
+                                        row.model_id,
+                                        true,
+                                      ),
+                                    );
+                                    mutateModels();
+                                  } else {
+                                    await fetch(
+                                      chatAPI.Endpoints.Models.Delete(
+                                        row.model_id,
+                                        false,
+                                      ),
+                                    );
+                                    mutateModels();
+                                  }
                                 }
-                              }
-                            }}
-                          />
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                              }}
+                            />
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
             {models?.length === 0 && (
               <tr>
                 <td colSpan={5}>

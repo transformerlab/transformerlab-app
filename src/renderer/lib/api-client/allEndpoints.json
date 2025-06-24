@@ -139,6 +139,76 @@
     "register": {
       "method": "POST",
       "path": "auth/register"
+  "experiment": {
+    "getScriptsOfTypeWithFilter": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/plugins/list?type={type}&filter={filter}"
+    },
+    "getScriptsOfTypeWithoutFilter": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/plugins/list?type={type}"
+    }
+  },
+  "diffusion": {
+    "generateId": {
+      "method": "POST",
+      "path": "diffusion/generate_id"
+    },
+    "generate": {
+      "method": "POST",
+      "path": "diffusion/generate"
+    },
+    "checkValidDiffusion": {
+      "method": "POST",
+      "path": "diffusion/is_valid_diffusion_model"
+    },
+    "getHistory": {
+      "method": "GET",
+      "path": "diffusion/history?limit={limit}&offset={offset}"
+    },
+    "getImageInfo": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/info"
+    },
+    "getImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?index={index}"
+    },
+    "getImageCount": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/count"
+    },
+    "getInputImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?input_image=true"
+    },
+    "getProcessedImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?preprocessed=true"
+    },
+    "getMaskImage": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}?mask_image=true"
+    },
+    "deleteImage": {
+      "method": "DELETE",
+      "path": "diffusion/history/{imageId}"
+    },
+    "clearHistory": {
+      "method": "DELETE",
+      "path": "diffusion/history"
+    },
+    "createDataset": {
+      "method": "POST",
+      "path": "diffusion/dataset/create"
+    },
+    "getAllImages": {
+      "method": "GET",
+      "path": "diffusion/history/{imageId}/all"
+    },
+    "listControlnets": {
+      "method": "GET",
+      "path": "diffusion/controlnets"
     }
   }
 }

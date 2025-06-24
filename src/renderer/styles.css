@@ -56,20 +56,6 @@ td {
   margin-left: auto;
 }
 
-button.hoverEditButton {
-  display: none;
-}
-
-.editableSheet:hover .editableSheetContent {
-  opacity: 0.3;
-  transition: opacity 0.1s ease-in-out;
-}
-
-.editableSheet:hover button.hoverEditButton {
-  display: inline-flex;
-  opacity: 1;
-}
-
 /* Make sure that if you have clickable things
   in the header, they themselves are not draggable
   otherwise you can't click on them */
@@ -144,11 +130,11 @@ spinning gradient border effect */
 }
 
 .MuiSheet-root.Sidebar {
-  background-color: rgb(214, 207, 225, 1.0),
+  background-color: rgb(214, 207, 225, 1);
 }
 
 html[data-joy-color-scheme='dark'] .MuiSheet-root.Sidebar {
-  background-color: rgb(54, 50, 59),
+  background-color: rgb(54, 50, 59);
 }
 
 /* Color for sidebar disabled text */
@@ -196,12 +182,16 @@ fieldset {
   max-width: 300px;
 }
 
-
 textarea {
   background-color: var(--joy-palette-background-level1);
   border: 1px solid rgb(209, 213, 219);
   color: var(--joy-palette-text-tertiary);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI";
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI';
   font-size: 16px;
   padding: 16px;
 }
@@ -228,7 +218,18 @@ textarea {
   min-width: 200px;
   margin: 0 5px 5px 0;
   font-size: 14px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    'Open Sans',
+    'Helvetica Neue',
+    sans-serif;
 }
 
 /* React flow asks us not to hide attribution but it is
@@ -259,7 +260,10 @@ code if we want */
 
 .react-flow__node-customNode {
   padding: 0px;
-  border-radius: var(--xy-node-border-radius, var(--xy-node-border-radius-default));
+  border-radius: var(
+    --xy-node-border-radius,
+    var(--xy-node-border-radius-default)
+  );
   font-size: 12px;
   min-width: 200px;
   color: var(--xy-node-color, var(--xy-node-color-default));
@@ -292,14 +296,13 @@ path.react-flow__edge-path {
   border-radius: 6px;
 }
 
-
 .custom-node-delete-button {
-  opacity: 0.0;
+  opacity: 0;
   z-index: 100;
 }
 
 .react-flow__node-customNode:hover .custom-node-delete-button {
-  opacity: 1.0;
+  opacity: 1;
   transition: opacity 0.2s ease-in-out;
   background-color: rgba(255, 255, 255, 1);
   border: 1.5px solid rgb(156, 144, 144);
@@ -314,7 +317,7 @@ path.react-flow__edge-path {
   justify-content: center;
   align-items: center;
   color: var(--joy-palette-primary-400);
-  border-color: var(--joy-palette-primary-400),
+  border-color: var(--joy-palette-primary-400);
 }
 
 .react-flow__node-customNode:hover {

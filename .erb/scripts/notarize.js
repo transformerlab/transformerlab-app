@@ -14,7 +14,7 @@ exports.default = async function notarizeMacos(context) {
 
   if (!('APPLE_API_KEY' in process.env && 'APPLE_API_KEY_ID' in process.env)) {
     console.warn(
-      'Skipping notarizing step. APPLE_API_KEY and APPLE_API_KEY_ID env variables must be set'
+      'Skipping notarizing step. APPLE_API_KEY and APPLE_API_KEY_ID env variables must be set',
     );
     return;
   }

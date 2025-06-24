@@ -215,7 +215,9 @@ export default function DatasetDetailsModal({ open, setOpen }) {
       <Modal open={showUploadDialog} onClose={handleClose}>
         <ModalDialog>
           <ModalClose />
-          <Typography level="title-lg">Upload {datasetType} Dataset</Typography>
+          <Typography level="title-lg" sx={{ textTransform: 'capitalize' }}>
+            Upload {datasetType} Dataset
+          </Typography>
           <Divider sx={{ my: 2 }} />
           <Box
             sx={{
@@ -231,45 +233,83 @@ export default function DatasetDetailsModal({ open, setOpen }) {
                   Supported formats: image folder (with supported image types)
                 </Typography>
                 <Dropzone
-                  onDrop={async (acceptedFiles) => {
+                  noClick
+                  onDragEnter={() => setDropzoneActive(true)}
+                  onDragLeave={() => setDropzoneActive(false)}
+                  onDrop={async (acceptedFiles, fileRejections, event) => {
                     setDropzoneActive(false);
 
-                    // Rebuild folder hierarchy support
-                    const rootFiles = acceptedFiles.filter((file) => {
-                      const relativePath =
-                        (file as any).webkitRelativePath || '';
-                      return (
-                        !relativePath.includes('/') &&
-                        validateFiles([file]).length === 0
-                      );
-                    });
+                    const fileToPathMap = new Map<File, string>();
 
-                    const validFiles = acceptedFiles.filter(
+                    async function traverseFileTree(
+                      item: any,
+                      path = '',
+                    ): Promise<File[]> {
+                      return new Promise((resolve) => {
+                        if (item.isFile) {
+                          item.file((file: File) => {
+                            fileToPathMap.set(file, path + file.name);
+                            resolve([file]);
+                          });
+                        } else if (item.isDirectory) {
+                          const dirReader = item.createReader();
+                          dirReader.readEntries(async (entries: any[]) => {
+                            const filesArrays = await Promise.all(
+                              entries.map((entry) =>
+                                traverseFileTree(entry, path + item.name + '/'),
+                              ),
+                            );
+                            resolve(filesArrays.flat());
+                          });
+                        } else {
+                          resolve([]);
+                        }
+                      });
+                    }
+
+                    const items = event.dataTransfer?.items;
+                    const allFiles: File[] = [];
+                    let hasFolder = false;
+
+                    if (items) {
+                      for (const item of items) {
+                        const entry = item.webkitGetAsEntry?.();
+                        if (entry) {
+                          if (entry.isDirectory) {
+                            hasFolder = true;
+                          }
+                          const files = await traverseFileTree(entry);
+                          allFiles.push(...files);
+                        }
+                      }
+                    }
+
+                    if (!hasFolder) {
+                      alert(
+                        'Please drag and drop a folder, not individual files.',
+                      );
+                      return;
+                    }
+
+                    const validFiles = allFiles.filter(
                       (file) => validateFiles([file]).length === 0,
                     );
 
-                    if (validFiles.length === 0 && rootFiles.length === 0) {
+                    if (validFiles.length === 0) {
                       alert('No supported files found in the selected folder.');
                       return;
                     }
 
                     const formData = new FormData();
-                    rootFiles.forEach((file) => {
-                      formData.append('files', file, file.name);
-                    });
-                    validFiles.forEach((file) => {
-                      const relativePath =
-                        (file as any).webkitRelativePath || file.name;
-                      formData.append('files', file, relativePath);
-                    });
+                    for (const file of validFiles) {
+                      const relPath = fileToPathMap.get(file) || file.name;
+                      formData.append('files', file, relPath);
+                    }
 
                     maybeAddGeneratedMetadata(validFiles, formData);
                     await uploadFiles(formData);
                   }}
-                  onDragEnter={() => setDropzoneActive(true)}
-                  onDragLeave={() => setDropzoneActive(false)}
-                  noClick
-                  directory // Optional: to allow entire folder drag-drop in supporting browsers
+                  getFilesFromEvent={() => Promise.resolve([])}
                 >
                   {({ getRootProps, getInputProps }) => (
                     <div {...getRootProps()}>
@@ -288,9 +328,11 @@ export default function DatasetDetailsModal({ open, setOpen }) {
                           alignItems: 'center',
                         }}
                       >
-                        <IoCloudUploadOutline size="36px" /> Drag & drop images
-                        here
-                        <Typography level="body-xs" mt={2}>
+                        <IoCloudUploadOutline size="36px" />
+                        <Typography level="body-md" mt={1}>
+                          Drag & drop image folders here
+                        </Typography>
+                        <Typography level="body-xs" mt={1}>
                           Or use the button below
                         </Typography>
                       </Sheet>

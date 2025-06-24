@@ -31,6 +31,8 @@ import {
   LogInIcon,
 } from 'lucide-react';
 
+import { RiImageAiLine } from 'react-icons/ri';
+
 import {
   Box,
   ButtonGroup,
@@ -44,7 +46,8 @@ import {
   useModelStatus,
   usePluginStatus,
   useAPI,
-  logout
+  logout,
+  getFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
@@ -54,6 +57,10 @@ import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
+  const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
+    boolean | null
+  >(null);
+
   function activeModelIsNotSameAsFoundation() {
     if (models === null) {
       return true;
@@ -73,6 +80,41 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
     );
   }
 
+  // Check if the current foundation model is a diffusion model
+  useEffect(() => {
+    const checkValidDiffusion = async () => {
+      if (!experimentInfo?.config?.foundation) {
+        setIsValidDiffusionModel(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          getFullPath('diffusion', ['checkValidDiffusion'], {}),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: experimentInfo.config.foundation }),
+          },
+        );
+
+        // Handle 404 or other non-ok responses
+        if (!response.ok) {
+          setIsValidDiffusionModel(false);
+          return;
+        }
+
+        const data = await response.json();
+        // Handle case where is_valid_diffusion_model property doesn't exist
+        setIsValidDiffusionModel(data.is_valid_diffusion_model ?? false);
+      } catch (e) {
+        setIsValidDiffusionModel(false);
+      }
+    };
+
+    checkValidDiffusion();
+  }, [experimentInfo?.config?.foundation]);
+
   return (
     <List
       sx={{
@@ -88,18 +130,24 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         icon={<LayersIcon strokeWidth={1} />}
         disabled={!experimentInfo?.name}
       />
-      {/* <SubNavItem
-          title="Prompt"
-          path="/experiment/prompt"
-          icon={<TextSelectIcon />}
+      {/* Show Interact tab only if the model is NOT a diffusion model */}
+      {(isValidDiffusionModel === false || isValidDiffusionModel === null) && (
+        <SubNavItem
+          title="Interact"
+          path="/experiment/chat"
+          icon={<MessageCircleIcon strokeWidth={9} />}
+          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
+        />
+      )}
+      {/* Show Diffusion tab only if the model IS a diffusion model */}
+      {isValidDiffusionModel === true && (
+        <SubNavItem
+          title="Diffusion"
+          path="/experiment/diffusion"
+          icon={<RiImageAiLine />}
           disabled={!experimentInfo?.name}
-        /> */}
-      <SubNavItem
-        title="Interact"
-        path="/experiment/chat"
-        icon={<MessageCircleIcon strokeWidth={9} />}
-        disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
-      />
+        />
+      )}
       <SubNavItem
         title="Workflows"
         path="/experiment/workflows"
@@ -116,13 +164,13 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         title="Generate"
         path="/experiment/generate"
         icon={<SquareStackIcon />}
-        disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
+        disabled={!experimentInfo?.name}
       />
       <SubNavItem
         title="Evaluate"
         path="/experiment/eval"
         icon={<ChartColumnIncreasingIcon />}
-        disabled={!experimentInfo?.name}
+        disabled={!experimentInfo?.name || isValidDiffusionModel === true}
       />
       <SubNavItem
         title="Documents"

@@ -40,7 +40,7 @@ ipcMain.handle('ssh:connect', (event, key) => {
   } else {
     var private_key = require('fs').readFileSync(
       default_private_key_location,
-      'utf8'
+      'utf8',
     );
   }
 

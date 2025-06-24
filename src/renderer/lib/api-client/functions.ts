@@ -224,6 +224,7 @@ export async function getComputerInfo() {
 export async function activateWorker(
   modelName: string,
   modelFilename: string | null = null,
+  modelArchitecture: string = '',
   adaptorName: string = '',
   engine: string | null = 'default',
   parameters: object = {},
@@ -249,6 +250,8 @@ export async function activateWorker(
         model +
         '&adaptor=' +
         adaptorName +
+        '&model_architecture=' +
+        modelArchitecture +
         '&engine=' +
         engine +
         '&experiment_id=' +

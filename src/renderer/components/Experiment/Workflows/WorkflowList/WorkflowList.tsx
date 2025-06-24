@@ -73,7 +73,12 @@ export default function WorkflowList({ experimentInfo }) {
     error: workflowsError,
     isLoading: isLoading,
     mutate: mutateWorkflows,
-  } = useSWR(chatAPI.Endpoints.Workflows.List(), fetcher);
+  } = useSWR<Workflow[]>(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id)
+      : null,
+    fetcher,
+  );
 
   // select the first workflow available:
   useEffect(() => {
@@ -84,14 +89,28 @@ export default function WorkflowList({ experimentInfo }) {
     }
   }, [workflowsData, selectedWorkflowId, newWorkflowModalOpen]);
 
-  const workflows = workflowsData;
+  const workflows = Array.isArray(workflowsData) ? workflowsData : [];
 
   const selectedWorkflow = workflows?.find(
     (workflow) => workflow.id === selectedWorkflowId,
   );
 
   async function runWorkflow(workflowId: string) {
-    await fetch(chatAPI.Endpoints.Workflows.RunWorkflow(workflowId));
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Workflows.RunWorkflow(workflowId, experimentInfo.id),
+      );
+
+      if (response.ok) {
+        alert(
+          'Your workflow has started! Navigate to the runs page to view its progress.',
+        );
+      } else {
+        alert('Failed to start workflow. Please try again.');
+      }
+    } catch (error) {
+      alert('Failed to start workflow with error: ' + error);
+    }
   }
   return (
     <>
@@ -220,6 +239,7 @@ export default function WorkflowList({ experimentInfo }) {
                           await fetch(
                             chatAPI.Endpoints.Workflows.DeleteWorkflow(
                               selectedWorkflow?.id,
+                              experimentInfo.id,
                             ),
                           );
                           mutateWorkflows();
@@ -254,6 +274,7 @@ export default function WorkflowList({ experimentInfo }) {
                   selectedWorkflow={selectedWorkflow}
                   setNewNodeModalOpen={setNewNodeflowModalOpen}
                   mutateWorkflows={mutateWorkflows}
+                  experimentInfo={experimentInfo}
                 />
               )
             ) : (

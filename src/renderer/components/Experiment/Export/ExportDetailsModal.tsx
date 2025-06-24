@@ -12,16 +12,17 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 // convert JSON data in to a more readable format
 function formatJobData(data) {
-    let json_data = JSON.stringify(data, undefined, 4);
-    return json_data;
+  let json_data = JSON.stringify(data, undefined, 4);
+  return json_data;
 }
 
 export default function ExportDetailsModal({ jobId, setJobId }) {
-
   // TODO: Pass in experiment ID!
   const { data, error, isLoading, mutate } = useSWR(
-    (jobId == -1) ? null : chatAPI.Endpoints.Experiment.GetExportJobDetails(1, jobId),
-    fetcher
+    jobId == -1
+      ? null
+      : chatAPI.Endpoints.Experiment.GetExportJobDetails(1, jobId),
+    fetcher,
   );
 
   return (

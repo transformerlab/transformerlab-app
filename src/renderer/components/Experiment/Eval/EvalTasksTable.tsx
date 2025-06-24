@@ -22,6 +22,7 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import useSWR from 'swr';
+import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import EvalModal from './EvalModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -122,6 +123,8 @@ export default function EvalTasksTable({ experimentInfo }) {
       ),
     fetcher,
   );
+
+  const analytics = useAnalytics();
   // eslint-disable-next-line react/no-unstable-nested-components
   function FilteredPlugins({ plugins, type }) {
     const filteredPlugins = plugins?.filter((row) => row.evalsType === type);
@@ -262,7 +265,14 @@ export default function EvalTasksTable({ experimentInfo }) {
                         startDecorator={<PlayIcon />}
                         variant="soft"
                         color="success"
-                        onClick={async () => evaluationRun(evaluations.id)}
+                        onClick={async () => {
+                          // Track the event with analytics
+                          analytics.track('Task Queued', {
+                            task_type: 'EVAL',
+                            plugin_name: evaluations.plugin,
+                          });
+                          evaluationRun(evaluations.id);
+                        }}
                       >
                         Queue
                       </Button>

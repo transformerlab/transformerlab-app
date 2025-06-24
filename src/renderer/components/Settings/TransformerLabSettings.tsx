@@ -277,6 +277,7 @@ export default function TransformerLabSettings() {
                 {doNotTrack
                   ? 'No tracking events will be sent'
                   : 'Anonymous usage data will be shared with Transformer Lab'}
+                . Restart app to apply changes.
               </FormHelperText>
             </FormControl>
             <FormControl sx={{ mt: 2 }}>

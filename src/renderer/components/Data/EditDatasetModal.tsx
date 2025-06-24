@@ -61,6 +61,7 @@ export default function EditDatasetModal({
                 template={template}
                 onModifiedRowsChange={setModifiedRows}
                 onDatasetNameChange={setNewDatasetId}
+                onClose={() => setOpen(false)}
               />
             </Box>
           </Sheet>

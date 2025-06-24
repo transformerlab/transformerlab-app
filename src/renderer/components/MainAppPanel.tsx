@@ -9,16 +9,9 @@ import {
 } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import useSWR from 'swr';
 
-import { AnalyticsBrowser } from '@segment/analytics-next';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
 import Embeddings from './Experiment/Embeddings';
@@ -38,6 +31,7 @@ import Prompt from './Experiment/Prompt';
 import Documents from './Experiment/Documents';
 import Rag from './Experiment/Rag';
 import Tokenize from './Experiment/Interact/Tokenize';
+import Diffusion from './Experiment/Diffusion/Diffusion';
 
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
@@ -45,25 +39,7 @@ import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
 import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
-
-export const analytics = new AnalyticsBrowser();
-analytics.load({ writeKey: 'UYXFr71CWmsdxDqki5oFXIs2PSR5XGCE' });
-
-// Segment context provider to make analytics available throughout the app
-export const SegmentContext = createContext();
-
-export const SegmentProvider = ({ children }) => {
-  return (
-    <SegmentContext.Provider value={analytics}>
-      {children}
-    </SegmentContext.Provider>
-  );
-};
-
-// Hook to use Segment analytics in components
-export const useAnalytics = () => {
-  return useContext(SegmentContext);
-};
+import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -75,17 +51,6 @@ export const PageTracker = () => {
 
   useEffect(() => {
     const trackPageView = async () => {
-      // Do not track if this is a development environment
-      if (window.platform?.environment === 'development') {
-        return;
-      }
-      // Check for the DO_NOT_TRACK value in localStorage
-      const doNotTrack = await window.storage.get('DO_NOT_TRACK');
-      if (doNotTrack === 'true') {
-        console.log('Do not track is enabled');
-        return;
-      }
-
       // Track page view when location changes
       analytics.page({
         path: location.pathname,
@@ -350,7 +315,7 @@ export default function MainAppPanel({
   }
 
   return (
-    <SegmentProvider>
+    <>
       {/* Include the PageTracker component to automatically track page views */}
       <PageTracker />
       <Routes>
@@ -471,6 +436,10 @@ export default function MainAppPanel({
           element={<Generate experimentInfo={experimentInfo} />}
         />
         <Route
+          path="/experiment/diffusion"
+          element={<Diffusion experimentInfo={experimentInfo} />}
+        />
+        <Route
           path="/plugins"
           element={
             <Plugins
@@ -519,6 +488,6 @@ export default function MainAppPanel({
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
       </Routes>
-    </SegmentProvider>
+    </>
   );
 }

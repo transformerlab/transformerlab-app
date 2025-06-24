@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import { useState } from 'react';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -44,9 +44,9 @@ export default function Export({ experimentInfo }: ExportProps) {
     experimentInfo?.id &&
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
-        'exporter'
+        'exporter',
       ),
-    fetcher
+    fetcher,
   );
 
   const {
@@ -60,17 +60,19 @@ export default function Export({ experimentInfo }: ExportProps) {
     fetcher,
     {
       refreshInterval: 2000,
-    }
+    },
   );
 
   // returns true if the currently loaded foundation is in the passed array
   // supported_architectures - a list of all architectures supported by this plugin
-  function isModelValidArchitecture(supported_architectures: string[]): boolean {
+  function isModelValidArchitecture(
+    supported_architectures: string[],
+  ): boolean {
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
       supported_architectures.includes(
-        experimentInfo?.config?.foundation_model_architecture
+        experimentInfo?.config?.foundation_model_architecture,
       )
     );
   }
@@ -80,7 +82,7 @@ export default function Export({ experimentInfo }: ExportProps) {
   async function exportRun(
     plugin_id: string,
     plugin_architecture: string,
-    params_json: string
+    params_json: string,
   ) {
     if (plugin_id) {
       // sets the running plugin ID, which is used by the UI to set disabled on buttons
@@ -92,8 +94,8 @@ export default function Export({ experimentInfo }: ExportProps) {
           experimentInfo?.id,
           plugin_id,
           plugin_architecture,
-          params_json
-        )
+          params_json,
+        ),
       );
 
       // Clean up after export by unsetting running plugin (re-enables buttons)
@@ -125,7 +127,9 @@ export default function Export({ experimentInfo }: ExportProps) {
           flexDirection: 'column',
         }}
       >
-        <Typography level="h3" mb={1}>Export Model</Typography>
+        <Typography level="h3" mb={1}>
+          Export Model
+        </Typography>
         <Sheet sx={{ overflowY: 'auto', overflowX: 'hidden', mb: '2rem' }}>
           <Divider sx={{ mt: 2, mb: 2 }} />
           <Typography level="title-lg" mb={2}>
@@ -156,7 +160,7 @@ export default function Export({ experimentInfo }: ExportProps) {
                           runningPlugin === row.uniqueId ? (
                             <CircularProgress size="sm" thickness={2} />
                           ) : !isModelValidArchitecture(
-                              row.model_architectures
+                              row.model_architectures,
                             ) ? (
                             ' '
                           ) : (
@@ -177,8 +181,8 @@ export default function Export({ experimentInfo }: ExportProps) {
                         {runningPlugin === row.uniqueId
                           ? 'Exporting...'
                           : !isModelValidArchitecture(row.model_architectures)
-                          ? 'Not supported for this model architecture'
-                          : 'Select'}
+                            ? 'Not supported for this model architecture'
+                            : 'Select'}
                       </Button>
                     </td>
                   </tr>
@@ -188,9 +192,7 @@ export default function Export({ experimentInfo }: ExportProps) {
           )}
         </Sheet>
 
-        <Sheet
-          sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}
-        >
+        <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}>
           <ExportJobsTable experimentInfo={experimentInfo} />
         </Sheet>
       </Sheet>

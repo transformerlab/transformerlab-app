@@ -51,6 +51,23 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
       <Menu variant="soft" className="select-experiment-menu">
         <MenuItem
           variant="soft"
+          onClick={() => {
+            if (experimentInfo?.id) {
+              fetch(
+                `${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`,
+              ).then(() => {
+                alert(
+                  `Your experiment was exported as a recipe to ~/.transformerlab/workspace/${experimentInfo.name}_export.json`,
+                );
+              });
+            }
+          }}
+          disabled={!experimentInfo?.config?.foundation}
+        >
+          Export {experimentInfo?.name}
+        </MenuItem>
+        <MenuItem
+          variant="soft"
           color="danger"
           onClick={() => {
             if (
@@ -262,7 +279,16 @@ export default function SelectExperimentMenu({
           <Menu
             className="select-experiment-menu"
             variant="plain"
-            sx={{ width: 170, overflow: 'hidden' }}
+            sx={{
+              width: 170,
+              overflowX: 'hidden',
+              overflowY: 'auto',
+              maxHeight: '80dvh',
+              // make scrollbar thin:
+              scrollbarWidth: 'thin',
+              scrollbarColor:
+                'var(--joy-palette-neutral-plainColor) transparent',
+            }}
           >
             {data &&
               data.map((experiment: any) => {

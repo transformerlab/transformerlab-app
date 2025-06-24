@@ -14,13 +14,13 @@ import {
   ModalDialog,
   Stack,
   Table,
-  Typography
+  Typography,
 } from '@mui/joy';
 
 import {
   ArrowRightFromLineIcon,
   FolderXIcon,
-  FolderPlusIcon
+  FolderPlusIcon,
 } from 'lucide-react';
 
 // fetcher used by SWR
@@ -28,7 +28,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ImportModelsModal({ open, setOpen }) {
   const [importing, setImporting] = useState(false);
-  const [modelFolder, setModelFolder] = useState("");
+  const [modelFolder, setModelFolder] = useState('');
 
   const {
     data: modelsData,
@@ -38,22 +38,21 @@ export default function ImportModelsModal({ open, setOpen }) {
     !open
       ? null
       : chatAPI.Endpoints.Models.SearchForLocalUninstalledModels(modelFolder),
-    fetcher
+    fetcher,
   );
   const models = modelsData?.data;
 
   /*
-   * This funciton takes an Iterator with model information and tries to import 
+   * This funciton takes an Iterator with model information and tries to import
    * each of those models through individual calls to the backend.
    *
    * When it completes it displays an alert with results.
    */
   async function importRun(model_ids: Iterator) {
-
     // storing results
     let totalImports = 0;
     let successfulImports = 0;
-    let error_msg = "";
+    let error_msg = '';
 
     let next = model_ids.next();
     while (!next.done) {
@@ -62,25 +61,26 @@ export default function ImportModelsModal({ open, setOpen }) {
       const model_id = next.value[0];
       const model_source = next.value[1];
 
-      console.log("Importing " + model_id);
-      const api_endpoint = model_source == "local"
-        ? chatAPI.Endpoints.Models.ImportFromLocalPath(model_id)
-        : chatAPI.Endpoints.Models.ImportFromSource(model_source, model_id);
+      console.log('Importing ' + model_id);
+      const api_endpoint =
+        model_source == 'local'
+          ? chatAPI.Endpoints.Models.ImportFromLocalPath(model_id)
+          : chatAPI.Endpoints.Models.ImportFromSource(model_source, model_id);
       const response = await fetch(api_endpoint);
 
       // Read the response to see if it was successful and report any errors
-      let response_error = "";
+      let response_error = '';
       if (response.ok) {
         const response_json = await response.json();
-        if (response_json.status == "success") {
+        if (response_json.status == 'success') {
           successfulImports++;
-        } else if ("message" in response_json) {
+        } else if ('message' in response_json) {
           response_error = response_json.message;
         } else {
-          response_error = "Unspecified error";
+          response_error = 'Unspecified error';
         }
       } else {
-        response_error = "API error";
+        response_error = 'API error';
       }
 
       // Log errors
@@ -105,12 +105,12 @@ export default function ImportModelsModal({ open, setOpen }) {
 
   function prettyModelSourceName(source: str) {
     switch (source) {
-      case "huggingface":
-        return "Hugging Face"
-      case "ollama":
-        return "Ollama"
-      case "local":
-        return "Local Folder"
+      case 'huggingface':
+        return 'Hugging Face';
+      case 'ollama':
+        return 'Ollama';
+      case 'local':
+        return 'Local Folder';
       default:
         return source;
     }
@@ -141,7 +141,6 @@ export default function ImportModelsModal({ open, setOpen }) {
             setOpen(false);
           }}
         >
-
           {
             <FormControl>
               <Typography>
@@ -155,25 +154,18 @@ export default function ImportModelsModal({ open, setOpen }) {
                   class="btn"
                   readOnly
                   sx={{ width: '85%', float: 'left' }}
-                  value={modelFolder ? modelFolder.toString() : "(none)"}
+                  value={modelFolder ? modelFolder.toString() : '(none)'}
                 />
-                {modelFolder
-                  ? <Button
+                {modelFolder && (
+                  <Button
                     size="sm"
                     sx={{ height: '30px' }}
                     variant="plain"
-                    disabled={modelFolder == ""}
+                    disabled={modelFolder == ''}
                     startDecorator={<FolderXIcon />}
-                    onClick={() => setModelFolder("")}
+                    onClick={() => setModelFolder('')}
                   />
-                  : <Button
-                    size="sm"
-                    sx={{ height: '30px' }}
-                    variant="plain"
-                    disabled={modelFolder}
-                    startDecorator={<FolderPlusIcon />}
-                  />
-                }
+                )}
               </div>
               <div>
                 <label htmlFor="modelFolderSelector">
@@ -189,11 +181,10 @@ export default function ImportModelsModal({ open, setOpen }) {
                 <input
                   directory=""
                   webkitdirectory=""
-                  style={{display:'none'}}
+                  style={{ display: 'none' }}
                   type="file"
                   id="modelFolderSelector"
                   onChange={async (event: FormEvent<HTMLFormElement>) => {
-
                     // The input returns a list of files under the selected folder.
                     // NOT the folder. But you can figure out the folder based on
                     // the difference between path and webkitRelativePath.
@@ -203,12 +194,16 @@ export default function ImportModelsModal({ open, setOpen }) {
                       const firstfile = filelist[0];
                       const firstfilepath = firstfile.path;
                       const webkitRelativePath = firstfile.webkitRelativePath;
-                      const parentPath = firstfilepath.slice(0, -1 * webkitRelativePath.length);
-                      const topRelativePathDir = webkitRelativePath.split('/')[0];
+                      const parentPath = firstfilepath.slice(
+                        0,
+                        -1 * webkitRelativePath.length,
+                      );
+                      const topRelativePathDir =
+                        webkitRelativePath.split('/')[0];
                       const fullPath = parentPath + topRelativePathDir;
                       setModelFolder(fullPath);
                     } else {
-                      setModelFolder("");
+                      setModelFolder('');
                     }
                   }}
                 />
@@ -241,40 +236,52 @@ export default function ImportModelsModal({ open, setOpen }) {
                 </tr>
               </thead>
               <tbody>
-                {!isLoading && !modelsError && models?.length > 0 && models.map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <Typography ml={2} fontWeight="lg">
-                        {row.installed
-                          ? " "
-                          : (row.supported
-                            ? <Checkbox
+                {!isLoading &&
+                  !modelsError &&
+                  models?.length > 0 &&
+                  models.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <Typography ml={2} fontWeight="lg">
+                          {row.installed ? (
+                            ' '
+                          ) : row.supported ? (
+                            <Checkbox
                               name={row.path}
                               value={row.source}
                               defaultChecked
                             />
-                            : <Checkbox disabled />
-                          )
-                        }
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
-                        {row.id}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
-                        {prettyModelSourceName(row.source)}
-                      </Typography>
-                    </td>
-                    <td>
-                      <Typography ml={2} fontWeight={row.supported ? "lg" : "sm"}>
-                        {row.status}
-                      </Typography>
-                    </td>
-                  </tr>
-                ))}
+                          ) : (
+                            <Checkbox disabled />
+                          )}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography
+                          ml={2}
+                          fontWeight={row.supported ? 'lg' : 'sm'}
+                        >
+                          {row.id}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography
+                          ml={2}
+                          fontWeight={row.supported ? 'lg' : 'sm'}
+                        >
+                          {prettyModelSourceName(row.source)}
+                        </Typography>
+                      </td>
+                      <td>
+                        <Typography
+                          ml={2}
+                          fontWeight={row.supported ? 'lg' : 'sm'}
+                        >
+                          {row.status}
+                        </Typography>
+                      </td>
+                    </tr>
+                  ))}
                 {!isLoading && !modelsError && models?.length === 0 && (
                   <tr>
                     <td colSpan={5}>
@@ -331,19 +338,16 @@ export default function ImportModelsModal({ open, setOpen }) {
             <Button
               variant="soft"
               type="submit"
-              disabled={models?.length == 0 && importing}
+              disabled={importing || isLoading || models?.length == 0}
               startDecorator={
-                importing
-                  ? <CircularProgress />
-                  : <ArrowRightFromLineIcon />
+                importing ? <CircularProgress /> : <ArrowRightFromLineIcon />
               }
             >
               Import
             </Button>
           </Stack>
-
         </form>
       </ModalDialog>
     </Modal>
-  )
+  );
 }

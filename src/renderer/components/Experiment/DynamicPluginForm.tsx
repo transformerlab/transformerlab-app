@@ -183,7 +183,7 @@ const CustomRange = function (props: WidgetProps) {
 function CustomSelect<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
+  F extends FormContextType = any,
 >({
   schema,
   id,
@@ -227,7 +227,7 @@ function CustomSelect<
   const selectedIndexes = enumOptionsIndexForValue<S>(
     value,
     enumOptions,
-    multiple
+    multiple,
   );
 
   // set a default value for the field if it's not multi-select and value is set
@@ -305,7 +305,7 @@ This is more performant but less nice looking */
 function CustomSelectSimple<
   T = any,
   S extends StrictRJSFSchema = RJSFSchema,
-  F extends FormContextType = any
+  F extends FormContextType = any,
 >({
   schema,
   id,
@@ -349,7 +349,7 @@ function CustomSelectSimple<
   const selectedIndexes = enumOptionsIndexForValue<S>(
     value,
     enumOptions,
-    multiple
+    multiple,
   );
 
   // set a default value for the field if it's not multi-select and value is set
@@ -390,10 +390,11 @@ function CustomSelectSimple<
   );
 }
 
-
-function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSchema, F extends FormContextType = any>(
-  props: WidgetProps<T, S, F>
-) {
+function CustomAutocompleteWidget<
+  T = any,
+  S extends StrictRJSFSchema = RJSFSchema,
+  F extends FormContextType = any,
+>(props: WidgetProps<T, S, F>) {
   const {
     id,
     value,
@@ -410,14 +411,14 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
 
   // Default multiple is true.
   // const _multiple = typeof multiple === 'undefined' ? true : !!multiple;
-    // Check both multiple and options.multiple; default is true.
-    // console.log("OPTIONS", options);
-    const _multiple =
+  // Check both multiple and options.multiple; default is true.
+  // console.log("OPTIONS", options);
+  const _multiple =
     typeof multiple !== 'undefined'
       ? Boolean(multiple)
       : typeof options.multiple !== 'undefined'
-      ? Boolean(options.multiple)
-      : true;
+        ? Boolean(options.multiple)
+        : true;
 
   // console.log("multiple", _multiple);
   // Determine default value.
@@ -433,7 +434,7 @@ function CustomAutocompleteWidget<T = any, S extends StrictRJSFSchema = RJSFSche
 
   // Map enumOptions into objects with label and value.
   const processedOptionsValues = enumOptions.map((opt) =>
-    typeof opt === 'object' ? opt.value : opt
+    typeof opt === 'object' ? opt.value : opt,
   );
   // Create processedOptions array as an array of all values in enumOptions
 
@@ -502,7 +503,7 @@ const widgets: RegistryWidgetsType = {
   AutoCompleteWidget: CustomAutocompleteWidget,
   EvaluationWidget: CustomEvaluationWidget,
   ModelProviderWidget: ModelProviderWidget,
-  GEvalTasksWidget: GEvalTasksWidget
+  GEvalTasksWidget: GEvalTasksWidget,
 };
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -522,17 +523,20 @@ export default function DynamicPluginForm({
       chatAPI.Endpoints.Experiment.ScriptGetFile(
         experimentInfo?.id,
         plugin,
-        'index.json'
+        'index.json',
       ),
-    fetcher
+    fetcher,
   );
   const [configData, setConfigData] = React.useState<any>(null);
   //Using use effect here to update the config data when the data or config changes
+  // Check for 'FILE NOT FOUND' and set safeData accordingly
+  const safeData = data === 'FILE NOT FOUND' ? null : data;
+
   React.useEffect(() => {
-    if (config && data) {
+    if (config && safeData) {
       let parsedData;
       try {
-        parsedData = JSON.parse(data); //Parsing data for easy access to parameters}
+        parsedData = JSON.parse(safeData); //Parsing data for easy access to parameters
       } catch (e) {
         console.error('Error parsing data', e);
         parsedData = '';
@@ -544,16 +548,16 @@ export default function DynamicPluginForm({
           parsedData.parameters &&
           key in parsedData.parameters
         ) {
-        //   if (parsedData.parameters[key].enum) {
-        //   // Set the enum array such that config[key] is the first element
-        //   const enumArray = parsedData.parameters[key].enum;
-        //   let index = enumArray.indexOf(config[key]);
-        //   if (index > 0) {
-        //     enumArray.unshift(enumArray.splice(index, 1)[0]);
-        //   }
-        //   parsedData.parameters[key].enum = enumArray;
-        // }
-        parsedData.parameters[key].default = config[key];
+          //   if (parsedData.parameters[key].enum) {
+          //   // Set the enum array such that config[key] is the first element
+          //   const enumArray = parsedData.parameters[key].enum;
+          //   let index = enumArray.indexOf(config[key]);
+          //   if (index > 0) {
+          //     enumArray.unshift(enumArray.splice(index, 1)[0]);
+          //   }
+          //   parsedData.parameters[key].enum = enumArray;
+          // }
+          parsedData.parameters[key].default = config[key];
         }
       });
       // Delete all keys in parsedData.parameters that start with tflabcustomui_
@@ -565,10 +569,12 @@ export default function DynamicPluginForm({
       // if key is in parsedData.parameters but not in config then delete the key from parsedData.parameters
       //Schema takes in data as a JSON string
       setConfigData(JSON.stringify(parsedData));
-    } else if (data) {
-      setConfigData(data); //Setting the config data to the data if there is no config
+    } else if (safeData) {
+      setConfigData(safeData); //Setting the config data to the data if there is no config
+    } else {
+      setConfigData(null);
     }
-  }, [plugin, experimentInfo, config, data]);
+  }, [plugin, experimentInfo, config, safeData]);
 
   const schema = useMemo(() => getSchema(configData), [configData]);
   /* Below we wait for "configData" to be sure that defaults are set before rendering

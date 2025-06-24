@@ -63,7 +63,7 @@ const DatasetTable = ({ datasetId }) => {
     }
   }, [data, pageSize, datasetLen]);
   return (
-    <>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {data?.data?.['splits'] ? (
         <FormControl
           sx={{ flexDirection: 'row', gap: 2, alignItems: 'baseline' }}
@@ -101,182 +101,190 @@ const DatasetTable = ({ datasetId }) => {
           loading={isLoading}
         />
       )}
-      <Box sx={{ height: '100%' }}>
-        {isLoading && (
-          <>
-            {Array.from({ length: 8 }).map((_, index) => (
-              <Skeleton
-                key={index}
-                variant="rectangular"
-                width="100%"
-                height="2em"
-                sx={{ mb: 1 }}
-                loading={isLoading}
-              />
-            ))}
-          </>
-        )}
-        {data?.status == 'error' && (
-          <Alert color="danger">{data?.message}</Alert>
-        )}
-        {/* {JSON.stringify(data)} */}
-        {data &&
-          data?.data?.['columns'] && ( //Data is loaded as a map of column names to arrays of values
-            <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
-              <thead>
-                <tr>
-                  {Object.keys(data.data['columns']).map((key) => (
-                    <th key={key}>{key}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({
-                  length:
-                    data.data['columns'][Object.keys(data.data['columns'])[0]]
-                      .length,
-                }).map((_, rowIndex) => (
-                  <tr key={rowIndex}>
+
+      <Box
+        sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+      >
+        <Box sx={{ flex: 1, overflow: 'auto' }}>
+          {isLoading && (
+            <>
+              {Array.from({ length: 8 }).map((_, index) => (
+                <Skeleton
+                  key={index}
+                  variant="rectangular"
+                  width="100%"
+                  height="2em"
+                  sx={{ mb: 1 }}
+                  loading={isLoading}
+                />
+              ))}
+            </>
+          )}
+          {data?.status == 'error' && (
+            <Alert color="danger">{data?.message}</Alert>
+          )}
+          {/* {JSON.stringify(data)} */}
+          {data &&
+            data?.data?.['columns'] && ( //Data is loaded as a map of column names to arrays of values
+              <Table sx={{ tableLayout: 'auto', overflow: 'scroll' }}>
+                <thead>
+                  <tr>
                     {Object.keys(data.data['columns']).map((key) => (
-                      <td
-                        key={key}
-                        style={{
-                          whiteSpace: 'pre-line',
-                          verticalAlign: 'top',
-                        }}
-                      >
-                        <Tooltip
-                          title={
-                            typeof data.data['columns'][key][rowIndex] ===
-                            'string'
-                              ? data.data['columns'][key][rowIndex].length > 100
-                                ? `${data.data['columns'][key][rowIndex].substring(0, 100)}...`
-                                : data.data['columns'][key][rowIndex]
-                              : JSON.stringify(
-                                  data.data['columns'][key][rowIndex],
-                                )
-                          }
-                          sx={{ maxWidth: '400px' }}
-                          arrow
-                          variant="solid"
-                          color="primary"
-                        >
-                          <div
-                            style={{
-                              maxHeight: '150px',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {typeof data.data['columns'][key][rowIndex] ===
-                              'string' &&
-                            data.data['columns'][key][rowIndex].startsWith(
-                              'data:image/',
-                            ) ? (
-                              <img
-                                src={data.data['columns'][key][rowIndex]}
-                                alt="preview"
-                                style={{
-                                  maxWidth: 120,
-                                  maxHeight: 120,
-                                  display: 'block',
-                                }}
-                              />
-                            ) : typeof data.data['columns'][key][rowIndex] ===
-                              'string' ? (
-                              data.data['columns'][key][rowIndex]
-                            ) : (
-                              JSON.stringify(
-                                data.data['columns'][key][rowIndex],
-                              )
-                            )}
-                          </div>
-                        </Tooltip>
-                      </td>
+                      <th key={key}>{key}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </Table>
-          )}{' '}
-      </Box>
-      <Box
-        className="Pagination"
-        sx={{
-          pt: 2,
-          gap: 1,
-          [`& .${iconButtonClasses.root}`]: { borderRadius: '50%' },
-          display: 'inline-flex',
-          alignItems: 'center',
-        }}
-      >
-        {pageNumber > 1 ? (
-          <Button
-            size="sm"
-            variant="outlined"
-            color="neutral"
-            onClick={() => setPageNumber(pageNumber - 1)}
-          >
-            <ChevronLeftIcon /> Previous
-          </Button>
-        ) : (
-          <div style={{ width: '78px', height: '30px' }} />
-        )}
-        <Box sx={{ flex: 1, alignItems: 'center' }} />
-        <IconButton
-          key={1}
-          size="sm"
-          variant={Number(1) === pageNumber ? 'outlined' : 'plain'}
-          color="neutral"
-          onClick={() => setPageNumber(Number(1))}
-        >
-          {1}
-        </IconButton>
-        {pageNumber > 4 ? '…' : <div />}
-        {Array.from(
-          { length: Math.min(5, numOfPages) },
-          (_, i) => pageNumber + i - 2,
-        )
-          .filter((page) => page >= 2 && page < numOfPages)
+                </thead>
+                <tbody>
+                  {Array.from({
+                    length:
+                      data.data['columns'][Object.keys(data.data['columns'])[0]]
+                        .length,
+                  }).map((_, rowIndex) => (
+                    <tr key={rowIndex}>
+                      {Object.keys(data.data['columns']).map((key) => (
+                        <td
+                          key={key}
+                          style={{
+                            whiteSpace: 'pre-line',
+                            verticalAlign: 'top',
+                          }}
+                        >
+                          <Tooltip
+                            title={
+                              typeof data.data['columns'][key][rowIndex] ===
+                              'string'
+                                ? data.data['columns'][key][rowIndex].length >
+                                  100
+                                  ? `${data.data['columns'][key][rowIndex].substring(0, 100)}...`
+                                  : data.data['columns'][key][rowIndex]
+                                : JSON.stringify(
+                                    data.data['columns'][key][rowIndex],
+                                  )
+                            }
+                            sx={{ maxWidth: '400px' }}
+                            arrow
+                            variant="solid"
+                            color="primary"
+                          >
+                            <div
+                              style={{
+                                maxHeight: '150px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {typeof data.data['columns'][key][rowIndex] ===
+                                'string' &&
+                              data.data['columns'][key][rowIndex].startsWith(
+                                'data:image/',
+                              ) ? (
+                                <img
+                                  src={data.data['columns'][key][rowIndex]}
+                                  alt="preview"
+                                  style={{
+                                    maxWidth: 120,
+                                    maxHeight: 120,
+                                    display: 'block',
+                                  }}
+                                />
+                              ) : typeof data.data['columns'][key][rowIndex] ===
+                                'string' ? (
+                                data.data['columns'][key][rowIndex]
+                              ) : (
+                                JSON.stringify(
+                                  data.data['columns'][key][rowIndex],
+                                )
+                              )}
+                            </div>
+                          </Tooltip>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+        </Box>
 
-          .map((page) => (
-            <IconButton
-              key={page}
+        <Box
+          className="Pagination"
+          sx={{
+            pt: 2,
+            gap: 1,
+            [`& .${iconButtonClasses.root}`]: { borderRadius: '50%' },
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          {pageNumber > 1 && (
+            <Button
               size="sm"
-              variant={page === pageNumber ? 'outlined' : 'plain'}
+              variant="outlined"
               color="neutral"
-              onClick={() => setPageNumber(Number(page))}
+              onClick={() => setPageNumber(pageNumber - 1)}
             >
-              {page}
-            </IconButton>
-          ))}
-        {pageNumber < numOfPages - 4 ? '…' : <div />}
-        {numOfPages != 1 && (
+              <ChevronLeftIcon /> Previous
+            </Button>
+          )}
+
           <IconButton
-            key={numOfPages}
+            key={1}
             size="sm"
-            variant={Number(numOfPages) === pageNumber ? 'outlined' : 'plain'}
+            variant={Number(1) === pageNumber ? 'outlined' : 'plain'}
             color="neutral"
-            onClick={() => setPageNumber(Number(numOfPages))}
+            onClick={() => setPageNumber(Number(1))}
           >
-            {numOfPages}
+            {1}
           </IconButton>
-        )}
-        <Box sx={{ flex: 1 }} />
-        {pageNumber < numOfPages ? (
-          <Button
-            size="sm"
-            variant="outlined"
-            color="neutral"
-            onClick={() => setPageNumber(pageNumber + 1)}
-          >
-            Next <ChevronRightIcon />
-          </Button>
-        ) : (
-          <div style={{ width: '78px', height: '30px' }} />
-        )}
+
+          {pageNumber > 4 && '…'}
+
+          {Array.from(
+            { length: Math.min(5, numOfPages) },
+            (_, i) => pageNumber + i - 2,
+          )
+            .filter((page) => page >= 2 && page < numOfPages)
+            .map((page) => (
+              <IconButton
+                key={page}
+                size="sm"
+                variant={page === pageNumber ? 'outlined' : 'plain'}
+                color="neutral"
+                onClick={() => setPageNumber(Number(page))}
+              >
+                {page}
+              </IconButton>
+            ))}
+
+          {pageNumber < numOfPages - 4 && '…'}
+
+          {numOfPages !== 1 && (
+            <IconButton
+              key={numOfPages}
+              size="sm"
+              variant={Number(numOfPages) === pageNumber ? 'outlined' : 'plain'}
+              color="neutral"
+              onClick={() => setPageNumber(Number(numOfPages))}
+            >
+              {numOfPages}
+            </IconButton>
+          )}
+
+          {pageNumber < numOfPages && (
+            <Button
+              size="sm"
+              variant="outlined"
+              color="neutral"
+              onClick={() => setPageNumber(pageNumber + 1)}
+            >
+              Next <ChevronRightIcon />
+            </Button>
+          )}
+        </Box>
       </Box>
-    </>
+    </Box>
   );
 };
 

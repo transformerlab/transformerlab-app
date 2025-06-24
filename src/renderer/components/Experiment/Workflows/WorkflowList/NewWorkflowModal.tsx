@@ -1,3 +1,5 @@
+import React, { useState } from 'react';
+
 import {
   Button,
   DialogContent,
@@ -12,7 +14,7 @@ import {
   Stack,
   Textarea,
 } from '@mui/joy';
-import { useState } from 'react';
+import Alert from '@mui/joy/Alert';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
@@ -22,6 +24,7 @@ export default function NewWorkflowModal({
   selectedWorkflow,
   experimentId,
 }) {
+  const [error, setError] = useState<string | null>(null);
   return (
     <Modal open={open} onClose={() => onClose()}>
       <ModalDialog>
@@ -31,30 +34,56 @@ export default function NewWorkflowModal({
         ) : (
           <DialogTitle>New Workflow</DialogTitle>
         )}
+        {error && (
+          <Alert color="danger" variant="solid" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         {/* {JSON.stringify(selectedWorkflow)} */}
         <form
           onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             const workflowName = formData.get('name') as string;
-
             if (selectedWorkflow?.id) {
               // Update existing workflow
-              await fetch(
+              const response = await fetch(
                 chatAPI.Endpoints.Workflows.UpdateName(
                   selectedWorkflow.id,
                   workflowName,
+                  experimentId,
                 ),
               );
+              let data;
+              try {
+                data = await response.json();
+              } catch (e) {
+                data = {};
+              }
+              if (data && data.error) {
+                setError(data.error);
+                return;
+              }
+              onClose();
             } else {
-              await fetch(
+              const response = await fetch(
                 chatAPI.Endpoints.Workflows.CreateEmpty(
                   workflowName,
                   experimentId,
                 ),
               );
+              let data;
+              try {
+                data = await response.json();
+              } catch (e) {
+                data = {};
+              }
+              if (data && data.error) {
+                setError(data.error);
+                return;
+              }
+              onClose();
             }
-            onClose();
           }}
         >
           <Stack spacing={2}>
@@ -70,6 +99,7 @@ export default function NewWorkflowModal({
                 required
                 name="name"
                 defaultValue={selectedWorkflow?.name}
+                onChange={() => setError(null)}
               />
             </FormControl>
             {/* <FormControl>
