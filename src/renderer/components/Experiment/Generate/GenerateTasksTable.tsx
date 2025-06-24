@@ -30,36 +30,33 @@ function listGenerations(generationString) {
   return result;
 }
 
-function formatTemplateConfig(script_parameters): ReactElement {
-  // const c = JSON.parse(script_parameters);
+function formatTemplateConfig(scriptParameters): ReactElement {
+  const mainTask = scriptParameters?.generation_type;
+  let docsFileNameActual = '';
 
-  // Remove the author/full path from the model name for cleanliness
-  // const short_model_name = c.model_name.split('/').pop();
-  // Set main_task as either or the metric name from the script parameters
-  const main_task = script_parameters?.generation_type;
-  let docs_file_name_actual = '';
-  // Only keep the first 3 words of the main task
-
-  // Set docs_file_name as script parameters docs or N/A depending upon main task and if it has the words 'docs'  in it
-  const docs_file_name =
-    main_task && main_task.toLowerCase().includes('docs')
-      ? script_parameters.docs || 'N/A'
+  const docsFileName =
+    mainTask && mainTask.toLowerCase().includes('docs')
+      ? scriptParameters.docs || 'N/A'
       : 'N/A';
-  const is_docs = docs_file_name !== 'N/A';
-  if (is_docs) {
-    docs_file_name_actual = script_parameters.docs.split('/').pop();
+  const isDocs = docsFileName !== 'N/A';
+  if (isDocs) {
+    docsFileNameActual = scriptParameters.docs.split('/').pop();
   }
-  const generation_model = script_parameters?.generation_model
-    ? script_parameters.generation_model
-    : 'N/A';
+
+  const rawModel = scriptParameters?.generation_model;
+  const useFallback = !rawModel || rawModel === 'N/A' || rawModel === 'local';
+
+  const generationModel = useFallback
+    ? scriptParameters.model_name || 'N/A'
+    : rawModel;
 
   return (
     <>
-      <b>Type:</b> {main_task} <br />
-      <b>Model:</b> {generation_model} <br />
-      {is_docs && (
+      <b>Type:</b> {mainTask} <br />
+      <b>Model:</b> {generationModel} <br />
+      {isDocs && (
         <>
-          <b>Docs:</b> {docs_file_name_actual} <FileTextIcon size={14} />
+          <b>Docs:</b> {docsFileNameActual} <FileTextIcon size={14} />
           <br />
         </>
       )}
