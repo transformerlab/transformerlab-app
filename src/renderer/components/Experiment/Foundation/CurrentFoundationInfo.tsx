@@ -15,6 +15,10 @@ import {
   Tab,
   TabPanel,
   Input,
+  Textarea,
+  FormControl,
+  FormLabel,
+  FormHelperText,
 } from '@mui/joy';
 import {
   Trash2Icon,
@@ -31,6 +35,7 @@ import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
 import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const DEFAULT_EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5';
 
@@ -327,11 +332,19 @@ export default function CurrentFoundationInfo({
     });
   };
 
+  const { data, error, isLoading } = useAPI(
+    'models',
+    ['chatTemplate'],
+    { modelName: huggingfaceId },
+    { enabled: !!huggingfaceId },
+  );
+  console.log('data', data);
+
   return (
     <Sheet
       sx={{
         height: '100%',
-        display: 'flex',
+        //display: 'flex',
         flexDirection: 'column',
         paddingBottom: '20px',
       }}
@@ -360,6 +373,7 @@ export default function CurrentFoundationInfo({
           <Tab>Embedding Models</Tab>
           <Tab>Adaptors</Tab>
           <Tab>Provenance</Tab>
+          <Tab>Chat Template Tokenizer</Tab>
         </TabList>
 
         {/* Overview Tab */}
@@ -704,6 +718,47 @@ export default function CurrentFoundationInfo({
               )}
             </Box>
           </Box>
+        </TabPanel>
+
+        {/* Chat Template Tab */}
+        <TabPanel
+          value={4}
+          sx={{
+            p: 2,
+            overflowY: 'auto',
+            maxHeight: '500px',
+          }}
+        >
+          <FormControl sx={{ mb: 2 }}>
+            <FormLabel>Chat Template (Jinja2-style)</FormLabel>
+            <Textarea
+              minRows={10}
+              value={data?.data ?? ''}
+              readOnly
+              sx={{
+                fontFamily: 'monospace',
+                whiteSpace: 'pre',
+                width: '100%',
+                '@media (max-width: 600px)': {},
+              }}
+            />
+            <FormHelperText>
+              This template defines how chat messages are formatted as model
+              input during training or inference. It uses Jinja2 syntax.
+            </FormHelperText>
+          </FormControl>
+
+          {error && (
+            <Typography level="body-sm" color="danger" mt={1}>
+              Error loading template: {data?.message}
+            </Typography>
+          )}
+
+          {isLoading && (
+            <Typography level="body-sm" color="neutral" mt={1}>
+              Loading chat template...
+            </Typography>
+          )}
         </TabPanel>
       </Tabs>
     </Sheet>
