@@ -23,7 +23,7 @@ Endpoints.Tasks = {
 };
 
 Endpoints.Workflows = {
-  ListInExperiment: (experimentId: string) => 
+  ListInExperiment: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/list`,
   CreateEmpty: (name: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/create_empty` +
@@ -36,16 +36,36 @@ Endpoints.Workflows = {
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/add_node?node=${node}`,
   DeleteNode: (workflowId: string, nodeId: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${nodeId}/delete_node`,
-  UpdateNode: (workflowId: string, nodeId: string, node: string, experimentId: string) =>
+  UpdateNode: (
+    workflowId: string,
+    nodeId: string,
+    node: string,
+    experimentId: string,
+  ) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${nodeId}/update_node` +
     `?node=${node}`,
-  EditNodeMetadata: (workflowId: string, nodeId: string, metadata: string, experimentId: string) =>
+  EditNodeMetadata: (
+    workflowId: string,
+    nodeId: string,
+    metadata: string,
+    experimentId: string,
+  ) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${nodeId}/edit_node_metadata` +
     `?metadata=${metadata}`,
-  AddEdge: (workflowId: string, from: string, to: string, experimentId: string) =>
+  AddEdge: (
+    workflowId: string,
+    from: string,
+    to: string,
+    experimentId: string,
+  ) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${from}/add_edge` +
     `?end_node_id=${to}`,
-  RemoveEdge: (workflowId: string, start_node_id: string, to: string, experimentId: string) =>
+  RemoveEdge: (
+    workflowId: string,
+    start_node_id: string,
+    to: string,
+    experimentId: string,
+  ) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/${start_node_id}/remove_edge` +
     `?end_node_id=${to}`,
   RunWorkflow: (workflowId: string, experimentId: string) =>
@@ -79,10 +99,11 @@ Endpoints.Dataset = {
     template: string,
     offset: number,
     limit: number,
+    modelName: string = '',
   ) =>
     `${API_URL()}data/preview_with_template?dataset_id=${datasetId}&template=${
       template
-    }&offset=${offset}&limit=${limit}`,
+    }&offset=${offset}&limit=${limit}&model_name=${modelName}`,
   Delete: (datasetId: string) =>
     `${API_URL()}data/delete?dataset_id=${datasetId}`,
   Create: (datasetId: string) => `${API_URL()}data/new?dataset_id=${datasetId}`,
