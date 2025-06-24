@@ -257,7 +257,6 @@ export default function EvalTasksTable({ experimentInfo }) {
                         evaluationId={evaluations.id}
                         pluginName={evaluations.plugin}
                         experimentId={experimentInfo?.id}
-                        machines={machines}
                         onTaskQueued={mutateTasks}
                       />
                       <Button

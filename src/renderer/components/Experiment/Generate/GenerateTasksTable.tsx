@@ -198,7 +198,6 @@ export default function GenerateTasksTable({
                         generationId={generations.id}
                         pluginName={generations.plugin}
                         experimentId={experimentInfo?.id}
-                        machines={machines}
                         onTaskQueued={mutate}
                       />
                       <Button

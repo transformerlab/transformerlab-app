@@ -13,18 +13,13 @@ import {
 } from '@mui/joy';
 import { PlayIcon, ChevronDownIcon, ServerIcon } from 'lucide-react';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
+import { useAvailableMachines } from 'renderer/lib/useAvailableMachines';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-
-interface Machine {
-  id: number;
-  name: string;
-}
 
 interface EvalRunButtonProps {
   evaluationId: string;
   pluginName: string;
   experimentId: number;
-  machines?: Machine[];
   onTaskQueued?: () => void;
 }
 
@@ -32,10 +27,10 @@ export default function EvalRunButton({
   evaluationId,
   pluginName,
   experimentId,
-  machines = [],
   onTaskQueued,
 }: EvalRunButtonProps) {
   const analytics: any = useAnalytics();
+  const { availableMachines } = useAvailableMachines();
 
   const handleRunOnMachine = async (machineId: number) => {
     analytics.track('Task Queued Remote', {
@@ -47,7 +42,7 @@ export default function EvalRunButton({
     onTaskQueued?.();
   };
 
-  return machines.length > 0 ? (
+  return availableMachines.length > 0 ? (
     <ButtonGroup variant="soft">
       {/* Main Run Button */}
       <Button
@@ -136,7 +131,7 @@ export default function EvalRunButton({
               🖥️ Run on Remote Machine
             </Typography>
             <Divider sx={{ my: 1 }} />
-            {machines.map((machine) => (
+            {availableMachines.map((machine) => (
               <MenuItem
                 key={machine.id}
                 onClick={() => handleRunOnMachine(machine.id)}

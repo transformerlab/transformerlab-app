@@ -371,7 +371,6 @@ export default function TrainLoRA({ experimentInfo }) {
                                 config: row.config,
                               }}
                               experimentId={experimentInfo?.id}
-                              machines={machines}
                               onTaskQueued={jobsMutate}
                             />
                             <Button
