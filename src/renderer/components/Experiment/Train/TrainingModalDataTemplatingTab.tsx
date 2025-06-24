@@ -197,21 +197,29 @@ function TrainingModalDataTemplatingTab({
       case 'chat':
         return (
           <>
-            <FormControl>
-              <textarea
-                required
-                name="formatting_chat_template"
-                id="chat_template"
-                rows={10}
-                value={chatTemplate}
-                //onChange={(e) => setChatTemplate(e.target.value)}
-              />
-              <FormHelperText>
-                This template is fetched from the model's tokenizer config.
-              </FormHelperText>
-            </FormControl>
-            {selectedDataset && <PreviewSection />}
-          </>
+  <FormControl>
+    <details>
+      <summary style={{ cursor: 'pointer', fontWeight: 500, marginBottom: 8 }}>
+        Show Chat Template
+      </summary>
+      <textarea
+        required
+        name="formatting_chat_template"
+        id="chat_template"
+        rows={10}
+        value={chatTemplate}
+        // onChange={(e) => setChatTemplate(e.target.value)}
+        style={{ width: '100%', marginTop: '8px' }} 
+      />
+      <FormHelperText>
+        This template is fetched from the model's tokenizer config.
+      </FormHelperText>
+    </details>
+  </FormControl>
+
+  {selectedDataset && <PreviewSection />}
+</>
+
         );
       default:
         return (
