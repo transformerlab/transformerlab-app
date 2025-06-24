@@ -110,6 +110,13 @@ const History: React.FC<HistoryProps> = () => {
       refreshHistory(); // Reload history
       setDeleteConfirmOpen(false);
       setImageToDelete(null);
+      const remaining = (historyData?.total || 1) - 1;
+      const newTotalPages = Math.ceil(remaining / pageSize);
+      if (currentPage > newTotalPages) {
+        setCurrentPage(newTotalPages);
+      } else {
+        refreshHistory();
+      }
     } catch (e) {
       // Error deleting image
     }
@@ -130,6 +137,13 @@ const History: React.FC<HistoryProps> = () => {
       setSelectedImages(new Set());
       setSelectionMode(false);
       setDeleteConfirmOpen(false);
+      const remaining = (historyData?.total || 1) - 1;
+      const newTotalPages = Math.ceil(remaining / pageSize);
+      if (currentPage > newTotalPages) {
+        setCurrentPage(newTotalPages);
+      } else {
+        refreshHistory();
+      }
     } catch (e) {
       // Error deleting images
     }
