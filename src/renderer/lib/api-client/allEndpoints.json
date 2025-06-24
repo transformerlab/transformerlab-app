@@ -79,6 +79,54 @@
     "healthCheck": {
       "method": "POST",
       "path": "network/health-check"
+    },
+    "reserveMachine": {
+      "method": "POST",
+      "path": "network/machines/{machineId}/reserve"
+    },
+    "reserveMachineByName": {
+      "method": "POST",
+      "path": "network/machines/by-name/{machineName}/reserve"
+    },
+    "releaseMachine": {
+      "method": "POST",
+      "path": "network/machines/{machineId}/release"
+    },
+    "releaseMachineByName": {
+      "method": "POST",
+      "path": "network/machines/by-name/{machineName}/release"
+    },
+    "getReservations": {
+      "method": "GET",
+      "path": "network/reservations"
+    },
+    "getMyReservations": {
+      "method": "GET",
+      "path": "network/reservations/my"
+    },
+    "getReservationsByHost": {
+      "method": "GET",
+      "path": "network/reservations/by-host/{hostIdentifier}"
+    },
+    "cleanupExpiredReservations": {
+      "method": "POST",
+      "path": "network/reservations/cleanup"
+    },
+    "getNetworkWideReservations": {
+      "method": "GET",
+      "path": "network/reservations/network-wide"
+    },
+    "getCascadeReservations": {
+      "method": "GET",
+      "path": "network/reservations/cascade/{targetHostId}"
+    },
+    "getHierarchyReservations": {
+      "method": "GET",
+      "path": "network/reservations/hierarchy"
+    },
+    "getReservationConfig": {
+      "method": "GET",
+      "path": "network/reservation_config"
     }
   },
   "config": {

@@ -7,6 +7,7 @@ import {
   Chip,
   FormControl,
   FormLabel,
+  FormHelperText,
   Input,
   Modal,
   ModalDialog,
@@ -28,8 +29,15 @@ import {
   RefreshCw,
   Activity,
   Info,
+  Lock,
+  Unlock,
+  Clock,
+  Layers,
+  User,
+  Network,
 } from 'lucide-react';
 import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import MultiLevelReservationView from './MultiLevelReservationView';
 
 interface NetworkMachine {
   id: number;
@@ -41,6 +49,11 @@ interface NetworkMachine {
   machine_metadata?: any;
   created_at: string;
   updated_at: string;
+  is_reserved?: boolean;
+  reserved_by_host?: string;
+  reserved_at?: string;
+  reservation_duration_minutes?: number;
+  reservation_metadata?: any;
 }
 
 interface NetworkMachineForm {
@@ -54,6 +67,10 @@ interface NetworkMachineForm {
 export default function NetworkMachines() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [reservationModalOpen, setReservationModalOpen] = useState(false);
+  const [multiLevelModalOpen, setMultiLevelModalOpen] = useState(false);
+  const [myReservationsModalOpen, setMyReservationsModalOpen] = useState(false);
+  const [myReservationsData, setMyReservationsData] = useState<NetworkMachine[]>([]);
   const [selectedMachine, setSelectedMachine] = useState<NetworkMachine | null>(
     null,
   );
@@ -62,6 +79,10 @@ export default function NetworkMachines() {
     host: '',
     port: 8338,
     api_token: '',
+  });
+  const [reservationData, setReservationData] = useState({
+    duration_minutes: 60,
+    purpose: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -80,6 +101,8 @@ export default function NetworkMachines() {
   const onlineMachines = statusData?.data?.online || 0;
   const offlineMachines = statusData?.data?.offline || 0;
   const errorMachines = statusData?.data?.error || 0;
+  const reservedMachines = statusData?.data?.reserved || 0;
+  const availableMachines = statusData?.data?.available || 0;
 
   const handleInputChange = (field: keyof NetworkMachineForm, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -185,6 +208,110 @@ export default function NetworkMachines() {
     }
   };
 
+  const handleReserveMachine = async (machineId: number) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(
+        getFullPath('network', ['reserveMachine'], { machineId }),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            duration_minutes: reservationData.duration_minutes,
+            metadata: {
+              purpose: reservationData.purpose,
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to reserve machine');
+      }
+
+      setReservationModalOpen(false);
+      setReservationData({ duration_minutes: 60, purpose: '' });
+      mutateMachines();
+      mutateStatus();
+    } catch (error) {
+      // Error handling - could show toast notification
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReleaseMachine = async (machineId: number) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(
+        getFullPath('network', ['releaseMachine'], { machineId }),
+        {
+          method: 'POST',
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to release machine');
+      }
+
+      mutateMachines();
+      mutateStatus();
+    } catch (error) {
+      // Error handling - could show toast notification
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCleanupExpiredReservations = async () => {
+    try {
+      const response = await fetch(
+        getFullPath('network', ['cleanupExpiredReservations'], {}),
+        {
+          method: 'POST',
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to cleanup expired reservations');
+      }
+
+      mutateMachines();
+      mutateStatus();
+    } catch (error) {
+      // Error handling - could show toast notification
+    }
+  };
+
+  const formatReservationTime = (
+    reservedAt: string,
+    durationMinutes?: number,
+  ) => {
+    const reservedDate = new Date(reservedAt);
+    if (durationMinutes) {
+      const expiresAt = new Date(
+        reservedDate.getTime() + durationMinutes * 60000,
+      );
+      const now = new Date();
+      const isExpired = now > expiresAt;
+
+      if (isExpired) {
+        return 'Expired';
+      }
+
+      const timeLeft = Math.max(
+        0,
+        Math.floor((expiresAt.getTime() - now.getTime()) / 60000),
+      );
+      return `${timeLeft}m left`;
+    }
+    return 'Indefinite';
+  };
+
   const getDeviceColor = (device: string) => {
     if (device === 'cuda') return 'success';
     if (device === 'mps') return 'primary';
@@ -232,17 +359,17 @@ export default function NetworkMachines() {
 
       {/* Status Overview */}
       <Grid container spacing={2}>
-        <Grid xs={3}>
+        <Grid xs={2}>
           <Card variant="soft" color="primary">
             <CardContent>
               <Typography level="title-lg" startDecorator={<Computer />}>
-                Total Machines
+                Total
               </Typography>
               <Typography level="h2">{totalMachines}</Typography>
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={3}>
+        <Grid xs={2}>
           <Card variant="soft" color="success">
             <CardContent>
               <Typography level="title-lg" startDecorator={<Wifi />}>
@@ -252,7 +379,7 @@ export default function NetworkMachines() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={3}>
+        <Grid xs={2}>
           <Card variant="soft" color="neutral">
             <CardContent>
               <Typography level="title-lg">Offline</Typography>
@@ -260,7 +387,7 @@ export default function NetworkMachines() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={3}>
+        <Grid xs={2}>
           <Card variant="soft" color="danger">
             <CardContent>
               <Typography level="title-lg">Error</Typography>
@@ -268,7 +395,66 @@ export default function NetworkMachines() {
             </CardContent>
           </Card>
         </Grid>
+        <Grid xs={2}>
+          <Card variant="soft" color="warning">
+            <CardContent>
+              <Typography level="title-lg" startDecorator={<Lock />}>
+                Reserved
+              </Typography>
+              <Typography level="h2">{reservedMachines}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid xs={2}>
+          <Card variant="soft" color="primary">
+            <CardContent>
+              <Typography level="title-lg" startDecorator={<Unlock />}>
+                Available
+              </Typography>
+              <Typography level="h2">{availableMachines}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
+
+      {/* Network-Wide Reservation Status */}
+      <Card variant="outlined">
+        <CardContent>
+          <Typography level="h4" startDecorator={<Network />}>
+            Network-Wide Reservation Status
+          </Typography>
+          <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+            <Button
+              variant="outlined"
+              startDecorator={<Layers />}
+              onClick={() => setMultiLevelModalOpen(true)}
+            >
+              View Multi-Level Details
+            </Button>
+            <Button
+              variant="outlined"
+              startDecorator={<User />}
+              onClick={async () => {
+                try {
+                  const response = await fetch(
+                    getFullPath('network', ['getMyReservations'], {}),
+                    { method: 'GET' },
+                  );
+                  if (response.ok) {
+                    const result = await response.json();
+                    setMyReservationsData(result.data || []);
+                    setMyReservationsModalOpen(true);
+                  }
+                } catch (error) {
+                  // Error handling
+                }
+              }}
+            >
+              My Reservations
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
 
       {/* Actions */}
       <Stack direction="row" spacing={2}>
@@ -281,6 +467,13 @@ export default function NetworkMachines() {
           onClick={handleHealthCheck}
         >
           Health Check All
+        </Button>
+        <Button
+          variant="outlined"
+          startDecorator={<Clock />}
+          onClick={handleCleanupExpiredReservations}
+        >
+          Cleanup Expired
         </Button>
         <Button
           variant="outlined"
@@ -299,14 +492,15 @@ export default function NetworkMachines() {
         <Table borderAxis="both">
           <thead>
             <tr>
-              <th style={{ width: '150px' }}>Name</th>
-              <th style={{ width: '150px' }}>Host</th>
-              <th style={{ width: '70px' }}>Port</th>
-              <th style={{ width: '100px' }}>Status</th>
-              <th style={{ width: '120px' }}>Response Time</th>
-              <th style={{ width: '200px' }}>Server Info</th>
-              <th style={{ width: '150px' }}>Last Seen</th>
-              <th style={{ width: '120px' }}>Actions</th>
+              <th style={{ width: '120px' }}>Name</th>
+              <th style={{ width: '120px' }}>Host</th>
+              <th style={{ width: '60px' }}>Port</th>
+              <th style={{ width: '80px' }}>Status</th>
+              <th style={{ width: '100px' }}>Reservation</th>
+              <th style={{ width: '100px' }}>Response Time</th>
+              <th style={{ width: '160px' }}>Server Info</th>
+              <th style={{ width: '120px' }}>Last Seen</th>
+              <th style={{ width: '140px' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -335,6 +529,43 @@ export default function NetworkMachines() {
                     >
                       {getStatusText(machine.status)}
                     </Chip>
+                  </td>
+                  <td>
+                    {machine.is_reserved ? (
+                      <Stack spacing={0.5}>
+                        <Chip
+                          color="warning"
+                          size="sm"
+                          variant="soft"
+                          startDecorator={<Lock />}
+                        >
+                          Reserved
+                        </Chip>
+                        {machine.reserved_by_host && (
+                          <Typography level="body-xs" color="neutral">
+                            By: {machine.reserved_by_host.split(':')[0]}
+                          </Typography>
+                        )}
+                        {machine.reserved_at &&
+                          machine.reservation_duration_minutes && (
+                            <Typography level="body-xs" color="neutral">
+                              {formatReservationTime(
+                                machine.reserved_at,
+                                machine.reservation_duration_minutes,
+                              )}
+                            </Typography>
+                          )}
+                      </Stack>
+                    ) : (
+                      <Chip
+                        color="success"
+                        size="sm"
+                        variant="soft"
+                        startDecorator={<Unlock />}
+                      >
+                        Available
+                      </Chip>
+                    )}
                   </td>
                   <td>
                     <Typography level="body-sm">
@@ -388,7 +619,41 @@ export default function NetworkMachines() {
                     </Typography>
                   </td>
                   <td>
-                    <Stack direction="row" spacing={1}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ flexWrap: 'wrap' }}
+                    >
+                      {machine.is_reserved ? (
+                        <Tooltip title="Release reservation">
+                          <IconButton
+                            size="sm"
+                            variant="outlined"
+                            color="warning"
+                            onClick={() => handleReleaseMachine(machine.id)}
+                            disabled={isSubmitting}
+                          >
+                            <Unlock />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="Reserve machine">
+                          <IconButton
+                            size="sm"
+                            variant="outlined"
+                            color="success"
+                            onClick={() => {
+                              setSelectedMachine(machine);
+                              setReservationModalOpen(true);
+                            }}
+                            disabled={
+                              machine.status !== 'online' || isSubmitting
+                            }
+                          >
+                            <Lock />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       <Tooltip title="Ping machine">
                         <IconButton
                           size="sm"
@@ -434,7 +699,7 @@ export default function NetworkMachines() {
               No network machines configured
             </Typography>
             <Typography level="body-sm" color="neutral">
-              Click "Add Machine" to get started
+              Click &quot;Add Machine&quot; to get started
             </Typography>
           </Box>
         )}
@@ -607,6 +872,54 @@ export default function NetworkMachines() {
 
               <Divider />
 
+              <Typography level="body-sm" fontWeight="md">
+                Reservation Status
+              </Typography>
+              {selectedMachine.is_reserved ? (
+                <Stack spacing={1}>
+                  <Chip
+                    color="warning"
+                    variant="soft"
+                    startDecorator={<Lock />}
+                  >
+                    Reserved
+                  </Chip>
+                  {selectedMachine.reserved_by_host && (
+                    <Typography level="body-xs" color="neutral">
+                      Reserved by:{' '}
+                      {selectedMachine.reserved_by_host.split(':')[0]}
+                    </Typography>
+                  )}
+                  {selectedMachine.reserved_at && (
+                    <Typography level="body-xs" color="neutral">
+                      Reserved at:{' '}
+                      {new Date(selectedMachine.reserved_at).toLocaleString()}
+                    </Typography>
+                  )}
+                  {selectedMachine.reservation_duration_minutes && (
+                    <Typography level="body-xs" color="neutral">
+                      Duration: {selectedMachine.reservation_duration_minutes}{' '}
+                      minutes
+                    </Typography>
+                  )}
+                  {selectedMachine.reservation_metadata?.purpose && (
+                    <Typography level="body-xs" color="neutral">
+                      Purpose: {selectedMachine.reservation_metadata.purpose}
+                    </Typography>
+                  )}
+                </Stack>
+              ) : (
+                <Chip
+                  color="success"
+                  variant="soft"
+                  startDecorator={<Unlock />}
+                >
+                  Available for reservation
+                </Chip>
+              )}
+
+              <Divider />
+
               <Stack direction="row" spacing={2} sx={{ pt: 2 }}>
                 <Button
                   variant="outlined"
@@ -616,6 +929,237 @@ export default function NetworkMachines() {
                 </Button>
               </Stack>
             </Stack>
+          )}
+        </ModalDialog>
+      </Modal>
+
+      {/* Reservation Modal */}
+      <Modal
+        open={reservationModalOpen}
+        onClose={() => setReservationModalOpen(false)}
+      >
+        <ModalDialog>
+          <ModalClose />
+          <Typography level="h4" mb={2}>
+            Reserve Machine: {selectedMachine?.name}
+          </Typography>
+
+          <Stack spacing={2}>
+            <FormControl>
+              <FormLabel>Duration (minutes)</FormLabel>
+              <Input
+                type="number"
+                value={reservationData.duration_minutes}
+                onChange={(e) =>
+                  setReservationData({
+                    ...reservationData,
+                    duration_minutes: parseInt(e.target.value, 10) || 60,
+                  })
+                }
+                placeholder="60"
+                endDecorator="minutes"
+              />
+              <FormHelperText>
+                Leave blank or set to 0 for indefinite reservation
+              </FormHelperText>
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Purpose (optional)</FormLabel>
+              <Input
+                value={reservationData.purpose}
+                onChange={(e) =>
+                  setReservationData({
+                    ...reservationData,
+                    purpose: e.target.value,
+                  })
+                }
+                placeholder="Training, evaluation, etc."
+              />
+            </FormControl>
+
+            <Stack direction="row" spacing={2} sx={{ pt: 2 }}>
+              <Button
+                variant="outlined"
+                onClick={() => setReservationModalOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() =>
+                  selectedMachine && handleReserveMachine(selectedMachine.id)
+                }
+                loading={isSubmitting}
+                startDecorator={<Lock />}
+              >
+                Reserve Machine
+              </Button>
+            </Stack>
+          </Stack>
+        </ModalDialog>
+      </Modal>
+
+      {/* Multi-Level Reservations Modal */}
+      <Modal
+        open={multiLevelModalOpen}
+        onClose={() => setMultiLevelModalOpen(false)}
+      >
+        <ModalDialog size="lg" sx={{ maxWidth: '95vw', maxHeight: '90vh' }}>
+          <ModalClose />
+          <MultiLevelReservationView />
+        </ModalDialog>
+      </Modal>
+
+      {/* My Reservations Modal */}
+      <Modal
+        open={myReservationsModalOpen}
+        onClose={() => setMyReservationsModalOpen(false)}
+      >
+        <ModalDialog size="lg" sx={{ maxWidth: '800px' }}>
+          <ModalClose />
+          <Typography level="h4" sx={{ mb: 2 }}>
+            My Reservations
+          </Typography>
+          
+          {myReservationsData.length > 0 ? (
+            <Stack spacing={2}>
+              {myReservationsData.map((machine) => {
+                const timeRemaining = machine.reserved_at && machine.reservation_duration_minutes
+                  ? (() => {
+                      const reservedTime = new Date(machine.reserved_at);
+                      const expiryTime = new Date(reservedTime.getTime() + machine.reservation_duration_minutes * 60000);
+                      const now = new Date();
+                      const remainingMs = expiryTime.getTime() - now.getTime();
+                      const remainingMinutes = Math.max(0, Math.floor(remainingMs / 60000));
+                      
+                      if (remainingMinutes < 60) return `${remainingMinutes}m`;
+                      const hours = Math.floor(remainingMinutes / 60);
+                      const mins = remainingMinutes % 60;
+                      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+                    })()
+                  : 'Unknown';
+
+                const isExpired = machine.reserved_at && machine.reservation_duration_minutes
+                  ? new Date().getTime() > new Date(machine.reserved_at).getTime() + machine.reservation_duration_minutes * 60000
+                  : false;
+
+                return (
+                  <Card key={machine.id} variant="outlined">
+                    <CardContent>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Box sx={{ flex: 1 }}>
+                          <Typography level="title-md" fontWeight="md">
+                            {machine.name}
+                          </Typography>
+                          <Typography level="body-sm" color="neutral">
+                            {machine.host}:{machine.port}
+                          </Typography>
+                          <Typography level="body-xs" color="neutral">
+                            Purpose: {machine.reservation_metadata?.purpose || 'No purpose specified'}
+                          </Typography>
+                        </Box>
+                        
+                        <Box sx={{ textAlign: 'right' }}>
+                          <Chip 
+                            size="sm" 
+                            color={isExpired ? 'danger' : 'warning'} 
+                            startDecorator={<Lock />}
+                          >
+                            {isExpired ? 'Expired' : 'Reserved'}
+                          </Chip>
+                          <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
+                            {isExpired ? 'Reservation expired' : `${timeRemaining} remaining`}
+                          </Typography>
+                          <Typography level="body-xs" color="neutral">
+                            Duration: {machine.reservation_duration_minutes}m
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      {/* Machine Stats */}
+                      {machine.machine_metadata?.last_server_info && (
+                        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                          <Grid container spacing={2}>
+                            <Grid xs={4}>
+                              <Typography level="body-xs" color="neutral">
+                                CPU: {machine.machine_metadata.last_server_info.cpu_percent}%
+                              </Typography>
+                            </Grid>
+                            <Grid xs={4}>
+                              <Typography level="body-xs" color="neutral">
+                                Memory: {machine.machine_metadata.last_server_info.memory?.percent}%
+                              </Typography>
+                            </Grid>
+                            <Grid xs={4}>
+                              <Typography level="body-xs" color="neutral">
+                                GPUs: {machine.machine_metadata.last_server_info.gpu?.length || 0}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                          
+                          {machine.machine_metadata.last_server_info.gpu?.length > 0 && (
+                            <Box sx={{ mt: 1 }}>
+                              <Typography level="body-xs" color="neutral">
+                                GPU: {machine.machine_metadata.last_server_info.gpu[0]?.name}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      )}
+
+                      {/* Actions */}
+                      <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+                        <Button
+                          size="sm"
+                          variant="outlined"
+                          startDecorator={<Unlock />}
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(
+                                getFullPath('network', ['releaseMachine'], { machineId: machine.id }),
+                                { method: 'POST' }
+                              );
+                              if (response.ok) {
+                                // Refresh the reservations data
+                                const refreshResponse = await fetch(
+                                  getFullPath('network', ['getMyReservations'], {}),
+                                  { method: 'GET' }
+                                );
+                                if (refreshResponse.ok) {
+                                  const result = await refreshResponse.json();
+                                  setMyReservationsData(result.data || []);
+                                }
+                              }
+                            } catch (error) {
+                              // Error handling
+                            }
+                          }}
+                        >
+                          Release Early
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outlined"
+                          startDecorator={<Clock />}
+                          onClick={() => {
+                            // Future: Extend reservation functionality
+                          }}
+                        >
+                          Extend
+                        </Button>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Stack>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography level="body-lg" color="neutral">
+                You have no active reservations
+              </Typography>
+            </Box>
           )}
         </ModalDialog>
       </Modal>
