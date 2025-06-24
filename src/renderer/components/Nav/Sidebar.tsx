@@ -156,7 +156,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         title="Generate"
         path="/experiment/generate"
         icon={<SquareStackIcon />}
-        disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
+        disabled={!experimentInfo?.name}
       />
       <SubNavItem
         title="Evaluate"
