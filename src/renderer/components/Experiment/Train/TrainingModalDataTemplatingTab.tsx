@@ -10,6 +10,8 @@ import {
   Typography,
   Switch,
   Stack,
+  Select,
+  Option,
 } from '@mui/joy';
 import { InfoIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -35,6 +37,7 @@ function TrainingModalDataTemplatingTab({
   );
   const [applyChatTemplate, setApplyChatTemplate] = useState(false);
   const [chatTemplate, setChatTemplate] = useState('');
+  const [chatColumn, setChatColumn] = useState('');
 
   useEffect(() => {
     //initialize the template with the saved value
@@ -273,7 +276,40 @@ function TrainingModalDataTemplatingTab({
                     </>
                   ))}
               </Box>
-              {!applyChatTemplate && (
+              {applyChatTemplate ? (
+                <>
+                  <FormHelperText sx={{ mb: 1 }}>
+                    The formatting template describes how JSON-formatted chat
+                    conversations are formatted when passed to the trainer using
+                    the model's template.
+                    <br />
+                  </FormHelperText>
+
+                  <FormLabel>
+                    You can select which field to use for training:
+                  </FormLabel>
+
+                  {!currentDatasetInfo?.features ||
+                  currentDatasetInfo?.success === 'false' ? (
+                    <FormHelperText>No fields available</FormHelperText>
+                  ) : (
+                    <Select
+                      value={chatColumn}
+                      placeholder="Select field"
+                      onChange={(_, value) => {
+                        setChatColumn(value);
+                      }}
+                      sx={{ width: '200px' }}
+                    >
+                      {Object.keys(currentDatasetInfo.features).map((key) => (
+                        <Option key={key} value={key}>
+                          {key}
+                        </Option>
+                      ))}
+                    </Select>
+                  )}
+                </>
+              ) : (
                 <>
                   {selectedDataset && (
                     <FormHelperText>
