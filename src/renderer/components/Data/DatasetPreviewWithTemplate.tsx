@@ -19,7 +19,7 @@ const fetcher = (url) =>
     .then((res) => res.json())
     .then((data) => data);
 
-const DatasetTableWithTemplate = ({ datasetId, template }) => {
+const DatasetTableWithTemplate = ({ datasetId, template, modelName = '' }) => {
   const [pageNumber, setPageNumber] = useState(1);
   const [numOfPages, setNumOfPages] = useState(1);
   const [datasetLen, setDatasetLen] = useState(null);
@@ -41,6 +41,7 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
       encodeURIComponent(template),
       offset,
       pageSize,
+      modelName,
     ),
     fetcher,
   );
