@@ -74,6 +74,8 @@ Endpoints.Workflows = {
     `${API_URL()}experiment/${experimentId}/workflows/runs`,
   GetRun: (workflowRunID: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/runs/${workflowRunID}`,
+  CancelRun: (workflowRunID: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowRunID}/cancel`,
   ExportToYAML: (workflowId: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/export_to_yaml`,
   ImportFromYAML: (experimentId: string) =>

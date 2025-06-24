@@ -15,8 +15,12 @@ import {
 import { SquareCheckIcon, Type } from 'lucide-react';
 import dayjs from 'dayjs';
 import JobDetails from './JobDetails';
+import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 
-export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
+export default function WorkflowRunDisplay({
+  selectedWorkflowRun,
+  experimentInfo,
+}) {
   const [viewJobDetails, setViewJobDetails] = React.useState(null);
 
   if (!selectedWorkflowRun) {
@@ -24,6 +28,24 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
   }
 
   const { run, jobs, workflow } = selectedWorkflowRun;
+
+  const handleCancelWorkflow = async () => {
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Workflows.CancelRun(run.id, experimentInfo.id),
+        { method: 'GET' },
+      );
+
+      if (response.ok) {
+        alert('Workflow cancellation requested successfully!');
+        // The status will be updated through the SWR refresh in the parent component
+      } else {
+        alert('Failed to cancel workflow. Please try again.');
+      }
+    } catch (error) {
+      alert('Failed to cancel workflow with error: ' + error);
+    }
+  };
 
   const formatDuration = (start, end) => {
     if (!start || !end) {
@@ -47,15 +69,42 @@ export default function WorkflowRunDisplay({ selectedWorkflowRun }) {
         }}
       />
       <CardContent>
-        <Typography level="h4" sx={{ marginBottom: 1 }}>
-          Workflow: {workflow.name}
-        </Typography>
-        <Typography level="body-md">
-          Status: <Chip>{run.status}</Chip>
-        </Typography>
-        <Typography level="body-md">
-          Created At: {run.created_at} | Updated At: {run.updated_at}
-        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 1,
+          }}
+        >
+          <Box>
+            <Typography level="h4" sx={{ marginBottom: 1 }}>
+              Workflow: {workflow.name}
+            </Typography>
+            <Typography level="body-md">
+              Status: <Chip>{run.status}</Chip>
+            </Typography>
+            <Typography level="body-md">
+              Created At: {run.created_at} | Updated At: {run.updated_at}
+            </Typography>
+          </Box>
+          {(run.status === 'RUNNING' || run.status === 'QUEUED') && (
+            <Button
+              variant="soft"
+              color="danger"
+              onClick={handleCancelWorkflow}
+              sx={{
+                backgroundColor: 'var(--joy-palette-danger-100)',
+                color: 'var(--joy-palette-danger-700)',
+                '&:hover': {
+                  backgroundColor: 'var(--joy-palette-danger-200)',
+                },
+              }}
+            >
+              Cancel
+            </Button>
+          )}
+        </Box>
         <Typography level="h4" pt={1}>
           Tasks:
         </Typography>
