@@ -373,7 +373,7 @@ export default function CurrentFoundationInfo({
           <Tab>Embedding Models</Tab>
           <Tab>Adaptors</Tab>
           <Tab>Provenance</Tab>
-          <Tab>Chat Template Tokenizer</Tab>
+          <Tab>Chat Template</Tab>
         </TabList>
 
         {/* Overview Tab */}
