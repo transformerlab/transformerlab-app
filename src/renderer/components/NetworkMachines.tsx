@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -70,7 +70,9 @@ export default function NetworkMachines() {
   const [reservationModalOpen, setReservationModalOpen] = useState(false);
   const [multiLevelModalOpen, setMultiLevelModalOpen] = useState(false);
   const [myReservationsModalOpen, setMyReservationsModalOpen] = useState(false);
-  const [myReservationsData, setMyReservationsData] = useState<NetworkMachine[]>([]);
+  const [myReservationsData, setMyReservationsData] = useState<
+    NetworkMachine[]
+  >([]);
   const [selectedMachine, setSelectedMachine] = useState<NetworkMachine | null>(
     null,
   );
@@ -85,6 +87,9 @@ export default function NetworkMachines() {
     purpose: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Auto-refresh state - hardcoded to 10 seconds
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // API hooks
   const {
@@ -188,7 +193,7 @@ export default function NetworkMachines() {
     }
   };
 
-  const handleHealthCheck = async () => {
+  const handleHealthCheck = useCallback(async () => {
     try {
       const response = await fetch(
         getFullPath('network', ['healthCheck'], {}),
@@ -206,7 +211,44 @@ export default function NetworkMachines() {
     } catch (error) {
       // Error handling - could show toast notification
     }
-  };
+  }, [mutateMachines, mutateStatus]);
+
+  const handleManualRefresh = useCallback(async () => {
+    mutateMachines();
+    mutateStatus();
+  }, [mutateMachines, mutateStatus]);
+
+  const startAutoRefresh = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    
+    // Hardcoded 10-second interval
+    intervalRef.current = setInterval(() => {
+      handleHealthCheck();
+    }, 10000);
+  }, [handleHealthCheck]);
+
+  const stopAutoRefresh = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  // Auto-refresh effect - starts automatically
+  useEffect(() => {
+    startAutoRefresh();
+    // Run initial health check
+    handleHealthCheck();
+
+    return () => stopAutoRefresh();
+  }, [startAutoRefresh, stopAutoRefresh, handleHealthCheck]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => stopAutoRefresh();
+  }, [stopAutoRefresh]);
 
   const handleReserveMachine = async (machineId: number) => {
     setIsSubmitting(true);
@@ -478,12 +520,9 @@ export default function NetworkMachines() {
         <Button
           variant="outlined"
           startDecorator={<RefreshCw />}
-          onClick={() => {
-            mutateMachines();
-            mutateStatus();
-          }}
+          onClick={handleManualRefresh}
         >
-          Refresh
+          Refresh Now
         </Button>
       </Stack>
 
@@ -1021,28 +1060,40 @@ export default function NetworkMachines() {
           <Typography level="h4" sx={{ mb: 2 }}>
             My Reservations
           </Typography>
-          
+
           {myReservationsData.length > 0 ? (
             <Stack spacing={2}>
               {myReservationsData.map((machine) => {
-                const timeRemaining = machine.reserved_at && machine.reservation_duration_minutes
-                  ? (() => {
-                      const reservedTime = new Date(machine.reserved_at);
-                      const expiryTime = new Date(reservedTime.getTime() + machine.reservation_duration_minutes * 60000);
-                      const now = new Date();
-                      const remainingMs = expiryTime.getTime() - now.getTime();
-                      const remainingMinutes = Math.max(0, Math.floor(remainingMs / 60000));
-                      
-                      if (remainingMinutes < 60) return `${remainingMinutes}m`;
-                      const hours = Math.floor(remainingMinutes / 60);
-                      const mins = remainingMinutes % 60;
-                      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-                    })()
-                  : 'Unknown';
+                const timeRemaining =
+                  machine.reserved_at && machine.reservation_duration_minutes
+                    ? (() => {
+                        const reservedTime = new Date(machine.reserved_at);
+                        const expiryTime = new Date(
+                          reservedTime.getTime() +
+                            machine.reservation_duration_minutes * 60000,
+                        );
+                        const now = new Date();
+                        const remainingMs =
+                          expiryTime.getTime() - now.getTime();
+                        const remainingMinutes = Math.max(
+                          0,
+                          Math.floor(remainingMs / 60000),
+                        );
 
-                const isExpired = machine.reserved_at && machine.reservation_duration_minutes
-                  ? new Date().getTime() > new Date(machine.reserved_at).getTime() + machine.reservation_duration_minutes * 60000
-                  : false;
+                        if (remainingMinutes < 60)
+                          return `${remainingMinutes}m`;
+                        const hours = Math.floor(remainingMinutes / 60);
+                        const mins = remainingMinutes % 60;
+                        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+                      })()
+                    : 'Unknown';
+
+                const isExpired =
+                  machine.reserved_at && machine.reservation_duration_minutes
+                    ? new Date().getTime() >
+                      new Date(machine.reserved_at).getTime() +
+                        machine.reservation_duration_minutes * 60000
+                    : false;
 
                 return (
                   <Card key={machine.id} variant="outlined">
@@ -1056,20 +1107,28 @@ export default function NetworkMachines() {
                             {machine.host}:{machine.port}
                           </Typography>
                           <Typography level="body-xs" color="neutral">
-                            Purpose: {machine.reservation_metadata?.purpose || 'No purpose specified'}
+                            Purpose:{' '}
+                            {machine.reservation_metadata?.purpose ||
+                              'No purpose specified'}
                           </Typography>
                         </Box>
-                        
+
                         <Box sx={{ textAlign: 'right' }}>
-                          <Chip 
-                            size="sm" 
-                            color={isExpired ? 'danger' : 'warning'} 
+                          <Chip
+                            size="sm"
+                            color={isExpired ? 'danger' : 'warning'}
                             startDecorator={<Lock />}
                           >
                             {isExpired ? 'Expired' : 'Reserved'}
                           </Chip>
-                          <Typography level="body-xs" color="neutral" sx={{ mt: 0.5 }}>
-                            {isExpired ? 'Reservation expired' : `${timeRemaining} remaining`}
+                          <Typography
+                            level="body-xs"
+                            color="neutral"
+                            sx={{ mt: 0.5 }}
+                          >
+                            {isExpired
+                              ? 'Reservation expired'
+                              : `${timeRemaining} remaining`}
                           </Typography>
                           <Typography level="body-xs" color="neutral">
                             Duration: {machine.reservation_duration_minutes}m
@@ -1079,29 +1138,53 @@ export default function NetworkMachines() {
 
                       {/* Machine Stats */}
                       {machine.machine_metadata?.last_server_info && (
-                        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+                        <Box
+                          sx={{
+                            mt: 2,
+                            pt: 2,
+                            borderTop: '1px solid',
+                            borderColor: 'divider',
+                          }}
+                        >
                           <Grid container spacing={2}>
                             <Grid xs={4}>
                               <Typography level="body-xs" color="neutral">
-                                CPU: {machine.machine_metadata.last_server_info.cpu_percent}%
+                                CPU:{' '}
+                                {
+                                  machine.machine_metadata.last_server_info
+                                    .cpu_percent
+                                }
+                                %
                               </Typography>
                             </Grid>
                             <Grid xs={4}>
                               <Typography level="body-xs" color="neutral">
-                                Memory: {machine.machine_metadata.last_server_info.memory?.percent}%
+                                Memory:{' '}
+                                {
+                                  machine.machine_metadata.last_server_info
+                                    .memory?.percent
+                                }
+                                %
                               </Typography>
                             </Grid>
                             <Grid xs={4}>
                               <Typography level="body-xs" color="neutral">
-                                GPUs: {machine.machine_metadata.last_server_info.gpu?.length || 0}
+                                GPUs:{' '}
+                                {machine.machine_metadata.last_server_info.gpu
+                                  ?.length || 0}
                               </Typography>
                             </Grid>
                           </Grid>
-                          
-                          {machine.machine_metadata.last_server_info.gpu?.length > 0 && (
+
+                          {machine.machine_metadata.last_server_info.gpu
+                            ?.length > 0 && (
                             <Box sx={{ mt: 1 }}>
                               <Typography level="body-xs" color="neutral">
-                                GPU: {machine.machine_metadata.last_server_info.gpu[0]?.name}
+                                GPU:{' '}
+                                {
+                                  machine.machine_metadata.last_server_info
+                                    .gpu[0]?.name
+                                }
                               </Typography>
                             </Box>
                           )}
@@ -1117,14 +1200,20 @@ export default function NetworkMachines() {
                           onClick={async () => {
                             try {
                               const response = await fetch(
-                                getFullPath('network', ['releaseMachine'], { machineId: machine.id }),
-                                { method: 'POST' }
+                                getFullPath('network', ['releaseMachine'], {
+                                  machineId: machine.id,
+                                }),
+                                { method: 'POST' },
                               );
                               if (response.ok) {
                                 // Refresh the reservations data
                                 const refreshResponse = await fetch(
-                                  getFullPath('network', ['getMyReservations'], {}),
-                                  { method: 'GET' }
+                                  getFullPath(
+                                    'network',
+                                    ['getMyReservations'],
+                                    {},
+                                  ),
+                                  { method: 'GET' },
                                 );
                                 if (refreshResponse.ok) {
                                   const result = await refreshResponse.json();
