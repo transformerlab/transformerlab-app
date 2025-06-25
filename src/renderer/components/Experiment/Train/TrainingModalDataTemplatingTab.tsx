@@ -258,13 +258,15 @@ function TrainingModalDataTemplatingTab({
         flexDirection: 'column',
       }}
     >
-      <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-        <Switch
-          checked={applyChatTemplate}
-          onChange={(e) => setApplyChatTemplate(e.target.checked)}
-        />
-        <Typography level="body-md">Apply Chat Template</Typography>
-      </Stack>
+      {chatTemplateData?.data && (
+        <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+          <Switch
+            checked={applyChatTemplate}
+            onChange={(e) => setApplyChatTemplate(e.target.checked)}
+          />
+          <Typography level="body-md">Apply Chat Template</Typography>
+        </Stack>
+      )}
       {parsedData?.training_template_format !== 'none' && (
         <>
           <Alert sx={{ mt: 1 }} color="danger">
@@ -359,9 +361,7 @@ function TrainingModalDataTemplatingTab({
         Formatting Template
       </Typography>
       {applyChatTemplate
-        ? chatTemplateData?.data
-          ? renderTemplate('chat')
-          : renderTemplate('missing_chat')
+        ? renderTemplate('chat')
         : renderTemplate('parsedData?.training_template_format')}
     </Box>
   );
