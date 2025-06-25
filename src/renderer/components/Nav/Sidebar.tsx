@@ -281,27 +281,11 @@ function UserDetailsPanel({userDetails, mutate}) {
 
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
-  const [userDetails, setUserDetails] = useState(null);
   const { data: userInfo, error: userError, isLoading: userLoading, mutate: userMutate } = useAPI('users', ['me'], {});
 
-  // Update UserDetails used for diplay when API result updates
-  useEffect(() => {
-
-    // If userInfo was from a successful login then
-    // it will have an id field
-    if (userInfo && userInfo.id) {
-      const newuserdeets = {
-        "name": userInfo.name,
-        "email": userInfo.email,
-        "avatar": ""
-      };
-      setUserDetails(newuserdeets);
-    } else {
-      console.log("User API response triggered logout:");
-      console.log(userInfo);
-      setUserDetails(null);
-    }
-  }, [userInfo]);
+  if (userError) {
+    console.log(userError);
+  }
 
   return (
     <>
@@ -316,9 +300,9 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
         }}
       >
 
-      {userDetails ? (
+      {(userInfo && userInfo.id) ? (
         <UserDetailsPanel
-          userDetails={userDetails}
+          userDetails={userInfo}
           mutate={userMutate}
         />
       ) : (
