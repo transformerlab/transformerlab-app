@@ -139,6 +139,8 @@
     "register": {
       "method": "POST",
       "path": "auth/register"
+    }
+  },
   "experiment": {
     "getScriptsOfTypeWithFilter": {
       "method": "GET",
