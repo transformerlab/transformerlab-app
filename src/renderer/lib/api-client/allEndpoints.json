@@ -155,6 +155,10 @@
     "installPeft": {
       "method": "POST",
       "path": "model/install_peft?peft={peft}&model_id={modelId}"
+    },
+    "chatTemplate": {
+      "method": "GET",
+      "path": "model/chat_template?model_name={modelName}"
     }
   },
   "jobs": {
