@@ -23,6 +23,7 @@ export {
 
 export {
   downloadModelFromHuggingFace,
+  downloadGGUFFile,
   downloadModelFromGallery,
   activeModels,
   apiHealthz,

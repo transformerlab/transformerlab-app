@@ -29,6 +29,36 @@ export async function downloadModelFromHuggingFace(
   return result;
 }
 
+export async function downloadGGUFFile(
+  modelId: string,
+  filename: string,
+  job_id = null,
+) {
+  console.log(`Downloading GGUF file: ${modelId}/${filename}`);
+
+  let requestString = `${API_URL()}model/download_gguf_file?model=${encodeURIComponent(
+    modelId,
+  )}&filename=${encodeURIComponent(filename)}`;
+  if (job_id) {
+    requestString += `&job_id=${job_id}`;
+  }
+
+  let result = {};
+  try {
+    const response = await fetch(requestString);
+    result = await response.json();
+
+    // Error during fetch
+  } catch (error) {
+    return {
+      status: 'error',
+      message: 'Fetch exception: ' + error,
+    };
+  }
+
+  return result;
+}
+
 export async function downloadModelFromGallery(
   galleryID: string,
   job_id = null,
