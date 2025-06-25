@@ -20,9 +20,11 @@ import {
   IconButton,
   Tooltip,
   Divider,
-  // Add new imports for quota display
   LinearProgress,
   Alert,
+  Switch,
+  Select,
+  Option,
 } from '@mui/joy';
 import {
   Plus,
@@ -42,6 +44,10 @@ import {
   Timer,
   AlertTriangle,
   BarChart3,
+  // Add admin icons
+  Settings,
+  Shield,
+  RotateCcw,
 } from 'lucide-react';
 import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import MultiLevelReservationView from './MultiLevelReservationView';
@@ -110,6 +116,20 @@ interface QuotaCheckResult {
   errors: string[];
 }
 
+// Add admin interfaces
+interface AdminQuotaConfig {
+  host_identifier: string;
+  time_period: string;
+  minutes_limit: number;
+  warning_threshold_percent: number;
+  is_active: boolean;
+}
+
+interface AdminHostData {
+  configs: QuotaConfig[];
+  usage: QuotaUsage[];
+}
+
 export default function NetworkMachines() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -140,6 +160,15 @@ export default function NetworkMachines() {
     null,
   );
 
+  // Add admin mode state
+  const [isAdminMode, setIsAdminMode] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [selectedHostForEdit, setSelectedHostForEdit] = useState<string>('');
+  const [quotaConfigForm, setQuotaConfigForm] = useState<AdminQuotaConfig[]>(
+    [],
+  );
+  const [isAdminSubmitting, setIsAdminSubmitting] = useState(false);
+
   // Auto-refresh state - hardcoded to 10 seconds
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -154,16 +183,20 @@ export default function NetworkMachines() {
   ]);
 
   // Add quota API hooks
-  const { data: quotaConfigData, mutate: mutateQuotaConfig } = useAPI(
-    'network',
-    ['quotaConfig'],
-  );
+  const { mutate: mutateQuotaConfig } = useAPI('network', ['quotaConfig']);
   const { data: quotaUsageData, mutate: mutateQuotaUsage } = useAPI('network', [
     'quotaUsage',
   ]);
   const { data: quotaRemainingData, mutate: mutateQuotaRemaining } = useAPI(
     'network',
     ['quotaRemaining'],
+  );
+
+  // Add admin API hooks
+  const { data: adminQuotaData, mutate: mutateAdminQuotaData } = useAPI(
+    'network',
+    ['quotaAdminHosts'],
+    { enabled: isAdminMode },
   );
 
   const machines: NetworkMachine[] = machinesData?.data || [];
@@ -177,6 +210,29 @@ export default function NetworkMachines() {
   // Extract quota data
   const quotaUsage = quotaUsageData?.data || {};
   const quotaRemaining = quotaRemainingData?.data || {};
+
+  // Initialize quota config form when admin data changes
+  useEffect(() => {
+    if (adminQuotaData?.data && Object.keys(adminQuotaData.data).length > 0) {
+      const configs: AdminQuotaConfig[] = [];
+      Object.entries(adminQuotaData.data).forEach(
+        ([hostIdentifier, hostData]) => {
+          const typedHostData = hostData as AdminHostData;
+          if (typedHostData.configs && typedHostData.configs.length > 0) {
+            configs.push({
+              host_identifier: hostIdentifier,
+              time_period: typedHostData.configs?.[0]?.time_period,
+              minutes_limit: typedHostData.configs?.[0]?.minutes_limit,
+              warning_threshold_percent:
+                typedHostData.configs?.[0]?.warning_threshold_percent,
+              is_active: typedHostData.configs?.[0]?.is_active,
+            });
+          }
+        },
+      );
+      setQuotaConfigForm(configs);
+    }
+  }, [adminQuotaData]);
 
   // Helper functions for quota
   const getQuotaColor = (usagePercent: number) => {
@@ -463,6 +519,70 @@ export default function NetworkMachines() {
     }
   };
 
+  // Admin quota management handler
+  const handleAdminQuotaConfigSave = async (config: AdminQuotaConfig) => {
+    try {
+      setIsAdminSubmitting(true);
+      console.log('Saving admin quota config:', config);
+      // console.log(
+      //   'FULL PATH:',
+      //   getFullPath('network', ['quota', 'config'], {}),
+      // );
+      const response = await fetch(
+        getFullPath('network', ['quotaSetConfig'], {}),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify([config]),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to save quota configuration');
+      }
+
+      // Reset edit state
+      setSelectedHostForEdit('');
+
+      // Refresh admin data
+      mutateAdminQuotaData();
+      mutateQuotaConfig();
+    } catch (error) {
+      // Could show toast notification here
+    } finally {
+      setIsAdminSubmitting(false);
+    }
+  };
+
+  const handleAdminQuotaReset = async (hostIdentifier: string) => {
+    try {
+      setIsAdminSubmitting(true);
+      const response = await fetch(
+        getFullPath('network', ['quotaAdminReset'], { hostIdentifier }),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to reset quota');
+      }
+
+      // Refresh admin data
+      mutateAdminQuotaData();
+      mutateQuotaUsage();
+    } catch (error) {
+      // Could show toast notification here
+    } finally {
+      setIsAdminSubmitting(false);
+    }
+  };
+
   const formatReservationTime = (
     reservedAt: string,
     durationMinutes?: number,
@@ -532,6 +652,27 @@ export default function NetworkMachines() {
       }}
     >
       <Typography level="h2">Network Machines</Typography>
+
+      {/* Admin Mode Switch */}
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+        <Switch
+          checked={isAdminMode}
+          onChange={(e) => setIsAdminMode(e.target.checked)}
+          color="primary"
+          startDecorator={<Settings />}
+        />
+        <Typography level="body-md">Admin Mode</Typography>
+        {isAdminMode && (
+          <Button
+            size="sm"
+            variant="outlined"
+            startDecorator={<Shield />}
+            onClick={() => setAdminModalOpen(true)}
+          >
+            Quota Management
+          </Button>
+        )}
+      </Stack>
 
       {/* Status Overview */}
       <Grid container spacing={2}>
@@ -620,10 +761,16 @@ export default function NetworkMachines() {
                     </Stack>
                     <Box sx={{ position: 'relative', width: '100%' }}>
                       <LinearProgress
+                        determinate
                         value={quotaPeriodData.usage_percent}
                         color={getQuotaColor(quotaPeriodData.usage_percent)}
                         size="lg"
-                        sx={{ flexGrow: 1 }}
+                        sx={{
+                          flexGrow: 1,
+                          '& .MuiLinearProgress-bar': {
+                            transition: 'none !important',
+                          },
+                        }}
                       />
                       <Typography
                         level="body-xs"
@@ -1600,9 +1747,15 @@ export default function NetworkMachines() {
 
                       <Box sx={{ position: 'relative', width: '100%', mb: 1 }}>
                         <LinearProgress
+                          determinate
                           value={usageData.usage_percent}
                           color={getQuotaColor(usageData.usage_percent)}
                           size="lg"
+                          sx={{
+                            '& .MuiLinearProgress-bar': {
+                              transition: 'none !important',
+                            },
+                          }}
                         />
                       </Box>
 
@@ -1645,6 +1798,322 @@ export default function NetworkMachines() {
               </Typography>
             </Box>
           )}
+        </ModalDialog>
+      </Modal>
+
+      {/* Admin Mode Modal */}
+      <Modal open={adminModalOpen} onClose={() => setAdminModalOpen(false)}>
+        <ModalDialog size="lg" sx={{ maxWidth: '800px' }}>
+          <ModalClose />
+          <Typography level="h4" sx={{ mb: 2 }}>
+            Admin Mode - Quota Management
+          </Typography>
+
+          <Stack spacing={2}>
+            <Button
+              variant={isAdminMode ? 'soft' : 'outlined'}
+              color="primary"
+              onClick={() => setIsAdminMode(true)}
+              startDecorator={<Settings />}
+              fullWidth
+            >
+              Enable Admin Mode
+            </Button>
+            <Button
+              variant={!isAdminMode ? 'soft' : 'outlined'}
+              color="neutral"
+              onClick={() => setIsAdminMode(false)}
+              startDecorator={<Shield />}
+              fullWidth
+            >
+              Disable Admin Mode
+            </Button>
+
+            {isAdminMode && (
+              <>
+                <Divider sx={{ my: 2 }} />
+
+                <Typography level="body-md" fontWeight="md">
+                  Host Quota Configurations
+                </Typography>
+                <Typography level="body-sm" color="neutral">
+                  Configure quotas for available hosts
+                </Typography>
+
+                {adminQuotaData?.data &&
+                Object.keys(adminQuotaData.data).length > 0 ? (
+                  <Stack spacing={2}>
+                    {/* Existing host configurations */}
+                    {adminQuotaData?.data &&
+                      Object.entries(adminQuotaData.data).map(
+                        ([hostIdentifier, hostData]) => {
+                          const typedHostData = hostData as AdminHostData;
+                          const isEditing =
+                            selectedHostForEdit === hostIdentifier;
+                          return (
+                            <Card
+                              key={hostIdentifier}
+                              variant="outlined"
+                              sx={{
+                                p: 2,
+                                borderColor:
+                                  isEditing && isAdminMode
+                                    ? 'primary.main'
+                                    : 'divider',
+                              }}
+                            >
+                              <Stack spacing={1}>
+                                <Stack
+                                  direction="row"
+                                  justifyContent="space-between"
+                                  alignItems="center"
+                                >
+                                  <Typography level="title-sm">
+                                    {hostIdentifier}
+                                  </Typography>
+                                  <Stack direction="row" spacing={1}>
+                                    <Button
+                                      variant="outlined"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (isEditing) {
+                                          // Save changes
+                                          const updatedConfig =
+                                            quotaConfigForm.find(
+                                              (config) =>
+                                                config.host_identifier ===
+                                                hostIdentifier,
+                                            );
+                                          if (updatedConfig) {
+                                            handleAdminQuotaConfigSave(
+                                              updatedConfig,
+                                            );
+                                          }
+                                        } else {
+                                          // Edit mode - ensure config is in form
+                                          setSelectedHostForEdit(
+                                            hostIdentifier,
+                                          );
+                                          const existingFormConfig =
+                                            quotaConfigForm.find(
+                                              (config) =>
+                                                config.host_identifier ===
+                                                hostIdentifier,
+                                            );
+                                          if (
+                                            !existingFormConfig &&
+                                            typedHostData.configs?.[0]
+                                          ) {
+                                            setQuotaConfigForm((prev) => [
+                                              ...prev,
+                                              {
+                                                host_identifier: hostIdentifier,
+                                                time_period:
+                                                  typedHostData.configs?.[0]
+                                                    ?.time_period,
+                                                minutes_limit:
+                                                  typedHostData.configs?.[0]
+                                                    ?.minutes_limit,
+                                                warning_threshold_percent:
+                                                  typedHostData.configs?.[0]
+                                                    ?.warning_threshold_percent,
+                                                is_active:
+                                                  typedHostData.configs?.[0]
+                                                    ?.is_active,
+                                              },
+                                            ]);
+                                          }
+                                        }
+                                      }}
+                                    >
+                                      {isEditing ? 'Save' : 'Edit'}
+                                    </Button>
+
+                                    {!isEditing && (
+                                      <Button
+                                        variant="outlined"
+                                        size="sm"
+                                        color="warning"
+                                        startDecorator={<RotateCcw />}
+                                        onClick={() =>
+                                          handleAdminQuotaReset(hostIdentifier)
+                                        }
+                                        disabled={isAdminSubmitting}
+                                      >
+                                        Reset Quota
+                                      </Button>
+                                    )}
+                                  </Stack>
+                                </Stack>
+
+                                {isEditing ? (
+                                  <Stack spacing={1}>
+                                    <FormControl>
+                                      <FormLabel>Time Period</FormLabel>
+                                      <Select
+                                        value={
+                                          quotaConfigForm.find(
+                                            (config) =>
+                                              config.host_identifier ===
+                                              hostIdentifier,
+                                          )?.time_period || ''
+                                        }
+                                        onChange={(_, value) => {
+                                          if (value) {
+                                            setQuotaConfigForm((prev) =>
+                                              prev.map((config) =>
+                                                config.host_identifier ===
+                                                hostIdentifier
+                                                  ? {
+                                                      ...config,
+                                                      time_period:
+                                                        value as string,
+                                                    }
+                                                  : config,
+                                              ),
+                                            );
+                                          }
+                                        }}
+                                      >
+                                        <Option value="daily">Daily</Option>
+                                        <Option value="weekly">Weekly</Option>
+                                        <Option value="monthly">Monthly</Option>
+                                      </Select>
+                                    </FormControl>
+
+                                    <FormControl>
+                                      <FormLabel>Minutes Limit</FormLabel>
+                                      <Input
+                                        type="number"
+                                        value={
+                                          quotaConfigForm.find(
+                                            (config) =>
+                                              config.host_identifier ===
+                                              hostIdentifier,
+                                          )?.minutes_limit || 0
+                                        }
+                                        onChange={(e) => {
+                                          const newLimit = parseInt(
+                                            e.target.value,
+                                            10,
+                                          );
+                                          setQuotaConfigForm((prev) =>
+                                            prev.map((config) =>
+                                              config.host_identifier ===
+                                              hostIdentifier
+                                                ? {
+                                                    ...config,
+                                                    minutes_limit: newLimit,
+                                                  }
+                                                : config,
+                                            ),
+                                          );
+                                        }}
+                                      />
+                                    </FormControl>
+
+                                    <FormControl>
+                                      <FormLabel>
+                                        Warning Threshold (%)
+                                      </FormLabel>
+                                      <Input
+                                        type="number"
+                                        value={
+                                          quotaConfigForm.find(
+                                            (config) =>
+                                              config.host_identifier ===
+                                              hostIdentifier,
+                                          )?.warning_threshold_percent || 0
+                                        }
+                                        onChange={(e) => {
+                                          const newThreshold = parseInt(
+                                            e.target.value,
+                                            10,
+                                          );
+                                          setQuotaConfigForm((prev) =>
+                                            prev.map((config) =>
+                                              config.host_identifier ===
+                                              hostIdentifier
+                                                ? {
+                                                    ...config,
+                                                    warning_threshold_percent:
+                                                      newThreshold,
+                                                  }
+                                                : config,
+                                            ),
+                                          );
+                                        }}
+                                      />
+                                    </FormControl>
+
+                                    <FormControl>
+                                      <FormLabel>Active</FormLabel>
+                                      <Switch
+                                        checked={
+                                          quotaConfigForm.find(
+                                            (config) =>
+                                              config.host_identifier ===
+                                              hostIdentifier,
+                                          )?.is_active || false
+                                        }
+                                        onChange={(e) => {
+                                          const isActive = e.target.checked;
+                                          setQuotaConfigForm((prev) =>
+                                            prev.map((config) =>
+                                              config.host_identifier ===
+                                              hostIdentifier
+                                                ? {
+                                                    ...config,
+                                                    is_active: isActive,
+                                                  }
+                                                : config,
+                                            ),
+                                          );
+                                        }}
+                                      />
+                                    </FormControl>
+                                  </Stack>
+                                ) : (
+                                  <Stack spacing={1}>
+                                    <Typography level="body-sm" color="neutral">
+                                      Time Period:{' '}
+                                      {typedHostData.configs?.[0]
+                                        ?.time_period || 'Not set'}
+                                    </Typography>
+                                    <Typography level="body-sm" color="neutral">
+                                      Minutes Limit:{' '}
+                                      {typedHostData.configs?.[0]
+                                        ?.minutes_limit || 'Not set'}
+                                    </Typography>
+                                    <Typography level="body-sm" color="neutral">
+                                      Warning Threshold:{' '}
+                                      {typedHostData.configs?.[0]
+                                        ?.warning_threshold_percent ||
+                                        'Not set'}
+                                      %
+                                    </Typography>
+                                    <Typography level="body-sm" color="neutral">
+                                      Active:{' '}
+                                      {typedHostData.configs?.[0]?.is_active
+                                        ? 'Yes'
+                                        : 'No'}
+                                    </Typography>
+                                  </Stack>
+                                )}
+                              </Stack>
+                            </Card>
+                          );
+                        },
+                      )}
+                  </Stack>
+                ) : (
+                  <Typography level="body-sm" color="neutral">
+                    No quota configurations found for any hosts.
+                  </Typography>
+                )}
+              </>
+            )}
+          </Stack>
         </ModalDialog>
       </Modal>
     </Sheet>
