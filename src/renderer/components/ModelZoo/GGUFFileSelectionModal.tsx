@@ -13,10 +13,8 @@ import {
   Table,
   Typography,
   Box,
-  Chip,
 } from '@mui/joy';
 import { DownloadIcon, FileIcon } from 'lucide-react';
-import { formatBytes } from '../../lib/utils';
 
 interface GGUFFileSelectionModalProps {
   open: boolean;
@@ -36,27 +34,6 @@ export default function GGUFFileSelectionModal({
   onFileSelected,
 }: GGUFFileSelectionModalProps) {
   const [selectedFile, setSelectedFile] = useState<string>('');
-
-  const getFileSize = (filename: string) => {
-    // Try to get file size from model_details if available
-    if (modelDetails?.siblings) {
-      const fileInfo = modelDetails.siblings.find(
-        (file: any) => file.rfilename === filename,
-      );
-      return fileInfo?.size ? formatBytes(fileInfo.size) : 'Unknown size';
-    }
-    return 'Unknown size';
-  };
-
-  const getFileType = (filename: string) => {
-    const extension = filename.split('.').pop()?.toLowerCase();
-    if (extension === 'gguf') {
-      // Extract quantization type from filename if available
-      const quantMatch = filename.match(/[_-]([QF]\d+[_K]?)/i);
-      return quantMatch ? quantMatch[1] : 'GGUF';
-    }
-    return extension?.toUpperCase() || 'Unknown';
-  };
 
   const handleDownload = () => {
     if (selectedFile) {
@@ -92,33 +69,15 @@ export default function GGUFFileSelectionModal({
                 onChange={(event) => setSelectedFile(event.target.value)}
               >
                 <Table size="sm">
-                  <thead>
-                    <tr>
-                      <th style={{ width: '40px' }}></th>
-                      <th>File Name</th>
-                      <th>Type</th>
-                      <th>Size</th>
-                    </tr>
-                  </thead>
                   <tbody>
                     {availableFiles.map((filename) => (
                       <tr key={filename}>
-                        <td>
+                        <td style={{ width: '40px', padding: '8px' }}>
                           <Radio value={filename} />
                         </td>
-                        <td>
+                        <td style={{ padding: '8px' }}>
                           <Typography level="body-sm" fontFamily="monospace">
                             {filename}
-                          </Typography>
-                        </td>
-                        <td>
-                          <Chip size="sm" variant="soft" color="primary">
-                            {getFileType(filename)}
-                          </Chip>
-                        </td>
-                        <td>
-                          <Typography level="body-sm" color="neutral">
-                            {getFileSize(filename)}
                           </Typography>
                         </td>
                       </tr>

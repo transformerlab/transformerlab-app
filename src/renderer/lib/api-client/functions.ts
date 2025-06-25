@@ -34,8 +34,6 @@ export async function downloadGGUFFile(
   filename: string,
   job_id = null,
 ) {
-  console.log(`Downloading GGUF file: ${modelId}/${filename}`);
-
   let requestString = `${API_URL()}model/download_gguf_file?model=${encodeURIComponent(
     modelId,
   )}&filename=${encodeURIComponent(filename)}`;

@@ -32,7 +32,6 @@ export default function ImportModelsBar({ jobId, setJobId }) {
         newJobId,
       );
 
-      console.log(response);
       if (response?.status === 'error' || response?.status === 'unauthorized') {
         alert('Download failed!\n' + response.message);
       }
@@ -40,7 +39,6 @@ export default function ImportModelsBar({ jobId, setJobId }) {
       setJobId(null);
     } catch (e) {
       setJobId(null);
-      console.log(e);
       alert('Failed to download selected file');
     }
   };
@@ -108,7 +106,6 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                             model,
                             newJobId,
                           );
-                        console.log(response);
 
                         if (response?.status === 'requires_file_selection') {
                           // Handle GGUF repository with multiple files
@@ -127,7 +124,6 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                         }
                       } catch (e) {
                         setJobId(null);
-                        console.log(e);
                         return alert('Failed to download');
                       }
                     }
