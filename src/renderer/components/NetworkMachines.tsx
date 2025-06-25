@@ -20,6 +20,9 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  // Add new imports for quota display
+  LinearProgress,
+  Alert,
 } from '@mui/joy';
 import {
   Plus,
@@ -35,6 +38,10 @@ import {
   Layers,
   User,
   Network,
+  // Add new icons for quota
+  Timer,
+  AlertTriangle,
+  BarChart3,
 } from 'lucide-react';
 import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import MultiLevelReservationView from './MultiLevelReservationView';
@@ -64,6 +71,45 @@ interface NetworkMachineForm {
   metadata?: any;
 }
 
+// Add quota interfaces
+interface QuotaConfig {
+  host_identifier: string;
+  time_period: string;
+  minutes_limit: number;
+  warning_threshold_percent: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface QuotaUsage {
+  host_identifier: string;
+  time_period: string;
+  period_start_date: string;
+  minutes_used: number;
+  minutes_limit: number;
+  usage_percent: number;
+  remaining_minutes: number;
+  is_warning: boolean;
+  is_exceeded: boolean;
+}
+
+interface QuotaRemaining {
+  remaining_minutes: number;
+  remaining_hours: number;
+  usage_percent: number;
+  is_warning: boolean;
+  is_exceeded: boolean;
+}
+
+interface QuotaCheckResult {
+  can_reserve: boolean;
+  requested_minutes: number;
+  quota_status: { [key: string]: QuotaUsage };
+  warnings: string[];
+  errors: string[];
+}
+
 export default function NetworkMachines() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -87,7 +133,13 @@ export default function NetworkMachines() {
     purpose: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
+  // Add quota-related state
+  const [quotaModalOpen, setQuotaModalOpen] = useState(false);
+  const [quotaCheckData, setQuotaCheckData] = useState<QuotaCheckResult | null>(
+    null,
+  );
+
   // Auto-refresh state - hardcoded to 10 seconds
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -101,6 +153,19 @@ export default function NetworkMachines() {
     'status',
   ]);
 
+  // Add quota API hooks
+  const { data: quotaConfigData, mutate: mutateQuotaConfig } = useAPI(
+    'network',
+    ['quotaConfig'],
+  );
+  const { data: quotaUsageData, mutate: mutateQuotaUsage } = useAPI('network', [
+    'quotaUsage',
+  ]);
+  const { data: quotaRemainingData, mutate: mutateQuotaRemaining } = useAPI(
+    'network',
+    ['quotaRemaining'],
+  );
+
   const machines: NetworkMachine[] = machinesData?.data || [];
   const totalMachines = statusData?.data?.total_machines || 0;
   const onlineMachines = statusData?.data?.online || 0;
@@ -108,6 +173,55 @@ export default function NetworkMachines() {
   const errorMachines = statusData?.data?.error || 0;
   const reservedMachines = statusData?.data?.reserved || 0;
   const availableMachines = statusData?.data?.available || 0;
+
+  // Extract quota data
+  const quotaUsage = quotaUsageData?.data || {};
+  const quotaRemaining = quotaRemainingData?.data || {};
+
+  // Helper functions for quota
+  const getQuotaColor = (usagePercent: number) => {
+    if (usagePercent >= 100) return 'danger';
+    if (usagePercent >= 90) return 'warning';
+    if (usagePercent >= 80) return 'warning';
+    return 'success';
+  };
+
+  const formatTimeRemaining = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMins = minutes % 60;
+    if (hours < 24) {
+      return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+    }
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+  };
+
+  const handleCheckQuota = async (durationMinutes: number) => {
+    try {
+      const response = await fetch(getFullPath('network', ['quotaCheck'], {}), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          duration_minutes: durationMinutes,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to check quota');
+      }
+
+      const result = await response.json();
+      setQuotaCheckData(result.data);
+      return result.data;
+    } catch (error) {
+      // Error handling - in a real app you'd use proper error reporting
+      return null;
+    }
+  };
 
   const handleInputChange = (field: keyof NetworkMachineForm, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -208,21 +322,26 @@ export default function NetworkMachines() {
 
       mutateMachines();
       mutateStatus();
+      // Also refresh quota data
+      mutateQuotaUsage();
+      mutateQuotaRemaining();
     } catch (error) {
       // Error handling - could show toast notification
     }
-  }, [mutateMachines, mutateStatus]);
+  }, [mutateMachines, mutateStatus, mutateQuotaUsage, mutateQuotaRemaining]);
 
   const handleManualRefresh = useCallback(async () => {
     mutateMachines();
     mutateStatus();
-  }, [mutateMachines, mutateStatus]);
+    mutateQuotaUsage();
+    mutateQuotaRemaining();
+  }, [mutateMachines, mutateStatus, mutateQuotaUsage, mutateQuotaRemaining]);
 
   const startAutoRefresh = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
-    
+
     // Hardcoded 10-second interval
     intervalRef.current = setInterval(() => {
       handleHealthCheck();
@@ -253,6 +372,17 @@ export default function NetworkMachines() {
   const handleReserveMachine = async (machineId: number) => {
     setIsSubmitting(true);
     try {
+      // First check quota before making reservation
+      const quotaCheck = await handleCheckQuota(
+        reservationData.duration_minutes,
+      );
+
+      if (quotaCheck && !quotaCheck.can_reserve) {
+        // Show quota exceeded error - in a real app you'd use a proper toast/snackbar
+        // For now, just prevent the reservation
+        return;
+      }
+
       const response = await fetch(
         getFullPath('network', ['reserveMachine'], { machineId }),
         {
@@ -276,8 +406,12 @@ export default function NetworkMachines() {
 
       setReservationModalOpen(false);
       setReservationData({ duration_minutes: 60, purpose: '' });
+
+      // Refresh all data including quota
       mutateMachines();
       mutateStatus();
+      mutateQuotaUsage();
+      mutateQuotaRemaining();
     } catch (error) {
       // Error handling - could show toast notification
     } finally {
@@ -458,6 +592,89 @@ export default function NetworkMachines() {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Quota Status Section */}
+      {quotaRemainingData && Object.keys(quotaRemaining).length > 0 && (
+        <Card variant="outlined">
+          <CardContent>
+            <Typography level="h4" startDecorator={<Timer />}>
+              Quota Status
+            </Typography>
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              {Object.entries(quotaRemaining).map(([period, data]) => {
+                const quotaPeriodData = data as QuotaRemaining;
+                return (
+                  <Stack key={period} spacing={1}>
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                      alignItems="center"
+                    >
+                      <Typography level="title-sm" textTransform="capitalize">
+                        {period}
+                      </Typography>
+                      <Typography level="body-sm" color="neutral">
+                        {formatTimeRemaining(quotaPeriodData.remaining_minutes)}{' '}
+                        remaining
+                      </Typography>
+                    </Stack>
+                    <Box sx={{ position: 'relative', width: '100%' }}>
+                      <LinearProgress
+                        value={quotaPeriodData.usage_percent}
+                        color={getQuotaColor(quotaPeriodData.usage_percent)}
+                        size="lg"
+                        sx={{ flexGrow: 1 }}
+                      />
+                      <Typography
+                        level="body-xs"
+                        color="neutral"
+                        sx={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      >
+                        {quotaPeriodData.usage_percent.toFixed(1)}% used
+                      </Typography>
+                    </Box>
+                    {quotaPeriodData.is_warning && (
+                      <Alert
+                        variant="soft"
+                        color="warning"
+                        startDecorator={<AlertTriangle />}
+                        size="sm"
+                      >
+                        Approaching quota limit
+                      </Alert>
+                    )}
+                    {quotaPeriodData.is_exceeded && (
+                      <Alert
+                        variant="soft"
+                        color="danger"
+                        startDecorator={<AlertTriangle />}
+                        size="sm"
+                      >
+                        Quota exceeded - reservations blocked
+                      </Alert>
+                    )}
+                  </Stack>
+                );
+              })}
+            </Stack>
+            <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                startDecorator={<BarChart3 />}
+                onClick={() => setQuotaModalOpen(true)}
+                size="sm"
+              >
+                View Details
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Network-Wide Reservation Status */}
       <Card variant="outlined">
@@ -989,12 +1206,15 @@ export default function NetworkMachines() {
               <Input
                 type="number"
                 value={reservationData.duration_minutes}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const newDuration = parseInt(e.target.value, 10) || 60;
                   setReservationData({
                     ...reservationData,
-                    duration_minutes: parseInt(e.target.value, 10) || 60,
-                  })
-                }
+                    duration_minutes: newDuration,
+                  });
+                  // Check quota when duration changes
+                  handleCheckQuota(newDuration);
+                }}
                 placeholder="60"
                 endDecorator="minutes"
               />
@@ -1017,6 +1237,80 @@ export default function NetworkMachines() {
               />
             </FormControl>
 
+            {/* Show quota check results */}
+            {quotaCheckData && (
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography level="title-sm" sx={{ mb: 1 }}>
+                    Quota Check
+                  </Typography>
+
+                  {quotaCheckData.can_reserve ? (
+                    <Alert
+                      variant="soft"
+                      color="success"
+                      size="sm"
+                      sx={{ mb: 1 }}
+                    >
+                      ✓ Reservation allowed
+                    </Alert>
+                  ) : (
+                    <Alert
+                      variant="soft"
+                      color="danger"
+                      size="sm"
+                      sx={{ mb: 1 }}
+                    >
+                      ✗ Quota exceeded
+                    </Alert>
+                  )}
+
+                  {quotaCheckData.warnings.length > 0 && (
+                    <Alert
+                      variant="soft"
+                      color="warning"
+                      size="sm"
+                      sx={{ mb: 1 }}
+                    >
+                      {quotaCheckData.warnings.join(', ')}
+                    </Alert>
+                  )}
+
+                  {quotaCheckData.errors.length > 0 && (
+                    <Alert
+                      variant="soft"
+                      color="danger"
+                      size="sm"
+                      sx={{ mb: 1 }}
+                    >
+                      {quotaCheckData.errors.join(', ')}
+                    </Alert>
+                  )}
+
+                  <Typography level="body-xs" color="neutral">
+                    Requested: {quotaCheckData.requested_minutes} minutes
+                  </Typography>
+
+                  {Object.entries(quotaCheckData.quota_status).map(
+                    ([period, status]) => {
+                      const quotaStatusData = status as QuotaUsage;
+                      return (
+                        <Typography
+                          key={period}
+                          level="body-xs"
+                          color="neutral"
+                        >
+                          {period}: {quotaStatusData.minutes_used} /{' '}
+                          {quotaStatusData.minutes_limit} minutes (
+                          {quotaStatusData.usage_percent.toFixed(1)}%)
+                        </Typography>
+                      );
+                    },
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <Stack direction="row" spacing={2} sx={{ pt: 2 }}>
               <Button
                 variant="outlined"
@@ -1031,6 +1325,11 @@ export default function NetworkMachines() {
                 }
                 loading={isSubmitting}
                 startDecorator={<Lock />}
+                disabled={
+                  isSubmitting ||
+                  (quotaCheckData && !quotaCheckData.can_reserve) ||
+                  false
+                }
               >
                 Reserve Machine
               </Button>
@@ -1247,6 +1546,102 @@ export default function NetworkMachines() {
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography level="body-lg" color="neutral">
                 You have no active reservations
+              </Typography>
+            </Box>
+          )}
+        </ModalDialog>
+      </Modal>
+
+      {/* Quota Details Modal */}
+      <Modal open={quotaModalOpen} onClose={() => setQuotaModalOpen(false)}>
+        <ModalDialog size="lg" sx={{ maxWidth: '800px' }}>
+          <ModalClose />
+          <Typography level="h4" sx={{ mb: 2 }}>
+            Quota Details
+          </Typography>
+
+          {quotaUsageData && Object.keys(quotaUsage).length > 0 ? (
+            <Stack spacing={3}>
+              {Object.entries(quotaUsage).map(([period, usage]) => {
+                const usageData = usage as QuotaUsage;
+                return (
+                  <Card key={period} variant="outlined">
+                    <CardContent>
+                      <Typography
+                        level="title-md"
+                        textTransform="capitalize"
+                        sx={{ mb: 2 }}
+                      >
+                        {period} Quota
+                      </Typography>
+
+                      <Grid container spacing={2} sx={{ mb: 2 }}>
+                        <Grid xs={6}>
+                          <Typography level="body-sm" color="neutral">
+                            Used: {usageData.minutes_used} minutes
+                          </Typography>
+                        </Grid>
+                        <Grid xs={6}>
+                          <Typography level="body-sm" color="neutral">
+                            Limit: {usageData.minutes_limit} minutes
+                          </Typography>
+                        </Grid>
+                        <Grid xs={6}>
+                          <Typography level="body-sm" color="neutral">
+                            Remaining: {usageData.remaining_minutes} minutes
+                          </Typography>
+                        </Grid>
+                        <Grid xs={6}>
+                          <Typography level="body-sm" color="neutral">
+                            Usage: {usageData.usage_percent.toFixed(1)}%
+                          </Typography>
+                        </Grid>
+                      </Grid>
+
+                      <Box sx={{ position: 'relative', width: '100%', mb: 1 }}>
+                        <LinearProgress
+                          value={usageData.usage_percent}
+                          color={getQuotaColor(usageData.usage_percent)}
+                          size="lg"
+                        />
+                      </Box>
+
+                      <Typography level="body-xs" color="neutral">
+                        Period: {usageData.period_start_date} to current
+                      </Typography>
+
+                      {usageData.is_warning && (
+                        <Alert
+                          variant="soft"
+                          color="warning"
+                          startDecorator={<AlertTriangle />}
+                          size="sm"
+                          sx={{ mt: 1 }}
+                        >
+                          Warning: Approaching quota limit
+                        </Alert>
+                      )}
+
+                      {usageData.is_exceeded && (
+                        <Alert
+                          variant="soft"
+                          color="danger"
+                          startDecorator={<AlertTriangle />}
+                          size="sm"
+                          sx={{ mt: 1 }}
+                        >
+                          Quota exceeded - reservations blocked
+                        </Alert>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </Stack>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography level="body-lg" color="neutral">
+                No quota information available
               </Typography>
             </Box>
           )}

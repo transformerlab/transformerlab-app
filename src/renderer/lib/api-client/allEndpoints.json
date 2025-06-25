@@ -127,6 +127,38 @@
     "getReservationConfig": {
       "method": "GET",
       "path": "network/reservation_config"
+    },
+    "quotaConfig": {
+      "method": "GET",
+      "path": "network/quota/config"
+    },
+    "quotaUsage": {
+      "method": "GET",
+      "path": "network/quota/usage"
+    },
+    "quotaRemaining": {
+      "method": "GET",
+      "path": "network/quota/remaining"
+    },
+    "quotaCheck": {
+      "method": "POST",
+      "path": "network/quota/check"
+    },
+    "quotaStatus": {
+      "method": "GET",
+      "path": "network/quota/status/{machineId}"
+    },
+    "quotaSetConfig": {
+      "method": "POST",
+      "path": "network/quota/config"
+    },
+    "quotaAdminHosts": {
+      "method": "GET",
+      "path": "network/quota/admin/hosts"
+    },
+    "quotaAdminReset": {
+      "method": "POST",
+      "path": "network/quota/admin/reset/{hostIdentifier}"
     }
   },
   "config": {
