@@ -81,42 +81,48 @@ export default function ImportModelsBar({ jobId, setJobId }) {
               name="download-model-name"
               endDecorator={
                 <Button
-                  onClick={async () => {
+                  onClick={async (e) => {
                     const model = document.getElementsByName(
                       'download-model-name',
                     )[0].value;
-                    if (!model) return;
 
-                    setJobId(-1);
-                    try {
-                      const jobResponse = await fetch(
-                        chatAPI.Endpoints.Jobs.Create(),
-                      );
-                      const newJobId = await jobResponse.json();
-                      setJobId(newJobId);
-
-                      const response =
-                        await chatAPI.downloadModelFromHuggingFace(
-                          model,
-                          newJobId,
+                    // only download if valid model is entered
+                    if (model) {
+                      setJobId(-1);
+                      try {
+                        const jobResponse = await fetch(
+                          chatAPI.Endpoints.Jobs.Create(),
                         );
+                        const newJobId = await jobResponse.json();
+                        setJobId(newJobId);
 
-                      if (response?.status === 'requires_file_selection') {
-                        setGgufModelData(response);
-                        setGgufModalOpen(true);
+                        // Try downloading the model
+                        const response =
+                          await chatAPI.downloadModelFromHuggingFace(
+                            model,
+                            newJobId,
+                          );
+                        console.log(response);
+
+                        if (response?.status === 'requires_file_selection') {
+                          // Handle GGUF repository with multiple files
+                          setGgufModelData(response);
+                          setGgufModalOpen(true);
+                          setJobId(null); // Reset job since we need user input
+                        } else if (
+                          response?.status == 'error' ||
+                          response?.status == 'unauthorized'
+                        ) {
+                          alert('Download failed!\n' + response.message);
+                        }
+
+                        // download complete
                         setJobId(null);
-                      } else if (
-                        response?.status === 'error' ||
-                        response?.status === 'unauthorized'
-                      ) {
-                        alert('Download failed!\n' + response.message);
+                      } catch (e) {
                         setJobId(null);
-                      } else {
-                        setJobId(null);
+                        console.log(e);
+                        return alert('Failed to download');
                       }
-                    } catch (e) {
-                      setJobId(null);
-                      alert('Failed to download');
                     }
                   }}
                   startDecorator={
