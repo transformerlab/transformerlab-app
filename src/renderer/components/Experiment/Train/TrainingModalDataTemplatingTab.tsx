@@ -87,6 +87,9 @@ function TrainingModalDataTemplatingTab({
   }
 
   function PreviewSection() {
+    if (applyChatTemplate && !chatColumn) {
+      return null;
+    }
     return (
       <>
         <Typography level="title-lg" mt={2}>
@@ -114,6 +117,7 @@ function TrainingModalDataTemplatingTab({
           modelName={
             applyChatTemplate ? experimentInfo?.config?.foundation : ''
           }
+          chatColumn={applyChatTemplate ? chatColumn : ''}
         />
       </>
     );
@@ -197,29 +201,34 @@ function TrainingModalDataTemplatingTab({
       case 'chat':
         return (
           <>
-  <FormControl>
-    <details>
-      <summary style={{ cursor: 'pointer', fontWeight: 500, marginBottom: 8 }}>
-        Show Chat Template
-      </summary>
-      <textarea
-        required
-        name="formatting_chat_template"
-        id="chat_template"
-        rows={10}
-        value={chatTemplate}
-        // onChange={(e) => setChatTemplate(e.target.value)}
-        style={{ width: '100%', marginTop: '8px' }} 
-      />
-      <FormHelperText>
-        This template is fetched from the model's tokenizer config.
-      </FormHelperText>
-    </details>
-  </FormControl>
+            <FormControl>
+              <details>
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                    marginBottom: 8,
+                  }}
+                >
+                  Show Chat Template
+                </summary>
+                <textarea
+                  required
+                  name="formatting_chat_template"
+                  id="chat_template"
+                  rows={10}
+                  value={chatTemplate}
+                  // onChange={(e) => setChatTemplate(e.target.value)}
+                  style={{ width: '100%', marginTop: '8px' }}
+                />
+                <FormHelperText>
+                  This template is fetched from the model's tokenizer config.
+                </FormHelperText>
+              </details>
+            </FormControl>
 
-  {selectedDataset && <PreviewSection />}
-</>
-
+            {selectedDataset && <PreviewSection />}
+          </>
         );
       default:
         return (

@@ -99,11 +99,10 @@ Endpoints.Dataset = {
     template: string,
     offset: number,
     limit: number,
-    modelName: string = '',
   ) =>
     `${API_URL()}data/preview_with_template?dataset_id=${datasetId}&template=${
       template
-    }&offset=${offset}&limit=${limit}&model_name=${modelName}`,
+    }&offset=${offset}&limit=${limit}`,
   Delete: (datasetId: string) =>
     `${API_URL()}data/delete?dataset_id=${datasetId}`,
   Create: (datasetId: string) => `${API_URL()}data/new?dataset_id=${datasetId}`,
