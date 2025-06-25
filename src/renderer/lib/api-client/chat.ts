@@ -94,7 +94,7 @@ export async function sendAndReceiveStreaming(
     ...(minP !== undefined ? { min_p: minP } : {}),
   };
 
-  console.log('data', data);
+  // console.log('data', data);
 
   if (stopString) {
     data.stop = stopString;
