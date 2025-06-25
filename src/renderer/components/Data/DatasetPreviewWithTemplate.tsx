@@ -14,12 +14,19 @@ import {
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { ChevronLeftIcon, ChevronRightIcon, Sheet } from 'lucide-react';
 import useSWR from 'swr';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+
 const fetcher = (url) =>
   fetch(url)
     .then((res) => res.json())
     .then((data) => data);
 
-const DatasetTableWithTemplate = ({ datasetId, template, modelName = '' }) => {
+const DatasetTableWithTemplate = ({
+  datasetId,
+  template,
+  modelName = '',
+  chatColumn = '',
+}) => {
   const [pageNumber, setPageNumber] = useState(1);
   const [numOfPages, setNumOfPages] = useState(1);
   const [datasetLen, setDatasetLen] = useState(null);
@@ -30,20 +37,23 @@ const DatasetTableWithTemplate = ({ datasetId, template, modelName = '' }) => {
     const totalPages = Math.ceil(totalRows / rowsPerPage);
     setNumOfPages(totalPages);
   };
+
+  const shouldUseChatTemplate = !!modelName && !!chatColumn;
+
   const {
     data: result,
     error,
     isLoading,
-    mutate,
-  } = useSWR(
-    chatAPI.Endpoints.Dataset.PreviewWithTemplate(
+  } = useAPI(
+    'datasets',
+    [shouldUseChatTemplate ? 'previewChatTemplate' : 'previewTemplate'],
+    {
       datasetId,
-      encodeURIComponent(template),
+      template: encodeURIComponent(template),
       offset,
-      pageSize,
-      modelName,
-    ),
-    fetcher,
+      limit: pageSize,
+      ...(shouldUseChatTemplate ? { modelName, chatColumn } : {}),
+    },
   );
 
   useEffect(() => {
