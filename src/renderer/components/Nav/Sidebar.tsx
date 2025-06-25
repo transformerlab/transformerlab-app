@@ -1,13 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
-import List from '@mui/joy/List';
-import Divider from '@mui/joy/Divider';
-import ListItem from '@mui/joy/ListItem';
-import ListItemContent from '@mui/joy/ListItemContent';
-import ListItemDecorator from '@mui/joy/ListItemDecorator';
-import ListItemButton from '@mui/joy/ListItemButton';
-
 import {
   CodeIcon,
   GraduationCapIcon,
@@ -36,7 +29,13 @@ import { RiImageAiLine } from 'react-icons/ri';
 import {
   Box,
   ButtonGroup,
+  Divider,
   IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemContent,
+  ListItemDecorator,
   Sheet,
   Tooltip,
   Typography,
