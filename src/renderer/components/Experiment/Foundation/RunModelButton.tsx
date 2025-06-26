@@ -145,10 +145,26 @@ export default function RunModelButton({
       // If there are supportedEngines, set the first one from supported engines as default
       if (supportedEngines.length > 0) {
         const firstEngine = supportedEngines[0];
-        setInferenceSettings({
+        const newInferenceSettings = {
           inferenceEngine: firstEngine.uniqueId || null,
           inferenceEngineFriendlyName: firstEngine.name || '',
-        });
+        };
+        setInferenceSettings(newInferenceSettings);
+
+        // Update the experiment config with the first supported engine
+        if (experimentInfo?.id) {
+          fetch(
+            chatAPI.Endpoints.Experiment.UpdateConfig(
+              experimentInfo.id,
+              'inferenceParams',
+              JSON.stringify(newInferenceSettings),
+            ),
+          ).catch(() => {
+            console.error(
+              'Failed to update inferenceParams in experiment config',
+            );
+          });
+        }
       } else {
         // This preserves the older logic where we try to get the default inference engine for a blank experiment
         (async () => {
