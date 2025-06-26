@@ -20,7 +20,7 @@ import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
 
-import Computer from './Computer';
+import Computer from './Computer/Computer';
 import Eval from './Experiment/Eval/Eval';
 import Generate from './Experiment/Generate/Generate';
 import Export from './Experiment/Export/Export';

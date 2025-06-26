@@ -1,100 +1,62 @@
-/* eslint-disable jsx-a11y/anchor-is-valid */
 import React from 'react';
 import {
   Button,
-  Menu,
-  MenuItem,
-  Dropdown,
   ButtonGroup,
-  ListItemDecorator,
+  Dropdown,
+  MenuButton,
+  MenuItem,
+  Menu,
   Typography,
+  ListItemDecorator,
   Divider,
   Box,
-  MenuButton,
 } from '@mui/joy';
 import { PlayIcon, ChevronDownIcon, ServerIcon } from 'lucide-react';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import { useAvailableMachines } from 'renderer/lib/useAvailableMachines';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-interface LoRATrainingRunButtonProps {
-  initialMessage: string;
-  trainingTemplate: any;
+interface GenerateRunButtonProps {
+  generationId: string;
+  pluginName: string;
   experimentId: number;
   onTaskQueued?: () => void;
 }
 
-export default function LoRATrainingRunButton({
-  initialMessage,
-  trainingTemplate,
+export default function GenerateRunButton({
+  generationId,
+  pluginName,
   experimentId,
   onTaskQueued,
-}: LoRATrainingRunButtonProps) {
+}: GenerateRunButtonProps) {
   const analytics: any = useAnalytics();
   const { availableMachines } = useAvailableMachines();
 
-  // The name of the training template is stored in an unparsed JSON string
-  // in the `config` field of the training template.
-  const jobData = trainingTemplate;
-  let jobConfig = jobData?.config;
-  let pluginName = '';
-  if (jobConfig) {
-    try {
-      jobConfig = JSON.parse(jobConfig);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Failed to parse jobConfig:', e);
-      jobConfig = {};
-    }
-    pluginName = jobConfig?.plugin_name || '';
-  }
-
   const handleRunOnMachine = async (machineId: number) => {
     analytics.track('Task Queued Remote', {
-      task_type: 'TRAIN',
+      task_type: 'GENERATE',
       plugin_name: pluginName,
       machine_id: machineId,
       experiment_id: experimentId,
     });
-    await fetch(
-      chatAPI.Endpoints.Tasks.QueueRemote(
-        trainingTemplate.template_id,
-        machineId,
-      ),
-    );
+    await fetch(chatAPI.Endpoints.Tasks.QueueRemote(generationId, machineId));
     onTaskQueued?.();
   };
 
   return availableMachines.length > 0 ? (
-    <ButtonGroup
-      variant="solid"
-      sx={{
-        boxShadow: 'md',
-        borderRadius: 'md',
-        '& > button:first-of-type': {
-          borderTopRightRadius: 0,
-          borderBottomRightRadius: 0,
-        },
-        '& > div > button': {
-          borderTopLeftRadius: 0,
-          borderBottomLeftRadius: 0,
-          borderLeft: '1px solid rgba(255,255,255,0.15)',
-        },
-      }}
-    >
+    <ButtonGroup variant="soft">
       {/* Main Run Button */}
       <Button
-        color="primary"
-        endDecorator={<PlayIcon size="14px" />}
+        startDecorator={<PlayIcon />}
+        variant="soft"
+        color="success"
         onClick={async () => {
           analytics.track('Task Queued', {
-            task_type: 'TRAIN',
+            task_type: 'GENERATE',
             plugin_name: pluginName,
             experiment_id: experimentId,
           });
-          await fetch(
-            chatAPI.Endpoints.Tasks.Queue(trainingTemplate.template_id),
-          );
+          await fetch(chatAPI.Endpoints.Tasks.Queue(generationId));
           onTaskQueued?.();
         }}
         sx={{
@@ -113,7 +75,7 @@ export default function LoRATrainingRunButton({
           transition: 'all 0.2s ease-in-out',
         }}
       >
-        {initialMessage}
+        Queue
       </Button>
 
       {/* Dropdown Button */}
@@ -122,8 +84,8 @@ export default function LoRATrainingRunButton({
           slots={{ root: Button }}
           slotProps={{
             root: {
-              color: 'primary',
-              variant: 'solid',
+              variant: 'soft',
+              color: 'success',
               sx: {
                 px: 1,
                 py: 1,
@@ -155,7 +117,6 @@ export default function LoRATrainingRunButton({
             borderColor: 'neutral.200',
             borderRadius: 'lg',
             p: 1,
-            background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
           }}
         >
           <Box sx={{ px: 1, py: 0.5 }}>
@@ -183,7 +144,7 @@ export default function LoRATrainingRunButton({
                   py: 1.5,
                   background: 'transparent',
                   '&:hover': {
-                    backgroundColor: 'primary.50',
+                    backgroundColor: 'success.50',
                     transform: 'translateX(4px)',
                     boxShadow: 'sm',
                   },
@@ -196,7 +157,7 @@ export default function LoRATrainingRunButton({
                     sx={{
                       p: 0.5,
                       borderRadius: 'sm',
-                      backgroundColor: 'primary.100',
+                      backgroundColor: 'success.100',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -204,7 +165,7 @@ export default function LoRATrainingRunButton({
                   >
                     <ServerIcon
                       size="16px"
-                      color="var(--joy-palette-primary-600)"
+                      color="var(--joy-palette-success-600)"
                     />
                   </Box>
                 </ListItemDecorator>
@@ -229,18 +190,16 @@ export default function LoRATrainingRunButton({
   ) : (
     /* Single symmetric button when no machines available */
     <Button
-      color="primary"
-      variant="solid"
-      endDecorator={<PlayIcon size="14px" />}
+      startDecorator={<PlayIcon />}
+      variant="soft"
+      color="success"
       onClick={async () => {
         analytics.track('Task Queued', {
-          task_type: 'TRAIN',
+          task_type: 'GENERATE',
           plugin_name: pluginName,
           experiment_id: experimentId,
         });
-        await fetch(
-          chatAPI.Endpoints.Tasks.Queue(trainingTemplate.template_id),
-        );
+        await fetch(chatAPI.Endpoints.Tasks.Queue(generationId));
         onTaskQueued?.();
       }}
       sx={{
@@ -259,10 +218,7 @@ export default function LoRATrainingRunButton({
         transition: 'all 0.2s ease-in-out',
       }}
     >
-      {initialMessage}
+      Queue
     </Button>
   );
 }
-
-// Ensure chatAPI.Endpoints.Tasks.QueueRemote exists:
-// chatAPI.Endpoints.Tasks.QueueRemote = (taskId: number, machineId: number) => `/api/tasks/${taskId}/queue/${machineId}`;

@@ -19,6 +19,7 @@ interface JobData {
 
 interface JobProps {
   job: {
+    xr;
     id: string;
     status: string;
     progress: string | number;
@@ -42,7 +43,7 @@ export default function JobProgress({ job }: JobProps) {
 
   return (
     <Stack>
-      {job?.status == 'RUNNING' ? (
+      {job?.status == 'RUNNING' || job?.status == 'RUNNING_REMOTE' ? (
         <>
           <Stack direction={'row'} alignItems="center" gap={1}>
             <Chip

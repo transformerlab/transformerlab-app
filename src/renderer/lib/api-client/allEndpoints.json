@@ -47,6 +47,140 @@
       "path": "server/python_libraries"
     }
   },
+  "network": {
+    "info": {
+      "method": "GET",
+      "path": "network/info"
+    },
+    "machines": {
+      "method": "GET",
+      "path": "network/machines"
+    },
+    "status": {
+      "method": "GET",
+      "path": "network/status"
+    },
+    "addMachine": {
+      "method": "POST",
+      "path": "network/machines"
+    },
+    "getMachine": {
+      "method": "GET",
+      "path": "network/machines/{machineId}"
+    },
+    "removeMachine": {
+      "method": "DELETE",
+      "path": "network/machines/{machineId}"
+    },
+    "pingMachine": {
+      "method": "POST",
+      "path": "network/machines/{machineId}/ping"
+    },
+    "healthCheck": {
+      "method": "POST",
+      "path": "network/health-check"
+    },
+    "reserveMachine": {
+      "method": "POST",
+      "path": "network/machines/{machineId}/reserve"
+    },
+    "reserveMachineByName": {
+      "method": "POST",
+      "path": "network/machines/by-name/{machineName}/reserve"
+    },
+    "releaseMachine": {
+      "method": "POST",
+      "path": "network/machines/{machineId}/release"
+    },
+    "releaseMachineByName": {
+      "method": "POST",
+      "path": "network/machines/by-name/{machineName}/release"
+    },
+    "getReservations": {
+      "method": "GET",
+      "path": "network/reservations"
+    },
+    "getMyReservations": {
+      "method": "GET",
+      "path": "network/reservations/my"
+    },
+    "getReservationsByHost": {
+      "method": "GET",
+      "path": "network/reservations/by-host/{hostIdentifier}"
+    },
+    "cleanupExpiredReservations": {
+      "method": "POST",
+      "path": "network/reservations/cleanup"
+    },
+    "getNetworkWideReservations": {
+      "method": "GET",
+      "path": "network/reservations/network-wide"
+    },
+    "getCascadeReservations": {
+      "method": "GET",
+      "path": "network/reservations/cascade/{targetHostId}"
+    },
+    "getHierarchyReservations": {
+      "method": "GET",
+      "path": "network/reservations/hierarchy"
+    },
+    "getReservationConfig": {
+      "method": "GET",
+      "path": "network/reservation_config"
+    },
+    "quotaConfig": {
+      "method": "GET",
+      "path": "network/quota/config"
+    },
+    "quotaUsage": {
+      "method": "GET",
+      "path": "network/quota/usage"
+    },
+    "quotaRemaining": {
+      "method": "GET",
+      "path": "network/quota/remaining"
+    },
+    "quotaCheck": {
+      "method": "POST",
+      "path": "network/quota/check"
+    },
+    "quotaStatus": {
+      "method": "GET",
+      "path": "network/quota/status/{machineId}"
+    },
+    "quotaSetConfig": {
+      "method": "POST",
+      "path": "network/quota/config"
+    },
+    "quotaAdminHosts": {
+      "method": "GET",
+      "path": "network/quota/admin/hosts"
+    },
+    "quotaAdminReset": {
+      "method": "POST",
+      "path": "network/quota/admin/reset/{hostIdentifier}"
+    },
+    "dashboardAnalytics": {
+      "method": "POST",
+      "path": "network/dashboardAnalytics"
+    },
+    "analyticsReservationsByHost": {
+      "method": "POST",
+      "path": "network/analytics/reservations/by-host"
+    },
+    "analyticsReservationsByMachine": {
+      "method": "POST",
+      "path": "network/analytics/reservations/by-machine"
+    },
+    "analyticsUsageOverTime": {
+      "method": "POST",
+      "path": "network/analytics/usage/over-time"
+    },
+    "analyticsQuotaUtilization": {
+      "method": "POST",
+      "path": "network/analytics/quota/utilization"
+    }
+  },
   "config": {
     "get": {
       "method": "GET",

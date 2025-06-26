@@ -1,3 +1,4 @@
+import React, { ReactElement, useState } from 'react';
 import {
   Alert,
   Button,
@@ -13,17 +14,12 @@ import {
   Typography,
   Sheet,
 } from '@mui/joy';
-import {
-  FileTextIcon,
-  PlayIcon,
-  PlusCircleIcon,
-  Trash2Icon,
-} from 'lucide-react';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { useState } from 'react';
+import { FileTextIcon, PlusCircleIcon, Trash2Icon } from 'lucide-react';
 import useSWR from 'swr';
-import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import EvalModal from './EvalModal';
+import EvalRunButton from './EvalRunButton';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -94,13 +90,6 @@ function formatTemplateConfig(script_parameters): ReactElement {
   return r;
 }
 
-async function evaluationRun(taskId: string) {
-  // fetch(
-  //   chatAPI.Endpoints.Experiment.RunEvaluation(experimentId, plugin, evaluator)
-  // );
-  await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
-}
-
 export default function EvalTasksTable({ experimentInfo }) {
   const [open, setOpen] = useState(false);
   const [currentPlugin, setCurrentPlugin] = useState('');
@@ -124,7 +113,10 @@ export default function EvalTasksTable({ experimentInfo }) {
     fetcher,
   );
 
-  const analytics = useAnalytics();
+  // Fetch available machines for remote execution
+  const { data: machinesData } = useAPI('network', ['machines']);
+  const machines = machinesData?.data || [];
+
   // eslint-disable-next-line react/no-unstable-nested-components
   function FilteredPlugins({ plugins, type }) {
     const filteredPlugins = plugins?.filter((row) => row.evalsType === type);
@@ -261,21 +253,12 @@ export default function EvalTasksTable({ experimentInfo }) {
                       variant="soft"
                       sx={{ justifyContent: 'flex-end' }}
                     >
-                      <Button
-                        startDecorator={<PlayIcon />}
-                        variant="soft"
-                        color="success"
-                        onClick={async () => {
-                          // Track the event with analytics
-                          analytics.track('Task Queued', {
-                            task_type: 'EVAL',
-                            plugin_name: evaluations.plugin,
-                          });
-                          evaluationRun(evaluations.id);
-                        }}
-                      >
-                        Queue
-                      </Button>
+                      <EvalRunButton
+                        evaluationId={evaluations.id}
+                        pluginName={evaluations.plugin}
+                        experimentId={experimentInfo?.id}
+                        onTaskQueued={mutateTasks}
+                      />
                       <Button
                         variant="outlined"
                         onClick={() => {

@@ -16,6 +16,8 @@ Endpoints.Tasks = {
       experiment_id
     }`,
   Queue: (id: string) => `${API_URL()}tasks/${id}/queue`,
+  QueueRemote: (taskId: string | number, machineId: string | number) =>
+    `${API_URL()}tasks/${taskId}/queue/${machineId}`,
   GetByID: (id: string) => `${API_URL()}tasks/${id}/get`,
   UpdateTask: (id: string) => `${API_URL()}tasks/${id}/update`,
   NewTask: () => `${API_URL()}tasks/new_task`,

@@ -41,6 +41,7 @@ import { useServerStats, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 
 import { FaPython } from 'react-icons/fa';
+import NetworkMachines from './NetworkMachines';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
@@ -73,6 +74,10 @@ export default function Computer() {
   const { server, isLoading, isError } = useServerStats();
 
   const { data: pythonLibraries } = useAPI('server', ['pythonLibraries']);
+  const { data: networkInfo } = useAPI('network', ['info']);
+
+  // Check if this is a host machine
+  const isHostMachine = networkInfo?.data?.is_host_machine || false;
 
   return (
     <Sheet
@@ -94,6 +99,7 @@ export default function Computer() {
         <TabList>
           <Tab>Server Information</Tab>
           <Tab>Python Libraries</Tab>
+          {isHostMachine && <Tab>Network Machines</Tab>}
         </TabList>
         <TabPanel
           value={0}
@@ -466,6 +472,17 @@ export default function Computer() {
             )}
           </Sheet>
         </TabPanel>
+        {isHostMachine && (
+          <TabPanel
+            value={2}
+            sx={{
+              overflow: 'hidden',
+              height: '100%',
+            }}
+          >
+            <NetworkMachines />
+          </TabPanel>
+        )}
       </Tabs>
     </Sheet>
   );
