@@ -320,7 +320,14 @@ export default function MultiLevelReservationView() {
   };
 
   return (
-    <Sheet sx={{ height: '100%', overflow: 'hidden' }}>
+    <Sheet
+      sx={{
+        height: '100%',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* Header */}
       <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Stack
@@ -349,7 +356,14 @@ export default function MultiLevelReservationView() {
 
       {/* Cascade Details Modal */}
       <Modal open={cascadeModalOpen} onClose={() => setCascadeModalOpen(false)}>
-        <ModalDialog size="lg" sx={{ maxWidth: '800px' }}>
+        <ModalDialog
+          size="lg"
+          sx={{
+            width: { xs: '95vw', sm: '90vw', md: '800px' },
+            maxHeight: '90vh',
+            overflow: 'auto',
+          }}
+        >
           <ModalClose />
           <Typography level="h4" sx={{ mb: 2 }}>
             Cascade Reservations: {selectedHost?.machine_info?.name}

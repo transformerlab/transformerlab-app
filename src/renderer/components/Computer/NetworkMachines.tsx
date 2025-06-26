@@ -7,7 +7,6 @@ import {
   Chip,
   FormControl,
   FormLabel,
-  FormHelperText,
   Input,
   Modal,
   ModalDialog,
@@ -23,8 +22,6 @@ import {
   LinearProgress,
   Alert,
   Switch,
-  Select,
-  Option,
 } from '@mui/joy';
 import {
   Plus,
@@ -40,17 +37,18 @@ import {
   Layers,
   User,
   Network,
-  // Add new icons for quota
   Timer,
   AlertTriangle,
   BarChart3,
-  // Add admin icons
   Settings,
   Shield,
-  RotateCcw,
 } from 'lucide-react';
 import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import MultiLevelReservationView from './MultiLevelReservationView';
+import AdminModeModal from './AdminModeModal';
+import QuotaDetailsModal from './QuotaDetailsModal';
+import ReservationModal from './ReservationModal';
+import MyReservationsModal from './MyReservationsModal';
 
 interface NetworkMachine {
   id: number;
@@ -523,11 +521,6 @@ export default function NetworkMachines() {
   const handleAdminQuotaConfigSave = async (config: AdminQuotaConfig) => {
     try {
       setIsAdminSubmitting(true);
-      console.log('Saving admin quota config:', config);
-      // console.log(
-      //   'FULL PATH:',
-      //   getFullPath('network', ['quota', 'config'], {}),
-      // );
       const response = await fetch(
         getFullPath('network', ['quotaSetConfig'], {}),
         {
@@ -645,7 +638,8 @@ export default function NetworkMachines() {
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
+        height: '100vh',
+        maxHeight: '100vh',
         overflow: 'hidden',
         gap: 2,
         p: 2,
@@ -676,7 +670,7 @@ export default function NetworkMachines() {
 
       {/* Status Overview */}
       <Grid container spacing={2}>
-        <Grid xs={2}>
+        <Grid xs={12} sm={6} md={2}>
           <Card variant="soft" color="primary">
             <CardContent>
               <Typography level="title-lg" startDecorator={<Computer />}>
@@ -686,7 +680,7 @@ export default function NetworkMachines() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={2}>
+        <Grid xs={12} sm={6} md={2}>
           <Card variant="soft" color="success">
             <CardContent>
               <Typography level="title-lg" startDecorator={<Wifi />}>
@@ -696,7 +690,7 @@ export default function NetworkMachines() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={2}>
+        <Grid xs={12} sm={6} md={2}>
           <Card variant="soft" color="neutral">
             <CardContent>
               <Typography level="title-lg">Offline</Typography>
@@ -704,7 +698,7 @@ export default function NetworkMachines() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={2}>
+        <Grid xs={12} sm={6} md={2}>
           <Card variant="soft" color="danger">
             <CardContent>
               <Typography level="title-lg">Error</Typography>
@@ -712,7 +706,7 @@ export default function NetworkMachines() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={2}>
+        <Grid xs={12} sm={6} md={2}>
           <Card variant="soft" color="warning">
             <CardContent>
               <Typography level="title-lg" startDecorator={<Lock />}>
@@ -722,7 +716,7 @@ export default function NetworkMachines() {
             </CardContent>
           </Card>
         </Grid>
-        <Grid xs={2}>
+        <Grid xs={12} sm={6} md={2}>
           <Card variant="soft" color="primary">
             <CardContent>
               <Typography level="title-lg" startDecorator={<Unlock />}>
@@ -863,7 +857,11 @@ export default function NetworkMachines() {
       </Card>
 
       {/* Actions */}
-      <Stack direction="row" spacing={2}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        sx={{ flexWrap: 'wrap' }}
+      >
         <Button startDecorator={<Plus />} onClick={() => setAddModalOpen(true)}>
           Add Machine
         </Button>
@@ -891,8 +889,15 @@ export default function NetworkMachines() {
       </Stack>
 
       {/* Machines Table */}
-      <Sheet sx={{ overflow: 'auto', flexGrow: 1 }}>
-        <Table borderAxis="both">
+      <Sheet
+        sx={{
+          overflow: 'auto',
+          flexGrow: 1,
+          minHeight: 0,
+          maxHeight: '100%',
+        }}
+      >
+        <Table borderAxis="both" sx={{ minWidth: '800px' }}>
           <thead>
             <tr>
               <th style={{ width: '120px' }}>Name</th>
@@ -1110,7 +1115,13 @@ export default function NetworkMachines() {
 
       {/* Add Machine Modal */}
       <Modal open={addModalOpen} onClose={() => setAddModalOpen(false)}>
-        <ModalDialog>
+        <ModalDialog
+          sx={{
+            width: { xs: '90vw', sm: '400px' },
+            maxHeight: '90vh',
+            overflow: 'auto',
+          }}
+        >
           <ModalClose />
           <Typography level="h4" mb={2}>
             Add Network Machine
@@ -1181,7 +1192,13 @@ export default function NetworkMachines() {
 
       {/* Machine Details Modal */}
       <Modal open={detailsModalOpen} onClose={() => setDetailsModalOpen(false)}>
-        <ModalDialog>
+        <ModalDialog
+          sx={{
+            width: { xs: '90vw', sm: '500px' },
+            maxHeight: '90vh',
+            overflow: 'auto',
+          }}
+        >
           <ModalClose />
           <Typography level="h4" mb={2}>
             Machine Details
@@ -1337,785 +1354,73 @@ export default function NetworkMachines() {
       </Modal>
 
       {/* Reservation Modal */}
-      <Modal
+      <ReservationModal
         open={reservationModalOpen}
         onClose={() => setReservationModalOpen(false)}
-      >
-        <ModalDialog>
-          <ModalClose />
-          <Typography level="h4" mb={2}>
-            Reserve Machine: {selectedMachine?.name}
-          </Typography>
-
-          <Stack spacing={2}>
-            <FormControl>
-              <FormLabel>Duration (minutes)</FormLabel>
-              <Input
-                type="number"
-                value={reservationData.duration_minutes}
-                onChange={(e) => {
-                  const newDuration = parseInt(e.target.value, 10) || 60;
-                  setReservationData({
-                    ...reservationData,
-                    duration_minutes: newDuration,
-                  });
-                  // Check quota when duration changes
-                  handleCheckQuota(newDuration);
-                }}
-                placeholder="60"
-                endDecorator="minutes"
-              />
-              <FormHelperText>
-                Leave blank or set to 0 for indefinite reservation
-              </FormHelperText>
-            </FormControl>
-
-            <FormControl>
-              <FormLabel>Purpose (optional)</FormLabel>
-              <Input
-                value={reservationData.purpose}
-                onChange={(e) =>
-                  setReservationData({
-                    ...reservationData,
-                    purpose: e.target.value,
-                  })
-                }
-                placeholder="Training, evaluation, etc."
-              />
-            </FormControl>
-
-            {/* Show quota check results */}
-            {quotaCheckData && (
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography level="title-sm" sx={{ mb: 1 }}>
-                    Quota Check
-                  </Typography>
-
-                  {quotaCheckData.can_reserve ? (
-                    <Alert
-                      variant="soft"
-                      color="success"
-                      size="sm"
-                      sx={{ mb: 1 }}
-                    >
-                      ✓ Reservation allowed
-                    </Alert>
-                  ) : (
-                    <Alert
-                      variant="soft"
-                      color="danger"
-                      size="sm"
-                      sx={{ mb: 1 }}
-                    >
-                      ✗ Quota exceeded
-                    </Alert>
-                  )}
-
-                  {quotaCheckData.warnings.length > 0 && (
-                    <Alert
-                      variant="soft"
-                      color="warning"
-                      size="sm"
-                      sx={{ mb: 1 }}
-                    >
-                      {quotaCheckData.warnings.join(', ')}
-                    </Alert>
-                  )}
-
-                  {quotaCheckData.errors.length > 0 && (
-                    <Alert
-                      variant="soft"
-                      color="danger"
-                      size="sm"
-                      sx={{ mb: 1 }}
-                    >
-                      {quotaCheckData.errors.join(', ')}
-                    </Alert>
-                  )}
-
-                  <Typography level="body-xs" color="neutral">
-                    Requested: {quotaCheckData.requested_minutes} minutes
-                  </Typography>
-
-                  {Object.entries(quotaCheckData.quota_status).map(
-                    ([period, status]) => {
-                      const quotaStatusData = status as QuotaUsage;
-                      return (
-                        <Typography
-                          key={period}
-                          level="body-xs"
-                          color="neutral"
-                        >
-                          {period}: {quotaStatusData.minutes_used} /{' '}
-                          {quotaStatusData.minutes_limit} minutes (
-                          {quotaStatusData.usage_percent.toFixed(1)}%)
-                        </Typography>
-                      );
-                    },
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            <Stack direction="row" spacing={2} sx={{ pt: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={() => setReservationModalOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() =>
-                  selectedMachine && handleReserveMachine(selectedMachine.id)
-                }
-                loading={isSubmitting}
-                startDecorator={<Lock />}
-                disabled={
-                  isSubmitting ||
-                  (quotaCheckData && !quotaCheckData.can_reserve) ||
-                  false
-                }
-              >
-                Reserve Machine
-              </Button>
-            </Stack>
-          </Stack>
-        </ModalDialog>
-      </Modal>
+        selectedMachine={selectedMachine}
+        reservationData={reservationData}
+        setReservationData={setReservationData}
+        quotaCheckData={quotaCheckData}
+        isSubmitting={isSubmitting}
+        handleCheckQuota={handleCheckQuota}
+        handleReserveMachine={handleReserveMachine}
+      />
 
       {/* Multi-Level Reservations Modal */}
       <Modal
         open={multiLevelModalOpen}
         onClose={() => setMultiLevelModalOpen(false)}
       >
-        <ModalDialog size="lg" sx={{ maxWidth: '95vw', maxHeight: '90vh' }}>
+        <ModalDialog
+          size="lg"
+          sx={{
+            width: { xs: '95vw', sm: '90vw', md: '80vw' },
+            maxWidth: '1200px',
+            height: { xs: '90vh', sm: '85vh' },
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <ModalClose />
-          <MultiLevelReservationView />
+          <Box sx={{ overflow: 'auto', flexGrow: 1 }}>
+            <MultiLevelReservationView />
+          </Box>
         </ModalDialog>
       </Modal>
 
       {/* My Reservations Modal */}
-      <Modal
+      <MyReservationsModal
         open={myReservationsModalOpen}
         onClose={() => setMyReservationsModalOpen(false)}
-      >
-        <ModalDialog size="lg" sx={{ maxWidth: '800px' }}>
-          <ModalClose />
-          <Typography level="h4" sx={{ mb: 2 }}>
-            My Reservations
-          </Typography>
-
-          {myReservationsData.length > 0 ? (
-            <Stack spacing={2}>
-              {myReservationsData.map((machine) => {
-                const timeRemaining =
-                  machine.reserved_at && machine.reservation_duration_minutes
-                    ? (() => {
-                        const reservedTime = new Date(machine.reserved_at);
-                        const expiryTime = new Date(
-                          reservedTime.getTime() +
-                            machine.reservation_duration_minutes * 60000,
-                        );
-                        const now = new Date();
-                        const remainingMs =
-                          expiryTime.getTime() - now.getTime();
-                        const remainingMinutes = Math.max(
-                          0,
-                          Math.floor(remainingMs / 60000),
-                        );
-
-                        if (remainingMinutes < 60)
-                          return `${remainingMinutes}m`;
-                        const hours = Math.floor(remainingMinutes / 60);
-                        const mins = remainingMinutes % 60;
-                        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-                      })()
-                    : 'Unknown';
-
-                const isExpired =
-                  machine.reserved_at && machine.reservation_duration_minutes
-                    ? new Date().getTime() >
-                      new Date(machine.reserved_at).getTime() +
-                        machine.reservation_duration_minutes * 60000
-                    : false;
-
-                return (
-                  <Card key={machine.id} variant="outlined">
-                    <CardContent>
-                      <Stack direction="row" spacing={2} alignItems="center">
-                        <Box sx={{ flex: 1 }}>
-                          <Typography level="title-md" fontWeight="md">
-                            {machine.name}
-                          </Typography>
-                          <Typography level="body-sm" color="neutral">
-                            {machine.host}:{machine.port}
-                          </Typography>
-                          <Typography level="body-xs" color="neutral">
-                            Purpose:{' '}
-                            {machine.reservation_metadata?.purpose ||
-                              'No purpose specified'}
-                          </Typography>
-                        </Box>
-
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Chip
-                            size="sm"
-                            color={isExpired ? 'danger' : 'warning'}
-                            startDecorator={<Lock />}
-                          >
-                            {isExpired ? 'Expired' : 'Reserved'}
-                          </Chip>
-                          <Typography
-                            level="body-xs"
-                            color="neutral"
-                            sx={{ mt: 0.5 }}
-                          >
-                            {isExpired
-                              ? 'Reservation expired'
-                              : `${timeRemaining} remaining`}
-                          </Typography>
-                          <Typography level="body-xs" color="neutral">
-                            Duration: {machine.reservation_duration_minutes}m
-                          </Typography>
-                        </Box>
-                      </Stack>
-
-                      {/* Machine Stats */}
-                      {machine.machine_metadata?.last_server_info && (
-                        <Box
-                          sx={{
-                            mt: 2,
-                            pt: 2,
-                            borderTop: '1px solid',
-                            borderColor: 'divider',
-                          }}
-                        >
-                          <Grid container spacing={2}>
-                            <Grid xs={4}>
-                              <Typography level="body-xs" color="neutral">
-                                CPU:{' '}
-                                {
-                                  machine.machine_metadata.last_server_info
-                                    .cpu_percent
-                                }
-                                %
-                              </Typography>
-                            </Grid>
-                            <Grid xs={4}>
-                              <Typography level="body-xs" color="neutral">
-                                Memory:{' '}
-                                {
-                                  machine.machine_metadata.last_server_info
-                                    .memory?.percent
-                                }
-                                %
-                              </Typography>
-                            </Grid>
-                            <Grid xs={4}>
-                              <Typography level="body-xs" color="neutral">
-                                GPUs:{' '}
-                                {machine.machine_metadata.last_server_info.gpu
-                                  ?.length || 0}
-                              </Typography>
-                            </Grid>
-                          </Grid>
-
-                          {machine.machine_metadata.last_server_info.gpu
-                            ?.length > 0 && (
-                            <Box sx={{ mt: 1 }}>
-                              <Typography level="body-xs" color="neutral">
-                                GPU:{' '}
-                                {
-                                  machine.machine_metadata.last_server_info
-                                    .gpu[0]?.name
-                                }
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
-                      )}
-
-                      {/* Actions */}
-                      <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-                        <Button
-                          size="sm"
-                          variant="outlined"
-                          startDecorator={<Unlock />}
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(
-                                getFullPath('network', ['releaseMachine'], {
-                                  machineId: machine.id,
-                                }),
-                                { method: 'POST' },
-                              );
-                              if (response.ok) {
-                                // Refresh the reservations data
-                                const refreshResponse = await fetch(
-                                  getFullPath(
-                                    'network',
-                                    ['getMyReservations'],
-                                    {},
-                                  ),
-                                  { method: 'GET' },
-                                );
-                                if (refreshResponse.ok) {
-                                  const result = await refreshResponse.json();
-                                  setMyReservationsData(result.data || []);
-                                }
-                              }
-                            } catch (error) {
-                              // Error handling
-                            }
-                          }}
-                        >
-                          Release Early
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outlined"
-                          startDecorator={<Clock />}
-                          onClick={() => {
-                            // Future: Extend reservation functionality
-                          }}
-                        >
-                          Extend
-                        </Button>
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </Stack>
-          ) : (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography level="body-lg" color="neutral">
-                You have no active reservations
-              </Typography>
-            </Box>
-          )}
-        </ModalDialog>
-      </Modal>
+        myReservationsData={myReservationsData}
+        setMyReservationsData={setMyReservationsData}
+      />
 
       {/* Quota Details Modal */}
-      <Modal open={quotaModalOpen} onClose={() => setQuotaModalOpen(false)}>
-        <ModalDialog size="lg" sx={{ maxWidth: '800px' }}>
-          <ModalClose />
-          <Typography level="h4" sx={{ mb: 2 }}>
-            Quota Details
-          </Typography>
-
-          {quotaUsageData && Object.keys(quotaUsage).length > 0 ? (
-            <Stack spacing={3}>
-              {Object.entries(quotaUsage).map(([period, usage]) => {
-                const usageData = usage as QuotaUsage;
-                return (
-                  <Card key={period} variant="outlined">
-                    <CardContent>
-                      <Typography
-                        level="title-md"
-                        textTransform="capitalize"
-                        sx={{ mb: 2 }}
-                      >
-                        {period} Quota
-                      </Typography>
-
-                      <Grid container spacing={2} sx={{ mb: 2 }}>
-                        <Grid xs={6}>
-                          <Typography level="body-sm" color="neutral">
-                            Used: {usageData.minutes_used} minutes
-                          </Typography>
-                        </Grid>
-                        <Grid xs={6}>
-                          <Typography level="body-sm" color="neutral">
-                            Limit: {usageData.minutes_limit} minutes
-                          </Typography>
-                        </Grid>
-                        <Grid xs={6}>
-                          <Typography level="body-sm" color="neutral">
-                            Remaining: {usageData.remaining_minutes} minutes
-                          </Typography>
-                        </Grid>
-                        <Grid xs={6}>
-                          <Typography level="body-sm" color="neutral">
-                            Usage: {usageData.usage_percent.toFixed(1)}%
-                          </Typography>
-                        </Grid>
-                      </Grid>
-
-                      <Box sx={{ position: 'relative', width: '100%', mb: 1 }}>
-                        <LinearProgress
-                          determinate
-                          value={usageData.usage_percent}
-                          color={getQuotaColor(usageData.usage_percent)}
-                          size="lg"
-                          sx={{
-                            '& .MuiLinearProgress-bar': {
-                              transition: 'none !important',
-                            },
-                          }}
-                        />
-                      </Box>
-
-                      <Typography level="body-xs" color="neutral">
-                        Period: {usageData.period_start_date} to current
-                      </Typography>
-
-                      {usageData.is_warning && (
-                        <Alert
-                          variant="soft"
-                          color="warning"
-                          startDecorator={<AlertTriangle />}
-                          size="sm"
-                          sx={{ mt: 1 }}
-                        >
-                          Warning: Approaching quota limit
-                        </Alert>
-                      )}
-
-                      {usageData.is_exceeded && (
-                        <Alert
-                          variant="soft"
-                          color="danger"
-                          startDecorator={<AlertTriangle />}
-                          size="sm"
-                          sx={{ mt: 1 }}
-                        >
-                          Quota exceeded - reservations blocked
-                        </Alert>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </Stack>
-          ) : (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography level="body-lg" color="neutral">
-                No quota information available
-              </Typography>
-            </Box>
-          )}
-        </ModalDialog>
-      </Modal>
+      <QuotaDetailsModal
+        open={quotaModalOpen}
+        onClose={() => setQuotaModalOpen(false)}
+        quotaUsageData={quotaUsage}
+        getQuotaColor={getQuotaColor}
+      />
 
       {/* Admin Mode Modal */}
-      <Modal open={adminModalOpen} onClose={() => setAdminModalOpen(false)}>
-        <ModalDialog size="lg" sx={{ maxWidth: '800px' }}>
-          <ModalClose />
-          <Typography level="h4" sx={{ mb: 2 }}>
-            Admin Mode - Quota Management
-          </Typography>
-
-          <Stack spacing={2}>
-            <Button
-              variant={isAdminMode ? 'soft' : 'outlined'}
-              color="primary"
-              onClick={() => setIsAdminMode(true)}
-              startDecorator={<Settings />}
-              fullWidth
-            >
-              Enable Admin Mode
-            </Button>
-            <Button
-              variant={!isAdminMode ? 'soft' : 'outlined'}
-              color="neutral"
-              onClick={() => setIsAdminMode(false)}
-              startDecorator={<Shield />}
-              fullWidth
-            >
-              Disable Admin Mode
-            </Button>
-
-            {isAdminMode && (
-              <>
-                <Divider sx={{ my: 2 }} />
-
-                <Typography level="body-md" fontWeight="md">
-                  Host Quota Configurations
-                </Typography>
-                <Typography level="body-sm" color="neutral">
-                  Configure quotas for available hosts
-                </Typography>
-
-                {adminQuotaData?.data &&
-                Object.keys(adminQuotaData.data).length > 0 ? (
-                  <Stack spacing={2}>
-                    {/* Existing host configurations */}
-                    {adminQuotaData?.data &&
-                      Object.entries(adminQuotaData.data).map(
-                        ([hostIdentifier, hostData]) => {
-                          const typedHostData = hostData as AdminHostData;
-                          const isEditing =
-                            selectedHostForEdit === hostIdentifier;
-                          return (
-                            <Card
-                              key={hostIdentifier}
-                              variant="outlined"
-                              sx={{
-                                p: 2,
-                                borderColor:
-                                  isEditing && isAdminMode
-                                    ? 'primary.main'
-                                    : 'divider',
-                              }}
-                            >
-                              <Stack spacing={1}>
-                                <Stack
-                                  direction="row"
-                                  justifyContent="space-between"
-                                  alignItems="center"
-                                >
-                                  <Typography level="title-sm">
-                                    {hostIdentifier}
-                                  </Typography>
-                                  <Stack direction="row" spacing={1}>
-                                    <Button
-                                      variant="outlined"
-                                      size="sm"
-                                      onClick={() => {
-                                        if (isEditing) {
-                                          // Save changes
-                                          const updatedConfig =
-                                            quotaConfigForm.find(
-                                              (config) =>
-                                                config.host_identifier ===
-                                                hostIdentifier,
-                                            );
-                                          if (updatedConfig) {
-                                            handleAdminQuotaConfigSave(
-                                              updatedConfig,
-                                            );
-                                          }
-                                        } else {
-                                          // Edit mode - ensure config is in form
-                                          setSelectedHostForEdit(
-                                            hostIdentifier,
-                                          );
-                                          const existingFormConfig =
-                                            quotaConfigForm.find(
-                                              (config) =>
-                                                config.host_identifier ===
-                                                hostIdentifier,
-                                            );
-                                          if (
-                                            !existingFormConfig &&
-                                            typedHostData.configs?.[0]
-                                          ) {
-                                            setQuotaConfigForm((prev) => [
-                                              ...prev,
-                                              {
-                                                host_identifier: hostIdentifier,
-                                                time_period:
-                                                  typedHostData.configs?.[0]
-                                                    ?.time_period,
-                                                minutes_limit:
-                                                  typedHostData.configs?.[0]
-                                                    ?.minutes_limit,
-                                                warning_threshold_percent:
-                                                  typedHostData.configs?.[0]
-                                                    ?.warning_threshold_percent,
-                                                is_active:
-                                                  typedHostData.configs?.[0]
-                                                    ?.is_active,
-                                              },
-                                            ]);
-                                          }
-                                        }
-                                      }}
-                                    >
-                                      {isEditing ? 'Save' : 'Edit'}
-                                    </Button>
-
-                                    {!isEditing && (
-                                      <Button
-                                        variant="outlined"
-                                        size="sm"
-                                        color="warning"
-                                        startDecorator={<RotateCcw />}
-                                        onClick={() =>
-                                          handleAdminQuotaReset(hostIdentifier)
-                                        }
-                                        disabled={isAdminSubmitting}
-                                      >
-                                        Reset Quota
-                                      </Button>
-                                    )}
-                                  </Stack>
-                                </Stack>
-
-                                {isEditing ? (
-                                  <Stack spacing={1}>
-                                    <FormControl>
-                                      <FormLabel>Time Period</FormLabel>
-                                      <Select
-                                        value={
-                                          quotaConfigForm.find(
-                                            (config) =>
-                                              config.host_identifier ===
-                                              hostIdentifier,
-                                          )?.time_period || ''
-                                        }
-                                        onChange={(_, value) => {
-                                          if (value) {
-                                            setQuotaConfigForm((prev) =>
-                                              prev.map((config) =>
-                                                config.host_identifier ===
-                                                hostIdentifier
-                                                  ? {
-                                                      ...config,
-                                                      time_period:
-                                                        value as string,
-                                                    }
-                                                  : config,
-                                              ),
-                                            );
-                                          }
-                                        }}
-                                      >
-                                        <Option value="daily">Daily</Option>
-                                        <Option value="weekly">Weekly</Option>
-                                        <Option value="monthly">Monthly</Option>
-                                      </Select>
-                                    </FormControl>
-
-                                    <FormControl>
-                                      <FormLabel>Minutes Limit</FormLabel>
-                                      <Input
-                                        type="number"
-                                        value={
-                                          quotaConfigForm.find(
-                                            (config) =>
-                                              config.host_identifier ===
-                                              hostIdentifier,
-                                          )?.minutes_limit || 0
-                                        }
-                                        onChange={(e) => {
-                                          const newLimit = parseInt(
-                                            e.target.value,
-                                            10,
-                                          );
-                                          setQuotaConfigForm((prev) =>
-                                            prev.map((config) =>
-                                              config.host_identifier ===
-                                              hostIdentifier
-                                                ? {
-                                                    ...config,
-                                                    minutes_limit: newLimit,
-                                                  }
-                                                : config,
-                                            ),
-                                          );
-                                        }}
-                                      />
-                                    </FormControl>
-
-                                    <FormControl>
-                                      <FormLabel>
-                                        Warning Threshold (%)
-                                      </FormLabel>
-                                      <Input
-                                        type="number"
-                                        value={
-                                          quotaConfigForm.find(
-                                            (config) =>
-                                              config.host_identifier ===
-                                              hostIdentifier,
-                                          )?.warning_threshold_percent || 0
-                                        }
-                                        onChange={(e) => {
-                                          const newThreshold = parseInt(
-                                            e.target.value,
-                                            10,
-                                          );
-                                          setQuotaConfigForm((prev) =>
-                                            prev.map((config) =>
-                                              config.host_identifier ===
-                                              hostIdentifier
-                                                ? {
-                                                    ...config,
-                                                    warning_threshold_percent:
-                                                      newThreshold,
-                                                  }
-                                                : config,
-                                            ),
-                                          );
-                                        }}
-                                      />
-                                    </FormControl>
-
-                                    <FormControl>
-                                      <FormLabel>Active</FormLabel>
-                                      <Switch
-                                        checked={
-                                          quotaConfigForm.find(
-                                            (config) =>
-                                              config.host_identifier ===
-                                              hostIdentifier,
-                                          )?.is_active || false
-                                        }
-                                        onChange={(e) => {
-                                          const isActive = e.target.checked;
-                                          setQuotaConfigForm((prev) =>
-                                            prev.map((config) =>
-                                              config.host_identifier ===
-                                              hostIdentifier
-                                                ? {
-                                                    ...config,
-                                                    is_active: isActive,
-                                                  }
-                                                : config,
-                                            ),
-                                          );
-                                        }}
-                                      />
-                                    </FormControl>
-                                  </Stack>
-                                ) : (
-                                  <Stack spacing={1}>
-                                    <Typography level="body-sm" color="neutral">
-                                      Time Period:{' '}
-                                      {typedHostData.configs?.[0]
-                                        ?.time_period || 'Not set'}
-                                    </Typography>
-                                    <Typography level="body-sm" color="neutral">
-                                      Minutes Limit:{' '}
-                                      {typedHostData.configs?.[0]
-                                        ?.minutes_limit || 'Not set'}
-                                    </Typography>
-                                    <Typography level="body-sm" color="neutral">
-                                      Warning Threshold:{' '}
-                                      {typedHostData.configs?.[0]
-                                        ?.warning_threshold_percent ||
-                                        'Not set'}
-                                      %
-                                    </Typography>
-                                    <Typography level="body-sm" color="neutral">
-                                      Active:{' '}
-                                      {typedHostData.configs?.[0]?.is_active
-                                        ? 'Yes'
-                                        : 'No'}
-                                    </Typography>
-                                  </Stack>
-                                )}
-                              </Stack>
-                            </Card>
-                          );
-                        },
-                      )}
-                  </Stack>
-                ) : (
-                  <Typography level="body-sm" color="neutral">
-                    No quota configurations found for any hosts.
-                  </Typography>
-                )}
-              </>
-            )}
-          </Stack>
-        </ModalDialog>
-      </Modal>
+      <AdminModeModal
+        open={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
+        isAdminMode={isAdminMode}
+        setIsAdminMode={setIsAdminMode}
+        adminQuotaData={adminQuotaData}
+        quotaConfigForm={quotaConfigForm}
+        setQuotaConfigForm={setQuotaConfigForm}
+        selectedHostForEdit={selectedHostForEdit}
+        setSelectedHostForEdit={setSelectedHostForEdit}
+        isAdminSubmitting={isAdminSubmitting}
+        handleAdminQuotaConfigSave={handleAdminQuotaConfigSave}
+        handleAdminQuotaReset={handleAdminQuotaReset}
+      />
     </Sheet>
   );
 }
