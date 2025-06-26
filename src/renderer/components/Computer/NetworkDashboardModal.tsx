@@ -105,10 +105,10 @@ function NetworkDashboardModal({
       }
 
       const apiUrl = getFullPath('network', ['dashboardAnalytics'], {});
-      // eslint-disable-next-line no-console
-      console.log('Calling API:', apiUrl);
-      // eslint-disable-next-line no-console
-      console.log('Request body:', { time_range: timeRangeDays });
+      // // eslint-disable-next-line no-console
+      // console.log('Calling API:', apiUrl);
+      // // eslint-disable-next-line no-console
+      // console.log('Request body:', { time_range: timeRangeDays });
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -122,13 +122,7 @@ function NetworkDashboardModal({
 
       if (response.ok) {
         const result = await response.json();
-        // eslint-disable-next-line no-console
-        console.log('Dashboard API Response:', result);
         if (result.status === 'success' && result.data) {
-          // eslint-disable-next-line no-console
-          console.log('Dashboard Data:', result.data);
-          // eslint-disable-next-line no-console
-          console.log('Quota Utilization:', result.data.quotaUtilization);
           setDashboardData(result.data);
         } else {
           // eslint-disable-next-line no-console
@@ -147,8 +141,6 @@ function NetworkDashboardModal({
       }
     } catch (error) {
       // Handle network error
-      // eslint-disable-next-line no-console
-      console.log('Network error:', error);
       setDashboardData(null);
     } finally {
       setIsLoading(false);
