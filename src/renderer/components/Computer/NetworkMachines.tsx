@@ -42,6 +42,7 @@ import {
   BarChart3,
   Settings,
   Shield,
+  TrendingUp,
 } from 'lucide-react';
 import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import MultiLevelReservationView from './MultiLevelReservationView';
@@ -49,6 +50,7 @@ import AdminModeModal from './AdminModeModal';
 import QuotaDetailsModal from './QuotaDetailsModal';
 import ReservationModal from './ReservationModal';
 import MyReservationsModal from './MyReservationsModal';
+import NetworkDashboardModal from './NetworkDashboardModal';
 
 interface NetworkMachine {
   id: number;
@@ -161,6 +163,7 @@ export default function NetworkMachines() {
   // Add admin mode state
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [dashboardModalOpen, setDashboardModalOpen] = useState(false);
   const [selectedHostForEdit, setSelectedHostForEdit] = useState<string>('');
   const [quotaConfigForm, setQuotaConfigForm] = useState<AdminQuotaConfig[]>(
     [],
@@ -657,14 +660,24 @@ export default function NetworkMachines() {
         />
         <Typography level="body-md">Admin Mode</Typography>
         {isAdminMode && (
-          <Button
-            size="sm"
-            variant="outlined"
-            startDecorator={<Shield />}
-            onClick={() => setAdminModalOpen(true)}
-          >
-            Quota Management
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="outlined"
+              startDecorator={<Shield />}
+              onClick={() => setAdminModalOpen(true)}
+            >
+              Quota Management
+            </Button>
+            <Button
+              size="sm"
+              variant="outlined"
+              startDecorator={<TrendingUp />}
+              onClick={() => setDashboardModalOpen(true)}
+            >
+              View Dashboard
+            </Button>
+          </>
         )}
       </Stack>
 
@@ -1420,6 +1433,13 @@ export default function NetworkMachines() {
         isAdminSubmitting={isAdminSubmitting}
         handleAdminQuotaConfigSave={handleAdminQuotaConfigSave}
         handleAdminQuotaReset={handleAdminQuotaReset}
+      />
+
+      {/* Dashboard Modal */}
+      <NetworkDashboardModal
+        open={dashboardModalOpen}
+        onClose={() => setDashboardModalOpen(false)}
+        machines={machines}
       />
     </Sheet>
   );

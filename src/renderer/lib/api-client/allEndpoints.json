@@ -159,6 +159,26 @@
     "quotaAdminReset": {
       "method": "POST",
       "path": "network/quota/admin/reset/{hostIdentifier}"
+    },
+    "dashboardAnalytics": {
+      "method": "POST",
+      "path": "network/dashboardAnalytics"
+    },
+    "analyticsReservationsByHost": {
+      "method": "POST",
+      "path": "network/analytics/reservations/by-host"
+    },
+    "analyticsReservationsByMachine": {
+      "method": "POST",
+      "path": "network/analytics/reservations/by-machine"
+    },
+    "analyticsUsageOverTime": {
+      "method": "POST",
+      "path": "network/analytics/usage/over-time"
+    },
+    "analyticsQuotaUtilization": {
+      "method": "POST",
+      "path": "network/analytics/quota/utilization"
     }
   },
   "config": {
