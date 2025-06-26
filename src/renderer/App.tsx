@@ -21,6 +21,7 @@ import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 // import OutputTerminal from './components/OutputTerminal';
 import AutoUpdateModal from './components/AutoUpdateModal';
+import { NotificationProvider } from './components/Shared/NotificationSystem';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -114,7 +115,8 @@ export default function App() {
   }, []);
 
   return (
-    <CssVarsProvider disableTransitionOnChange theme={theme}>
+    <NotificationProvider>
+      <CssVarsProvider disableTransitionOnChange theme={theme}>
       <CssBaseline />
 
       <Box
@@ -234,5 +236,6 @@ export default function App() {
         />
       </Box>
     </CssVarsProvider>
+    </NotificationProvider>
   );
 }
