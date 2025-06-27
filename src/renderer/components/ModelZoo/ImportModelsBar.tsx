@@ -6,18 +6,54 @@ import { PlusIcon } from 'lucide-react';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import ImportModelsModal from './ImportModelsModal';
+import GGUFFileSelectionModal from './GGUFFileSelectionModal';
 
 // Needs to share jobId with ModelsStore
 // If you start a download on one it should stop you from starting on the other
 // Also this is how the import bar tells teh model store to show a download progress bar
 export default function ImportModelsBar({ jobId, setJobId }) {
   const [importModelsModalOpen, setImportModelsModalOpen] = useState(false);
+  const [ggufModalOpen, setGgufModalOpen] = useState(false);
+  const [ggufModelData, setGgufModelData] = useState(null);
+
+  const downloadFile = async (modelId, filename) => {
+    setJobId(-1);
+    try {
+      const jobResponse = await fetch(chatAPI.Endpoints.Jobs.Create());
+      const newJobId = await jobResponse.json();
+      setJobId(newJobId);
+
+      const response = await chatAPI.downloadGGUFFile(
+        modelId,
+        filename,
+        newJobId,
+      );
+
+      if (response?.status === 'error' || response?.status === 'unauthorized') {
+        alert('Download failed!\n' + response.message);
+      }
+    } catch (e) {
+      alert('Failed to download selected file');
+    } finally {
+      setJobId(null);
+    }
+  };
 
   return (
     <>
       <ImportModelsModal
         open={importModelsModalOpen}
         setOpen={setImportModelsModalOpen}
+      />
+
+      <GGUFFileSelectionModal
+        open={ggufModalOpen}
+        onClose={() => setGgufModalOpen(false)}
+        modelId={ggufModelData?.model_id || ''}
+        availableFiles={ggufModelData?.available_files || []}
+        onFileSelected={(filename) =>
+          downloadFile(ggufModelData?.model_id, filename)
+        }
       />
 
       <Box
@@ -67,7 +103,13 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                             newJobId,
                           );
                         console.log(response);
-                        if (
+
+                        if (response?.status === 'requires_file_selection') {
+                          // Handle GGUF repository with multiple files
+                          setGgufModelData(response);
+                          setGgufModalOpen(true);
+                          setJobId(null); // Reset job since we need user input
+                        } else if (
                           response?.status == 'error' ||
                           response?.status == 'unauthorized'
                         ) {
