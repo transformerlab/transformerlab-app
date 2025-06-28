@@ -8,6 +8,10 @@ import {
   FormLabel,
   Textarea,
   Typography,
+  Switch,
+  Stack,
+  Select,
+  Option,
 } from '@mui/joy';
 import { InfoIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -16,6 +20,7 @@ import DatasetTable from 'renderer/components/Data/DatasetTable';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { useDebounce } from 'use-debounce';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -30,6 +35,10 @@ function TrainingModalDataTemplatingTab({
   const [template, setTemplate] = useState(
     'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}',
   );
+  const [applyChatTemplate, setApplyChatTemplate] = useState(false);
+  const [chatTemplate, setChatTemplate] = useState('');
+  const [chatColumn, setChatColumn] = useState('');
+
   useEffect(() => {
     //initialize the template with the saved value
     if (templateData?.config?.formatting_template) {
@@ -48,7 +57,26 @@ function TrainingModalDataTemplatingTab({
     fetcher,
   );
 
+  const {
+    data: chatTemplateData,
+    error: chatTemplateError,
+    isLoading: isChatTemplateLoading,
+  } = useAPI(
+    'models',
+    ['chatTemplate'],
+    { modelName: experimentInfo?.config?.foundation },
+    { enabled: !!applyChatTemplate && !!experimentInfo?.config?.foundation },
+  );
+
+  useEffect(() => {
+    if (applyChatTemplate && chatTemplateData?.data) {
+      setChatTemplate(chatTemplateData.data);
+    }
+  }, [applyChatTemplate, chatTemplateData]);
+
   const [debouncedTemplate] = useDebounce(template, 3000);
+  const [debouncedChatTemplate] = useDebounce(chatTemplate, 3000);
+
   let parsedData;
 
   try {
@@ -59,11 +87,15 @@ function TrainingModalDataTemplatingTab({
   }
 
   function PreviewSection() {
+    if (applyChatTemplate && !chatColumn) {
+      return null;
+    }
     return (
       <>
         <Typography level="title-lg" mt={2}>
           Preview Templated Output:{' '}
-          {template != debouncedTemplate && (
+          {(template != debouncedTemplate ||
+            chatTemplate != debouncedChatTemplate) && (
             <CircularProgress
               color="neutral"
               variant="plain"
@@ -82,6 +114,10 @@ function TrainingModalDataTemplatingTab({
         <DatasetTableWithTemplate
           datasetId={selectedDataset}
           template={debouncedTemplate}
+          modelName={
+            applyChatTemplate ? experimentInfo?.config?.foundation : ''
+          }
+          chatColumn={applyChatTemplate ? chatColumn : ''}
         />
       </>
     );
@@ -155,6 +191,45 @@ function TrainingModalDataTemplatingTab({
         );
       case 'none':
         return <>No data template is required for this trainer</>;
+      case 'missing_chat':
+        return (
+          <>
+            No configuration data available for this model. This may happen with
+            local models.
+          </>
+        );
+      case 'chat':
+        return (
+          <>
+            <FormControl>
+              <details>
+                <summary
+                  style={{
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                    marginBottom: 8,
+                  }}
+                >
+                  Show Chat Template
+                </summary>
+                <textarea
+                  required
+                  name="formatting_chat_template"
+                  id="chat_template"
+                  rows={10}
+                  value={chatTemplate}
+                  // onChange={(e) => setChatTemplate(e.target.value)}
+                  style={{ width: '100%', marginTop: '8px' }}
+                />
+                <FormHelperText>
+                  This template is fetched from the model's tokenizer config.
+                </FormHelperText>
+              </details>
+            </FormControl>
+
+            {selectedDataset && <PreviewSection />}
+          </>
+        );
       default:
         return (
           <>
@@ -183,6 +258,15 @@ function TrainingModalDataTemplatingTab({
         flexDirection: 'column',
       }}
     >
+      {chatTemplateData?.data && (
+        <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+          <Switch
+            checked={applyChatTemplate}
+            onChange={(e) => setApplyChatTemplate(e.target.checked)}
+          />
+          <Typography level="body-md">Apply Chat Template</Typography>
+        </Stack>
+      )}
       {parsedData?.training_template_format !== 'none' && (
         <>
           <Alert sx={{ mt: 1 }} color="danger">
@@ -211,28 +295,64 @@ function TrainingModalDataTemplatingTab({
                     </>
                   ))}
               </Box>
+              {applyChatTemplate ? (
+                <>
+                  <FormHelperText sx={{ mb: 1 }}>
+                    The formatting template describes how JSON-formatted chat
+                    conversations are formatted when passed to the trainer using
+                    the model's template.
+                    <br />
+                  </FormHelperText>
 
-              {selectedDataset && (
-                <FormHelperText>
-                  Use the field names above, surrounded by
-                  &#123;&#123;&#125;&#125; in the template below
-                </FormHelperText>
+                  <FormLabel>
+                    You can select which field to use for training:
+                  </FormLabel>
+
+                  {!currentDatasetInfo?.features ||
+                  currentDatasetInfo?.success === 'false' ? (
+                    <FormHelperText>No fields available</FormHelperText>
+                  ) : (
+                    <Select
+                      value={chatColumn}
+                      placeholder="Select field"
+                      onChange={(_, value) => {
+                        setChatColumn(value);
+                      }}
+                      sx={{ width: '200px' }}
+                    >
+                      {Object.keys(currentDatasetInfo.features).map((key) => (
+                        <Option key={key} value={key}>
+                          {key}
+                        </Option>
+                      ))}
+                    </Select>
+                  )}
+                </>
+              ) : (
+                <>
+                  {selectedDataset && (
+                    <FormHelperText>
+                      Use the field names above, surrounded by
+                      &#123;&#123;&#125;&#125; in the template below
+                    </FormHelperText>
+                  )}
+                  <FormHelperText
+                    sx={{ flexDirection: 'column', alignItems: 'flex-start' }}
+                  >
+                    The formatting template describes how the data is formatted
+                    when passed to the trainer. Use the Jinja2 Standard String
+                    Templating format. For example:
+                    <br />
+                    <span style={{}}>
+                      Summarize the following:
+                      <br />
+                      Prompt: &#123;&#123;prompt&#125;&#125;
+                      <br />
+                      Generation: &#123;&#123;generation&#125;&#125;
+                    </span>
+                  </FormHelperText>
+                </>
               )}
-              <FormHelperText
-                sx={{ flexDirection: 'column', alignItems: 'flex-start' }}
-              >
-                The formatting template describes how the data is formatted when
-                passed to the trainer. Use the Jinja2 Standard String Templating
-                format. For example:
-                <br />
-                <span style={{}}>
-                  Summarize the following:
-                  <br />
-                  Prompt: &#123;&#123;prompt&#125;&#125;
-                  <br />
-                  Generation: &#123;&#123;generation&#125;&#125;
-                </span>
-              </FormHelperText>
             </FormControl>
           </Alert>
         </>
@@ -240,7 +360,9 @@ function TrainingModalDataTemplatingTab({
       <Typography level="title-lg" mt={2} mb={0.5}>
         Formatting Template
       </Typography>
-      {renderTemplate(parsedData?.training_template_format)}
+      {applyChatTemplate
+        ? renderTemplate('chat')
+        : renderTemplate('parsedData?.training_template_format')}
     </Box>
   );
 }
