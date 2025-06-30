@@ -111,6 +111,7 @@ export default function ExperimentNotes({ experimentInfo }) {
             mt: 1,
             height: '100%',
             px: 2,
+            overflow: 'auto',
             boxShadow:
               'rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px',
           }}
