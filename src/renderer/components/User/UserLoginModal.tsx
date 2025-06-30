@@ -1,20 +1,24 @@
 import { useState } from 'react';
 
 import {
+  Alert,
+  Button,
+  FormControl,
+  FormLabel,
+  Input,
   Modal,
   ModalDialog,
   Stack,
-  Typography,
   Tab,
   TabList,
   TabPanel,
   Tabs,
-  FormControl,
-  FormLabel,
-  Input,
-  Button,
-  Alert,
+  Typography,
 } from '@mui/joy';
+
+import {
+  TriangleAlert,
+} from 'lucide-react';
 
 import {
   login,
@@ -63,14 +67,28 @@ export default function UserLoginModal({ open, onClose }) {
           </TabList>
 
           <TabPanel value="login" sx={commonTabPanelSx}>
-            <Alert variant="plain" sx={descriptionAlertSx}>
-              <Typography level="body-sm" textColor="text.tertiary">
-                {loginErrorMessage ?
-                  loginErrorMessage :
-                  "Login with your existing account credentials."
-                }
-              </Typography>
-            </Alert>
+            {loginErrorMessage ? (
+              <Alert
+                variant="outlined"
+                severity="error"
+                color="warning"
+                sx={descriptionAlertSx}
+              >
+                <TriangleAlert />
+                <Typography level="body-sm" textColor="text.tertiary">
+                  {loginErrorMessage}
+                </Typography>
+              </Alert>
+            ) : (
+              <Alert
+                variant="plain"
+                sx={descriptionAlertSx}
+              >
+                <Typography level="body-sm" textColor="text.tertiary">
+                  Login with your existing account credentials.
+                </Typography>
+              </Alert>
+            )}
             <form
               onSubmit={async (event) => {
                 event.preventDefault();
