@@ -70,7 +70,7 @@ export default function ExperimentNotes({ experimentInfo }) {
       },
     )
       .then(() => {
-        mutate(value);
+        mutate();
         setIsEditing(false);
         return true;
       })
