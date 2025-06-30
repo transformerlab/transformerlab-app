@@ -31,20 +31,33 @@ function TrainingModalDataTemplatingTab({
   injectIntoTemplate,
   experimentInfo,
   pluginId,
+  applyChatTemplate,
+  setApplyChatTemplate,
+  chatColumn,
+  setChatColumn,
 }) {
   const [template, setTemplate] = useState(
     'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}',
   );
-  const [applyChatTemplate, setApplyChatTemplate] = useState(false);
   const [chatTemplate, setChatTemplate] = useState('');
-  const [chatColumn, setChatColumn] = useState('');
 
   useEffect(() => {
-    //initialize the template with the saved value
-    if (templateData?.config?.formatting_template) {
-      setTemplate(templateData?.config?.formatting_template);
+    if (templateData?.config?.apply_chat_template !== undefined) {
+      setApplyChatTemplate(templateData.config.apply_chat_template);
     }
-  }, [templateData?.config?.formatting_template]);
+
+    if (templateData?.config?.formatting_chat_template) {
+      setChatTemplate(templateData.config.formatting_chat_template);
+    }
+
+    if (templateData?.config?.chat_column) {
+      setChatColumn(templateData.config.chat_column);
+    }
+
+    if (templateData?.config?.formatting_template) {
+      setTemplate(templateData.config.formatting_template);
+    }
+  }, [templateData]);
 
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
