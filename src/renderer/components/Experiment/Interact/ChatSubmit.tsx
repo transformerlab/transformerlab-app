@@ -58,6 +58,8 @@ export default function ChatSubmit({
   const [imageURLInput, setImageURLInput] = useState('');
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageURLModalOpen, setImageURLModalOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
   //List of multimodal models we currently support
   const multimodalModelArchitectures = [
     'LlavaForConditionalGeneration',
@@ -66,12 +68,14 @@ export default function ChatSubmit({
     'Qwen2VLForConditionalGeneration',
   ];
   const handleSend = () => {
+    if (!inputValue.trim()) return;
     scrollChatToBottom();
-    let msg = document.getElementById('chat-input').value;
-    document.getElementById('chat-input').value = '';
-    document.getElementById('chat-input').focus();
-    addMessage(msg, imageLink);
+    addMessage(inputValue.trim(), imageLink);
+    setInputValue('');
     setImageLink(null);
+    setTimeout(() => {
+      document.getElementById('chat-input')?.focus();
+    }, 0);
   };
 
   function TokenCount() {
@@ -134,15 +138,13 @@ export default function ChatSubmit({
                   thickness={2}
                   size="sm"
                   color="neutral"
-                  sx={{
-                    '--CircularProgress-size': '13px',
-                  }}
+                  sx={{ '--CircularProgress-size': '13px' }}
                 />
               ) : (
                 <SendIcon size="20px" />
               )
             }
-            disabled={spinner}
+            disabled={spinner || !inputValue.trim()}
             id="chat-submit-button"
             onClick={handleSend}
           >
@@ -270,6 +272,8 @@ export default function ChatSubmit({
           <Textarea
             placeholder="Type a message here..."
             minRows={3}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             slotProps={{
               textarea: {
                 id: 'chat-input',
@@ -287,7 +291,7 @@ export default function ChatSubmit({
               if (event.shiftKey) return;
               if (event.key === 'Enter') {
                 event.preventDefault();
-                handleSend();
+                if (inputValue.trim()) handleSend();
               }
             }}
             endDecorator={
