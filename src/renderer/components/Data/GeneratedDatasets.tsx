@@ -1,7 +1,5 @@
 import { useState } from 'react';
 
-import useSWR from 'swr';
-
 import {
   Box,
   Button,
@@ -17,11 +15,9 @@ import {
 import { PlusIcon, SearchIcon, StoreIcon } from 'lucide-react';
 import { Link as ReactRouterLink } from 'react-router-dom';
 
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { useAPI, getFullPath } from '../../lib/transformerlab-api-sdk';
 import DatasetCard from './DatasetCard';
 import NewDatasetModal from './NewDatasetModal';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export function filterByFiltersDatasetID(data, searchText = '', filters = {}) {
   return data.filter((row) => {
@@ -44,10 +40,9 @@ export default function GeneratedDatasets() {
   // const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
   // const [downloadingDataset, setDownloadingDataset] = useState(null);
 
-  const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.GeneratedList(),
-    fetcher,
-  );
+  const { data, error, isLoading, mutate } = useAPI('datasets', [
+    'generatedList',
+  ]);
 
   if (error) return 'Unable to load generated datasets.';
   if (isLoading) return <LinearProgress />;
@@ -161,7 +156,7 @@ export default function GeneratedDatasets() {
                       setDownloadingDataset(dataset);
 
                       // Datasets can be very large so do this asynchronously
-                      fetch(chatAPI.Endpoints.Dataset.Download(dataset))
+                      fetch(getFullPath('datasets', ['download'], { dataset_id: dataset }))
                         .then((response) => {
                           if (!response.ok) {
                             console.log(response);

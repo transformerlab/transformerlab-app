@@ -101,6 +101,42 @@
     "info": {
       "method": "GET",
       "path": "data/info?dataset_id={datasetId}"
+    },
+    "gallery": {
+      "method": "GET",
+      "path": "data/gallery"
+    },
+    "preview": {
+      "method": "GET",
+      "path": "data/preview?dataset_id={datasetId}&split={split}&offset={offset}&limit={limit}"
+    },
+    "previewWithTemplate": {
+      "method": "GET",
+      "path": "data/preview_with_template?dataset_id={datasetId}&template={template}&offset={offset}&limit={limit}"
+    },
+    "delete": {
+      "method": "DELETE",
+      "path": "data/delete?dataset_id={dataset_id}"
+    },
+    "create": {
+      "method": "POST",
+      "path": "data/new?dataset_id={name}"
+    },
+    "download": {
+      "method": "GET",
+      "path": "data/download?dataset_id={dataset_id}&config_name={config}"
+    },
+    "localList": {
+      "method": "GET",
+      "path": "data/list?generated={include_downloaded}"
+    },
+    "generatedList": {
+      "method": "GET",
+      "path": "data/generated_datasets_list"
+    },
+    "fileUpload": {
+      "method": "POST",
+      "path": "data/fileupload?dataset_id={name}"
     }
   },
   "recipes": {
@@ -129,6 +165,12 @@
       "path": "recipes/jobs/{job_id}/status"
     }
   },
+  "experiments": {
+    "get": {
+      "method": "GET",
+      "path": "experiment/{id}"
+    }
+  },
   "experiment": {
     "getScriptsOfTypeWithFilter": {
       "method": "GET",
@@ -137,6 +179,14 @@
     "getScriptsOfTypeWithoutFilter": {
       "method": "GET",
       "path": "experiment/{experimentId}/plugins/list?type={type}"
+    },
+    "getExperiment": {
+      "method": "GET",
+      "path": "experiment/{experimentId}"
+    },
+    "scriptGetFile": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/plugins/{pluginId}/file_contents?filename={filename}"
     }
   },
   "diffusion": {

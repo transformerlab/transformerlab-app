@@ -1,4 +1,3 @@
-import useSWR from 'swr';
 import { useState } from 'react';
 
 import {
@@ -14,16 +13,11 @@ import DatasetCard from './DatasetCard';
 import { SearchIcon } from 'lucide-react';
 import { filterByFilters } from 'renderer/lib/utils';
 
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useAPI } from '../../lib/transformerlab-api-sdk';
 
 export default function DataStore() {
   const [searchText, setSearchText] = useState('');
-  const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.Gallery(),
-    fetcher,
-  );
+  const { data, error, isLoading, mutate } = useAPI('datasets', ['gallery']);
 
   if (error)
     return 'Failed to load datasets from the gallery. Please check your connection or try again later.';

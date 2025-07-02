@@ -1,5 +1,4 @@
 /* eslint-disable camelcase */
-import useSWR from 'swr';
 
 import {
   Button,
@@ -17,15 +16,12 @@ import {
   Box,
 } from '@mui/joy';
 
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useAPI } from '../../lib/transformerlab-api-sdk';
 
 export default function DatasetInfoModal({ dataset_id, open, setOpen }) {
-  const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.Info(dataset_id),
-    fetcher,
-  );
+  const { data, error, isLoading, mutate } = useAPI('datasets', ['info'], {
+    datasetId: dataset_id,
+  });
 
   return (
     <Modal

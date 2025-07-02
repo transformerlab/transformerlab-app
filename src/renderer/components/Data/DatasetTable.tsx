@@ -17,13 +17,8 @@ import {
   Tooltip,
 } from '@mui/joy';
 
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { useAPI } from '../../lib/transformerlab-api-sdk';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
-import useSWR from 'swr';
-const fetcher = (url) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((data) => data);
 
 const DatasetTable = ({ datasetId }) => {
   const [pageNumber, setPageNumber] = useState(1);
@@ -40,10 +35,12 @@ const DatasetTable = ({ datasetId }) => {
     const totalPages = Math.ceil(totalRows / rowsPerPage);
     setNumOfPages(totalPages);
   };
-  const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.Preview(datasetId, split, offset, pageSize),
-    fetcher,
-  );
+  const { data, error, isLoading, mutate } = useAPI('datasets', ['preview'], {
+    datasetId,
+    split,
+    offset,
+    limit: pageSize,
+  });
 
   useEffect(() => {
     setDatasetLen(null);

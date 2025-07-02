@@ -8,9 +8,8 @@ import {
   useLocation,
 } from 'react-router-dom';
 
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useCallback, useEffect, useState } from 'react';
-import useSWR from 'swr';
 
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
@@ -93,16 +92,16 @@ export default function MainAppPanel({
     ? JSON.parse(inferenceParams)?.inferenceEngine
     : null;
 
-  // Use SWR at the top level, not inside useEffect
-  const { data: modelData } = useSWR(
-    experimentInfo?.id && pluginId
-      ? chatAPI.Endpoints.Experiment.ScriptGetFile(
-          experimentInfo.id,
-          pluginId,
-          'index.json',
-        )
-      : null,
-    fetcher,
+  // Use useAPI at the top level, not inside useEffect
+  const { data: modelData } = useAPI(
+    'experiment',
+    ['scriptGetFile'],
+    {
+      experimentId: experimentInfo?.id,
+      pluginId,
+      filename: 'index.json',
+    },
+    { enabled: !!(experimentInfo?.id && pluginId) },
   );
   const [chatHistory, setChatHistory] = useState([]);
 

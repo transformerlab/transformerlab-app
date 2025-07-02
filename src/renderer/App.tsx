@@ -3,8 +3,7 @@ import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
 
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { IconButton } from '@mui/joy';
 import Sidebar from './components/Nav/Sidebar';
@@ -22,8 +21,6 @@ import DraggableElipsis from './components/Shared/DraggableEllipsis';
 // import OutputTerminal from './components/OutputTerminal';
 import AutoUpdateModal from './components/AutoUpdateModal';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function App() {
   const [experimentId, setExperimentId] = useState('');
@@ -86,7 +83,7 @@ export default function App() {
     error: experimentInfoError,
     isLoading: experimentInfoIsLoading,
     mutate: experimentInfoMutate,
-  } = useSWR(chatAPI.Endpoints.Experiment.Get(experimentId), fetcher);
+  } = useAPI('experiments', ['get'], { id: experimentId });
 
   const onOutputDrawerDrag = useCallback((pos) => {
     const ypos = pos.y;
@@ -117,125 +114,125 @@ export default function App() {
   return (
     <NotificationProvider>
       <CssVarsProvider disableTransitionOnChange theme={theme}>
-      <CssBaseline />
+        <CssBaseline />
 
-      <Box
-        component="main"
-        className="MainContent"
-        sx={() => ({
-          display: 'grid',
-          height: '100dvh',
-          width: '100dvw',
-          overflow: 'hidden',
-          gridTemplateColumns: '180px 1fr',
-          gridTemplateRows: logsDrawerOpen
-            ? `48px 5fr ${logsDrawerHeight}px`
-            : '48px 5fr 18px',
-          gridTemplateAreas: `
+        <Box
+          component="main"
+          className="MainContent"
+          sx={() => ({
+            display: 'grid',
+            height: '100dvh',
+            width: '100dvw',
+            overflow: 'hidden',
+            gridTemplateColumns: '180px 1fr',
+            gridTemplateRows: logsDrawerOpen
+              ? `48px 5fr ${logsDrawerHeight}px`
+              : '48px 5fr 18px',
+            gridTemplateAreas: `
           "sidebar header"
           "sidebar main"
           "sidebar footer"
           `,
-          // backgroundColor: (theme) => theme.vars.palette.background.surface,
-        })}
-      >
-        <Header
-          connection={connection}
-          setConnection={setConnection}
-          experimentInfo={experimentInfo}
-        />
-        {/* <FirstSidebar setDrawerOpen={setDrawerOpen} /> */}
-
-        <Sidebar
-          experimentInfo={experimentInfo}
-          setExperimentId={setExperimentId}
-          logsDrawerOpen={logsDrawerOpen}
-          setLogsDrawerOpen={setLogsDrawerOpen}
-          themeSetter={themeSetter}
-        />
-        <Box
-          sx={{
-            px: {
-              md: 3,
-              lg: 4,
-            },
-            pt: 2,
-            pb: 0,
-            height: '100%',
-            gridArea: 'main',
-            overflow: 'hidden',
-            backgroundColor: 'var(--joy-palette-background-surface)',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-          id="main-app-panel"
+            // backgroundColor: (theme) => theme.vars.palette.background.surface,
+          })}
         >
-          <MainAppPanel
+          <Header
+            connection={connection}
+            setConnection={setConnection}
+            experimentInfo={experimentInfo}
+          />
+          {/* <FirstSidebar setDrawerOpen={setDrawerOpen} /> */}
+
+          <Sidebar
             experimentInfo={experimentInfo}
             setExperimentId={setExperimentId}
-            experimentInfoMutate={experimentInfoMutate}
+            logsDrawerOpen={logsDrawerOpen}
             setLogsDrawerOpen={setLogsDrawerOpen}
+            themeSetter={themeSetter}
           />
-        </Box>
-        <Box
-          sx={{
-            gridArea: 'footer',
-            display: 'flex',
-            flexDirection: 'column',
-            height: logsDrawerOpen ? '100%' : '18px',
-            width: '100%',
-            overflow: 'hidden',
-            alignItems: 'stretch',
-            backgroundColor: 'var(--joy-palette-background-level3)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              height: '18px',
-            }}
-          >
-            <div>&nbsp;</div>
-            {logsDrawerOpen ? (
-              <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
-            ) : (
-              <>&nbsp;</>
-            )}
-            <IconButton
-              sx={{ padding: 0, margin: 0, minHeight: 0 }}
-              onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
-            >
-              {logsDrawerOpen ? (
-                <ChevronDownIcon size="18px" />
-              ) : (
-                <ChevronUpIcon size="18px" />
-              )}
-            </IconButton>
-          </div>
           <Box
             sx={{
-              height: logsDrawerOpen ? '100%' : '0px',
+              px: {
+                md: 3,
+                lg: 4,
+              },
+              pt: 2,
+              pb: 0,
+              height: '100%',
+              gridArea: 'main',
               overflow: 'hidden',
-              border: logsDrawerOpen ? '10px solid #444' : '0',
-              padding: logsDrawerOpen ? '6px' : '0',
-              backgroundColor: '#000',
+              backgroundColor: 'var(--joy-palette-background-surface)',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            id="main-app-panel"
+          >
+            <MainAppPanel
+              experimentInfo={experimentInfo}
+              setExperimentId={setExperimentId}
+              experimentInfoMutate={experimentInfoMutate}
+              setLogsDrawerOpen={setLogsDrawerOpen}
+            />
+          </Box>
+          <Box
+            sx={{
+              gridArea: 'footer',
+              display: 'flex',
+              flexDirection: 'column',
+              height: logsDrawerOpen ? '100%' : '18px',
               width: '100%',
+              overflow: 'hidden',
+              alignItems: 'stretch',
+              backgroundColor: 'var(--joy-palette-background-level3)',
             }}
           >
-            <OutputTerminal initialMessage="** Running a Model will Display Output Here **" />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                height: '18px',
+              }}
+            >
+              <div>&nbsp;</div>
+              {logsDrawerOpen ? (
+                <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
+              ) : (
+                <>&nbsp;</>
+              )}
+              <IconButton
+                sx={{ padding: 0, margin: 0, minHeight: 0 }}
+                onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+              >
+                {logsDrawerOpen ? (
+                  <ChevronDownIcon size="18px" />
+                ) : (
+                  <ChevronUpIcon size="18px" />
+                )}
+              </IconButton>
+            </div>
+            <Box
+              sx={{
+                height: logsDrawerOpen ? '100%' : '0px',
+                overflow: 'hidden',
+                border: logsDrawerOpen ? '10px solid #444' : '0',
+                padding: logsDrawerOpen ? '6px' : '0',
+                backgroundColor: '#000',
+                width: '100%',
+              }}
+            >
+              <OutputTerminal initialMessage="** Running a Model will Display Output Here **" />
+            </Box>
           </Box>
+          <AutoUpdateModal />
+          <LoginModal
+            setServer={setConnection}
+            connection={connection}
+            setTerminalDrawerOpen={setLogsDrawerOpen}
+            setSSHConnection={setSSHConnection}
+          />
         </Box>
-        <AutoUpdateModal />
-        <LoginModal
-          setServer={setConnection}
-          connection={connection}
-          setTerminalDrawerOpen={setLogsDrawerOpen}
-          setSSHConnection={setSSHConnection}
-        />
-      </Box>
-    </CssVarsProvider>
+      </CssVarsProvider>
     </NotificationProvider>
   );
 }

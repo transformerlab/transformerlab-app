@@ -17,8 +17,7 @@ import {
   InfoIcon,
 } from 'lucide-react';
 import { formatBytes } from 'renderer/lib/utils';
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import PreviewDatasetModal from './PreviewDatasetModal';
 import DatasetInfoModal from './DatasetInfoModal';
 import EditDatasetModal from './EditDatasetModal';
@@ -126,7 +125,11 @@ export default function DatasetCard({
                     if (
                       confirm('Are you sure you want to delete this dataset?')
                     ) {
-                      await fetch(chatAPI.Endpoints.Dataset.Delete(name));
+                      await fetch(
+                        getFullPath('datasets', ['delete'], {
+                          dataset_id: name,
+                        }),
+                      );
                       parentMutate();
                     }
                   }}
@@ -196,7 +199,9 @@ export default function DatasetCard({
               }
               onClick={() => {
                 setInstalling(true);
-                fetch(chatAPI.Endpoints.Dataset.Download(repo))
+                fetch(
+                  getFullPath('datasets', ['download'], { dataset_id: repo }),
+                )
                   .then((response) => {
                     if (!response.ok) {
                       console.log(response);

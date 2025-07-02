@@ -11,13 +11,8 @@ import {
   LinearProgress,
 } from '@mui/joy';
 
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { useAPI } from '../../lib/transformerlab-api-sdk';
 import { ChevronLeftIcon, ChevronRightIcon, Sheet } from 'lucide-react';
-import useSWR from 'swr';
-const fetcher = (url) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((data) => data);
 
 const DatasetTableWithTemplate = ({ datasetId, template }) => {
   const [pageNumber, setPageNumber] = useState(1);
@@ -35,15 +30,12 @@ const DatasetTableWithTemplate = ({ datasetId, template }) => {
     error,
     isLoading,
     mutate,
-  } = useSWR(
-    chatAPI.Endpoints.Dataset.PreviewWithTemplate(
-      datasetId,
-      encodeURIComponent(template),
-      offset,
-      pageSize,
-    ),
-    fetcher,
-  );
+  } = useAPI('datasets', ['previewWithTemplate'], {
+    datasetId,
+    template: encodeURIComponent(template),
+    offset,
+    limit: pageSize,
+  });
 
   useEffect(() => {
     setDatasetLen(null);

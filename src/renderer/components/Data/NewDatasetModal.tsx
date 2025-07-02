@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import useSWR from 'swr';
 import {
   Button,
   Divider,
@@ -17,9 +16,7 @@ import {
 import { PlusCircleIcon } from 'lucide-react';
 import Dropzone from 'react-dropzone';
 import { IoCloudUploadOutline } from 'react-icons/io5';
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useAPI, getFullPath } from '../../lib/transformerlab-api-sdk';
 
 export default function DatasetDetailsModal({ open, setOpen }) {
   const [newDatasetName, setNewDatasetName] = useState('');
@@ -28,8 +25,12 @@ export default function DatasetDetailsModal({ open, setOpen }) {
   const [uploading, setUploading] = useState(false);
   const [dropzoneActive, setDropzoneActive] = useState(false);
 
-  const swrKey = open ? chatAPI.Endpoints.Dataset.LocalList(false) : null;
-  const { data, isLoading, mutate } = useSWR(swrKey, fetcher);
+  const { data, isLoading, mutate } = useAPI(
+    'datasets',
+    ['localList'],
+    { include_downloaded: false },
+    { enabled: open },
+  );
 
   const handleClose = () => {
     setOpen(false);
@@ -41,16 +42,19 @@ export default function DatasetDetailsModal({ open, setOpen }) {
   const uploadFiles = async (formData) => {
     setUploading(true);
     const response = await fetch(
-      chatAPI.Endpoints.Dataset.Create(newDatasetName),
+      getFullPath('datasets', ['create'], { name: newDatasetName }),
     );
     const data = await response.json();
     if (data.status === 'error') {
       alert(data.message);
     } else {
-      await fetch(chatAPI.Endpoints.Dataset.FileUpload(newDatasetName), {
-        method: 'POST',
-        body: formData,
-      });
+      await fetch(
+        getFullPath('datasets', ['fileUpload'], { name: newDatasetName }),
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
     }
     setUploading(false);
     handleClose();
