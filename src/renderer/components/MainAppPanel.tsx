@@ -104,6 +104,7 @@ export default function MainAppPanel({
       : null,
     fetcher,
   );
+  const [chatHistory, setChatHistory] = useState([]);
 
   let modelSupports = [
     'chat',
@@ -369,6 +370,8 @@ export default function MainAppPanel({
               mode={selectedInteractSubpage}
               setMode={setSelectedInteractSubpage}
               supports={modelSupports}
+              chatHistory={chatHistory}
+              setChatHistory={setChatHistory}
             />
           }
         />
@@ -382,6 +385,8 @@ export default function MainAppPanel({
               mode={'model_layers'}
               setMode={setSelectedInteractSubpage}
               supports={modelSupports}
+              chatHistory={chatHistory}
+              setChatHistory={setChatHistory}
             />
           }
         />
