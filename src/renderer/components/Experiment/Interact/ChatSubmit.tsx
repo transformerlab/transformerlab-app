@@ -59,7 +59,12 @@ export default function ChatSubmit({
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageURLModalOpen, setImageURLModalOpen] = useState(false);
   //List of multimodal models we currently support
-  const multimodalModelArchitectures = ['LlavaForConditionalGeneration'];
+  const multimodalModelArchitectures = [
+    'LlavaForConditionalGeneration',
+    'MllamaForConditionalGeneration',
+    'Qwen2_5_VLForConditionalGeneration',
+    'Qwen2VLForConditionalGeneration',
+  ];
   const handleSend = () => {
     scrollChatToBottom();
     let msg = document.getElementById('chat-input').value;
@@ -171,6 +176,7 @@ export default function ChatSubmit({
                     const reader = new FileReader();
                     reader.onload = (e) => {
                       setImageLink(e.target.result);
+                      document.getElementById('chat-input')?.focus();
                     };
                     reader.readAsDataURL(file);
                   }
@@ -380,19 +386,34 @@ export default function ChatSubmit({
                       variant="soft"
                       color="success"
                       disabled={!imageURLInput.trim()}
-                      onClick={() => {
-                        //Testing to see if the image is valid
-                        const img = new Image();
-                        img.src = imageURLInput;
-                        img.onload = () => {
-                          setImageLink(imageURLInput);
+                      onClick={async () => {
+                        const toBase64 = async (url) => {
+                          try {
+                            const res = await fetch(url);
+                            const blob = await res.blob();
+                            return await new Promise((resolve, reject) => {
+                              const reader = new FileReader();
+                              reader.onloadend = () => resolve(reader.result);
+                              reader.onerror = reject;
+                              reader.readAsDataURL(blob);
+                            });
+                          } catch (err) {
+                            return null;
+                          }
+                        };
+
+                        const base64 = await toBase64(imageURLInput);
+
+                        if (base64) {
+                          setImageLink(base64);
                           setImageURLInput('');
-                        };
-                        img.onerror = () => {
+                          setImageURLModalOpen(false);
+                          setTimeout(() => {
+                            document.getElementById('chat-input')?.focus();
+                          }, 100);
+                        } else {
                           alert('Invalid Image URL. Please input a valid URL.');
-                        };
-                        setImageURLModalOpen(false);
-                        console.log('closing');
+                        }
                       }}
                     >
                       <CheckIcon size="20px" />
