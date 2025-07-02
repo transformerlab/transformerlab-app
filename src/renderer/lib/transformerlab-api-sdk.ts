@@ -22,6 +22,10 @@ export {
 } from './api-client/chat';
 
 export {
+  login,
+  logout,
+  getAccessToken,
+  registerUser,
   downloadModelFromHuggingFace,
   downloadGGUFFile,
   downloadModelFromGallery,
