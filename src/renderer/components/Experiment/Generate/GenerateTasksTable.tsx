@@ -22,29 +22,13 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import GenerateModal from './GenerateModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function listGenerations(generationString) {
-  let result = [];
-  if (generationString) {
-    try {
-      result =
-        typeof generationString === 'string'
-          ? JSON.parse(generationString)
-          : generationString;
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error(
-        'Error parsing generation string:',
-        error,
-        generationString,
-      );
-      result = [];
-    }
-  }
-  return result;
+  return SafeJSONParse(generationString, []);
 }
 
 function formatTemplateConfig(scriptParameters): ReactElement {
@@ -210,23 +194,9 @@ export default function GenerateTasksTable({
                     {generations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {(() => {
-                      try {
-                        const config =
-                          typeof generations.config === 'string'
-                            ? JSON.parse(generations.config)
-                            : generations.config;
-                        return formatTemplateConfig(config);
-                      } catch (parseError) {
-                        // eslint-disable-next-line no-console
-                        console.error(
-                          'Error parsing config:',
-                          parseError,
-                          generations.config,
-                        );
-                        return 'Invalid configuration';
-                      }
-                    })()}
+                    {formatTemplateConfig(
+                      SafeJSONParse(generations.config, {}),
+                    )}
                   </td>
                   <td>{generations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>

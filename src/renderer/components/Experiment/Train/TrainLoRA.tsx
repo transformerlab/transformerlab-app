@@ -1,5 +1,3 @@
-/* eslint-disable prefer-template */
-/* eslint-disable jsx-a11y/anchor-is-valid */
 import { ReactElement, useEffect, useState } from 'react';
 import useSWR from 'swr';
 
@@ -38,14 +36,6 @@ import {
   UploadIcon,
 } from 'lucide-react';
 
-import TrainingModalLoRA from './TrainingModalLoRA';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import LoRATrainingRunButton from './LoRATrainingRunButton';
-import TensorboardModal from './TensorboardModal';
-import ViewOutputModal from './ViewOutputModal';
-import ImportRecipeModal from './ImportRecipeModal';
-import ViewEvalImagesModal from './ViewEvalImagesModal';
-
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -53,22 +43,23 @@ import CurrentDownloadBox from 'renderer/components/currentDownloadBox';
 import DownloadProgressBox from 'renderer/components/Shared/DownloadProgressBox';
 import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from './JobProgress';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
+import TrainingModalLoRA from './TrainingModalLoRA';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import LoRATrainingRunButton from './LoRATrainingRunButton';
+import TensorboardModal from './TensorboardModal';
+import ViewOutputModal from './ViewOutputModal';
+import ImportRecipeModal from './ImportRecipeModal';
+import ViewEvalImagesModal from './ViewEvalImagesModal';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 
 function formatTemplateConfig(config): ReactElement {
-  let c;
-  try {
-    c = typeof config === 'string' ? JSON.parse(config) : config;
-  } catch (error) {
-    // eslint-disable-next-line no-console
-    console.error('Error parsing config:', error, config);
-    return <span>Invalid configuration</span>;
-  }
+  const c = SafeJSONParse(config, {});
 
   if (!c || typeof c !== 'object') {
-    return <span>No configuration available</span>;
+    return <span>Invalid configuration</span>;
   }
 
   // Remove the author/full path from the model name for cleanliness
@@ -352,17 +343,8 @@ export default function TrainLoRA({ experimentInfo }) {
                           {row[4]} <FileTextIcon size={14} />
                         </td> */}
                         <td style={{ overflow: 'clip' }}>
-                          {(() => {
-                            try {
-                              const config =
-                                typeof row.config === 'string'
-                                  ? JSON.parse(row.config)
-                                  : row.config;
-                              return config?.plugin_name || 'Unknown';
-                            } catch (parseError) {
-                              return 'Invalid config';
-                            }
-                          })()}
+                          {SafeJSONParse(row.config, {})?.plugin_name ||
+                            'Unknown'}
                         </td>
                         <td style={{ overflow: 'hidden' }}>
                           {formatTemplateConfig(row.config)}
@@ -378,28 +360,12 @@ export default function TrainLoRA({ experimentInfo }) {
                               trainingTemplate={{
                                 template_id: row.id,
                                 template_name: row.name,
-                                model_name: (() => {
-                                  try {
-                                    const inputs =
-                                      typeof row.inputs === 'string'
-                                        ? JSON.parse(row.inputs)
-                                        : row.inputs;
-                                    return inputs?.model_name || 'unknown';
-                                  } catch {
-                                    return 'unknown';
-                                  }
-                                })(),
-                                dataset: (() => {
-                                  try {
-                                    const inputs =
-                                      typeof row.inputs === 'string'
-                                        ? JSON.parse(row.inputs)
-                                        : row.inputs;
-                                    return inputs?.dataset_name || 'unknown';
-                                  } catch {
-                                    return 'unknown';
-                                  }
-                                })(),
+                                model_name:
+                                  SafeJSONParse(row.inputs, {})?.model_name ||
+                                  'unknown',
+                                dataset:
+                                  SafeJSONParse(row.inputs, {})?.dataset_name ||
+                                  'unknown',
                                 config: row.config,
                               }}
                               jobsMutate={jobsMutate}
@@ -408,17 +374,10 @@ export default function TrainLoRA({ experimentInfo }) {
                             <Button
                               onClick={() => {
                                 setTemplateID(row.id);
-                                try {
-                                  const config =
-                                    typeof row.config === 'string'
-                                      ? JSON.parse(row.config)
-                                      : row.config;
-                                  setCurrentPlugin(
-                                    config?.plugin_name || 'unknown',
-                                  );
-                                } catch {
-                                  setCurrentPlugin('unknown');
-                                }
+                                setCurrentPlugin(
+                                  SafeJSONParse(row.config, {})?.plugin_name ||
+                                    'unknown',
+                                );
                                 setOpen(true);
                               }}
                               variant="outlined"

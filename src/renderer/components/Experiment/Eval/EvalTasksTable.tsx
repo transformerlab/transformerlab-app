@@ -23,6 +23,7 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import EvalModal from './EvalModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -44,7 +45,7 @@ function formatTemplateConfig(script_parameters): ReactElement {
       : '';
     if (script_parameters.tasks) {
       try {
-        const tasksArray = JSON.parse(script_parameters.tasks);
+        const tasksArray = SafeJSONParse(script_parameters.tasks, []);
         if (Array.isArray(tasksArray)) {
           if (predefined_tasks && predefined_tasks !== '') {
             // Check if tasks array is empty
@@ -256,23 +257,9 @@ export default function EvalTasksTable({ experimentInfo }) {
                     {evaluations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {(() => {
-                      try {
-                        const config =
-                          typeof evaluations.config === 'string'
-                            ? JSON.parse(evaluations.config)
-                            : evaluations.config;
-                        return formatTemplateConfig(config);
-                      } catch (error) {
-                        // eslint-disable-next-line no-console
-                        console.error(
-                          'Error parsing config:',
-                          error,
-                          evaluations.config,
-                        );
-                        return 'Invalid configuration';
-                      }
-                    })()}
+                    {formatTemplateConfig(
+                      SafeJSONParse(evaluations.config, {}),
+                    )}
                     {/* {evaluations?.script_parameters?.task}&nbsp; */}
                     {/* <FileTextIcon size={14} /> */}
                   </td>
