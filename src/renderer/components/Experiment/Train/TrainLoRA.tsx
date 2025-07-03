@@ -244,7 +244,7 @@ export default function TrainLoRA({ experimentInfo }) {
                 </Typography>
               </MenuItem>
               <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
-                {pluginsData?.map((plugin) => (
+                {(Array.isArray(pluginsData) ? pluginsData : []).map((plugin) => (
                   <MenuItem
                     onClick={() => {
                       setTemplateID('-1');
