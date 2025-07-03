@@ -150,6 +150,12 @@ export default function TrainLoRA({ experimentInfo }) {
     fetcher,
   );
 
+  // Set default empty array for SWR returned values.
+  // Sometimes on first render these variables aren't initialized
+  // which causes an error when we try to run .map() on them.
+  const tasksList = Array.isArray(data) ? data : [];
+  const pluginsList = Array.isArray(pluginsData) ? pluginsData : [];
+
   const modelArchitecture =
     experimentInfo?.config?.foundation_model_architecture;
 
@@ -244,7 +250,7 @@ export default function TrainLoRA({ experimentInfo }) {
                 </Typography>
               </MenuItem>
               <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
-                {(Array.isArray(pluginsData) ? pluginsData : []).map((plugin) => (
+                {pluginsList.map((plugin) => (
                   <MenuItem
                     onClick={() => {
                       setTemplateID('-1');
@@ -324,7 +330,7 @@ export default function TrainLoRA({ experimentInfo }) {
               {
                 // Format of template data by column:
                 // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
-                (Array.isArray(data) ? data : []).map((row) => {
+                tasksList.map((row) => {
                     return (
                       <tr key={row.id}>
                         <td>
