@@ -552,14 +552,34 @@ autoUpdater.on('error', (err) => {
   sendStatusToWindow('Update Error');
 });
 autoUpdater.on('download-progress', (progressObj) => {
-  let log_message = 'Download speed: ' + progressObj.bytesPerSecond;
-  log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+  // Helper to format bytes per second into a readable string
+  function formatBytesPerSecond(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B/s`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB/s`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB/s`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB/s`;
+  }
+
+  let log_message =
+    'Download speed: ' + formatBytesPerSecond(progressObj.bytesPerSecond);
+  log_message =
+    log_message + ' - Downloaded ' + Math.round(progressObj.percent) + '%';
+  // Helper to format bytes into a readable string
+  function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  }
+
   log_message =
     log_message +
     ' (' +
-    progressObj.transferred +
+    formatBytes(progressObj.transferred) +
     '/' +
-    progressObj.total +
+    formatBytes(progressObj.total) +
     ')';
   sendStatusToWindow(log_message);
 });
