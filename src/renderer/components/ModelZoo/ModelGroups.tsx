@@ -240,6 +240,17 @@ export default function ModelGroups() {
           borderRadius: 'md',
         }}
       >
+        {/* Responsive style for license-col */}
+        <style>{`
+          .license-col {
+            display: none;
+          }
+          @media (min-width: 1200px) {
+            .license-col {
+              display: table-cell !important;
+            }
+          }
+        `}</style>
         <Box
           id="model-group-left-hand-side"
           display="flex"
@@ -319,7 +330,18 @@ export default function ModelGroups() {
                             color: isSelected ? 'common.white' : undefined,
                           }}
                         >
-                          {group.description}
+                          <Box
+                            sx={{
+                              maxHeight: 60,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: 'vertical',
+                            }}
+                          >
+                            {group.description}
+                          </Box>
                         </Typography>
                       </Box>
                       <Box
@@ -395,9 +417,9 @@ export default function ModelGroups() {
                   </Chip>
                 ))}
               </Box>
-              <Typography level="body-md" sx={{ mb: 2 }}>
+              {/* <Typography level="body-md" sx={{ mb: 2 }}>
                 {selectedGroup.description}
-              </Typography>
+              </Typography> */}
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
                 <FormControl sx={{ flex: 1 }} size="sm">
                   <FormLabel>&nbsp;</FormLabel>
@@ -459,7 +481,6 @@ export default function ModelGroups() {
                     whiteSpace: 'normal',
                     padding: '8px',
                   },
-                  minWidth: '800px',
                 }}
               >
                 <thead>
@@ -488,12 +509,11 @@ export default function ModelGroups() {
                             />
                           )
                         }
-                        sx={{ marginLeft: 2 }}
                       >
                         Name
                       </Link>
                     </th>
-                    <th style={{ width: 100 }}>
+                    <th className="license-col">
                       <Link
                         underline="none"
                         color="primary"
@@ -517,12 +537,11 @@ export default function ModelGroups() {
                             />
                           )
                         }
-                        sx={{ marginLeft: 2 }}
                       >
                         License
                       </Link>
                     </th>
-                    <th style={{ width: 170 }}>
+                    <th>
                       <Link
                         underline="none"
                         color="primary"
@@ -546,7 +565,6 @@ export default function ModelGroups() {
                             />
                           )
                         }
-                        sx={{ marginLeft: 2 }}
                       >
                         Engine
                       </Link>
@@ -580,8 +598,7 @@ export default function ModelGroups() {
                         Size
                       </Link>
                     </th>
-                    <th style={{ width: 50 }}></th>
-                    <th style={{ width: 180 }}></th>
+                    <th style={{ width: 180 }}>&nbsp;</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -615,7 +632,7 @@ export default function ModelGroups() {
                               <ExternalLinkIcon size="14px" />
                             )}
                           </a>
-                          {row.tags?.map((tag) => (
+                          {/* {row.tags?.map((tag) => (
                             <Chip
                               key={tag}
                               size="sm"
@@ -624,10 +641,10 @@ export default function ModelGroups() {
                             >
                               {tag}
                             </Chip>
-                          ))}
+                          ))} */}
                         </Typography>
                       </td>
-                      <td>
+                      <td className="license-col">
                         <Chip size="sm" variant="soft" color="neutral">
                           {row.license}
                         </Chip>
@@ -645,6 +662,13 @@ export default function ModelGroups() {
                           startDecorator={
                             row.architecture === 'MLX' && <TinyMLXLogo />
                           }
+                          sx={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: 150, // adjust as needed to fit your column
+                            display: 'block',
+                          }}
                         >
                           {row.architecture}
                         </Typography>
@@ -654,11 +678,7 @@ export default function ModelGroups() {
                           {formatBytes(row?.size_of_model_in_mb * 1024 * 1024)}
                         </Typography>
                       </td>
-                      <td>
-                        <InfoIcon
-                          onClick={() => setModelDetailsId(row.uniqueID)}
-                        />
-                      </td>
+
                       <td style={{ textAlign: 'right' }}>
                         {row.gated && !isHFAccessTokenSet ? (
                           <Button
