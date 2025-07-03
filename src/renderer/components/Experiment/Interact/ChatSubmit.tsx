@@ -49,7 +49,8 @@ export default function ChatSubmit({
   tokenCount,
   text,
   debouncedText,
-  currentModelArchitecture,
+  // currentModelArchitecture,
+  supports,
 }) {
   const [italic] = useState(false);
   const [fontWeight] = useState('normal');
@@ -61,12 +62,12 @@ export default function ChatSubmit({
   const [inputValue, setInputValue] = useState('');
 
   //List of multimodal models we currently support
-  const multimodalModelArchitectures = [
+  /* const multimodalModelArchitectures = [
     'LlavaForConditionalGeneration',
     'MllamaForConditionalGeneration',
     'Qwen2_5_VLForConditionalGeneration',
     'Qwen2VLForConditionalGeneration',
-  ];
+  ]; */
   const handleSend = () => {
     if (!inputValue.trim()) return;
     scrollChatToBottom();
@@ -305,12 +306,10 @@ export default function ChatSubmit({
                 }}
               >
                 <IconButton variant="plain" color="neutral">
-                  {multimodalModelArchitectures.includes(
-                    currentModelArchitecture,
-                  ) ? (
-                    <AttachImageButton />
-                  ) : (
-                    ' '
+                  {supports?.includes('multimodal') && (
+                    <IconButton variant="plain" color="neutral">
+                      <AttachImageButton />
+                    </IconButton>
                   )}
                 </IconButton>
                 <TokenCount />

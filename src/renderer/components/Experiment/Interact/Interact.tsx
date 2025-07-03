@@ -868,6 +868,7 @@ export default function Chat({
             conversationsMutate={conversationsMutate}
             setConversationId={setConversationId}
             conversationId={conversationId}
+            supports={supports}
           />
         )}
         {mode === 'completion' && (
@@ -949,6 +950,7 @@ export default function Chat({
             setConversationId={setConversationId}
             conversationId={conversationId}
             enableTools
+            supports={supports}
           />
         )}
         {mode === 'template' && (
