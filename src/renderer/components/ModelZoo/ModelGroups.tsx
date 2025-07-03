@@ -662,6 +662,13 @@ export default function ModelGroups() {
                           startDecorator={
                             row.architecture === 'MLX' && <TinyMLXLogo />
                           }
+                          sx={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: 150, // adjust as needed to fit your column
+                            display: 'block',
+                          }}
                         >
                           {row.architecture}
                         </Typography>
