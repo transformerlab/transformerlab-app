@@ -569,7 +569,7 @@ export default function ModelGroups() {
                         Engine
                       </Link>
                     </th>
-                    <th style={{ width: 100 }}>
+                    <th style={{ width: 80 }}>
                       <Link
                         underline="none"
                         color="primary"
@@ -593,12 +593,11 @@ export default function ModelGroups() {
                             />
                           )
                         }
-                        sx={{ marginLeft: 2 }}
                       >
                         Size
                       </Link>
                     </th>
-                    <th style={{ width: 180 }}>&nbsp;</th>
+                    <th>&nbsp;</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -703,7 +702,11 @@ export default function ModelGroups() {
                             variant="soft"
                             color="success"
                             disabled={row.downloaded || jobId !== null}
-                            sx={{ minWidth: 160 }}
+                            sx={{
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
                             onClick={async () => {
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
