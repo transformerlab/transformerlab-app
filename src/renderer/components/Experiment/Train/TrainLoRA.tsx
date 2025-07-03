@@ -58,10 +58,21 @@ var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 
 function formatTemplateConfig(config): ReactElement {
-  const c = JSON.parse(config);
+  let c;
+  try {
+    c = typeof config === 'string' ? JSON.parse(config) : config;
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error('Error parsing config:', error, config);
+    return <span>Invalid configuration</span>;
+  }
+
+  if (!c || typeof c !== 'object') {
+    return <span>No configuration available</span>;
+  }
 
   // Remove the author/full path from the model name for cleanliness
-  const short_model_name = c.model_name.split('/').pop();
+  const short_model_name = c.model_name?.split('/').pop();
 
   const r = (
     <>
@@ -341,7 +352,17 @@ export default function TrainLoRA({ experimentInfo }) {
                           {row[4]} <FileTextIcon size={14} />
                         </td> */}
                         <td style={{ overflow: 'clip' }}>
-                          {JSON.parse(row.config)?.plugin_name}
+                          {(() => {
+                            try {
+                              const config =
+                                typeof row.config === 'string'
+                                  ? JSON.parse(row.config)
+                                  : row.config;
+                              return config?.plugin_name || 'Unknown';
+                            } catch (parseError) {
+                              return 'Invalid config';
+                            }
+                          })()}
                         </td>
                         <td style={{ overflow: 'hidden' }}>
                           {formatTemplateConfig(row.config)}
@@ -357,12 +378,28 @@ export default function TrainLoRA({ experimentInfo }) {
                               trainingTemplate={{
                                 template_id: row.id,
                                 template_name: row.name,
-                                model_name:
-                                  JSON.parse(row.inputs)?.model_name ||
-                                  'unknown',
-                                dataset:
-                                  JSON.parse(row.inputs)?.dataset_name ||
-                                  'unknown',
+                                model_name: (() => {
+                                  try {
+                                    const inputs =
+                                      typeof row.inputs === 'string'
+                                        ? JSON.parse(row.inputs)
+                                        : row.inputs;
+                                    return inputs?.model_name || 'unknown';
+                                  } catch {
+                                    return 'unknown';
+                                  }
+                                })(),
+                                dataset: (() => {
+                                  try {
+                                    const inputs =
+                                      typeof row.inputs === 'string'
+                                        ? JSON.parse(row.inputs)
+                                        : row.inputs;
+                                    return inputs?.dataset_name || 'unknown';
+                                  } catch {
+                                    return 'unknown';
+                                  }
+                                })(),
                                 config: row.config,
                               }}
                               jobsMutate={jobsMutate}
@@ -371,9 +408,17 @@ export default function TrainLoRA({ experimentInfo }) {
                             <Button
                               onClick={() => {
                                 setTemplateID(row.id);
-                                setCurrentPlugin(
-                                  JSON.parse(row.config)?.plugin_name,
-                                );
+                                try {
+                                  const config =
+                                    typeof row.config === 'string'
+                                      ? JSON.parse(row.config)
+                                      : row.config;
+                                  setCurrentPlugin(
+                                    config?.plugin_name || 'unknown',
+                                  );
+                                } catch {
+                                  setCurrentPlugin('unknown');
+                                }
                                 setOpen(true);
                               }}
                               variant="outlined"

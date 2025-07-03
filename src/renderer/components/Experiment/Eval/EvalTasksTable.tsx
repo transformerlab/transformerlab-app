@@ -13,6 +13,7 @@ import {
   Typography,
   Sheet,
 } from '@mui/joy';
+import { ReactElement, useState } from 'react';
 import {
   FileTextIcon,
   PlayIcon,
@@ -20,7 +21,6 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { useState } from 'react';
 import useSWR from 'swr';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import EvalModal from './EvalModal';
@@ -28,6 +28,11 @@ import EvalModal from './EvalModal';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function formatTemplateConfig(script_parameters): ReactElement {
+  // Safety check for valid input
+  if (!script_parameters || typeof script_parameters !== 'object') {
+    return <span>No configuration available</span>;
+  }
+
   // const c = JSON.parse(script_parameters);
 
   // Remove the author/full path from the model name for cleanliness
@@ -251,7 +256,23 @@ export default function EvalTasksTable({ experimentInfo }) {
                     {evaluations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {formatTemplateConfig(JSON.parse(evaluations.config))}
+                    {(() => {
+                      try {
+                        const config =
+                          typeof evaluations.config === 'string'
+                            ? JSON.parse(evaluations.config)
+                            : evaluations.config;
+                        return formatTemplateConfig(config);
+                      } catch (error) {
+                        // eslint-disable-next-line no-console
+                        console.error(
+                          'Error parsing config:',
+                          error,
+                          evaluations.config,
+                        );
+                        return 'Invalid configuration';
+                      }
+                    })()}
                     {/* {evaluations?.script_parameters?.task}&nbsp; */}
                     {/* <FileTextIcon size={14} /> */}
                   </td>
