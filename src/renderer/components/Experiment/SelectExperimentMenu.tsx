@@ -108,7 +108,7 @@ export default function SelectExperimentMenu({
     mutate();
   }, [experimentInfo]);
 
-  const createHandleClose = (id: string) => () => {
+  const createHandleClose = (id: number) => () => {
     setAnchorEl(null);
     setExperimentId(id);
   };

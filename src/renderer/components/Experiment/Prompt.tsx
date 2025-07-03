@@ -54,7 +54,7 @@ export default function Prompt({
   const parsedPromptData = experimentInfo?.config?.prompt_template;
   const model = experimentInfo?.config?.foundation;
 
-  if (experimentId === '') {
+  if (!experimentId) {
     return <div>Select an Experiment</div>;
   }
 

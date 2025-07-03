@@ -30,7 +30,7 @@ interface Job {
   status: string;
   progress: string | number;
   type: string;
-  experiment_id: string;
+  experiment_id: number;
   job_data: {
     exporter_name: string;
     plugin?: string;

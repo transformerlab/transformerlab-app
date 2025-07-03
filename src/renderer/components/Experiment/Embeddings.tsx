@@ -44,7 +44,7 @@ export default function Embeddings({ experimentInfo }) {
       }
 
       const requestData = {
-        experiment_id: String(experimentId),
+        experiment_id: experimentId,
         text,
       };
 
