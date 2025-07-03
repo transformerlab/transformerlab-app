@@ -12,6 +12,7 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
+import { ReactElement, useState } from 'react';
 import {
   FileTextIcon,
   PlayIcon,
@@ -19,7 +20,6 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { useState } from 'react';
 import useSWR from 'swr';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import GenerateModal from './GenerateModal';
@@ -29,12 +29,30 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 function listGenerations(generationString) {
   let result = [];
   if (generationString) {
-    result = JSON.parse(generationString);
+    try {
+      result =
+        typeof generationString === 'string'
+          ? JSON.parse(generationString)
+          : generationString;
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error(
+        'Error parsing generation string:',
+        error,
+        generationString,
+      );
+      result = [];
+    }
   }
   return result;
 }
 
 function formatTemplateConfig(scriptParameters): ReactElement {
+  // Safety check for valid input
+  if (!scriptParameters || typeof scriptParameters !== 'object') {
+    return <span>No configuration available</span>;
+  }
+
   const mainTask = scriptParameters?.generation_type;
   let docsFileNameActual = '';
 
@@ -192,7 +210,23 @@ export default function GenerateTasksTable({
                     {generations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {formatTemplateConfig(JSON.parse(generations.config))}
+                    {(() => {
+                      try {
+                        const config =
+                          typeof generations.config === 'string'
+                            ? JSON.parse(generations.config)
+                            : generations.config;
+                        return formatTemplateConfig(config);
+                      } catch (parseError) {
+                        // eslint-disable-next-line no-console
+                        console.error(
+                          'Error parsing config:',
+                          parseError,
+                          generations.config,
+                        );
+                        return 'Invalid configuration';
+                      }
+                    })()}
                   </td>
                   <td>{generations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>
