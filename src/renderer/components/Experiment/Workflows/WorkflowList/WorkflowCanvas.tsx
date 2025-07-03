@@ -16,13 +16,14 @@ import { useCallback, useEffect, useRef } from 'react';
 import CustomNode from '../nodes/CustomNode';
 import StartNode from '../nodes/StartNode';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
+import SafeJSONParse from '../../../Shared/SafeJSONParse';
 
 const nodeTypes = { customNode: CustomNode, startNode: StartNode };
 
 function generateNodes(workflow: any): any[] {
-  const workflowConfig = JSON.parse(workflow?.config);
+  const workflowConfig = SafeJSONParse(workflow?.config, { nodes: [] });
 
-  if (workflowConfig.nodes.length == 0) {
+  if (workflowConfig.nodes.length === 0) {
     return [];
   }
 
@@ -60,7 +61,7 @@ function generateNodes(workflow: any): any[] {
 }
 
 function generateEdges(workflow: any) {
-  const workflowConfig = JSON.parse(workflow?.config);
+  const workflowConfig = SafeJSONParse(workflow?.config, { nodes: [] });
   const workflowId = workflow?.id;
 
   if (workflowConfig.nodes.length < 1) {
