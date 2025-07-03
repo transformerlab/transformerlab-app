@@ -85,7 +85,10 @@ function ShowSelectedWorkflowRun({ selectedWorkflowRun, experimentInfo }) {
 
   return (
     <Sheet variant="soft" sx={{ height: '100%', p: 2, overflowY: 'auto' }}>
-      <WorkflowRunDisplay selectedWorkflowRun={data} />
+      <WorkflowRunDisplay
+        selectedWorkflowRun={data}
+        experimentInfo={experimentInfo}
+      />
     </Sheet>
   );
 }
