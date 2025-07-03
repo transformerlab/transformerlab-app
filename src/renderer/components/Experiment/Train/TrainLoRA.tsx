@@ -324,8 +324,7 @@ export default function TrainLoRA({ experimentInfo }) {
               {
                 // Format of template data by column:
                 // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
-                data &&
-                  data?.map((row) => {
+                (Array.isArray(data) ? data : []).map((row) => {
                     return (
                       <tr key={row.id}>
                         <td>
