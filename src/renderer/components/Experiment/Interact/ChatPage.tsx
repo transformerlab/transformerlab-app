@@ -53,9 +53,17 @@ export default function ChatPage({
     const experimentId = experimentInfo?.id;
     const newSystemPrompt = message;
 
-    var newPrompt = {
-      ...experimentInfo?.config?.prompt_template,
-    };
+    let newPrompt = experimentInfo?.config?.prompt_template;
+
+    // If undefined, initialize it as an empty object
+    if (newPrompt === undefined || newPrompt === null) {
+      newPrompt = {};
+    }
+
+    // Make new prompt as json
+    if (typeof newPrompt === 'string') {
+      newPrompt = JSON.parse(newPrompt);
+    }
     newPrompt.system_message = newSystemPrompt;
 
     fetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
@@ -73,7 +81,7 @@ export default function ChatPage({
       debouncedSystemMessage !==
       experimentInfo?.config?.prompt_template?.system_message
     ) {
-      sendSystemMessageToServer(systemMessage);
+      sendSystemMessageToServer(debouncedSystemMessage);
     }
   }, [debouncedSystemMessage]); // useEffect will be called whenever systemMessage changes
 

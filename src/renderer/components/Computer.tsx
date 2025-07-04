@@ -321,7 +321,7 @@ export default function Computer() {
                         title="Python MPS"
                         value={server?.device === 'mps' ? '✅ ' : '❌'}
                       />{' '}
-                      <StatRow
+                      {/* <StatRow
                         title="Flash Attention"
                         value={
                           server?.flash_attn_version &&
@@ -333,7 +333,7 @@ export default function Computer() {
                       <StatRow
                         title="Flash Attn Version"
                         value={server?.flash_attn_version}
-                      />
+                      /> */}
                     </ComputerCard>
                   </Grid>
                   <Grid xs={3}>

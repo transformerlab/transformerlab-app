@@ -12,6 +12,7 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
+import { ReactElement, useState } from 'react';
 import {
   FileTextIcon,
   PlayIcon,
@@ -19,22 +20,23 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { useState } from 'react';
 import useSWR from 'swr';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import GenerateModal from './GenerateModal';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function listGenerations(generationString) {
-  let result = [];
-  if (generationString) {
-    result = JSON.parse(generationString);
-  }
-  return result;
+  return SafeJSONParse(generationString, []);
 }
 
 function formatTemplateConfig(scriptParameters): ReactElement {
+  // Safety check for valid input
+  if (!scriptParameters || typeof scriptParameters !== 'object') {
+    return <span>No configuration available</span>;
+  }
+
   const mainTask = scriptParameters?.generation_type;
   let docsFileNameActual = '';
 
@@ -192,7 +194,9 @@ export default function GenerateTasksTable({
                     {generations.name}
                   </td>
                   <td style={{ overflow: 'hidden' }}>
-                    {formatTemplateConfig(JSON.parse(generations.config))}
+                    {formatTemplateConfig(
+                      SafeJSONParse(generations.config, {}),
+                    )}
                   </td>
                   <td>{generations.plugin}</td>
                   <td style={{ textAlign: 'right' }}>
