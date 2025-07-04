@@ -59,6 +59,12 @@ function TrainingModalDataTemplatingTab({
     }
   }, [templateData]);
 
+  useEffect(() => {
+    if (currentDatasetInfo?.features && applyChatTemplate) {
+      setChatColumn(Object.keys(currentDatasetInfo.features)[0]);
+    }
+  }, [currentDatasetInfo?.features, applyChatTemplate]);
+
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
       pluginId &&
@@ -311,15 +317,12 @@ function TrainingModalDataTemplatingTab({
               {applyChatTemplate ? (
                 <>
                   <FormHelperText sx={{ mb: 1 }}>
-                    The formatting template describes how JSON-formatted chat
-                    conversations are formatted when passed to the trainer using
-                    the model's template.
+                    The model's chat template will be applied to the message
+                    data contained in the field you select from your dataset.
+                    Fields should be structured as lists of chat messages, where
+                    each message is a dictionary with 'role' and 'content' keys.
                     <br />
                   </FormHelperText>
-
-                  <FormLabel>
-                    You can select which field to use for training:
-                  </FormLabel>
 
                   {!currentDatasetInfo?.features ||
                   currentDatasetInfo?.success === 'false' ? (
