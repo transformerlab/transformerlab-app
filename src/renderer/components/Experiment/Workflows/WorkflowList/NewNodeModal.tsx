@@ -66,7 +66,7 @@ export default function NewNodeModal({
 
   return (
     <Modal open={open} onClose={() => onClose()}>
-      <ModalDialog>
+      <ModalDialog sx={{ maxWidth: 500, width: '90vw' }}>
         <ModalClose />
         <DialogTitle>Create new Node</DialogTitle>
         <DialogContent>Add a new node to the workflow.</DialogContent>
@@ -159,18 +159,36 @@ export default function NewNodeModal({
                       border: '1px solid',
                       borderColor: 'divider',
                       p: 0,
+                      width: '100%',
+                      minWidth: 0, // Allow shrinking below content width
                     }}
                   >
                     {availableTasks.map((task: any) => (
-                      <ListItem key={task.name}>
+                      <ListItem key={task.name} sx={{ p: 0 }}>
                         <ListItemButton
                           selected={selectedTask === task.name}
                           onClick={() => {
                             setSelectedTask(task.name);
                             setValidationError('');
                           }}
+                          sx={{
+                            width: '100%',
+                            minWidth: 0, // Allow shrinking
+                            px: 2,
+                            py: 1,
+                          }}
                         >
-                          {task.name}
+                          <Typography
+                            sx={{
+                              wordBreak: 'break-word',
+                              whiteSpace: 'normal',
+                              lineHeight: 1.3,
+                              width: '100%',
+                            }}
+                            title={task.name} // Show full name on hover
+                          >
+                            {task.name}
+                          </Typography>
                         </ListItemButton>
                       </ListItem>
                     ))}
