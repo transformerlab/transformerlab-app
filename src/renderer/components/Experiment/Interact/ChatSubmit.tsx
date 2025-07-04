@@ -49,7 +49,8 @@ export default function ChatSubmit({
   tokenCount,
   text,
   debouncedText,
-  currentModelArchitecture,
+  // currentModelArchitecture,
+  supports,
 }) {
   const [italic] = useState(false);
   const [fontWeight] = useState('normal');
@@ -58,15 +59,24 @@ export default function ChatSubmit({
   const [imageURLInput, setImageURLInput] = useState('');
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageURLModalOpen, setImageURLModalOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+
   //List of multimodal models we currently support
-  const multimodalModelArchitectures = ['LlavaForConditionalGeneration'];
+  /* const multimodalModelArchitectures = [
+    'LlavaForConditionalGeneration',
+    'MllamaForConditionalGeneration',
+    'Qwen2_5_VLForConditionalGeneration',
+    'Qwen2VLForConditionalGeneration',
+  ]; */
   const handleSend = () => {
+    if (!inputValue.trim()) return;
     scrollChatToBottom();
-    let msg = document.getElementById('chat-input').value;
-    document.getElementById('chat-input').value = '';
-    document.getElementById('chat-input').focus();
-    addMessage(msg, imageLink);
+    addMessage(inputValue.trim(), imageLink);
+    setInputValue('');
     setImageLink(null);
+    setTimeout(() => {
+      document.getElementById('chat-input')?.focus();
+    }, 0);
   };
 
   function TokenCount() {
@@ -129,15 +139,13 @@ export default function ChatSubmit({
                   thickness={2}
                   size="sm"
                   color="neutral"
-                  sx={{
-                    '--CircularProgress-size': '13px',
-                  }}
+                  sx={{ '--CircularProgress-size': '13px' }}
                 />
               ) : (
                 <SendIcon size="20px" />
               )
             }
-            disabled={spinner}
+            disabled={spinner || !inputValue.trim()}
             id="chat-submit-button"
             onClick={handleSend}
           >
@@ -171,6 +179,7 @@ export default function ChatSubmit({
                     const reader = new FileReader();
                     reader.onload = (e) => {
                       setImageLink(e.target.result);
+                      document.getElementById('chat-input')?.focus();
                     };
                     reader.readAsDataURL(file);
                   }
@@ -264,6 +273,8 @@ export default function ChatSubmit({
           <Textarea
             placeholder="Type a message here..."
             minRows={3}
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
             slotProps={{
               textarea: {
                 id: 'chat-input',
@@ -281,7 +292,7 @@ export default function ChatSubmit({
               if (event.shiftKey) return;
               if (event.key === 'Enter') {
                 event.preventDefault();
-                handleSend();
+                if (inputValue.trim()) handleSend();
               }
             }}
             endDecorator={
@@ -295,12 +306,10 @@ export default function ChatSubmit({
                 }}
               >
                 <IconButton variant="plain" color="neutral">
-                  {multimodalModelArchitectures.includes(
-                    currentModelArchitecture,
-                  ) ? (
-                    <AttachImageButton />
-                  ) : (
-                    ' '
+                  {supports?.includes('multimodal') && (
+                    <IconButton variant="plain" color="neutral">
+                      <AttachImageButton />
+                    </IconButton>
                   )}
                 </IconButton>
                 <TokenCount />
@@ -380,19 +389,34 @@ export default function ChatSubmit({
                       variant="soft"
                       color="success"
                       disabled={!imageURLInput.trim()}
-                      onClick={() => {
-                        //Testing to see if the image is valid
-                        const img = new Image();
-                        img.src = imageURLInput;
-                        img.onload = () => {
-                          setImageLink(imageURLInput);
+                      onClick={async () => {
+                        const toBase64 = async (url) => {
+                          try {
+                            const res = await fetch(url);
+                            const blob = await res.blob();
+                            return await new Promise((resolve, reject) => {
+                              const reader = new FileReader();
+                              reader.onloadend = () => resolve(reader.result);
+                              reader.onerror = reject;
+                              reader.readAsDataURL(blob);
+                            });
+                          } catch (err) {
+                            return null;
+                          }
+                        };
+
+                        const base64 = await toBase64(imageURLInput);
+
+                        if (base64) {
+                          setImageLink(base64);
                           setImageURLInput('');
-                        };
-                        img.onerror = () => {
+                          setImageURLModalOpen(false);
+                          setTimeout(() => {
+                            document.getElementById('chat-input')?.focus();
+                          }, 100);
+                        } else {
                           alert('Invalid Image URL. Please input a valid URL.');
-                        };
-                        setImageURLModalOpen(false);
-                        console.log('closing');
+                        }
                       }}
                     >
                       <CheckIcon size="20px" />
