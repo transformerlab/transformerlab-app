@@ -1,5 +1,3 @@
-/* eslint-disable prefer-template */
-/* eslint-disable jsx-a11y/anchor-is-valid */
 import { ReactElement, useEffect, useState } from 'react';
 import useSWR from 'swr';
 
@@ -38,14 +36,6 @@ import {
   UploadIcon,
 } from 'lucide-react';
 
-import TrainingModalLoRA from './TrainingModalLoRA';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import LoRATrainingRunButton from './LoRATrainingRunButton';
-import TensorboardModal from './TensorboardModal';
-import ViewOutputModal from './ViewOutputModal';
-import ImportRecipeModal from './ImportRecipeModal';
-import ViewEvalImagesModal from './ViewEvalImagesModal';
-
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -53,15 +43,27 @@ import CurrentDownloadBox from 'renderer/components/currentDownloadBox';
 import DownloadProgressBox from 'renderer/components/Shared/DownloadProgressBox';
 import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from './JobProgress';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
+import TrainingModalLoRA from './TrainingModalLoRA';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import LoRATrainingRunButton from './LoRATrainingRunButton';
+import TensorboardModal from './TensorboardModal';
+import ViewOutputModal from './ViewOutputModal';
+import ImportRecipeModal from './ImportRecipeModal';
+import ViewEvalImagesModal from './ViewEvalImagesModal';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 
 function formatTemplateConfig(config): ReactElement {
-  const c = JSON.parse(config);
+  const c = SafeJSONParse(config, {});
+
+  if (!c || typeof c !== 'object') {
+    return <span>Invalid configuration</span>;
+  }
 
   // Remove the author/full path from the model name for cleanliness
-  const short_model_name = c.model_name.split('/').pop();
+  const short_model_name = c.model_name?.split('/').pop();
 
   const r = (
     <>
@@ -149,6 +151,12 @@ export default function TrainLoRA({ experimentInfo }) {
     ),
     fetcher,
   );
+
+  // Set default empty array for SWR returned values.
+  // Sometimes on first render these variables aren't initialized
+  // which causes an error when we try to run .map() on them.
+  const tasksList = Array.isArray(data) ? data : [];
+  const pluginsList = Array.isArray(pluginsData) ? pluginsData : [];
 
   const modelArchitecture =
     experimentInfo?.config?.foundation_model_architecture;
@@ -244,7 +252,7 @@ export default function TrainLoRA({ experimentInfo }) {
                 </Typography>
               </MenuItem>
               <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
-                {pluginsData?.map((plugin) => (
+                {pluginsList.map((plugin) => (
                   <MenuItem
                     onClick={() => {
                       setTemplateID('-1');
@@ -324,8 +332,7 @@ export default function TrainLoRA({ experimentInfo }) {
               {
                 // Format of template data by column:
                 // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
-                data &&
-                  data?.map((row) => {
+                tasksList.map((row) => {
                     return (
                       <tr key={row.id}>
                         <td>
@@ -341,7 +348,8 @@ export default function TrainLoRA({ experimentInfo }) {
                           {row[4]} <FileTextIcon size={14} />
                         </td> */}
                         <td style={{ overflow: 'clip' }}>
-                          {JSON.parse(row.config)?.plugin_name}
+                          {SafeJSONParse(row.config, {})?.plugin_name ||
+                            'Unknown'}
                         </td>
                         <td style={{ overflow: 'hidden' }}>
                           {formatTemplateConfig(row.config)}
@@ -358,10 +366,10 @@ export default function TrainLoRA({ experimentInfo }) {
                                 template_id: row.id,
                                 template_name: row.name,
                                 model_name:
-                                  JSON.parse(row.inputs)?.model_name ||
+                                  SafeJSONParse(row.inputs, {})?.model_name ||
                                   'unknown',
                                 dataset:
-                                  JSON.parse(row.inputs)?.dataset_name ||
+                                  SafeJSONParse(row.inputs, {})?.dataset_name ||
                                   'unknown',
                                 config: row.config,
                               }}
@@ -372,7 +380,8 @@ export default function TrainLoRA({ experimentInfo }) {
                               onClick={() => {
                                 setTemplateID(row.id);
                                 setCurrentPlugin(
-                                  JSON.parse(row.config)?.plugin_name,
+                                  SafeJSONParse(row.config, {})?.plugin_name ||
+                                    'unknown',
                                 );
                                 setOpen(true);
                               }}

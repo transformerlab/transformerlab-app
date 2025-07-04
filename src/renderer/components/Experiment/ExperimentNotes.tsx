@@ -70,7 +70,7 @@ export default function ExperimentNotes({ experimentInfo }) {
       },
     )
       .then(() => {
-        mutate(value);
+        mutate();
         setIsEditing(false);
         return true;
       })
@@ -100,19 +100,18 @@ export default function ExperimentNotes({ experimentInfo }) {
         mb: 3,
       }}
     >
-      <Typography level="h1">Experiment Notes</Typography>
+      <Typography level="h3">Experiment Notes</Typography>
       {!isEditing && (
         <Sheet
           color="neutral"
-          variant="outlined"
+          variant="soft"
           sx={{
             display: 'flex',
             flexDirection: 'column',
             mt: 1,
             height: '100%',
-            px: 2,
-            boxShadow:
-              'rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px',
+            px: 3,
+            overflow: 'auto',
           }}
           className="editableSheet"
         >

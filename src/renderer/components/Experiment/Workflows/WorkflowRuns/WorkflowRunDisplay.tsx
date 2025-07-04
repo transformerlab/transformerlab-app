@@ -27,7 +27,20 @@ export default function WorkflowRunDisplay({
     return <Typography>No workflow run selected</Typography>;
   }
 
-  const { run, jobs, workflow } = selectedWorkflowRun;
+  // Handle empty or malformed workflow run data
+  if (!selectedWorkflowRun.run || !selectedWorkflowRun.workflow) {
+    return <Typography>Invalid workflow run data</Typography>;
+  }
+
+  // Additional validation for empty objects
+  if (
+    Object.keys(selectedWorkflowRun.run).length === 0 ||
+    Object.keys(selectedWorkflowRun.workflow).length === 0
+  ) {
+    return <Typography>Empty workflow run data</Typography>;
+  }
+
+  const { run, jobs = [], workflow } = selectedWorkflowRun;
 
   const handleCancelWorkflow = async () => {
     try {

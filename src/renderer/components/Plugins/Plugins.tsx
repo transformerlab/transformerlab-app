@@ -94,6 +94,7 @@ export default function Plugins({ experimentInfo, setLogsDrawerOpen = null }) {
           height: '100%',
           display: 'flex',
           width: '100%',
+          overflow: 'hidden',
         }}
       >
         <TabList>

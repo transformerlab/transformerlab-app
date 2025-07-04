@@ -151,6 +151,10 @@ export default function ImportRecipeModal({
                   if (response.status == 'error') {
                     console.log(response);
                     throw new Error(`${response.message}`);
+                  } else if (response.status === 'requires_file_selection') {
+                    throw new Error(
+                      `This model contains multiple GGUF files. Please download it manually from the Model Zoo and select the specific file you need.`,
+                    );
                   }
                   return response;
                 })
