@@ -310,8 +310,7 @@ export default function TrainLoRA({ experimentInfo }) {
         >
           <Table>
             <thead>
-              <th width="125px">Name</th>
-              {/* <th>Description</th> */}
+              <th width="150px">Name</th>
               <th width="150px">Plugin</th>
               <th>Config</th>
               <th style={{ textAlign: 'right' }} width="250px">
