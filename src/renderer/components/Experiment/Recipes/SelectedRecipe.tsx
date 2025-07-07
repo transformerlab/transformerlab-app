@@ -47,8 +47,9 @@ export default function SelectedRecipe({
   setSelectedRecipeId,
   installRecipe,
 }) {
-  const [experimentName, setExperimentName] = useState('');
+  const [experimentNameFormValue, setExperimentNameFormValue] = useState('');
   const [experimentNameTouched, setExperimentNameTouched] = useState(false);
+  const [experimentName, setExperimentName] = useState('');
 
   const { data, isLoading, mutate } = useAPI('recipes', ['checkDependencies'], {
     id: recipe?.id,
@@ -71,7 +72,7 @@ export default function SelectedRecipe({
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log('Installing recipe:', recipe?.id);
-    installRecipe(recipe?.id, experimentName);
+    installRecipe(recipe?.id, experimentNameFormValue);
   };
 
   return (
@@ -88,18 +89,37 @@ export default function SelectedRecipe({
         justifyContent: 'space-between',
       }}
     >
-      <Typography level="h2">
-        <Button
-          size="sm"
-          variant="plain"
-          onClick={() => {
-            setSelectedRecipeId(null);
-          }}
-        >
-          <ArrowLeftIcon />
-        </Button>
-        {recipe?.title}
-      </Typography>
+      <Box>
+        <Typography level="h2" mb={2}>
+          {experimentName === '' ? (
+            <>
+              <Button
+                size="sm"
+                variant="plain"
+                onClick={() => {
+                  setSelectedRecipeId(null);
+                }}
+              >
+                <ArrowLeftIcon />
+              </Button>
+              Step 1: Set Experiment Name
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="plain"
+                onClick={() => {
+                  setExperimentName('');
+                }}
+              >
+                <ArrowLeftIcon />
+              </Button>
+              Step 2: Install Dependencies
+            </>
+          )}
+        </Typography>
+      </Box>
       <Box
         id="recipe-details"
         sx={{
@@ -116,74 +136,83 @@ export default function SelectedRecipe({
         }}
         onSubmit={handleSubmit}
       >
-        <Box id="recipe-left" sx={{ overflowY: 'auto', padding: 1 }}>
-          <FormControl
-            required
-            error={!experimentName && experimentNameTouched}
-          >
-            <FormLabel sx={{ fontWeight: 'regular' }}>
-              Give this experiment a unique name:
-            </FormLabel>
-            <Input
-              size="lg"
-              sx={{ width: '300px' }}
-              value={experimentName}
-              onChange={(e) => {
-                setExperimentName(e.target.value);
-                if (!experimentNameTouched) setExperimentNameTouched(true);
-              }}
-              onBlur={() => setExperimentNameTouched(true)}
+        {experimentName === '' ? (
+          <Box id="recipe-left" sx={{ overflowY: 'auto', padding: 1 }}>
+            <FormControl
               required
-              name="experimentName"
-            />
-            {!experimentName && experimentNameTouched && (
-              <FormHelperText>This field is required.</FormHelperText>
-            )}
-          </FormControl>
-        </Box>
-        <Box
-          id="recipe-right"
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1,
-            minWidth: '300px',
-          }}
-        >
-          {recipe?.requiredMachineArchitecture && (
-            <Typography
-              level="title-lg"
-              mb={0}
-              endDecorator={
-                isHardwareCompatible ? (
-                  <CircleCheckIcon
-                    color="var(--joy-palette-success-400)"
-                    size={20}
-                  />
-                ) : (
-                  <CircleXIcon
-                    color="var(--joy-palette-danger-400)"
-                    size={20}
-                  />
-                )
-              }
+              error={!experimentNameFormValue && experimentNameTouched}
             >
-              Hardware Requirements:
+              <FormLabel sx={{ fontWeight: 'regular' }}>
+                Experiment Name:
+              </FormLabel>
+              <Input
+                size="lg"
+                sx={{ width: '300px' }}
+                value={experimentNameFormValue}
+                onChange={(e) => {
+                  setExperimentNameFormValue(e.target.value);
+                  if (!experimentNameTouched) setExperimentNameTouched(true);
+                }}
+                onBlur={() => setExperimentNameTouched(true)}
+                required
+                name="experimentName"
+              />
+              {!experimentNameFormValue && experimentNameTouched && (
+                <FormHelperText>This field is required.</FormHelperText>
+              )}
+            </FormControl>
+            <Button
+              sx={{ mt: 2 }}
+              onClick={() => setExperimentName(experimentNameFormValue)}
+            >
+              Save
+            </Button>
+          </Box>
+        ) : (
+          <Box
+            id="recipe-right"
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+              minWidth: '300px',
+            }}
+          >
+            {recipe?.requiredMachineArchitecture && (
+              <Typography
+                level="title-lg"
+                mb={0}
+                endDecorator={
+                  isHardwareCompatible ? (
+                    <CircleCheckIcon
+                      color="var(--joy-palette-success-400)"
+                      size={20}
+                    />
+                  ) : (
+                    <CircleXIcon
+                      color="var(--joy-palette-danger-400)"
+                      size={20}
+                    />
+                  )
+                }
+              >
+                Hardware Requirements:
+              </Typography>
+            )}
+            <ShowArchitectures
+              architectures={recipe?.requiredMachineArchitecture}
+            />
+            <Typography level="body-sm" color="danger">
+              {!isHardwareCompatible && 'Not compatible with your hardware.'}
             </Typography>
-          )}
-          <ShowArchitectures
-            architectures={recipe?.requiredMachineArchitecture}
-          />
-          <Typography level="body-sm" color="danger">
-            {!isHardwareCompatible && 'Not compatible with your hardware.'}
-          </Typography>
-          <RecipeDependencies
-            recipeId={recipe?.id}
-            dependencies={data?.dependencies}
-            dependenciesLoading={isLoading}
-            dependenciesMutate={mutate}
-          />
-        </Box>
+            <RecipeDependencies
+              recipeId={recipe?.id}
+              dependencies={data?.dependencies}
+              dependenciesLoading={isLoading}
+              dependenciesMutate={mutate}
+            />
+          </Box>
+        )}
       </Box>
       <div style={{ width: '100%' }}>
         <Button
@@ -192,7 +221,9 @@ export default function SelectedRecipe({
           color="primary"
           startDecorator={<RocketIcon />}
           onClick={handleSubmit}
-          disabled={!experimentName || missingAnyDependencies || isLoading}
+          disabled={
+            !experimentNameFormValue || missingAnyDependencies || isLoading
+          }
         >
           Start &nbsp;
         </Button>
