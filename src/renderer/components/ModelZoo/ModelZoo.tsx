@@ -10,7 +10,6 @@ import ModelGroups from './ModelGroups';
 
 export default function ModelZoo({ experimentInfo, tab = 'store' }) {
   const navigate = useNavigate();
-  const DEV_MODE = experimentInfo?.name === 'dev';
 
   return (
     <Sheet

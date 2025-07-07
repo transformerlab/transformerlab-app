@@ -360,7 +360,7 @@ export default function Sidebar({
           color: 'var(--joy-palette-neutral-plainDisabledColor)',
         }}
       >
-        {DEV_MODE && <>Transformer Lab v{window.platform?.version}</>}
+        {DEV_MODE && <>v{window.platform?.version}</>}
       </div>
       <SelectExperimentMenu
         experimentInfo={experimentInfo}
