@@ -200,5 +200,12 @@
       "method": "GET",
       "path": "diffusion/controlnets"
     }
+  },
+  "train": {
+    "getSweepConfig": {
+      "method": "GET",
+      "path": "train/job/{job_id}/sweep_config"
+    }
+
   }
 }
