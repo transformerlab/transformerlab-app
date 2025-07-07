@@ -19,7 +19,7 @@ import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeDependencies from './RecipeDependencies';
 
-function isRecipeCompatibleWithDevice(recipe, device) {
+export function isRecipeCompatibleWithDevice(recipe, device) {
   if (!recipe?.requiredMachineArchitecture) return true;
   if (!device) return false;
 
