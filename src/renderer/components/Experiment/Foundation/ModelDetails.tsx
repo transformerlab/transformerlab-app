@@ -245,15 +245,47 @@ export default function ModelDetails({
             )}
             <Button
               startDecorator={<FaEject />}
-              onClick={() => {
-                setFoundation(null);
-                fetch(
-                  chatAPI.Endpoints.Experiment.UpdateConfig(
-                    experimentInfo?.id,
-                    'inferenceParams',
-                    JSON.stringify({}),
-                  ),
-                );
+              onClick={async () => {
+                try {
+                  // Clear all foundation-related fields in the backend
+                  await Promise.all([
+                    fetch(
+                      chatAPI.Endpoints.Experiment.UpdateConfig(
+                        experimentInfo?.id,
+                        'foundation',
+                        JSON.stringify(''),
+                      ),
+                    ),
+                    fetch(
+                      chatAPI.Endpoints.Experiment.UpdateConfig(
+                        experimentInfo?.id,
+                        'foundation_filename',
+                        JSON.stringify(''),
+                      ),
+                    ),
+                    fetch(
+                      chatAPI.Endpoints.Experiment.UpdateConfig(
+                        experimentInfo?.id,
+                        'foundation_model_architecture',
+                        JSON.stringify(''),
+                      ),
+                    ),
+                    fetch(
+                      chatAPI.Endpoints.Experiment.UpdateConfig(
+                        experimentInfo?.id,
+                        'inferenceParams',
+                        JSON.stringify({}),
+                      ),
+                    ),
+                  ]);
+
+                  // Update local state after successful API calls
+                  setFoundation(null);
+                  setAdaptor('');
+                } catch (error) {
+                  // eslint-disable-next-line no-console
+                  console.error('Error ejecting model:', error);
+                }
               }}
               color="danger"
               variant="outlined"

@@ -17,10 +17,10 @@ interface ViewOutputModalStreamingProps {
 interface JobDetails {
   id: string;
   type?: string;
-  experiment_id?: string;
+  experiment_id?: number;
   job_data?: {
     plugin_id?: string;
-    experiment_id?: string;
+    experiment_id?: number;
     exporter_name?: string;
     plugin?: string;
   };

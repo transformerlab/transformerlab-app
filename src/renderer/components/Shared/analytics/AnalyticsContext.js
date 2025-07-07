@@ -8,13 +8,20 @@ import { appContextPlugin } from './appContextPlugin'; // Import the app context
 export const analytics = new AnalyticsBrowser();
 
 async function maybeLoadAnalytics() {
+  console.log('[Analytics] Initializing Analytics...');
   if (window.platform?.environment === 'development') {
-    console.log('Analytics tracking is disabled in development mode.');
+    console.log(
+      '[Analytics] Analytics tracking is disabled in development mode.',
+    );
     return;
   }
   const doNotTrack = await window.storage.get('DO_NOT_TRACK');
-  if (doNotTrack) {
-    console.log('User has opted out. All Segment tracking is disabled.');
+  console.log(`[Analytics] Do Not Track setting: ${doNotTrack}`);
+  // If the user has opted out of tracking, do not load the analytics client
+  if (doNotTrack === 'true') {
+    console.log(
+      '[Analytics] User has opted out. All usage tracking is disabled.',
+    );
     return;
   }
   analytics.load({ writeKey: 'UYXFr71CWmsdxDqki5oFXIs2PSR5XGCE' }); // destinations loaded, enqueued events are flushed
