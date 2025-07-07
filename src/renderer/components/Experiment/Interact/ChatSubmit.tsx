@@ -389,34 +389,19 @@ export default function ChatSubmit({
                       variant="soft"
                       color="success"
                       disabled={!imageURLInput.trim()}
-                      onClick={async () => {
-                        const toBase64 = async (url) => {
-                          try {
-                            const res = await fetch(url);
-                            const blob = await res.blob();
-                            return await new Promise((resolve, reject) => {
-                              const reader = new FileReader();
-                              reader.onloadend = () => resolve(reader.result);
-                              reader.onerror = reject;
-                              reader.readAsDataURL(blob);
-                            });
-                          } catch (err) {
-                            return null;
-                          }
-                        };
-
-                        const base64 = await toBase64(imageURLInput);
-
-                        if (base64) {
-                          setImageLink(base64);
+                      onClick={() => {
+                        //Testing to see if the image is valid
+                        const img = new Image();
+                        img.src = imageURLInput;
+                        img.onload = () => {
+                          setImageLink(imageURLInput);
                           setImageURLInput('');
-                          setImageURLModalOpen(false);
-                          setTimeout(() => {
-                            document.getElementById('chat-input')?.focus();
-                          }, 100);
-                        } else {
+                        };
+                        img.onerror = () => {
                           alert('Invalid Image URL. Please input a valid URL.');
-                        }
+                        };
+                        setImageURLModalOpen(false);
+                        console.log('closing');
                       }}
                     >
                       <CheckIcon size="20px" />
