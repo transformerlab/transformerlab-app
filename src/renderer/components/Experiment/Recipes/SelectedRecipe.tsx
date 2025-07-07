@@ -216,7 +216,7 @@ export default function SelectedRecipe({
               }}
             >
               {(() => {
-                if (recipe?.videoUrl) {
+                if (recipe?.video) {
                   return (
                     <Box>
                       <Typography level="title-lg" mb={1}>
@@ -231,7 +231,7 @@ export default function SelectedRecipe({
                         }}
                       >
                         <iframe
-                          src={recipe.videoUrl}
+                          src={recipe.video}
                           width="100%"
                           height="100%"
                           style={{ border: 'none' }}
