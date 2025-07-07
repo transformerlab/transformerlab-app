@@ -105,6 +105,10 @@ export default function MainAppPanel({
     fetcher,
   );
   const [chatHistory, setChatHistory] = useState([]);
+  useEffect(() => {
+    // Clear chat history whenever the model/pluginId changes
+    setChatHistory([]);
+  }, [pluginId]);
 
   let modelSupports = [
     'chat',
