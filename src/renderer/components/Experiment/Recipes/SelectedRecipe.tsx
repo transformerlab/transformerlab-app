@@ -15,6 +15,8 @@ import {
   CircleXIcon,
   RocketIcon,
 } from 'lucide-react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeDependencies from './RecipeDependencies';
@@ -41,6 +43,36 @@ function isRecipeCompatibleWithDevice(recipe, device) {
 
   return false;
 }
+
+// Component that reuses ExperimentNotes styling for recipe notes
+const RecipeNotesDisplay = ({ notes }) => {
+  if (!notes) return null;
+
+  return (
+    <Box>
+      <Typography level="title-lg" mb={1}>
+        Experiment Notes:
+      </Typography>
+      <Sheet
+        color="neutral"
+        variant="soft"
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '600px',
+          px: 3,
+          py: 2,
+          overflow: 'auto',
+          borderRadius: 1,
+        }}
+      >
+        <Box display="flex" sx={{ width: '100%' }}>
+          <Markdown remarkPlugins={[remarkGfm]}>{notes}</Markdown>
+        </Box>
+      </Sheet>
+    </Box>
+  );
+};
 
 export default function SelectedRecipe({
   recipe,
@@ -127,11 +159,11 @@ export default function SelectedRecipe({
           display: 'flex',
           gap: 2,
           flexDirection: { xs: 'column', md: 'row' },
-          overflowY: 'hidden',
+          overflowY: 'auto',
           overflowX: 'hidden',
           pt: 2,
           justifyContent: 'space-between',
-          maxWidth: '800px',
+          maxWidth: '900px',
           margin: '0 auto',
         }}
         onSubmit={handleSubmit}
@@ -169,49 +201,111 @@ export default function SelectedRecipe({
             </Button>
           </Box>
         ) : (
-          <Box
-            id="recipe-right"
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-              minWidth: '300px',
-            }}
-          >
-            {recipe?.requiredMachineArchitecture && (
-              <Typography
-                level="title-lg"
-                mb={0}
-                endDecorator={
-                  isHardwareCompatible ? (
-                    <CircleCheckIcon
-                      color="var(--joy-palette-success-400)"
-                      size={20}
-                    />
-                  ) : (
-                    <CircleXIcon
-                      color="var(--joy-palette-danger-400)"
-                      size={20}
-                    />
-                  )
+          <>
+            {/* Left side: Video or Experiment Notes */}
+            <Box
+              id="recipe-left"
+              sx={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                minWidth: '300px',
+                maxHeight: '400px',
+                overflow: 'hidden',
+              }}
+            >
+              {(() => {
+                if (recipe?.videoUrl) {
+                  return (
+                    <Box>
+                      <Typography level="title-lg" mb={1}>
+                        Tutorial Video:
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: '250px',
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <iframe
+                          src={recipe.videoUrl}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 'none' }}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          title="Recipe Tutorial Video"
+                        />
+                      </Box>
+                    </Box>
+                  );
                 }
-              >
-                Hardware Requirements:
+                if (recipe?.notes) {
+                  return <RecipeNotesDisplay notes={recipe.notes} />;
+                }
+                return (
+                  <Box>
+                    <Typography level="title-lg" mb={1}>
+                      About this Recipe:
+                    </Typography>
+                    <Typography level="body-sm" color="neutral">
+                      {recipe?.description ||
+                        'No additional information available for this recipe.'}
+                    </Typography>
+                  </Box>
+                );
+              })()}
+            </Box>
+
+            {/* Right side: Dependencies and Hardware Requirements */}
+            <Box
+              id="recipe-right"
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                minWidth: '300px',
+                flex: 1,
+              }}
+            >
+              {recipe?.requiredMachineArchitecture && (
+                <Typography
+                  level="title-lg"
+                  mb={0}
+                  endDecorator={
+                    isHardwareCompatible ? (
+                      <CircleCheckIcon
+                        color="var(--joy-palette-success-400)"
+                        size={20}
+                      />
+                    ) : (
+                      <CircleXIcon
+                        color="var(--joy-palette-danger-400)"
+                        size={20}
+                      />
+                    )
+                  }
+                >
+                  Hardware Requirements:
+                </Typography>
+              )}
+              <ShowArchitectures
+                architectures={recipe?.requiredMachineArchitecture}
+              />
+              <Typography level="body-sm" color="danger">
+                {!isHardwareCompatible && 'Not compatible with your hardware.'}
               </Typography>
-            )}
-            <ShowArchitectures
-              architectures={recipe?.requiredMachineArchitecture}
-            />
-            <Typography level="body-sm" color="danger">
-              {!isHardwareCompatible && 'Not compatible with your hardware.'}
-            </Typography>
-            <RecipeDependencies
-              recipeId={recipe?.id}
-              dependencies={data?.dependencies}
-              dependenciesLoading={isLoading}
-              dependenciesMutate={mutate}
-            />
-          </Box>
+              <RecipeDependencies
+                recipeId={recipe?.id}
+                dependencies={data?.dependencies}
+                dependenciesLoading={isLoading}
+                dependenciesMutate={mutate}
+              />
+            </Box>
+          </>
         )}
       </Box>
       <div style={{ width: '100%' }}>
