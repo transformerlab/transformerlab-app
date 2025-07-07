@@ -16,9 +16,11 @@ async function maybeLoadAnalytics() {
     return;
   }
   const doNotTrack = await window.storage.get('DO_NOT_TRACK');
-  if (doNotTrack) {
+  console.log(`[Analytics] Do Not Track setting: ${doNotTrack}`);
+  // If the user has opted out of tracking, do not load the analytics client
+  if (doNotTrack === 'true') {
     console.log(
-      '[Analytics] User has opted out. All Segment tracking is disabled.',
+      '[Analytics] User has opted out. All usage tracking is disabled.',
     );
     return;
   }
