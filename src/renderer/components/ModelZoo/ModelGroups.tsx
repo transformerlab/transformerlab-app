@@ -144,9 +144,9 @@ export default function ModelGroups() {
 
   useEffect(() => {
     if (!selectedGroup && groupData && groupData.length > 0) {
-      const firstGroup = groupData.find(
-        (g) => g.name.toLowerCase() === 'apriel',
-      );
+      const firstGroup = [...groupData].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      )[0];
       if (firstGroup) {
         setSelectedGroup(firstGroup);
       } else {
