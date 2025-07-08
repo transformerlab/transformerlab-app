@@ -75,6 +75,29 @@ const LabelWithTooltip = ({
   </Stack>
 );
 
+const samplePrompts = [
+  'A majestic lion on a grassy savannah, golden hour',
+  'A watercolor painting of a bustling Parisian street cafe, with people enjoying coffee.',
+  'A futuristic cityscape in the style of Vincent van Gogh, with swirling stars and vibrant colors.',
+  'A photorealistic portrait of a wise old wizard with a long white beard, holding a glowing staff in a dimly lit, ancient library.',
+  'A mysterious, foggy forest at twilight, with ethereal light filtering through the trees, creating a sense of wonder and a little bit of fear.',
+  'A close-up, macro photograph of a dew-kissed red rose, with a shallow depth of field, 8k resolution, sharp focus.',
+  'A surrealist painting of an astronaut playing a grand piano on the surface of the moon, with the Earth in the background.',
+  'An abstract painting with a rich texture of thick, impasto oil paint, in vibrant shades of teal and orange.',
+  'A full-body concept art of a female space pirate, with a robotic arm and a confident smirk, wearing a mix of futuristic and tattered clothing, detailed, science fiction.',
+  'A beautiful fantasy landscape with a cascading waterfall and a rainbow.',
+  'A minimalist line art drawing of a cat sleeping on a stack of books.',
+  'A vibrant, detailed illustration of a mythical phoenix rising from ashes, cinematic lighting, fantasy art.',
+  "An isometric 3D render of a cozy, cluttered artist's studio, soft natural light.",
+  'A steampunk-style mechanical owl with glowing amber eyes, intricate gears and brass plating, on a dark background.',
+  'A tranquil Japanese zen garden in the rain, with a cherry blossom tree and koi pond, in the style of a Ukiyo-e woodblock print.',
+  'A double exposure photograph blending a silhouette of a wolf howling with a pine forest and a full moon.',
+  'Pixel art of a futuristic neon-lit city street at night, with flying cars and holographic advertisements.',
+  'An epic fantasy battle scene, an army of knights charging against dragons, dynamic composition, dramatic lighting, digital painting.',
+  'A cute, fluffy creature that is a mix between a corgi and a bumblebee, studio lighting, highly detailed.',
+  'A vintage 1950s-style travel poster for Mars, featuring a smiling family in spacesuits and a retro rocket ship.',
+];
+
 export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const analytics = useAnalytics();
 
@@ -86,7 +109,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const { server } = useServerStats();
 
   // Generate tab state
-  const [prompt, setPrompt] = useState('An astronaut floating in space');
+  const [prompt, setPrompt] = useState(
+    samplePrompts[Math.floor(Math.random() * samplePrompts.length)],
+  );
   const [numSteps, setNumSteps] = useState(30);
   const [guidanceScale, setGuidanceScale] = useState(7.5);
   const [seed, setSeed] = useState('');
