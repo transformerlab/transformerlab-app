@@ -28,19 +28,28 @@ function ReactCanvasPaint(props) {
   const canvas = useRef(null);
   const [drawing, setDrawing] = useState(false);
   const [position, setPosition] = useState(null);
+  const positionRef = useRef(null); // <-- Add this line
   const [activeColor, setActiveColor] = useState(props.colors[0]);
+
+  // Keep positionRef in sync with position
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
 
   const onDown = useCallback((event) => {
     const coordinates = getCoordinates(event);
     if (coordinates) {
       setPosition(coordinates);
+      positionRef.current = coordinates; // <-- Update ref immediately
       setDrawing(true);
+      drawCircle(coordinates); // Draw immediately on mouse down
     }
   }, []);
 
   const onUp = useCallback(() => {
     setDrawing(false);
     setPosition(null);
+    positionRef.current = null; // <-- Reset ref
   }, []);
 
   const getCoordinates = (event) => {
@@ -65,28 +74,35 @@ function ReactCanvasPaint(props) {
     };
   };
 
-  const onMove = useCallback(
-    (event) => {
-      if (drawing) {
-        const newPosition = getCoordinates(event);
-        if (position && newPosition) {
-          drawLine(position, newPosition);
-          setPosition(newPosition);
-        }
-      }
-    },
-    [drawing, position],
-  );
-
-  const drawLine = (originalPosition, newPosition) => {
-    if (!canvas.current) {
-      return null;
-    }
+  const drawCircle = (position) => {
+    if (!canvas.current) return;
 
     const context = canvas.current.getContext('2d');
-
     if (context) {
-      // Use drawMode prop to determine eraser or pencil
+      if (props.drawMode === 'eraser') {
+        context.globalCompositeOperation = 'destination-out';
+        context.fillStyle = 'rgba(0,0,0,1)';
+      } else {
+        context.globalCompositeOperation = 'source-over';
+        context.fillStyle = activeColor;
+      }
+      context.beginPath();
+      context.arc(
+        position.x,
+        position.y,
+        props.strokeWidth / 2,
+        0,
+        2 * Math.PI,
+      );
+      context.fill();
+      handleDraw(context.getImageData(0, 0, props.width, props.height));
+    }
+  };
+
+  const drawLine = (from, to) => {
+    if (!canvas.current) return;
+    const context = canvas.current.getContext('2d');
+    if (context) {
       if (props.drawMode === 'eraser') {
         context.globalCompositeOperation = 'destination-out';
         context.strokeStyle = 'rgba(0,0,0,1)';
@@ -94,18 +110,33 @@ function ReactCanvasPaint(props) {
         context.globalCompositeOperation = 'source-over';
         context.strokeStyle = activeColor;
       }
-      context.lineJoin = 'round';
       context.lineWidth = props.strokeWidth;
-
+      context.lineCap = 'round';
       context.beginPath();
-      context.moveTo(originalPosition.x, originalPosition.y);
-      context.lineTo(newPosition.x, newPosition.y);
-      context.closePath();
-
+      context.moveTo(from.x, from.y);
+      context.lineTo(to.x, to.y);
       context.stroke();
       handleDraw(context.getImageData(0, 0, props.width, props.height));
     }
   };
+
+  const onMove = useCallback(
+    (event) => {
+      if (drawing) {
+        const newPosition = getCoordinates(event);
+        if (newPosition) {
+          if (positionRef.current) {
+            drawLine(positionRef.current, newPosition);
+          } else {
+            drawCircle(newPosition);
+          }
+          setPosition(newPosition);
+          positionRef.current = newPosition; // <-- Always update ref
+        }
+      }
+    },
+    [drawing, activeColor, props.drawMode, props.strokeWidth], // Remove 'position' from deps
+  );
 
   const handleDraw = (data) => {
     if (typeof props.onDraw === 'function') {
