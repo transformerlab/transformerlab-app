@@ -12,7 +12,7 @@ import remarkGfm from 'remark-gfm';
 // import monakai from 'monaco-themes/themes/Monokai Bright.json';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { PencilIcon } from 'lucide-react';
+import { PencilIcon, TypeOutline } from 'lucide-react';
 import { Box, Button, Typography } from '@mui/joy';
 import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
@@ -115,7 +115,9 @@ export default function ExperimentNotes({ experimentInfo }) {
           }}
           className="editableSheet"
         >
-          {!data && 'Write experiment notes here...'}
+          {!data && (
+            <Typography mt={3}>Write experiment notes here...</Typography>
+          )}
           <Box display="flex" sx={{ width: '100%' }}>
             <Markdown
               remarkPlugins={[remarkGfm]}
