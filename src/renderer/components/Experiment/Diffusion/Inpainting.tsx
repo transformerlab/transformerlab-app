@@ -188,16 +188,16 @@ export default function Inpainting({
     }
   }, [inputImageBase64, updateCanvasDimensions]);
 
-  React.useEffect(() => {
-    const handleResize = () => {
-      if (inputImageBase64) {
-        updateCanvasDimensions();
-      }
-    };
+  // React.useEffect(() => {
+  //   const handleResize = () => {
+  //     if (inputImageBase64) {
+  //       //updateCanvasDimensions();
+  //     }
+  //   };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [inputImageBase64, updateCanvasDimensions]);
+  //   window.addEventListener('resize', handleResize);
+  //   return () => window.removeEventListener('resize', handleResize);
+  // }, [inputImageBase64, updateCanvasDimensions]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -703,7 +703,6 @@ export default function Inpainting({
               overflow: 'hidden',
               backgroundColor: 'neutral.50',
               aspectRatio: '1 / 1',
-              maxHeight: '500px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
