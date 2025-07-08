@@ -184,6 +184,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   >(null);
   // const [currentStep, setCurrentStep] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
+  const experimentId = experimentInfo?.id;
 
   // Helper functions to get the appropriate images based on active tab
   const getCurrentImages = () => {
@@ -228,7 +229,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsImg2ImgEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -247,7 +250,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsInpaintingEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -323,7 +328,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const getGenerationId = async (): Promise<string | null> => {
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['generateId'], {}),
+        getFullPath('diffusion', ['generateId'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -359,6 +366,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       // Poll for the latest step image (backend overwrites the same step.png file)
       try {
         const baseUrl = getFullPath('diffusion', ['getImage'], {
+          experimentId: experimentId,
           imageId: genId,
           index: 0,
         });
@@ -495,11 +503,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         Number(numSteps),
       );
 
-      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await fetch(
+        getFullPath('diffusion', ['generate'], { experimentId: experimentId }),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
       const data = await response.json();
       if (data.error_code !== 0) {
         setError('Error generating image');
@@ -511,6 +522,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         const imageUrls: string[] = [];
         for (let i = 0; i < data.num_images; i++) {
           const imageUrl = getFullPath('diffusion', ['getImage'], {
+            experimentId: experimentId,
             imageId: data.id,
             index: i,
           });
@@ -585,11 +597,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         requestBody.height = Number(inpaintingImageHeight);
       }
 
-      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await fetch(
+        getFullPath('diffusion', ['generate'], { experimentId: experimentId }),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
       const data = await response.json();
       if (data.error_code !== 0) {
         setError('Error generating image');
@@ -598,6 +613,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         const imageUrls: string[] = [];
         for (let i = 0; i < data.num_images; i++) {
           const imageUrl = getFullPath('diffusion', ['getImage'], {
+            experimentId: experimentId,
             imageId: data.id,
             index: i,
           });
@@ -623,6 +639,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       // Create a link to the new endpoint that returns a zip file
       const link = document.createElement('a');
       link.href = getFullPath('diffusion', ['getAllImages'], {
+        experimentId: experimentId,
         imageId: currentGenerationData.id,
       });
 
@@ -662,7 +679,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsStableDiffusion(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
