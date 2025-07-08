@@ -48,8 +48,7 @@ export default function ListRecipes({ setSelectedRecipe }) {
               id: -1,
               title: 'Create an Empty Experiment',
               description: 'Start from scratch',
-              cardImage:
-                'https://images.unsplash.com/photo-1559311648-d46f5d8593d6?auto=format&fit=crop&w=318',
+              cardImage: 'https://recipes.transformerlab.net/cleanlab.jpg',
             }}
             setSelectedRecipe={setSelectedRecipe}
           />
