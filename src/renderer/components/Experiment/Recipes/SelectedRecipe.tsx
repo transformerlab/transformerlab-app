@@ -32,17 +32,20 @@ export function isRecipeCompatibleWithDevice(recipe, device) {
   if (!recipe?.requiredMachineArchitecture) return true;
   if (!device) return false;
 
-  if (device === 'mps') {
+  if (device === 'apple_silicon') {
     return (
       recipe.requiredMachineArchitecture.includes('mlx') ||
       recipe.requiredMachineArchitecture.includes('cpu')
     );
   }
-  if (device === 'cuda') {
+  if (device === 'nvidia') {
     return (
       recipe.requiredMachineArchitecture.includes('cuda') ||
       recipe.requiredMachineArchitecture.includes('cpu')
     );
+  }
+  if (device === 'amd') {
+    return recipe.requiredMachineArchitecture.includes('amd');
   }
   if (device === 'cpu') {
     return recipe.requiredMachineArchitecture.includes('cpu');
@@ -197,7 +200,7 @@ const RecipeDependenciesWithProgress = ({
         fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
       );
       const results = await Promise.all(promises);
-      
+
       // Create a map of job data by job ID
       const jobDataMap: any = {};
       results.forEach((jobData, index) => {
@@ -207,7 +210,7 @@ const RecipeDependenciesWithProgress = ({
           jobDataMap[job.name] = jobData;
         }
       });
-      
+
       return jobDataMap;
     },
     { refreshInterval: 1000 },
@@ -221,7 +224,7 @@ const RecipeDependenciesWithProgress = ({
     const completedJobs = Object.values(modelJobsData).filter(
       (job: any) => job?.status === 'completed' || job?.status === 'COMPLETE',
     );
-    
+
     if (completedJobs.length > 0) {
       // Refresh dependencies when jobs complete
       dependenciesMutate();
@@ -248,7 +251,7 @@ const RecipeDependenciesWithProgress = ({
     if (dep.installed === true) {
       return false; // Already installed
     }
-    
+
     // For models, check if there's any download job (active or completed)
     if (dep.type === 'model') {
       const hasAnyJob = modelDownloadJobs.some(
@@ -266,7 +269,7 @@ const RecipeDependenciesWithProgress = ({
         return false; // Don't count as missing if there's an active or completed job
       }
     }
-    
+
     return true; // Count as missing
   }).length;
 
@@ -321,14 +324,14 @@ const RecipeDependenciesWithProgress = ({
                           (job: any) => job.name === dep.name,
                         )
                       : null;
-                  
+
                   // Get job data from the map
                   const jobData = modelJob
                     ? modelJobsData[modelJob.name]
                     : null;
 
                   let statusComponent;
-                  
+
                   // Show progress bar only for models with active jobs and job data
                   if (modelJob && jobData) {
                     statusComponent = (
@@ -381,17 +384,17 @@ const RecipeDependenciesWithProgress = ({
                 }),
               );
               const installTaskJson = await installTask.json();
-              
+
               // Handle installation response
               if (installTaskJson?.jobs) {
                 // Update installation jobs to track progress
                 setInstallationJobs(installTaskJson.jobs);
               }
-              
+
               // Refresh dependencies after starting installation
               // This will update the status for plugins, datasets, etc.
               dependenciesMutate();
-              
+
               // Also refresh after a short delay to catch any quick installations
               setTimeout(() => {
                 dependenciesMutate();
@@ -423,12 +426,12 @@ export default function SelectedRecipe({
   });
 
   const { data: serverInfo } = useAPI('server', ['info']);
-  const device = serverInfo?.device;
+  const machineType = serverInfo?.device_type;
 
   // Monitor model download jobs for completion to refresh dependencies
   const modelDownloadJobs: any[] =
     installationJobs?.filter((job: any) => job.type === 'DOWNLOAD_MODEL') || [];
-  
+
   // Create a single SWR key that includes all job IDs
   const allJobIds = modelDownloadJobs.map((job) => job.job_id).filter(Boolean);
   const jobsKey = allJobIds.length > 0 ? `jobs-${allJobIds.join(',')}` : null;
@@ -441,7 +444,7 @@ export default function SelectedRecipe({
         fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
       );
       const results = await Promise.all(promises);
-      
+
       // Create a map of job data by job ID
       const jobDataMap: any = {};
       results.forEach((jobData, index) => {
@@ -451,7 +454,7 @@ export default function SelectedRecipe({
           jobDataMap[job.name] = jobData;
         }
       });
-      
+
       return jobDataMap;
     },
     { refreshInterval: 1000 },
@@ -465,7 +468,7 @@ export default function SelectedRecipe({
     const completedJobs = Object.values(modelJobsData).filter(
       (job: any) => job?.status === 'completed' || job?.status === 'COMPLETE',
     );
-    
+
     if (completedJobs.length > 0) {
       // Refresh dependencies when jobs complete
       mutate();
@@ -479,23 +482,29 @@ export default function SelectedRecipe({
       if (dep.installed === true) {
         return false; // Already installed
       }
-      
+
       // For models, check if there's a completed download job
       if (dep.type === 'model') {
         const hasCompletedJob = modelDownloadJobs.some((job: any) => {
           const jobData = modelJobsData[job.name];
-          return job.name === dep.name && (jobData?.status === 'completed' || jobData?.status === 'COMPLETE');
+          return (
+            job.name === dep.name &&
+            (jobData?.status === 'completed' || jobData?.status === 'COMPLETE')
+          );
         });
         if (hasCompletedJob) {
           return false; // Don't count as missing if download completed
         }
       }
-      
+
       return true; // Count as missing
     });
   }
 
-  const isHardwareCompatible = isRecipeCompatibleWithDevice(recipe, device);
+  const isHardwareCompatible = isRecipeCompatibleWithDevice(
+    recipe,
+    machineType,
+  );
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
