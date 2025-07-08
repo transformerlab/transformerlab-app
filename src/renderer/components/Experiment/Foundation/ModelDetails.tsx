@@ -290,7 +290,6 @@ export default function ModelDetails({
                   // eslint-disable-next-line no-console
                   console.error('Error ejecting model:', error);
                 } finally {
-                  await new Promise((resolve) => setTimeout(resolve, 10000));
                   setIsEjecting(false);
                   mutate();
                 }
