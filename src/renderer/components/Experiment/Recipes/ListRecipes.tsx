@@ -10,6 +10,20 @@ export default function ListRecipes({ setSelectedRecipe }) {
   const { data: serverInfo } = useAPI('server', ['info']);
   const device = serverInfo?.device;
 
+  // Sort data by an extra field called zOrder if it exists, put all
+  // recipes without zOrder at the end
+  const sortedData = data?.sort((a, b) => {
+    if (a.zOrder !== undefined && b.zOrder !== undefined) {
+      return a.zOrder - b.zOrder;
+    } else if (a.zOrder !== undefined) {
+      return -1; // a comes first
+    } else if (b.zOrder !== undefined) {
+      return 1; // b comes first
+    } else {
+      return 0; // keep original order
+    }
+  });
+
   return (
     <>
       <Typography level="h2">👋 Welcome to Transformer Lab!</Typography>
@@ -53,8 +67,8 @@ export default function ListRecipes({ setSelectedRecipe }) {
             setSelectedRecipe={setSelectedRecipe}
           />
           {isLoading && <CircularProgress />}
-          {Array.isArray(data) &&
-            data.map((recipe) => (
+          {Array.isArray(sortedData) &&
+            sortedData.map((recipe) => (
               <RecipeCard
                 recipeDetails={recipe}
                 setSelectedRecipe={setSelectedRecipe}
