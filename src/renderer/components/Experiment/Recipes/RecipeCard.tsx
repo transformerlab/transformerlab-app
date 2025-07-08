@@ -24,9 +24,9 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   setSelectedRecipe,
 }) => {
   const { data: serverInfo } = useAPI('server', ['info']);
-  const device = serverInfo?.device;
+  const machineType = serverInfo?.device_type;
 
-  const isCompatible = isRecipeCompatibleWithDevice(recipeDetails, device);
+  const isCompatible = isRecipeCompatibleWithDevice(recipeDetails, machineType);
 
   if (!isCompatible) {
     return null;
