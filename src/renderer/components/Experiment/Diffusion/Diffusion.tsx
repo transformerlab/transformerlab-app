@@ -515,8 +515,17 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         },
       );
       const data = await response.json();
+
       if (data.error_code !== 0) {
-        setError('Error generating image');
+        // Only show data.detail if data.detail has these words - `height` and `width` have to be divisible by
+        if (
+          data.detail &&
+          data.detail.includes('`height` and `width` have to be divisible by')
+        ) {
+          setError(data.detail);
+        } else {
+          setError('Error generating image');
+        }
         // Stop polling on error
         if (pollingCleanupRef.current) pollingCleanupRef.current();
         pollingCleanupRef.current = null;
