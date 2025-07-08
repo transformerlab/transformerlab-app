@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Button,
   Typography,
@@ -8,18 +8,25 @@ import {
   FormControl,
   FormLabel,
   FormHelperText,
+  LinearProgress,
+  Chip,
+  CircularProgress,
 } from '@mui/joy';
 import {
   ArrowLeftIcon,
   CircleCheckIcon,
   CircleXIcon,
   RocketIcon,
+  DownloadIcon,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
-import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
-import RecipeDependencies from './RecipeDependencies';
+import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import useSWR from 'swr';
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function isRecipeCompatibleWithDevice(recipe, device) {
   if (!recipe?.requiredMachineArchitecture) return true;
@@ -79,6 +86,319 @@ const RecipeNotesDisplay = ({ notes }) => {
   );
 };
 
+// Helper components
+const InstalledStateChip = ({ state }: { state: any }) => {
+  let color: 'neutral' | 'success' | 'warning' | 'danger' = 'neutral';
+  let label = 'Unknown';
+  if (state === 'loading') {
+    color = 'warning';
+    label = 'Checking...';
+  } else if (state === true) {
+    color = 'success';
+    label = 'Installed';
+  } else if (state === false) {
+    color = 'danger';
+    label = 'Not Installed';
+  }
+  return (
+    <Chip
+      variant="soft"
+      color={color}
+      size="sm"
+      sx={{
+        ml: 'auto',
+        fontSize: '0.75rem',
+        textTransform: 'capitalize',
+      }}
+    >
+      {label}
+    </Chip>
+  );
+};
+
+const ModelProgressBar = ({
+  modelName,
+  jobData,
+}: {
+  modelName: any;
+  jobData: any;
+}) => {
+  if (!jobData) return null;
+
+  const progress = jobData.progress || 0;
+  const status = jobData.status || 'RUNNING';
+
+  if (status === 'COMPLETE') {
+    return (
+      <Chip
+        variant="soft"
+        color="success"
+        size="sm"
+        sx={{
+          ml: 'auto',
+          fontSize: '0.75rem',
+        }}
+      >
+        Installed
+      </Chip>
+    );
+  }
+
+  if (status === 'FAILED') {
+    return (
+      <Chip
+        variant="soft"
+        color="danger"
+        size="sm"
+        sx={{
+          ml: 'auto',
+          fontSize: '0.75rem',
+        }}
+      >
+        Failed
+      </Chip>
+    );
+  }
+
+  return (
+    <Box sx={{ ml: 'auto', minWidth: '120px' }}>
+      <LinearProgress determinate value={progress} sx={{ mb: 0.5 }} size="sm" />
+      <Typography level="body-xs" sx={{ textAlign: 'center' }}>
+        {Math.round(progress)}%
+      </Typography>
+    </Box>
+  );
+};
+
+// Custom RecipeDependencies component that shows progress for model downloads
+const RecipeDependenciesWithProgress = ({
+  recipeId,
+  dependencies,
+  dependenciesLoading,
+  dependenciesMutate,
+  installationJobs,
+  setInstallationJobs,
+}) => {
+  const { data: serverInfo } = useAPI('server', ['info']);
+
+  // Get job progress for model downloads
+  const modelDownloadJobs =
+    installationJobs?.filter((job: any) => job.type === 'DOWNLOAD_MODEL') || [];
+
+  // Create a single SWR key that includes all job IDs
+  const allJobIds = modelDownloadJobs.map((job) => job.job_id).filter(Boolean);
+  const jobsKey = allJobIds.length > 0 ? `jobs-${allJobIds.join(',')}` : null;
+
+  // Fetch all job data in a single request
+  const { data: allJobsData } = useSWR(
+    jobsKey,
+    async () => {
+      const promises = allJobIds.map((jobId) =>
+        fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
+      );
+      const results = await Promise.all(promises);
+      
+      // Create a map of job data by job ID
+      const jobDataMap: any = {};
+      results.forEach((jobData, index) => {
+        const jobId = allJobIds[index];
+        const job = modelDownloadJobs.find((j) => j.job_id === jobId);
+        if (job) {
+          jobDataMap[job.name] = jobData;
+        }
+      });
+      
+      return jobDataMap;
+    },
+    { refreshInterval: 1000 },
+  );
+
+  // Use the fetched data or fallback to empty object
+  const modelJobsData: any = useMemo(() => allJobsData || {}, [allJobsData]);
+
+  // Monitor job completion and refresh dependencies
+  useEffect(() => {
+    const completedJobs = Object.values(modelJobsData).filter(
+      (job: any) => job?.status === 'completed',
+    );
+    
+    if (completedJobs.length > 0) {
+      // Refresh dependencies when jobs complete
+      dependenciesMutate();
+    }
+  }, [modelJobsData, dependenciesMutate]);
+
+  if (dependenciesLoading) return <CircularProgress sx={{ mt: 1, mb: 1 }} />;
+
+  if (!dependencies) {
+    return null;
+  }
+
+  // Group dependencies by type
+  const groupedDependencies = (dependencies || []).reduce(
+    (acc: any, dep: any) => {
+      acc[dep.type] = acc[dep.type] || [];
+      acc[dep.type].push(dep);
+      return acc;
+    },
+    {},
+  );
+
+  const countMissingDependencies = dependencies?.filter((dep: any) => {
+    if (dep.installed === true) {
+      return false; // Already installed
+    }
+    
+    // For models, check if there's an active download job
+    if (dep.type === 'model') {
+      const hasActiveJob = modelDownloadJobs.some(
+        (job: any) => job.name === dep.name,
+      );
+      if (hasActiveJob) {
+        return false; // Don't count as missing if actively downloading
+      }
+    }
+    
+    return true; // Count as missing
+  }).length;
+
+  return (
+    dependencies &&
+    dependencies.length > 0 && (
+      <>
+        <Typography
+          level="title-lg"
+          mb={0}
+          endDecorator={
+            <>
+              {countMissingDependencies === 0 && (
+                <CircleCheckIcon
+                  color="var(--joy-palette-success-400)"
+                  size={20}
+                />
+              )}
+              {countMissingDependencies > 0 && (
+                <CircleXIcon color="var(--joy-palette-danger-400)" size={20} />
+              )}
+            </>
+          }
+        >
+          Dependencies:
+        </Typography>
+        <Sheet
+          variant="soft"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            p: 2,
+            mr: 1,
+            minWidth: '340px',
+            minHeight: '60px',
+            maxHeight: '300px',
+            position: 'relative',
+          }}
+        >
+          {Object.entries(groupedDependencies).map(([type, deps]) => (
+            <Box key={type} sx={{ mb: 1 }}>
+              <Typography level="title-md" sx={{ textTransform: 'capitalize' }}>
+                {type}s
+              </Typography>
+              <Box sx={{ pl: 2 }}>
+                {(deps as any[]).map((dep: any) => {
+                  // Check if this is a model with an active download job
+                  const modelJob =
+                    type === 'model'
+                      ? modelDownloadJobs.find(
+                          (job: any) => job.name === dep.name,
+                        )
+                      : null;
+                  
+                  // Get job data from the map
+                  const jobData = modelJob
+                    ? modelJobsData[modelJob.name]
+                    : null;
+
+                  let statusComponent;
+                  
+                  // Show progress bar only for models with active jobs and job data
+                  if (modelJob && jobData) {
+                    statusComponent = (
+                      <ModelProgressBar
+                        modelName={dep.name}
+                        jobData={jobData}
+                      />
+                    );
+                  } else if (modelJob) {
+                    // Show loading spinner for models with active jobs but no data yet
+                    statusComponent = (
+                      <Box sx={{ ml: 'auto' }}>
+                        <CircularProgress size="sm" />
+                      </Box>
+                    );
+                  } else {
+                    // Use the original dependency status for all other cases
+                    statusComponent = (
+                      <InstalledStateChip state={dep?.installed} />
+                    );
+                  }
+
+                  return (
+                    <Box
+                      component="li"
+                      key={dep.name}
+                      sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
+                    >
+                      <Typography level="body-sm" mr={1}>
+                        {dep.name}
+                      </Typography>
+                      {statusComponent}
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          ))}
+        </Sheet>
+        {countMissingDependencies > 0 && (
+          <Button
+            color="warning"
+            size="sm"
+            variant="plain"
+            startDecorator={<DownloadIcon />}
+            onClick={async () => {
+              const installTask = await fetch(
+                getFullPath('recipes', ['installDependencies'], {
+                  id: recipeId,
+                }),
+              );
+              const installTaskJson = await installTask.json();
+              
+              // Handle installation response
+              if (installTaskJson?.jobs) {
+                // Update installation jobs to track progress
+                setInstallationJobs(installTaskJson.jobs);
+              }
+              
+              // Refresh dependencies after starting installation
+              // This will update the status for plugins, datasets, etc.
+              dependenciesMutate();
+              
+              // Also refresh after a short delay to catch any quick installations
+              setTimeout(() => {
+                dependenciesMutate();
+              }, 2000);
+            }}
+          >
+            Install ({countMissingDependencies}) Missing Dependenc
+            {countMissingDependencies === 1 ? 'y' : 'ies'}
+          </Button>
+        )}
+      </>
+    )
+  );
+};
+
 export default function SelectedRecipe({
   recipe,
   setSelectedRecipeId,
@@ -87,6 +407,8 @@ export default function SelectedRecipe({
   const [experimentNameFormValue, setExperimentNameFormValue] = useState('');
   const [experimentNameTouched, setExperimentNameTouched] = useState(false);
   const [experimentName, setExperimentName] = useState('');
+  const [installationJobs, setInstallationJobs] = useState([]);
+  const [isInstalling, setIsInstalling] = useState(false);
 
   const { data, isLoading, mutate } = useAPI('recipes', ['checkDependencies'], {
     id: recipe?.id,
@@ -95,21 +417,93 @@ export default function SelectedRecipe({
   const { data: serverInfo } = useAPI('server', ['info']);
   const device = serverInfo?.device;
 
+  // Monitor model download jobs for completion to refresh dependencies
+  const modelDownloadJobs: any[] =
+    installationJobs?.filter((job: any) => job.type === 'DOWNLOAD_MODEL') || [];
+  
+  // Create a single SWR key that includes all job IDs
+  const allJobIds = modelDownloadJobs.map((job) => job.job_id).filter(Boolean);
+  const jobsKey = allJobIds.length > 0 ? `jobs-${allJobIds.join(',')}` : null;
+
+  // Fetch all job data in a single request
+  const { data: allJobsData } = useSWR(
+    jobsKey,
+    async () => {
+      const promises = allJobIds.map((jobId) =>
+        fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
+      );
+      const results = await Promise.all(promises);
+      
+      // Create a map of job data by job ID
+      const jobDataMap: any = {};
+      results.forEach((jobData, index) => {
+        const jobId = allJobIds[index];
+        const job = modelDownloadJobs.find((j) => j.job_id === jobId);
+        if (job) {
+          jobDataMap[job.name] = jobData;
+        }
+      });
+      
+      return jobDataMap;
+    },
+    { refreshInterval: 1000 },
+  );
+
+  // Use the fetched data or fallback to empty object
+  const modelJobsData: any = useMemo(() => allJobsData || {}, [allJobsData]);
+
+  // Monitor job completion and refresh dependencies
+  useEffect(() => {
+    const completedJobs = Object.values(modelJobsData).filter(
+      (job: any) => job?.status === 'completed',
+    );
+    
+    if (completedJobs.length > 0) {
+      // Refresh dependencies when jobs complete
+      mutate();
+    }
+  }, [modelJobsData, mutate]);
+
   // Check if all dependencies are installed
   let missingAnyDependencies = false;
   if (data?.dependencies) {
-    missingAnyDependencies = data.dependencies.some((dep) => {
-      // check if dep.installed === true
-      return dep.installed === false;
+    missingAnyDependencies = data.dependencies.some((dep: any) => {
+      if (dep.installed === true) {
+        return false; // Already installed
+      }
+      
+      // For models, check if there's an active download job
+      if (dep.type === 'model') {
+        const hasActiveJob = modelDownloadJobs.some(
+          (job: any) => job.name === dep.name,
+        );
+        if (hasActiveJob) {
+          return false; // Don't count as missing if actively downloading
+        }
+      }
+      
+      return true; // Count as missing
     });
   }
 
   const isHardwareCompatible = isRecipeCompatibleWithDevice(recipe, device);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    console.log('Installing recipe:', recipe?.id);
-    installRecipe(recipe?.id, experimentNameFormValue);
+    setIsInstalling(true);
+
+    try {
+      // Call the original installRecipe function but also track jobs
+      const result = await installRecipe(recipe?.id, experimentNameFormValue);
+
+      // If the API returns jobs, track them
+      if (result && result.jobs) {
+        setInstallationJobs(result.jobs);
+      }
+    } catch (error) {
+      // Handle error
+      setIsInstalling(false);
+    }
   };
 
   return (
@@ -303,11 +697,13 @@ export default function SelectedRecipe({
               <Typography level="body-sm" color="danger">
                 {!isHardwareCompatible && 'Not compatible with your hardware.'}
               </Typography>
-              <RecipeDependencies
+              <RecipeDependenciesWithProgress
                 recipeId={recipe?.id}
                 dependencies={data?.dependencies}
                 dependenciesLoading={isLoading}
                 dependenciesMutate={mutate}
+                installationJobs={installationJobs}
+                setInstallationJobs={setInstallationJobs}
               />
             </Box>
           </>
