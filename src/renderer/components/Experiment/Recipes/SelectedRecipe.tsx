@@ -49,7 +49,7 @@ const RecipeNotesDisplay = ({ notes }) => {
   if (!notes) return null;
 
   return (
-    <Box>
+    <>
       <Typography level="title-lg" mb={1}>
         Experiment Notes:
       </Typography>
@@ -60,17 +60,22 @@ const RecipeNotesDisplay = ({ notes }) => {
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '600px',
-          px: 3,
-          py: 2,
-          overflow: 'auto',
+          pl: 3,
+          height: '100%',
+
+          overflow: 'hidden',
           borderRadius: 1,
         }}
       >
-        <Box display="flex" sx={{ width: '100%' }}>
+        <Box
+          display="flex"
+          flexDirection="column"
+          sx={{ width: '100%', height: '100%', overflowY: 'auto' }}
+        >
           <Markdown remarkPlugins={[remarkGfm]}>{notes}</Markdown>
         </Box>
       </Sheet>
-    </Box>
+    </>
   );
 };
 
