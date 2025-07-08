@@ -219,7 +219,7 @@ const RecipeDependenciesWithProgress = ({
   // Monitor job completion and refresh dependencies
   useEffect(() => {
     const completedJobs = Object.values(modelJobsData).filter(
-      (job: any) => job?.status === 'completed',
+      (job: any) => job?.status === 'completed' || job?.status === 'COMPLETE',
     );
     
     if (completedJobs.length > 0) {
@@ -249,13 +249,21 @@ const RecipeDependenciesWithProgress = ({
       return false; // Already installed
     }
     
-    // For models, check if there's an active download job
+    // For models, check if there's any download job (active or completed)
     if (dep.type === 'model') {
-      const hasActiveJob = modelDownloadJobs.some(
+      const hasAnyJob = modelDownloadJobs.some(
         (job: any) => job.name === dep.name,
       );
-      if (hasActiveJob) {
-        return false; // Don't count as missing if actively downloading
+      if (hasAnyJob) {
+        // Check if the job failed
+        const jobData =
+          modelJobsData[
+            modelDownloadJobs.find((job: any) => job.name === dep.name)?.name
+          ];
+        if (jobData?.status === 'failed' || jobData?.status === 'FAILED') {
+          return true; // Count as missing if job failed
+        }
+        return false; // Don't count as missing if there's an active or completed job
       }
     }
     
@@ -455,7 +463,7 @@ export default function SelectedRecipe({
   // Monitor job completion and refresh dependencies
   useEffect(() => {
     const completedJobs = Object.values(modelJobsData).filter(
-      (job: any) => job?.status === 'completed',
+      (job: any) => job?.status === 'completed' || job?.status === 'COMPLETE',
     );
     
     if (completedJobs.length > 0) {
@@ -472,13 +480,14 @@ export default function SelectedRecipe({
         return false; // Already installed
       }
       
-      // For models, check if there's an active download job
+      // For models, check if there's a completed download job
       if (dep.type === 'model') {
-        const hasActiveJob = modelDownloadJobs.some(
-          (job: any) => job.name === dep.name,
-        );
-        if (hasActiveJob) {
-          return false; // Don't count as missing if actively downloading
+        const hasCompletedJob = modelDownloadJobs.some((job: any) => {
+          const jobData = modelJobsData[job.name];
+          return job.name === dep.name && (jobData?.status === 'completed' || jobData?.status === 'COMPLETE');
+        });
+        if (hasCompletedJob) {
+          return false; // Don't count as missing if download completed
         }
       }
       
