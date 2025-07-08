@@ -40,6 +40,7 @@ export default function ChatPage({
   conversationsMutate,
   setConversationId,
   conversationId,
+  supports,
 }) {
   const [image, setImage] = useState(null); //This is mostly used for the modal. The actual image is stored in the chats array
   const [imageModalOpen, setImageModalOpen] = useState(false);
@@ -231,7 +232,8 @@ export default function ChatPage({
           tokenCount={tokenCount}
           text={text}
           debouncedText={debouncedText}
-          currentModelArchitecture={currentModelArchitecture}
+          // currentModelArchitecture={currentModelArchitecture}
+          supports={supports}
         />
         <Modal open={imageModalOpen} onClose={() => setImageModalOpen(false)}>
           <ModalDialog
