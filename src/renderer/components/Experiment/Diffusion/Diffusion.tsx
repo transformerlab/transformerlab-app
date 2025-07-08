@@ -504,8 +504,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         body: JSON.stringify(requestBody),
       });
       const data = await response.json();
+
       if (data.error_code !== 0) {
-        setError('Error generating image');
+        setError(data.detail);
         // Stop polling on error
         if (pollingCleanupRef.current) pollingCleanupRef.current();
         pollingCleanupRef.current = null;
@@ -595,7 +596,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       });
       const data = await response.json();
       if (data.error_code !== 0) {
-        setError('Error generating image');
+        setError(data.detail || 'Error generating inpainting image');
       } else {
         // Fetch all generated images
         const imageUrls: string[] = [];
