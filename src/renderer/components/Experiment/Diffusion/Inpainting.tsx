@@ -700,12 +700,9 @@ export default function Inpainting({
               border: '2px solid',
               borderColor: 'neutral.300',
               borderRadius: 2,
-              overflow: 'hidden',
+              overflow: 'auto',
               backgroundColor: 'neutral.50',
-              aspectRatio: '1 / 1',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
             }}
           >
             <img
