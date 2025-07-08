@@ -26,8 +26,10 @@ export default function ViewOutputModalStreaming({
   sweeps,
   setsweepJob,
 }) {
+  if (jobId === -1) {
+    return null;
+  }
   const [tab, setTab] = useState(0);
-
   // Poll every 15 seconds to get sweep config until it's loaded
   const [stopPolling, setStopPolling] = useState(false);
 
@@ -35,7 +37,7 @@ export default function ViewOutputModalStreaming({
     'train',
     ['getSweepConfig'],
     { job_id: jobId },
-    { refreshInterval: stopPolling ? 0 : 15000 },
+    { refreshInterval: stopPolling ? 0 : 15000, enabled: jobId !== -1 },
   );
 
   if (data && !stopPolling) setStopPolling(true);
