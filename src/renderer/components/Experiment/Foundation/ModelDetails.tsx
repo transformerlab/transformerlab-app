@@ -247,37 +247,24 @@ export default function ModelDetails({
               startDecorator={<FaEject />}
               onClick={async () => {
                 try {
-                  // Clear all foundation-related fields in the backend
-                  await Promise.all([
-                    fetch(
-                      chatAPI.Endpoints.Experiment.UpdateConfig(
-                        experimentInfo?.id,
-                        'foundation',
-                        JSON.stringify(''),
-                      ),
+                  // Clear all foundation-related fields in the backend using bulk update
+                  await fetch(
+                    chatAPI.Endpoints.Experiment.UpdateConfigs(
+                      experimentInfo?.id,
                     ),
-                    fetch(
-                      chatAPI.Endpoints.Experiment.UpdateConfig(
-                        experimentInfo?.id,
-                        'foundation_filename',
-                        JSON.stringify(''),
-                      ),
-                    ),
-                    fetch(
-                      chatAPI.Endpoints.Experiment.UpdateConfig(
-                        experimentInfo?.id,
-                        'foundation_model_architecture',
-                        JSON.stringify(''),
-                      ),
-                    ),
-                    fetch(
-                      chatAPI.Endpoints.Experiment.UpdateConfig(
-                        experimentInfo?.id,
-                        'inferenceParams',
-                        JSON.stringify({}),
-                      ),
-                    ),
-                  ]);
+                    {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        foundation: '',
+                        foundation_filename: '',
+                        foundation_model_architecture: '',
+                        inferenceParams: '{}',
+                      }),
+                    },
+                  );
 
                   // Update local state after successful API calls
                   setFoundation(null);
