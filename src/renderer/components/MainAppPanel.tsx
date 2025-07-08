@@ -157,32 +157,20 @@ export default function MainAppPanel({
 
       async function updateConfigs() {
         await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'foundation',
-            model_name,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'foundation_model_architecture',
-            model?.json_data?.architecture,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'foundation_filename',
-            model_filename,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'generationParams',
-            '{"temperature": 0.7, "maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
-          ),
+          chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              foundation: model_name,
+              foundation_model_architecture: model?.json_data?.architecture,
+              foundation_filename: model_filename,
+              generationParams:
+                '{"temperature": 0.7,"maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
+            }),
+          },
         );
         experimentInfoMutate();
       }
@@ -228,25 +216,18 @@ export default function MainAppPanel({
 
       async function updateConfigs() {
         await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'embedding_model',
-            model_name,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'embedding_model_filename',
-            model_filename,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'embedding_model_architecture',
-            model_architecture,
-          ),
+          chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              embedding_model: model_name,
+              embedding_model_filename: model_filename,
+              embedding_model_architecture: model_architecture,
+            }),
+          },
         );
         experimentInfoMutate();
       }
@@ -293,18 +274,17 @@ export default function MainAppPanel({
   const setRagEngine = useCallback(
     async (name: string, rag_settings: any = {}) => {
       await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'rag_engine',
-          name,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'rag_engine_settings',
-          JSON.stringify(rag_settings),
-        ),
+        chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            rag_engine: name,
+            rag_engine_settings: JSON.stringify(rag_settings),
+          }),
+        },
       );
       experimentInfoMutate();
     },
