@@ -421,6 +421,8 @@ export default function SelectedRecipe({
   const [installationJobs, setInstallationJobs] = useState([]);
   const [isInstalling, setIsInstalling] = useState(false);
 
+  const [experimentNameError, setExperimentNameError] = useState('');
+
   const { data, isLoading, mutate } = useAPI('recipes', ['checkDependencies'], {
     id: recipe?.id,
   });
@@ -505,6 +507,26 @@ export default function SelectedRecipe({
     recipe,
     machineType,
   );
+
+  async function handleSetExperimentName(name: string) {
+    if (!name) {
+      setExperimentNameTouched(true);
+      return;
+    }
+
+    const existingExperiments = await fetch(
+      getFullPath('experiment', ['getAll'], {}),
+    ).then((res) => res.json());
+    if (existingExperiments.some((exp: any) => exp.name === name)) {
+      setExperimentNameTouched(true);
+      setExperimentNameError(`Experiment name ${name} already exists.`);
+      return; // Don't allow duplicate names
+    }
+
+    setExperimentName(name);
+    setExperimentNameFormValue(name);
+    setExperimentNameTouched(false);
+  }
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -609,10 +631,13 @@ export default function SelectedRecipe({
               {!experimentNameFormValue && experimentNameTouched && (
                 <FormHelperText>This field is required.</FormHelperText>
               )}
+              {experimentNameError && (
+                <FormHelperText>{experimentNameError}</FormHelperText>
+              )}
             </FormControl>
             <Button
               sx={{ mt: 2 }}
-              onClick={() => setExperimentName(experimentNameFormValue)}
+              onClick={() => handleSetExperimentName(experimentNameFormValue)}
             >
               Save
             </Button>
@@ -735,7 +760,10 @@ export default function SelectedRecipe({
           startDecorator={<RocketIcon />}
           onClick={handleSubmit}
           disabled={
-            !experimentNameFormValue || missingAnyDependencies || isLoading
+            experimentName === '' ||
+            !experimentNameFormValue ||
+            missingAnyDependencies ||
+            isLoading
           }
         >
           Start &nbsp;
