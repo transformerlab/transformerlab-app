@@ -220,6 +220,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       setIsInpaintingEligible(null);
       // Reset inpainting mode when model changes
       setInpaintingMode(false);
+      // Reset ControlNet settings
+      setControlNetType('off');
+      setProcessType(null);
     }
   }, [experimentInfo?.config?.foundation, model]);
 
