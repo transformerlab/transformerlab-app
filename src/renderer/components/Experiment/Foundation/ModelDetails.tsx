@@ -55,12 +55,12 @@ export default function ModelDetails({
   const [huggingfaceModelCardData, setHuggingfaceModelCardData] = useState({});
   const [huggingfaceUploadDialog, setHuggingfaceUploadDialog] = useState(false);
   const [isUploadLoading, setIsUploadLoading] = useState(false);
+  const [isEjecting, setIsEjecting] = useState(false);
   const [modelDetailsData, setModelDetailsData] = useState({ logo: 'loading' });
   const { models, isError, isLoading, mutate } = useModelStatus();
 
   const huggingfaceId = experimentInfo?.config?.foundation;
   const handleSubmit = async () => {
-    //This is a handlesubmit function for the huggingface upload dialog
     if (!/^[a-zA-Z0-9-]+$/.test(huggingfaceNewModelName)) {
       //If the name is not in the correct format (letters, numbers, hyphens)
       alert(
@@ -97,6 +97,7 @@ export default function ModelDetails({
     setHuggingfaceModelCardData({});
     setHuggingfaceOrganizationName('');
   };
+
   useMemo(() => {
     // This is a local model
     if (experimentInfo?.config?.foundation_filename) {
@@ -244,8 +245,11 @@ export default function ModelDetails({
               </Button>
             )}
             <Button
-              startDecorator={<FaEject />}
+              startDecorator={
+                isEjecting ? <CircularProgress size="sm" /> : <FaEject />
+              }
               onClick={async () => {
+                setIsEjecting(true);
                 try {
                   // Clear all foundation-related fields in the backend using bulk update
                   await fetch(
@@ -272,18 +276,18 @@ export default function ModelDetails({
                 } catch (error) {
                   // eslint-disable-next-line no-console
                   console.error('Error ejecting model:', error);
+                } finally {
+                  await new Promise((resolve) => setTimeout(resolve, 10000));
+                  setIsEjecting(false);
+                  mutate();
                 }
               }}
               color="danger"
               variant="outlined"
-              disabled={models?.length > 0}
+              disabled={models?.length > 0 || isEjecting}
             >
-              <Box
-                sx={{
-                  display: { xs: 'none', sm: 'none', md: 'block' }, // Hide text on small and medium screens
-                }}
-              >
-                Eject Model
+              <Box sx={{ display: { xs: 'none', sm: 'none', md: 'block' } }}>
+                {isEjecting ? 'Ejecting...' : 'Eject Model'}
               </Box>
             </Button>
             {/* <Button startDecorator={<SquareIcon />}>Stop</Button> */}
