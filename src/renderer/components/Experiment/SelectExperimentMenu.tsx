@@ -32,7 +32,7 @@ import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
+function ExperimentSettingsMenu({ experimentInfo, setExperimentId, data, mutate }) {
   return (
     <Dropdown>
       <MenuButton
@@ -69,14 +69,27 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId }) {
         <MenuItem
           variant="soft"
           color="danger"
-          onClick={() => {
+          onClick={async () => {
             if (
               confirm(
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              fetch(chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id));
-              setExperimentId(null);
+              await fetch(chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id));
+              
+              // Find the next available experiment (first one in the list that's not the deleted one)
+              const remainingExperiments = data?.filter(exp => exp.id !== experimentInfo?.id) || [];
+              
+              if (remainingExperiments.length > 0) {
+                // Set to the first experiment in the remaining list
+                setExperimentId(remainingExperiments[0].id);
+              } else {
+                // Only set to null if no experiments remain
+                setExperimentId(null);
+              }
+              
+              // Refresh the experiments list
+              mutate();
             }
           }}
         >
@@ -273,6 +286,8 @@ export default function SelectExperimentMenu({
               <ExperimentSettingsMenu
                 experimentInfo={experimentInfo}
                 setExperimentId={setExperimentId}
+                data={data}
+                mutate={mutate}
               />
             </div>
           )}
