@@ -15,6 +15,7 @@ import {
   Typography,
   Link,
   Stack,
+  Skeleton,
 } from '@mui/joy';
 import {
   CheckIcon,
@@ -84,6 +85,84 @@ function filterByFilters(data, searchText = '', filters = {}) {
   });
 }
 
+function ModelGroupsSkeleton() {
+  return (
+    <Sheet
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        overflow: 'auto',
+        minHeight: 0,
+      }}
+    >
+      <Sheet
+        variant="plain"
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'row',
+          width: '100%',
+          borderRadius: 'md',
+        }}
+      >
+        {/* Left side: group list skeleton */}
+        <Box
+          id="model-group-left-hand-side"
+          display="flex"
+          flexDirection="column"
+          sx={{ flex: 1, pt: 1 }}
+        >
+          <Box sx={{ flex: 1, p: 1, pt: 0, overflowY: 'auto' }}>
+            {[...Array(6)].map((_, i) => (
+              <Box key={i} sx={{ mb: 1 }}>
+                <Skeleton
+                  variant="rectangular"
+                  width="100%"
+                  height={56}
+                  sx={{ borderRadius: 8 }}
+                />
+              </Box>
+            ))}
+          </Box>
+        </Box>
+        {/* Right side: table skeleton */}
+        <Box
+          id="model-group-right-hand-side"
+          sx={{
+            flex: 3,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}
+        >
+          <Box
+            sx={{
+              overflowX: 'auto',
+              width: '100%',
+              maxWidth: '100%',
+              flex: 1,
+              p: 1,
+            }}
+          >
+            {[...Array(6)].map((_, i) => (
+              <Box key={i} sx={{ mb: 1 }}>
+                <Skeleton
+                  variant="rectangular"
+                  width="100%"
+                  height="2rem"
+                  sx={{ borderRadius: 8 }}
+                />
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      </Sheet>
+    </Sheet>
+  );
+}
+
 export default function ModelGroups() {
   const navigate = useNavigate();
   const [order, setOrder] = useState('asc');
@@ -144,9 +223,9 @@ export default function ModelGroups() {
 
   useEffect(() => {
     if (!selectedGroup && groupData && groupData.length > 0) {
-      const firstGroup = groupData.find(
-        (g) => g.name.toLowerCase() === 'apriel',
-      );
+      const firstGroup = [...groupData].sort((a, b) =>
+        a.name.localeCompare(b.name),
+      )[0];
       if (firstGroup) {
         setSelectedGroup(firstGroup);
       } else {
@@ -178,7 +257,7 @@ export default function ModelGroups() {
     ? getArchitectureOptions(selectedGroup.models)
     : [];
 
-  if (isLoading) return <LinearProgress />;
+  if (isLoading) return <ModelGroupsSkeleton />;
   if (error) return <Typography>Error loading model groups.</Typography>;
   if (!groupData || !selectedGroup) return null;
 

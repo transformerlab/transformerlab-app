@@ -285,6 +285,7 @@ Endpoints.Experiment = {
   UpdateConfig: (id: string, key: string, value: string) =>
     `${API_URL()}experiment/${id}/update_config` +
     `?key=${key}&value=${encodeURIComponent(value)}`,
+  UpdateConfigs: (id: string) => `${API_URL()}experiment/${id}/update_configs`,
   Create: (name: string) => `${API_URL()}experiment/create?name=${name}`,
   Get: (id: string) => `${API_URL()}experiment/${id}`,
   Delete: (id: string) => `${API_URL()}experiment/${id}/delete`,
