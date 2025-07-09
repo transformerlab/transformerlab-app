@@ -78,7 +78,7 @@ export function usePluginStatus(experimentInfo: any) {
   );
 
   let outdatedPlugins = [];
-  if (data) {
+  if (data && Array.isArray(data)) {
     outdatedPlugins = data.filter(
       (plugin: any) =>
         plugin?.gallery_version && plugin?.version != plugin?.gallery_version,
