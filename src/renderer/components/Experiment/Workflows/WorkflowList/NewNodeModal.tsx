@@ -45,7 +45,7 @@ export default function NewNodeModal({
     setMode(newValue);
     setSelectedTask(''); // Reset task selection when mode changes
     setValidationError(''); // Clear validation errors
-    if (tasksData && newValue !== 'OTHER') {
+    if (tasksData && newValue !== 'OTHER' && newValue !== 'DOWNLOAD_MODEL') {
       const filteredTasks = tasksData.filter(
         (task: any) => task.type === newValue,
       );
@@ -56,7 +56,12 @@ export default function NewNodeModal({
   };
 
   useEffect(() => {
-    if (tasksData && mode !== 'OTHER' && tasksData?.detail !== 'Not Found') {
+    if (
+      tasksData &&
+      mode !== 'OTHER' &&
+      mode !== 'DOWNLOAD_MODEL' &&
+      tasksData?.detail !== 'Not Found'
+    ) {
       const filteredTasks = tasksData.filter((task: any) => task.type === mode);
       setAvailableTasks(filteredTasks);
     } else {
