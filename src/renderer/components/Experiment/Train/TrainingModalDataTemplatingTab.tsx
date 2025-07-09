@@ -21,6 +21,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { useDebounce } from 'use-debounce';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -36,28 +37,32 @@ function TrainingModalDataTemplatingTab({
   chatColumn,
   setChatColumn,
 }) {
+  // Initialize template state with default value
   const [template, setTemplate] = useState(
     'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}',
   );
   const [chatTemplate, setChatTemplate] = useState('');
 
   useEffect(() => {
-    if (templateData?.config?.apply_chat_template !== undefined) {
-      setApplyChatTemplate(templateData.config.apply_chat_template);
+    // Parse config if it's a string
+    const parsedConfig = SafeJSONParse(templateData?.config, {});
+
+    if (parsedConfig?.apply_chat_template !== undefined) {
+      setApplyChatTemplate(parsedConfig.apply_chat_template);
     }
 
-    if (templateData?.config?.formatting_chat_template) {
-      setChatTemplate(templateData.config.formatting_chat_template);
+    if (parsedConfig?.formatting_chat_template) {
+      setChatTemplate(parsedConfig.formatting_chat_template);
     }
 
-    if (templateData?.config?.chat_column) {
-      setChatColumn(templateData.config.chat_column);
+    if (parsedConfig?.chat_column) {
+      setChatColumn(parsedConfig.chat_column);
     }
 
-    if (templateData?.config?.formatting_template) {
-      setTemplate(templateData.config.formatting_template);
+    if (parsedConfig?.formatting_template) {
+      setTemplate(parsedConfig.formatting_template);
     }
-  }, [templateData]);
+  }, [templateData, setApplyChatTemplate, setChatColumn]);
 
   useEffect(() => {
     if (currentDatasetInfo?.features && applyChatTemplate) {
@@ -96,14 +101,7 @@ function TrainingModalDataTemplatingTab({
   const [debouncedTemplate] = useDebounce(template, 3000);
   const [debouncedChatTemplate] = useDebounce(chatTemplate, 3000);
 
-  let parsedData;
-
-  try {
-    parsedData = data ? JSON.parse(data) : null;
-  } catch (e) {
-    console.error('Error parsing data', e);
-    parsedData = '';
-  }
+  const parsedData = SafeJSONParse(data, null);
 
   function PreviewSection() {
     if (applyChatTemplate && !chatColumn) {

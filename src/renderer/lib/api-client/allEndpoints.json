@@ -145,6 +145,10 @@
     "getScriptsOfTypeWithoutFilter": {
       "method": "GET",
       "path": "experiment/{experimentId}/plugins/list?type={type}"
+    },
+    "getAll": {
+      "method": "GET",
+      "path": "experiment/"
     }
   },
   "diffusion": {
