@@ -337,7 +337,7 @@ export default function RunModelButton({
               />
               Diffusion
             </Link>{' '}
-            and perform inference with it.
+            to generate images with it.
           </Typography>
         </Alert>
       ) : unsupportedEngines.length > 0 ? (
