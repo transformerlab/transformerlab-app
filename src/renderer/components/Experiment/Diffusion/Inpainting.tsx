@@ -701,8 +701,8 @@ export default function Inpainting({
               borderColor: 'neutral.300',
               borderRadius: 2,
               overflow: 'auto',
-              width: 'imageDimensions.width || "100%"',
-              height: 'imageDimensions.height || "100%"',
+              width: '100%',
+              height: '100%',
               backgroundColor: 'neutral.50',
               display: 'flex',
             }}
