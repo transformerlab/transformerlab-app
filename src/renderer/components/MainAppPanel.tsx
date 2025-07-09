@@ -171,6 +171,7 @@ export default function MainAppPanel({
               foundation: model_name,
               foundation_model_architecture: model?.json_data?.architecture,
               foundation_filename: model_filename,
+              adaptor: '', // Reset adaptor when foundation model changes
               generationParams:
                 '{"temperature": 0.7,"maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
             }),

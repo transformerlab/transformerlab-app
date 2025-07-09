@@ -86,15 +86,8 @@ export default function SelectButton({
         setTimeout(resolve, 100);
       });
 
-      // Now update foundation and adaptor sequentially to avoid concurrent API calls
+      // Now update foundation which will also reset the adaptor
       setFoundation(model);
-
-      // Wait a brief moment between the two calls since they both trigger API operations
-      await new Promise((resolve) => {
-        setTimeout(resolve, 50);
-      });
-
-      setAdaptor('');
     } catch (e) {
       // Silently handle errors - user can still set engine manually
       // Error details available in network tab for debugging
@@ -102,14 +95,7 @@ export default function SelectButton({
       setSelected(false);
       setIsProcessing(false);
     }
-  }, [
-    isProcessing,
-    setEmbedding,
-    model,
-    setFoundation,
-    setAdaptor,
-    experimentInfo,
-  ]);
+  }, [isProcessing, setEmbedding, model, setFoundation, experimentInfo]);
 
   const handleCancel = React.useCallback(() => {
     setSelected(false);
