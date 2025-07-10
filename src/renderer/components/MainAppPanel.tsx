@@ -361,14 +361,8 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
             />
           }
         />
-        <Route
-          path="/experiment/embeddings"
-          element={<Embeddings experimentInfo={experimentInfo} />}
-        />
-        <Route
-          path="/experiment/tokenize"
-          element={<Tokenize experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/embeddings" element={<Embeddings />} />
+        <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route
           path="/experiment/training"
           element={<TrainLoRA experimentInfo={experimentInfo} />}
