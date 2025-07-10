@@ -519,7 +519,7 @@ export default function SelectedRecipe({
     ).then((res) => res.json());
     if (existingExperiments.some((exp: any) => exp.name === name)) {
       setExperimentNameTouched(true);
-      setExperimentNameError(`Experiment name ${name} already exists.`);
+      setExperimentNameError(`Experiment name "${name}" already exists.`);
       return; // Don't allow duplicate names
     }
 
@@ -612,6 +612,11 @@ export default function SelectedRecipe({
             <FormControl
               required
               error={!experimentNameFormValue && experimentNameTouched}
+              component="form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSetExperimentName(experimentNameFormValue);
+              }}
             >
               <FormLabel sx={{ fontWeight: 'regular' }}>
                 Experiment Name:
@@ -627,6 +632,12 @@ export default function SelectedRecipe({
                 onBlur={() => setExperimentNameTouched(true)}
                 required
                 name="experimentName"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSetExperimentName(experimentNameFormValue);
+                  }
+                }}
               />
               {!experimentNameFormValue && experimentNameTouched && (
                 <FormHelperText>This field is required.</FormHelperText>
@@ -634,13 +645,14 @@ export default function SelectedRecipe({
               {experimentNameError && (
                 <FormHelperText>{experimentNameError}</FormHelperText>
               )}
+              <Button
+                sx={{ mt: 2 }}
+                type="submit"
+                onClick={() => handleSetExperimentName(experimentNameFormValue)}
+              >
+                Save
+              </Button>
             </FormControl>
-            <Button
-              sx={{ mt: 2 }}
-              onClick={() => handleSetExperimentName(experimentNameFormValue)}
-            >
-              Save
-            </Button>
           </Box>
         ) : (
           <>
