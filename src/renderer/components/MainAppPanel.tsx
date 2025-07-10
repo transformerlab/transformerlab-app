@@ -352,10 +352,8 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           path="/experiment/model_architecture_visualization"
           element={
             <Interact
-              experimentInfo={experimentInfo}
-              experimentInfoMutate={experimentInfoMutate}
               setRagEngine={setRagEngine}
-              mode={'model_layers'}
+              mode="model_layers"
               setMode={setSelectedInteractSubpage}
               supports={modelSupports}
               chatHistory={chatHistory}
