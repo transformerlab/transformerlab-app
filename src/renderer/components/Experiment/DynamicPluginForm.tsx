@@ -9,6 +9,7 @@
  */
 
 import * as React from 'react';
+import { ChangeEvent, FocusEvent, useMemo } from 'react';
 
 import validator from '@rjsf/validator-ajv8';
 import Form from '@rjsf/core';
@@ -24,7 +25,6 @@ import {
   Option,
   Autocomplete,
 } from '@mui/joy';
-import { useMemo } from 'react';
 import ModelProviderWidget from 'renderer/components/Experiment/Widgets/ModelProviderWidget';
 import CustomEvaluationWidget from './Widgets/CustomEvaluationWidget';
 import GEvalTasksWidget from './Widgets/CustomGEvalWidget';
@@ -407,65 +407,114 @@ function CustomAutocompleteWidget<
     schema,
     multiple,
   } = props;
-  const { enumOptions } = options;
+  const { enumOptions, emptyValue } = options;
 
-  // Default multiple is true.
-  // const _multiple = typeof multiple === 'undefined' ? true : !!multiple;
-  // Check both multiple and options.multiple; default is true.
-  // console.log("OPTIONS", options);
-  const _multiple =
-    typeof multiple !== 'undefined'
-      ? Boolean(multiple)
-      : typeof options.multiple !== 'undefined'
-        ? Boolean(options.multiple)
-        : true;
-
-  // console.log("multiple", _multiple);
-  // Determine default value.
-  const defaultValue = _multiple ? [] : '';
-  // Use the provided value or fallback to default.
-  let currentValue = value !== undefined ? value : defaultValue;
-
-  // Check if currentValue is an array, if a string, convert it to an array.
-  const isString = typeof currentValue === 'string';
-  if (isString) {
-    currentValue = currentValue.split(',');
+  // Check both multiple and options.multiple; default is true for autocomplete
+  // Most autocomplete fields in evaluations are multiple selection
+  let isMultiple = true;
+  if (typeof multiple !== 'undefined') {
+    isMultiple = Boolean(multiple);
+  } else if (typeof options.multiple !== 'undefined') {
+    isMultiple = Boolean(options.multiple);
   }
 
-  // Map enumOptions into objects with label and value.
-  const processedOptionsValues = enumOptions.map((opt) =>
-    typeof opt === 'object' ? opt.value : opt,
-  );
-  // Create processedOptions array as an array of all values in enumOptions
+  // Determine appropriate empty value based on multiple selection
+  const defaultEmptyValue = isMultiple ? [] : '';
+  const actualEmptyValue =
+    emptyValue !== undefined ? emptyValue : defaultEmptyValue;
+
+  // Process current value properly - this is key for handling EvalModal config values
+  let currentValue = value;
+
+  // Handle undefined/null values
+  if (currentValue === undefined || currentValue === null) {
+    currentValue = actualEmptyValue;
+  }
+
+  // For multiple selection, ensure we have an array
+  if (isMultiple) {
+    if (typeof currentValue === 'string') {
+      // Split comma-separated string into array, but handle empty strings
+      // This handles values coming from EvalModal config like "task1,task2,task3"
+      currentValue =
+        currentValue === ''
+          ? []
+          : currentValue
+              .split(',')
+              .map((item) => item.trim())
+              .filter((item) => item !== '');
+    } else if (!Array.isArray(currentValue)) {
+      // Convert single values to arrays for multiple selection
+      currentValue = currentValue ? [currentValue] : [];
+    }
+    // Ensure we have a clean array with no empty values
+    currentValue = currentValue.filter(
+      (item: any) => item !== null && item !== undefined && item !== '',
+    );
+  } else {
+    // For single selection, ensure we have a string
+    if (Array.isArray(currentValue)) {
+      currentValue = currentValue.length > 0 ? currentValue[0] : '';
+    }
+    currentValue = currentValue || '';
+  }
+
+  // Map enumOptions into simple values
+  const processedOptionsValues =
+    enumOptions?.map((opt) => (typeof opt === 'object' ? opt.value : opt)) ||
+    [];
+
+  const handleChange = (event: any, newValue: any) => {
+    // Handle clearing/empty values properly - this is key for fixing the deletion issue
+    if (newValue === null || newValue === undefined) {
+      onChange(actualEmptyValue);
+      return;
+    }
+
+    // For multiple selection
+    if (isMultiple) {
+      let processedValue = newValue;
+      if (!Array.isArray(processedValue)) {
+        processedValue = processedValue ? [processedValue] : [];
+      }
+      // Filter out empty values
+      processedValue = processedValue.filter(
+        (item: any) => item !== null && item !== undefined && item !== '',
+      );
+
+      // Always allow clearing to empty array/value even if originally had values
+      if (processedValue.length === 0) {
+        onChange(actualEmptyValue);
+      } else {
+        onChange(processedValue);
+      }
+    } else {
+      // For single selection - allow clearing to empty value
+      onChange(newValue === '' ? actualEmptyValue : newValue);
+    }
+  };
 
   return (
-    <>
-      <Autocomplete
-        multiple={_multiple}
-        id={id}
-        placeholder={schema.title || ''}
-        options={processedOptionsValues}
-        getOptionLabel={(option) => option}
-        value={currentValue}
-        onChange={(event, newValue) => {
-          onChange(newValue);
-        }}
-        disabled={disabled || readonly}
-        autoFocus={autofocus}
-      />
-      {/* Hidden input to capture the value on form submission */}
-      <input
-        type="hidden"
-        name={id}
-        value={
-          _multiple
-            ? Array.isArray(currentValue)
-              ? currentValue.join(',')
-              : currentValue
-            : currentValue
-        }
-      />
-    </>
+    <Autocomplete
+      multiple={isMultiple}
+      id={id}
+      placeholder={schema.title || ''}
+      options={processedOptionsValues}
+      getOptionLabel={(option) => String(option || '')}
+      value={currentValue}
+      onChange={handleChange}
+      disabled={disabled || readonly}
+      autoFocus={autofocus}
+      // Enable clearing functionality
+      clearOnEscape
+      blurOnSelect={!isMultiple}
+      // Allow free input and clearing
+      freeSolo={false}
+      // Ensure proper value comparison for clearing to work
+      isOptionEqualToValue={(option, val) => String(option) === String(val)}
+      // Add clear icon
+      clearIcon
+    />
   );
 }
 
@@ -502,11 +551,11 @@ const widgets: RegistryWidgetsType = {
   SelectWidget: CustomSelectSimple,
   AutoCompleteWidget: CustomAutocompleteWidget,
   EvaluationWidget: CustomEvaluationWidget,
-  ModelProviderWidget: ModelProviderWidget,
-  GEvalTasksWidget: GEvalTasksWidget,
+  ModelProviderWidget,
+  GEvalTasksWidget,
 };
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function DynamicPluginForm({
   experimentInfo,
@@ -515,7 +564,7 @@ export default function DynamicPluginForm({
 }: {
   experimentInfo: any;
   plugin: string;
-  config?: any; //Config should be optional in case there was no necessary config
+  config?: any; // Config should be optional in case there was no necessary config
 }) {
   const { data, error, isLoading, mutate } = useSWR(
     experimentInfo?.id &&
@@ -528,7 +577,9 @@ export default function DynamicPluginForm({
     fetcher,
   );
   const [configData, setConfigData] = React.useState<any>(null);
-  //Using use effect here to update the config data when the data or config changes
+  const [formData, setFormData] = React.useState<any>(config || {});
+
+  // Using use effect here to update the config data when the data or config changes
   // Check for 'FILE NOT FOUND' and set safeData accordingly
   const safeData = data === 'FILE NOT FOUND' ? null : data;
 
@@ -536,47 +587,73 @@ export default function DynamicPluginForm({
     if (config && safeData) {
       let parsedData;
       try {
-        parsedData = JSON.parse(safeData); //Parsing data for easy access to parameters
+        parsedData = JSON.parse(safeData); // Parsing data for easy access to parameters
       } catch (e) {
         console.error('Error parsing data', e);
         parsedData = '';
       }
-      //Iterating through the config object and updating the default values in the data
-      Object.keys(config).forEach((key) => {
-        if (
-          parsedData &&
-          parsedData.parameters &&
-          key in parsedData.parameters
-        ) {
-          //   if (parsedData.parameters[key].enum) {
-          //   // Set the enum array such that config[key] is the first element
-          //   const enumArray = parsedData.parameters[key].enum;
-          //   let index = enumArray.indexOf(config[key]);
-          //   if (index > 0) {
-          //     enumArray.unshift(enumArray.splice(index, 1)[0]);
-          //   }
-          //   parsedData.parameters[key].enum = enumArray;
-          // }
-          parsedData.parameters[key].default = config[key];
-        }
-      });
+
+      // Don't modify the schema defaults - keep them intact
+      // The config values will be passed as formData instead
+
       // Delete all keys in parsedData.parameters that start with tflabcustomui_
       Object.keys(parsedData.parameters).forEach((key) => {
         if (key.startsWith('tflabcustomui_')) {
           delete parsedData.parameters[key];
         }
       });
-      // if key is in parsedData.parameters but not in config then delete the key from parsedData.parameters
-      //Schema takes in data as a JSON string
+
+      // Schema takes in data as a JSON string
       setConfigData(JSON.stringify(parsedData));
     } else if (safeData) {
-      setConfigData(safeData); //Setting the config data to the data if there is no config
+      setConfigData(safeData); // Setting the config data to the data if there is no config
     } else {
       setConfigData(null);
     }
   }, [plugin, experimentInfo, config, safeData]);
 
+  // Update formData when config changes
+  React.useEffect(() => {
+    setFormData(config || {});
+  }, [config]);
+
   const schema = useMemo(() => getSchema(configData), [configData]);
+
+  const handleFormChange = (formChangeData: any) => {
+    setFormData(formChangeData.formData);
+
+    // Expose the current form data so parent components can access it
+    // This is important for saving the form data
+    if (window && typeof window === 'object') {
+      (window as any).currentFormData = formChangeData.formData;
+    }
+  };
+
+  // Generate hidden inputs for each form field so they get picked up by parent form
+  const renderHiddenInputs = () => {
+    if (!formData) return null;
+
+    return Object.keys(formData).map((key) => {
+      const value = formData[key];
+      let hiddenValue = value;
+
+      // Handle array values (like from autocomplete) - convert to comma-separated string
+      if (Array.isArray(value)) {
+        hiddenValue = value.join(',');
+      }
+
+      return (
+        <input
+          key={key}
+          type="hidden"
+          name={key}
+          value={hiddenValue || ''}
+          readOnly
+        />
+      );
+    });
+  };
+
   /* Below we wait for "configData" to be sure that defaults are set before rendering
   if we don't do this, then the form is rendered twice and Select elements will not
   honour the second settings for default Value */
@@ -587,19 +664,31 @@ export default function DynamicPluginForm({
       </Typography> */}
       {/* <pre>{JSON.stringify(schema, null, 2)}</pre> */}
       {plugin && configData ? (
-        <Form
-          tagName="div"
-          className="pure-form pure-form-stacked dynamic-plugin-form"
-          schema={schema?.JSONSchema}
-          uiSchema={schema?.uiSchema}
-          validator={validator}
-          children={true} // removes submit button
-          idPrefix=""
-          idSeparator=""
-          id="plugin_parameters"
-          templates={{ FieldTemplate: CustomFieldTemplate, BaseInputTemplate }}
-          widgets={{ ...widgets }}
-        />
+        <>
+          <Form
+            tagName="div"
+            className="pure-form pure-form-stacked dynamic-plugin-form"
+            schema={schema?.JSONSchema}
+            uiSchema={schema?.uiSchema}
+            formData={formData}
+            onChange={handleFormChange}
+            validator={validator}
+            idPrefix=""
+            idSeparator=""
+            id="plugin_parameters"
+            templates={{
+              FieldTemplate: CustomFieldTemplate,
+              BaseInputTemplate,
+            }}
+            widgets={{ ...widgets }}
+            noHtml5Validate
+            showErrorList={false}
+          >
+            <div style={{ display: 'none' }} />
+          </Form>
+          {/* Hidden inputs to make form data available to parent form */}
+          {renderHiddenInputs()}
+        </>
       ) : (
         <div>&nbsp;</div>
       )}

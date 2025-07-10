@@ -376,7 +376,7 @@ function TrainingModalDataTemplatingTab({
       </Typography>
       {applyChatTemplate
         ? renderTemplate('chat')
-        : renderTemplate('parsedData?.training_template_format')}
+        : renderTemplate(parsedData?.training_template_format)}
     </Box>
   );
 }
