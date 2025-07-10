@@ -2,10 +2,12 @@
 
 import Sheet from '@mui/joy/Sheet';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 import EvalJobsTable from './EvalJobsTable.tsx';
 import EvalTasksTable from './EvalTasksTable';
 
-export default function Eval({ experimentInfo, experimentInfoMutate }) {
+export default function Eval({}) {
+  const { experimentInfo } = useExperimentInfo();
   if (!experimentInfo) {
     return 'No experiment selected';
   }

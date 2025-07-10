@@ -39,6 +39,7 @@ import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 
 function ListPluginFiles({
   files,
@@ -147,7 +148,8 @@ function setTheme(editor: any, monaco: any) {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function PluginDetails({ experimentInfo }) {
+export default function PluginDetails() {
+  const { experimentInfo } = useExperimentInfo();
   let { pluginName } = useParams();
   let { state: plugin } = useLocation();
 

@@ -5,9 +5,12 @@ import '@xyflow/react/dist/style.css';
 
 import WorkflowList from './WorkflowList/WorkflowList';
 import WorkflowRuns from './WorkflowRuns/WorkflowRuns';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 // import WorkflowTriggers from './WorkflowTriggers/WorkflowTriggers';
 
-export default function Workflows({ experimentInfo }) {
+export default function Workflows({}) {
+  const { experimentInfo } = useExperimentInfo();
+
   return (
     <Sheet
       sx={{
