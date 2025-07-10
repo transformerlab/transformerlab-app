@@ -85,6 +85,17 @@ export function ExperimentInfoProvider({ connection, children }) {
   );
 }
 
+/**
+ * Custom hook to access experiment info context.
+ * @returns {{
+ *   experimentId: number | null,
+ *   setExperimentId: React.Dispatch<React.SetStateAction<number | null>>,
+ *   experimentInfo: any,
+ *   experimentInfoError: any,
+ *   experimentInfoIsLoading: boolean,
+ *   experimentInfoMutate: (...args: any[]) => Promise<any>
+ * }}
+ */
 export function useExperimentInfo() {
   const context = useContext(ExperimentInfoContext);
 
