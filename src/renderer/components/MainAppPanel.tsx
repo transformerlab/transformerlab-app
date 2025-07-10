@@ -339,8 +339,6 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           path="/experiment/chat"
           element={
             <Interact
-              experimentInfo={experimentInfo}
-              experimentInfoMutate={experimentInfoMutate}
               setRagEngine={setRagEngine}
               mode={selectedInteractSubpage}
               setMode={setSelectedInteractSubpage}
