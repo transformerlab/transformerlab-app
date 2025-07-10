@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import {
   Button,
   FormControl,
@@ -148,6 +149,7 @@ export default function GenerateModal({
   const [selectedDataset, setSelectedDataset] = useState(null);
   const [config, setConfig] = useState({});
   const [hasDatasetKey, setHasDatasetKey] = useState(false);
+  const notification = useNotification();
   const [hasDocumentsKey, setHasDocumentsKey] = useState(false);
   const [hasContextKey, setHasContextKey] = useState(false);
   const [selectedDocs, setSelectedDocs] = useState([]);
@@ -446,6 +448,29 @@ export default function GenerateModal({
       formJson.script_parameters = JSON.parse(JSON.stringify(formJson));
 
       console.log('formJson', formJson);
+
+      // Check if generation model is set to "local" and show notification
+      const rawModel = formJson.script_parameters?.generation_model;
+      const useFallback =
+        !rawModel ||
+        rawModel === 'N/A' ||
+        rawModel === 'local' ||
+        rawModel === 'Local';
+      const generationModel = useFallback
+        ? formJson.script_parameters.model_name || 'N/A'
+        : rawModel;
+
+      if (
+        rawModel.toLowerCase() === 'local' ||
+        generationModel.toLowerCase() === 'local'
+      ) {
+        notification.addNotification({
+          type: 'warning',
+          message:
+            'You have chosen a local model for generation. Please ensure the model is running manually before queueing the task. If not done, the task will start it automatically.',
+        });
+      }
+
       const template_name = formJson.template_name;
       // Run when the currentGenerationId is provided
       if (currentGenerationId && currentGenerationId !== '') {
