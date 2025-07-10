@@ -202,9 +202,9 @@
     }
   },
   "train": {
-    "getSweepConfig": {
+    "getSweepResults": {
       "method": "GET",
-      "path": "train/job/{job_id}/sweep_config"
+      "path": "train/job/{job_id}/sweep_results"
     }
 
   }

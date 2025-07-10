@@ -35,7 +35,7 @@ export default function ViewOutputModalStreaming({
 
   const { data, error, isLoading } = useAPI(
     'train',
-    ['getSweepConfig'],
+    ['getSweepResults'],
     { job_id: jobId },
     { refreshInterval: stopPolling ? 0 : 15000, enabled: jobId !== -1 },
   );
@@ -48,6 +48,34 @@ export default function ViewOutputModalStreaming({
       setTab(0);
     }
   }, [sweeps, tab]);
+
+  const renderResults = (results) => {
+    if (!results || typeof results !== 'object') {
+      return (
+        <Typography level="body-md" sx={{ color: 'gray' }}>
+          No results to display.
+        </Typography>
+      );
+    }
+
+    return (
+      <Box
+        sx={{
+          fontSize: '0.9rem',
+          backgroundColor: '#f5f5f5',
+          padding: '1rem',
+          borderRadius: '8px',
+          overflowY: 'auto',
+        }}
+      >
+        {Object.entries(results).map(([key, value]) => (
+          <Box key={key} sx={{ mb: 1 }}>
+            <strong>{key}</strong>: {JSON.stringify(value)}
+          </Box>
+        ))}
+      </Box>
+    );
+  };
 
   return (
     <Modal
@@ -66,7 +94,7 @@ export default function ViewOutputModalStreaming({
 
         <Tabs value={tab} onChange={(_, newVal) => setTab(newVal)}>
           <TabList>
-            {sweeps && <Tab>Config</Tab>}
+            {sweeps && <Tab>Results</Tab>}
             <Tab>Outputs + Logs</Tab>
           </TabList>
 
@@ -77,30 +105,19 @@ export default function ViewOutputModalStreaming({
             >
               {isLoading && (
                 <Typography level="body-md" sx={{ color: 'gray' }}>
-                  Loading config...
+                  Loading results...
                 </Typography>
               )}
 
-              {!isLoading && !data && (
-                <Typography level="body-md" sx={{ color: 'orange' }}>
-                  Config not available yet. Please wait...
+              {!isLoading && data?.status === 'error' && (
+                <Typography level="body-md" sx={{ color: 'red' }}>
+                  {data.message}
                 </Typography>
               )}
 
-              {data && (
-                <pre
-                  style={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    fontSize: '0.9rem',
-                    backgroundColor: '#f5f5f5',
-                    padding: '1rem',
-                    borderRadius: '8px',
-                  }}
-                >
-                  {JSON.stringify(data, null, 2)}
-                </pre>
-              )}
+              {!isLoading &&
+                data?.status === 'success' &&
+                renderResults(data.data)}
             </TabPanel>
           )}
 
