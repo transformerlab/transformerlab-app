@@ -51,6 +51,7 @@ import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
 import ImportRecipeModal from './ImportRecipeModal';
 import ViewEvalImagesModal from './ViewEvalImagesModal';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -96,7 +97,8 @@ function formatJobConfig(c): ReactElement {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function TrainLoRA({ experimentInfo }) {
+export default function TrainLoRA({}) {
+  const { experimentInfo } = useExperimentInfo();
   const [open, setOpen] = useState(false);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);

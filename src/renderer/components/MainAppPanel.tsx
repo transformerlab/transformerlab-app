@@ -363,34 +363,16 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         />
         <Route path="/experiment/embeddings" element={<Embeddings />} />
         <Route path="/experiment/tokenize" element={<Tokenize />} />
-        <Route
-          path="/experiment/training"
-          element={<TrainLoRA experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route
           path="/experiment/eval"
-          element={
-            <Eval
-              experimentInfo={experimentInfo}
-              addEvaluation={experimentAddEvaluation}
-              experimentInfoMutate={experimentInfoMutate}
-            />
-          }
+          element={<Eval addEvaluation={experimentAddEvaluation} />}
         />
         <Route
           path="/experiment/generate"
-          element={
-            <Generate
-              experimentInfo={experimentInfo}
-              addGeneration={experimentAddGeneration}
-              experimentInfoMutate={experimentInfoMutate}
-            />
-          }
+          element={<Generate addGeneration={experimentAddGeneration} />}
         />
-        <Route
-          path="/experiment/documents"
-          element={<Documents experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/documents" element={<Documents />} />
         <Route
           path="/experiment/rag"
           element={
