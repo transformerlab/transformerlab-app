@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Box, Typography, Sheet, ModalClose, Table } from '@mui/joy';
+import { Modal, Box, Typography, Sheet, ModalDialog, ModalClose, Table } from '@mui/joy';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
@@ -17,13 +17,14 @@ export default function JobDetails({ jobId, onClose }) {
       onClose={onClose}
       sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
     >
-      <Sheet
+      <ModalDialog
         variant="outlined"
         sx={{
           display: 'flex',
           flexDirection: 'column',
           minWidth: 300,
-          maxWidth: '70vw',
+
+          width: '70vw',
           height: '90vh',
           borderRadius: 'md',
           p: 3,
@@ -126,7 +127,7 @@ export default function JobDetails({ jobId, onClose }) {
         ) : (
           <Typography>Loading...</Typography>
         )}
-      </Sheet>
+      </ModalDialog>
     </Modal>
   );
 }
