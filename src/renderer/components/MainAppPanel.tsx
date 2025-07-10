@@ -140,7 +140,7 @@ export default function MainAppPanel({
     ];
   }
   const setFoundation = useCallback(
-    (model) => {
+    (model, additionalConfigs = {}) => {
       let model_name = '';
       let model_filename = '';
 
@@ -175,6 +175,7 @@ export default function MainAppPanel({
               adaptor: '', // Reset adaptor when foundation model changes
               generationParams:
                 '{"temperature": 0.7,"maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
+              ...(additionalConfigs || {}),
             }),
           },
         );

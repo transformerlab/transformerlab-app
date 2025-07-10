@@ -4,7 +4,7 @@ import { Button, CircularProgress } from '@mui/joy';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 interface SelectButtonProps {
-  setFoundation: (model: any) => void;
+  setFoundation: (model: any, additionalConfigs?: any) => void;
   model: any;
   setAdaptor: (name: string) => void;
   setEmbedding?: (model: any) => void;
@@ -62,32 +62,18 @@ export default function SelectButton({
       }
 
       const engines = await resp.json();
+      const additionalConfigs: any = {};
+
       if (engines && engines.length > 0) {
         const engine = engines[0];
-        // Update inferenceParams in experiment config
-        const updateResp = await fetch(
-          chatAPI.Endpoints.Experiment.UpdateConfig(
-            experimentId,
-            'inferenceParams',
-            JSON.stringify({
-              inferenceEngine: engine.uniqueId,
-              inferenceEngineFriendlyName: engine.name || '',
-            }),
-          ),
-        );
-
-        if (!updateResp.ok) {
-          throw new Error(`HTTP error! status: ${updateResp.status}`);
-        }
+        additionalConfigs.inferenceParams = JSON.stringify({
+          inferenceEngine: engine.uniqueId,
+          inferenceEngineFriendlyName: engine.name || '',
+        });
       }
 
-      // Wait a brief moment to ensure the config update is processed
-      await new Promise((resolve) => {
-        setTimeout(resolve, 100);
-      });
-
-      // Now update foundation which will also reset the adaptor
-      setFoundation(model);
+      // Update foundation with inference params in one request
+      setFoundation(model, additionalConfigs);
     } catch (e) {
       // Silently handle errors - user can still set engine manually
       // Error details available in network tab for debugging
