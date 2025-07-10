@@ -34,13 +34,18 @@ import {
 import {
   getFullPath,
   useServerStats,
+  useAPI,
 } from 'renderer/lib/transformerlab-api-sdk';
+import useSWR from 'swr';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
+import { useNotification } from '../../Shared/NotificationSystem';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useAnalytics } from '../../Shared/analytics/AnalyticsContext';
 import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
 import ControlNetModal from './ControlNetModal';
+import JobProgress from '../Train/JobProgress';
 
 type DiffusionProps = {
   experimentInfo: any;
@@ -98,8 +103,23 @@ const samplePrompts = [
   'a whimsical and highly detailed illustration of a miniature world inside a glass terrarium, tiny people tending to giant flowers, a small waterfall, magical realism, storybook style.',
 ];
 
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const analytics = useAnalytics();
+  const { addNotification } = useNotification();
+  const { data: diffusionJobs } = useSWR(
+    chatAPI.Endpoints.Jobs.GetJobsOfType('DIFFUSION', ''),
+    fetcher,
+    { refreshInterval: 2000 },
+  );
+
+  const runningDiffusionJob = diffusionJobs?.find(
+    (job) =>
+      job.status !== 'COMPLETE' &&
+      job.status !== 'FAILED' &&
+      job.status !== 'STOPPED',
+  );
 
   const initialModel = experimentInfo?.config?.foundation || '';
   const adaptor = experimentInfo?.config?.adaptor || '';
@@ -184,6 +204,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   >(null);
   // const [currentStep, setCurrentStep] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
+  const [hasNotifiedMissingPlugin, setHasNotifiedMissingPlugin] =
+    useState(false);
   const experimentId = experimentInfo?.id;
 
   // Helper functions to get the appropriate images based on active tab
@@ -203,6 +225,52 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const isAppleSilicon = () => {
     return server?.device_type === 'apple_silicon';
   };
+
+  const { data: diffusionPlugins, isLoading: diffusionPluginsLoading } = useAPI(
+    'experiment',
+    ['getScriptsOfTypeWithoutFilter'],
+    {
+      experimentId: experimentInfo?.id,
+      type: 'diffusion',
+    },
+    {
+      skip: !experimentInfo?.id,
+    },
+  );
+
+  const isImageDiffusionPluginInstalled = diffusionPlugins
+    ? diffusionPlugins.some((plugin) => plugin.uniqueId === 'image_diffusion')
+    : null;
+
+  useEffect(() => {
+    if (
+      !hasNotifiedMissingPlugin &&
+      !diffusionPluginsLoading &&
+      Array.isArray(diffusionPlugins)
+    ) {
+      const isInstalled = diffusionPlugins.some(
+        (plugin) => plugin.uniqueId === 'image_diffusion',
+      );
+
+      if (!isInstalled) {
+        const timer = setTimeout(() => {
+          addNotification({
+            type: 'danger',
+            message:
+              'The image_diffusion plugin is not installed. Please install it before generating images.',
+          });
+          setHasNotifiedMissingPlugin(true);
+        }, 200); // 1 second delay
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [
+    diffusionPlugins,
+    diffusionPluginsLoading,
+    hasNotifiedMissingPlugin,
+    addNotification,
+  ]);
 
   // Update model when experimentInfo changes
   useEffect(() => {
@@ -1254,7 +1322,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
 
               <Button
                 onClick={handleGenerate}
-                disabled={loading || isStableDiffusion === false}
+                disabled={
+                  loading ||
+                  isStableDiffusion === false ||
+                  !isImageDiffusionPluginInstalled
+                }
                 color="primary"
                 size="lg"
                 startDecorator={loading && <CircularProgress />}
@@ -1479,6 +1551,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
                   <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
                     Generating...
                   </Typography>
+                  {runningDiffusionJob && (
+                    <JobProgress job={runningDiffusionJob} />
+                  )}
 
                   {/* Show current intermediate image if available */}
                   {currentIntermediateImage && (
