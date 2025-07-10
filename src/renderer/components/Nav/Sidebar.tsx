@@ -47,6 +47,7 @@ import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
@@ -305,12 +306,12 @@ src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fi
 }
 
 export default function Sidebar({
-  experimentInfo,
   setExperimentId,
   logsDrawerOpen,
   setLogsDrawerOpen,
   themeSetter,
 }) {
+  const { experimentInfo } = useExperimentInfo();
   const { models, isError, isLoading } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
 

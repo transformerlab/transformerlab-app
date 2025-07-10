@@ -40,6 +40,7 @@ import FoundationHome from './Experiment/Foundation';
 import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -76,12 +77,11 @@ export const PageTracker = () => {
 // On the rightmost side, regardless of what menu items are selected
 // On the leftmost panel.
 export default function MainAppPanel({
-  experimentInfo,
   setExperimentId,
-  experimentInfoMutate,
   setLogsDrawerOpen = null,
 }) {
   const navigate = useNavigate();
+  const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
     useState('chat');
 
