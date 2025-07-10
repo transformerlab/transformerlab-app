@@ -23,7 +23,6 @@ export default function JobDetails({ jobId, onClose }) {
           display: 'flex',
           flexDirection: 'column',
           minWidth: 300,
-
           width: '70vw',
           height: '90vh',
           borderRadius: 'md',
