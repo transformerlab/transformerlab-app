@@ -15,13 +15,10 @@ import {
   Table,
   Typography,
 } from '@mui/joy';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 // fetcher used by SWR
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-interface ExportProps {
-  experimentInfo: any;
-}
 
 interface Plugin {
   uniqueId: string;
@@ -30,7 +27,8 @@ interface Plugin {
   model_architectures: string[];
 }
 
-export default function Export({ experimentInfo }: ExportProps) {
+export default function Export() {
+  const { experimentInfo } = useExperimentInfo();
   const [runningPlugin, setRunningPlugin] = useState<string | null>(null);
   const [exportDetailsJobId, setExportDetailsJobId] = useState<number>(-1);
   const [selectedPlugin, setSelectedPlugin] = useState<Plugin | null>(null);

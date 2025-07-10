@@ -41,10 +41,7 @@ import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
 import ControlNetModal from './ControlNetModal';
-
-type DiffusionProps = {
-  experimentInfo: any;
-};
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -98,7 +95,8 @@ const samplePrompts = [
   'a whimsical and highly detailed illustration of a miniature world inside a glass terrarium, tiny people tending to giant flowers, a small waterfall, magical realism, storybook style.',
 ];
 
-export default function Diffusion({ experimentInfo }: DiffusionProps) {
+export default function Diffusion() {
+  const { experimentInfo } = useExperimentInfo();
   const analytics = useAnalytics();
 
   const initialModel = experimentInfo?.config?.foundation || '';

@@ -375,66 +375,22 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/experiment/documents" element={<Documents />} />
         <Route
           path="/experiment/rag"
-          element={
-            <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
-          }
+          element={<Rag setRagEngine={setRagEngine} />}
         />
-        <Route
-          path="/experiment/export"
-          element={<Export experimentInfo={experimentInfo} />}
-        />
-        <Route
-          path="/experiment/generate"
-          element={<Generate experimentInfo={experimentInfo} />}
-        />
-        <Route
-          path="/experiment/diffusion"
-          element={<Diffusion experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/export" element={<Export />} />
+        <Route path="/experiment/diffusion" element={<Diffusion />} />
         <Route
           path="/plugins"
-          element={
-            <Plugins
-              experimentInfo={experimentInfo}
-              setLogsDrawerOpen={setLogsDrawerOpen}
-            />
-          }
+          element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
         />
-        <Route
-          path="/plugins/:pluginName"
-          element={<PluginDetails experimentInfo={experimentInfo} />}
-        />
+        <Route path="/plugins/:pluginName" element={<PluginDetails />} />
         <Route path="/api" element={<Api />} />
-        <Route
-          path="/experiment/settings"
-          element={
-            <Settings
-              experimentInfo={experimentInfo}
-              setExperimentId={setExperimentId}
-              experimentInfoMutate={experimentInfoMutate}
-            />
-          }
-        />
-        <Route
-          path="/zoo"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="groups" />}
-        />
-        <Route
-          path="/zoo/local"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="local" />}
-        />
-        <Route
-          path="/zoo/generated"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="generated" />}
-        />
-        <Route
-          path="/zoo/store"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
-        />
-        <Route
-          path="/zoo/groups"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="groups" />}
-        />
+        <Route path="/experiment/settings" element={<Settings />} />
+        <Route path="/zoo" element={<ModelZoo tab="groups" />} />
+        <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
+        <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
+        <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
+        <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
         <Route path="/data" element={<Data />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
