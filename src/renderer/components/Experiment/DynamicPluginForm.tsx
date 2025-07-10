@@ -637,9 +637,20 @@ export default function DynamicPluginForm({
       const value = formData[key];
       let hiddenValue = value;
 
-      // Handle array values (like from autocomplete) - convert to comma-separated string
+      // Handle array values
       if (Array.isArray(value)) {
-        hiddenValue = value.join(',');
+        // Check if array contains objects (like from GEvalTasksWidget)
+        if (
+          value.length > 0 &&
+          typeof value[0] === 'object' &&
+          value[0] !== null
+        ) {
+          // Serialize objects as JSON
+          hiddenValue = JSON.stringify(value);
+        } else {
+          // For simple arrays (like from autocomplete) - convert to comma-separated string
+          hiddenValue = value.join(',');
+        }
       }
 
       return (
