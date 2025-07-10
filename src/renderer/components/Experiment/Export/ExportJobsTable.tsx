@@ -12,6 +12,7 @@ import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import JobProgress from '../Train/JobProgress';
+import SafeJSONParse from '../../Shared/SafeJSONParse';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -35,6 +36,7 @@ interface Job {
     exporter_name: string;
     plugin?: string;
     output_model_name: string;
+    config?: string | object; // Add config field which might be JSON string or object
     start_time?: string;
     end_time?: string;
     completion_status?: string;
@@ -89,38 +91,56 @@ const ExportJobsTable = ({ experimentInfo }: ExportJobsTableProps) => {
             </tr>
           </thead>
           <tbody>
-            {jobs?.map((job: Job) => (
-              <tr key={job.id}>
-                <td>{job.id}</td>
-                <td>{job?.job_data?.plugin}</td>
-                <td>
-                  <JobProgress job={job} />
-                </td>
-                <td>{job?.job_data?.output_model_name}</td>
-                <td>
-                  <ButtonGroup
-                    variant="soft"
-                    sx={{ justifyContent: 'flex-end' }}
-                  >
-                    <Button
-                      onClick={() => {
-                        setViewOutputFromJob(job?.id);
-                      }}
+            {jobs?.map((job: Job) => {
+              return (
+                <tr key={job.id}>
+                  <td>{job.id}</td>
+                  <td>{job?.job_data?.plugin}</td>
+                  <td>
+                    <JobProgress job={job} />
+                  </td>
+                  <td>
+                    {(() => {
+                      // Try to get output model name from job_data first
+                      let outputModelName = job?.job_data?.output_model_name;
+
+                      // If not found, try to parse it from config using SafeJSONParse
+                      if (!outputModelName && job?.job_data?.config) {
+                        const config = SafeJSONParse(
+                          job.job_data.config,
+                          {} as any,
+                        );
+                        outputModelName = config?.output_model_name;
+                      }
+
+                      return outputModelName || 'N/A';
+                    })()}
+                  </td>
+                  <td>
+                    <ButtonGroup
+                      variant="soft"
+                      sx={{ justifyContent: 'flex-end' }}
                     >
-                      View Output
-                    </Button>
-                    <IconButton variant="plain">
-                      <Trash2Icon
-                        onClick={async () => {
-                          await fetch(chatAPI.Endpoints.Jobs.Delete(job?.id));
-                          jobsMutate();
+                      <Button
+                        onClick={() => {
+                          setViewOutputFromJob(job?.id);
                         }}
-                      />
-                    </IconButton>
-                  </ButtonGroup>
-                </td>
-              </tr>
-            ))}
+                      >
+                        View Output
+                      </Button>
+                      <IconButton variant="plain">
+                        <Trash2Icon
+                          onClick={async () => {
+                            await fetch(chatAPI.Endpoints.Jobs.Delete(job?.id));
+                            jobsMutate();
+                          }}
+                        />
+                      </IconButton>
+                    </ButtonGroup>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       </Sheet>

@@ -51,9 +51,7 @@ export default function ViewOutputModalStreaming({
     : chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
 
   // Log output endpoint for debugging
-  useEffect(() => {
-    console.log('Output endpoint:', outputEndpoint);
-  }, [outputEndpoint]);
+  useEffect(() => {}, [outputEndpoint]);
 
   return (
     <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
