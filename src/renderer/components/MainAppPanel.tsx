@@ -76,12 +76,9 @@ export const PageTracker = () => {
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
 // On the leftmost panel.
-export default function MainAppPanel({
-  setExperimentId,
-  setLogsDrawerOpen = null,
-}) {
-  const navigate = useNavigate();
-  const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
+export default function MainAppPanel({ setLogsDrawerOpen = null }) {
+  const { experimentInfo, experimentInfoMutate, setExperimentId } =
+    useExperimentInfo();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
     useState('chat');
 

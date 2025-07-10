@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
@@ -21,82 +21,154 @@ import DraggableElipsis from './components/Shared/DraggableEllipsis';
 // import OutputTerminal from './components/OutputTerminal';
 import AutoUpdateModal from './components/AutoUpdateModal';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
-import { ExperimentInfoProvider } from './lib/ExperimentInfoContext';
+import {
+  ExperimentInfoProvider,
+  useExperimentInfo,
+} from './lib/ExperimentInfoContext';
+
+type AppContentProps = {
+  connection: string;
+  logsDrawerOpen: boolean;
+  setLogsDrawerOpen: (open: boolean) => void;
+  logsDrawerHeight: number;
+  setLogsDrawerHeight: (height: number) => void;
+  themeSetter: (name: string) => void;
+  setSSHConnection: (conn: any) => void;
+  setConnection: (conn: string) => void;
+};
+
+function AppContent({
+  connection,
+  logsDrawerOpen,
+  setLogsDrawerOpen,
+  logsDrawerHeight,
+  setLogsDrawerHeight,
+  themeSetter,
+  setSSHConnection,
+  setConnection,
+}: AppContentProps) {
+  const onOutputDrawerDrag = useCallback(
+    (pos: { y: number }) => {
+      const ypos = pos.y;
+      let bottom = window.innerHeight - ypos;
+      if (bottom < 120) bottom = 120;
+      if (bottom > window.innerHeight / 2) bottom = window.innerHeight / 2;
+      setLogsDrawerHeight(bottom);
+    },
+    [setLogsDrawerHeight],
+  );
+
+  return (
+    <Box
+      component="main"
+      className="MainContent"
+      sx={() => ({
+        display: 'grid',
+        height: '100dvh',
+        width: '100dvw',
+        overflow: 'hidden',
+        gridTemplateColumns: '180px 1fr',
+        gridTemplateRows: logsDrawerOpen
+          ? `48px 5fr ${logsDrawerHeight}px`
+          : '48px 5fr 18px',
+        gridTemplateAreas: `
+          "sidebar header"
+          "sidebar main"
+          "sidebar footer"
+        `,
+      })}
+    >
+      <Header connection={connection} setConnection={setConnection} />
+      <Sidebar
+        logsDrawerOpen={logsDrawerOpen}
+        setLogsDrawerOpen={setLogsDrawerOpen as any}
+        themeSetter={themeSetter}
+      />
+      <Box
+        sx={{
+          px: {
+            md: 3,
+            lg: 4,
+          },
+          pt: 2,
+          pb: 0,
+          height: '100%',
+          gridArea: 'main',
+          overflow: 'hidden',
+          backgroundColor: 'var(--joy-palette-background-surface)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+        id="main-app-panel"
+      >
+        <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
+      </Box>
+      <Box
+        sx={{
+          gridArea: 'footer',
+          display: 'flex',
+          flexDirection: 'column',
+          height: logsDrawerOpen ? '100%' : '18px',
+          width: '100%',
+          overflow: 'hidden',
+          alignItems: 'stretch',
+          backgroundColor: 'var(--joy-palette-background-level3)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            height: '18px',
+          }}
+        >
+          <div>&nbsp;</div>
+          {logsDrawerOpen ? (
+            <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
+          ) : (
+            <>&nbsp;</>
+          )}
+          <IconButton
+            sx={{ padding: 0, margin: 0, minHeight: 0 }}
+            onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
+          >
+            {logsDrawerOpen ? (
+              <ChevronDownIcon size="18px" />
+            ) : (
+              <ChevronUpIcon size="18px" />
+            )}
+          </IconButton>
+        </div>
+        <Box
+          sx={{
+            height: logsDrawerOpen ? '100%' : '0px',
+            overflow: 'hidden',
+            border: logsDrawerOpen ? '10px solid #444' : '0',
+            padding: logsDrawerOpen ? '6px' : '0',
+            backgroundColor: '#000',
+            width: '100%',
+          }}
+        >
+          <OutputTerminal initialMessage="** Running a Model will Display Output Here **" />
+        </Box>
+      </Box>
+      <AutoUpdateModal />
+      <LoginModal
+        setServer={setConnection}
+        connection={connection}
+        setTerminalDrawerOpen={setLogsDrawerOpen}
+        setSSHConnection={setSSHConnection}
+      />
+    </Box>
+  );
+}
 
 export default function App() {
-  const [experimentId, setExperimentId] = useState<number | null>(null);
-
   const [connection, setConnection] = useState('');
-
-  const [sshConnection, setSSHConnection] = useState(null);
-
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
-
   const [theme, setTheme] = useState(customTheme);
-
-  useEffect(() => {
-    async function getSavedExperimentId() {
-      const connectionWithoutDots = connection.replace(/\./g, '-');
-      // window.storage should be defined by cloud or electron preload script
-      const storedExperimentId = window.storage
-        ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
-        : null; // Changed default to null if no storage or no ID found
-      if (storedExperimentId) {
-        setExperimentId(Number(storedExperimentId));
-      } else if (connection !== '') {
-        // If there's no stored experiment and we are connected
-        // then default to to the first experiment
-        setExperimentId(1);
-      } else {
-        setExperimentId(null); // Ensure it's null if no connection
-      }
-    }
-
-    if (!window.TransformerLab) {
-      window.TransformerLab = {};
-    }
-
-    window.TransformerLab.API_URL = connection;
-
-    if (connection === '') {
-      setExperimentId(null);
-      return;
-    }
-
-    getSavedExperimentId();
-  }, [connection]);
-
-  useEffect(() => {
-    // if there is no experiment or window.storage isn't setup then skip
-    if (experimentId === null || !window.storage) return;
-    const connectionWithoutDots = connection.replace(/\./g, '-');
-    window.storage.set(`experimentId.${connectionWithoutDots}`, experimentId);
-  }, [experimentId, connection]);
-
-  useEffect(() => {
-    if (logsDrawerOpen) {
-      setLogsDrawerHeight(200);
-    }
-  }, [logsDrawerOpen]);
-
-  const onOutputDrawerDrag = useCallback((pos) => {
-    const ypos = pos.y;
-    // calculate how far from the bottom of the screen that ypos is:
-    let bottom = window.innerHeight - ypos;
-
-    // now clamp the height so it is between 0 and the screen height - 200px
-    // (200px is the minimum height of the logs drawer)
-    if (bottom < 120) {
-      bottom = 120;
-    }
-    if (bottom > window.innerHeight / 2) {
-      bottom = window.innerHeight / 2;
-    }
-
-    // now set the height of the logs drawer to be that distance
-    setLogsDrawerHeight(bottom);
-  }, []);
 
   const themeSetter = useCallback((name: string) => {
     if (name === 'purple') {
@@ -110,115 +182,17 @@ export default function App() {
     <NotificationProvider>
       <CssVarsProvider disableTransitionOnChange theme={theme}>
         <CssBaseline />
-        {/* Wrap your main application content with ExperimentInfoProvider */}
-        <ExperimentInfoProvider experimentId={experimentId}>
-          <Box
-            component="main"
-            className="MainContent"
-            sx={() => ({
-              display: 'grid',
-              height: '100dvh',
-              width: '100dvw',
-              overflow: 'hidden',
-              gridTemplateColumns: '180px 1fr',
-              gridTemplateRows: logsDrawerOpen
-                ? `48px 5fr ${logsDrawerHeight}px`
-                : '48px 5fr 18px',
-              gridTemplateAreas: `
-                "sidebar header"
-                "sidebar main"
-                "sidebar footer"
-              `,
-              // backgroundColor: (theme) => theme.vars.palette.background.surface,
-            })}
-          >
-            <Header connection={connection} setConnection={setConnection} />
-            <Sidebar
-              setExperimentId={setExperimentId}
-              logsDrawerOpen={logsDrawerOpen}
-              setLogsDrawerOpen={setLogsDrawerOpen}
-              themeSetter={themeSetter}
-            />
-            <Box
-              sx={{
-                px: {
-                  md: 3,
-                  lg: 4,
-                },
-                pt: 2,
-                pb: 0,
-                height: '100%',
-                gridArea: 'main',
-                overflow: 'hidden',
-                backgroundColor: 'var(--joy-palette-background-surface)',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-              id="main-app-panel"
-            >
-              <MainAppPanel
-                setExperimentId={setExperimentId}
-                setLogsDrawerOpen={setLogsDrawerOpen}
-              />
-            </Box>
-            <Box
-              sx={{
-                gridArea: 'footer',
-                display: 'flex',
-                flexDirection: 'column',
-                height: logsDrawerOpen ? '100%' : '18px',
-                width: '100%',
-                overflow: 'hidden',
-                alignItems: 'stretch',
-                backgroundColor: 'var(--joy-palette-background-level3)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  height: '18px',
-                }}
-              >
-                <div>&nbsp;</div>
-                {logsDrawerOpen ? (
-                  <DraggableElipsis notifyOnMove={onOutputDrawerDrag} />
-                ) : (
-                  <>&nbsp;</>
-                )}
-                <IconButton
-                  sx={{ padding: 0, margin: 0, minHeight: 0 }}
-                  onClick={() => setLogsDrawerOpen(!logsDrawerOpen)}
-                >
-                  {logsDrawerOpen ? (
-                    <ChevronDownIcon size="18px" />
-                  ) : (
-                    <ChevronUpIcon size="18px" />
-                  )}
-                </IconButton>
-              </div>
-              <Box
-                sx={{
-                  height: logsDrawerOpen ? '100%' : '0px',
-                  overflow: 'hidden',
-                  border: logsDrawerOpen ? '10px solid #444' : '0',
-                  padding: logsDrawerOpen ? '6px' : '0',
-                  backgroundColor: '#000',
-                  width: '100%',
-                }}
-              >
-                <OutputTerminal initialMessage="** Running a Model will Display Output Here **" />
-              </Box>
-            </Box>
-            <AutoUpdateModal />
-            <LoginModal
-              setServer={setConnection}
-              connection={connection}
-              setTerminalDrawerOpen={setLogsDrawerOpen}
-              setSSHConnection={setSSHConnection}
-            />
-          </Box>
+        <ExperimentInfoProvider connection={connection}>
+          <AppContent
+            connection={connection}
+            logsDrawerOpen={logsDrawerOpen}
+            setLogsDrawerOpen={setLogsDrawerOpen}
+            logsDrawerHeight={logsDrawerHeight}
+            setLogsDrawerHeight={setLogsDrawerHeight}
+            themeSetter={themeSetter}
+            setSSHConnection={() => {}}
+            setConnection={setConnection}
+          />
         </ExperimentInfoProvider>
       </CssVarsProvider>
     </NotificationProvider>

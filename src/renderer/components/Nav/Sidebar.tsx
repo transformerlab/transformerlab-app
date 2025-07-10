@@ -306,12 +306,11 @@ src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fi
 }
 
 export default function Sidebar({
-  setExperimentId,
   logsDrawerOpen,
   setLogsDrawerOpen,
   themeSetter,
 }) {
-  const { experimentInfo } = useExperimentInfo();
+  const { experimentInfo, setExperimentId } = useExperimentInfo();
   const { models, isError, isLoading } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
 
@@ -363,11 +362,7 @@ export default function Sidebar({
       >
         {DEV_MODE && <>Transformer Lab v{window.platform?.version}</>}
       </div>
-      <SelectExperimentMenu
-        experimentInfo={experimentInfo}
-        setExperimentId={setExperimentId}
-        models={models}
-      />
+      <SelectExperimentMenu models={models} />
       <ExperimentMenuItems
         DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
