@@ -302,10 +302,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
       <PageTracker />
       <Routes>
         <Route path="/" element={<Welcome />} />
-        <Route
-          path="/experiment/notes"
-          element={<ExperimentNotes experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/notes" element={<ExperimentNotes />} />
         <Route
           path="/experiment/model"
           element={
