@@ -41,6 +41,7 @@ import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import SafeJSONParse from './Shared/SafeJSONParse';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -87,7 +88,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
   // Extract pluginId at the top level
   const inferenceParams = experimentInfo?.config?.inferenceParams;
   const pluginId = inferenceParams
-    ? JSON.parse(inferenceParams)?.inferenceEngine
+    ? SafeJSONParse(inferenceParams)?.inferenceEngine
     : null;
 
   // Use SWR at the top level, not inside useEffect
@@ -124,7 +125,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
     modelData !== 'undefined' &&
     modelData !== 'FILE NOT FOUND'
   ) {
-    modelSupports = JSON.parse(modelData)?.supports || [
+    modelSupports = SafeJSONParse(modelData)?.supports || [
       'chat',
       'completion',
       'rag',
