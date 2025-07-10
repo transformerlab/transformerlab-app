@@ -324,10 +324,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
             />
           }
         />
-        <Route
-          path="/experiment/workflows"
-          element={<Workflows experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/workflows" element={<Workflows />} />
         <Route
           path="/experiment/prompt"
           element={
