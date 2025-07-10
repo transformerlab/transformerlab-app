@@ -485,6 +485,80 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     };
   };
 
+  const startPollingForJsonResult = (
+    experimentId: string,
+    genId: string,
+    onSuccess: (data: any) => void,
+    onError: (message: string) => void,
+  ) => {
+    let isActive = true;
+    const pollInterval = 1000;
+    let pollTimeoutId: number;
+
+    const poll = async () => {
+      if (!isActive) return;
+
+      try {
+        const url = getFullPath('diffusion', ['getFile'], {
+          experimentId,
+          generationId: genId,
+        });
+
+        const response = await fetch(url);
+        if (response.ok) {
+          const json = await response.json();
+          onSuccess(json);
+          return; // Stop polling
+        }
+      } catch (e) {
+        // Continue polling unless hard failure
+        console.warn('JSON polling error:', e);
+      }
+
+      // Retry
+      if (isActive) {
+        pollTimeoutId = window.setTimeout(poll, pollInterval);
+      }
+    };
+
+    pollTimeoutId = window.setTimeout(poll, pollInterval);
+
+    // Cleanup function
+    return () => {
+      isActive = false;
+      if (pollTimeoutId) {
+        clearTimeout(pollTimeoutId);
+      }
+    };
+  };
+
+  const waitForJobCompletion = async (jobId: string, genId: string) => {
+    const pollInterval = 2000;
+
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          const res = await fetch(
+            chatAPI.Endpoints.Jobs.Get(jobId), // Already used in your `useSWR`
+            { method: 'GET' },
+          );
+          const job = await res.json();
+          if (job?.status === 'COMPLETE') {
+            resolve(job);
+          } else if (job?.status === 'FAILED' || job?.status === 'STOPPED') {
+            reject(new Error('Job failed or was stopped'));
+          } else {
+            setTimeout(poll, pollInterval);
+          }
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      poll();
+    });
+  };
+
   // Stop polling when loading becomes false
   useEffect(() => {
     if (!loading && pollingCleanupRef.current) {
@@ -582,38 +656,46 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
           body: JSON.stringify(requestBody),
         },
       );
-      const data = await response.json();
-      if (data.error_code !== 0) {
-        setError(data.detail);
-        // Stop polling on error
-        if (pollingCleanupRef.current) pollingCleanupRef.current();
-        pollingCleanupRef.current = null;
-      } else {
-        // Fetch all generated images
-        const imageUrls: string[] = [];
-        for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getFullPath('diffusion', ['getImage'], {
-            experimentId: experimentId,
-            imageId: data.id,
-            index: i,
-          });
-          imageUrls.push(imageUrl);
-        }
-        setCurrentImages(imageUrls);
-        setCurrentGenerationData(data);
+      const initData = await response.json();
+      const jobId = initData.job_id;
 
-        // Stop polling when generation is complete
-        if (pollingCleanupRef.current) pollingCleanupRef.current();
-        pollingCleanupRef.current = null;
-      }
+      await waitForJobCompletion(jobId, genId); // wait until job is COMPLETE
+      startPollingForJsonResult(
+        experimentId,
+        genId,
+        (data) => {
+          if (data.error_code !== 0) {
+            setError(data.detail || 'Error in generation result.');
+          } else {
+            const imageUrls: string[] = [];
+            for (let i = 0; i < data.num_images; i++) {
+              const imageUrl = getFullPath('diffusion', ['getImage'], {
+                experimentId: experimentId,
+                imageId: data.id,
+                index: i,
+              });
+              imageUrls.push(imageUrl);
+            }
+
+            setCurrentImages(imageUrls);
+            setCurrentGenerationData(data);
+          }
+
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+          setLoading(false);
+        },
+        (message) => {
+          setError(message);
+          setLoading(false);
+        },
+      );
     } catch (e) {
       setError('Failed to generate image');
       setIsPolling(false);
       // Stop polling on error
       if (pollingCleanupRef.current) pollingCleanupRef.current();
       pollingCleanupRef.current = null;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -624,6 +706,11 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setCurrentGenerationData(null);
     setCurrentImageIndex(0); // Reset to first image
     try {
+      const genId = await getGenerationId();
+      if (!genId) {
+        setError('Failed to initialize generation');
+        return;
+      }
       analytics.track('Inpainting Generated', {
         model,
       });
@@ -638,6 +725,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         upscale,
         upscale_factor: Number(upscaleFactor),
         num_images: Number(inpaintingNumImages) || 1, // Default to 1 if not specified
+        generation_id: genId, // Include the generation ID
       };
 
       // Add inpainting parameters
@@ -676,23 +764,40 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
           body: JSON.stringify(requestBody),
         },
       );
-      const data = await response.json();
-      if (data.error_code !== 0) {
-        setError(data.detail || 'Error generating inpainting image');
-      } else {
-        // Fetch all generated images
-        const imageUrls: string[] = [];
-        for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getFullPath('diffusion', ['getImage'], {
-            experimentId: experimentId,
-            imageId: data.id,
-            index: i,
-          });
-          imageUrls.push(imageUrl);
-        }
-        setInpaintingImages(imageUrls);
-        setCurrentGenerationData(data);
-      }
+      const initData = await response.json();
+      const jobId = initData.job_id;
+
+      await waitForJobCompletion(jobId, genId); // wait until job is COMPLETE
+      startPollingForJsonResult(
+        experimentId,
+        genId,
+        (data) => {
+          if (data.error_code !== 0) {
+            setError(data.detail || 'Error in generation result.');
+          } else {
+            const imageUrls: string[] = [];
+            for (let i = 0; i < data.num_images; i++) {
+              const imageUrl = getFullPath('diffusion', ['getImage'], {
+                experimentId: experimentId,
+                imageId: data.id,
+                index: i,
+              });
+              imageUrls.push(imageUrl);
+            }
+
+            setInpaintingImages(imageUrls);
+            setCurrentGenerationData(data);
+          }
+
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+          setLoading(false);
+        },
+        (message) => {
+          setError(message);
+          setLoading(false);
+        },
+      );
     } catch (e) {
       setError('Failed to generate image');
     } finally {

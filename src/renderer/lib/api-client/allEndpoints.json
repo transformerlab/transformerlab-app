@@ -200,6 +200,10 @@
       "method": "DELETE",
       "path": "experiment/{experimentId}/diffusion/history"
     },
+    "getFile": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/diffusion/get_file/{generationId}"
+    },
     "createDataset": {
       "method": "POST",
       "path": "experiment/{experimentId}/diffusion/dataset/create"
