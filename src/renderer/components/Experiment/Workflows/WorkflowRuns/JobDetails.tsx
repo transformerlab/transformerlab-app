@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Box, Typography, Sheet, ModalDialog, ModalClose, Table } from '@mui/joy';
+import { Modal, Box, Typography, ModalDialog, ModalClose, Table } from '@mui/joy';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
