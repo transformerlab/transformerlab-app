@@ -27,8 +27,10 @@ import {
 } from 'lucide-react';
 
 import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
-
+import useSWR from 'swr';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import JobProgress from '../Train/JobProgress';
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
 import HistoryImageSelector from './HistoryImageSelector';
 
@@ -146,6 +148,20 @@ export default function Inpainting({
   const [maskRenderStyle, setMaskRenderStyle] = useState('red');
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const fetcher = (url) => fetch(url).then((res) => res.json());
+
+  const { data: diffusionJobs } = useSWR(
+    chatAPI.Endpoints.Jobs.GetJobsOfType('DIFFUSION', ''),
+    fetcher,
+    { refreshInterval: 2000 },
+  );
+
+  const runningDiffusionJob = diffusionJobs?.find(
+    (job) =>
+      job.status !== 'COMPLETE' &&
+      job.status !== 'FAILED' &&
+      job.status !== 'STOPPED',
+  );
 
   // Calculate actual image dimensions and canvas positioning
   const updateCanvasDimensions = useCallback(() => {
@@ -768,6 +784,14 @@ export default function Inpainting({
         )}
 
         {/* Generated Images */}
+        {loading && runningDiffusionJob && (
+          <Box sx={{ mt: 2 }}>
+            <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
+              Generating...
+            </Typography>
+            <JobProgress job={runningDiffusionJob} />
+          </Box>
+        )}
         {generatedImages.length > 0 && (
           <Stack spacing={2} sx={{ height: '50%' }}>
             <Typography level="h4">Generated Results</Typography>

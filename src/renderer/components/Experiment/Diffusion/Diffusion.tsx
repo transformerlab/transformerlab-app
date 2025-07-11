@@ -34,14 +34,24 @@ import {
 import {
   getFullPath,
   useServerStats,
+  useAPI,
 } from 'renderer/lib/transformerlab-api-sdk';
+import useSWR from 'swr';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
+import { useNotification } from '../../Shared/NotificationSystem';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useAnalytics } from '../../Shared/analytics/AnalyticsContext';
 import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
 import ControlNetModal from './ControlNetModal';
+import JobProgress from '../Train/JobProgress';
+
+type DiffusionProps = {
+  experimentInfo: any;
+};
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -95,9 +105,24 @@ const samplePrompts = [
   'a whimsical and highly detailed illustration of a miniature world inside a glass terrarium, tiny people tending to giant flowers, a small waterfall, magical realism, storybook style.',
 ];
 
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function Diffusion() {
   const { experimentInfo } = useExperimentInfo();
   const analytics = useAnalytics();
+  const { addNotification } = useNotification();
+  const { data: diffusionJobs } = useSWR(
+    chatAPI.Endpoints.Jobs.GetJobsOfType('DIFFUSION', ''),
+    fetcher,
+    { refreshInterval: 2000 },
+  );
+
+  const runningDiffusionJob = diffusionJobs?.find(
+    (job) =>
+      job.status !== 'COMPLETE' &&
+      job.status !== 'FAILED' &&
+      job.status !== 'STOPPED',
+  );
 
   const initialModel = experimentInfo?.config?.foundation || '';
   const adaptor = experimentInfo?.config?.adaptor || '';
@@ -182,6 +207,9 @@ export default function Diffusion() {
   >(null);
   // const [currentStep, setCurrentStep] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
+  const [hasNotifiedMissingPlugin, setHasNotifiedMissingPlugin] =
+    useState(false);
+  const experimentId = experimentInfo?.id;
 
   // Helper functions to get the appropriate images based on active tab
   const getCurrentImages = () => {
@@ -200,6 +228,52 @@ export default function Diffusion() {
   const isAppleSilicon = () => {
     return server?.device_type === 'apple_silicon';
   };
+
+  const { data: diffusionPlugins, isLoading: diffusionPluginsLoading } = useAPI(
+    'experiment',
+    ['getScriptsOfTypeWithoutFilter'],
+    {
+      experimentId: experimentInfo?.id,
+      type: 'diffusion',
+    },
+    {
+      skip: !experimentInfo?.id,
+    },
+  );
+
+  const isImageDiffusionPluginInstalled = diffusionPlugins
+    ? diffusionPlugins.some((plugin) => plugin.uniqueId === 'image_diffusion')
+    : null;
+
+  useEffect(() => {
+    if (
+      !hasNotifiedMissingPlugin &&
+      !diffusionPluginsLoading &&
+      Array.isArray(diffusionPlugins)
+    ) {
+      const isInstalled = diffusionPlugins.some(
+        (plugin) => plugin.uniqueId === 'image_diffusion',
+      );
+
+      if (!isInstalled) {
+        const timer = setTimeout(() => {
+          addNotification({
+            type: 'danger',
+            message:
+              'The image_diffusion plugin is not installed. Please install it before generating images.',
+          });
+          setHasNotifiedMissingPlugin(true);
+        }, 200); // 1 second delay
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [
+    diffusionPlugins,
+    diffusionPluginsLoading,
+    hasNotifiedMissingPlugin,
+    addNotification,
+  ]);
 
   // Update model when experimentInfo changes
   useEffect(() => {
@@ -229,7 +303,9 @@ export default function Diffusion() {
     setIsImg2ImgEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -248,7 +324,9 @@ export default function Diffusion() {
     setIsInpaintingEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -324,7 +402,9 @@ export default function Diffusion() {
   const getGenerationId = async (): Promise<string | null> => {
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['generateId'], {}),
+        getFullPath('diffusion', ['generateId'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -360,6 +440,7 @@ export default function Diffusion() {
       // Poll for the latest step image (backend overwrites the same step.png file)
       try {
         const baseUrl = getFullPath('diffusion', ['getImage'], {
+          experimentId: experimentId,
           imageId: genId,
           index: 0,
         });
@@ -405,6 +486,84 @@ export default function Diffusion() {
         URL.revokeObjectURL(lastImageUrl);
       }
     };
+  };
+
+  const startPollingForJsonResult = (
+    experimentId: string,
+    genId: string,
+    onSuccess: (data: any) => void,
+    onError: (message: string) => void,
+  ) => {
+    let isActive = true;
+    const pollInterval = 1000;
+    let pollTimeoutId: number;
+
+    const poll = async () => {
+      if (!isActive) return;
+
+      try {
+        const url = getFullPath('diffusion', ['getFile'], {
+          experimentId,
+          generationId: genId,
+        });
+
+        const response = await fetch(url);
+        if (response.ok) {
+          const json = await response.json();
+          onSuccess(json);
+          return; // Stop polling
+        }
+      } catch (e) {
+        // Continue polling unless hard failure
+        console.warn('JSON polling error:', e);
+      }
+
+      // Retry
+      if (isActive) {
+        pollTimeoutId = window.setTimeout(poll, pollInterval);
+      }
+    };
+
+    pollTimeoutId = window.setTimeout(poll, pollInterval);
+
+    // Cleanup function
+    return () => {
+      isActive = false;
+      if (pollTimeoutId) {
+        clearTimeout(pollTimeoutId);
+      }
+    };
+  };
+
+  const waitForJobCompletion = async (
+    jobId: string,
+  ): Promise<'COMPLETE' | 'FAILED' | 'STOPPED' | 'UNKNOWN'> => {
+    const pollInterval = 2000;
+
+    return new Promise((resolve) => {
+      const poll = async () => {
+        try {
+          const res = await fetch(chatAPI.Endpoints.Jobs.Get(jobId), {
+            method: 'GET',
+          });
+          const job = await res.json();
+
+          if (job?.status === 'COMPLETE') {
+            resolve('COMPLETE');
+          } else if (job?.status === 'FAILED') {
+            resolve('FAILED');
+          } else if (job?.status === 'STOPPED') {
+            resolve('STOPPED');
+          } else {
+            setTimeout(poll, pollInterval);
+          }
+        } catch {
+          resolve('UNKNOWN');
+        }
+      };
+
+      poll();
+    });
   };
 
   // Stop polling when loading becomes false
@@ -496,43 +655,67 @@ export default function Diffusion() {
         Number(numSteps),
       );
 
-      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-      const data = await response.json();
+      const response = await fetch(
+        getFullPath('diffusion', ['generate'], { experimentId: experimentId }),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
+      const initData = await response.json();
+      const jobId = initData.job_id;
 
-      if (data.error_code !== 0) {
-        setError(data.detail);
-        // Stop polling on error
+      const jobStatus = await waitForJobCompletion(jobId);
+      if (jobStatus !== 'COMPLETE') {
+        setError(`Job ${jobStatus.toLowerCase()}`);
+        setLoading(false);
+        setIsPolling(false);
         if (pollingCleanupRef.current) pollingCleanupRef.current();
         pollingCleanupRef.current = null;
-      } else {
-        // Fetch all generated images
-        const imageUrls: string[] = [];
-        for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getFullPath('diffusion', ['getImage'], {
-            imageId: data.id,
-            index: i,
-          });
-          imageUrls.push(imageUrl);
-        }
-        setCurrentImages(imageUrls);
-        setCurrentGenerationData(data);
-
-        // Stop polling when generation is complete
-        if (pollingCleanupRef.current) pollingCleanupRef.current();
-        pollingCleanupRef.current = null;
+        return;
       }
+
+      if (pollingCleanupRef.current) pollingCleanupRef.current();
+      pollingCleanupRef.current = null;
+      pollingCleanupRef.current = startPollingForJsonResult(
+        experimentId,
+        genId,
+        (data) => {
+          if (data.error_code !== 0) {
+            setError(data.detail || 'Error in generation result.');
+          } else {
+            const imageUrls: string[] = [];
+            for (let i = 0; i < data.num_images; i++) {
+              const imageUrl = getFullPath('diffusion', ['getImage'], {
+                experimentId: experimentId,
+                imageId: data.id,
+                index: i,
+              });
+              imageUrls.push(imageUrl);
+            }
+
+            setCurrentImages(imageUrls);
+            setCurrentGenerationData(data);
+          }
+
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+          setLoading(false);
+        },
+        (message) => {
+          setError(message);
+          setLoading(false);
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+        },
+      );
     } catch (e) {
       setError('Failed to generate image');
       setIsPolling(false);
       // Stop polling on error
       if (pollingCleanupRef.current) pollingCleanupRef.current();
       pollingCleanupRef.current = null;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -543,6 +726,11 @@ export default function Diffusion() {
     setCurrentGenerationData(null);
     setCurrentImageIndex(0); // Reset to first image
     try {
+      const genId = await getGenerationId();
+      if (!genId) {
+        setError('Failed to initialize generation');
+        return;
+      }
       analytics.track('Inpainting Generated', {
         model,
       });
@@ -557,6 +745,7 @@ export default function Diffusion() {
         upscale,
         upscale_factor: Number(upscaleFactor),
         num_images: Number(inpaintingNumImages) || 1, // Default to 1 if not specified
+        generation_id: genId, // Include the generation ID
       };
 
       // Add inpainting parameters
@@ -587,31 +776,60 @@ export default function Diffusion() {
         requestBody.height = Number(inpaintingImageHeight);
       }
 
-      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-      const data = await response.json();
-      if (data.error_code !== 0) {
-        setError(data.detail || 'Error generating inpainting image');
-      } else {
-        // Fetch all generated images
-        const imageUrls: string[] = [];
-        for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getFullPath('diffusion', ['getImage'], {
-            imageId: data.id,
-            index: i,
-          });
-          imageUrls.push(imageUrl);
-        }
-        setInpaintingImages(imageUrls);
-        setCurrentGenerationData(data);
+      const response = await fetch(
+        getFullPath('diffusion', ['generate'], { experimentId: experimentId }),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
+      const initData = await response.json();
+      const jobId = initData.job_id;
+
+      const jobStatus = await waitForJobCompletion(jobId);
+      if (jobStatus !== 'COMPLETE') {
+        setError(`Job ${jobStatus.toLowerCase()}`);
+        setLoading(false);
+        setIsPolling(false);
+        if (pollingCleanupRef.current) pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+        return;
       }
+      pollingCleanupRef.current = startPollingForJsonResult(
+        experimentId,
+        genId,
+        (data) => {
+          if (data.error_code !== 0) {
+            setError(data.detail || 'Error in generation result.');
+          } else {
+            const imageUrls: string[] = [];
+            for (let i = 0; i < data.num_images; i++) {
+              const imageUrl = getFullPath('diffusion', ['getImage'], {
+                experimentId: experimentId,
+                imageId: data.id,
+                index: i,
+              });
+              imageUrls.push(imageUrl);
+            }
+
+            setInpaintingImages(imageUrls);
+            setCurrentGenerationData(data);
+          }
+
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+          setLoading(false);
+        },
+        (message) => {
+          setError(message);
+          setLoading(false);
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+        },
+      );
     } catch (e) {
       setError('Failed to generate image');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -625,6 +843,7 @@ export default function Diffusion() {
       // Create a link to the new endpoint that returns a zip file
       const link = document.createElement('a');
       link.href = getFullPath('diffusion', ['getAllImages'], {
+        experimentId: experimentId,
         imageId: currentGenerationData.id,
       });
 
@@ -664,7 +883,9 @@ export default function Diffusion() {
     setIsStableDiffusion(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1234,7 +1455,11 @@ export default function Diffusion() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={loading || isStableDiffusion === false}
+                disabled={
+                  loading ||
+                  isStableDiffusion === false ||
+                  !isImageDiffusionPluginInstalled
+                }
                 color="primary"
                 size="lg"
                 startDecorator={loading && <CircularProgress />}
@@ -1459,6 +1684,9 @@ export default function Diffusion() {
                   <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
                     Generating...
                   </Typography>
+                  {runningDiffusionJob && (
+                    <JobProgress job={runningDiffusionJob} />
+                  )}
 
                   {/* Show current intermediate image if available */}
                   {currentIntermediateImage && (

@@ -69,6 +69,7 @@ export default function PluginGallery({
           'loader',
           'exporter',
           'rag',
+          'diffusion',
         ].map((type) => (
           <Option value={type}>
             <Chip>{type}</Chip>
