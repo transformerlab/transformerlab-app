@@ -523,6 +523,8 @@ export default function SelectedRecipe({
       return; // Don't allow duplicate names
     }
 
+    // Clear any previous errors and proceed to step 2
+    setExperimentNameError('');
     setExperimentName(name);
     setExperimentNameFormValue(name);
     setExperimentNameTouched(false);
@@ -605,7 +607,6 @@ export default function SelectedRecipe({
           maxWidth: '900px',
           margin: '0 auto',
         }}
-        onSubmit={handleSubmit}
       >
         {experimentName === '' ? (
           <Box id="recipe-left" sx={{ overflowY: 'auto', padding: 1 }}>
@@ -628,6 +629,8 @@ export default function SelectedRecipe({
                 onChange={(e) => {
                   setExperimentNameFormValue(e.target.value);
                   if (!experimentNameTouched) setExperimentNameTouched(true);
+                  // Clear error when user starts typing a new name
+                  if (experimentNameError) setExperimentNameError('');
                 }}
                 onBlur={() => setExperimentNameTouched(true)}
                 required
@@ -785,7 +788,9 @@ export default function SelectedRecipe({
           color="danger"
           sx={{ textAlign: 'center', mt: 0.5 }}
         >
-          {missingAnyDependencies &&
+          {experimentName === '' && 'Complete Step 1 to continue.'}
+          {experimentName !== '' &&
+            missingAnyDependencies &&
             'Install all missing dependencies before you can use this recipe.'}
           &nbsp;
           {!isHardwareCompatible &&
