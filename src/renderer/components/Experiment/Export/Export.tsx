@@ -5,6 +5,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import ExportDetailsModal from './ExportDetailsModal';
 import PluginSettingsModal from './PluginSettingsModal';
 import ExportJobsTable from './ExportJobsTable';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 import Sheet from '@mui/joy/Sheet';
 import {
@@ -47,20 +48,6 @@ export default function Export() {
     fetcher,
   );
 
-  const {
-    data: exportJobs,
-    error: exportJobsError,
-    isLoading: exportJobsIsLoading,
-    mutate: exportJobsMutate,
-  } = useSWR(
-    experimentInfo?.id &&
-      chatAPI.Endpoints.Experiment.GetExportJobs(experimentInfo?.id),
-    fetcher,
-    {
-      refreshInterval: 2000,
-    },
-  );
-
   // returns true if the currently loaded foundation is in the passed array
   // supported_architectures - a list of all architectures supported by this plugin
   function isModelValidArchitecture(
@@ -86,18 +73,108 @@ export default function Export() {
       // sets the running plugin ID, which is used by the UI to set disabled on buttons
       setRunningPlugin(plugin_id);
 
-      // Call the export job and since this is running async we'll await
-      const response = await fetch(
-        chatAPI.Endpoints.Experiment.RunExport(
-          experimentInfo?.id,
-          plugin_id,
-          plugin_architecture,
-          params_json,
-        ),
-      );
+      try {
+        // Step 1: Get experiment data
+        const expResponse = await fetch(
+          chatAPI.Endpoints.Experiment.Get(experimentInfo?.id),
+        );
+        const experiment = await expResponse.json();
+        const config = SafeJSONParse(experiment.config, {} as any);
 
-      // Clean up after export by unsetting running plugin (re-enables buttons)
-      setRunningPlugin(null);
+        // Step 2: Build task payload
+        const inputModelId = config.foundation;
+        const inputModelIdWithoutAuthor = inputModelId.split('/').pop();
+        const conversionTime = Math.floor(Date.now() / 1000);
+
+        // Parse plugin parameters
+        const pluginParams = SafeJSONParse(params_json, {} as any);
+
+        let qType = '';
+        if (pluginParams.outtype) qType = pluginParams.outtype;
+        else if (pluginParams.q_bits) qType = `${pluginParams.q_bits}bit`;
+
+        let outputModelId = `${plugin_architecture}-${inputModelIdWithoutAuthor}-${conversionTime}`;
+        if (qType) outputModelId += `-${qType}`;
+
+        if (plugin_architecture === 'GGUF') {
+          outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}.gguf`;
+        }
+
+        const taskPayload = {
+          name: `Export ${inputModelIdWithoutAuthor} to ${plugin_architecture}`,
+          type: 'EXPORT',
+          inputs: JSON.stringify({
+            input_model_id: inputModelId,
+            input_model_path: config.foundation_filename || inputModelId,
+            input_model_architecture: config.foundation_model_architecture,
+            plugin_name: plugin_id,
+            plugin_architecture: plugin_architecture,
+          }),
+          config: JSON.stringify({
+            plugin_name: plugin_id,
+            input_model_id: inputModelId,
+            input_model_path: config.foundation_filename || inputModelId,
+            input_model_architecture: config.foundation_model_architecture,
+            output_model_id: outputModelId,
+            output_model_architecture: plugin_architecture,
+            output_model_name: `${inputModelIdWithoutAuthor} - ${plugin_architecture}${qType ? ` - ${qType}` : ''}`,
+            output_model_path: `/models/${outputModelId}`,
+            output_filename:
+              plugin_architecture === 'GGUF' ? outputModelId : '',
+            script_directory: `/plugins/${plugin_id}`,
+            params: pluginParams,
+          }),
+          plugin: plugin_id,
+          outputs: JSON.stringify({
+            exported_model_path: `/models/${outputModelId}`,
+            output_model_id: outputModelId,
+            export_status: 'pending',
+          }),
+          experiment_id: experimentInfo?.id,
+        };
+
+        // Step 3: Create task
+        const createResponse = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(taskPayload),
+        });
+
+        if (!createResponse.ok) throw new Error('Failed to create task');
+
+        console.log('Task created successfully', await createResponse.json());
+
+        // Step 4: Get task ID and queue it
+        const tasksResponse = await fetch(
+          chatAPI.Endpoints.Tasks.ListByTypeInExperiment(
+            'EXPORT',
+            experimentInfo?.id,
+          ),
+        );
+
+        const tasks = await tasksResponse.json();
+
+        // Find the task with the latest/highest ID (most recently created)
+        const latestTask = tasks.reduce((latest: any, current: any) => {
+          return current.id > latest.id ? current : latest;
+        });
+        const taskId = latestTask.id;
+
+        const queueResponse = await fetch(
+          chatAPI.Endpoints.Tasks.Queue(taskId),
+        );
+        if (!queueResponse.ok) {
+          console.log('Failed to queue task', await queueResponse.json());
+          throw new Error('Failed to queue task');
+        }
+      } catch (error) {
+        // Error handling for task creation and queueing
+        // eslint-disable-next-line no-console
+        console.error('Error creating and queueing export task:', error);
+      } finally {
+        // Clean up after export by unsetting running plugin (re-enables buttons)
+        setRunningPlugin(null);
+      }
     }
   }
 
@@ -167,7 +244,7 @@ export default function Export() {
                         }
                         color="success"
                         variant="soft"
-                        onClick={async (e) => {
+                        onClick={async () => {
                           // set the selected plugin which will open the PluginSettingsModal
                           setSelectedPlugin(row);
                         }}
@@ -191,7 +268,7 @@ export default function Export() {
         </Sheet>
 
         <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}>
-          <ExportJobsTable experimentInfo={experimentInfo} />
+          <ExportJobsTable />
         </Sheet>
       </Sheet>
     </>
