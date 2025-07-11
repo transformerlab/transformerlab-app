@@ -148,6 +148,7 @@ export default function NewNodeModal({
                 <Radio value="TRAIN" label="TRAIN" />
                 <Radio value="EVAL" label="EVAL" />
                 <Radio value="GENERATE" label="GENERATE" />
+                <Radio value="EXPORT" label="EXPORT" />
                 <Radio value="OTHER" label="OTHER" />
               </RadioGroup>
             </FormControl>
