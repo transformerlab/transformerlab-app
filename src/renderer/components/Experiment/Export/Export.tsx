@@ -70,16 +70,8 @@ export default function Export() {
     params_json: string,
   ) {
     if (plugin_id) {
-      // Convert snake_case parameters to camelCase for consistent code style
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const pluginId = plugin_id;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const pluginArchitecture = plugin_architecture;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const paramsJson = params_json;
-
       // sets the running plugin ID, which is used by the UI to set disabled on buttons
-      setRunningPlugin(pluginId);
+      setRunningPlugin(plugin_id);
 
       try {
         // Step 1: Get experiment data
@@ -95,43 +87,44 @@ export default function Export() {
         const conversionTime = Math.floor(Date.now() / 1000);
 
         // Parse plugin parameters
-        const pluginParams = SafeJSONParse(paramsJson, {} as any);
+        const pluginParams = SafeJSONParse(params_json, {} as any);
 
         let qType = '';
         if (pluginParams.outtype) qType = pluginParams.outtype;
         else if (pluginParams.q_bits) qType = `${pluginParams.q_bits}bit`;
 
-        let outputModelId = `${pluginArchitecture}-${inputModelIdWithoutAuthor}-${conversionTime}`;
+        let outputModelId = `${plugin_architecture}-${inputModelIdWithoutAuthor}-${conversionTime}`;
         if (qType) outputModelId += `-${qType}`;
 
-        if (pluginArchitecture === 'GGUF') {
+        if (plugin_architecture === 'GGUF') {
           outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}.gguf`;
         }
 
         const taskPayload = {
-          name: `Export ${inputModelIdWithoutAuthor} to ${pluginArchitecture}`,
+          name: `Export ${inputModelIdWithoutAuthor} to ${plugin_architecture}`,
           type: 'EXPORT',
           inputs: JSON.stringify({
             input_model_id: inputModelId,
             input_model_path: config.foundation_filename || inputModelId,
             input_model_architecture: config.foundation_model_architecture,
-            plugin_name: pluginId,
-            plugin_architecture: pluginArchitecture,
+            plugin_name: plugin_id,
+            plugin_architecture: plugin_architecture,
           }),
           config: JSON.stringify({
-            plugin_name: pluginId,
+            plugin_name: plugin_id,
             input_model_id: inputModelId,
             input_model_path: config.foundation_filename || inputModelId,
             input_model_architecture: config.foundation_model_architecture,
             output_model_id: outputModelId,
-            output_model_architecture: pluginArchitecture,
-            output_model_name: `${inputModelIdWithoutAuthor} - ${pluginArchitecture}${qType ? ` - ${qType}` : ''}`,
+            output_model_architecture: plugin_architecture,
+            output_model_name: `${inputModelIdWithoutAuthor} - ${plugin_architecture}${qType ? ` - ${qType}` : ''}`,
             output_model_path: `/models/${outputModelId}`,
-            output_filename: pluginArchitecture === 'GGUF' ? outputModelId : '',
-            script_directory: `/plugins/${pluginId}`,
+            output_filename:
+              plugin_architecture === 'GGUF' ? outputModelId : '',
+            script_directory: `/plugins/${plugin_id}`,
             params: pluginParams,
           }),
-          plugin: pluginId,
+          plugin: plugin_id,
           outputs: JSON.stringify({
             exported_model_path: `/models/${outputModelId}`,
             output_model_id: outputModelId,
