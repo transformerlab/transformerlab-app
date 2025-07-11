@@ -36,13 +36,6 @@ export default function ViewOutputModalStreaming({
     { refreshInterval: 2000 },
   );
 
-  // Log job details for debugging
-  useEffect(() => {
-    if (jobDetails) {
-      console.log('Job details:', jobDetails);
-    }
-  }, [jobDetails]);
-
   // Create a custom endpoint for export job output
   const experimentId =
     jobDetails?.experiment_id || jobDetails?.job_data?.experiment_id;
