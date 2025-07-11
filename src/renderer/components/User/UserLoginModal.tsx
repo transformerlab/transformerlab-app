@@ -16,12 +16,14 @@ import {
   Typography,
 } from '@mui/joy';
 
-import { TriangleAlert } from 'lucide-react';
+import { TriangleAlert, EyeIcon, EyeOffIcon } from 'lucide-react';
 
 import { login, registerUser } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function UserLoginModal({ open, onClose }) {
   const [loginErrorMessage, setLoginErrorMessage] = useState(null);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   const commonTabPanelSx = {
     p: 1,
@@ -115,9 +117,24 @@ export default function UserLoginModal({ open, onClose }) {
                   <FormLabel>Password</FormLabel>
                   <Input
                     name="password"
-                    type="password"
+                    type={showLoginPassword ? 'text' : 'password'}
                     required
                     placeholder="Enter your password"
+                    endDecorator={
+                      <Button
+                        variant="plain"
+                        color="neutral"
+                        onClick={() => setShowLoginPassword((v) => !v)}
+                        sx={{ minWidth: 0, p: 0.5 }}
+                        tabIndex={-1}
+                      >
+                        {showLoginPassword ? (
+                          <EyeOffIcon size={20} />
+                        ) : (
+                          <EyeIcon size={20} />
+                        )}
+                      </Button>
+                    }
                   />
                 </FormControl>
                 <Button type="submit">Login</Button>
@@ -174,9 +191,24 @@ export default function UserLoginModal({ open, onClose }) {
                   <FormLabel>Password</FormLabel>
                   <Input
                     name="password"
-                    type="password"
+                    type={showRegisterPassword ? 'text' : 'password'}
                     required
                     placeholder="Create a password"
+                    endDecorator={
+                      <Button
+                        variant="plain"
+                        color="neutral"
+                        onClick={() => setShowRegisterPassword((v) => !v)}
+                        sx={{ minWidth: 0, p: 0.5 }}
+                        tabIndex={-1}
+                      >
+                        {showRegisterPassword ? (
+                          <EyeOffIcon size={20} />
+                        ) : (
+                          <EyeIcon size={20} />
+                        )}
+                      </Button>
+                    }
                   />
                 </FormControl>
                 <Button type="submit">Register</Button>
