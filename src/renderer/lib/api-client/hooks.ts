@@ -2,7 +2,7 @@
  * SWR hooks
  */
 import useSWR from 'swr';
-import { API_URL, getFullPath } from './urls';
+import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
 import { getAccessToken } from './functions';
 
@@ -12,35 +12,33 @@ export function useAPI(
   params: Record<string, any> = {},
   options: any = {},
 ) {
-  let path = getFullPath(majorEntity, pathArray, params);
+  let path = getAPIFullPath(majorEntity, pathArray, params);
   const fetcher = async (url: string) => {
-
     // check for an access token. Will be "" if user not logged in.
     const accessToken = await getAccessToken();
 
     return fetch(url, {
       headers: {
-        'Authorization': accessToken ? `Bearer ${accessToken}` : '',
+        Authorization: accessToken ? `Bearer ${accessToken}` : '',
         'Content-Type': 'application/json',
-      }
+      },
     }).then((res) => {
-
       // Check for HTTP 401 which means user is not authorized
       if (res.status === 401) {
         return {
-          "status": "unauthorized",
-          "message": "User not authorized"
-        }
+          status: 'unauthorized',
+          message: 'User not authorized',
+        };
       }
 
       // If there was an error then report in standard API format
       if (!res.ok) {
-        console.log("Unexpected API response:");
+        console.log('Unexpected API response:');
         console.log(res);
         return {
-          "status": "error",
-          "message": "API returned HTTP " + res.status
-        }
+          status: 'error',
+          message: 'API returned HTTP ' + res.status,
+        };
       }
 
       // Otherwise return the JSON contained in the API response

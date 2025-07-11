@@ -30,7 +30,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from 'lucide-react';
-import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import HistoryCard from './HistoryCard';
 import HistoryImageViewModal from './HistoryImageViewModal';
 import { HistoryImage } from './types';
@@ -91,7 +91,7 @@ const History: React.FC<HistoryProps> = () => {
   const viewImage = async (imageId: string) => {
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['getImageInfo'], { imageId }),
+        getAPIFullPath('diffusion', ['getImageInfo'], { imageId }),
       );
       const data = await response.json();
       setSelectedImage(data);
@@ -104,7 +104,7 @@ const History: React.FC<HistoryProps> = () => {
   // Delete single image
   const deleteImage = async (imageId: string) => {
     try {
-      await fetch(getFullPath('diffusion', ['deleteImage'], { imageId }), {
+      await fetch(getAPIFullPath('diffusion', ['deleteImage'], { imageId }), {
         method: 'DELETE',
       });
       refreshHistory(); // Reload history
@@ -128,7 +128,7 @@ const History: React.FC<HistoryProps> = () => {
       // Delete all selected images
       await Promise.all(
         Array.from(selectedImages).map((imageId) =>
-          fetch(getFullPath('diffusion', ['deleteImage'], { imageId }), {
+          fetch(getAPIFullPath('diffusion', ['deleteImage'], { imageId }), {
             method: 'DELETE',
           }),
         ),
@@ -152,7 +152,7 @@ const History: React.FC<HistoryProps> = () => {
   // Clear all history
   const clearAllHistory = async () => {
     try {
-      await fetch(getFullPath('diffusion', ['clearHistory'], {}), {
+      await fetch(getAPIFullPath('diffusion', ['clearHistory'], {}), {
         method: 'DELETE',
       });
       refreshHistory(); // Reload history
@@ -199,7 +199,7 @@ const History: React.FC<HistoryProps> = () => {
 
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['createDataset'], {}),
+        getAPIFullPath('diffusion', ['createDataset'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

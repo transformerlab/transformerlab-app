@@ -17,7 +17,7 @@ import {
   AspectRatio,
 } from '@mui/joy';
 import { ChevronLeftIcon, ChevronRightIcon, CheckIcon } from 'lucide-react';
-import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { HistoryImage } from './types';
 
 interface HistoryImageSelectorProps {
@@ -60,7 +60,7 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
     try {
       // Fetch the image as base64
       const response = await fetch(
-        getFullPath('diffusion', ['getImage'], {
+        getAPIFullPath('diffusion', ['getImage'], {
           imageId: selectedImageId,
           index: selectedImageIndex,
         }),
@@ -109,7 +109,7 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
         <CardOverflow>
           <AspectRatio ratio="1">
             <img
-              src={getFullPath('diffusion', ['getImage'], {
+              src={getAPIFullPath('diffusion', ['getImage'], {
                 imageId: item.id,
                 index: displayIndex,
               })}

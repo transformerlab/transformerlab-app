@@ -25,7 +25,7 @@ import {
   ChevronRightIcon,
   Info,
 } from 'lucide-react';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
   const [rows, setRows] = useState([]);
@@ -54,7 +54,7 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
   const loadPage = useCallback(async () => {
     setLoading(true);
     try {
-      const url = getFullPath('datasets', ['editWithTemplate'], {
+      const url = getAPIFullPath('datasets', ['editWithTemplate'], {
         datasetId,
         template: encodeURIComponent(template),
         offset,
@@ -142,7 +142,7 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
     setSaving(true);
     try {
       const checkResponse = await fetch(
-        getFullPath('datasets', ['info'], {
+        getAPIFullPath('datasets', ['info'], {
           datasetId: datasetName,
         }),
       );
@@ -172,7 +172,7 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
       });
       formData.append('file', blob, 'metadata_updates.json');
       const response = await fetch(
-        getFullPath('datasets', ['saveMetadata'], {
+        getAPIFullPath('datasets', ['saveMetadata'], {
           datasetId,
           newDatasetId: datasetName,
         }),

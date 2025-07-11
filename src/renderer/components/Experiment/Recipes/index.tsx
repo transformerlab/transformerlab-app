@@ -5,7 +5,7 @@ import { CircularProgress, ModalClose, Typography } from '@mui/joy';
 import { useState } from 'react';
 import ListRecipes from './ListRecipes';
 import SelectedRecipe from './SelectedRecipe';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function RecipesModal({
   modalOpen,

@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 
 import {
   activateWorker,
-  getFullPath,
+  getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import InferenceEngineModal from './InferenceEngineModal';
@@ -191,7 +191,7 @@ export default function RunModelButton({
 
       try {
         const response = await fetch(
-          getFullPath('diffusion', ['checkValidDiffusion'], {}),
+          getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

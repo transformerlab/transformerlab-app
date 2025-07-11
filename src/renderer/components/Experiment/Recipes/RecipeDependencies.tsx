@@ -9,7 +9,7 @@ import {
 } from '@mui/joy';
 import { CircleCheckIcon, CircleXIcon, DownloadIcon } from 'lucide-react';
 import { useState } from 'react';
-import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useEffect } from 'react';
 
 function InstalledStateChip({ state }) {
@@ -175,7 +175,7 @@ export default function RecipeDependencies({
             onClick={async () => {
               setInstalling(true);
               const installTask = await fetch(
-                getFullPath('recipes', ['installDependencies'], {
+                getAPIFullPath('recipes', ['installDependencies'], {
                   id: recipeId,
                 }),
               );

@@ -13,7 +13,7 @@ import {
 } from '@mui/joy';
 import { DownloadIcon, TrashIcon, X } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function ControlNetModal({
   open,
@@ -26,7 +26,7 @@ export default function ControlNetModal({
   const refresh = async () => {
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['listControlnets'], {}),
+        getAPIFullPath('diffusion', ['listControlnets'], {}),
       );
       const models = await response.json();
       const names = (models.controlnets || []).map(

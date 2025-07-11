@@ -11,7 +11,7 @@ import {
   IconButton,
 } from '@mui/joy';
 
-import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 
 interface Provider {
@@ -36,7 +36,10 @@ export default function AIProviderModal({
 
   const saveProvider = async (provider: Provider, token: string) => {
     await fetch(
-      getFullPath('config', ['set'], { key: provider.keyName, value: token }),
+      getAPIFullPath('config', ['set'], {
+        key: provider.keyName,
+        value: token,
+      }),
     );
     mutateApiKey();
   };

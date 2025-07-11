@@ -14,7 +14,7 @@ export function focusChatInput() {
 
 export async function getMcpServerFile() {
   const configResp = await fetch(
-    chatAPI.getFullPath('config', ['get'], { key: 'MCP_SERVER' }),
+    chatAPI.getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
   );
   const configData = await configResp.json();
   if (configData) {
