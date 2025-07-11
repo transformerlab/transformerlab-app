@@ -74,6 +74,9 @@ export default function TrainingModalLoRA({
   );
   const [isRunSweeps, setIsRunSweeps] = useState(false);
 
+  const [applyChatTemplate, setApplyChatTemplate] = useState(false);
+  const [chatColumn, setChatColumn] = useState('');
+
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
     experimentInfo?.id
@@ -627,6 +630,10 @@ export default function TrainingModalLoRA({
                 injectIntoTemplate={injectIntoTemplate}
                 experimentInfo={experimentInfo}
                 pluginId={pluginId}
+                applyChatTemplate={applyChatTemplate}
+                setApplyChatTemplate={setApplyChatTemplate}
+                chatColumn={chatColumn}
+                setChatColumn={setChatColumn}
               />
             </TabPanel>
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
@@ -687,7 +694,14 @@ export default function TrainingModalLoRA({
             <Button color="danger" variant="soft" onClick={() => onClose()}>
               Cancel
             </Button>
-            <Button variant="soft" type="submit" color="success">
+            <Button
+              variant="soft"
+              type="submit"
+              color="success"
+              disabled={
+                applyChatTemplate && (!chatColumn || chatColumn.trim() === '')
+              }
+            >
               Save Training Template
             </Button>
           </Stack>

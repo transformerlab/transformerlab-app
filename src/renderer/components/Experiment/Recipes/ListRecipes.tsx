@@ -1,10 +1,28 @@
-import { CircularProgress, Grid, Sheet } from '@mui/joy';
+import { Alert, CircularProgress, Grid, Sheet } from '@mui/joy';
 import Typography from '@mui/joy/Typography';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeCard from './RecipeCard';
+import { isRecipeCompatibleWithDevice } from './SelectedRecipe';
 
 export default function ListRecipes({ setSelectedRecipe }) {
   const { data, isLoading } = useAPI('recipes', ['getAll']);
+
+  const { data: serverInfo } = useAPI('server', ['info']);
+  const device = serverInfo?.device;
+
+  // Sort data by an extra field called zOrder if it exists, put all
+  // recipes without zOrder at the end
+  const sortedData = data?.sort((a, b) => {
+    if (a.zOrder !== undefined && b.zOrder !== undefined) {
+      return a.zOrder - b.zOrder;
+    } else if (a.zOrder !== undefined) {
+      return -1; // a comes first
+    } else if (b.zOrder !== undefined) {
+      return 1; // b comes first
+    } else {
+      return 0; // keep original order
+    }
+  });
 
   return (
     <>
@@ -12,6 +30,11 @@ export default function ListRecipes({ setSelectedRecipe }) {
       <Typography level="h3" mb={1}>
         What do you want to do?
       </Typography>
+      <Alert color="primary" variant="soft">
+        Your machine&apos;s architecture is &quot;{serverInfo?.device_type}
+        &quot;. To see more recipes, try this app on a computer with a different
+        GPU.
+      </Alert>
       <Sheet
         variant="soft"
         color="neutral"
@@ -35,27 +58,22 @@ export default function ListRecipes({ setSelectedRecipe }) {
             margin: '0 auto',
           }}
         >
-          <Grid key={-1} sx={{ width: '250px' }}>
-            <RecipeCard
-              recipeDetails={{
-                id: -1,
-                title: 'Create an Empty Experiment',
-                description: 'Start from scratch',
-                cardImage:
-                  'https://images.unsplash.com/photo-1559311648-d46f5d8593d6?auto=format&fit=crop&w=318',
-              }}
-              setSelectedRecipe={setSelectedRecipe}
-            />
-          </Grid>
+          <RecipeCard
+            recipeDetails={{
+              id: -1,
+              title: 'Create an Empty Experiment',
+              description: 'Start from scratch',
+              cardImage: 'https://recipes.transformerlab.net/cleanlab.jpg',
+            }}
+            setSelectedRecipe={setSelectedRecipe}
+          />
           {isLoading && <CircularProgress />}
-          {Array.isArray(data) &&
-            data.map((recipe) => (
-              <Grid key={recipe.id} sx={{ width: '250px' }}>
-                <RecipeCard
-                  recipeDetails={recipe}
-                  setSelectedRecipe={setSelectedRecipe}
-                />
-              </Grid>
+          {Array.isArray(sortedData) &&
+            sortedData.map((recipe) => (
+              <RecipeCard
+                recipeDetails={recipe}
+                setSelectedRecipe={setSelectedRecipe}
+              />
             ))}
         </Grid>
       </Sheet>

@@ -28,9 +28,7 @@ interface JobProps {
 
 export default function JobProgress({ job }: JobProps) {
   // Debug job data
-  useEffect(() => {
-    console.log('JobProgress job:', job);
-  }, [job]);
+  useEffect(() => {}, [job]);
 
   // Ensure progress is a number
   const progress =

@@ -51,6 +51,7 @@ import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
 import ImportRecipeModal from './ImportRecipeModal';
 import ViewEvalImagesModal from './ViewEvalImagesModal';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -96,7 +97,8 @@ function formatJobConfig(c): ReactElement {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function TrainLoRA({ experimentInfo }) {
+export default function TrainLoRA({}) {
+  const { experimentInfo } = useExperimentInfo();
   const [open, setOpen] = useState(false);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
@@ -332,108 +334,102 @@ export default function TrainLoRA({ experimentInfo }) {
                 // Format of template data by column:
                 // 0 = id, 1 = name, 2 = description, 3 = type, 4 = datasets, 5 = config, 6 = created, 7 = updated
                 tasksList.map((row) => {
-                    return (
-                      <tr key={row.id}>
-                        <td>
-                          <Typography
-                            level="title-sm"
-                            sx={{ overflow: 'clip' }}
-                          >
-                            {row.name}
-                          </Typography>
-                        </td>
-                        {/* <td>{row[2]}</td> */}
-                        {/* <td>
+                  return (
+                    <tr key={row.id}>
+                      <td>
+                        <Typography level="title-sm" sx={{ overflow: 'clip' }}>
+                          {row.name}
+                        </Typography>
+                      </td>
+                      {/* <td>{row[2]}</td> */}
+                      {/* <td>
                           {row[4]} <FileTextIcon size={14} />
                         </td> */}
-                        <td style={{ overflow: 'clip' }}>
-                          {SafeJSONParse(row.config, {})?.plugin_name ||
-                            'Unknown'}
-                        </td>
-                        <td style={{ overflow: 'hidden' }}>
-                          {formatTemplateConfig(row.config)}
-                        </td>
-                        <td
-                          style={{
-                            overflow: 'visible',
-                          }}
-                        >
-                          <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
-                            <LoRATrainingRunButton
-                              initialMessage="Queue"
-                              trainingTemplate={{
-                                template_id: row.id,
-                                template_name: row.name,
-                                model_name:
-                                  SafeJSONParse(row.inputs, {})?.model_name ||
+                      <td style={{ overflow: 'clip' }}>
+                        {SafeJSONParse(row.config, {})?.plugin_name ||
+                          'Unknown'}
+                      </td>
+                      <td style={{ overflow: 'hidden' }}>
+                        {formatTemplateConfig(row.config)}
+                      </td>
+                      <td
+                        style={{
+                          overflow: 'visible',
+                        }}
+                      >
+                        <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
+                          <LoRATrainingRunButton
+                            initialMessage="Queue"
+                            trainingTemplate={{
+                              template_id: row.id,
+                              template_name: row.name,
+                              model_name:
+                                SafeJSONParse(row.inputs, {})?.model_name ||
+                                'unknown',
+                              dataset:
+                                SafeJSONParse(row.inputs, {})?.dataset_name ||
+                                'unknown',
+                              config: row.config,
+                            }}
+                            jobsMutate={jobsMutate}
+                            experimentId={experimentInfo?.id}
+                          />
+                          <Button
+                            onClick={() => {
+                              setTemplateID(row.id);
+                              setCurrentPlugin(
+                                SafeJSONParse(row.config, {})?.plugin_name ||
                                   'unknown',
-                                dataset:
-                                  SafeJSONParse(row.inputs, {})?.dataset_name ||
-                                  'unknown',
-                                config: row.config,
-                              }}
-                              jobsMutate={jobsMutate}
-                              experimentId={experimentInfo?.id}
-                            />
-                            <Button
-                              onClick={() => {
-                                setTemplateID(row.id);
-                                setCurrentPlugin(
-                                  SafeJSONParse(row.config, {})?.plugin_name ||
-                                    'unknown',
-                                );
-                                setOpen(true);
-                              }}
-                              variant="outlined"
-                              color="primary"
-                            >
-                              Edit
-                            </Button>
-                            <IconButton
-                              onClick={async () => {
-                                await fetch(
-                                  chatAPI.Endpoints.Recipes.Export(row[0]),
-                                )
-                                  .then((response) => response.blob())
-                                  .then((blob) => {
-                                    // Create blob link to download
-                                    const url = window.URL.createObjectURL(
-                                      new Blob([blob]),
-                                    );
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.setAttribute(
-                                      'download',
-                                      `recipe.yaml`,
-                                    );
+                              );
+                              setOpen(true);
+                            }}
+                            variant="outlined"
+                            color="primary"
+                          >
+                            Edit
+                          </Button>
+                          {/* <IconButton
+                            onClick={async () => {
+                              await fetch(
+                                chatAPI.Endpoints.Recipes.Export(row['id']),
+                              )
+                                .then((response) => response.blob())
+                                .then((blob) => {
+                                  // Create blob link to download
+                                  const url = window.URL.createObjectURL(
+                                    new Blob([blob]),
+                                  );
+                                  const link = document.createElement('a');
+                                  link.href = url;
+                                  link.setAttribute('download', `recipe.yaml`);
 
-                                    // Append to html link, click and remove
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    link.parentNode.removeChild(link);
-                                  });
-                              }}
-                            >
-                              <DownloadIcon size="20px" />
-                            </IconButton>
-                            <IconButton
-                              onClick={async () => {
-                                confirm(
-                                  'Are you sure you want to delete this Training Template?',
-                                ) &&
-                                  (await fetch(
-                                    chatAPI.Endpoints.Tasks.DeleteTask(row.id),
-                                  ));
-                                mutate();
-                              }}
-                            >
-                              <Trash2Icon size="20px" />
-                            </IconButton>
-                          </ButtonGroup>
-                        </td>
-                      </tr>
-                    );
-                  })
+                                  // Append to html link, click and remove
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  link.parentNode.removeChild(link);
+                                });
+                            }}
+                          >
+                            <DownloadIcon size="20px" />
+                          </IconButton> */}
+                          <IconButton
+                            onClick={async () => {
+                              confirm(
+                                'Are you sure you want to delete this Training Template?',
+                              ) &&
+                                (await fetch(
+                                  chatAPI.Endpoints.Tasks.DeleteTask(row.id),
+                                ));
+                              mutate();
+                            }}
+                          >
+                            <Trash2Icon size="20px" />
+                          </IconButton>
+                        </ButtonGroup>
+                      </td>
+                    </tr>
+                  );
+                })
               }
             </tbody>
           </Table>

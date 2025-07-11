@@ -23,10 +23,54 @@ export default function SystemMessageBox({
     experimentInfo?.config?.prompt_template?.system_message,
   );
 
-  const sendSystemMessageToServer = (message) => {
+  // Function to preprocess system message with date placeholders
+  const preprocessSystemMessage = (message: string) => {
+    if (!message) return message;
+    
+    let processedMessage = message;
+    const currentDate = new Date();
+
+    // Replace {{currentDateTime}} with YYYY-MM-DD format
+    const currentDateFormatted = currentDate.toISOString().split('T')[0];
+    processedMessage = processedMessage.replace(
+      /\{\{currentDateTime\}\}/g,
+      currentDateFormatted,
+    );
+
+    // Replace {{currentDateTimev2}} with DD MMM YYYY format
+    const currentDateV2 = currentDate.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    processedMessage = processedMessage.replace(
+      /\{\{currentDateTimev2\}\}/g,
+      currentDateV2,
+    );
+
+    // Replace {{currentDateTimev3}} with MMMM YYYY format
+    const currentDateV3 = currentDate.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+    processedMessage = processedMessage.replace(
+      /\{\{currentDateTimev3\}\}/g,
+      currentDateV3,
+    );
+
+    return processedMessage;
+  };
+
+  // Get the processed message to display
+  const displayMessage = preprocessSystemMessage(systemMessage || '');
+
+  const sendSystemMessageToServer = (message: string) => {
     // console.log(`Sending message: ${message} to the server`);
     const experimentId = experimentInfo?.id;
-    const newSystemPrompt = message;
+
+    // Preprocess system message to replace date placeholders
+    const processedMessage = preprocessSystemMessage(message);
+    const newSystemPrompt = processedMessage;
 
     let newPrompt = experimentInfo?.config?.prompt_template;
 
@@ -83,7 +127,7 @@ export default function SystemMessageBox({
         <span>System message</span>
         <span>
           <Typography level="body-xs" sx={{ ml: 'auto' }}>
-            {systemMessage != debouncedSystemMessage ? 'Saving...' : ''}
+            {systemMessage !== debouncedSystemMessage ? 'Saving...' : ''}
           </Typography>
         </span>
       </FormLabel>
@@ -104,7 +148,7 @@ export default function SystemMessageBox({
             name="system-message"
             minRows={1}
             maxRows={8}
-            value={systemMessage}
+            value={displayMessage}
             onChange={(e) => setSystemMessage(e.target.value)}
             sx={{
               '--Textarea-focusedThickness': '0',

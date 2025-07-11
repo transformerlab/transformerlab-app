@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Button,
   Typography,
@@ -8,32 +8,44 @@ import {
   FormControl,
   FormLabel,
   FormHelperText,
+  LinearProgress,
+  Chip,
+  CircularProgress,
 } from '@mui/joy';
 import {
   ArrowLeftIcon,
   CircleCheckIcon,
   CircleXIcon,
   RocketIcon,
+  DownloadIcon,
 } from 'lucide-react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
-import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
-import RecipeDependencies from './RecipeDependencies';
+import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import useSWR from 'swr';
 
-function isRecipeCompatibleWithDevice(recipe, device) {
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+export function isRecipeCompatibleWithDevice(recipe, device) {
   if (!recipe?.requiredMachineArchitecture) return true;
   if (!device) return false;
 
-  if (device === 'mps') {
+  if (device === 'apple_silicon') {
     return (
       recipe.requiredMachineArchitecture.includes('mlx') ||
       recipe.requiredMachineArchitecture.includes('cpu')
     );
   }
-  if (device === 'cuda') {
+  if (device === 'nvidia') {
     return (
       recipe.requiredMachineArchitecture.includes('cuda') ||
       recipe.requiredMachineArchitecture.includes('cpu')
     );
+  }
+  if (device === 'amd') {
+    return recipe.requiredMachineArchitecture.includes('amd');
   }
   if (device === 'cpu') {
     return recipe.requiredMachineArchitecture.includes('cpu');
@@ -42,36 +54,498 @@ function isRecipeCompatibleWithDevice(recipe, device) {
   return false;
 }
 
+// Component that reuses ExperimentNotes styling for recipe notes
+const RecipeNotesDisplay = ({ notes }) => {
+  if (!notes) return null;
+
+  return (
+    <>
+      <Typography level="title-lg" mb={1}>
+        Experiment Notes:
+      </Typography>
+      <Sheet
+        color="neutral"
+        variant="soft"
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          maxHeight: '600px',
+          pl: 3,
+          height: '100%',
+
+          overflow: 'hidden',
+          borderRadius: 1,
+        }}
+      >
+        <Box
+          display="flex"
+          flexDirection="column"
+          sx={{ width: '100%', height: '100%', overflowY: 'auto' }}
+        >
+          <Markdown remarkPlugins={[remarkGfm]}>{notes}</Markdown>
+        </Box>
+      </Sheet>
+    </>
+  );
+};
+
+// Helper components
+const InstalledStateChip = ({ state }: { state: any }) => {
+  let color: 'neutral' | 'success' | 'warning' | 'danger' = 'neutral';
+  let label = 'Unknown';
+  if (state === 'loading') {
+    color = 'warning';
+    label = 'Checking...';
+  } else if (state === true) {
+    color = 'success';
+    label = 'Installed';
+  } else if (state === false) {
+    color = 'danger';
+    label = 'Not Installed';
+  }
+  return (
+    <Chip
+      variant="soft"
+      color={color}
+      size="sm"
+      sx={{
+        ml: 'auto',
+        fontSize: '0.75rem',
+        textTransform: 'capitalize',
+      }}
+    >
+      {label}
+    </Chip>
+  );
+};
+
+const ModelProgressBar = ({
+  modelName,
+  jobData,
+}: {
+  modelName: any;
+  jobData: any;
+}) => {
+  if (!jobData) return null;
+
+  const progress = jobData.progress || 0;
+  const status = jobData.status || 'RUNNING';
+
+  if (status === 'COMPLETE') {
+    return (
+      <Chip
+        variant="soft"
+        color="success"
+        size="sm"
+        sx={{
+          ml: 'auto',
+          fontSize: '0.75rem',
+        }}
+      >
+        Installed
+      </Chip>
+    );
+  }
+
+  if (status === 'FAILED') {
+    return (
+      <Chip
+        variant="soft"
+        color="danger"
+        size="sm"
+        sx={{
+          ml: 'auto',
+          fontSize: '0.75rem',
+        }}
+      >
+        Failed
+      </Chip>
+    );
+  }
+
+  return (
+    <Box sx={{ ml: 'auto', minWidth: '120px' }}>
+      <LinearProgress determinate value={progress} sx={{ mb: 0.5 }} size="sm" />
+      <Typography level="body-xs" sx={{ textAlign: 'center' }}>
+        {Math.round(progress)}%
+      </Typography>
+    </Box>
+  );
+};
+
+// Custom RecipeDependencies component that shows progress for model downloads
+const RecipeDependenciesWithProgress = ({
+  recipeId,
+  dependencies,
+  dependenciesLoading,
+  dependenciesMutate,
+  installationJobs,
+  setInstallationJobs,
+}) => {
+  const { data: serverInfo } = useAPI('server', ['info']);
+
+  // Get job progress for model downloads
+  const modelDownloadJobs =
+    installationJobs?.filter((job: any) => job.type === 'DOWNLOAD_MODEL') || [];
+
+  // Create a single SWR key that includes all job IDs
+  const allJobIds = modelDownloadJobs.map((job) => job.job_id).filter(Boolean);
+  const jobsKey = allJobIds.length > 0 ? `jobs-${allJobIds.join(',')}` : null;
+
+  // Fetch all job data in a single request
+  const { data: allJobsData } = useSWR(
+    jobsKey,
+    async () => {
+      const promises = allJobIds.map((jobId) =>
+        fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
+      );
+      const results = await Promise.all(promises);
+
+      // Create a map of job data by job ID
+      const jobDataMap: any = {};
+      results.forEach((jobData, index) => {
+        const jobId = allJobIds[index];
+        const job = modelDownloadJobs.find((j) => j.job_id === jobId);
+        if (job) {
+          jobDataMap[job.name] = jobData;
+        }
+      });
+
+      return jobDataMap;
+    },
+    { refreshInterval: 1000 },
+  );
+
+  // Use the fetched data or fallback to empty object
+  const modelJobsData: any = useMemo(() => allJobsData || {}, [allJobsData]);
+
+  // Monitor job completion and refresh dependencies
+  useEffect(() => {
+    const completedJobs = Object.values(modelJobsData).filter(
+      (job: any) => job?.status === 'completed' || job?.status === 'COMPLETE',
+    );
+
+    if (completedJobs.length > 0) {
+      // Refresh dependencies when jobs complete
+      dependenciesMutate();
+    }
+  }, [modelJobsData, dependenciesMutate]);
+
+  if (dependenciesLoading) return <CircularProgress sx={{ mt: 1, mb: 1 }} />;
+
+  if (!dependencies) {
+    return null;
+  }
+
+  // Group dependencies by type
+  const groupedDependencies = (dependencies || []).reduce(
+    (acc: any, dep: any) => {
+      acc[dep.type] = acc[dep.type] || [];
+      acc[dep.type].push(dep);
+      return acc;
+    },
+    {},
+  );
+
+  const countMissingDependencies = dependencies?.filter((dep: any) => {
+    if (dep.installed === true) {
+      return false; // Already installed
+    }
+
+    // For models, check if there's any download job (active or completed)
+    if (dep.type === 'model') {
+      const hasAnyJob = modelDownloadJobs.some(
+        (job: any) => job.name === dep.name,
+      );
+      if (hasAnyJob) {
+        // Check if the job failed
+        const jobData =
+          modelJobsData[
+            modelDownloadJobs.find((job: any) => job.name === dep.name)?.name
+          ];
+        if (jobData?.status === 'failed' || jobData?.status === 'FAILED') {
+          return true; // Count as missing if job failed
+        }
+        return false; // Don't count as missing if there's an active or completed job
+      }
+    }
+
+    return true; // Count as missing
+  }).length;
+
+  return (
+    dependencies &&
+    dependencies.length > 0 && (
+      <>
+        <Typography
+          level="title-lg"
+          mb={0}
+          endDecorator={
+            <>
+              {countMissingDependencies === 0 && (
+                <CircleCheckIcon
+                  color="var(--joy-palette-success-400)"
+                  size={20}
+                />
+              )}
+              {countMissingDependencies > 0 && (
+                <CircleXIcon color="var(--joy-palette-danger-400)" size={20} />
+              )}
+            </>
+          }
+        >
+          Dependencies:
+        </Typography>
+        <Sheet
+          variant="soft"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            p: 2,
+            mr: 1,
+            minWidth: '340px',
+            minHeight: '60px',
+            maxHeight: '300px',
+            position: 'relative',
+          }}
+        >
+          {Object.entries(groupedDependencies).map(([type, deps]) => (
+            <Box key={type} sx={{ mb: 1 }}>
+              <Typography level="title-md" sx={{ textTransform: 'capitalize' }}>
+                {type}s
+              </Typography>
+              <Box sx={{ pl: 2 }}>
+                {(deps as any[]).map((dep: any) => {
+                  // Check if this is a model with an active download job
+                  const modelJob =
+                    type === 'model'
+                      ? modelDownloadJobs.find(
+                          (job: any) => job.name === dep.name,
+                        )
+                      : null;
+
+                  // Get job data from the map
+                  const jobData = modelJob
+                    ? modelJobsData[modelJob.name]
+                    : null;
+
+                  let statusComponent;
+
+                  // Show progress bar only for models with active jobs and job data
+                  if (modelJob && jobData) {
+                    statusComponent = (
+                      <ModelProgressBar
+                        modelName={dep.name}
+                        jobData={jobData}
+                      />
+                    );
+                  } else if (modelJob) {
+                    // Show loading spinner for models with active jobs but no data yet
+                    statusComponent = (
+                      <Box sx={{ ml: 'auto' }}>
+                        <CircularProgress size="sm" />
+                      </Box>
+                    );
+                  } else {
+                    // Use the original dependency status for all other cases
+                    statusComponent = (
+                      <InstalledStateChip state={dep?.installed} />
+                    );
+                  }
+
+                  return (
+                    <Box
+                      component="li"
+                      key={dep.name}
+                      sx={{ display: 'flex', alignItems: 'center', mb: 1 }}
+                    >
+                      <Typography level="body-sm" mr={1}>
+                        {dep.name}
+                      </Typography>
+                      {statusComponent}
+                    </Box>
+                  );
+                })}
+              </Box>
+            </Box>
+          ))}
+        </Sheet>
+        {countMissingDependencies > 0 && (
+          <Button
+            color="warning"
+            size="sm"
+            variant="plain"
+            startDecorator={<DownloadIcon />}
+            onClick={async () => {
+              const installTask = await fetch(
+                getFullPath('recipes', ['installDependencies'], {
+                  id: recipeId,
+                }),
+              );
+              const installTaskJson = await installTask.json();
+
+              // Handle installation response
+              if (installTaskJson?.jobs) {
+                // Update installation jobs to track progress
+                setInstallationJobs(installTaskJson.jobs);
+              }
+
+              // Refresh dependencies after starting installation
+              // This will update the status for plugins, datasets, etc.
+              dependenciesMutate();
+
+              // Also refresh after a short delay to catch any quick installations
+              setTimeout(() => {
+                dependenciesMutate();
+              }, 2000);
+            }}
+          >
+            Install ({countMissingDependencies}) Missing Dependenc
+            {countMissingDependencies === 1 ? 'y' : 'ies'}
+          </Button>
+        )}
+      </>
+    )
+  );
+};
+
 export default function SelectedRecipe({
   recipe,
   setSelectedRecipeId,
   installRecipe,
 }) {
-  const [experimentName, setExperimentName] = useState('');
+  const [experimentNameFormValue, setExperimentNameFormValue] = useState('');
   const [experimentNameTouched, setExperimentNameTouched] = useState(false);
+  const [experimentName, setExperimentName] = useState('');
+  const [installationJobs, setInstallationJobs] = useState([]);
+  const [isInstalling, setIsInstalling] = useState(false);
+
+  const [experimentNameError, setExperimentNameError] = useState('');
 
   const { data, isLoading, mutate } = useAPI('recipes', ['checkDependencies'], {
     id: recipe?.id,
   });
 
   const { data: serverInfo } = useAPI('server', ['info']);
-  const device = serverInfo?.device;
+  const machineType = serverInfo?.device_type;
+
+  // Monitor model download jobs for completion to refresh dependencies
+  const modelDownloadJobs: any[] =
+    installationJobs?.filter((job: any) => job.type === 'DOWNLOAD_MODEL') || [];
+
+  // Create a single SWR key that includes all job IDs
+  const allJobIds = modelDownloadJobs.map((job) => job.job_id).filter(Boolean);
+  const jobsKey = allJobIds.length > 0 ? `jobs-${allJobIds.join(',')}` : null;
+
+  // Fetch all job data in a single request
+  const { data: allJobsData } = useSWR(
+    jobsKey,
+    async () => {
+      const promises = allJobIds.map((jobId) =>
+        fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
+      );
+      const results = await Promise.all(promises);
+
+      // Create a map of job data by job ID
+      const jobDataMap: any = {};
+      results.forEach((jobData, index) => {
+        const jobId = allJobIds[index];
+        const job = modelDownloadJobs.find((j) => j.job_id === jobId);
+        if (job) {
+          jobDataMap[job.name] = jobData;
+        }
+      });
+
+      return jobDataMap;
+    },
+    { refreshInterval: 1000 },
+  );
+
+  // Use the fetched data or fallback to empty object
+  const modelJobsData: any = useMemo(() => allJobsData || {}, [allJobsData]);
+
+  // Monitor job completion and refresh dependencies
+  useEffect(() => {
+    const completedJobs = Object.values(modelJobsData).filter(
+      (job: any) => job?.status === 'completed' || job?.status === 'COMPLETE',
+    );
+
+    if (completedJobs.length > 0) {
+      // Refresh dependencies when jobs complete
+      mutate();
+    }
+  }, [modelJobsData, mutate]);
 
   // Check if all dependencies are installed
   let missingAnyDependencies = false;
   if (data?.dependencies) {
-    missingAnyDependencies = data.dependencies.some((dep) => {
-      // check if dep.installed === true
-      return dep.installed === false;
+    missingAnyDependencies = data.dependencies.some((dep: any) => {
+      if (dep.installed === true) {
+        return false; // Already installed
+      }
+
+      // For models, check if there's a completed download job
+      if (dep.type === 'model') {
+        const hasCompletedJob = modelDownloadJobs.some((job: any) => {
+          const jobData = modelJobsData[job.name];
+          return (
+            job.name === dep.name &&
+            (jobData?.status === 'completed' || jobData?.status === 'COMPLETE')
+          );
+        });
+        if (hasCompletedJob) {
+          return false; // Don't count as missing if download completed
+        }
+      }
+
+      return true; // Count as missing
     });
   }
 
-  const isHardwareCompatible = isRecipeCompatibleWithDevice(recipe, device);
+  const isHardwareCompatible = isRecipeCompatibleWithDevice(
+    recipe,
+    machineType,
+  );
 
-  const handleSubmit = (e) => {
+  async function handleSetExperimentName(name: string) {
+    if (!name) {
+      setExperimentNameTouched(true);
+      return;
+    }
+
+    const existingExperiments = await fetch(
+      getFullPath('experiment', ['getAll'], {}),
+    ).then((res) => res.json());
+    if (existingExperiments.some((exp: any) => exp.name === name)) {
+      setExperimentNameTouched(true);
+      setExperimentNameError(`Experiment name "${name}" already exists.`);
+      return; // Don't allow duplicate names
+    }
+
+    // Clear any previous errors and proceed to step 2
+    setExperimentNameError('');
+    setExperimentName(name);
+    setExperimentNameFormValue(name);
+    setExperimentNameTouched(false);
+  }
+
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
-    console.log('Installing recipe:', recipe?.id);
-    installRecipe(recipe?.id, experimentName);
+    setIsInstalling(true);
+
+    try {
+      // Call the original installRecipe function but also track jobs
+      const result = await installRecipe(recipe?.id, experimentNameFormValue);
+
+      // If the API returns jobs, track them
+      if (result && result.jobs) {
+        setInstallationJobs(result.jobs);
+      }
+    } catch (error) {
+      // Handle error
+      setIsInstalling(false);
+    }
   };
 
   return (
@@ -88,18 +562,37 @@ export default function SelectedRecipe({
         justifyContent: 'space-between',
       }}
     >
-      <Typography level="h2">
-        <Button
-          size="sm"
-          variant="plain"
-          onClick={() => {
-            setSelectedRecipeId(null);
-          }}
-        >
-          <ArrowLeftIcon />
-        </Button>
-        {recipe?.title}
-      </Typography>
+      <Box>
+        <Typography level="h2" mb={2}>
+          {experimentName === '' ? (
+            <>
+              <Button
+                size="sm"
+                variant="plain"
+                onClick={() => {
+                  setSelectedRecipeId(null);
+                }}
+              >
+                <ArrowLeftIcon />
+              </Button>
+              Step 1: Set Experiment Name
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="plain"
+                onClick={() => {
+                  setExperimentName('');
+                }}
+              >
+                <ArrowLeftIcon />
+              </Button>
+              Step 2: Install Dependencies
+            </>
+          )}
+        </Typography>
+      </Box>
       <Box
         id="recipe-details"
         sx={{
@@ -107,83 +600,172 @@ export default function SelectedRecipe({
           display: 'flex',
           gap: 2,
           flexDirection: { xs: 'column', md: 'row' },
-          overflowY: 'hidden',
+          overflowY: 'auto',
           overflowX: 'hidden',
           pt: 2,
           justifyContent: 'space-between',
-          maxWidth: '800px',
+          maxWidth: '900px',
           margin: '0 auto',
         }}
-        onSubmit={handleSubmit}
       >
-        <Box id="recipe-left" sx={{ overflowY: 'auto', padding: 1 }}>
-          <FormControl
-            required
-            error={!experimentName && experimentNameTouched}
-          >
-            <FormLabel sx={{ fontWeight: 'regular' }}>
-              Give this experiment a unique name:
-            </FormLabel>
-            <Input
-              size="lg"
-              sx={{ width: '300px' }}
-              value={experimentName}
-              onChange={(e) => {
-                setExperimentName(e.target.value);
-                if (!experimentNameTouched) setExperimentNameTouched(true);
-              }}
-              onBlur={() => setExperimentNameTouched(true)}
+        {experimentName === '' ? (
+          <Box id="recipe-left" sx={{ overflowY: 'auto', padding: 1 }}>
+            <FormControl
               required
-              name="experimentName"
-            />
-            {!experimentName && experimentNameTouched && (
-              <FormHelperText>This field is required.</FormHelperText>
-            )}
-          </FormControl>
-        </Box>
-        <Box
-          id="recipe-right"
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 1,
-            minWidth: '300px',
-          }}
-        >
-          {recipe?.requiredMachineArchitecture && (
-            <Typography
-              level="title-lg"
-              mb={0}
-              endDecorator={
-                isHardwareCompatible ? (
-                  <CircleCheckIcon
-                    color="var(--joy-palette-success-400)"
-                    size={20}
-                  />
-                ) : (
-                  <CircleXIcon
-                    color="var(--joy-palette-danger-400)"
-                    size={20}
-                  />
-                )
-              }
+              error={!experimentNameFormValue && experimentNameTouched}
+              component="form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSetExperimentName(experimentNameFormValue);
+              }}
             >
-              Hardware Requirements:
-            </Typography>
-          )}
-          <ShowArchitectures
-            architectures={recipe?.requiredMachineArchitecture}
-          />
-          <Typography level="body-sm" color="danger">
-            {!isHardwareCompatible && 'Not compatible with your hardware.'}
-          </Typography>
-          <RecipeDependencies
-            recipeId={recipe?.id}
-            dependencies={data?.dependencies}
-            dependenciesLoading={isLoading}
-            dependenciesMutate={mutate}
-          />
-        </Box>
+              <FormLabel sx={{ fontWeight: 'regular' }}>
+                Experiment Name:
+              </FormLabel>
+              <Input
+                size="lg"
+                sx={{ width: '300px' }}
+                value={experimentNameFormValue}
+                onChange={(e) => {
+                  setExperimentNameFormValue(e.target.value);
+                  if (!experimentNameTouched) setExperimentNameTouched(true);
+                  // Clear error when user starts typing a new name
+                  if (experimentNameError) setExperimentNameError('');
+                }}
+                onBlur={() => setExperimentNameTouched(true)}
+                required
+                name="experimentName"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSetExperimentName(experimentNameFormValue);
+                  }
+                }}
+              />
+              {!experimentNameFormValue && experimentNameTouched && (
+                <FormHelperText>This field is required.</FormHelperText>
+              )}
+              {experimentNameError && (
+                <FormHelperText>{experimentNameError}</FormHelperText>
+              )}
+              <Button
+                sx={{ mt: 2 }}
+                type="submit"
+                onClick={() => handleSetExperimentName(experimentNameFormValue)}
+              >
+                Save
+              </Button>
+            </FormControl>
+          </Box>
+        ) : (
+          <>
+            {/* Left side: Video or Experiment Notes */}
+            <Box
+              id="recipe-left"
+              sx={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                minWidth: '300px',
+                maxHeight: '400px',
+                overflow: 'hidden',
+              }}
+            >
+              {(() => {
+                if (recipe?.video) {
+                  return (
+                    <Box>
+                      <Typography level="title-lg" mb={1}>
+                        Tutorial Video:
+                      </Typography>
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: '250px',
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <iframe
+                          src={recipe.video}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 'none' }}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          title="Recipe Tutorial Video"
+                        />
+                      </Box>
+                    </Box>
+                  );
+                }
+                if (recipe?.notes) {
+                  return <RecipeNotesDisplay notes={recipe.notes} />;
+                }
+                return (
+                  <Box>
+                    <Typography level="title-lg" mb={1}>
+                      About this Recipe:
+                    </Typography>
+                    <Typography level="body-sm" color="neutral">
+                      {recipe?.description ||
+                        'No additional information available for this recipe.'}
+                    </Typography>
+                  </Box>
+                );
+              })()}
+            </Box>
+
+            {/* Right side: Dependencies and Hardware Requirements */}
+            <Box
+              id="recipe-right"
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                minWidth: '300px',
+                flex: 1,
+              }}
+            >
+              {recipe?.requiredMachineArchitecture && (
+                <Typography
+                  level="title-lg"
+                  mb={0}
+                  endDecorator={
+                    isHardwareCompatible ? (
+                      <CircleCheckIcon
+                        color="var(--joy-palette-success-400)"
+                        size={20}
+                      />
+                    ) : (
+                      <CircleXIcon
+                        color="var(--joy-palette-danger-400)"
+                        size={20}
+                      />
+                    )
+                  }
+                >
+                  Hardware Requirements:
+                </Typography>
+              )}
+              <ShowArchitectures
+                architectures={recipe?.requiredMachineArchitecture}
+              />
+              <Typography level="body-sm" color="danger">
+                {!isHardwareCompatible && 'Not compatible with your hardware.'}
+              </Typography>
+              <RecipeDependenciesWithProgress
+                recipeId={recipe?.id}
+                dependencies={data?.dependencies}
+                dependenciesLoading={isLoading}
+                dependenciesMutate={mutate}
+                installationJobs={installationJobs}
+                setInstallationJobs={setInstallationJobs}
+              />
+            </Box>
+          </>
+        )}
       </Box>
       <div style={{ width: '100%' }}>
         <Button
@@ -192,7 +774,12 @@ export default function SelectedRecipe({
           color="primary"
           startDecorator={<RocketIcon />}
           onClick={handleSubmit}
-          disabled={!experimentName || missingAnyDependencies || isLoading}
+          disabled={
+            experimentName === '' ||
+            !experimentNameFormValue ||
+            missingAnyDependencies ||
+            isLoading
+          }
         >
           Start &nbsp;
         </Button>
@@ -201,7 +788,9 @@ export default function SelectedRecipe({
           color="danger"
           sx={{ textAlign: 'center', mt: 0.5 }}
         >
-          {missingAnyDependencies &&
+          {experimentName === '' && 'Complete Step 1 to continue.'}
+          {experimentName !== '' &&
+            missingAnyDependencies &&
             'Install all missing dependencies before you can use this recipe.'}
           &nbsp;
           {!isHardwareCompatible &&

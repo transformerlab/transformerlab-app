@@ -40,7 +40,7 @@ export default function LocalModels({
     setFoundation(name);
     const escapedModelName = name.replaceAll('.', '\\.');
 
-    setAdaptor('');
+    // setAdaptor(''); // setFoundation already clears adaptor
 
     setOpen(false);
   }, []);

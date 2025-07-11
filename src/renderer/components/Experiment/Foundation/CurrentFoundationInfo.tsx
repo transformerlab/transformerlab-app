@@ -273,25 +273,18 @@ export default function CurrentFoundationInfo({
     setEmbeddingModel(DEFAULT_EMBEDDING_MODEL);
     try {
       await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'embedding_model',
-          DEFAULT_EMBEDDING_MODEL,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'embedding_model_filename',
-          '',
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'embedding_model_architecture',
-          'BertModel',
-        ),
+        chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            embedding_model: DEFAULT_EMBEDDING_MODEL,
+            embedding_model_filename: '',
+            embedding_model_architecture: 'BertModel',
+          }),
+        }
       );
       experimentInfoMutate();
     } catch (error) {

@@ -1,16 +1,15 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState, useCallback } from 'react';
 import Sheet from '@mui/joy/Sheet';
 import { StoreIcon } from 'lucide-react';
 import { Tab, TabList, TabPanel, Tabs } from '@mui/joy';
-import ModelStore from './ModelStore';
-import LocalModels from './LocalModels';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNavigate } from 'react-router-dom';
+import LocalModels from './LocalModels';
 import ModelGroups from './ModelGroups';
 
-export default function ModelZoo({ experimentInfo, tab = 'store' }) {
+export default function ModelZoo({ tab = 'store' }) {
   const navigate = useNavigate();
-  const DEV_MODE = experimentInfo?.name === 'dev';
+  const { experimentInfo } = useExperimentInfo();
 
   return (
     <Sheet

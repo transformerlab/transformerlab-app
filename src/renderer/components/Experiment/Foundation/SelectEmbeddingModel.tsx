@@ -45,25 +45,18 @@ export default function SelectEmbeddingModel({
     // Update the embedding model in the experiment config
     async function updateEmbeddingConfig() {
       await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'embedding_model',
-          model_name,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'embedding_model_filename',
-          model_filename,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'embedding_model_architecture',
-          model_architecture,
-        ),
+        chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            embedding_model: model_name,
+            embedding_model_filename: model_filename,
+            embedding_model_architecture: model_architecture,
+          }),
+        },
       );
 
       // Call the parent's setEmbedding function

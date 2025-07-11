@@ -101,6 +101,14 @@
     "info": {
       "method": "GET",
       "path": "data/info?dataset_id={datasetId}"
+    },
+    "previewTemplate": {
+      "method": "GET",
+      "path": "data/preview_with_template?dataset_id={datasetId}&template={template}&offset={offset}&limit={limit}"
+    },
+    "previewChatTemplate": {
+      "method": "GET",
+      "path": "data/preview_with_chat_template?dataset_id={datasetId}&template={template}&offset={offset}&limit={limit}&model_name={modelName}&chat_column={chatColumn}"
     }
   },
   "recipes": {
@@ -129,6 +137,22 @@
       "path": "recipes/jobs/{job_id}/status"
     }
   },
+  "users": {
+    "me": {
+      "method": "GET",
+      "path": "users/me"
+    }
+  },
+  "auth": {
+    "login": {
+      "method": "POST",
+      "path": "auth/jwt/login"
+    },
+    "register": {
+      "method": "POST",
+      "path": "auth/register"
+    }
+  },
   "experiment": {
     "getScriptsOfTypeWithFilter": {
       "method": "GET",
@@ -137,6 +161,10 @@
     "getScriptsOfTypeWithoutFilter": {
       "method": "GET",
       "path": "experiment/{experimentId}/plugins/list?type={type}"
+    },
+    "getAll": {
+      "method": "GET",
+      "path": "experiment/"
     }
   },
   "diffusion": {

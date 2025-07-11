@@ -15,8 +15,10 @@ import {
   Textarea,
   Typography,
 } from '@mui/joy';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
-export default function Embeddings({ experimentInfo }) {
+export default function Embeddings({}) {
+  const { experimentInfo } = useExperimentInfo();
   const [embeddingsResult, setEmbeddingsResult] = useState('');
 
   const copyToClipboard = () => {

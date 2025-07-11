@@ -20,6 +20,7 @@ import ModelCurrentlyPlayingBar from './ModelCurrentlyPlayingBar';
 import TinyMLXLogo from './Shared/TinyMLXLogo';
 import TinyNVIDIALogo from './Shared/TinyNVIDIALogo';
 import TinyAMDLogo from './Shared/TinyAMDLogo';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function StatsBar({ connection, setConnection }) {
   const [cs, setCS] = useState({ cpu: [0], gpu: [0], mem: [0] });
@@ -357,7 +358,9 @@ function StatsBar({ connection, setConnection }) {
   );
 }
 
-export default function Header({ connection, setConnection, experimentInfo }) {
+export default function Header({ connection, setConnection }) {
+  const { experimentInfo } = useExperimentInfo();
+
   return (
     <Sheet
       sx={{
