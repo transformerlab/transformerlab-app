@@ -50,9 +50,6 @@ export default function ViewOutputModalStreaming({
     ? `${API_URL()}experiment/${experimentId}/export/job/${jobId}/stream_output`
     : chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
 
-  // Log output endpoint for debugging
-  useEffect(() => {}, [outputEndpoint]);
-
   return (
     <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
       <ModalDialog sx={{ width: '80vw', height: '80vh' }}>
