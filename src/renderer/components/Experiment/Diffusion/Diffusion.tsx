@@ -532,26 +532,30 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     };
   };
 
-  const waitForJobCompletion = async (jobId: string, genId: string) => {
+  const waitForJobCompletion = async (
+    jobId: string,
+  ): Promise<'COMPLETE' | 'FAILED' | 'STOPPED' | 'UNKNOWN'> => {
     const pollInterval = 2000;
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const poll = async () => {
         try {
-          const res = await fetch(
-            chatAPI.Endpoints.Jobs.Get(jobId), // Already used in your `useSWR`
-            { method: 'GET' },
-          );
+          const res = await fetch(chatAPI.Endpoints.Jobs.Get(jobId), {
+            method: 'GET',
+          });
           const job = await res.json();
+
           if (job?.status === 'COMPLETE') {
-            resolve(job);
-          } else if (job?.status === 'FAILED' || job?.status === 'STOPPED') {
-            reject(new Error('Job failed or was stopped'));
+            resolve('COMPLETE');
+          } else if (job?.status === 'FAILED') {
+            resolve('FAILED');
+          } else if (job?.status === 'STOPPED') {
+            resolve('STOPPED');
           } else {
             setTimeout(poll, pollInterval);
           }
-        } catch (err) {
-          reject(err);
+        } catch {
+          resolve('UNKNOWN');
         }
       };
 
@@ -659,7 +663,16 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       const initData = await response.json();
       const jobId = initData.job_id;
 
-      await waitForJobCompletion(jobId, genId); // wait until job is COMPLETE
+      const jobStatus = await waitForJobCompletion(jobId);
+      if (jobStatus !== 'COMPLETE') {
+        setError(`Job ${jobStatus.toLowerCase()}`);
+        setLoading(false);
+        setIsPolling(false);
+        if (pollingCleanupRef.current) pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+        return;
+      }
+
       if (pollingCleanupRef.current) pollingCleanupRef.current();
       pollingCleanupRef.current = null;
       pollingCleanupRef.current = startPollingForJsonResult(
@@ -771,7 +784,15 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       const initData = await response.json();
       const jobId = initData.job_id;
 
-      await waitForJobCompletion(jobId, genId); // wait until job is COMPLETE
+      const jobStatus = await waitForJobCompletion(jobId);
+      if (jobStatus !== 'COMPLETE') {
+        setError(`Job ${jobStatus.toLowerCase()}`);
+        setLoading(false);
+        setIsPolling(false);
+        if (pollingCleanupRef.current) pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+        return;
+      }
       pollingCleanupRef.current = startPollingForJsonResult(
         experimentId,
         genId,
