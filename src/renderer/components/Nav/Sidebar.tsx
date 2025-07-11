@@ -225,13 +225,11 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   );
 }
 
-function UserDetailsPanel({userDetails, mutate}) {
+function UserDetailsPanel({ userDetails, mutate }) {
   return (
     <>
       <UserIcon />
-      <Box
-        sx={{ minWidth: 0, flex: 1 }}
-      >
+      <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography
           level="title-sm"
           sx={{
@@ -268,10 +266,10 @@ function UserDetailsPanel({userDetails, mutate}) {
       >
         <LogOutIcon
           size="18px"
-          onClick={async() => {
+          onClick={async () => {
             await logout();
             mutate();
-            alert("User logged out.");
+            alert('User logged out.');
           }}
         />
       </IconButton>
@@ -281,7 +279,12 @@ function UserDetailsPanel({userDetails, mutate}) {
 
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
-  const { data: userInfo, error: userError, isLoading: userLoading, mutate: userMutate } = useAPI('users', ['me'], {});
+  const {
+    data: userInfo,
+    error: userError,
+    isLoading: userLoading,
+    mutate: userMutate,
+  } = useAPI('users', ['me'], {});
 
   if (userError) {
     console.log(userError);
@@ -289,7 +292,7 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
 
   return (
     <>
-      <Divider sx={{ my: 2 }} />
+      <Divider sx={{ my: 1 }} />
       <Box
         sx={{
           display: DEV_MODE ? 'flex' : 'none',
@@ -299,42 +302,38 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           maxWidth: '180px',
         }}
       >
-
-      {(userInfo && userInfo.id) ? (
-        <UserDetailsPanel
-          userDetails={userInfo}
-          mutate={userMutate}
-        />
-      ) : (
-        <List
-          sx={{
-            '--ListItem-radius': '6px',
-            '--ListItem-minHeight': '32px',
-            overflowY: 'auto',
-            flex: 1,
-          }}
-        >
-          <ListItem className="FirstSidebar_Content">
-            <ListItemButton
-              variant='plain'
-              onClick={() => setUserLoginModalOpen(true)}
-            >
-              <ListItemDecorator sx={{ minInlineSize: '30px' }}>
-                <LogInIcon />
-              </ListItemDecorator>
-              <ListItemContent
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'flex-start',
-                  alignContent: 'center',
-                }}
+        {userInfo && userInfo.id ? (
+          <UserDetailsPanel userDetails={userInfo} mutate={userMutate} />
+        ) : (
+          <List
+            sx={{
+              '--ListItem-radius': '6px',
+              '--ListItem-minHeight': '32px',
+              overflowY: 'auto',
+              flex: 1,
+            }}
+          >
+            <ListItem className="FirstSidebar_Content">
+              <ListItemButton
+                variant="plain"
+                onClick={() => setUserLoginModalOpen(true)}
               >
-                <Typography level="body-sm">Login</Typography>
-              </ListItemContent>
-            </ListItemButton>
-          </ListItem>
-        </List>
-      )}
+                <ListItemDecorator sx={{ minInlineSize: '30px' }}>
+                  <LogInIcon />
+                </ListItemDecorator>
+                <ListItemContent
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    alignContent: 'center',
+                  }}
+                >
+                  <Typography level="body-sm">Login</Typography>
+                </ListItemContent>
+              </ListItemButton>
+            </ListItem>
+          </List>
+        )}
       </Box>
       <ButtonGroup
         sx={{
