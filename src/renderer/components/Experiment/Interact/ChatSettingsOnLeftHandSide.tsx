@@ -22,7 +22,7 @@ const fetchToolsWithMcp = async () => {
   try {
     // Fetch MCP_SERVER config
     const configResp = await fetch(
-      chatAPI.getFullPath('config', ['get'], { key: 'MCP_SERVER' }),
+      chatAPI.getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
     );
     if (!configResp.ok) {
       console.error(

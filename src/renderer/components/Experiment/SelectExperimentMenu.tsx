@@ -28,7 +28,7 @@ import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
@@ -141,7 +141,7 @@ export default function SelectExperimentMenu({ models }) {
         newId = await response.json();
       } else {
         const response = await fetch(
-          getFullPath('recipes', ['createExperiment'], {
+          getAPIFullPath('recipes', ['createExperiment'], {
             id: fromRecipeId,
             experiment_name: name,
           }),
