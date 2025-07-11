@@ -1,5 +1,106 @@
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
 
+import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+
+export async function login(
+  username: string,
+  password: string
+) {
+  const loginURL = getFullPath('auth', ['login'], {});
+
+  // Login data needs to be provided as form data
+  const formData = new FormData();
+  formData.append('username', username);
+  formData.append('password', password);
+
+  let result = {};
+  try {
+    const response = await fetch(loginURL, {
+      method: 'POST',
+      body: formData,
+    });
+    result = await response.json();
+
+    // Error during fetch
+  } catch (error) {
+    return {
+      status: "error",
+      message: "Login exception: " + error,
+    };
+  }
+
+  // API Successfully returned, but was the authentication successful?
+  const accessToken = result?.access_token;
+  if (accessToken) {
+    window.storage.set('accessToken', accessToken);
+    return {
+      status: "success",
+      message: "Logged in as " + username
+
+    };
+  } else {
+    return {
+      status: "unauthorized",
+      message: "Username or password incorrect",
+    }
+  }
+
+}
+
+export async function getAccessToken() {
+    const access_token = await window.storage.get('accessToken');
+    return access_token || "";
+}
+
+export async function logout() {
+    await window.storage.delete('accessToken');
+}
+
+export async function registerUser(
+  name: string,
+  email: string,
+  password: string
+) {
+  const registerURL = getFullPath('auth', ['register'], {});
+  const userJSON = {
+    "name": name,
+    "email": email,
+    "password": password
+  }
+
+  let result = {};
+  try {
+    const response = await fetch(registerURL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userJSON),
+    });
+    result = await response.json();
+
+    // Error during fetch
+  } catch (error) {
+    return {
+      status: "error",
+      message: "Register user exception: " + error,
+    };
+  }
+
+  console.log(result);
+  if (result?.email) {
+    return {
+      status: "success",
+      message: `User ${result?.email} added.`,
+    }
+  } else {
+    return {
+      status: "error",
+      message: result?.message,
+    }
+  }
+}
+
 export async function downloadModelFromHuggingFace(
   modelName: string,
   job_id = null,

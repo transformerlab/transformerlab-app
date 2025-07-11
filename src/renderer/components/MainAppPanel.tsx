@@ -40,6 +40,8 @@ import FoundationHome from './Experiment/Foundation';
 import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import SafeJSONParse from './Shared/SafeJSONParse';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -75,13 +77,9 @@ export const PageTracker = () => {
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
 // On the leftmost panel.
-export default function MainAppPanel({
-  experimentInfo,
-  setExperimentId,
-  experimentInfoMutate,
-  setLogsDrawerOpen = null,
-}) {
-  const navigate = useNavigate();
+export default function MainAppPanel({ setLogsDrawerOpen = null }) {
+  const { experimentInfo, experimentInfoMutate, setExperimentId } =
+    useExperimentInfo();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
     useState('chat');
 
@@ -90,7 +88,7 @@ export default function MainAppPanel({
   // Extract pluginId at the top level
   const inferenceParams = experimentInfo?.config?.inferenceParams;
   const pluginId = inferenceParams
-    ? JSON.parse(inferenceParams)?.inferenceEngine
+    ? SafeJSONParse(inferenceParams)?.inferenceEngine
     : null;
 
   // Use SWR at the top level, not inside useEffect
@@ -105,6 +103,10 @@ export default function MainAppPanel({
     fetcher,
   );
   const [chatHistory, setChatHistory] = useState([]);
+  useEffect(() => {
+    // Clear chat history whenever the model/pluginId changes
+    setChatHistory([]);
+  }, [pluginId]);
 
   let modelSupports = [
     'chat',
@@ -123,7 +125,7 @@ export default function MainAppPanel({
     modelData !== 'undefined' &&
     modelData !== 'FILE NOT FOUND'
   ) {
-    modelSupports = JSON.parse(modelData)?.supports || [
+    modelSupports = SafeJSONParse(modelData)?.supports || [
       'chat',
       'completion',
       'rag',
@@ -135,7 +137,7 @@ export default function MainAppPanel({
     ];
   }
   const setFoundation = useCallback(
-    (model) => {
+    (model, additionalConfigs = {}) => {
       let model_name = '';
       let model_filename = '';
 
@@ -157,32 +159,22 @@ export default function MainAppPanel({
 
       async function updateConfigs() {
         await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'foundation',
-            model_name,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'foundation_model_architecture',
-            model?.json_data?.architecture,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'foundation_filename',
-            model_filename,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'generationParams',
-            '{"temperature": 0.7, "maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
-          ),
+          chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              foundation: model_name,
+              foundation_model_architecture: model?.json_data?.architecture,
+              foundation_filename: model_filename,
+              adaptor: '', // Reset adaptor when foundation model changes
+              generationParams:
+                '{"temperature": 0.7,"maxTokens": 1024, "topP": 1.0, "frequencyPenalty": 0.0}',
+              ...(additionalConfigs || {}),
+            }),
+          },
         );
         experimentInfoMutate();
       }
@@ -228,25 +220,18 @@ export default function MainAppPanel({
 
       async function updateConfigs() {
         await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'embedding_model',
-            model_name,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'embedding_model_filename',
-            model_filename,
-          ),
-        );
-        await fetch(
-          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-            experimentInfo?.id,
-            'embedding_model_architecture',
-            model_architecture,
-          ),
+          chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              embedding_model: model_name,
+              embedding_model_filename: model_filename,
+              embedding_model_architecture: model_architecture,
+            }),
+          },
         );
         experimentInfoMutate();
       }
@@ -293,18 +278,17 @@ export default function MainAppPanel({
   const setRagEngine = useCallback(
     async (name: string, rag_settings: any = {}) => {
       await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'rag_engine',
-          name,
-        ),
-      );
-      await fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'rag_engine_settings',
-          JSON.stringify(rag_settings),
-        ),
+        chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            rag_engine: name,
+            rag_engine_settings: JSON.stringify(rag_settings),
+          }),
+        },
       );
       experimentInfoMutate();
     },
@@ -321,10 +305,7 @@ export default function MainAppPanel({
       <PageTracker />
       <Routes>
         <Route path="/" element={<Welcome />} />
-        <Route
-          path="/experiment/notes"
-          element={<ExperimentNotes experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/notes" element={<ExperimentNotes />} />
         <Route
           path="/experiment/model"
           element={
@@ -346,10 +327,7 @@ export default function MainAppPanel({
             />
           }
         />
-        <Route
-          path="/experiment/workflows"
-          element={<Workflows experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/workflows" element={<Workflows />} />
         <Route
           path="/experiment/prompt"
           element={
@@ -364,8 +342,6 @@ export default function MainAppPanel({
           path="/experiment/chat"
           element={
             <Interact
-              experimentInfo={experimentInfo}
-              experimentInfoMutate={experimentInfoMutate}
               setRagEngine={setRagEngine}
               mode={selectedInteractSubpage}
               setMode={setSelectedInteractSubpage}
@@ -379,10 +355,8 @@ export default function MainAppPanel({
           path="/experiment/model_architecture_visualization"
           element={
             <Interact
-              experimentInfo={experimentInfo}
-              experimentInfoMutate={experimentInfoMutate}
               setRagEngine={setRagEngine}
-              mode={'model_layers'}
+              mode="model_layers"
               setMode={setSelectedInteractSubpage}
               supports={modelSupports}
               chatHistory={chatHistory}
@@ -390,104 +364,36 @@ export default function MainAppPanel({
             />
           }
         />
-        <Route
-          path="/experiment/embeddings"
-          element={<Embeddings experimentInfo={experimentInfo} />}
-        />
-        <Route
-          path="/experiment/tokenize"
-          element={<Tokenize experimentInfo={experimentInfo} />}
-        />
-        <Route
-          path="/experiment/training"
-          element={<TrainLoRA experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/embeddings" element={<Embeddings />} />
+        <Route path="/experiment/tokenize" element={<Tokenize />} />
+        <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route
           path="/experiment/eval"
-          element={
-            <Eval
-              experimentInfo={experimentInfo}
-              addEvaluation={experimentAddEvaluation}
-              experimentInfoMutate={experimentInfoMutate}
-            />
-          }
+          element={<Eval addEvaluation={experimentAddEvaluation} />}
         />
         <Route
           path="/experiment/generate"
-          element={
-            <Generate
-              experimentInfo={experimentInfo}
-              addGeneration={experimentAddGeneration}
-              experimentInfoMutate={experimentInfoMutate}
-            />
-          }
+          element={<Generate addGeneration={experimentAddGeneration} />}
         />
-        <Route
-          path="/experiment/documents"
-          element={<Documents experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/documents" element={<Documents />} />
         <Route
           path="/experiment/rag"
-          element={
-            <Rag experimentInfo={experimentInfo} setRagEngine={setRagEngine} />
-          }
+          element={<Rag setRagEngine={setRagEngine} />}
         />
-        <Route
-          path="/experiment/export"
-          element={<Export experimentInfo={experimentInfo} />}
-        />
-        <Route
-          path="/experiment/generate"
-          element={<Generate experimentInfo={experimentInfo} />}
-        />
-        <Route
-          path="/experiment/diffusion"
-          element={<Diffusion experimentInfo={experimentInfo} />}
-        />
+        <Route path="/experiment/export" element={<Export />} />
+        <Route path="/experiment/diffusion" element={<Diffusion />} />
         <Route
           path="/plugins"
-          element={
-            <Plugins
-              experimentInfo={experimentInfo}
-              setLogsDrawerOpen={setLogsDrawerOpen}
-            />
-          }
+          element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
         />
-        <Route
-          path="/plugins/:pluginName"
-          element={<PluginDetails experimentInfo={experimentInfo} />}
-        />
+        <Route path="/plugins/:pluginName" element={<PluginDetails />} />
         <Route path="/api" element={<Api />} />
-        <Route
-          path="/experiment/settings"
-          element={
-            <Settings
-              experimentInfo={experimentInfo}
-              setExperimentId={setExperimentId}
-              experimentInfoMutate={experimentInfoMutate}
-            />
-          }
-        />
-        <Route
-          path="/zoo"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="groups" />}
-        />
-        <Route
-          path="/zoo/local"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="local" />}
-        />
-        <Route
-          path="/zoo/generated"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="generated" />}
-        />
-        <Route
-          path="/zoo/store"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="store" />}
-        />
-        <Route
-          path="/zoo/groups"
-          element={<ModelZoo experimentInfo={experimentInfo} tab="groups" />}
-        />
+        <Route path="/experiment/settings" element={<Settings />} />
+        <Route path="/zoo" element={<ModelZoo tab="groups" />} />
+        <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
+        <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
+        <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
+        <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
         <Route path="/data" element={<Data />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />

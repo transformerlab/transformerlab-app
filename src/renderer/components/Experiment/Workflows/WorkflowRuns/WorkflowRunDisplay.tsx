@@ -145,7 +145,9 @@ export default function WorkflowRunDisplay({
               )}
               <Box sx={{ width: '100%' }}>
                 <Typography level="title-lg">Job ID: {job.jobID}</Typography>
-                <Typography level="title-md">{`Task: ${job.taskName}`}</Typography>
+                <Typography level="title-md">
+                  {`Task: ${job.task || job.taskName || job.metadata?.task_name || 'N/A'}`}
+                </Typography>
                 <Typography level="body-md" sx={{ color: 'text.secondary' }}>
                   Status:{' '}
                   <Chip
