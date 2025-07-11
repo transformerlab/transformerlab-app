@@ -535,6 +535,10 @@ export default function TrainingModalLoRA({
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             let formJson = Object.fromEntries((formData as any).entries());
+
+            // Ensure nameInput state is captured as template_name
+            formJson.template_name = nameInput;
+
             formJson.type = trainingType;
             // Add sweep config to form data
             if (Object.keys(sweepConfig).length > 0) {

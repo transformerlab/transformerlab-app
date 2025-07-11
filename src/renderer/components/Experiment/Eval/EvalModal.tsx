@@ -314,6 +314,10 @@ export default function EvalModal({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const formJson = Object.fromEntries((formData as any).entries());
+
+    // Ensure nameInput state is captured as template_name
+    formJson.template_name = nameInput;
+
     // Add an extra field in formJson for datasetDisplayMessage
     if (datasetDisplayMessage.length > 0) {
       formJson._dataset_display_message = datasetDisplayMessage;
