@@ -373,6 +373,12 @@ export default function GenerateModal({
               name="model_architecture"
               readOnly
             />
+            <input
+              hidden
+              value={experimentInfo?.config?.adaptor}
+              name="model_adapter"
+              readOnly
+            />
           </Stack>
         </Sheet>
       </Stack>
