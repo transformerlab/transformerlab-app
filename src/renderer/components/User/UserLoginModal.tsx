@@ -16,14 +16,9 @@ import {
   Typography,
 } from '@mui/joy';
 
-import {
-  TriangleAlert,
-} from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 
-import {
-  login,
-  registerUser
-} from 'renderer/lib/transformerlab-api-sdk';
+import { login, registerUser } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function UserLoginModal({ open, onClose }) {
   const [loginErrorMessage, setLoginErrorMessage] = useState(null);
@@ -33,13 +28,13 @@ export default function UserLoginModal({ open, onClose }) {
     pt: 4,
     width: '100%',
     maxWidth: '400px',
-    mx: 'auto'
+    mx: 'auto',
   };
 
   const descriptionAlertSx = {
     display: 'flex',
     justifyContent: 'center',
-    mb: 2
+    mb: 2,
   };
 
   return (
@@ -68,22 +63,14 @@ export default function UserLoginModal({ open, onClose }) {
 
           <TabPanel value="login" sx={commonTabPanelSx}>
             {loginErrorMessage ? (
-              <Alert
-                variant="outlined"
-                severity="error"
-                color="warning"
-                sx={descriptionAlertSx}
-              >
+              <Alert variant="outlined" color="warning" sx={descriptionAlertSx}>
                 <TriangleAlert />
                 <Typography level="body-sm" textColor="text.tertiary">
                   {loginErrorMessage}
                 </Typography>
               </Alert>
             ) : (
-              <Alert
-                variant="plain"
-                sx={descriptionAlertSx}
-              >
+              <Alert variant="plain" sx={descriptionAlertSx}>
                 <Typography level="body-sm" textColor="text.tertiary">
                   Login with your existing account credentials.
                 </Typography>
@@ -100,15 +87,16 @@ export default function UserLoginModal({ open, onClose }) {
                 const result = await login(username, password);
 
                 // Check if login was successful. If not, stay on screen
-                if (result?.status == "success") {
+                if (result?.status === 'success') {
                   console.log(`Login attempt successful for user ${username}`);
                   setLoginErrorMessage(null);
                   onClose();
-                } else if (result?.status == "error") {
+                } else if (result?.status === 'error') {
                   setLoginErrorMessage(result?.message);
-                } else { // unauthorized - reset fields
+                } else {
+                  // unauthorized - reset fields
                   (event.target as HTMLFormElement).reset();
-                   setLoginErrorMessage(result?.message);
+                  setLoginErrorMessage(result?.message);
                 }
               }}
             >
@@ -155,7 +143,7 @@ export default function UserLoginModal({ open, onClose }) {
                 const result = await registerUser(name, email, password);
 
                 // Check if login was successful. If not, stay on screen
-                if (result?.status == "success") {
+                if (result?.status === 'success') {
                   alert(`Registered new user ${email}`);
                   onClose();
                 } else {
