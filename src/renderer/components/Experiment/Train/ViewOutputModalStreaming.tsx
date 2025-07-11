@@ -95,7 +95,7 @@ export default function ViewOutputModalStreaming({
         <Tabs value={tab} onChange={(_, newVal) => setTab(newVal)}>
           <TabList>
             {sweeps && <Tab>Results</Tab>}
-            <Tab>Outputs + Logs</Tab>
+            <Tab>Raw Output</Tab>
           </TabList>
 
           {sweeps && (
