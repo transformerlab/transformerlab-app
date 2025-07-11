@@ -22,10 +22,6 @@ dayjs.extend(duration);
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-interface ExportJobsTableProps {
-  experimentInfo: any;
-}
-
 interface Job {
   id: string;
   status: string;
@@ -44,7 +40,7 @@ interface Job {
   };
 }
 
-const ExportJobsTable = ({ experimentInfo }: ExportJobsTableProps) => {
+const ExportJobsTable = () => {
   const [viewOutputFromJob, setViewOutputFromJob] = useState<string | number>(
     -1,
   );
@@ -55,8 +51,7 @@ const ExportJobsTable = ({ experimentInfo }: ExportJobsTableProps) => {
     isLoading,
     mutate: jobsMutate,
   } = useSWR<Job[]>(
-    experimentInfo?.id &&
-      chatAPI.Endpoints.Experiment.GetExportJobs(experimentInfo?.id),
+    chatAPI.Endpoints.Jobs.GetJobsOfType('EXPORT', ''),
     fetcher,
     {
       refreshInterval: 2000,

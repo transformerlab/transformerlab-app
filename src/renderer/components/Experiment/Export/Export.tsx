@@ -48,20 +48,6 @@ export default function Export() {
     fetcher,
   );
 
-  const {
-    data: exportJobs,
-    error: exportJobsError,
-    isLoading: exportJobsIsLoading,
-    mutate: exportJobsMutate,
-  } = useSWR(
-    experimentInfo?.id &&
-      chatAPI.Endpoints.Experiment.GetExportJobs(experimentInfo?.id),
-    fetcher,
-    {
-      refreshInterval: 2000,
-    },
-  );
-
   // returns true if the currently loaded foundation is in the passed array
   // supported_architectures - a list of all architectures supported by this plugin
   function isModelValidArchitecture(
@@ -174,15 +160,12 @@ export default function Export() {
         );
 
         const tasks = await tasksResponse.json();
-        console.log('Tasks:', tasks);
-        
+
         // Find the task with the latest/highest ID (most recently created)
         const latestTask = tasks.reduce((latest: any, current: any) => {
           return current.id > latest.id ? current : latest;
         });
         const taskId = latestTask.id;
-
-        console.log('Task ID:', taskId);
 
         const queueResponse = await fetch(
           chatAPI.Endpoints.Tasks.Queue(taskId),
@@ -292,7 +275,7 @@ export default function Export() {
         </Sheet>
 
         <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 1, overflow: 'auto' }}>
-          <ExportJobsTable experimentInfo={experimentInfo} />
+          <ExportJobsTable />
         </Sheet>
       </Sheet>
     </>
