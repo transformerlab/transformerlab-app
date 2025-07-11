@@ -519,10 +519,12 @@ export default function SelectedRecipe({
     ).then((res) => res.json());
     if (existingExperiments.some((exp: any) => exp.name === name)) {
       setExperimentNameTouched(true);
-      setExperimentNameError(`Experiment name ${name} already exists.`);
+      setExperimentNameError(`Experiment name "${name}" already exists.`);
       return; // Don't allow duplicate names
     }
 
+    // Clear any previous errors and proceed to step 2
+    setExperimentNameError('');
     setExperimentName(name);
     setExperimentNameFormValue(name);
     setExperimentNameTouched(false);
@@ -605,13 +607,17 @@ export default function SelectedRecipe({
           maxWidth: '900px',
           margin: '0 auto',
         }}
-        onSubmit={handleSubmit}
       >
         {experimentName === '' ? (
           <Box id="recipe-left" sx={{ overflowY: 'auto', padding: 1 }}>
             <FormControl
               required
               error={!experimentNameFormValue && experimentNameTouched}
+              component="form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSetExperimentName(experimentNameFormValue);
+              }}
             >
               <FormLabel sx={{ fontWeight: 'regular' }}>
                 Experiment Name:
@@ -623,10 +629,18 @@ export default function SelectedRecipe({
                 onChange={(e) => {
                   setExperimentNameFormValue(e.target.value);
                   if (!experimentNameTouched) setExperimentNameTouched(true);
+                  // Clear error when user starts typing a new name
+                  if (experimentNameError) setExperimentNameError('');
                 }}
                 onBlur={() => setExperimentNameTouched(true)}
                 required
                 name="experimentName"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSetExperimentName(experimentNameFormValue);
+                  }
+                }}
               />
               {!experimentNameFormValue && experimentNameTouched && (
                 <FormHelperText>This field is required.</FormHelperText>
@@ -634,13 +648,14 @@ export default function SelectedRecipe({
               {experimentNameError && (
                 <FormHelperText>{experimentNameError}</FormHelperText>
               )}
+              <Button
+                sx={{ mt: 2 }}
+                type="submit"
+                onClick={() => handleSetExperimentName(experimentNameFormValue)}
+              >
+                Save
+              </Button>
             </FormControl>
-            <Button
-              sx={{ mt: 2 }}
-              onClick={() => handleSetExperimentName(experimentNameFormValue)}
-            >
-              Save
-            </Button>
           </Box>
         ) : (
           <>
@@ -773,7 +788,9 @@ export default function SelectedRecipe({
           color="danger"
           sx={{ textAlign: 'center', mt: 0.5 }}
         >
-          {missingAnyDependencies &&
+          {experimentName === '' && 'Complete Step 1 to continue.'}
+          {experimentName !== '' &&
+            missingAnyDependencies &&
             'Install all missing dependencies before you can use this recipe.'}
           &nbsp;
           {!isHardwareCompatible &&

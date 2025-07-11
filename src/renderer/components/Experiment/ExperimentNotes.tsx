@@ -14,6 +14,7 @@ import remarkGfm from 'remark-gfm';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { PencilIcon, TypeOutline } from 'lucide-react';
 import { Box, Button, Typography } from '@mui/joy';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
 const { parseTmTheme } = require('monaco-themes');
@@ -27,9 +28,10 @@ function setTheme(editor: any, monaco: any) {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ExperimentNotes({ experimentInfo }) {
+export default function ExperimentNotes({}) {
   const editorRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
+  const { experimentInfo } = useExperimentInfo();
 
   // Fetch the experiment markdown
   const { data, error, isLoading, mutate } = useSWR(

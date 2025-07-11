@@ -17,6 +17,7 @@ import {
 } from '@mui/joy';
 import { useState } from 'react';
 import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 // array of 5 pastel colours for the rainbow effect:
 const colourArray = colorArray;
@@ -94,9 +95,8 @@ function makeRainbowTextFromArray(arr) {
   return result.map((element, index) => <>{element}</>);
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
-export default function Tokenize({ experimentInfo }) {
+export default function Tokenize({}) {
+  const { experimentInfo } = useExperimentInfo();
   const [tokenizedResult, setTokenizedResult] = useState('');
   const [numberOfTokens, setNumberOfTokens] = useState(0);
   const [numberOfCharacters, setNumberOfCharacters] = useState(0);

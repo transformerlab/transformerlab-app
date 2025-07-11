@@ -5,14 +5,12 @@ import { Button, Chip, Divider, Switch, Typography } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ExperimentSettings({
-  experimentInfo,
-  setExperimentId,
-  experimentInfoMutate,
-}) {
+export default function ExperimentSettings() {
+  const { experimentInfo, setExperimentId } = useExperimentInfo();
   const [showJSON, setShowJSON] = useState(false);
 
   if (!experimentInfo) {

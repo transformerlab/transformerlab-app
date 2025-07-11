@@ -3,22 +3,24 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  FormHelperText,
   FormLabel,
   Input,
   Modal,
   ModalClose,
   ModalDialog,
-  Option,
-  Select,
+  Radio,
+  RadioGroup,
   Stack,
   Textarea,
+  Typography,
+  List,
+  ListItem,
+  ListItemButton,
 } from '@mui/joy';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
-import { node } from 'webpack';
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
@@ -30,24 +32,23 @@ export default function NewNodeModal({
 }) {
   const [mode, setMode] = useState('OTHER');
   const [availableTasks, setAvailableTasks] = useState([]);
+  const [selectedTask, setSelectedTask] = useState('');
+  const [validationError, setValidationError] = useState('');
 
-  const {
-    data: tasksData,
-    error: tasksError,
-    isLoading: isLoadingTasks,
-  } = useSWR(open ? chatAPI.Endpoints.Tasks.List() : null, fetcher);
+  const { data: tasksData } = useSWR(
+    open ? chatAPI.Endpoints.Tasks.List() : null,
+    fetcher,
+  );
 
-  let evaluationData = [];
-  try {
-    evaluationData = JSON.parse(experimentInfo?.config?.evaluations);
-  } catch (error) {
-    console.error('Failed to parse evaluation data:', error);
-  }
-
-  const handleModeChange = (event: any, newValue: string) => {
+  const handleModeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
     setMode(newValue);
-    if (tasksData && newValue !== 'OTHER') {
-      const filteredTasks = tasksData.filter((task) => task.type === newValue);
+    setSelectedTask(''); // Reset task selection when mode changes
+    setValidationError(''); // Clear validation errors
+    if (tasksData && newValue !== 'OTHER' && newValue !== 'DOWNLOAD_MODEL') {
+      const filteredTasks = tasksData.filter(
+        (task: any) => task.type === newValue,
+      );
       setAvailableTasks(filteredTasks);
     } else {
       setAvailableTasks([]);
@@ -55,8 +56,13 @@ export default function NewNodeModal({
   };
 
   useEffect(() => {
-    if (tasksData && mode != 'OTHER' && tasksData?.detail !== 'Not Found') {
-      const filteredTasks = tasksData.filter((task) => task.type === mode);
+    if (
+      tasksData &&
+      mode !== 'OTHER' &&
+      mode !== 'DOWNLOAD_MODEL' &&
+      tasksData?.detail !== 'Not Found'
+    ) {
+      const filteredTasks = tasksData.filter((task: any) => task.type === mode);
       setAvailableTasks(filteredTasks);
     } else {
       setAvailableTasks([]);
@@ -65,7 +71,7 @@ export default function NewNodeModal({
 
   return (
     <Modal open={open} onClose={() => onClose()}>
-      <ModalDialog>
+      <ModalDialog sx={{ maxWidth: 500, width: '90vw' }}>
         <ModalClose />
         <DialogTitle>Create new Node</DialogTitle>
         <DialogContent>Add a new node to the workflow.</DialogContent>
@@ -75,37 +81,45 @@ export default function NewNodeModal({
             const formData = new FormData(event.currentTarget);
             const name = formData.get('name') as string;
 
-            if (mode == 'OTHER') {
-              const node = JSON.parse(formData.get('node') as string);
-              node.name = name;
+            // Validation for task selection
+            if (
+              mode !== 'OTHER' &&
+              mode !== 'DOWNLOAD_MODEL' &&
+              !selectedTask
+            ) {
+              setValidationError('Please select a task');
+              return;
+            }
+
+            if (mode === 'OTHER') {
+              const nodeData = JSON.parse(formData.get('node') as string);
+              nodeData.name = name;
               await fetch(
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
-                  JSON.stringify(node),
+                  JSON.stringify(nodeData),
                   experimentInfo.id,
                 ),
               );
-            } else if (mode == 'DOWNLOAD_MODEL') {
+            } else if (mode === 'DOWNLOAD_MODEL') {
               const model = formData.get('model') as string;
-              const config = JSON.parse(selectedWorkflow.config);
-              console.log(config);
-              const node = {
-                name: name,
+              const nodeData = {
+                name,
                 type: 'DOWNLOAD_MODEL',
-                model: model,
+                model,
               };
               await fetch(
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
-                  JSON.stringify(node),
+                  JSON.stringify(nodeData),
                   experimentInfo.id,
                 ),
               );
             } else {
-              const selectedTaskName = formData.get('task') as string;
+              const selectedTaskName = selectedTask;
 
-              const node = {
-                name: name,
+              const nodeData = {
+                name,
                 task: selectedTaskName,
                 type: mode,
                 metadata: { task_name: selectedTaskName },
@@ -113,7 +127,7 @@ export default function NewNodeModal({
               await fetch(
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
-                  JSON.stringify(node),
+                  JSON.stringify(nodeData),
                   experimentInfo.id,
                 ),
               );
@@ -129,35 +143,77 @@ export default function NewNodeModal({
             </FormControl>
             <FormControl>
               <FormLabel>Type</FormLabel>
-              <Select
-                labelId="mode-label"
-                id="mode-select"
-                value={mode}
-                onChange={handleModeChange}
-                required
-              >
-                <Option value="DOWNLOAD_MODEL">DOWNLOAD MODEL</Option>
-                <Option value="TRAIN">TRAIN</Option>
-                <Option value="EVAL">EVAL</Option>
-                <Option value="GENERATE">GENERATE</Option>
-                <Option value="OTHER">OTHER</Option>
-              </Select>
+              <RadioGroup value={mode} onChange={handleModeChange} name="mode">
+                <Radio value="DOWNLOAD_MODEL" label="DOWNLOAD MODEL" />
+                <Radio value="TRAIN" label="TRAIN" />
+                <Radio value="EVAL" label="EVAL" />
+                <Radio value="GENERATE" label="GENERATE" />
+                <Radio value="EXPORT" label="EXPORT" />
+                <Radio value="OTHER" label="OTHER" />
+              </RadioGroup>
             </FormControl>
 
             <FormControl>
-              {mode != 'OTHER' && mode != 'DOWNLOAD_MODEL' && (
+              {mode !== 'OTHER' && mode !== 'DOWNLOAD_MODEL' && (
                 <>
                   <FormLabel>Task</FormLabel>
-                  <Select name="task" required>
-                    {availableTasks.map((task) => (
-                      <Option key={task.id} value={task.name}>
-                        {task.name}
-                      </Option>
+                  <List
+                    sx={{
+                      maxHeight: 200,
+                      overflow: 'auto',
+                      borderRadius: 8,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      p: 0,
+                      width: '100%',
+                      minWidth: 0, // Allow shrinking below content width
+                    }}
+                  >
+                    {availableTasks.map((task: any) => (
+                      <ListItem key={task.name} sx={{ p: 0 }}>
+                        <ListItemButton
+                          selected={selectedTask === task.name}
+                          onClick={() => {
+                            setSelectedTask(task.name);
+                            setValidationError('');
+                          }}
+                          sx={{
+                            width: '100%',
+                            minWidth: 0, // Allow shrinking
+                            px: 2,
+                            py: 1,
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              wordBreak: 'break-word',
+                              whiteSpace: 'normal',
+                              lineHeight: 1.3,
+                              width: '100%',
+                            }}
+                            title={task.name} // Show full name on hover
+                          >
+                            {task.name}
+                          </Typography>
+                        </ListItemButton>
+                      </ListItem>
                     ))}
-                  </Select>
+                    {availableTasks.length === 0 && (
+                      <ListItem>
+                        <Typography level="body-sm" color="neutral">
+                          No tasks available for this type
+                        </Typography>
+                      </ListItem>
+                    )}
+                  </List>
+                  {validationError && (
+                    <Typography level="body-sm" color="danger" sx={{ mt: 1 }}>
+                      {validationError}
+                    </Typography>
+                  )}
                 </>
               )}
-              {mode == 'DOWNLOAD_MODEL' && (
+              {mode === 'DOWNLOAD_MODEL' && (
                 <>
                   <FormLabel>Huggingface Model Id</FormLabel>
                   <Input autoFocus required name="model" />

@@ -272,7 +272,7 @@ export default function ModelDetails({
 
                   // Update local state after successful API calls
                   setFoundation(null);
-                  setAdaptor('');
+                  // setAdaptor(''); // setFoundation already clears adaptor
                 } catch (error) {
                   // eslint-disable-next-line no-console
                   console.error('Error ejecting model:', error);

@@ -1,4 +1,4 @@
-import { CircularProgress, Grid, Sheet } from '@mui/joy';
+import { Alert, CircularProgress, Grid, Sheet } from '@mui/joy';
 import Typography from '@mui/joy/Typography';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import RecipeCard from './RecipeCard';
@@ -30,10 +30,11 @@ export default function ListRecipes({ setSelectedRecipe }) {
       <Typography level="h3" mb={1}>
         What do you want to do?
       </Typography>
-      <Typography level="body-sm" mb={2}>
-        Your machine&apos;s architecture is {device}. To see more recipes, try
-        this app on a computer with a different GPU.
-      </Typography>
+      <Alert color="primary" variant="soft">
+        Your machine&apos;s architecture is &quot;{serverInfo?.device_type}
+        &quot;. To see more recipes, try this app on a computer with a different
+        GPU.
+      </Alert>
       <Sheet
         variant="soft"
         color="neutral"
