@@ -660,7 +660,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       const jobId = initData.job_id;
 
       await waitForJobCompletion(jobId, genId); // wait until job is COMPLETE
-      startPollingForJsonResult(
+      if (pollingCleanupRef.current) pollingCleanupRef.current();
+      pollingCleanupRef.current = null;
+      pollingCleanupRef.current = startPollingForJsonResult(
         experimentId,
         genId,
         (data) => {
@@ -688,6 +690,8 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         (message) => {
           setError(message);
           setLoading(false);
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
         },
       );
     } catch (e) {
@@ -768,7 +772,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       const jobId = initData.job_id;
 
       await waitForJobCompletion(jobId, genId); // wait until job is COMPLETE
-      startPollingForJsonResult(
+      pollingCleanupRef.current = startPollingForJsonResult(
         experimentId,
         genId,
         (data) => {
@@ -796,12 +800,12 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         (message) => {
           setError(message);
           setLoading(false);
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
         },
       );
     } catch (e) {
       setError('Failed to generate image');
-    } finally {
-      setLoading(false);
     }
   };
 
