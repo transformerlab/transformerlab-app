@@ -116,9 +116,13 @@ export default function JobDetails({ jobId, onClose }) {
               }}
             >
               <OutputTerminal
-                logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-                  data?.id,
-                )}
+                logEndpoint={
+                  data?.type === 'TRAIN'
+                    ? chatAPI.Endpoints.Experiment.StreamOutputFromTrainingJob(
+                        data?.id,
+                      )
+                    : chatAPI.Endpoints.Experiment.StreamOutputFromJob(data?.id)
+                }
                 lineAnimationDelay={1}
               />
             </Box>
