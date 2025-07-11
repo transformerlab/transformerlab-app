@@ -76,6 +76,8 @@ export default function TrainingModalLoRA({
 
   const [applyChatTemplate, setApplyChatTemplate] = useState(false);
   const [chatColumn, setChatColumn] = useState('');
+  const [formattingTemplate, setFormattingTemplate] = useState('');
+  const [formattingChatTemplate, setFormattingChatTemplate] = useState('');
 
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
@@ -190,6 +192,21 @@ export default function TrainingModalLoRA({
       setSelectedDataset(templateData.config.dataset_name);
       setConfig(templateData.config);
       setNameInput(templateData.name);
+
+      // Set template fields
+      if (templateData.config.formatting_template) {
+        setFormattingTemplate(templateData.config.formatting_template);
+      }
+      if (templateData.config.formatting_chat_template) {
+        setFormattingChatTemplate(templateData.config.formatting_chat_template);
+      }
+      if (templateData.config.apply_chat_template !== undefined) {
+        setApplyChatTemplate(templateData.config.apply_chat_template);
+      }
+      if (templateData.config.chat_column) {
+        setChatColumn(templateData.config.chat_column);
+      }
+
       if (templateData.config.sweep_config) {
         setSweepConfig(JSON.parse(templateData.config.sweep_config));
       } else {
@@ -205,6 +222,10 @@ export default function TrainingModalLoRA({
       setSelectedDataset(null);
       setConfig({});
       setNameInput(generateFriendlyName());
+      setFormattingTemplate('');
+      setFormattingChatTemplate('');
+      setApplyChatTemplate(false);
+      setChatColumn('');
       setSweepConfig({});
       setIsRunSweeps(false);
     }
@@ -536,8 +557,34 @@ export default function TrainingModalLoRA({
             const formData = new FormData(event.currentTarget);
             let formJson = Object.fromEntries((formData as any).entries());
 
+            // Merge data from DynamicPluginForm (stored in window.currentFormData)
+            if ((window as any).currentFormData) {
+              Object.assign(formJson, (window as any).currentFormData);
+            }
+
             // Ensure nameInput state is captured as template_name
             formJson.template_name = nameInput;
+
+            // Include selectedDataset if it exists
+            if (selectedDataset) {
+              formJson.dataset_name = selectedDataset;
+            }
+
+            // Include chat template settings
+            if (applyChatTemplate) {
+              formJson.apply_chat_template = applyChatTemplate;
+            }
+            if (chatColumn) {
+              formJson.chat_column = chatColumn;
+            }
+
+            // Include template values
+            if (formattingTemplate) {
+              formJson.formatting_template = formattingTemplate;
+            }
+            if (formattingChatTemplate) {
+              formJson.formatting_chat_template = formattingChatTemplate;
+            }
 
             formJson.type = trainingType;
             // Add sweep config to form data
@@ -638,6 +685,10 @@ export default function TrainingModalLoRA({
                 setApplyChatTemplate={setApplyChatTemplate}
                 chatColumn={chatColumn}
                 setChatColumn={setChatColumn}
+                formattingTemplate={formattingTemplate}
+                setFormattingTemplate={setFormattingTemplate}
+                formattingChatTemplate={formattingChatTemplate}
+                setFormattingChatTemplate={setFormattingChatTemplate}
               />
             </TabPanel>
             <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
@@ -674,6 +725,7 @@ export default function TrainingModalLoRA({
                   injectIntoTemplate={injectIntoTemplate}
                   experimentInfo={experimentInfo}
                   pluginId={pluginId}
+                  displayMessage=""
                 />
               </>
             </TabPanel>
