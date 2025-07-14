@@ -81,7 +81,7 @@ export default function Computer() {
         flexDirection: 'column',
         height: '100%',
         overflow: 'hidden',
-        paddingBottom: '1rem',
+        marginBottom: '1rem',
       }}
     >
       <Tabs
@@ -414,7 +414,7 @@ export default function Computer() {
             style={{
               display: 'flex',
               flexDirection: 'column',
-              height: '100%',
+              height: '90%',
               overflow: 'hidden',
               gap: '1rem',
             }}
