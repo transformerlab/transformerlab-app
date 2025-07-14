@@ -536,7 +536,7 @@ export default function TrainingModalLoRA({
             const formData = new FormData(event.currentTarget);
             let formJson = Object.fromEntries((formData as any).entries());
             formJson.type = trainingType;
-            formJson.chat_column = chatColumn;
+            formJson.chatml_formatted_column = chatColumn;
             // Add sweep config to form data
             if (Object.keys(sweepConfig).length > 0) {
               formJson.sweep_config = JSON.stringify(sweepConfig);
