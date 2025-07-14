@@ -87,6 +87,10 @@
     "stop": {
       "method": "GET",
       "path": "jobs/{jobId}/stop"
+    },
+    "getJobsOfType": {
+      "method": "GET",
+      "path": "jobs/list"
     }
   },
   "datasets": {

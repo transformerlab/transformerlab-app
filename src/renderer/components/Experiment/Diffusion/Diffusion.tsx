@@ -36,10 +36,7 @@ import {
   useServerStats,
   useAPI,
 } from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
-import { useNotification } from '../../Shared/NotificationSystem';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useAnalytics } from '../../Shared/analytics/AnalyticsContext';
 import History from './History';
 import Inpainting from './Inpainting';
@@ -104,16 +101,19 @@ const samplePrompts = [
   'a whimsical and highly detailed illustration of a miniature world inside a glass terrarium, tiny people tending to giant flowers, a small waterfall, magical realism, storybook style.',
 ];
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
 export default function Diffusion() {
   const { experimentInfo } = useExperimentInfo();
   const analytics = useAnalytics();
-  const { addNotification } = useNotification();
-  const { data: diffusionJobs } = useSWR(
-    chatAPI.Endpoints.Jobs.GetJobsOfType('DIFFUSION', ''),
-    fetcher,
-    { refreshInterval: 2000 },
+  const { data: diffusionJobs } = useAPI(
+    'jobs',
+    ['getJobsOfType'],
+    {
+      type: 'DIFFUSION',
+      status: '',
+    },
+    {
+      refreshInterval: 2000,
+    },
   );
 
   const runningDiffusionJob = diffusionJobs?.find(
@@ -206,8 +206,6 @@ export default function Diffusion() {
   >(null);
   // const [currentStep, setCurrentStep] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
-  const [hasNotifiedMissingPlugin, setHasNotifiedMissingPlugin] =
-    useState(false);
   const experimentId = experimentInfo?.id;
 
   // Helper functions to get the appropriate images based on active tab
@@ -240,39 +238,48 @@ export default function Diffusion() {
     },
   );
 
-  const isImageDiffusionPluginInstalled = diffusionPlugins
-    ? diffusionPlugins.some((plugin) => plugin.uniqueId === 'image_diffusion')
-    : null;
+  const [selectedPlugin, setSelectedPlugin] = useState<string | null>(null);
+  const [isPluginValid, setIsPluginValid] = useState<boolean | null>(null);
+
+  const availableDiffusionPlugins =
+    diffusionPlugins?.filter((p) => p.type === 'diffusion') || [];
 
   useEffect(() => {
-    if (
-      !hasNotifiedMissingPlugin &&
-      !diffusionPluginsLoading &&
-      Array.isArray(diffusionPlugins)
-    ) {
-      const isInstalled = diffusionPlugins.some(
-        (plugin) => plugin.uniqueId === 'image_diffusion',
-      );
+    const checkPluginEligibility = async () => {
+      if (!selectedPlugin || !experimentInfo?.id) return;
 
-      if (!isInstalled) {
-        const timer = setTimeout(() => {
+      try {
+        const res = await fetch(
+          getAPIFullPath('diffusion', ['checkValidDiffusion'], {
+            experimentId: experimentInfo.id,
+          }),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model }),
+          },
+        );
+        const data = await res.json();
+        if (data.is_valid_diffusion_model) {
+          setIsPluginValid(true);
+        } else {
+          setIsPluginValid(false);
           addNotification({
-            type: 'danger',
-            message:
-              'The image_diffusion plugin is not installed. Please install it before generating images.',
+            type: 'warning',
+            message: `The plugin "${selectedPlugin}" is not compatible with the selected model.`,
           });
-          setHasNotifiedMissingPlugin(true);
-        }, 200); // 1 second delay
-
-        return () => clearTimeout(timer);
+        }
+      } catch {
+        setIsPluginValid(false);
+        addNotification({
+          type: 'danger',
+          message: `Failed to validate plugin "${selectedPlugin}".`,
+        });
       }
-    }
-  }, [
-    diffusionPlugins,
-    diffusionPluginsLoading,
-    hasNotifiedMissingPlugin,
-    addNotification,
-  ]);
+    };
+
+    checkPluginEligibility();
+  }, [selectedPlugin, model]);
 
   // Update model when experimentInfo changes
   useEffect(() => {
@@ -424,127 +431,88 @@ export default function Diffusion() {
   const startPollingForIntermediateImages = (
     genId: string,
     totalSteps: number,
+    onFinalResult: (data: any) => void,
+    onError: (message: string) => void,
   ) => {
     setIsPolling(true);
     setCurrentIntermediateImage(null);
-    // setCurrentStep(0);
 
-    let isActive = true; // flag to control active polling
-    let lastImageUrl: string | null = null;
-    const pollInterval = 1000; // Poll every second
-    let pollTimeoutId: number;
-
-    const poll = async () => {
-      if (!isActive) return; // stop if no longer active
-      // Poll for the latest step image (backend overwrites the same step.png file)
-      try {
-        const baseUrl = getAPIFullPath('diffusion', ['getImage'], {
-          experimentId: experimentId,
-          imageId: genId,
-          index: 0,
-        });
-        const response = await fetch(`${baseUrl}&step=true`); // Add timestamp to prevent caching
-
-        if (response.ok) {
-          const blob = await response.blob();
-          const imageUrl = URL.createObjectURL(blob);
-
-          if (imageUrl !== lastImageUrl) {
-            if (lastImageUrl) {
-              URL.revokeObjectURL(lastImageUrl);
-            }
-
-            setCurrentIntermediateImage(imageUrl);
-            lastImageUrl = imageUrl;
-            // setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
-          }
-        } else if (response.status === 404) {
-          // Don't update anything, just continue polling - image might not be ready yet
-        }
-      } catch (e) {
-        // Continue polling even if there's an error
-      }
-
-      // Schedule next poll only if still active
-      if (isActive) {
-        pollTimeoutId = window.setTimeout(poll, pollInterval);
-      }
-    };
-
-    // Start polling
-    pollTimeoutId = window.setTimeout(poll, pollInterval);
-
-    // Return cleanup function to stop further polls
-    return () => {
-      isActive = false;
-      if (pollTimeoutId) {
-        clearTimeout(pollTimeoutId);
-      }
-      setIsPolling(false);
-      if (lastImageUrl) {
-        URL.revokeObjectURL(lastImageUrl);
-      }
-    };
-  };
-
-  const startPollingForJsonResult = (
-    experimentId: string,
-    genId: string,
-    onSuccess: (data: any) => void,
-    onError: (message: string) => void,
-  ) => {
     let isActive = true;
-    const pollInterval = 1000;
+    let lastImageUrl: string | null = null;
     let pollTimeoutId: number;
+    const pollInterval = 1000;
+
+    let hasReceivedJson = false;
 
     const poll = async () => {
       if (!isActive) return;
 
       try {
-        const url = getAPIFullPath('diffusion', ['getFile'], {
-          experimentId,
-          generationId: genId,
+        // STEP IMAGE polling
+        const stepUrl = getAPIFullPath('diffusion', ['getImage'], {
+          experimentId: experimentId,
+          imageId: genId,
+          index: 0,
         });
+        const stepResponse = await fetch(`${stepUrl}&step=true`);
+        if (stepResponse.ok) {
+          const blob = await stepResponse.blob();
+          const imageUrl = URL.createObjectURL(blob);
+          if (imageUrl !== lastImageUrl) {
+            if (lastImageUrl) URL.revokeObjectURL(lastImageUrl);
+            setCurrentIntermediateImage(imageUrl);
+            lastImageUrl = imageUrl;
+          }
+        }
 
-        const response = await fetch(url);
-        if (response.ok) {
-          const json = await response.json();
-          onSuccess(json);
-          return; // Stop polling
+        // FINAL JSON polling
+        if (!hasReceivedJson) {
+          const resultUrl = getAPIFullPath('diffusion', ['getFile'], {
+            experimentId,
+            generationId: genId,
+          });
+          const resultResponse = await fetch(resultUrl);
+          if (resultResponse.ok) {
+            const json = await resultResponse.json();
+            hasReceivedJson = true;
+            onFinalResult(json);
+            cleanup(); // Stop all polling after result
+            return;
+          }
         }
       } catch (e) {
-        // Continue polling unless hard failure
-        console.warn('JSON polling error:', e);
+        console.warn('Polling error:', e);
       }
 
-      // Retry
+      // Continue polling if still active
       if (isActive) {
         pollTimeoutId = window.setTimeout(poll, pollInterval);
       }
     };
 
-    pollTimeoutId = window.setTimeout(poll, pollInterval);
-
-    // Cleanup function
-    return () => {
+    const cleanup = () => {
       isActive = false;
-      if (pollTimeoutId) {
-        clearTimeout(pollTimeoutId);
-      }
+      setIsPolling(false);
+      if (pollTimeoutId) clearTimeout(pollTimeoutId);
+      if (lastImageUrl) URL.revokeObjectURL(lastImageUrl);
     };
+
+    pollTimeoutId = window.setTimeout(poll, pollInterval);
+    return cleanup;
   };
 
   const waitForJobCompletion = async (
     jobId: string,
-  ): Promise<'COMPLETE' | 'FAILED' | 'STOPPED' | 'UNKNOWN'> => {
+  ): Promise<'COMPLETE' | 'FAILED' | 'STOPPED'> => {
     const pollInterval = 2000;
 
     return new Promise((resolve) => {
       const poll = async () => {
         try {
-          const res = await fetch(chatAPI.Endpoints.Jobs.Get(jobId), {
-            method: 'GET',
-          });
+          const res = await fetch(
+            getAPIFullPath('jobs', ['get'], { id: jobId }),
+            { method: 'GET' },
+          );
           const job = await res.json();
 
           if (job?.status === 'COMPLETE') {
@@ -557,7 +525,7 @@ export default function Diffusion() {
             setTimeout(poll, pollInterval);
           }
         } catch {
-          resolve('UNKNOWN');
+          console.warn('Job Status uknown');
         }
       };
 
@@ -652,36 +620,6 @@ export default function Diffusion() {
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
         Number(numSteps),
-      );
-
-      const response = await fetch(
-        getAPIFullPath('diffusion', ['generate'], {
-          experimentId: experimentId,
-        }),
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        },
-      );
-      const initData = await response.json();
-      const jobId = initData.job_id;
-
-      const jobStatus = await waitForJobCompletion(jobId);
-      if (jobStatus !== 'COMPLETE') {
-        setError(`Job ${jobStatus.toLowerCase()}`);
-        setLoading(false);
-        setIsPolling(false);
-        if (pollingCleanupRef.current) pollingCleanupRef.current();
-        pollingCleanupRef.current = null;
-        return;
-      }
-
-      if (pollingCleanupRef.current) pollingCleanupRef.current();
-      pollingCleanupRef.current = null;
-      pollingCleanupRef.current = startPollingForJsonResult(
-        experimentId,
-        genId,
         (data) => {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
@@ -711,6 +649,29 @@ export default function Diffusion() {
           pollingCleanupRef.current = null;
         },
       );
+
+      const response = await fetch(
+        getAPIFullPath('diffusion', ['generate'], {
+          experimentId: experimentId,
+        }),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
+      const initData = await response.json();
+      const jobId = initData.job_id;
+
+      const jobStatus = await waitForJobCompletion(jobId);
+      if (jobStatus !== 'COMPLETE') {
+        setError(`Job ${jobStatus.toLowerCase()}`);
+        setLoading(false);
+        setIsPolling(false);
+        if (pollingCleanupRef.current) pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+        return;
+      }
     } catch (e) {
       setError('Failed to generate image');
       setIsPolling(false);
@@ -799,9 +760,9 @@ export default function Diffusion() {
         pollingCleanupRef.current = null;
         return;
       }
-      pollingCleanupRef.current = startPollingForJsonResult(
-        experimentId,
+      pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
+        Number(numSteps),
         (data) => {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
@@ -928,6 +889,26 @@ export default function Diffusion() {
         width: '100%',
       }}
     >
+      <FormControl
+        size="sm"
+        sx={{ alignSelf: 'flex-end', minWidth: 200, mr: 2 }}
+      >
+        <LabelWithTooltip tooltip="Choose which diffusion plugin to use.">
+          Diffusion Plugin
+        </LabelWithTooltip>
+        <Select
+          value={selectedPlugin}
+          onChange={(_, val) => setSelectedPlugin(val)}
+          placeholder="Select plugin"
+        >
+          {availableDiffusionPlugins.map((plugin) => (
+            <Option key={plugin.uniqueId} value={plugin.uniqueId}>
+              {plugin.displayName || plugin.uniqueId}
+            </Option>
+          ))}
+        </Select>
+      </FormControl>
+
       <Tabs
         value={activeTab}
         onChange={(event, newValue) => {
@@ -1458,11 +1439,7 @@ export default function Diffusion() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={
-                  loading ||
-                  isStableDiffusion === false ||
-                  !isImageDiffusionPluginInstalled
-                }
+                disabled={loading || isPluginValid !== true || !selectedPlugin}
                 color="primary"
                 size="lg"
                 startDecorator={loading && <CircularProgress />}
