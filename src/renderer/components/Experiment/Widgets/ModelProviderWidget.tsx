@@ -56,7 +56,7 @@ function ModelProviderWidget<
       const configResults = await Promise.all(
         configKeysInOrder.map(async (key) => {
           const response = await fetch(
-            chatAPI.getFullPath('config', ['get'], { key }),
+            chatAPI.getAPIFullPath('config', ['get'], { key }),
           );
           if (!response.ok) {
             console.error(`Failed to fetch config for key: ${key}`);

@@ -32,7 +32,7 @@ import {
   AlertTriangleIcon,
 } from 'lucide-react';
 import {
-  getFullPath,
+  getAPIFullPath,
   useServerStats,
   useAPI,
 } from 'renderer/lib/transformerlab-api-sdk';
@@ -303,7 +303,7 @@ export default function Diffusion() {
     setIsImg2ImgEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),
         {
@@ -324,7 +324,7 @@ export default function Diffusion() {
     setIsInpaintingEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),
         {
@@ -402,7 +402,7 @@ export default function Diffusion() {
   const getGenerationId = async (): Promise<string | null> => {
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['generateId'], {
+        getAPIFullPath('diffusion', ['generateId'], {
           experimentId: experimentId,
         }),
         {
@@ -439,7 +439,7 @@ export default function Diffusion() {
       if (!isActive) return; // stop if no longer active
       // Poll for the latest step image (backend overwrites the same step.png file)
       try {
-        const baseUrl = getFullPath('diffusion', ['getImage'], {
+        const baseUrl = getAPIFullPath('diffusion', ['getImage'], {
           experimentId: experimentId,
           imageId: genId,
           index: 0,
@@ -656,7 +656,7 @@ export default function Diffusion() {
       );
 
       const response = await fetch(
-        getFullPath('diffusion', ['generate'], { experimentId: experimentId }),
+        getAPIFullPath('diffusion', ['generate'], { experimentId: experimentId }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -687,7 +687,7 @@ export default function Diffusion() {
           } else {
             const imageUrls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
-              const imageUrl = getFullPath('diffusion', ['getImage'], {
+              const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
                 experimentId: experimentId,
                 imageId: data.id,
                 index: i,
@@ -777,7 +777,7 @@ export default function Diffusion() {
       }
 
       const response = await fetch(
-        getFullPath('diffusion', ['generate'], { experimentId: experimentId }),
+        getAPIFullPath('diffusion', ['generate'], { experimentId: experimentId }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -805,7 +805,7 @@ export default function Diffusion() {
           } else {
             const imageUrls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
-              const imageUrl = getFullPath('diffusion', ['getImage'], {
+              const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
                 experimentId: experimentId,
                 imageId: data.id,
                 index: i,
@@ -842,7 +842,7 @@ export default function Diffusion() {
     try {
       // Create a link to the new endpoint that returns a zip file
       const link = document.createElement('a');
-      link.href = getFullPath('diffusion', ['getAllImages'], {
+      link.href = getAPIFullPath('diffusion', ['getAllImages'], {
         experimentId: experimentId,
         imageId: currentGenerationData.id,
       });
@@ -883,7 +883,7 @@ export default function Diffusion() {
     setIsStableDiffusion(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),
         {

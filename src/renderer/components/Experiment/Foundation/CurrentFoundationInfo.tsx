@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
 import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
@@ -208,7 +208,7 @@ export default function CurrentFoundationInfo({
 
       // Delete existing adapter first
       await fetch(
-        getFullPath('models', ['deletePeft'], {
+        getAPIFullPath('models', ['deletePeft'], {
           modelId: experimentInfo.config.foundation,
           peft: secureAdapterId,
         }),
@@ -219,7 +219,7 @@ export default function CurrentFoundationInfo({
 
     try {
       const response = await fetch(
-        getFullPath('models', ['installPeft'], {
+        getAPIFullPath('models', ['installPeft'], {
           modelId: experimentInfo?.config?.foundation,
           peft: adapterId,
         }),
@@ -258,7 +258,7 @@ export default function CurrentFoundationInfo({
   const handleCancelDownload = async () => {
     if (jobId) {
       setCanceling(true);
-      const response = await fetch(getFullPath('jobs', ['stop'], { jobId }));
+      const response = await fetch(getAPIFullPath('jobs', ['stop'], { jobId }));
       if (response.ok) {
         setJobId(null);
         setCurrentlyInstalling(null);
@@ -284,7 +284,7 @@ export default function CurrentFoundationInfo({
             embedding_model_filename: '',
             embedding_model_architecture: 'BertModel',
           }),
-        }
+        },
       );
       experimentInfoMutate();
     } catch (error) {
@@ -595,7 +595,7 @@ export default function CurrentFoundationInfo({
                             )
                           ) {
                             fetch(
-                              getFullPath('models', ['deletePeft'], {
+                              getAPIFullPath('models', ['deletePeft'], {
                                 modelId: experimentInfo?.config?.foundation,
                                 peft,
                               }),
