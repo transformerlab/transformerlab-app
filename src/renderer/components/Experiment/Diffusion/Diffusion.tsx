@@ -52,7 +52,6 @@ type DiffusionProps = {
 };
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
-
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
   children,
@@ -502,7 +501,7 @@ export default function Diffusion() {
       if (!isActive) return;
 
       try {
-        const url = getFullPath('diffusion', ['getFile'], {
+        const url = getAPIFullPath('diffusion', ['getFile'], {
           experimentId,
           generationId: genId,
         });
@@ -656,7 +655,9 @@ export default function Diffusion() {
       );
 
       const response = await fetch(
-        getAPIFullPath('diffusion', ['generate'], { experimentId: experimentId }),
+        getAPIFullPath('diffusion', ['generate'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -777,7 +778,9 @@ export default function Diffusion() {
       }
 
       const response = await fetch(
-        getAPIFullPath('diffusion', ['generate'], { experimentId: experimentId }),
+        getAPIFullPath('diffusion', ['generate'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
