@@ -55,8 +55,8 @@ function TrainingModalDataTemplatingTab({
       setChatTemplate(parsedConfig.formatting_chat_template);
     }
 
-    if (parsedConfig?.chat_column) {
-      setChatColumn(parsedConfig.chat_column);
+    if (parsedConfig?.chatml_formatted_column) {
+      setChatColumn(parsedConfig.chatml_formatted_column);
     }
 
     if (parsedConfig?.formatting_template) {
