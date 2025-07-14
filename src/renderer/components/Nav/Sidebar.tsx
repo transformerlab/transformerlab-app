@@ -46,7 +46,7 @@ import {
   usePluginStatus,
   useAPI,
   logout,
-  getFullPath,
+  getAPIFullPath,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
@@ -90,7 +90,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
 
       try {
         const response = await fetch(
-          getFullPath('diffusion', ['checkValidDiffusion'], {}),
+          getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

@@ -1,12 +1,9 @@
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
 
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
-export async function login(
-  username: string,
-  password: string
-) {
-  const loginURL = getFullPath('auth', ['login'], {});
+export async function login(username: string, password: string) {
+  const loginURL = getAPIFullPath('auth', ['login'], {});
 
   // Login data needs to be provided as form data
   const formData = new FormData();
@@ -24,8 +21,8 @@ export async function login(
     // Error during fetch
   } catch (error) {
     return {
-      status: "error",
-      message: "Login exception: " + error,
+      status: 'error',
+      message: 'Login exception: ' + error,
     };
   }
 
@@ -34,39 +31,37 @@ export async function login(
   if (accessToken) {
     window.storage.set('accessToken', accessToken);
     return {
-      status: "success",
-      message: "Logged in as " + username
-
+      status: 'success',
+      message: 'Logged in as ' + username,
     };
   } else {
     return {
-      status: "unauthorized",
-      message: "Username or password incorrect",
-    }
+      status: 'unauthorized',
+      message: 'Username or password incorrect',
+    };
   }
-
 }
 
 export async function getAccessToken() {
-    const access_token = await window.storage.get('accessToken');
-    return access_token || "";
+  const access_token = await window.storage.get('accessToken');
+  return access_token || '';
 }
 
 export async function logout() {
-    await window.storage.delete('accessToken');
+  await window.storage.delete('accessToken');
 }
 
 export async function registerUser(
   name: string,
   email: string,
-  password: string
+  password: string,
 ) {
-  const registerURL = getFullPath('auth', ['register'], {});
+  const registerURL = getAPIFullPath('auth', ['register'], {});
   const userJSON = {
-    "name": name,
-    "email": email,
-    "password": password
-  }
+    name: name,
+    email: email,
+    password: password,
+  };
 
   let result = {};
   try {
@@ -82,22 +77,22 @@ export async function registerUser(
     // Error during fetch
   } catch (error) {
     return {
-      status: "error",
-      message: "Register user exception: " + error,
+      status: 'error',
+      message: 'Register user exception: ' + error,
     };
   }
 
   console.log(result);
   if (result?.email) {
     return {
-      status: "success",
+      status: 'success',
       message: `User ${result?.email} added.`,
-    }
+    };
   } else {
     return {
-      status: "error",
+      status: 'error',
       message: result?.message,
-    }
+    };
   }
 }
 
