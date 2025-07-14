@@ -49,8 +49,13 @@ function formatTemplateConfig(scriptParameters): ReactElement {
     docsFileNameActual = scriptParameters.docs.split('/').pop();
   }
 
-  const rawModel = scriptParameters?.generation_model;
-  const useFallback = !rawModel || rawModel === 'N/A' || rawModel === 'local';
+  const rawModel = SafeJSONParse(
+    scriptParameters?.generation_model,
+    scriptParameters?.generation_model,
+  );
+  // If raw model is json, use the .provider field from it
+  const provider = rawModel?.provider;
+  const useFallback = !rawModel || rawModel === 'N/A' || provider === 'local';
 
   const generationModel = useFallback
     ? scriptParameters.model_name || 'N/A'
