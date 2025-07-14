@@ -232,5 +232,12 @@
       "method": "GET",
       "path": "experiment/{experimentId}/diffusion/controlnets"
     }
+  },
+  "train": {
+    "getSweepResults": {
+      "method": "GET",
+      "path": "train/job/{job_id}/sweep_results"
+    }
+
   }
 }

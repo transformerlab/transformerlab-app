@@ -36,12 +36,19 @@ function TrainingModalDataTemplatingTab({
   setApplyChatTemplate,
   chatColumn,
   setChatColumn,
+  formattingTemplate,
+  setFormattingTemplate,
+  formattingChatTemplate,
+  setFormattingChatTemplate,
 }) {
-  // Initialize template state with default value
+  // Initialize template state with default value - will be overridden by props if provided
   const [template, setTemplate] = useState(
-    'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}',
+    formattingTemplate ||
+      'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}',
   );
-  const [chatTemplate, setChatTemplate] = useState('');
+  const [chatTemplate, setChatTemplate] = useState(
+    formattingChatTemplate || '',
+  );
 
   useEffect(() => {
     // Parse config if it's a string
@@ -52,17 +59,31 @@ function TrainingModalDataTemplatingTab({
     }
 
     if (parsedConfig?.formatting_chat_template) {
-      setChatTemplate(parsedConfig.formatting_chat_template);
+      const chatTemplateValue = parsedConfig.formatting_chat_template;
+      setChatTemplate(chatTemplateValue);
+      if (setFormattingChatTemplate) {
+        setFormattingChatTemplate(chatTemplateValue);
+      }
     }
 
-    if (parsedConfig?.chat_column) {
-      setChatColumn(parsedConfig.chat_column);
+    if (parsedConfig?.chatml_formatted_column) {
+      setChatColumn(parsedConfig.chatml_formatted_column);
     }
 
     if (parsedConfig?.formatting_template) {
-      setTemplate(parsedConfig.formatting_template);
+      const templateValue = parsedConfig.formatting_template;
+      setTemplate(templateValue);
+      if (setFormattingTemplate) {
+        setFormattingTemplate(templateValue);
+      }
     }
-  }, [templateData, setApplyChatTemplate, setChatColumn]);
+  }, [
+    templateData,
+    setApplyChatTemplate,
+    setChatColumn,
+    setFormattingTemplate,
+    setFormattingChatTemplate,
+  ]);
 
   useEffect(() => {
     if (currentDatasetInfo?.features && applyChatTemplate) {
@@ -235,7 +256,12 @@ function TrainingModalDataTemplatingTab({
                   id="chat_template"
                   rows={10}
                   value={chatTemplate}
-                  // onChange={(e) => setChatTemplate(e.target.value)}
+                  onChange={(e) => {
+                    setChatTemplate(e.target.value);
+                    if (setFormattingChatTemplate) {
+                      setFormattingChatTemplate(e.target.value);
+                    }
+                  }}
                   style={{ width: '100%', marginTop: '8px' }}
                 />
                 <FormHelperText>
@@ -257,7 +283,12 @@ function TrainingModalDataTemplatingTab({
                 id="instruction"
                 rows={5}
                 value={template}
-                onChange={(e) => setTemplate(e.target.value)}
+                onChange={(e) => {
+                  setTemplate(e.target.value);
+                  if (setFormattingTemplate) {
+                    setFormattingTemplate(e.target.value);
+                  }
+                }}
               />
             </FormControl>
             {selectedDataset && <PreviewSection />}
