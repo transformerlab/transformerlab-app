@@ -120,70 +120,52 @@ const GEvalTasksWidget = (props: WidgetProps<any>) => {
     onChange(updated);
   };
 
+  const styles = {
+    field: { marginBottom: '1rem' },
+    label: { display: 'block', marginBottom: '0.25rem', fontSize: '0.9rem' },
+    helper: { fontSize: '0.8rem', color: '#666' },
+    task: {
+      marginBottom: '1.5rem',
+      padding: '1rem',
+      border: '1px solid #ddd',
+      borderRadius: '6px',
+    },
+    steps: {
+      backgroundColor: '#f8f9fa',
+      padding: '0.75rem',
+      borderRadius: '4px',
+    },
+  };
+
   return (
     <div id={id}>
       {tasks.map((task, index) => (
         <div
-          key={index}
-          style={{
-            marginBottom: '1rem',
-            border: '1px solid #ccc',
-            padding: '0.5rem',
-          }}
+          key={`task-${task.name || `task-${Date.now()}-${Math.random()}`}`}
+          style={styles.task}
         >
-          <div
-            style={{
-              backgroundColor: '#f5f5f5',
-              padding: '0.5rem',
-              marginBottom: '0.75rem',
-              borderRadius: '4px',
-              fontSize: '0.9em',
-              color: '#555',
-            }}
-          >
-            <strong>Note:</strong> You can provide either a description OR
-            evaluation steps (or both). At least one is recommended for better
-            evaluation results.
-          </div>
-
-          <div style={{ marginBottom: '0.5rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.25rem',
-                fontWeight: 'bold',
-              }}
-            >
-              Evaluation Name:
+          {/* Task Name */}
+          <div style={styles.field}>
+            <label htmlFor={`task-name-${index}`} style={styles.label}>
+              Evaluation Name
             </label>
             <Input
+              id={`task-name-${index}`}
               placeholder="Enter evaluation name"
               value={task.name}
               onChange={(e) => handleTaskChange(index, 'name', e.target.value)}
               disabled={disabled || readonly}
             />
           </div>
-          <div style={{ marginBottom: '0.5rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.25rem',
-                fontWeight: 'bold',
-              }}
-            >
-              Description:{' '}
-              <span
-                style={{
-                  fontWeight: 'normal',
-                  fontStyle: 'italic',
-                  color: '#666',
-                }}
-              >
-                (Optional - use this OR evaluation steps below)
-              </span>
+
+          {/* Description */}
+          <div style={styles.field}>
+            <label htmlFor={`task-description-${index}`} style={styles.label}>
+              Description <span style={styles.helper}>(optional)</span>
             </label>
             <textarea
-              placeholder="Text Description of the Eval providing step by step descriptions"
+              id={`task-description-${index}`}
+              placeholder="Describe what this evaluation should assess..."
               value={task.description}
               onChange={(e) =>
                 handleTaskChange(index, 'description', e.target.value)
@@ -191,130 +173,113 @@ const GEvalTasksWidget = (props: WidgetProps<any>) => {
               disabled={disabled || readonly}
               style={{
                 width: '100%',
-                minHeight: '100px',
+                minHeight: '80px',
                 padding: '8px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
               }}
             />
           </div>
 
-          <div style={{ marginBottom: '0.5rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.25rem',
-                fontWeight: 'bold',
-              }}
-            >
-              Evaluation Steps:{' '}
-              <span
-                style={{
-                  fontWeight: 'normal',
-                  fontStyle: 'italic',
-                  color: '#666',
-                }}
-              >
-                (Optional - use this OR description above)
-              </span>
+          {/* Evaluation Steps */}
+          <div style={styles.field}>
+            <label style={styles.label}>
+              Evaluation Steps <span style={styles.helper}>(optional)</span>
             </label>
-            <div
-              style={{
-                marginBottom: '0.5rem',
-                padding: '0.5rem',
-                backgroundColor: '#f9f9f9',
-                borderRadius: '4px',
-                fontSize: '0.85em',
-                color: '#555',
-              }}
-            >
-              <strong>How to use:</strong> Break down your evaluation into
-              specific, actionable steps. Each step should describe what to
-              analyze or check. For example: "Check if the response answers the
-              question directly", "Verify factual accuracy", "Assess tone
-              appropriateness".
-            </div>
-            {(task.evaluation_steps || []).map((step, stepIndex) => (
-              <div
-                key={`step-${index}-${stepIndex}`}
-                style={{
-                  display: 'flex',
-                  gap: '0.5rem',
-                  marginBottom: '0.25rem',
-                  alignItems: 'center',
-                }}
-              >
-                <Input
-                  placeholder={`Step ${stepIndex + 1}: Describe what to evaluate (e.g., "Check for factual accuracy")`}
-                  value={step}
-                  onChange={(e) =>
-                    handleEvaluationStepChange(index, stepIndex, e.target.value)
-                  }
-                  disabled={disabled || readonly}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  onClick={() => handleRemoveEvaluationStep(index, stepIndex)}
-                  disabled={
-                    disabled || readonly || task.evaluation_steps.length <= 1
-                  }
-                  size="sm"
-                  variant="outlined"
-                  color="danger"
+            <div style={styles.steps}>
+              {(task.evaluation_steps || []).map((step, stepIndex) => (
+                <div
+                  key={`step-${step || `empty-${Date.now()}-${Math.random()}`}`}
+                  style={{
+                    display: 'flex',
+                    gap: '8px',
+                    marginBottom: '8px',
+                    alignItems: 'center',
+                  }}
                 >
-                  Remove
-                </Button>
-              </div>
-            ))}
-            <Button
-              onClick={() => handleAddEvaluationStep(index)}
-              disabled={disabled || readonly}
-              size="sm"
-              variant="soft"
-              style={{ marginTop: '0.25rem' }}
-            >
-              Add Evaluation Step
-            </Button>
+                  <Input
+                    placeholder={`Step ${stepIndex + 1}: e.g., "Check if the response is factually accurate"`}
+                    value={step}
+                    onChange={(e) =>
+                      handleEvaluationStepChange(
+                        index,
+                        stepIndex,
+                        e.target.value,
+                      )
+                    }
+                    disabled={disabled || readonly}
+                    style={{ flex: 1 }}
+                    size="sm"
+                  />
+                  <Button
+                    onClick={() => handleRemoveEvaluationStep(index, stepIndex)}
+                    disabled={
+                      disabled || readonly || task.evaluation_steps.length <= 1
+                    }
+                    size="sm"
+                    variant="outlined"
+                    color="danger"
+                  >
+                    ×
+                  </Button>
+                </div>
+              ))}
+              <Button
+                onClick={() => handleAddEvaluationStep(index)}
+                disabled={disabled || readonly}
+                size="sm"
+                variant="soft"
+                color="primary"
+              >
+                + Add Step
+              </Button>
+            </div>
           </div>
 
-          <div style={{ marginBottom: '0.5rem' }}>
-            <label
-              style={{
-                display: 'block',
-                marginBottom: '0.25rem',
-                fontWeight: 'bold',
-              }}
-            >
-              Include Context:
+          {/* Include Context */}
+          <div style={styles.field}>
+            <label htmlFor={`task-context-${index}`} style={styles.label}>
+              Include Context
             </label>
             <Select
-              placeholder="Include Context while evaluating?"
               value={task.include_context}
               onChange={(e, newValue) =>
                 handleTaskChange(index, 'include_context', newValue as string)
               }
               disabled={disabled || readonly}
             >
-              <Option value="Yes">Include Context Field</Option>
-              <Option value="No">Don&apos;t Include Context Field</Option>
+              <Option value="Yes">Yes</Option>
+              <Option value="No">No</Option>
             </Select>
           </div>
 
-          <Button
-            onClick={() => handleRemoveTask(index)}
-            disabled={disabled || readonly}
-            size="sm"
-            variant="outlined"
-          >
-            Remove Task
-          </Button>
+          {/* Remove Task */}
+          {tasks.length > 1 && (
+            <Button
+              onClick={() => handleRemoveTask(index)}
+              disabled={disabled || readonly}
+              size="sm"
+              variant="outlined"
+              color="danger"
+            >
+              Remove Task
+            </Button>
+          )}
         </div>
       ))}
+
       <Button
         onClick={handleAddTask}
         disabled={disabled || readonly}
         variant="solid"
+        color="primary"
       >
-        Add Task
+        + Add Task
       </Button>
+
       <input type="hidden" id={id} name={id} value={JSON.stringify(tasks)} />
     </div>
   );
