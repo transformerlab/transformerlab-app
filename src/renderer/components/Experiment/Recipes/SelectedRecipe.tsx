@@ -22,7 +22,7 @@ import {
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
-import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 
@@ -379,7 +379,7 @@ const RecipeDependenciesWithProgress = ({
             startDecorator={<DownloadIcon />}
             onClick={async () => {
               const installTask = await fetch(
-                getFullPath('recipes', ['installDependencies'], {
+                getAPIFullPath('recipes', ['installDependencies'], {
                   id: recipeId,
                 }),
               );
@@ -515,7 +515,7 @@ export default function SelectedRecipe({
     }
 
     const existingExperiments = await fetch(
-      getFullPath('experiment', ['getAll'], {}),
+      getAPIFullPath('experiment', ['getAll'], {}),
     ).then((res) => res.json());
     if (existingExperiments.some((exp: any) => exp.name === name)) {
       setExperimentNameTouched(true);
@@ -523,6 +523,8 @@ export default function SelectedRecipe({
       return; // Don't allow duplicate names
     }
 
+    // Clear any previous errors and proceed to step 2
+    setExperimentNameError('');
     setExperimentName(name);
     setExperimentNameFormValue(name);
     setExperimentNameTouched(false);
@@ -605,7 +607,6 @@ export default function SelectedRecipe({
           maxWidth: '900px',
           margin: '0 auto',
         }}
-        onSubmit={handleSubmit}
       >
         {experimentName === '' ? (
           <Box id="recipe-left" sx={{ overflowY: 'auto', padding: 1 }}>
@@ -628,6 +629,8 @@ export default function SelectedRecipe({
                 onChange={(e) => {
                   setExperimentNameFormValue(e.target.value);
                   if (!experimentNameTouched) setExperimentNameTouched(true);
+                  // Clear error when user starts typing a new name
+                  if (experimentNameError) setExperimentNameError('');
                 }}
                 onBlur={() => setExperimentNameTouched(true)}
                 required
@@ -785,7 +788,9 @@ export default function SelectedRecipe({
           color="danger"
           sx={{ textAlign: 'center', mt: 0.5 }}
         >
-          {missingAnyDependencies &&
+          {experimentName === '' && 'Complete Step 1 to continue.'}
+          {experimentName !== '' &&
+            missingAnyDependencies &&
             'Install all missing dependencies before you can use this recipe.'}
           &nbsp;
           {!isHardwareCompatible &&

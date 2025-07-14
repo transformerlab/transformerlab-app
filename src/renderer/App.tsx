@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
@@ -164,11 +164,20 @@ function AppContent({
   );
 }
 
+const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
+
 export default function App() {
   const [connection, setConnection] = useState('');
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
   const [theme, setTheme] = useState(customTheme);
+
+  // if the logs drawer is open, set the initial height
+  useEffect(() => {
+    if (logsDrawerOpen) {
+      setLogsDrawerHeight(INITIAL_LOGS_DRAWER_HEIGHT);
+    }
+  }, [logsDrawerOpen]);
 
   const themeSetter = useCallback((name: string) => {
     if (name === 'purple') {

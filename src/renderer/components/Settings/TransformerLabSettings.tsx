@@ -28,7 +28,7 @@ import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 import AIProvidersSettings from './AIProvidersSettings';
 import ViewJobsTab from './ViewJobsTab';
 import { alignBox } from '@nivo/core';
-import { getFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -181,7 +181,7 @@ export default function TransformerLabSettings() {
                       const token =
                         document.getElementsByName('hftoken')[0].value;
                       await fetch(
-                        getFullPath('config', ['set'], {
+                        getAPIFullPath('config', ['set'], {
                           key: 'HuggingfaceUserAccessToken',
                           value: token,
                         }),
@@ -225,7 +225,7 @@ export default function TransformerLabSettings() {
                     const token =
                       document.getElementsByName('wandbToken')[0].value;
                     await fetch(
-                      getFullPath('config', ['set'], {
+                      getAPIFullPath('config', ['set'], {
                         key: 'WANDB_API_KEY',
                         value: token,
                       }),
