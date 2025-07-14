@@ -62,7 +62,7 @@ function getPath(
   return `${path}`;
 }
 
-export function getFullPath(
+export function getAPIFullPath(
   majorEntity: string,
   pathArray: string[],
   params: Record<string, any>,

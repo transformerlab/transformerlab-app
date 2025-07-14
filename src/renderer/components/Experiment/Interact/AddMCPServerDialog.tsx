@@ -47,7 +47,7 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
       // Store serverName, args, and env in config
       const configValue = JSON.stringify({ serverName, args, env });
       await fetch(
-        chatAPI.getFullPath('config', ['set'], {
+        chatAPI.getAPIFullPath('config', ['set'], {
           key: 'MCP_SERVER',
           value: configValue,
         }),

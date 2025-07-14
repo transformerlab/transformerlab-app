@@ -22,7 +22,7 @@ import {
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
-import { useAPI, getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 
@@ -379,7 +379,7 @@ const RecipeDependenciesWithProgress = ({
             startDecorator={<DownloadIcon />}
             onClick={async () => {
               const installTask = await fetch(
-                getFullPath('recipes', ['installDependencies'], {
+                getAPIFullPath('recipes', ['installDependencies'], {
                   id: recipeId,
                 }),
               );
@@ -515,7 +515,7 @@ export default function SelectedRecipe({
     }
 
     const existingExperiments = await fetch(
-      getFullPath('experiment', ['getAll'], {}),
+      getAPIFullPath('experiment', ['getAll'], {}),
     ).then((res) => res.json());
     if (existingExperiments.some((exp: any) => exp.name === name)) {
       setExperimentNameTouched(true);
