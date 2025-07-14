@@ -38,9 +38,6 @@ function WorkflowJobProgress({ jobId }: { jobId: string }) {
 export default function WorkflowRunDisplay({
   selectedWorkflowRun,
   experimentInfo,
-}: {
-  selectedWorkflowRun: any;
-  experimentInfo: any;
 }) {
   const [viewJobDetails, setViewJobDetails] = React.useState(null);
 
