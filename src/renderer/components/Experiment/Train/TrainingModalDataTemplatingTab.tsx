@@ -113,6 +113,12 @@ function TrainingModalDataTemplatingTab({
     { enabled: !!applyChatTemplate && !!experimentInfo?.config?.foundation },
   );
 
+  const showApplyChatTemplateToggle =
+    !!chatTemplateData?.data &&
+    ['llama_trainer', 'llama_trainer_multi_gpu', 'mlx_lora_trainer'].includes(
+      pluginId,
+    );
+
   useEffect(() => {
     if (applyChatTemplate && chatTemplateData?.data) {
       setChatTemplate(chatTemplateData.data);
@@ -306,7 +312,7 @@ function TrainingModalDataTemplatingTab({
         flexDirection: 'column',
       }}
     >
-      {chatTemplateData?.data && (
+      {showApplyChatTemplateToggle && (
         <Stack direction="row" spacing={2} alignItems="center" mb={2}>
           <Switch
             checked={applyChatTemplate}
