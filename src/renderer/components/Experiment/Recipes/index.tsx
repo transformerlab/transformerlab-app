@@ -5,7 +5,7 @@ import { CircularProgress, ModalClose, Typography } from '@mui/joy';
 import { useState } from 'react';
 import ListRecipes from './ListRecipes';
 import SelectedRecipe from './SelectedRecipe';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function RecipesModal({
   modalOpen,
@@ -39,9 +39,9 @@ export default function RecipesModal({
           top: '3vh', // Sit 20% from the top of the screen
           margin: 'auto',
           transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
-          width: '85vw',
+          width: '100vw',
           // maxWidth: '700px',
-          height: '93vh',
+          height: '100vh',
           overflow: 'hidden',
         }}
       >

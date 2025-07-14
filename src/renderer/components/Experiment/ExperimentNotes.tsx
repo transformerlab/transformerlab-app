@@ -12,8 +12,9 @@ import remarkGfm from 'remark-gfm';
 // import monakai from 'monaco-themes/themes/Monokai Bright.json';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { PencilIcon } from 'lucide-react';
+import { PencilIcon, TypeOutline } from 'lucide-react';
 import { Box, Button, Typography } from '@mui/joy';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
 const { parseTmTheme } = require('monaco-themes');
@@ -27,9 +28,10 @@ function setTheme(editor: any, monaco: any) {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ExperimentNotes({ experimentInfo }) {
+export default function ExperimentNotes({}) {
   const editorRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
+  const { experimentInfo } = useExperimentInfo();
 
   // Fetch the experiment markdown
   const { data, error, isLoading, mutate } = useSWR(
@@ -115,7 +117,9 @@ export default function ExperimentNotes({ experimentInfo }) {
           }}
           className="editableSheet"
         >
-          {!data && 'Write experiment notes here...'}
+          {!data && (
+            <Typography mt={3}>Write experiment notes here...</Typography>
+          )}
           <Box display="flex" sx={{ width: '100%' }}>
             <Markdown
               remarkPlugins={[remarkGfm]}

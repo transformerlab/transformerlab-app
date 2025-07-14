@@ -4,7 +4,7 @@ import { Button, CircularProgress } from '@mui/joy';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
 interface SelectButtonProps {
-  setFoundation: (model: any) => void;
+  setFoundation: (model: any, additionalConfigs?: any) => void;
   model: any;
   setAdaptor: (name: string) => void;
   setEmbedding?: (model: any) => void;
@@ -19,32 +19,35 @@ export default function SelectButton({
   experimentInfo,
 }: SelectButtonProps) {
   const [selected, setSelected] = React.useState(false);
+  const [isProcessing, setIsProcessing] = React.useState(false);
 
   // Helper to get architecture from model object
   function getModelArchitecture(m: any) {
     return m?.json_data?.architecture || m?.architecture || '';
   }
 
-  // Helper to get experiment id
-  function getExperimentId() {
-    return experimentInfo?.id;
-  }
+  const handleSelect = React.useCallback(async () => {
+    // Prevent multiple concurrent calls
+    if (isProcessing) {
+      return;
+    }
 
-  async function handleSelect() {
     if (setEmbedding) {
       setEmbedding(model);
       return;
     }
-    setSelected(true);
-    setFoundation(model);
-    setAdaptor('');
 
-    const experimentId = getExperimentId();
+    setIsProcessing(true);
+    setSelected(true);
+
+    const experimentId = experimentInfo?.id;
     const modelArchitecture = getModelArchitecture(model);
     if (!experimentId || !modelArchitecture) {
       setSelected(false);
+      setIsProcessing(false);
       return;
     }
+
     try {
       // Fetch compatible inference engines
       const url = chatAPI.Endpoints.Experiment.ListScriptsOfType(
@@ -54,34 +57,41 @@ export default function SelectButton({
       );
 
       const resp = await fetch(url);
+      if (!resp.ok) {
+        throw new Error(`HTTP error! status: ${resp.status}`);
+      }
+
       const engines = await resp.json();
+      const additionalConfigs: any = {};
+
       if (engines && engines.length > 0) {
         const engine = engines[0];
-        // Update inferenceParams in experiment config
-        await fetch(
-          chatAPI.Endpoints.Experiment.UpdateConfig(
-            experimentId,
-            'inferenceParams',
-            JSON.stringify({
-              inferenceEngine: engine.uniqueId,
-              inferenceEngineFriendlyName: engine.name || '',
-            }),
-          ),
-        );
+        additionalConfigs.inferenceParams = JSON.stringify({
+          inferenceEngine: engine.uniqueId,
+          inferenceEngineFriendlyName: engine.name || '',
+        });
       }
+
+      // Update foundation with inference params in one request
+      setFoundation(model, additionalConfigs);
     } catch (e) {
-      // fail silently, user can still set engine manually
+      // Silently handle errors - user can still set engine manually
+      // Error details available in network tab for debugging
+    } finally {
+      setSelected(false);
+      setIsProcessing(false);
     }
+  }, [isProcessing, setEmbedding, model, setFoundation, experimentInfo]);
+
+  const handleCancel = React.useCallback(() => {
     setSelected(false);
-  }
+  }, []);
 
   return selected ? (
     <Button
       size="sm"
       variant="soft"
-      onClick={() => {
-        setSelected(false);
-      }}
+      onClick={handleCancel}
       startDecorator={<CircularProgress thickness={2} />}
     >
       Loading Model

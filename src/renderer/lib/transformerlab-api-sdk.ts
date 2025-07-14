@@ -22,6 +22,10 @@ export {
 } from './api-client/chat';
 
 export {
+  login,
+  logout,
+  getAccessToken,
+  registerUser,
   downloadModelFromHuggingFace,
   downloadGGUFFile,
   downloadModelFromGallery,
@@ -49,4 +53,8 @@ export {
   useCheckLocalConnection,
 } from './api-client/hooks';
 
-export { INFERENCE_SERVER_URL, API_URL, getFullPath } from './api-client/urls';
+export {
+  INFERENCE_SERVER_URL,
+  API_URL,
+  getAPIFullPath,
+} from './api-client/urls';

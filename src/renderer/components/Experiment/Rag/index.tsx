@@ -11,20 +11,21 @@ import {
   Typography,
   Option,
   Chip,
-  FormLabel,
 } from '@mui/joy';
-import Documents from '../../Shared/Documents';
-import Query from './Query';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { CogIcon, XCircleIcon } from 'lucide-react';
-import ConfigurePlugin from './ConfigurePlugin';
 import { useState } from 'react';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import Documents from '../../Shared/Documents';
+import Query from './Query';
+import ConfigurePlugin from './ConfigurePlugin';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function DocumentSearch({ experimentInfo, setRagEngine }) {
+export default function DocumentSearch({ setRagEngine }) {
+  const { experimentInfo } = useExperimentInfo();
   const [openConfigureModal, setOpenConfigureModal] = useState(false);
   const {
     data: plugins,
@@ -117,7 +118,7 @@ export default function DocumentSearch({ experimentInfo, setRagEngine }) {
             flexDirection: 'column',
           }}
         >
-          <Documents experimentInfo={experimentInfo} fixedFolder="rag" />
+          <Documents fixedFolder="rag" />
         </Box>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Query experimentInfo={experimentInfo} />

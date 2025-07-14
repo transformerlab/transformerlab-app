@@ -32,7 +32,7 @@ import {
   AlertTriangleIcon,
 } from 'lucide-react';
 import {
-  getFullPath,
+  getAPIFullPath,
   useServerStats,
 } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
@@ -41,10 +41,7 @@ import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
 import ControlNetModal from './ControlNetModal';
-
-type DiffusionProps = {
-  experimentInfo: any;
-};
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -75,7 +72,31 @@ const LabelWithTooltip = ({
   </Stack>
 );
 
-export default function Diffusion({ experimentInfo }: DiffusionProps) {
+const samplePrompts = [
+  'ethereal fantasy concept art of a shimmering, bioluminescent forest at night, glowing mushrooms and mystical creatures, volumetric lighting, by Artgerm and WLOP, trending on Artstation, hyper-detailed, 8k.',
+  'award-winning macro photograph of a mechanical bee covered in glistening dewdrops, intricate gears and filigree, on a reflective black surface, studio lighting, depth of field, ultra-detailed.',
+  'cinematic wide-angle shot of a lone astronaut standing on the edge of a cosmic abyss, gazing at a swirling nebula, style of Denis Villeneuve, anamorphic lens flare, moody, atmospheric, breathtaking.',
+  'an epic oil painting of a majestic ancient library inside a massive, hollowed-out tree, streams of light filtering through the canopy, scholars reading scrolls, style of Thomas Kinkade and Albert Bierstadt, dramatic lighting.',
+  'photorealistic portrait of a fierce Viking warrior queen, intricate braided hair with silver clasps, determined expression, detailed leather and fur armor, Rembrandt lighting, sharp focus, dramatic.',
+  'a bustling, vibrant cyberpunk street market in Neo-Tokyo at night, pouring rain, neon signs reflecting in puddles, diverse crowd of humans and cyborgs, style of Blade Runner 2049, cinematic, atmospheric, gritty.',
+  'a surrealist masterpiece by Salvador Dalí featuring a melting grand piano on a serene, otherworldly beach, with a clockwork moon in a twilight sky, hyper-realistic, symbolic, dreamlike.',
+  'full-body concept art of a celestial deity forged from constellations and stardust, flowing robes of cosmic gas, holding a miniature galaxy, powerful stance, fantasy, godlike, intricate detail.',
+  'a Ukiyo-e style woodblock print of a tranquil Japanese garden, a majestic dragon made of water swirling in a koi pond, cherry blossoms drifting in the wind, serene, detailed, traditional.',
+  'a beautifully detailed, isometric 3D render of a cozy, magical apothecary shop, shelves filled with glowing potions and ancient books, a cat sleeping by a fireplace, warm and inviting atmosphere.',
+  "dynamic action shot of a knight in ornate, polished obsidian armor deflecting a dragon's fire breath with a glowing magical shield, sparks and embers flying, cinematic composition, motion blur, Lord of the Rings inspired.",
+  'a stunningly beautiful Art Nouveau portrait of a woman with flowing hair that merges into intricate floral patterns, style of Alphonse Mucha, elegant lines, gold leaf accents, decorative.',
+  'double exposure photograph combining a detailed silhouette of a wise old owl with a star-filled night sky and an ancient, gnarled tree, conceptual, moody, artistic.',
+  'award-winning architectural photograph of a futuristic sustainable city with towering vertical forests and sleek, bio-luminescent sky-bridges, harmonious, golden hour, ultra-sharp, professional.',
+  'a gritty, emotional close-up portrait of an old, weathered sailor looking out to sea, deep wrinkles, piercing blue eyes, stormy background, shot on Kodak Portra 400 film, character study.',
+  'an abstract explosion of color and texture, thick impasto oil paint, dynamic swirling motion, vibrant palette of crimson and gold, evoking passion and energy, fine art.',
+  'steampunk-inspired submarine navigating a deep-sea trench, encountering giant, glowing jellyfish, intricate brass and copper details, portholes revealing a detailed interior, underwater, mysterious.',
+  'a minimalist, ink wash painting (sumi-e) of a single mountain peak rising above a sea of fog, a small red sun in the background, elegant brush strokes, sense of peace and scale.',
+  'a photorealistic image of a futuristic Formula 1 car hovering on a magnetic track through a desert canyon at sunset, heat haze, lens flare, high speed, dynamic motion, professional automotive photography.',
+  'a whimsical and highly detailed illustration of a miniature world inside a glass terrarium, tiny people tending to giant flowers, a small waterfall, magical realism, storybook style.',
+];
+
+export default function Diffusion() {
+  const { experimentInfo } = useExperimentInfo();
   const analytics = useAnalytics();
 
   const initialModel = experimentInfo?.config?.foundation || '';
@@ -86,7 +107,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const { server } = useServerStats();
 
   // Generate tab state
-  const [prompt, setPrompt] = useState('An astronaut floating in space');
+  const [prompt, setPrompt] = useState(
+    samplePrompts[Math.floor(Math.random() * samplePrompts.length)],
+  );
   const [numSteps, setNumSteps] = useState(30);
   const [guidanceScale, setGuidanceScale] = useState(7.5);
   const [seed, setSeed] = useState('');
@@ -195,6 +218,9 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       setIsInpaintingEligible(null);
       // Reset inpainting mode when model changes
       setInpaintingMode(false);
+      // Reset ControlNet settings
+      setControlNetType('off');
+      setProcessType(null);
     }
   }, [experimentInfo?.config?.foundation, model]);
 
@@ -203,7 +229,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsImg2ImgEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -222,7 +248,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsInpaintingEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -298,7 +324,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const getGenerationId = async (): Promise<string | null> => {
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['generateId'], {}),
+        getAPIFullPath('diffusion', ['generateId'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -333,7 +359,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       if (!isActive) return; // stop if no longer active
       // Poll for the latest step image (backend overwrites the same step.png file)
       try {
-        const baseUrl = getFullPath('diffusion', ['getImage'], {
+        const baseUrl = getAPIFullPath('diffusion', ['getImage'], {
           imageId: genId,
           index: 0,
         });
@@ -470,14 +496,18 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         Number(numSteps),
       );
 
-      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await fetch(
+        getAPIFullPath('diffusion', ['generate'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
       const data = await response.json();
+
       if (data.error_code !== 0) {
-        setError('Error generating image');
+        setError(data.detail);
         // Stop polling on error
         if (pollingCleanupRef.current) pollingCleanupRef.current();
         pollingCleanupRef.current = null;
@@ -485,7 +515,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         // Fetch all generated images
         const imageUrls: string[] = [];
         for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getFullPath('diffusion', ['getImage'], {
+          const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
             imageId: data.id,
             index: i,
           });
@@ -560,19 +590,22 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         requestBody.height = Number(inpaintingImageHeight);
       }
 
-      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await fetch(
+        getAPIFullPath('diffusion', ['generate'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
       const data = await response.json();
       if (data.error_code !== 0) {
-        setError('Error generating image');
+        setError(data.detail || 'Error generating inpainting image');
       } else {
         // Fetch all generated images
         const imageUrls: string[] = [];
         for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getFullPath('diffusion', ['getImage'], {
+          const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
             imageId: data.id,
             index: i,
           });
@@ -597,7 +630,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     try {
       // Create a link to the new endpoint that returns a zip file
       const link = document.createElement('a');
-      link.href = getFullPath('diffusion', ['getAllImages'], {
+      link.href = getAPIFullPath('diffusion', ['getAllImages'], {
         imageId: currentGenerationData.id,
       });
 
@@ -637,7 +670,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsStableDiffusion(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
