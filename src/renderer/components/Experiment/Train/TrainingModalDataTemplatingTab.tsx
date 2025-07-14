@@ -41,6 +41,7 @@ function TrainingModalDataTemplatingTab({
   formattingChatTemplate,
   setFormattingChatTemplate,
 }) {
+  console.log(experimentInfo);
   // Initialize template state with default value - will be overridden by props if provided
   const [template, setTemplate] = useState(
     formattingTemplate ||
@@ -101,6 +102,7 @@ function TrainingModalDataTemplatingTab({
       ),
     fetcher,
   );
+  console.log('data', data);
 
   const {
     data: chatTemplateData,
@@ -112,12 +114,6 @@ function TrainingModalDataTemplatingTab({
     { modelName: experimentInfo?.config?.foundation },
     { enabled: !!applyChatTemplate && !!experimentInfo?.config?.foundation },
   );
-
-  const showApplyChatTemplateToggle =
-    !!chatTemplateData?.data &&
-    ['llama_trainer', 'llama_trainer_multi_gpu', 'mlx_lora_trainer'].includes(
-      pluginId,
-    );
 
   useEffect(() => {
     if (applyChatTemplate && chatTemplateData?.data) {
@@ -312,7 +308,7 @@ function TrainingModalDataTemplatingTab({
         flexDirection: 'column',
       }}
     >
-      {showApplyChatTemplateToggle && (
+      {parsedData?.supports_chat_template && (
         <Stack direction="row" spacing={2} alignItems="center" mb={2}>
           <Switch
             checked={applyChatTemplate}
