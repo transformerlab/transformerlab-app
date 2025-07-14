@@ -242,7 +242,7 @@ const GEvalTasksWidget = (props: WidgetProps<any>) => {
           {/* Include Context */}
           <div style={styles.field}>
             <label htmlFor={`task-context-${index}`} style={styles.label}>
-              Include Context
+              Include Context During Evaluation?
             </label>
             <Select
               value={task.include_context}
