@@ -1,4 +1,10 @@
-import React, { useState, useCallback, Dispatch, SetStateAction } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  Dispatch,
+  SetStateAction,
+} from 'react';
 import {
   Box,
   Button,
@@ -96,6 +102,11 @@ interface InpaintingProps {
   setImageHeight: Dispatch<SetStateAction<string>>;
   numImages: number;
   setNumImages: Dispatch<SetStateAction<number>>;
+  latestJobId: number | null;
+  setViewOutputJobId: Dispatch<SetStateAction<number>>;
+  setViewOutputFileName: Dispatch<SetStateAction<string>>;
+  pendingJob: number | null;
+  setPendingJob: Dispatch<SetStateAction<number>>;
 }
 
 export default function Inpainting({
@@ -133,6 +144,11 @@ export default function Inpainting({
   setImageHeight,
   numImages,
   setNumImages,
+  latestJobId,
+  setViewOutputJobId,
+  setViewOutputFileName,
+  pendingJob,
+  setPendingJob,
 }: InpaintingProps) {
   const [strokeSize, setStrokeSize] = useState(20);
   const [drawMode, setDrawMode] = useState<'pencil' | 'eraser'>('pencil');
@@ -155,16 +171,35 @@ export default function Inpainting({
       status: '',
     },
     {
-      refreshInterval: 2000,
+      refreshInterval: 1000,
     },
   );
 
-  const runningDiffusionJob = diffusionJobs?.find(
-    (job) =>
-      job.status !== 'COMPLETE' &&
-      job.status !== 'FAILED' &&
-      job.status !== 'STOPPED',
+  let runningDiffusionJob = diffusionJobs?.find(
+    (job) => job.id === latestJobId,
   );
+
+  if (
+    !runningDiffusionJob &&
+    pendingJob === latestJobId &&
+    latestJobId !== null
+  ) {
+    // Show placeholder immediately before polling picks up the real job
+    runningDiffusionJob = {
+      id: latestJobId,
+      status: 'QUEUED',
+    };
+  }
+
+  // When the real job arrives and is not in initial QUEUED placeholder state, clear pending
+  useEffect(() => {
+    const realJobExists = diffusionJobs?.some(
+      (job) => job.id === latestJobId && job.status !== 'QUEUED',
+    );
+    if (realJobExists) {
+      setPendingJob(null);
+    }
+  }, [diffusionJobs, latestJobId]);
 
   // Calculate actual image dimensions and canvas positioning
   const updateCanvasDimensions = useCallback(() => {
@@ -787,14 +822,24 @@ export default function Inpainting({
         )}
 
         {/* Generated Images */}
-        {loading && runningDiffusionJob && (
+        {loading && latestJobId && runningDiffusionJob && (
           <Box sx={{ mt: 2 }}>
             <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
               Generating...
             </Typography>
-            <JobProgress job={runningDiffusionJob} />
+            <Box display="flex" alignItems="center" gap={1}>
+              <JobProgress job={runningDiffusionJob} />
+              <Button
+                size="sm"
+                variant="soft"
+                onClick={() => setViewOutputJobId(runningDiffusionJob.id)}
+              >
+                View Output
+              </Button>
+            </Box>
           </Box>
         )}
+
         {generatedImages.length > 0 && (
           <Stack spacing={2} sx={{ height: '50%' }}>
             <Typography level="h4">Generated Results</Typography>
@@ -917,14 +962,30 @@ export default function Inpainting({
                 ))}
               </Stack>
             )}
-
-            <Button
-              onClick={handleSaveAllImages}
-              variant="solid"
-              color="primary"
-            >
-              Save All Images
-            </Button>
+            {latestJobId && (
+              <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                <Button
+                  onClick={() => setViewOutputJobId(latestJobId)}
+                  color="primary"
+                  variant="soft"
+                  size="md"
+                  fullWidth
+                >
+                  View Output
+                </Button>
+                <Button
+                  onClick={handleSaveAllImages}
+                  color="primary"
+                  variant="solid"
+                  size="md"
+                  fullWidth
+                >
+                  {generatedImages.length > 1
+                    ? 'Save All Images'
+                    : 'Save Image'}
+                </Button>
+              </Stack>
+            )}
           </Stack>
         )}
       </Stack>

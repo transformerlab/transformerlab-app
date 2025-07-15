@@ -43,6 +43,7 @@ import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
 import ControlNetModal from './ControlNetModal';
 import JobProgress from '../Train/JobProgress';
+import ViewOutputModalStreaming from '../Eval/ViewOutputModalStreaming'; // adjust path if needed
 
 type DiffusionProps = {
   experimentInfo: any;
@@ -112,15 +113,8 @@ export default function Diffusion() {
       status: '',
     },
     {
-      refreshInterval: 2000,
+      refreshInterval: 1000,
     },
-  );
-
-  const runningDiffusionJob = diffusionJobs?.find(
-    (job) =>
-      job.status !== 'COMPLETE' &&
-      job.status !== 'FAILED' &&
-      job.status !== 'STOPPED',
   );
 
   const initialModel = experimentInfo?.config?.foundation || '';
@@ -240,9 +234,39 @@ export default function Diffusion() {
 
   const [selectedPlugin, setSelectedPlugin] = useState<string | null>(null);
   const [isPluginValid, setIsPluginValid] = useState<boolean | null>(null);
+  const [viewOutputJobId, setViewOutputJobId] = useState(-1);
+  const [viewOutputFileName, setViewOutputFileName] = useState('');
+  const [latestJobId, setLatestJobId] = useState<number | null>(null);
+  const [pendingJob, setPendingJob] = useState<number | null>(null);
 
   const availableDiffusionPlugins =
     diffusionPlugins?.filter((p) => p.type === 'diffusion') || [];
+
+  let runningDiffusionJob = diffusionJobs?.find(
+    (job) => job.id === latestJobId,
+  );
+
+  if (
+    !runningDiffusionJob &&
+    pendingJob === latestJobId &&
+    latestJobId !== null
+  ) {
+    // Show placeholder immediately before polling picks up the real job
+    runningDiffusionJob = {
+      id: latestJobId,
+      status: 'QUEUED',
+    };
+  }
+
+  // When the real job arrives and is not in initial QUEUED placeholder state, clear pending
+  useEffect(() => {
+    const realJobExists = diffusionJobs?.some(
+      (job) => job.id === latestJobId && job.status !== 'QUEUED',
+    );
+    if (realJobExists) {
+      setPendingJob(null);
+    }
+  }, [diffusionJobs, latestJobId]);
 
   useEffect(() => {
     const checkPluginEligibility = async () => {
@@ -662,6 +686,8 @@ export default function Diffusion() {
       );
       const initData = await response.json();
       const jobId = initData.job_id;
+      setLatestJobId(jobId);
+      setPendingJob(jobId);
 
       const jobStatus = await waitForJobCompletion(jobId);
       if (jobStatus !== 'COMPLETE') {
@@ -750,6 +776,8 @@ export default function Diffusion() {
       );
       const initData = await response.json();
       const jobId = initData.job_id;
+      setLatestJobId(jobId);
+      setPendingJob(jobId);
 
       const jobStatus = await waitForJobCompletion(jobId);
       if (jobStatus !== 'COMPLETE') {
@@ -1633,19 +1661,30 @@ export default function Diffusion() {
                       )}
                     </Stack>
                   )}
-
-                  {/* Single Save All Images button */}
-                  <Button
-                    onClick={handleSaveAllImages}
-                    color="primary"
-                    variant="solid"
-                    size="md"
-                    sx={{ mt: 2 }}
-                  >
-                    {getCurrentImages().length > 1
-                      ? 'Save All Images'
-                      : 'Save Image'}
-                  </Button>
+                  {latestJobId && (
+                    <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                      <Button
+                        onClick={() => setViewOutputJobId(latestJobId)}
+                        color="primary"
+                        variant="soft"
+                        size="md"
+                        fullWidth
+                      >
+                        View Output
+                      </Button>
+                      <Button
+                        onClick={handleSaveAllImages}
+                        color="primary"
+                        variant="solid"
+                        size="md"
+                        fullWidth
+                      >
+                        {getCurrentImages().length > 1
+                          ? 'Save All Images'
+                          : 'Save Image'}
+                      </Button>
+                    </Stack>
+                  )}
                 </Box>
               )}
 
@@ -1665,9 +1704,19 @@ export default function Diffusion() {
                     Generating...
                   </Typography>
                   {runningDiffusionJob && (
-                    <JobProgress job={runningDiffusionJob} />
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <JobProgress job={runningDiffusionJob} />
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        onClick={() =>
+                          setViewOutputJobId(runningDiffusionJob.id)
+                        }
+                      >
+                        View Output
+                      </Button>
+                    </Box>
                   )}
-
                   {/* Show current intermediate image if available */}
                   {currentIntermediateImage && (
                     <Box
@@ -1752,6 +1801,11 @@ export default function Diffusion() {
               setImageHeight={setInpaintingImageHeight}
               numImages={inpaintingNumImages}
               setNumImages={setInpaintingNumImages}
+              latestJobId={latestJobId}
+              setViewOutputJobId={setViewOutputJobId}
+              setViewOutputFileName={setViewOutputFileName}
+              pendingJob={pendingJob}
+              setPendingJob={setPendingJob}
             />
           </Sheet>
         </TabPanel>
@@ -1771,6 +1825,12 @@ export default function Diffusion() {
           setControlNetType(selected);
           if (selected === 'off') setProcessType(null);
         }}
+      />
+      <ViewOutputModalStreaming
+        jobId={viewOutputJobId}
+        setJobId={setViewOutputJobId}
+        fileName={viewOutputFileName}
+        setFileName={setViewOutputFileName}
       />
     </Sheet>
   );
