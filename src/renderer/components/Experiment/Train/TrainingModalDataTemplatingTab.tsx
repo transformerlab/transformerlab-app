@@ -41,7 +41,6 @@ function TrainingModalDataTemplatingTab({
   formattingChatTemplate,
   setFormattingChatTemplate,
 }) {
-  console.log(experimentInfo);
   // Initialize template state with default value - will be overridden by props if provided
   const [template, setTemplate] = useState(
     formattingTemplate ||
@@ -102,7 +101,6 @@ function TrainingModalDataTemplatingTab({
       ),
     fetcher,
   );
-  console.log('data', data);
 
   const {
     data: chatTemplateData,
@@ -308,7 +306,7 @@ function TrainingModalDataTemplatingTab({
         flexDirection: 'column',
       }}
     >
-      {parsedData?.supports_chat_template && (
+      {parsedData?.supports?.includes('chat_template_formatting') && (
         <Stack direction="row" spacing={2} alignItems="center" mb={2}>
           <Switch
             checked={applyChatTemplate}
