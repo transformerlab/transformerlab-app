@@ -415,8 +415,8 @@ Endpoints.Experiment = {
   GetOutputFromJob: (jobId: string) => `${API_URL()}train/job/${jobId}/output`,
   StreamOutputFromTrainingJob: (jobId: string, sweep: boolean = false) =>
     `${API_URL()}train/job/${jobId}/stream_output?sweeps=${sweep}`,
-  StreamOutputFromJob: (jobId: string) =>
-    `${API_URL()}jobs/${jobId}/stream_output`,
+  StreamOutputFromJob: (jobId: string, sweep: boolean = false) =>
+    `${API_URL()}jobs/${jobId}/stream_output?sweeps=${sweep}`,
   StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
     `${API_URL()}jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
   GetAdditionalDetails: (jobId: string, task: string = 'view') =>
