@@ -346,12 +346,6 @@ Endpoints.Experiment = {
       pluginName
     }&plugin_architecture=${pluginArchitecture}&plugin_params=${pluginParams}`;
   },
-  GetExportJobs: (id: string) => {
-    return `${API_URL()}experiment/${id}/export/jobs`;
-  },
-  GetExportJobDetails: (experimentId: string, jobId: string) => {
-    return `${API_URL()}experiment/${experimentId}/export/job?jobId=${jobId}`;
-  },
   SaveConversation: (experimentId: String) =>
     `${API_URL()}experiment/${experimentId}/conversations/save`,
   GetConversations: (experimentId: string) =>
@@ -413,8 +407,6 @@ Endpoints.Experiment = {
       pluginId
     }`,
   GetOutputFromJob: (jobId: string) => `${API_URL()}train/job/${jobId}/output`,
-  StreamOutputFromTrainingJob: (jobId: string, sweep: boolean = false) =>
-    `${API_URL()}train/job/${jobId}/stream_output?sweeps=${sweep}`,
   StreamOutputFromJob: (jobId: string, sweep: boolean = false) =>
     `${API_URL()}jobs/${jobId}/stream_output?sweeps=${sweep}`,
   StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
