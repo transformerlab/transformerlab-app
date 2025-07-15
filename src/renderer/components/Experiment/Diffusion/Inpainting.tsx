@@ -729,9 +729,21 @@ export default function Inpainting({
         )}
 
         {error && (
-          <Typography color="danger" level="body-sm">
-            {error}
-          </Typography>
+          <Stack direction="row" spacing={2} alignItems="center" mt={1}>
+            <Typography color="danger" level="body-sm">
+              {error}
+            </Typography>
+            {latestJobId && (
+              <Button
+                onClick={() => setViewOutputJobId(latestJobId)}
+                color="primary"
+                variant="soft"
+                size="sm"
+              >
+                View Output
+              </Button>
+            )}
+          </Stack>
         )}
       </Stack>
 

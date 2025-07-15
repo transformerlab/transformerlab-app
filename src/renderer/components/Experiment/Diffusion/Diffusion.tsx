@@ -1487,7 +1487,21 @@ export default function Diffusion() {
                 paddingRight: 1,
               }}
             >
-              {error && <Typography color="danger">{error}</Typography>}
+              {error && (
+                <Stack direction="row" spacing={2} alignItems="center" mt={2}>
+                  <Typography color="danger">{error}</Typography>
+                  {latestJobId && (
+                    <Button
+                      onClick={() => setViewOutputJobId(latestJobId)}
+                      color="primary"
+                      variant="soft"
+                      size="sm"
+                    >
+                      View Output
+                    </Button>
+                  )}
+                </Stack>
+              )}
               {isStableDiffusion === false && (
                 <Typography color="danger">
                   This model is not eligible for diffusion.
