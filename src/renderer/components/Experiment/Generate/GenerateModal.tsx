@@ -302,7 +302,6 @@ export default function GenerateModal({
           if (docsKeyExists && generationConfig.docs.length > 0) {
             setHasContextKey(false);
             setHasDocumentsKey(true);
-            console.log('generationConfig.docs', generationConfig.docs);
 
             generationConfig.docs = generationConfig.docs.split(',');
             setConfig(generationConfig);
