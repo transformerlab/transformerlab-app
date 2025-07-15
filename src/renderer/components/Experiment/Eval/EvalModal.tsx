@@ -121,6 +121,30 @@ export default function EvalModal({
   const [currentTab, setCurrentTab] = useState(0);
   const [datasetDisplayMessage, setDatasetDisplayMessage] = useState('');
 
+  // Store original values to reset on cancel
+  const [originalValues, setOriginalValues] = useState({
+    selectedDataset: null,
+    config: {},
+    hasDatasetKey: false,
+    nameInput: '',
+    datasetDisplayMessage: '',
+  });
+
+  // Function to reset form to original values
+  const resetFormToOriginal = () => {
+    setSelectedDataset(originalValues.selectedDataset);
+    setConfig(originalValues.config);
+    setHasDatasetKey(originalValues.hasDatasetKey);
+    setNameInput(originalValues.nameInput);
+    setDatasetDisplayMessage(originalValues.datasetDisplayMessage);
+    setCurrentTab(0); // Reset to first tab
+
+    // Clear the DynamicPluginForm data
+    if (window && typeof window === 'object') {
+      (window as any).currentFormData = null;
+    }
+  };
+
   // Fetch available datasets from the API
   const {
     data: datasets,
@@ -163,14 +187,37 @@ export default function EvalModal({
 
   useEffect(() => {
     if (open) {
-      if (!currentEvalId || currentEvalId === '') {
-        setNameInput(generateFriendlyName());
+      // Clear any existing DynamicPluginForm data
+      if (window && typeof window === 'object') {
+        (window as any).currentFormData = null;
       }
-    } else {
-      setNameInput('');
-      setHasDatasetKey(false);
+
+      if (!currentEvalId || currentEvalId === '') {
+        // Creating new evaluation - set defaults
+        const defaultValues = {
+          selectedDataset: null,
+          config: {},
+          hasDatasetKey: false,
+          nameInput: generateFriendlyName(),
+          datasetDisplayMessage: '',
+        };
+
+        setOriginalValues(defaultValues);
+        setSelectedDataset(defaultValues.selectedDataset);
+        setConfig(defaultValues.config);
+        setHasDatasetKey(defaultValues.hasDatasetKey);
+        setNameInput(defaultValues.nameInput);
+        setDatasetDisplayMessage(defaultValues.datasetDisplayMessage);
+      } else {
+        // Editing existing evaluation - will be set in the other useEffect
+        setNameInput('');
+        setHasDatasetKey(false);
+        setSelectedDataset(null);
+        setDatasetDisplayMessage('');
+      }
+      setCurrentTab(0); // Reset to first tab when opening
     }
-  }, [open]);
+  }, [open, currentEvalId]);
 
   useEffect(() => {
     if (experimentInfo && pluginId) {
@@ -181,31 +228,57 @@ export default function EvalModal({
         currentEvalId !== ''
       ) {
         const evalConfig = JSON.parse(evalData.config);
+        console.log(evalConfig);
         if (evalConfig) {
-          setConfig(evalConfig);
           const datasetKeyExists = Object.keys(evalConfig).some(
             (key) => key === 'dataset_name',
           );
-          setHasDatasetKey(datasetKeyExists);
-          if (
+          const selectedDatasetValue =
+            datasetKeyExists && evalConfig.dataset_name
+              ? evalConfig.dataset_name
+              : null;
+          const datasetDisplayMsg =
             evalConfig._dataset_display_message &&
             evalConfig._dataset_display_message.length > 0
-          ) {
-            setDatasetDisplayMessage(evalConfig._dataset_display_message);
-          }
+              ? evalConfig._dataset_display_message
+              : '';
+          const nameValue = evalConfig?.run_name || '';
+
+          // Store original values for editing mode
+          const editingValues = {
+            selectedDataset: selectedDatasetValue,
+            config: evalConfig,
+            hasDatasetKey: datasetKeyExists,
+            nameInput: nameValue,
+            datasetDisplayMessage: datasetDisplayMsg,
+          };
+
+          setOriginalValues(editingValues);
+          setConfig(evalConfig);
+          setHasDatasetKey(datasetKeyExists);
+          setDatasetDisplayMessage(datasetDisplayMsg);
+
           const tasksKeyExists = Object.keys(evalConfig).some((key) =>
             key.toLowerCase().includes('tasks'),
           );
           if (tasksKeyExists) {
-            evalConfig.tasks = evalConfig.tasks.split(',');
-            setConfig(evalConfig);
+            // If tasks key exists and evalConfig.tasks is not an array,
+            // split it into an array
+            if (!Array.isArray(evalConfig.tasks)) {
+              // Ensure tasks is an array
+              if (typeof evalConfig.tasks === 'string') {
+                // If tasks is a string, split it into an array
+                evalConfig.tasks = evalConfig.tasks.split(',');
+              }
+              setConfig(evalConfig);
+            }
           }
 
-          if (hasDatasetKey && evalConfig.dataset_name.length > 0) {
+          if (datasetKeyExists && evalConfig.dataset_name.length > 0) {
             setSelectedDataset(evalConfig.dataset_name);
           }
-          if (!nameInput && evalConfig?.run_name.length > 0) {
-            setNameInput(evalConfig.run_name);
+          if (!nameInput && nameValue.length > 0) {
+            setNameInput(nameValue);
           }
         }
         // if (!nameInput && evalConfig?.script_parameters.run_name) {
@@ -461,7 +534,14 @@ export default function EvalModal({
             )}
           </Tabs>
           <Stack spacing={2} direction="row" justifyContent="flex-end">
-            <Button color="danger" variant="soft" onClick={() => onClose()}>
+            <Button
+              color="danger"
+              variant="soft"
+              onClick={() => {
+                resetFormToOriginal();
+                onClose();
+              }}
+            >
               Cancel
             </Button>
             <Button variant="soft" type="submit" color="success">

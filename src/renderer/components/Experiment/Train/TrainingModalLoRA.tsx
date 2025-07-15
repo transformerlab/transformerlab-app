@@ -182,54 +182,109 @@ export default function TrainingModalLoRA({
     const result = await response.json();
     return result;
   }
-  // Whenever template data updates, we need to update state variables used in the form.
+  // Store original values to reset on cancel
+  const [originalValues, setOriginalValues] = useState({
+    selectedDataset: null,
+    config: {},
+    nameInput: '',
+    formattingTemplate: '',
+    formattingChatTemplate: '',
+    applyChatTemplate: false,
+    chatColumn: '',
+    sweepConfig: {},
+    isRunSweeps: false,
+  });
+
+  // Function to reset form to original values
+  const resetFormToOriginal = () => {
+    setSelectedDataset(originalValues.selectedDataset);
+    setConfig(originalValues.config);
+    setNameInput(originalValues.nameInput);
+    setFormattingTemplate(originalValues.formattingTemplate);
+    setFormattingChatTemplate(originalValues.formattingChatTemplate);
+    setApplyChatTemplate(originalValues.applyChatTemplate);
+    setChatColumn(originalValues.chatColumn);
+    setSweepConfig(originalValues.sweepConfig);
+    setIsRunSweeps(originalValues.isRunSweeps);
+    setCurrentTab(0); // Reset to first tab
+
+    // Clear the DynamicPluginForm data
+    if (window && typeof window === 'object') {
+      (window as any).currentFormData = null;
+    }
+  };
+
+  // Reset form when modal opens
   useEffect(() => {
-    if (templateData && typeof templateData.config === 'string') {
-      // Should only parse data once after initial load
-      templateData.config = JSON.parse(templateData.config);
-    }
-    if (templateData && templateData.config) {
-      setSelectedDataset(templateData.config.dataset_name);
-      setConfig(templateData.config);
-      setNameInput(templateData.name);
-
-      // Set template fields
-      if (templateData.config.formatting_template) {
-        setFormattingTemplate(templateData.config.formatting_template);
-      }
-      if (templateData.config.formatting_chat_template) {
-        setFormattingChatTemplate(templateData.config.formatting_chat_template);
-      }
-      if (templateData.config.apply_chat_template !== undefined) {
-        setApplyChatTemplate(templateData.config.apply_chat_template);
-      }
-      if (templateData.config.chat_column) {
-        setChatColumn(templateData.config.chat_column);
+    if (open) {
+      // Clear any existing DynamicPluginForm data
+      if (window && typeof window === 'object') {
+        (window as any).currentFormData = null;
       }
 
-      if (templateData.config.sweep_config) {
-        setSweepConfig(JSON.parse(templateData.config.sweep_config));
-      } else {
-        setSweepConfig({});
+      // Reset to original values when modal opens
+      if (templateData && typeof templateData.config === 'string') {
+        templateData.config = JSON.parse(templateData.config);
       }
-      if (templateData.config.run_sweeps) {
-        setIsRunSweeps(templateData.config.run_sweeps);
+
+      if (templateData && templateData.config) {
+        // Store and set values from existing template
+        const values = {
+          selectedDataset: templateData.config.dataset_name,
+          config: templateData.config,
+          nameInput: templateData.name,
+          formattingTemplate: templateData.config.formatting_template || '',
+          formattingChatTemplate:
+            templateData.config.formatting_chat_template || '',
+          applyChatTemplate:
+            templateData.config.apply_chat_template !== undefined
+              ? templateData.config.apply_chat_template
+              : false,
+          chatColumn: templateData.config.chat_column || '',
+          sweepConfig: templateData.config.sweep_config
+            ? JSON.parse(templateData.config.sweep_config)
+            : {},
+          isRunSweeps: templateData.config.run_sweeps || false,
+        };
+
+        setOriginalValues(values);
+        setSelectedDataset(values.selectedDataset);
+        setConfig(values.config);
+        setNameInput(values.nameInput);
+        setFormattingTemplate(values.formattingTemplate);
+        setFormattingChatTemplate(values.formattingChatTemplate);
+        setApplyChatTemplate(values.applyChatTemplate);
+        setChatColumn(values.chatColumn);
+        setSweepConfig(values.sweepConfig);
+        setIsRunSweeps(values.isRunSweeps);
       } else {
-        setIsRunSweeps(false);
+        // Creating a new template - set defaults
+        const defaultValues = {
+          selectedDataset: null,
+          config: {},
+          nameInput: generateFriendlyName(),
+          formattingTemplate: '',
+          formattingChatTemplate: '',
+          applyChatTemplate: false,
+          chatColumn: '',
+          sweepConfig: {},
+          isRunSweeps: false,
+        };
+
+        setOriginalValues(defaultValues);
+        setSelectedDataset(defaultValues.selectedDataset);
+        setConfig(defaultValues.config);
+        setNameInput(defaultValues.nameInput);
+        setFormattingTemplate(defaultValues.formattingTemplate);
+        setFormattingChatTemplate(defaultValues.formattingChatTemplate);
+        setApplyChatTemplate(defaultValues.applyChatTemplate);
+        setChatColumn(defaultValues.chatColumn);
+        setSweepConfig(defaultValues.sweepConfig);
+        setIsRunSweeps(defaultValues.isRunSweeps);
       }
-    } else {
-      // This case is for when we are creating a new template
-      setSelectedDataset(null);
-      setConfig({});
-      setNameInput(generateFriendlyName());
-      setFormattingTemplate('');
-      setFormattingChatTemplate('');
-      setApplyChatTemplate(false);
-      setChatColumn('');
-      setSweepConfig({});
-      setIsRunSweeps(false);
+      setCurrentTab(0); // Reset to first tab when opening
     }
-  }, [templateData]);
+  }, [open, templateData]);
   // Once you have a dataset selected, we use SWR's dependency mode to fetch the
   // Dataset's info. Note how useSWR is declared as a function -- this is is how
   // the dependency works. If selectedDataset errors, the fetcher knows to not run.
@@ -645,9 +700,36 @@ export default function TrainingModalLoRA({
                 }),
               );
             }
-            setNameInput(generateFriendlyName());
-            setSweepConfig({});
-            setIsRunSweeps(false);
+            // Reset form after successful save (only for new templates)
+            if (!templateData || !task_id) {
+              const defaultValues = {
+                selectedDataset: null,
+                config: {},
+                nameInput: generateFriendlyName(),
+                formattingTemplate: '',
+                formattingChatTemplate: '',
+                applyChatTemplate: false,
+                chatColumn: '',
+                sweepConfig: {},
+                isRunSweeps: false,
+              };
+              setOriginalValues(defaultValues);
+              setSelectedDataset(defaultValues.selectedDataset);
+              setConfig(defaultValues.config);
+              setNameInput(defaultValues.nameInput);
+              setFormattingTemplate(defaultValues.formattingTemplate);
+              setFormattingChatTemplate(defaultValues.formattingChatTemplate);
+              setApplyChatTemplate(defaultValues.applyChatTemplate);
+              setChatColumn(defaultValues.chatColumn);
+              setSweepConfig(defaultValues.sweepConfig);
+              setIsRunSweeps(defaultValues.isRunSweeps);
+            }
+
+            // Clear the DynamicPluginForm data
+            if (window && typeof window === 'object') {
+              (window as any).currentFormData = null;
+            }
+
             onClose();
           }}
         >
@@ -748,7 +830,14 @@ export default function TrainingModalLoRA({
             )}
           </Tabs>
           <Stack spacing={2} direction="row" justifyContent="flex-end">
-            <Button color="danger" variant="soft" onClick={() => onClose()}>
+            <Button
+              color="danger"
+              variant="soft"
+              onClick={() => {
+                resetFormToOriginal();
+                onClose();
+              }}
+            >
               Cancel
             </Button>
             <Button

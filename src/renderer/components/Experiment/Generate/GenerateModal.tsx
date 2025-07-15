@@ -156,6 +156,38 @@ export default function GenerateModal({
   const [contextInput, setContextInput] = useState('');
   const [datasetDisplayMessage, setDatasetDisplayMessage] = useState('');
 
+  // Store original values to reset on cancel
+  const [originalValues, setOriginalValues] = useState({
+    selectedDataset: null,
+    config: {},
+    hasDatasetKey: false,
+    hasDocumentsKey: false,
+    hasContextKey: false,
+    selectedDocs: [],
+    nameInput: '',
+    contextInput: '',
+    datasetDisplayMessage: '',
+  });
+
+  // Function to reset form to original values
+  const resetFormToOriginal = () => {
+    setSelectedDataset(originalValues.selectedDataset);
+    setConfig(originalValues.config);
+    setHasDatasetKey(originalValues.hasDatasetKey);
+    setHasDocumentsKey(originalValues.hasDocumentsKey);
+    setHasContextKey(originalValues.hasContextKey);
+    setSelectedDocs(originalValues.selectedDocs);
+    setNameInput(originalValues.nameInput);
+    setContextInput(originalValues.contextInput);
+    setDatasetDisplayMessage(originalValues.datasetDisplayMessage);
+    setCurrentTab(0); // Reset to first tab
+
+    // Clear the DynamicPluginForm data
+    if (window && typeof window === 'object') {
+      (window as any).currentFormData = null;
+    }
+  };
+
   // Fetch available datasets from the API
   const {
     data: datasets,
@@ -194,9 +226,37 @@ export default function GenerateModal({
 
   useEffect(() => {
     if (open) {
+      // Clear any existing DynamicPluginForm data
+      if (window && typeof window === 'object') {
+        (window as any).currentFormData = null;
+      }
+
       if (!currentGenerationId || currentGenerationId === '') {
-        setNameInput(generateFriendlyName());
+        // Creating new generation - set defaults
+        const defaultValues = {
+          selectedDataset: null,
+          config: {},
+          hasDatasetKey: false,
+          hasDocumentsKey: false,
+          hasContextKey: false,
+          selectedDocs: [],
+          nameInput: generateFriendlyName(),
+          contextInput: '',
+          datasetDisplayMessage: '',
+        };
+
+        setOriginalValues(defaultValues);
+        setSelectedDataset(defaultValues.selectedDataset);
+        setConfig(defaultValues.config);
+        setHasDatasetKey(defaultValues.hasDatasetKey);
+        setHasDocumentsKey(defaultValues.hasDocumentsKey);
+        setHasContextKey(defaultValues.hasContextKey);
+        setSelectedDocs(defaultValues.selectedDocs);
+        setNameInput(defaultValues.nameInput);
+        setContextInput(defaultValues.contextInput);
+        setDatasetDisplayMessage(defaultValues.datasetDisplayMessage);
       } else {
+        // Editing existing generation - will be set in the other useEffect
         setNameInput('');
         setHasContextKey(false);
         setHasDocumentsKey(false);
@@ -204,9 +264,11 @@ export default function GenerateModal({
         setSelectedDocs([]);
         setContextInput('');
         setSelectedDataset(null);
+        setDatasetDisplayMessage('');
       }
+      setCurrentTab(0); // Reset to first tab when opening
     }
-  }, [open]);
+  }, [open, currentGenerationId]);
 
   useEffect(() => {
     // EDIT GENERATION
@@ -240,6 +302,8 @@ export default function GenerateModal({
           if (docsKeyExists && generationConfig.docs.length > 0) {
             setHasContextKey(false);
             setHasDocumentsKey(true);
+            console.log('generationConfig.docs', generationConfig.docs);
+
             generationConfig.docs = generationConfig.docs.split(',');
             setConfig(generationConfig);
             setSelectedDocs(generationConfig.docs);
@@ -270,6 +334,35 @@ export default function GenerateModal({
           if (!nameInput && generationData?.name.length > 0) {
             setNameInput(generationData.name);
           }
+
+          // Store original values for editing mode
+          const editingValues = {
+            selectedDataset:
+              hasDatasetKey && generationConfig.script_parameters.dataset_name
+                ? generationConfig.script_parameters.dataset_name
+                : null,
+            config: generationConfig.script_parameters,
+            hasDatasetKey: hasDatasetKey,
+            hasDocumentsKey: docsKeyExists,
+            hasContextKey: contextKeyExists,
+            selectedDocs:
+              docsKeyExists && generationConfig.docs
+                ? generationConfig.docs
+                : [],
+            nameInput: generationData.name || '',
+            contextInput:
+              contextKeyExists && generationConfig.context
+                ? generationConfig.context
+                : '',
+            datasetDisplayMessage:
+              generationConfig.script_parameters._dataset_display_message &&
+              generationConfig.script_parameters._dataset_display_message
+                .length > 0
+                ? generationConfig.script_parameters._dataset_display_message
+                : '',
+          };
+
+          setOriginalValues(editingValues);
         }
       } else {
         // CREATE NEW GENERATION
@@ -598,7 +691,14 @@ export default function GenerateModal({
             )}
           </Tabs>
           <Stack spacing={2} direction="row" justifyContent="flex-end">
-            <Button color="danger" variant="soft" onClick={() => onClose()}>
+            <Button
+              color="danger"
+              variant="soft"
+              onClick={() => {
+                resetFormToOriginal();
+                onClose();
+              }}
+            >
               Cancel
             </Button>
             <Button variant="soft" type="submit" color="success">
