@@ -30,6 +30,8 @@ Endpoints.Workflows = {
     `?name=${name}`,
   UpdateName: (workflowId: string, new_name: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/update_name?new_name=${new_name}`,
+  UpdateConfig: (workflowId: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/config`,
   DeleteWorkflow: (workflowId: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/delete/${workflowId}`,
   AddNode: (workflowId: string, node: string, experimentId: string) =>
