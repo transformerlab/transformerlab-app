@@ -25,11 +25,9 @@ import {
   ChevronUp,
   Info,
 } from 'lucide-react';
-
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
-import useSWR from 'swr';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
-import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import JobProgress from '../Train/JobProgress';
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
 import HistoryImageSelector from './HistoryImageSelector';
@@ -148,12 +146,17 @@ export default function Inpainting({
   const [maskRenderStyle, setMaskRenderStyle] = useState('red');
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const fetcher = (url) => fetch(url).then((res) => res.json());
 
-  const { data: diffusionJobs } = useSWR(
-    chatAPI.Endpoints.Jobs.GetJobsOfType('DIFFUSION', ''),
-    fetcher,
-    { refreshInterval: 2000 },
+  const { data: diffusionJobs } = useAPI(
+    'jobs',
+    ['getJobsOfType'],
+    {
+      type: 'DIFFUSION',
+      status: '',
+    },
+    {
+      refreshInterval: 2000,
+    },
   );
 
   const runningDiffusionJob = diffusionJobs?.find(
