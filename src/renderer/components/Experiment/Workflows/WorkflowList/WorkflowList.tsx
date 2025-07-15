@@ -2,7 +2,6 @@
 import {
   Box,
   Button,
-  Divider,
   Dropdown,
   IconButton,
   List,
@@ -13,14 +12,11 @@ import {
   Menu,
   MenuButton,
   MenuItem,
-  Sheet,
   Typography,
 } from '@mui/joy';
 
 import '@xyflow/react/dist/style.css';
 import {
-  AxeIcon,
-  BookOpenIcon,
   BracesIcon,
   EllipsisIcon,
   PenIcon,
@@ -60,7 +56,6 @@ function ShowCode({
 }) {
   const editorRef = useRef<any>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const { addNotification } = useNotification();
 
   // Set up the editor with the current config JSON
   useEffect(() => {
@@ -249,12 +244,7 @@ export default function WorkflowList({
   const [viewCodeMode, setViewCodeMode] = useState(false);
   const { addNotification } = useNotification();
 
-  const {
-    data: workflowsData,
-    error: workflowsError,
-    isLoading: isLoading,
-    mutate: mutateWorkflows,
-  } = useSWR(
+  const { data: workflowsData, mutate: mutateWorkflows } = useSWR(
     experimentInfo?.id
       ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id)
       : null,
@@ -395,7 +385,6 @@ export default function WorkflowList({
                 <IconButton
                   variant="plain"
                   disabled={!selectedWorkflow}
-                  // startDecorator={<BookOpenIcon />}
                   onClick={() => setViewCodeMode(!viewCodeMode)}
                 >
                   {viewCodeMode ? <WorkflowIcon /> : <BracesIcon />}
