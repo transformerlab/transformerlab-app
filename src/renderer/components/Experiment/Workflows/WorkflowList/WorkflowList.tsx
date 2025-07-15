@@ -2,6 +2,7 @@
 import {
   Box,
   Button,
+  Divider,
   Dropdown,
   IconButton,
   List,
@@ -12,11 +13,14 @@ import {
   Menu,
   MenuButton,
   MenuItem,
+  Sheet,
   Typography,
 } from '@mui/joy';
 
 import '@xyflow/react/dist/style.css';
 import {
+  AxeIcon,
+  BookOpenIcon,
   BracesIcon,
   EllipsisIcon,
   PenIcon,
@@ -233,18 +237,19 @@ function ShowCode({
 
 const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
-export default function WorkflowList({
-  experimentInfo,
-}: {
-  experimentInfo: any;
-}) {
+export default function WorkflowList({ experimentInfo }) {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
   const [newNodeflowModalOpen, setNewNodeflowModalOpen] = useState(false);
   const [viewCodeMode, setViewCodeMode] = useState(false);
   const { addNotification } = useNotification();
 
-  const { data: workflowsData, mutate: mutateWorkflows } = useSWR(
+  const {
+    data: workflowsData,
+    error: workflowsError,
+    isLoading: isLoading,
+    mutate: mutateWorkflows,
+  } = useSWR(
     experimentInfo?.id
       ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id)
       : null,
@@ -385,6 +390,7 @@ export default function WorkflowList({
                 <IconButton
                   variant="plain"
                   disabled={!selectedWorkflow}
+                  // startDecorator={<BookOpenIcon />}
                   onClick={() => setViewCodeMode(!viewCodeMode)}
                 >
                   {viewCodeMode ? <WorkflowIcon /> : <BracesIcon />}
