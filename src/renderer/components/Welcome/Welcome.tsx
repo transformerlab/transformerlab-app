@@ -1,66 +1,116 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState } from 'react';
-import useSWR from 'swr';
-
-import { Button, Sheet, Stack, Typography } from '@mui/joy';
-
-import labImage from './img/lab.jpg';
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
-  ArrowRightCircleIcon,
-  BoxesIcon,
-  GraduationCapIcon,
-  LayersIcon,
-  MessageCircleIcon,
-  PlayCircle,
-  PlayCircleIcon,
-} from 'lucide-react';
+  Sheet,
+  Typography,
+  CircularProgress,
+  Alert,
+  Grid,
+  Modal,
+  ModalDialog,
+} from '@mui/joy';
+
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
-import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
-
+import labImage from './img/lab.jpg';
 import DownloadFirstModelModal from '../DownloadFirstModelModal';
 import HexLogo from '../Shared/HexLogo';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
-function recommendedModel(cpu, os, device) {
-  if (!cpu || !os || !device) return '';
-
-  if (cpu == 'arm64' && os == 'Darwin') {
-    return 'Llama-3.2-1B-Instruct-4bit (MLX)';
-  }
-
-  if (device == 'cuda') {
-    return 'Tiny Llama';
-  }
-
-  return 'GGUF models';
-  // return `${cpu}, ${os}, ${device}`;
-}
-
-function typeOfComputer(cpu, os, device) {
-  if (!cpu || !os || !device) return '';
-
-  if (cpu == 'arm64' && os == 'Darwin') {
-    return 'Apple Silicon Mac';
-  }
-
-  return `${cpu} based ${os} computer with ${device} support`;
-}
+import RecipeCard from '../Experiment/Recipes/RecipeCard';
+import SelectedRecipe, {
+  isRecipeCompatibleWithDevice,
+} from '../Experiment/Recipes/SelectedRecipe';
 
 export default function Welcome() {
   // For now disable ModelDownloadModal
   const [modelDownloadModalOpen, setModelDownloadModalOpen] =
     useState<boolean>(false);
 
-  const { server, isLoading, isError } = chatAPI.useServerStats();
+  // State for recipe selection
+  const [selectedRecipe, setSelectedRecipe] = useState<any>(null);
+  const [isCreatingExperiment, setIsCreatingExperiment] =
+    useState<boolean>(false);
 
+  const { server, isLoading, isError } = chatAPI.useServerStats();
+  const { data: recipes, isLoading: recipesLoading } = useAPI('recipes', [
+    'getAll',
+  ]);
+  const { data: serverInfo } = useAPI('server', ['info']);
+  const { setExperimentId } = useExperimentInfo();
   const navigate = useNavigate();
 
-  const cpu = server?.cpu;
-  const os = server?.os;
-  const device = server?.device;
+  const createNewExperiment = useCallback(
+    async (fromRecipeId: number | null, name: string) => {
+      if (fromRecipeId === -1) {
+        // This means user clicked on Create BLANK experiment
+        try {
+          const response = await fetch(
+            chatAPI.Endpoints.Experiment.Create(name),
+          );
+          const newId = await response.json();
+          setExperimentId(newId);
+          setSelectedRecipe(null);
+          navigate('/experiment/model');
+        } catch (error) {
+          // Handle error silently
+        }
+        return { jobs: [] };
+      }
+
+      setIsCreatingExperiment(true);
+
+      try {
+        const response = await fetch(
+          getAPIFullPath('recipes', ['createExperiment'], {
+            id: fromRecipeId,
+            experiment_name: name,
+          }),
+          {
+            method: 'POST',
+          },
+        );
+        const responseJson = await response.json();
+        if (!(responseJson?.status === 'success')) {
+          return { jobs: [] };
+        }
+        const newId = responseJson?.data?.experiment_id;
+        setExperimentId(newId);
+
+        // Wait a moment to show the loading state
+        await new Promise((resolve) => {
+          setTimeout(resolve, 1500);
+        });
+
+        setIsCreatingExperiment(false);
+        setSelectedRecipe(null);
+        navigate('/experiment/model');
+
+        return responseJson;
+      } catch (error) {
+        setIsCreatingExperiment(false);
+        setSelectedRecipe(null);
+        return { jobs: [] };
+      }
+    },
+    [setExperimentId, navigate],
+  );
+
+  // Sort recipes data by zOrder
+  const sortedRecipes = recipes?.sort((a: any, b: any) => {
+    if (a.zOrder !== undefined && b.zOrder !== undefined) {
+      return a.zOrder - b.zOrder;
+    }
+    if (a.zOrder !== undefined) {
+      return -1;
+    }
+    if (b.zOrder !== undefined) {
+      return 1;
+    }
+    return 0;
+  });
 
   return (
     <>
@@ -69,6 +119,43 @@ export default function Welcome() {
         setOpen={setModelDownloadModalOpen}
         server={server}
       />
+
+      {/* Show Selected Recipe Modal if one is chosen */}
+      <Modal open={!!selectedRecipe} onClose={() => setSelectedRecipe(null)}>
+        <ModalDialog
+          sx={{
+            width: '60vw',
+            height: '80vh',
+            overflow: 'auto',
+            p: 0,
+          }}
+        >
+          {isCreatingExperiment && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                width: '100%',
+                flexDirection: 'column',
+              }}
+            >
+              <Typography level="body-lg" sx={{ mb: 2 }}>
+                Setting up new experiment...
+              </Typography>
+              <CircularProgress />
+            </div>
+          )}
+          {!isCreatingExperiment && selectedRecipe && (
+            <SelectedRecipe
+              recipe={selectedRecipe}
+              setSelectedRecipeId={setSelectedRecipe}
+              installRecipe={createNewExperiment}
+            />
+          )}
+        </ModalDialog>
+      </Modal>
 
       <Sheet
         sx={{
@@ -86,84 +173,77 @@ export default function Welcome() {
         <div
           style={{
             backgroundColor: 'var(--joy-palette-background-surface)',
-            opacity: '0.85',
+            opacity: '0.95',
             padding: '2rem',
+            paddingTop: '60px',
             overflowY: 'auto',
+            height: '100%',
+            marginTop: '60px',
           }}
         >
           <Typography
             level="h1"
-            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}
           >
             <HexLogo width={40} height={40} /> Transformer Lab
           </Typography>
-          <Typography level="h1" sx={{ fontSize: '48px' }} mb={2}>
-            Let's start your next Experiment! 🤓
-          </Typography>
-          <div>
-            <Typography level="body-lg" sx={{ fontSize: '24px' }} mb={2}>
-              Get started by downloading a small model from the <BoxesIcon />{' '}
-              Model Zoo. <b>{recommendedModel(cpu, os, device)}</b> could be a
-              great starting point for your {typeOfComputer(cpu, os, device)}.
-              After downloading a model, you can:
-            </Typography>
-            <Stack
-              direction="column"
-              justifyContent="flex-start"
-              alignItems="flex-start"
-              spacing={2}
-            >
-              <ul>
-                <li>
-                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                    <b>Run it</b> by clicking on <LayersIcon /> Foundation then
-                    press <PlayCircleIcon /> Run{' '}
-                  </Typography>
-                </li>
-                <li>
-                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                    Once a model is running, you can <b>Chat</b> with it by
-                    clicking on <MessageCircleIcon /> Interact
-                  </Typography>
-                </li>
-                <li>
-                  <Typography level="body-lg" sx={{ fontSize: '20px' }}>
-                    <b>Fine tune</b> a model by clicking on{' '}
-                    <GraduationCapIcon /> Train
-                  </Typography>
-                </li>
-              </ul>
-              {/* <Button
-              endDecorator={<ArrowRightCircleIcon />}
-              size="lg"
-              onClick={() => {
-                navigate('/experiment/chat');
-              }}
-            >
-              Chat 💬 with it
-            </Button> */}
-              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
-              Start 🔬 with a pre-built recipe
-            </Button> */}
-              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
-              Train 🧑🏽‍🎓 a new model from scratch
-            </Button> */}
-              {/* <Button endDecorator={<ArrowRightCircleIcon />} size="lg">
-              Fine tune 🎵 it
-            </Button> */}
-            </Stack>
-            <Typography level="body-lg" mt={2} sx={{ fontSize: '24px' }}>
-              Watch our{' '}
-              <a href="https://transformerlab.ai/docs/intro" target="_blank">
-                Getting Started Video
-              </a>
-              , or access our{' '}
-              <a href="https://transformerlab.ai/docs/intro" target="_blank">
-                full documentation
-              </a>{' '}
-              for more ideas!
-            </Typography>
-          </div>
+
+          {/* Recipes Content */}
+          {!isLoading && !isError && server && (
+            <>
+              <Typography
+                level="h2"
+                sx={{ fontWeight: 400, color: 'text.secondary', mb: 3 }}
+              >
+                What do you want to do?
+              </Typography>
+
+              {/* Recipes Grid */}
+              <Grid
+                container
+                spacing={2}
+                sx={{
+                  flexGrow: 1,
+                  justifyContent: 'flex-start',
+                  alignContent: 'flex-start',
+                  overflow: 'auto',
+                  maxWidth: '1000px',
+                  margin: '0 auto',
+                }}
+              >
+                {/* Empty Experiment Card */}
+                <RecipeCard
+                  recipeDetails={{
+                    id: -1,
+                    title: 'Create an Empty Experiment',
+                    description: 'Start from scratch',
+                    cardImage:
+                      'https://recipes.transformerlab.net/cleanlab.jpg',
+                  }}
+                  setSelectedRecipe={setSelectedRecipe}
+                />
+
+                {recipesLoading && <CircularProgress />}
+
+                {/* Recipe Cards */}
+                {Array.isArray(sortedRecipes) &&
+                  sortedRecipes
+                    .filter((recipe) =>
+                      isRecipeCompatibleWithDevice(
+                        recipe,
+                        serverInfo?.device_type,
+                      ),
+                    )
+                    .map((recipe) => (
+                      <RecipeCard
+                        key={recipe.id}
+                        recipeDetails={recipe}
+                        setSelectedRecipe={setSelectedRecipe}
+                      />
+                    ))}
+              </Grid>
+            </>
+          )}
         </div>
       </Sheet>
     </>
