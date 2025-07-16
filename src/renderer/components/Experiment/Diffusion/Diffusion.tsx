@@ -19,6 +19,7 @@ import {
   Alert,
   Select,
   Option,
+  Chip,
 } from '@mui/joy';
 import {
   ChevronDown,
@@ -30,6 +31,7 @@ import {
   ImageIcon,
   HistoryIcon,
   AlertTriangleIcon,
+  PlugIcon,
 } from 'lucide-react';
 import {
   getAPIFullPath,
@@ -919,19 +921,21 @@ export default function Diffusion() {
     >
       <FormControl
         size="sm"
-        sx={{ alignSelf: 'flex-end', minWidth: 200, mr: 2 }}
+        sx={{ alignSelf: 'flex-end', minWidth: 240, mr: 2 }}
       >
-        <LabelWithTooltip tooltip="Choose which diffusion plugin to use.">
+        <FormLabel sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <PlugIcon size={16} />
           Diffusion Plugin
-        </LabelWithTooltip>
+        </FormLabel>
         <Select
           value={selectedPlugin}
           onChange={(_, val) => setSelectedPlugin(val)}
           placeholder="Select plugin"
+          slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
         >
           {availableDiffusionPlugins.map((plugin) => (
             <Option key={plugin.uniqueId} value={plugin.uniqueId}>
-              {plugin.displayName || plugin.uniqueId}
+              <Chip>{plugin.displayName || plugin.uniqueId}</Chip>
             </Option>
           ))}
         </Select>
