@@ -306,15 +306,16 @@ function TrainingModalDataTemplatingTab({
         flexDirection: 'column',
       }}
     >
-      {parsedData?.supports?.includes('chat_template_formatting') && (
-        <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-          <Switch
-            checked={applyChatTemplate}
-            onChange={(e) => setApplyChatTemplate(e.target.checked)}
-          />
-          <Typography level="body-md">Apply Chat Template</Typography>
-        </Stack>
-      )}
+      {chatTemplateData?.data &&
+        parsedData?.supports?.includes('chat_template_formatting') && (
+          <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+            <Switch
+              checked={applyChatTemplate}
+              onChange={(e) => setApplyChatTemplate(e.target.checked)}
+            />
+            <Typography level="body-md">Apply Chat Template</Typography>
+          </Stack>
+        )}
       {parsedData?.training_template_format !== 'none' && (
         <>
           <Alert sx={{ mt: 1 }} color="danger">
