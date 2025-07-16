@@ -26,9 +26,7 @@ import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-export function isRecipeCompatibleWithDevice(recipe, device) {
+export function isRecipeCompatibleWithDevice(recipe: any, device: any) {
   if (!recipe?.requiredMachineArchitecture) return true;
   if (!device) return false;
 
@@ -55,7 +53,7 @@ export function isRecipeCompatibleWithDevice(recipe, device) {
 }
 
 // Component that reuses ExperimentNotes styling for recipe notes
-const RecipeNotesDisplay = ({ notes }) => {
+const RecipeNotesDisplay = ({ notes }: { notes: string }) => {
   if (!notes) return null;
 
   return (
@@ -119,13 +117,7 @@ const InstalledStateChip = ({ state }: { state: any }) => {
   );
 };
 
-const ModelProgressBar = ({
-  modelName,
-  jobData,
-}: {
-  modelName: any;
-  jobData: any;
-}) => {
+const ModelProgressBar = ({ jobData }: { jobData: any }) => {
   if (!jobData) return null;
 
   const progress = jobData.progress || 0;
@@ -181,22 +173,36 @@ const RecipeDependenciesWithProgress = ({
   dependenciesMutate,
   installationJobs,
   setInstallationJobs,
+}: {
+  recipeId: any;
+  dependencies: any;
+  dependenciesLoading: any;
+  dependenciesMutate: any;
+  installationJobs: any;
+  setInstallationJobs: any;
 }) => {
-  const { data: serverInfo } = useAPI('server', ['info']);
+  const [isInstallingDependencies, setIsInstallingDependencies] =
+    useState(false);
 
-  // Get job progress for model downloads
-  const modelDownloadJobs =
-    installationJobs?.filter((job: any) => job.type === 'DOWNLOAD_MODEL') || [];
+  // Get job progress for model downloads - memoized to prevent re-renders
+  const modelDownloadJobs = useMemo(
+    () =>
+      installationJobs?.filter((job: any) => job.type === 'DOWNLOAD_MODEL') ||
+      [],
+    [installationJobs],
+  );
 
   // Create a single SWR key that includes all job IDs
-  const allJobIds = modelDownloadJobs.map((job) => job.job_id).filter(Boolean);
+  const allJobIds = modelDownloadJobs
+    .map((job: any) => job.job_id)
+    .filter(Boolean);
   const jobsKey = allJobIds.length > 0 ? `jobs-${allJobIds.join(',')}` : null;
 
   // Fetch all job data in a single request
   const { data: allJobsData } = useSWR(
     jobsKey,
     async () => {
-      const promises = allJobIds.map((jobId) =>
+      const promises = allJobIds.map((jobId: any) =>
         fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
       );
       const results = await Promise.all(promises);
@@ -205,7 +211,7 @@ const RecipeDependenciesWithProgress = ({
       const jobDataMap: any = {};
       results.forEach((jobData, index) => {
         const jobId = allJobIds[index];
-        const job = modelDownloadJobs.find((j) => j.job_id === jobId);
+        const job = modelDownloadJobs.find((j: any) => j.job_id === jobId);
         if (job) {
           jobDataMap[job.name] = jobData;
         }
@@ -230,6 +236,66 @@ const RecipeDependenciesWithProgress = ({
       dependenciesMutate();
     }
   }, [modelJobsData, dependenciesMutate]);
+
+  // Poll dependencies when installing non-model dependencies
+  useEffect(() => {
+    let pollInterval: number;
+
+    if (isInstallingDependencies) {
+      // Poll every 2 seconds to check if dependencies are installed
+      pollInterval = window.setInterval(() => {
+        dependenciesMutate();
+      }, 2000);
+    }
+
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [isInstallingDependencies, dependenciesMutate]);
+
+  // Stop polling when all dependencies are installed
+  useEffect(() => {
+    if (isInstallingDependencies && dependencies) {
+      const stillMissingDependencies = dependencies.some((dep: any) => {
+        if (dep.installed === true) {
+          return false; // Already installed
+        }
+
+        // For models, check if there's any download job (active or completed)
+        if (dep.type === 'model') {
+          const hasAnyJob = modelDownloadJobs.some(
+            (job: any) => job.name === dep.name,
+          );
+          if (hasAnyJob) {
+            // Check if the job failed
+            const jobData =
+              modelJobsData[
+                modelDownloadJobs.find((job: any) => job.name === dep.name)
+                  ?.name
+              ];
+            if (jobData?.status === 'failed' || jobData?.status === 'FAILED') {
+              return true; // Count as missing if job failed
+            }
+            return false; // Don't count as missing if there's an active or completed job
+          }
+        }
+
+        return true; // Count as missing
+      });
+
+      // If no dependencies are missing anymore, stop the installation state
+      if (!stillMissingDependencies) {
+        setIsInstallingDependencies(false);
+      }
+    }
+  }, [
+    dependencies,
+    modelDownloadJobs,
+    modelJobsData,
+    isInstallingDependencies,
+  ]);
 
   if (dependenciesLoading) return <CircularProgress sx={{ mt: 1, mb: 1 }} />;
 
@@ -334,12 +400,7 @@ const RecipeDependenciesWithProgress = ({
 
                   // Show progress bar only for models with active jobs and job data
                   if (modelJob && jobData) {
-                    statusComponent = (
-                      <ModelProgressBar
-                        modelName={dep.name}
-                        jobData={jobData}
-                      />
-                    );
+                    statusComponent = <ModelProgressBar jobData={jobData} />;
                   } else if (modelJob) {
                     // Show loading spinner for models with active jobs but no data yet
                     statusComponent = (
@@ -371,39 +432,54 @@ const RecipeDependenciesWithProgress = ({
             </Box>
           ))}
         </Sheet>
-        {countMissingDependencies > 0 && (
+        {countMissingDependencies > 0 && !isInstallingDependencies && (
           <Button
             color="warning"
             size="sm"
             variant="plain"
             startDecorator={<DownloadIcon />}
             onClick={async () => {
-              const installTask = await fetch(
-                getAPIFullPath('recipes', ['installDependencies'], {
-                  id: recipeId,
-                }),
-              );
-              const installTaskJson = await installTask.json();
+              setIsInstallingDependencies(true);
 
-              // Handle installation response
-              if (installTaskJson?.jobs) {
-                // Update installation jobs to track progress
-                setInstallationJobs(installTaskJson.jobs);
-              }
+              try {
+                const installTask = await fetch(
+                  getAPIFullPath('recipes', ['installDependencies'], {
+                    id: recipeId,
+                  }),
+                );
+                const installTaskJson = await installTask.json();
 
-              // Refresh dependencies after starting installation
-              // This will update the status for plugins, datasets, etc.
-              dependenciesMutate();
+                // Handle installation response
+                if (installTaskJson?.jobs) {
+                  // Update installation jobs to track progress
+                  setInstallationJobs(installTaskJson.jobs);
+                }
 
-              // Also refresh after a short delay to catch any quick installations
-              setTimeout(() => {
+                // Refresh dependencies after starting installation
+                // This will update the status for plugins, datasets, etc.
                 dependenciesMutate();
-              }, 2000);
+
+                // Also refresh after a short delay to catch any quick installations
+                setTimeout(() => {
+                  dependenciesMutate();
+                }, 2000);
+              } catch (error) {
+                // Handle error - dependency installation failed
+                setIsInstallingDependencies(false);
+              }
             }}
           >
             Install ({countMissingDependencies}) Missing Dependenc
             {countMissingDependencies === 1 ? 'y' : 'ies'}
           </Button>
+        )}
+        {isInstallingDependencies && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CircularProgress size="sm" />
+            <Typography level="body-sm" color="primary">
+              Installing dependencies...
+            </Typography>
+          </Box>
         )}
       </>
     )
@@ -414,12 +490,15 @@ export default function SelectedRecipe({
   recipe,
   setSelectedRecipeId,
   installRecipe,
+}: {
+  recipe: any;
+  setSelectedRecipeId: any;
+  installRecipe: any;
 }) {
   const [experimentNameFormValue, setExperimentNameFormValue] = useState('');
   const [experimentNameTouched, setExperimentNameTouched] = useState(false);
   const [experimentName, setExperimentName] = useState('');
   const [installationJobs, setInstallationJobs] = useState([]);
-  const [isInstalling, setIsInstalling] = useState(false);
 
   const [experimentNameError, setExperimentNameError] = useState('');
 
@@ -430,77 +509,12 @@ export default function SelectedRecipe({
   const { data: serverInfo } = useAPI('server', ['info']);
   const machineType = serverInfo?.device_type;
 
-  // Monitor model download jobs for completion to refresh dependencies
-  const modelDownloadJobs: any[] =
-    installationJobs?.filter((job: any) => job.type === 'DOWNLOAD_MODEL') || [];
-
-  // Create a single SWR key that includes all job IDs
-  const allJobIds = modelDownloadJobs.map((job) => job.job_id).filter(Boolean);
-  const jobsKey = allJobIds.length > 0 ? `jobs-${allJobIds.join(',')}` : null;
-
-  // Fetch all job data in a single request
-  const { data: allJobsData } = useSWR(
-    jobsKey,
-    async () => {
-      const promises = allJobIds.map((jobId) =>
-        fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
-      );
-      const results = await Promise.all(promises);
-
-      // Create a map of job data by job ID
-      const jobDataMap: any = {};
-      results.forEach((jobData, index) => {
-        const jobId = allJobIds[index];
-        const job = modelDownloadJobs.find((j) => j.job_id === jobId);
-        if (job) {
-          jobDataMap[job.name] = jobData;
-        }
-      });
-
-      return jobDataMap;
-    },
-    { refreshInterval: 1000 },
-  );
-
-  // Use the fetched data or fallback to empty object
-  const modelJobsData: any = useMemo(() => allJobsData || {}, [allJobsData]);
-
-  // Monitor job completion and refresh dependencies
-  useEffect(() => {
-    const completedJobs = Object.values(modelJobsData).filter(
-      (job: any) => job?.status === 'completed' || job?.status === 'COMPLETE',
-    );
-
-    if (completedJobs.length > 0) {
-      // Refresh dependencies when jobs complete
-      mutate();
-    }
-  }, [modelJobsData, mutate]);
-
-  // Check if all dependencies are installed
+  // Check if all dependencies are installed - simplified check
   let missingAnyDependencies = false;
   if (data?.dependencies) {
-    missingAnyDependencies = data.dependencies.some((dep: any) => {
-      if (dep.installed === true) {
-        return false; // Already installed
-      }
-
-      // For models, check if there's a completed download job
-      if (dep.type === 'model') {
-        const hasCompletedJob = modelDownloadJobs.some((job: any) => {
-          const jobData = modelJobsData[job.name];
-          return (
-            job.name === dep.name &&
-            (jobData?.status === 'completed' || jobData?.status === 'COMPLETE')
-          );
-        });
-        if (hasCompletedJob) {
-          return false; // Don't count as missing if download completed
-        }
-      }
-
-      return true; // Count as missing
-    });
+    missingAnyDependencies = data.dependencies.some(
+      (dep: any) => !dep.installed,
+    );
   }
 
   const isHardwareCompatible = isRecipeCompatibleWithDevice(
@@ -532,7 +546,6 @@ export default function SelectedRecipe({
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
-    setIsInstalling(true);
 
     try {
       // Call the original installRecipe function but also track jobs
@@ -544,7 +557,6 @@ export default function SelectedRecipe({
       }
     } catch (error) {
       // Handle error
-      setIsInstalling(false);
     }
   };
 
