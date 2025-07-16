@@ -53,7 +53,7 @@ export default function Welcome() {
           const newId = await response.json();
           setExperimentId(newId);
           setSelectedRecipe(null);
-          navigate('/experiment/model');
+          navigate('/experiment/notes');
         } catch (error) {
           // Handle error silently
         }
@@ -86,7 +86,7 @@ export default function Welcome() {
 
         setIsCreatingExperiment(false);
         setSelectedRecipe(null);
-        navigate('/experiment/model');
+        navigate('/experiment/notes');
 
         return responseJson;
       } catch (error) {
