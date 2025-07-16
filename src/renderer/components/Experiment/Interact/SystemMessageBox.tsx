@@ -199,7 +199,7 @@ export default function SystemMessageBox({
       {/* Override checkbox */}
       <FormControl sx={{ marginBottom: 2 }}>
         <Checkbox
-          label="Override model default system prompt"
+          label="Use Custom System Prompt"
           checked={isOverrideEnabled}
           onChange={(e) => handleOverrideToggle(e.target.checked)}
         />
