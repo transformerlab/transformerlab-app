@@ -141,7 +141,7 @@ function ShowCode({
         <Box
           sx={{
             width: '100%',
-            backgroundColor: '#F7F9FB',
+            backgroundColor: 'background.level1',
             overflow: 'auto',
             flexGrow: 1,
             p: 4,
