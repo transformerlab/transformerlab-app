@@ -1,16 +1,16 @@
 import {
   Button,
+  Checkbox,
   FormControl,
   FormHelperText,
   FormLabel,
   Sheet,
   Textarea,
-  Typography,
 } from '@mui/joy';
 import { useEffect, useState } from 'react';
+import { RotateCcwIcon } from 'lucide-react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { RotateCcwIcon } from 'lucide-react';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
 
 export default function SystemMessageBox({
@@ -24,18 +24,29 @@ export default function SystemMessageBox({
   showResetButton?: boolean;
   defaultPromptConfigForModel?: any;
 }) {
-  const [systemMessage, setSystemMessage] = useState(() => {
-    const promptTemplate = SafeJSONParse(
-      experimentInfo?.config?.prompt_template,
-      {},
-    );
-    return (
-      promptTemplate?.system_message ||
-      defaultPromptConfigForModel?.system_message
-    );
+  // Check if override is enabled from experiment config
+  const promptTemplate = SafeJSONParse(
+    experimentInfo?.config?.prompt_template,
+    {},
+  );
+
+  const [isOverrideEnabled, setIsOverrideEnabled] = useState(() => {
+    return promptTemplate?.system_prompt_override === true;
+  });
+
+  const [customSystemMessage, setCustomSystemMessage] = useState(() => {
+    return promptTemplate?.system_message || '';
   });
 
   const [hasEdited, setHasEdited] = useState(false);
+
+  // Get the current system message to display
+  const getDisplayedSystemMessage = () => {
+    if (isOverrideEnabled) {
+      return customSystemMessage;
+    }
+    return defaultPromptConfigForModel?.system_message || '';
+  };
 
   // Function to preprocess system message with date placeholders
   const preprocessSystemMessage = (message: string) => {
@@ -75,12 +86,25 @@ export default function SystemMessageBox({
     return processedMessage;
   };
 
-  const sendSystemMessageToServer = (message: string) => {
+  const savePromptToServer = (promptData: any) => {
     const experimentId = experimentInfo?.id;
 
-    // Preprocess system message to replace date placeholders
-    const processedMessage = preprocessSystemMessage(message);
-    const newSystemPrompt = processedMessage;
+    fetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
+      method: 'POST',
+      body: JSON.stringify(promptData),
+    })
+      .then(() => {
+        experimentInfoMutate();
+        setHasEdited(false);
+        return true;
+      })
+      .catch(() => {
+        // Error saving prompt
+      });
+  };
+
+  const handleOverrideToggle = (checked: boolean) => {
+    setIsOverrideEnabled(checked);
 
     let newPrompt = experimentInfo?.config?.prompt_template;
 
@@ -94,40 +118,71 @@ export default function SystemMessageBox({
       newPrompt = JSON.parse(newPrompt);
     }
 
-    newPrompt.system_message = newSystemPrompt;
+    if (checked) {
+      // Enable override - set flag and current custom message
+      newPrompt.system_prompt_override = true;
+      newPrompt.system_message =
+        customSystemMessage ||
+        defaultPromptConfigForModel?.system_message ||
+        '';
+    } else {
+      // Disable override - remove flag and system_message field
+      delete newPrompt.system_prompt_override;
+      delete newPrompt.system_message;
+    }
 
-    fetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
-      method: 'POST',
-      body: JSON.stringify(newPrompt),
-    })
-      .then(() => {
-        experimentInfoMutate();
-        setHasEdited(false); // allow re-sync
-        return true;
-      })
-      .catch(() => {
-        // Error saving prompt
-      });
+    savePromptToServer(newPrompt);
   };
 
-  useEffect(() => {
-    if (!hasEdited) {
-      const promptTemplate = SafeJSONParse(
-        experimentInfo?.config?.prompt_template,
-        {},
-      );
-      const experimentSystemMessage = promptTemplate?.system_message;
-      const defaultSystemMessage = defaultPromptConfigForModel?.system_message;
-
-      setSystemMessage(experimentSystemMessage || defaultSystemMessage);
-    }
-  }, [experimentInfo?.config?.prompt_template]);
-
-  // Update handler with "edited" tracking
   const handleSystemMessageChange = (e: any) => {
-    setSystemMessage(e.target.value);
+    setCustomSystemMessage(e.target.value);
     setHasEdited(true);
   };
+
+  const handleSave = () => {
+    if (!isOverrideEnabled) return;
+
+    let newPrompt = experimentInfo?.config?.prompt_template;
+
+    // If undefined, initialize it as an empty object
+    if (newPrompt === undefined || newPrompt === null) {
+      newPrompt = {};
+    }
+
+    // Make new prompt as json
+    if (typeof newPrompt === 'string') {
+      newPrompt = JSON.parse(newPrompt);
+    }
+
+    // Preprocess system message to replace date placeholders
+    const processedMessage = preprocessSystemMessage(customSystemMessage);
+
+    newPrompt.system_prompt_override = true;
+    newPrompt.system_message = processedMessage;
+
+    savePromptToServer(newPrompt);
+  };
+
+  // Update state when experiment info changes (e.g., model change)
+  useEffect(() => {
+    const currentPromptTemplate = SafeJSONParse(
+      experimentInfo?.config?.prompt_template,
+      {},
+    );
+
+    const overrideEnabled =
+      currentPromptTemplate?.system_prompt_override === true;
+    setIsOverrideEnabled(overrideEnabled);
+
+    if (overrideEnabled) {
+      setCustomSystemMessage(currentPromptTemplate?.system_message || '');
+    }
+
+    setHasEdited(false);
+  }, [
+    experimentInfo?.config?.prompt_template,
+    defaultPromptConfigForModel?.system_message,
+  ]);
 
   return (
     <div>
@@ -140,12 +195,21 @@ export default function SystemMessageBox({
       >
         <span>System message</span>
       </FormLabel>
+
+      {/* Override checkbox */}
+      <FormControl sx={{ marginBottom: 2 }}>
+        <Checkbox
+          label="Override model default system prompt"
+          checked={isOverrideEnabled}
+          onChange={(e) => handleOverrideToggle(e.target.checked)}
+        />
+      </FormControl>
+
       <Sheet
         variant="outlined"
         id="system-message-box"
         sx={{
           width: '100%',
-          // borderRadius: "md",
           flex: '0 0 130px',
           overflow: 'auto',
           padding: 2,
@@ -157,11 +221,14 @@ export default function SystemMessageBox({
             name="system-message"
             minRows={1}
             maxRows={8}
-            value={preprocessSystemMessage(systemMessage || '')}
+            value={preprocessSystemMessage(getDisplayedSystemMessage())}
             onChange={handleSystemMessageChange}
+            readOnly={!isOverrideEnabled}
             sx={{
               '--Textarea-focusedThickness': '0',
               '--Textarea-focusedHighlight': 'transparent !important',
+              opacity: isOverrideEnabled ? 1 : 0.7,
+              cursor: isOverrideEnabled ? 'text' : 'default',
             }}
           />
         </FormControl>
@@ -170,22 +237,26 @@ export default function SystemMessageBox({
       <FormHelperText
         sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}
       >
-        <Button
-          size="sm"
-          variant="soft"
-          onClick={() => sendSystemMessageToServer(systemMessage || '')}
-        >
-          Save
-        </Button>
+        {isOverrideEnabled && (
+          <Button
+            size="sm"
+            variant="soft"
+            onClick={handleSave}
+            disabled={!hasEdited}
+          >
+            Save
+          </Button>
+        )}
 
-        {showResetButton && (
+        {showResetButton && isOverrideEnabled && (
           <Button
             variant="plain"
             startDecorator={<RotateCcwIcon size="14px" />}
             onClick={() => {
-              sendSystemMessageToServer(
+              setCustomSystemMessage(
                 defaultPromptConfigForModel?.system_message || '',
               );
+              setHasEdited(true);
             }}
             sx={{
               padding: '2px',
@@ -194,7 +265,7 @@ export default function SystemMessageBox({
               marginLeft: 'auto',
             }}
           >
-            Reset
+            Reset to Default
           </Button>
         )}
       </FormHelperText>
