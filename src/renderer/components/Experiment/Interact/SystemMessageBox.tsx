@@ -11,18 +11,28 @@ import { useEffect, useState } from 'react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { RotateCcwIcon } from 'lucide-react';
+import SafeJSONParse from '../../Shared/SafeJSONParse';
 
 export default function SystemMessageBox({
   experimentInfo,
   experimentInfoMutate,
   showResetButton = false,
   defaultPromptConfigForModel = {},
+}: {
+  experimentInfo: any;
+  experimentInfoMutate: () => void;
+  showResetButton?: boolean;
+  defaultPromptConfigForModel?: any;
 }) {
-  const [systemMessage, setSystemMessage] = useState(
-    experimentInfo?.config?.prompt_template?.system_message,
-  );
+  const [systemMessage, setSystemMessage] = useState(() => {
+    const promptTemplate = SafeJSONParse(
+      experimentInfo?.config?.prompt_template,
+      {},
+    );
+    return promptTemplate?.system_message;
+  });
 
-  const [hasEdited, setHasEdited] = useState(false); // 👈 added
+  const [hasEdited, setHasEdited] = useState(false);
 
   // Function to preprocess system message with date placeholders
   const preprocessSystemMessage = (message: string) => {
@@ -63,7 +73,6 @@ export default function SystemMessageBox({
   };
 
   const sendSystemMessageToServer = (message: string) => {
-    // console.log(`Sending message: ${message} to the server`);
     const experimentId = experimentInfo?.id;
 
     // Preprocess system message to replace date placeholders
@@ -84,25 +93,35 @@ export default function SystemMessageBox({
 
     newPrompt.system_message = newSystemPrompt;
 
-    // console.log('STRINGIFY NEW PROMPT', JSON.stringify(newPrompt));
-
     fetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
       method: 'POST',
       body: JSON.stringify(newPrompt),
-    }).then((response) => {
-      experimentInfoMutate();
-      setHasEdited(false); // allow re-sync
-    });
+    })
+      .then(() => {
+        experimentInfoMutate();
+        setHasEdited(false); // allow re-sync
+        return true;
+      })
+      .catch(() => {
+        // Error saving prompt
+      });
   };
 
   useEffect(() => {
     if (!hasEdited) {
-      setSystemMessage(experimentInfo?.config?.prompt_template?.system_message);
+      const promptTemplate = SafeJSONParse(
+        experimentInfo?.config?.prompt_template,
+        {},
+      );
+      const experimentSystemMessage = promptTemplate?.system_message;
+      const defaultSystemMessage = defaultPromptConfigForModel?.system_message;
+
+      setSystemMessage(experimentSystemMessage || defaultSystemMessage);
     }
-  }, [experimentInfo?.config?.prompt_template?.system_message]);
+  }, [experimentInfo?.config?.prompt_template]);
 
   // Update handler with "edited" tracking
-  const handleSystemMessageChange = (e) => {
+  const handleSystemMessageChange = (e: any) => {
     setSystemMessage(e.target.value);
     setHasEdited(true);
   };
