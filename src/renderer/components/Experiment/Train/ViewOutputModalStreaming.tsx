@@ -136,7 +136,7 @@ export default function ViewOutputModalStreaming({
               }}
             >
               <OutputTerminal
-                logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromTrainingJob(
+                logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
                   jobId,
                   sweeps,
                 )}
