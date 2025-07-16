@@ -13,6 +13,7 @@ import { ConstructionIcon } from 'lucide-react';
 import ChatBubble from './ChatBubble';
 import ChatSubmit from './ChatSubmit';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
+import SafeJSONParse from '../../Shared/SafeJSONParse';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import SystemMessageBox from './SystemMessageBox';
 
@@ -45,9 +46,13 @@ export default function ChatPage({
   const [image, setImage] = useState(null); //This is mostly used for the modal. The actual image is stored in the chats array
   const [imageModalOpen, setImageModalOpen] = useState(false);
 
-  const [systemMessage, setSystemMessage] = useState(
-    experimentInfo?.config?.prompt_template?.system_message,
-  );
+  const [systemMessage, setSystemMessage] = useState(() => {
+    const promptTemplate = SafeJSONParse(
+      experimentInfo?.config?.prompt_template,
+      {},
+    );
+    return promptTemplate?.system_message;
+  });
 
   const sendSystemMessageToServer = (message) => {
     // console.log(`Sending message: ${message} to the server`);

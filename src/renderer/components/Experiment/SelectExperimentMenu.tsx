@@ -347,50 +347,10 @@ export default function SelectExperimentMenu({ models }) {
         </Dropdown>
       </FormControl>
       <RecipesModal
-        modalOpen={modalOpen && DEV_MODE}
+        modalOpen={modalOpen}
         setModalOpen={setModalOpen}
         createNewExperiment={createNewExperiment}
       />
-      <Modal open={modalOpen && !DEV_MODE} onClose={() => setModalOpen(false)}>
-        <ModalDialog
-          aria-labelledby="basic-modal-dialog-title"
-          aria-describedby="basic-modal-dialog-description"
-          sx={{ maxWidth: 500 }}
-        >
-          <Typography id="basic-modal-dialog-title" component="h2">
-            Create new experiment
-          </Typography>
-          {/* <Typography
-            id="basic-modal-dialog-description"
-            textColor="text.tertiary"
-          >
-            Please supply a friendly name for your project
-          </Typography> */}
-          <form
-            onSubmit={async (event: FormEvent<HTMLFormElement>) => {
-              event.preventDefault();
-              const form = new FormData(event.target);
-              createNewExperiment(form.get('name') as string);
-              setModalOpen(false);
-            }}
-          >
-            <Stack spacing={2}>
-              <FormControl>
-                <FormLabel>Experiment Name</FormLabel>
-                <Input name="name" autoFocus required />
-              </FormControl>
-              {/* <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Input required />
-              </FormControl> */}
-              <Button type="submit">Submit</Button>
-              <Button variant="soft" onClick={() => setModalOpen(false)}>
-                Cancel
-              </Button>
-            </Stack>
-          </form>
-        </ModalDialog>
-      </Modal>
     </div>
   );
 }

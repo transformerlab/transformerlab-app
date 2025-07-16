@@ -8,25 +8,36 @@ import {
   Typography,
 } from '@mui/joy';
 import { useEffect, useState } from 'react';
-import { useDebounce } from 'use-debounce';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { RotateCcwIcon } from 'lucide-react';
+import SafeJSONParse from '../../Shared/SafeJSONParse';
 
 export default function SystemMessageBox({
   experimentInfo,
   experimentInfoMutate,
   showResetButton = false,
   defaultPromptConfigForModel = {},
+}: {
+  experimentInfo: any;
+  experimentInfoMutate: () => void;
+  showResetButton?: boolean;
+  defaultPromptConfigForModel?: any;
 }) {
-  const [systemMessage, setSystemMessage] = useState(
-    experimentInfo?.config?.prompt_template?.system_message,
-  );
+  const [systemMessage, setSystemMessage] = useState(() => {
+    const promptTemplate = SafeJSONParse(
+      experimentInfo?.config?.prompt_template,
+      {},
+    );
+    return promptTemplate?.system_message;
+  });
+
+  const [hasEdited, setHasEdited] = useState(false);
 
   // Function to preprocess system message with date placeholders
   const preprocessSystemMessage = (message: string) => {
     if (!message) return message;
-    
+
     let processedMessage = message;
     const currentDate = new Date();
 
@@ -61,11 +72,7 @@ export default function SystemMessageBox({
     return processedMessage;
   };
 
-  // Get the processed message to display
-  const displayMessage = preprocessSystemMessage(systemMessage || '');
-
   const sendSystemMessageToServer = (message: string) => {
-    // console.log(`Sending message: ${message} to the server`);
     const experimentId = experimentInfo?.id;
 
     // Preprocess system message to replace date placeholders
@@ -83,37 +90,41 @@ export default function SystemMessageBox({
     if (typeof newPrompt === 'string') {
       newPrompt = JSON.parse(newPrompt);
     }
-    newPrompt.system_message = newSystemPrompt;
 
-    // console.log('STRINGIFY NEW PROMPT', JSON.stringify(newPrompt));
+    newPrompt.system_message = newSystemPrompt;
 
     fetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
       method: 'POST',
       body: JSON.stringify(newPrompt),
-    }).then((response) => {
-      experimentInfoMutate();
-    });
+    })
+      .then(() => {
+        experimentInfoMutate();
+        setHasEdited(false); // allow re-sync
+        return true;
+      })
+      .catch(() => {
+        // Error saving prompt
+      });
   };
 
-  const [debouncedSystemMessage] = useDebounce(systemMessage, 1000);
-
-  // Update server after a delay of 1 second
   useEffect(() => {
-    if (
-      debouncedSystemMessage !==
-      experimentInfo?.config?.prompt_template?.system_message
-    ) {
-      sendSystemMessageToServer(systemMessage);
+    if (!hasEdited) {
+      const promptTemplate = SafeJSONParse(
+        experimentInfo?.config?.prompt_template,
+        {},
+      );
+      const experimentSystemMessage = promptTemplate?.system_message;
+      const defaultSystemMessage = defaultPromptConfigForModel?.system_message;
+
+      setSystemMessage(experimentSystemMessage || defaultSystemMessage);
     }
-  }, [debouncedSystemMessage]); // useEffect will be called whenever systemMessage changes
+  }, [experimentInfo?.config?.prompt_template]);
 
-  // Update if the server has been updated with a new message
-  useEffect(() => {
-    setSystemMessage(
-      experimentInfo?.config?.prompt_template?.system_message ||
-        defaultPromptConfigForModel?.system_message,
-    );
-  }, [experimentInfo?.config?.prompt_template?.system_message]);
+  // Update handler with "edited" tracking
+  const handleSystemMessageChange = (e: any) => {
+    setSystemMessage(e.target.value);
+    setHasEdited(true);
+  };
 
   return (
     <div>
@@ -125,11 +136,6 @@ export default function SystemMessageBox({
         }}
       >
         <span>System message</span>
-        <span>
-          <Typography level="body-xs" sx={{ ml: 'auto' }}>
-            {systemMessage !== debouncedSystemMessage ? 'Saving...' : ''}
-          </Typography>
-        </span>
       </FormLabel>
       <Sheet
         variant="outlined"
@@ -148,8 +154,8 @@ export default function SystemMessageBox({
             name="system-message"
             minRows={1}
             maxRows={8}
-            value={displayMessage}
-            onChange={(e) => setSystemMessage(e.target.value)}
+            value={preprocessSystemMessage(systemMessage || '')}
+            onChange={handleSystemMessageChange}
             sx={{
               '--Textarea-focusedThickness': '0',
               '--Textarea-focusedHighlight': 'transparent !important',
@@ -157,8 +163,19 @@ export default function SystemMessageBox({
           />
         </FormControl>
       </Sheet>
-      {showResetButton && (
-        <FormHelperText>
+
+      <FormHelperText
+        sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}
+      >
+        <Button
+          size="sm"
+          variant="soft"
+          onClick={() => sendSystemMessageToServer(systemMessage || '')}
+        >
+          Save
+        </Button>
+
+        {showResetButton && (
           <Button
             variant="plain"
             startDecorator={<RotateCcwIcon size="14px" />}
@@ -176,8 +193,8 @@ export default function SystemMessageBox({
           >
             Reset
           </Button>
-        </FormHelperText>
-      )}
+        )}
+      </FormHelperText>
     </div>
   );
 }
