@@ -250,14 +250,6 @@ Endpoints.Tools = {
     `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
 };
 
-Endpoints.Recipes = {
-  Import: (name: string) =>
-    `${API_URL()}train/template/import?name=${encodeURIComponent(name)}`,
-  Export: (template_id: number) =>
-    `${API_URL()}train/template/${template_id}/export`,
-  Gallery: () => `${API_URL()}train/template/gallery`,
-};
-
 Endpoints.ServerInfo = {
   Get: () => `${API_URL()}server/info`,
   PythonLibraries: () => `${API_URL()}server/python_libraries`,
