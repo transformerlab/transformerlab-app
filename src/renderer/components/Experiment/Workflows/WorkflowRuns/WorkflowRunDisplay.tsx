@@ -14,8 +14,26 @@ import {
 } from '@mui/joy';
 import { SquareCheckIcon, Type } from 'lucide-react';
 import dayjs from 'dayjs';
+import useSWR from 'swr';
 import JobDetails from './JobDetails';
+import JobProgress from '../../Train/JobProgress';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
+function WorkflowJobProgress({ jobId }: { jobId: string }) {
+  const { data: jobData } = useSWR(
+    jobId ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
+    fetcher,
+    { refreshInterval: 2000 },
+  );
+
+  if (!jobData) {
+    return null;
+  }
+
+  return <JobProgress job={jobData} />;
+}
 
 export default function WorkflowRunDisplay({
   selectedWorkflowRun,
@@ -58,19 +76,6 @@ export default function WorkflowRunDisplay({
     } catch (error) {
       alert('Failed to cancel workflow with error: ' + error);
     }
-  };
-
-  const formatDuration = (start, end) => {
-    if (!start || !end) {
-      return null;
-    }
-
-    const startTime = new Date(start);
-    const endTime = new Date(end);
-    const duration = (endTime - startTime) / 1000; // duration in seconds
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    return `${minutes}m ${seconds}s`;
   };
 
   return (
@@ -129,6 +134,9 @@ export default function WorkflowRunDisplay({
                 py: 1,
                 borderBottom:
                   '1px solid var(--joy-palette-neutral-outlinedBorder)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 2,
               }}
             >
               {job.status === 'RUNNING' ? (
@@ -138,32 +146,24 @@ export default function WorkflowRunDisplay({
                     '--CircularProgress-trackThickness': '4px',
                     '--CircularProgress-progressThickness': '3px',
                     '--CircularProgress-size': '18px',
+                    flexShrink: 0,
                   }}
                 />
               ) : (
-                <SquareCheckIcon />
+                <SquareCheckIcon style={{ flexShrink: 0 }} />
               )}
-              <Box sx={{ width: '100%' }}>
+              <Box sx={{ flex: '0 0 auto', minWidth: 0 }}>
                 <Typography level="title-lg">Job ID: {job.jobID}</Typography>
-                <Typography level="title-md">{`Task: ${job.taskName}`}</Typography>
-                <Typography level="body-md" sx={{ color: 'text.secondary' }}>
-                  Status:{' '}
-                  <Chip
-                    color={job?.status === 'RUNNING' ? 'success' : 'warning'}
-                  >
-                    {job.status}
-                  </Chip>
+                <Typography level="title-lg">
+                  {`Task: ${job.task || job.taskName || job.metadata?.task_name || 'N/A'}`}
                 </Typography>
-                <Typography level="body-md" sx={{ color: 'text.secondary' }}>
-                  Start: {dayjs(job?.jobStartTime).fromNow()}
-                  {/* | End: {dayjs(job?.jobEndTime).fromNow()} */}
-                </Typography>
-                <Typography level="body-md" sx={{ color: 'text.secondary' }}>
-                  Duration: {formatDuration(job.jobStartTime, job.jobEndTime)}
-                </Typography>
+              </Box>
+              <Box sx={{ flex: 1, px: 2 }}>
+                <WorkflowJobProgress jobId={job.jobID} />
               </Box>
               <Button
                 variant="outlined"
+                sx={{ flexShrink: 0 }}
                 onClick={() => {
                   setViewJobDetails(job?.jobID);
                 }}

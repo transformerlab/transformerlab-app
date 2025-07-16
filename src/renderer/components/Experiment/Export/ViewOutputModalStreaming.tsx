@@ -36,27 +36,12 @@ export default function ViewOutputModalStreaming({
     { refreshInterval: 2000 },
   );
 
-  // Log job details for debugging
-  useEffect(() => {
-    if (jobDetails) {
-      console.log('Job details:', jobDetails);
-    }
-  }, [jobDetails]);
-
-  // Create a custom endpoint for export job output
-  const experimentId =
-    jobDetails?.experiment_id || jobDetails?.job_data?.experiment_id;
-  const outputEndpoint = experimentId
-    ? `${API_URL()}experiment/${experimentId}/export/job/${jobId}/stream_output`
-    : chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
-
-  // Log output endpoint for debugging
-  useEffect(() => {
-    console.log('Output endpoint:', outputEndpoint);
-  }, [outputEndpoint]);
+  // // Create a custom endpoint for export job output
+  const outputEndpoint =
+    chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
 
   return (
-    <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
+    <Modal open={jobId !== -1} onClose={() => setJobId(-1)}>
       <ModalDialog sx={{ width: '80vw', height: '80vh' }}>
         <ModalClose />
         <Typography level="title-lg">Output from job: {jobId}</Typography>

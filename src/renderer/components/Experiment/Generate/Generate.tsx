@@ -9,6 +9,7 @@ import { Typography, Option, Stack } from '@mui/joy';
 
 import GenerateJobsTable from './GenerateJobsTable';
 import GenerateTasksTable from './GenerateTasksTable';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function getTemplateParametersForPlugin(pluginName, plugins) {
   if (!pluginName || !plugins) {
@@ -28,11 +29,8 @@ function getTemplateParametersForPlugin(pluginName, plugins) {
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function Generate({
-  experimentInfo,
-  addGeneration,
-  experimentInfoMutate,
-}) {
+export default function Generate({ addGeneration }) {
+  const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
   const [currentPlugin, setCurrentPlugin] = useState('');
   const [currentGenerationId, setCurrentGenerationId] = useState('');
 

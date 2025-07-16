@@ -38,6 +38,7 @@ import Batched from './Batched/Batched';
 import VisualizeLogProbs from './VisualizeLogProbs';
 import VisualizeGeneration from './VisualizeGeneration';
 import ModelLayerVisualization from './ModelLayerVisualization';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 // const supports = [
@@ -53,8 +54,6 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 // ];
 
 export default function Chat({
-  experimentInfo,
-  experimentInfoMutate,
   setRagEngine,
   mode,
   setMode,
@@ -63,6 +62,7 @@ export default function Chat({
   setChatHistory,
 }) {
   const { models } = chatAPI.useModelStatus();
+  const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
   const [conversationId, setConversationId] = React.useState(null);
   const [chats, setChats] = [chatHistory, setChatHistory];
   const [isThinking, setIsThinking] = React.useState(false);

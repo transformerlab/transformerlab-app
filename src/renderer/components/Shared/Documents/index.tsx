@@ -53,6 +53,7 @@ import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
   return (
@@ -314,11 +315,11 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 type Order = 'asc' | 'desc';
 
 export default function Documents({
-  experimentInfo,
   fullPage = false,
   additionalMessage = false,
   fixedFolder = '',
 }) {
+  const { experimentInfo } = useExperimentInfo();
   const [doc, setDoc] = React.useState<Doc>('desc');
   const [open, setOpen] = React.useState(false);
   const [dropzoneActive, setDropzoneActive] = React.useState(false);

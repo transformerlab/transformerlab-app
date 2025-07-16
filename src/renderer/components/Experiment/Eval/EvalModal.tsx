@@ -298,6 +298,12 @@ export default function EvalModal({
               name="model_architecture"
               readOnly
             />
+            <input
+              hidden
+              value={experimentInfo?.config?.adaptor}
+              name="model_adapter"
+              readOnly
+            />
           </Stack>
         </Sheet>
       </Stack>
@@ -308,6 +314,20 @@ export default function EvalModal({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const formJson = Object.fromEntries((formData as any).entries());
+
+    // Merge data from DynamicPluginForm (stored in window.currentFormData)
+    if ((window as any).currentFormData) {
+      Object.assign(formJson, (window as any).currentFormData);
+    }
+
+    // Ensure nameInput state is captured as template_name
+    formJson.template_name = nameInput;
+
+    // Include selectedDataset if it exists
+    if (selectedDataset) {
+      formJson.dataset_name = selectedDataset;
+    }
+
     // Add an extra field in formJson for datasetDisplayMessage
     if (datasetDisplayMessage.length > 0) {
       formJson._dataset_display_message = datasetDisplayMessage;

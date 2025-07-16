@@ -21,6 +21,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { useDebounce } from 'use-debounce';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -35,29 +36,54 @@ function TrainingModalDataTemplatingTab({
   setApplyChatTemplate,
   chatColumn,
   setChatColumn,
+  formattingTemplate,
+  setFormattingTemplate,
+  formattingChatTemplate,
+  setFormattingChatTemplate,
 }) {
+  // Initialize template state with default value - will be overridden by props if provided
   const [template, setTemplate] = useState(
-    'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}',
+    formattingTemplate ||
+      'Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}',
   );
-  const [chatTemplate, setChatTemplate] = useState('');
+  const [chatTemplate, setChatTemplate] = useState(
+    formattingChatTemplate || '',
+  );
 
   useEffect(() => {
-    if (templateData?.config?.apply_chat_template !== undefined) {
-      setApplyChatTemplate(templateData.config.apply_chat_template);
+    // Parse config if it's a string
+    const parsedConfig = SafeJSONParse(templateData?.config, {});
+
+    if (parsedConfig?.apply_chat_template !== undefined) {
+      setApplyChatTemplate(parsedConfig.apply_chat_template);
     }
 
-    if (templateData?.config?.formatting_chat_template) {
-      setChatTemplate(templateData.config.formatting_chat_template);
+    if (parsedConfig?.formatting_chat_template) {
+      const chatTemplateValue = parsedConfig.formatting_chat_template;
+      setChatTemplate(chatTemplateValue);
+      if (setFormattingChatTemplate) {
+        setFormattingChatTemplate(chatTemplateValue);
+      }
     }
 
-    if (templateData?.config?.chat_column) {
-      setChatColumn(templateData.config.chat_column);
+    if (parsedConfig?.chatml_formatted_column) {
+      setChatColumn(parsedConfig.chatml_formatted_column);
     }
 
-    if (templateData?.config?.formatting_template) {
-      setTemplate(templateData.config.formatting_template);
+    if (parsedConfig?.formatting_template) {
+      const templateValue = parsedConfig.formatting_template;
+      setTemplate(templateValue);
+      if (setFormattingTemplate) {
+        setFormattingTemplate(templateValue);
+      }
     }
-  }, [templateData]);
+  }, [
+    templateData,
+    setApplyChatTemplate,
+    setChatColumn,
+    setFormattingTemplate,
+    setFormattingChatTemplate,
+  ]);
 
   useEffect(() => {
     if (currentDatasetInfo?.features && applyChatTemplate) {
@@ -96,14 +122,7 @@ function TrainingModalDataTemplatingTab({
   const [debouncedTemplate] = useDebounce(template, 3000);
   const [debouncedChatTemplate] = useDebounce(chatTemplate, 3000);
 
-  let parsedData;
-
-  try {
-    parsedData = data ? JSON.parse(data) : null;
-  } catch (e) {
-    console.error('Error parsing data', e);
-    parsedData = '';
-  }
+  const parsedData = SafeJSONParse(data, null);
 
   function PreviewSection() {
     if (applyChatTemplate && !chatColumn) {
@@ -237,7 +256,12 @@ function TrainingModalDataTemplatingTab({
                   id="chat_template"
                   rows={10}
                   value={chatTemplate}
-                  // onChange={(e) => setChatTemplate(e.target.value)}
+                  onChange={(e) => {
+                    setChatTemplate(e.target.value);
+                    if (setFormattingChatTemplate) {
+                      setFormattingChatTemplate(e.target.value);
+                    }
+                  }}
                   style={{ width: '100%', marginTop: '8px' }}
                 />
                 <FormHelperText>
@@ -259,7 +283,12 @@ function TrainingModalDataTemplatingTab({
                 id="instruction"
                 rows={5}
                 value={template}
-                onChange={(e) => setTemplate(e.target.value)}
+                onChange={(e) => {
+                  setTemplate(e.target.value);
+                  if (setFormattingTemplate) {
+                    setFormattingTemplate(e.target.value);
+                  }
+                }}
               />
             </FormControl>
             {selectedDataset && <PreviewSection />}
@@ -378,7 +407,7 @@ function TrainingModalDataTemplatingTab({
       </Typography>
       {applyChatTemplate
         ? renderTemplate('chat')
-        : renderTemplate('parsedData?.training_template_format')}
+        : renderTemplate(parsedData?.training_template_format)}
     </Box>
   );
 }

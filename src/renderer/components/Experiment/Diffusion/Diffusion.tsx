@@ -32,7 +32,7 @@ import {
   AlertTriangleIcon,
 } from 'lucide-react';
 import {
-  getFullPath,
+  getAPIFullPath,
   useServerStats,
 } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
@@ -41,10 +41,7 @@ import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
 import ControlNetModal from './ControlNetModal';
-
-type DiffusionProps = {
-  experimentInfo: any;
-};
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -98,7 +95,8 @@ const samplePrompts = [
   'a whimsical and highly detailed illustration of a miniature world inside a glass terrarium, tiny people tending to giant flowers, a small waterfall, magical realism, storybook style.',
 ];
 
-export default function Diffusion({ experimentInfo }: DiffusionProps) {
+export default function Diffusion() {
+  const { experimentInfo } = useExperimentInfo();
   const analytics = useAnalytics();
 
   const initialModel = experimentInfo?.config?.foundation || '';
@@ -231,7 +229,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsImg2ImgEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -250,7 +248,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsInpaintingEligible(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -326,7 +324,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
   const getGenerationId = async (): Promise<string | null> => {
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['generateId'], {}),
+        getAPIFullPath('diffusion', ['generateId'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -361,7 +359,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
       if (!isActive) return; // stop if no longer active
       // Poll for the latest step image (backend overwrites the same step.png file)
       try {
-        const baseUrl = getFullPath('diffusion', ['getImage'], {
+        const baseUrl = getAPIFullPath('diffusion', ['getImage'], {
           imageId: genId,
           index: 0,
         });
@@ -498,11 +496,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         Number(numSteps),
       );
 
-      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await fetch(
+        getAPIFullPath('diffusion', ['generate'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
       const data = await response.json();
 
       if (data.error_code !== 0) {
@@ -514,7 +515,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         // Fetch all generated images
         const imageUrls: string[] = [];
         for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getFullPath('diffusion', ['getImage'], {
+          const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
             imageId: data.id,
             index: i,
           });
@@ -589,11 +590,14 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         requestBody.height = Number(inpaintingImageHeight);
       }
 
-      const response = await fetch(getFullPath('diffusion', ['generate'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
+      const response = await fetch(
+        getAPIFullPath('diffusion', ['generate'], {}),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        },
+      );
       const data = await response.json();
       if (data.error_code !== 0) {
         setError(data.detail || 'Error generating inpainting image');
@@ -601,7 +605,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
         // Fetch all generated images
         const imageUrls: string[] = [];
         for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getFullPath('diffusion', ['getImage'], {
+          const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
             imageId: data.id,
             index: i,
           });
@@ -626,7 +630,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     try {
       // Create a link to the new endpoint that returns a zip file
       const link = document.createElement('a');
-      link.href = getFullPath('diffusion', ['getAllImages'], {
+      link.href = getAPIFullPath('diffusion', ['getAllImages'], {
         imageId: currentGenerationData.id,
       });
 
@@ -666,7 +670,7 @@ export default function Diffusion({ experimentInfo }: DiffusionProps) {
     setIsStableDiffusion(null);
     try {
       const response = await fetch(
-        getFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

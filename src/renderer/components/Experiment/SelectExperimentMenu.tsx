@@ -28,11 +28,17 @@ import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-function ExperimentSettingsMenu({ experimentInfo, setExperimentId, data, mutate }) {
+function ExperimentSettingsMenu({
+  experimentInfo,
+  setExperimentId,
+  data,
+  mutate,
+}) {
   return (
     <Dropdown>
       <MenuButton
@@ -75,11 +81,14 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId, data, mutate 
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              await fetch(chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id));
-              
+              await fetch(
+                chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id),
+              );
+
               // Find the next available experiment (first one in the list that's not the deleted one)
-              const remainingExperiments = data?.filter(exp => exp.id !== experimentInfo?.id) || [];
-              
+              const remainingExperiments =
+                data?.filter((exp) => exp.id !== experimentInfo?.id) || [];
+
               if (remainingExperiments.length > 0) {
                 // Set to the first experiment in the remaining list
                 setExperimentId(remainingExperiments[0].id);
@@ -87,7 +96,7 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId, data, mutate 
                 // Only set to null if no experiments remain
                 setExperimentId(null);
               }
-              
+
               // Refresh the experiments list
               mutate();
             }
@@ -100,14 +109,11 @@ function ExperimentSettingsMenu({ experimentInfo, setExperimentId, data, mutate 
   );
 }
 
-export default function SelectExperimentMenu({
-  experimentInfo,
-  setExperimentId,
-  models,
-}) {
+export default function SelectExperimentMenu({ models }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
   const navigate = useNavigate();
+  const { experimentInfo, setExperimentId } = useExperimentInfo();
 
   // This gets all the available experiments
   const { data, error, isLoading, mutate } = useSWR(
@@ -135,7 +141,7 @@ export default function SelectExperimentMenu({
         newId = await response.json();
       } else {
         const response = await fetch(
-          getFullPath('recipes', ['createExperiment'], {
+          getAPIFullPath('recipes', ['createExperiment'], {
             id: fromRecipeId,
             experiment_name: name,
           }),

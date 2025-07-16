@@ -18,7 +18,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
-import { getFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { HistoryImage } from './types';
 
 export default function HistoryImageViewModal({
@@ -49,7 +49,7 @@ export default function HistoryImageViewModal({
       setCurrentImageIndex(0);
 
       const urls = Array.from({ length: imageCount }, (_, index) =>
-        getFullPath('diffusion', ['getImage'], {
+        getAPIFullPath('diffusion', ['getImage'], {
           imageId: selectedImage.id,
           index,
         }),
@@ -59,7 +59,7 @@ export default function HistoryImageViewModal({
       if (selectedImage.metadata.is_controlnet !== 'off') {
         if (selectedImage.metadata.input_image_path) {
           urls.push(
-            getFullPath('diffusion', ['getInputImage'], {
+            getAPIFullPath('diffusion', ['getInputImage'], {
               imageId: selectedImage.id,
             }),
           );
@@ -67,7 +67,7 @@ export default function HistoryImageViewModal({
 
         if (selectedImage.metadata.processed_image) {
           urls.push(
-            getFullPath('diffusion', ['getProcessedImage'], {
+            getAPIFullPath('diffusion', ['getProcessedImage'], {
               imageId: selectedImage.id,
               processed: true,
             }),
@@ -93,7 +93,7 @@ export default function HistoryImageViewModal({
     try {
       // Create a link to download all images as zip
       const link = document.createElement('a');
-      link.href = getFullPath('diffusion', ['getAllImages'], {
+      link.href = getAPIFullPath('diffusion', ['getAllImages'], {
         imageId: selectedImage.id,
       });
 
@@ -205,7 +205,7 @@ export default function HistoryImageViewModal({
                   <img
                     src={
                       imageUrls[currentImageIndex] ||
-                      getFullPath('diffusion', ['getImage'], {
+                      getAPIFullPath('diffusion', ['getImage'], {
                         imageId: selectedImage?.id,
                         index: currentImageIndex,
                       })
@@ -229,7 +229,7 @@ export default function HistoryImageViewModal({
                     selectedImage.metadata.input_image_path && (
                       <>
                         <img
-                          src={getFullPath('diffusion', ['getInputImage'], {
+                          src={getAPIFullPath('diffusion', ['getInputImage'], {
                             imageId: selectedImage?.id,
                           })}
                           alt="Input"
@@ -336,9 +336,13 @@ export default function HistoryImageViewModal({
                           }}
                         >
                           <img
-                            src={getFullPath('diffusion', ['getInputImage'], {
-                              imageId: selectedImage?.id,
-                            })}
+                            src={getAPIFullPath(
+                              'diffusion',
+                              ['getInputImage'],
+                              {
+                                imageId: selectedImage?.id,
+                              },
+                            )}
                             alt="Input"
                             style={{
                               maxWidth: '100%',
@@ -370,9 +374,13 @@ export default function HistoryImageViewModal({
                           }}
                         >
                           <img
-                            src={getFullPath('diffusion', ['getInputImage'], {
-                              imageId: selectedImage?.id,
-                            })}
+                            src={getAPIFullPath(
+                              'diffusion',
+                              ['getInputImage'],
+                              {
+                                imageId: selectedImage?.id,
+                              },
+                            )}
                             alt="Input"
                             style={{
                               maxWidth: '100%',
@@ -404,7 +412,7 @@ export default function HistoryImageViewModal({
                           }}
                         >
                           <img
-                            src={getFullPath('diffusion', ['getMaskImage'], {
+                            src={getAPIFullPath('diffusion', ['getMaskImage'], {
                               imageId: selectedImage?.id,
                             })}
                             alt="Mask"
@@ -433,7 +441,7 @@ export default function HistoryImageViewModal({
                           Input
                         </Typography>
                         <img
-                          src={getFullPath('diffusion', ['getInputImage'], {
+                          src={getAPIFullPath('diffusion', ['getInputImage'], {
                             imageId: selectedImage?.id,
                           })}
                           alt="ControlNet Input"
@@ -471,10 +479,14 @@ export default function HistoryImageViewModal({
                           Output
                         </Typography>
                         <img
-                          src={getFullPath('diffusion', ['getProcessedImage'], {
-                            imageId: selectedImage?.id,
-                            processed: true,
-                          })}
+                          src={getAPIFullPath(
+                            'diffusion',
+                            ['getProcessedImage'],
+                            {
+                              imageId: selectedImage?.id,
+                              processed: true,
+                            },
+                          )}
                           alt="Preprocessed"
                           style={{
                             maxWidth: '100%',

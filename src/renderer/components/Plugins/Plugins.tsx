@@ -14,11 +14,13 @@ import { Circle, StoreIcon } from 'lucide-react';
 import { usePluginStatus } from 'renderer/lib/transformerlab-api-sdk';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import PluginGallery from './PluginGallery';
 import LocalPlugins from './LocalPlugins';
 import OneTimePopup from '../Shared/OneTimePopup';
 
-export default function Plugins({ experimentInfo, setLogsDrawerOpen = null }) {
+export default function Plugins({ setLogsDrawerOpen = null }) {
+  const { experimentInfo } = useExperimentInfo();
   const { data: outdatedPlugins, mutate: outdatePluginsMutate } =
     usePluginStatus(experimentInfo);
   const [installing, setInstalling] = useState(null);
