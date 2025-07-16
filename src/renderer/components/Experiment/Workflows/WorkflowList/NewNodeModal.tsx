@@ -30,7 +30,7 @@ export default function NewNodeModal({
   selectedWorkflow,
   experimentInfo,
 }) {
-  const [mode, setMode] = useState('OTHER');
+  const [mode, setMode] = useState('TRAIN');
   const [availableTasks, setAvailableTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState('');
   const [validationError, setValidationError] = useState('');
@@ -116,7 +116,10 @@ export default function NewNodeModal({
                 ),
               );
             } else {
-              const selectedTaskName = selectedTask;
+              const selectedTaskObj: any = availableTasks.find(
+                (task: any) => (task.id || task.name) === selectedTask,
+              );
+              const selectedTaskName = selectedTaskObj?.name || selectedTask;
 
               const nodeData = {
                 name,
@@ -170,11 +173,11 @@ export default function NewNodeModal({
                     }}
                   >
                     {availableTasks.map((task: any) => (
-                      <ListItem key={task.name} sx={{ p: 0 }}>
+                      <ListItem key={task.id || task.name} sx={{ p: 0 }}>
                         <ListItemButton
-                          selected={selectedTask === task.name}
+                          selected={selectedTask === (task.id || task.name)}
                           onClick={() => {
-                            setSelectedTask(task.name);
+                            setSelectedTask(task.id || task.name);
                             setValidationError('');
                           }}
                           sx={{

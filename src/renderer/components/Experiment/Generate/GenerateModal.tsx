@@ -428,6 +428,30 @@ export default function GenerateModal({
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const formJson = Object.fromEntries((formData as any).entries());
+
+    // Merge data from DynamicPluginForm (stored in window.currentFormData)
+    if ((window as any).currentFormData) {
+      Object.assign(formJson, (window as any).currentFormData);
+    }
+
+    // Ensure nameInput state is captured as template_name
+    formJson.template_name = nameInput;
+
+    // Include selectedDataset if it exists
+    if (selectedDataset) {
+      formJson.dataset_name = selectedDataset;
+    }
+
+    // Include selectedDocs if it exists
+    if (selectedDocs && selectedDocs.length > 0) {
+      formJson.docs = JSON.stringify(selectedDocs);
+    }
+
+    // Include contextInput if it exists
+    if (contextInput && contextInput.length > 0) {
+      formJson.context = contextInput;
+    }
+
     // Add an extra field in formJson for datasetDisplayMessage
     if (datasetDisplayMessage.length > 0) {
       formJson._dataset_display_message = datasetDisplayMessage;
@@ -451,7 +475,6 @@ export default function GenerateModal({
       }
       formJson.script_parameters = JSON.parse(JSON.stringify(formJson));
 
-      console.log('formJson', formJson);
       const template_name = formJson.template_name;
       // Run when the currentGenerationId is provided
       if (currentGenerationId && currentGenerationId !== '') {
