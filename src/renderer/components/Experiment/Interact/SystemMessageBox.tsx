@@ -29,7 +29,10 @@ export default function SystemMessageBox({
       experimentInfo?.config?.prompt_template,
       {},
     );
-    return promptTemplate?.system_message;
+    return (
+      promptTemplate?.system_message ||
+      defaultPromptConfigForModel?.system_message
+    );
   });
 
   const [hasEdited, setHasEdited] = useState(false);
