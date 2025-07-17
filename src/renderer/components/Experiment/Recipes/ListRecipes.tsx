@@ -22,8 +22,11 @@ export default function ListRecipes({
   close,
   showRecentExperiments = true,
 }) {
-  const [recentExperiments, setRecentExperiments] = useState([]);
-  const { getRecentExperiments, setExperimentId } = useExperimentInfo();
+  const [topExperiments, setTopExperiments] = useState<
+    Array<{ name: string; id: number }>
+  >([]);
+  const [showAllExperiments, setShowAllExperiments] = useState(false);
+  const { setExperimentId } = useExperimentInfo();
 
   // This gets all the available experiments
   const { data: experimentsAll } = useSWR(
@@ -31,23 +34,24 @@ export default function ListRecipes({
     fetcher,
   );
 
-  // get recent experiments on mount
+  // get all experiments on mount
   useEffect(() => {
-    async function fetchRecentExperiments() {
-      const experiments = await getRecentExperiments();
-      // now match each experiment to it's name in the experimentsAll array:
+    async function fetchTopExperiments() {
       if (!Array.isArray(experimentsAll)) {
         console.error('experimentsAll is not an array:', experimentsAll);
         return;
       }
-      const recentExperimentNames = experiments.map((id) => {
-        const experiment = experimentsAll.find((exp) => exp.id === id);
-        return experiment ? { name: experiment.name, id: experiment.id } : null;
-      });
-      setRecentExperiments(recentExperimentNames);
+
+      // Get all experiments and map them to the required format
+      const allExperiments = experimentsAll.map((exp) => ({
+        name: exp.name,
+        id: exp.id,
+      }));
+
+      setTopExperiments(allExperiments);
     }
-    fetchRecentExperiments();
-  }, [experimentsAll, getRecentExperiments]);
+    fetchTopExperiments();
+  }, [experimentsAll]);
 
   const { data, isLoading } = useAPI('recipes', ['getAll']);
 
@@ -91,17 +95,18 @@ export default function ListRecipes({
             color="neutral"
           >
             <Typography level="h4" mb={1}>
-              Open Recent
+              {showAllExperiments ? 'All Experiments' : 'Experiments'}
             </Typography>
             <List sx={{ width: 160 }} component="nav">
-              {recentExperiments.length === 0 && (
+              {topExperiments.length === 0 && (
                 <ListItem>
-                  <ListItemButton disabled>
-                    No recent experiments
-                  </ListItemButton>
+                  <ListItemButton disabled>No experiments yet</ListItemButton>
                 </ListItem>
               )}
-              {[...recentExperiments].reverse().map(
+              {(showAllExperiments
+                ? topExperiments
+                : topExperiments.slice(0, 5)
+              ).map(
                 (experiment, idx) =>
                   experiment && (
                     <ListItem
@@ -115,9 +120,20 @@ export default function ListRecipes({
                     </ListItem>
                   ),
               )}
-              <ListItem>
-                <ListItemButton>See All...</ListItemButton>
-              </ListItem>
+              {!showAllExperiments && topExperiments.length > 5 && (
+                <ListItem>
+                  <ListItemButton onClick={() => setShowAllExperiments(true)}>
+                    See All...
+                  </ListItemButton>
+                </ListItem>
+              )}
+              {showAllExperiments && (
+                <ListItem>
+                  <ListItemButton onClick={() => setShowAllExperiments(false)}>
+                    Show Less
+                  </ListItemButton>
+                </ListItem>
+              )}
             </List>
           </Sheet>
         )}

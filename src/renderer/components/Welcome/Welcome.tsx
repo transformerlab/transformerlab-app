@@ -1,8 +1,8 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 
-import { Button, Sheet, Stack, Typography } from '@mui/joy';
+import { Sheet, Stack, Typography } from '@mui/joy';
 
 import labImage from './img/lab.jpg';
 
@@ -14,7 +14,6 @@ import {
   MessageCircleIcon,
   PlayCircle,
   PlayCircleIcon,
-  FlaskConicalIcon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
@@ -59,11 +58,41 @@ export default function Welcome() {
     useState<boolean>(false);
 
   const [recipesModalOpen, setRecipesModalOpen] = useState<boolean>(false);
+  const [hasInitiallyConnected, setHasInitiallyConnected] =
+    useState<boolean>(false);
 
   const { server, isLoading, isError } = chatAPI.useServerStats();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
+  console.log('experimentInfo', experimentInfo);
 
   const navigate = useNavigate();
+
+  // Automatically open recipes modal when no experiment is selected AND API is connected
+  // BUT NOT when the connection modal is open (when there's no connection)
+  useEffect(() => {
+    // Track when we first get a successful connection
+    if (server && !isLoading && !isError) {
+      setHasInitiallyConnected(true);
+    }
+
+    // Only open recipes modal after initial connection is stable
+    if (
+      hasInitiallyConnected &&
+      !experimentInfo &&
+      server &&
+      !isLoading &&
+      !isError
+    ) {
+      const timer = setTimeout(() => {
+        setRecipesModalOpen(true);
+      }, 500); // Small delay to ensure connection is stable
+      return () => clearTimeout(timer);
+    }
+
+    // Close modal if connection is lost, there's an error, or experiment is selected
+    setRecipesModalOpen(false);
+    return undefined;
+  }, [experimentInfo, isLoading, server, isError, hasInitiallyConnected]);
 
   const cpu = server?.cpu;
   const os = server?.os;
@@ -181,20 +210,6 @@ export default function Welcome() {
                   </Typography>
                 </li>
               </ul>
-
-              {/* Show List Recipes button only if no experiment is selected */}
-              {!experimentInfo && (
-                <Button
-                  endDecorator={<FlaskConicalIcon />}
-                  size="lg"
-                  color="primary"
-                  variant="solid"
-                  onClick={() => setRecipesModalOpen(true)}
-                  sx={{ mt: 2, fontSize: '18px', px: 3, py: 1.5 }}
-                >
-                  Browse Recipes & Start New Experiment
-                </Button>
-              )}
 
               {/* <Button
               endDecorator={<ArrowRightCircleIcon />}
