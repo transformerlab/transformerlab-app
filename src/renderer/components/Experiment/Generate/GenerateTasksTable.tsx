@@ -57,9 +57,14 @@ function formatTemplateConfig(scriptParameters): ReactElement {
   const provider = rawModel?.provider;
   const useFallback = !rawModel || rawModel === 'N/A' || provider === 'local';
 
-  const generationModel = useFallback
-    ? scriptParameters.model_name || 'N/A'
-    : rawModel;
+  let generationModel;
+  if (useFallback) {
+    generationModel = scriptParameters.model_name || 'N/A';
+  } else if (typeof rawModel === 'object' && rawModel?.provider) {
+    generationModel = rawModel.provider;
+  } else {
+    generationModel = rawModel;
+  }
 
   return (
     <>

@@ -48,7 +48,7 @@ export default function TrainingModalDataTab({
 
   let parsedData;
   try {
-    parsedData = data ? JSON.parse(data) : null;
+    parsedData = data && data !== 'FILE NOT FOUND' ? JSON.parse(data) : null;
   } catch (e) {
     console.error('Error parsing data', e);
     parsedData = '';

@@ -70,7 +70,6 @@ function formatTemplateConfig(script_parameters): ReactElement {
         } catch (error) {
           // Not valid JSON, treat as comma-separated string
         }
-
         // Handle as comma-separated string
         const taskString = script_parameters.tasks.trim();
         if (predefined_tasks && predefined_tasks !== '') {
@@ -79,7 +78,41 @@ function formatTemplateConfig(script_parameters): ReactElement {
         return taskString;
       }
 
-      // If tasks is not a string, fall back to original behavior
+      // If tasks is an array, handle it properly
+      if (Array.isArray(script_parameters.tasks)) {
+        let taskNames: string;
+
+        // Check if it's an array of strings or objects with name field
+        if (script_parameters.tasks.length > 0) {
+          if (typeof script_parameters.tasks[0] === 'string') {
+            // Array of strings
+            taskNames = script_parameters.tasks.join(', ');
+          } else if (script_parameters.tasks[0]?.name) {
+            // Array of objects with name field
+            taskNames = script_parameters.tasks
+              .map((task: any) => task.name)
+              .join(', ');
+          } else {
+            // Fallback for other object structures
+            taskNames = script_parameters.tasks.join(', ');
+          }
+        } else {
+          // Empty array
+          taskNames = '';
+        }
+
+        if (predefined_tasks && predefined_tasks !== '') {
+          // If tasks array is empty, return only predefined tasks
+          if (taskNames === '') {
+            return predefined_tasks;
+          }
+          // Join with predefined tasks
+          return taskNames + ',' + predefined_tasks;
+        }
+        return taskNames;
+      }
+
+      // If tasks is not a string or array, fall back to original behavior
       return script_parameters.tasks + predefined_tasks;
     }
     return script_parameters.tasks + predefined_tasks;
