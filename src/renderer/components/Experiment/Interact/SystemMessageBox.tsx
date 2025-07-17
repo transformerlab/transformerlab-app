@@ -104,8 +104,6 @@ export default function SystemMessageBox({
   };
 
   const handleOverrideToggle = (checked: boolean) => {
-    setIsOverrideEnabled(checked);
-
     let newPrompt = experimentInfo?.config?.prompt_template;
 
     // If undefined, initialize it as an empty object
@@ -131,7 +129,9 @@ export default function SystemMessageBox({
       delete newPrompt.system_message;
     }
 
+    // Update state only after server call to avoid timing issues
     savePromptToServer(newPrompt);
+    // Note: setIsOverrideEnabled will be updated via useEffect when experimentInfoMutate triggers
   };
 
   const handleSystemMessageChange = (e: any) => {
@@ -237,13 +237,8 @@ export default function SystemMessageBox({
       <FormHelperText
         sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}
       >
-        {isOverrideEnabled && (
-          <Button
-            size="sm"
-            variant="soft"
-            onClick={handleSave}
-            disabled={!hasEdited}
-          >
+        {isOverrideEnabled && hasEdited && (
+          <Button size="sm" variant="soft" onClick={handleSave}>
             Save
           </Button>
         )}
