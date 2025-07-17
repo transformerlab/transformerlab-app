@@ -14,13 +14,17 @@ import {
   MessageCircleIcon,
   PlayCircle,
   PlayCircleIcon,
+  FlaskConicalIcon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 import DownloadFirstModelModal from '../DownloadFirstModelModal';
 import HexLogo from '../Shared/HexLogo';
+import RecipesModal from '../Experiment/Recipes';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -54,7 +58,10 @@ export default function Welcome() {
   const [modelDownloadModalOpen, setModelDownloadModalOpen] =
     useState<boolean>(false);
 
+  const [recipesModalOpen, setRecipesModalOpen] = useState<boolean>(false);
+
   const { server, isLoading, isError } = chatAPI.useServerStats();
+  const { experimentInfo, setExperimentId } = useExperimentInfo();
 
   const navigate = useNavigate();
 
@@ -62,12 +69,53 @@ export default function Welcome() {
   const os = server?.os;
   const device = server?.device;
 
+  // Create experiment creation callback
+  const createNewExperiment = async (name: string, fromRecipeId = null) => {
+    let newId = 0;
+
+    if (fromRecipeId === null) {
+      const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+      newId = await response.json();
+    } else {
+      const response = await fetch(
+        getAPIFullPath('recipes', ['createExperiment'], {
+          id: fromRecipeId,
+          experiment_name: name,
+        }),
+        {
+          method: 'POST',
+        },
+      );
+      const responseJson = await response.json();
+      if (!(responseJson?.status === 'success')) {
+        alert(
+          `Error creating experiment from recipe: ${responseJson?.message || 'Unknown error'}`,
+        );
+        return;
+      }
+      newId = responseJson?.data?.experiment_id;
+    }
+    setExperimentId(newId);
+
+    // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
+    if (fromRecipeId !== null && fromRecipeId !== -1) {
+      navigate('/experiment/notes');
+    }
+  };
+
   return (
     <>
       <DownloadFirstModelModal
         open={modelDownloadModalOpen}
         setOpen={setModelDownloadModalOpen}
         server={server}
+      />
+
+      <RecipesModal
+        modalOpen={recipesModalOpen}
+        setModalOpen={setRecipesModalOpen}
+        createNewExperiment={createNewExperiment}
+        showRecentExperiments={true}
       />
 
       <Sheet
@@ -133,6 +181,21 @@ export default function Welcome() {
                   </Typography>
                 </li>
               </ul>
+
+              {/* Show List Recipes button only if no experiment is selected */}
+              {!experimentInfo && (
+                <Button
+                  endDecorator={<FlaskConicalIcon />}
+                  size="lg"
+                  color="primary"
+                  variant="solid"
+                  onClick={() => setRecipesModalOpen(true)}
+                  sx={{ mt: 2, fontSize: '18px', px: 3, py: 1.5 }}
+                >
+                  Browse Recipes & Start New Experiment
+                </Button>
+              )}
+
               {/* <Button
               endDecorator={<ArrowRightCircleIcon />}
               size="lg"

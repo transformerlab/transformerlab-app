@@ -11,6 +11,7 @@ export default function RecipesModal({
   modalOpen,
   setModalOpen,
   createNewExperiment,
+  showRecentExperiments = true,
 }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [isCreatingLoadingState, setIsCreatingLoadingState] = useState(false);
@@ -70,6 +71,7 @@ export default function RecipesModal({
             <ListRecipes
               setSelectedRecipe={setSelectedRecipe}
               close={handleClose}
+              showRecentExperiments={showRecentExperiments}
             />
           ))}
       </ModalDialog>

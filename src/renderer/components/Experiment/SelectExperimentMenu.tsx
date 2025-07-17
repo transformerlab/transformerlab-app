@@ -350,6 +350,7 @@ export default function SelectExperimentMenu({ models }) {
         modalOpen={modalOpen}
         setModalOpen={setModalOpen}
         createNewExperiment={createNewExperiment}
+        showRecentExperiments={false}
       />
     </div>
   );

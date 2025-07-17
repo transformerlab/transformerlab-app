@@ -17,7 +17,11 @@ import RecipeCard from './RecipeCard';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-export default function ListRecipes({ setSelectedRecipe, close }) {
+export default function ListRecipes({
+  setSelectedRecipe,
+  close,
+  showRecentExperiments = true,
+}) {
   const [recentExperiments, setRecentExperiments] = useState([]);
   const { getRecentExperiments, setExperimentId } = useExperimentInfo();
 
@@ -75,44 +79,48 @@ export default function ListRecipes({ setSelectedRecipe, close }) {
           overflowY: 'hidden',
         }}
       >
-        <Sheet
-          sx={{
-            p: 2,
-            overflowY: 'auto',
-            borderRadius: 'md',
-            width: '240px',
-          }}
-          variant="outlined"
-          color="neutral"
-        >
-          <Typography level="h4" mb={1}>
-            Open Recent
-          </Typography>
-          <List sx={{ width: 160 }} component="nav">
-            {recentExperiments.length === 0 && (
+        {showRecentExperiments && (
+          <Sheet
+            sx={{
+              p: 2,
+              overflowY: 'auto',
+              borderRadius: 'md',
+              width: '240px',
+            }}
+            variant="outlined"
+            color="neutral"
+          >
+            <Typography level="h4" mb={1}>
+              Open Recent
+            </Typography>
+            <List sx={{ width: 160 }} component="nav">
+              {recentExperiments.length === 0 && (
+                <ListItem>
+                  <ListItemButton disabled>
+                    No recent experiments
+                  </ListItemButton>
+                </ListItem>
+              )}
+              {[...recentExperiments].reverse().map(
+                (experiment, idx) =>
+                  experiment && (
+                    <ListItem
+                      key={experiment.id ?? idx}
+                      onClick={() => {
+                        setExperimentId(experiment?.id);
+                        close();
+                      }}
+                    >
+                      <ListItemButton>{experiment?.name}</ListItemButton>
+                    </ListItem>
+                  ),
+              )}
               <ListItem>
-                <ListItemButton disabled>No recent experiments</ListItemButton>
+                <ListItemButton>See All...</ListItemButton>
               </ListItem>
-            )}
-            {[...recentExperiments].reverse().map(
-              (experiment, idx) =>
-                experiment && (
-                  <ListItem
-                    key={experiment.id ?? idx}
-                    onClick={() => {
-                      setExperimentId(experiment?.id);
-                      close();
-                    }}
-                  >
-                    <ListItemButton>{experiment?.name}</ListItemButton>
-                  </ListItem>
-                ),
-            )}
-            <ListItem>
-              <ListItemButton>See All...</ListItemButton>
-            </ListItem>
-          </List>
-        </Sheet>
+            </List>
+          </Sheet>
+        )}
         <Sheet
           variant="soft"
           color="primary"
@@ -124,7 +132,7 @@ export default function ListRecipes({ setSelectedRecipe, close }) {
             borderRadius: 'md',
           }}
         >
-          <Typography level="h4">Or Start Something New</Typography>
+          <Typography level="h4">Start Something New!</Typography>
           <Grid
             container
             spacing={2}
