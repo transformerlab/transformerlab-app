@@ -2,13 +2,11 @@ import {
   Button,
   Checkbox,
   FormControl,
-  FormHelperText,
   FormLabel,
   Sheet,
   Textarea,
 } from '@mui/joy';
 import { useEffect, useState } from 'react';
-import { RotateCcwIcon } from 'lucide-react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
@@ -16,12 +14,10 @@ import SafeJSONParse from '../../Shared/SafeJSONParse';
 export default function SystemMessageBox({
   experimentInfo,
   experimentInfoMutate,
-  showResetButton = false,
   defaultPromptConfigForModel = {},
 }: {
   experimentInfo: any;
   experimentInfoMutate: () => void;
-  showResetButton?: boolean;
   defaultPromptConfigForModel?: any;
 }) {
   // Check if override is enabled from experiment config
@@ -204,6 +200,7 @@ export default function SystemMessageBox({
           flex: '0 0 130px',
           overflow: 'auto',
           padding: 2,
+          position: 'relative',
         }}
       >
         <FormControl>
@@ -220,9 +217,35 @@ export default function SystemMessageBox({
               '--Textarea-focusedHighlight': 'transparent !important',
               opacity: isOverrideEnabled ? 1 : 0.7,
               cursor: isOverrideEnabled ? 'text' : 'default',
+              paddingBottom: isOverrideEnabled && hasEdited ? '40px' : '0px',
             }}
           />
         </FormControl>
+
+        {isOverrideEnabled && hasEdited && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '8px',
+              right: '8px',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'center',
+            }}
+          >
+            <Button
+              size="sm"
+              variant="solid"
+              onClick={handleSave}
+              sx={{
+                padding: '4px 12px',
+                fontSize: '12px',
+              }}
+            >
+              Save
+            </Button>
+          </div>
+        )}
       </Sheet>
 
       <FormControl sx={{ marginTop: 1, marginBottom: 1 }}>
@@ -238,37 +261,6 @@ export default function SystemMessageBox({
           }}
         />
       </FormControl>
-
-      <FormHelperText
-        sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}
-      >
-        {isOverrideEnabled && hasEdited && (
-          <Button size="sm" variant="soft" onClick={handleSave}>
-            Save
-          </Button>
-        )}
-
-        {showResetButton && isOverrideEnabled && (
-          <Button
-            variant="plain"
-            startDecorator={<RotateCcwIcon size="14px" />}
-            onClick={() => {
-              setCustomSystemMessage(
-                defaultPromptConfigForModel?.system_message || '',
-              );
-              setHasEdited(true);
-            }}
-            sx={{
-              padding: '2px',
-              margin: '0px',
-              minHeight: 'unset',
-              marginLeft: 'auto',
-            }}
-          >
-            Reset to Default
-          </Button>
-        )}
-      </FormHelperText>
     </div>
   );
 }
