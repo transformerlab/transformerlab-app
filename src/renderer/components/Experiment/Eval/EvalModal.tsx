@@ -22,6 +22,7 @@ import {
 import { generateFriendlyName } from 'renderer/lib/utils';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -169,6 +170,10 @@ export default function EvalModal({
     } else {
       setNameInput('');
       setHasDatasetKey(false);
+      setSelectedDataset(null);
+      setDatasetDisplayMessage('');
+      setConfig({});
+      setCurrentTab(0);
     }
   }, [open]);
 
@@ -180,7 +185,7 @@ export default function EvalModal({
         currentEvalId &&
         currentEvalId !== ''
       ) {
-        const evalConfig = JSON.parse(evalData.config);
+        const evalConfig = SafeJSONParse(evalData.config, null);
         if (evalConfig) {
           setConfig(evalConfig);
           const datasetKeyExists = Object.keys(evalConfig).some(
@@ -208,8 +213,7 @@ export default function EvalModal({
               setConfig(evalConfig);
             }
           }
-
-          if (hasDatasetKey && evalConfig.dataset_name.length > 0) {
+          if (datasetKeyExists && evalConfig.dataset_name.length > 0) {
             setSelectedDataset(evalConfig.dataset_name);
           }
           if (!nameInput && evalConfig?.run_name.length > 0) {
