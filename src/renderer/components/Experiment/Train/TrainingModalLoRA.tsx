@@ -202,7 +202,7 @@ export default function TrainingModalLoRA({
       setFormattingTemplate('');
       setFormattingChatTemplate('');
     }
-  }, [open]);
+  }, [open, task_id]);
 
   // Whenever template data updates, we need to update state variables used in the form.
   useEffect(() => {
