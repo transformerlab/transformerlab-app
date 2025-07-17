@@ -28,6 +28,7 @@ import AvailableFieldsImage from 'renderer/img/show-available-fields.png';
 import { generateFriendlyName } from 'renderer/lib/utils';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 import TrainingModalDataTemplatingTab from './TrainingModalDataTemplatingTab';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
@@ -97,7 +98,7 @@ export default function TrainingModalLoRA({
     trainingTypeData !== 'undefined' &&
     trainingTypeData.length > 0
   ) {
-    trainingType = JSON.parse(trainingTypeData)?.train_type || 'LoRA';
+    trainingType = SafeJSONParse(trainingTypeData)?.train_type || 'LoRA';
   }
 
   let runSweeps = false;
@@ -106,7 +107,7 @@ export default function TrainingModalLoRA({
     trainingTypeData !== 'undefined' &&
     trainingTypeData.length > 0
   ) {
-    const parsedData = JSON.parse(trainingTypeData);
+    const parsedData = SafeJSONParse(trainingTypeData, {});
     if (Array.isArray(parsedData?.supports)) {
       runSweeps = parsedData.supports.includes('sweeps');
     }
@@ -182,11 +183,36 @@ export default function TrainingModalLoRA({
     const result = await response.json();
     return result;
   }
+  // Handle modal open/close state - reset form when modal closes
+  useEffect(() => {
+    if (open) {
+      if (!task_id || task_id === '') {
+        setNameInput(generateFriendlyName());
+      }
+    } else {
+      // Reset all form state when modal closes
+      setSelectedDataset(null);
+      setConfig({});
+      setNameInput('');
+      setCurrentTab(0);
+      setSweepConfig({});
+      setIsRunSweeps(false);
+      setApplyChatTemplate(false);
+      setChatColumn('');
+      setFormattingTemplate('');
+      setFormattingChatTemplate('');
+    }
+  }, [open, task_id]);
+
   // Whenever template data updates, we need to update state variables used in the form.
   useEffect(() => {
-    if (templateData && typeof templateData.config === 'string') {
+    if (
+      templateData &&
+      (typeof templateData.config === 'string' ||
+        typeof templateData.config === 'object')
+    ) {
       // Should only parse data once after initial load
-      templateData.config = JSON.parse(templateData.config);
+      templateData.config = SafeJSONParse(templateData.config, null);
     }
     if (templateData && templateData.config) {
       setSelectedDataset(templateData.config.dataset_name);
@@ -208,7 +234,7 @@ export default function TrainingModalLoRA({
       }
 
       if (templateData.config.sweep_config) {
-        setSweepConfig(JSON.parse(templateData.config.sweep_config));
+        setSweepConfig(SafeJSONParse(templateData.config.sweep_config, {}));
       } else {
         setSweepConfig({});
       }
@@ -352,7 +378,7 @@ export default function TrainingModalLoRA({
     let parameterTypes = {};
     try {
       if (trainingTypeData && trainingTypeData !== 'undefined') {
-        const parsedData = JSON.parse(trainingTypeData);
+        const parsedData = SafeJSONParse(trainingTypeData, {});
         // Extract parameter names and their types from the training type data
         if (parsedData?.parameters) {
           availableParameters = Object.keys(parsedData.parameters);
@@ -601,8 +627,11 @@ export default function TrainingModalLoRA({
             if (templateData && task_id) {
               //Only update if we are currently editing a template
               // For all keys in templateData.inputs that are in formJson, set the value from formJson
-              const templateDataInputs = JSON.parse(templateData.inputs);
-              const templateDataOutputs = JSON.parse(templateData.outputs);
+              const templateDataInputs = SafeJSONParse(templateData.inputs, {});
+              const templateDataOutputs = SafeJSONParse(
+                templateData.outputs,
+                {},
+              );
               for (const key in templateDataInputs) {
                 if (
                   key in formJson &&
@@ -645,9 +674,6 @@ export default function TrainingModalLoRA({
                 }),
               );
             }
-            setNameInput(generateFriendlyName());
-            setSweepConfig({});
-            setIsRunSweeps(false);
             onClose();
           }}
         >
