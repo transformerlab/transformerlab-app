@@ -559,34 +559,43 @@ export default function TrainingModalLoRA({
 
             const formEl = event.currentTarget;
 
+            // If the form is not valid
             if (!formEl.checkValidity()) {
+              // Get the first invalid element
               const firstInvalid = formEl.querySelector(':invalid') as
                 | HTMLElement
                 | null;
 
               if (firstInvalid) {
+                // Get the tab containing the invalid element
                 const tabPanel = firstInvalid.closest(
                   '[data-tab-index]',
                 ) as HTMLElement | null;
 
                 if (tabPanel) {
                   const idxAttr = tabPanel.getAttribute('data-tab-index');
+                  // Get the index of the tab
                   const idx = idxAttr ? Number(idxAttr) : NaN;
 
                   if (!Number.isNaN(idx)) {
+                    // Switch to the tab
                     flushSync(() => setCurrentTab(idx));
                   }
                 }
               }
 
               requestAnimationFrame(() => {
+                // Trigger browser validation
                 formEl.reportValidity();
 
+                // Get invalid element again (after triggering browser validation)
+                // reportValidity() can cause the browser to update validation state
                 const invalidEl = formEl.querySelector(':invalid') as
                   | HTMLElement
                   | null;
 
                 if (invalidEl) {
+                  // Scroll to the element and focus it
                   invalidEl.scrollIntoView({
                     behavior: 'smooth',
                     block: 'center',
