@@ -1,6 +1,7 @@
 import {
   Button,
   Checkbox,
+  CircularProgress,
   FormControl,
   FormLabel,
   Sheet,
@@ -35,10 +36,16 @@ export default function SystemMessageBox({
   });
 
   const [hasEdited, setHasEdited] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savingMessage, setSavingMessage] = useState('');
 
   // Get the current system message to display
   const getDisplayedSystemMessage = () => {
     if (isOverrideEnabled) {
+      // If we're saving, show the message we're trying to save
+      if (isSaving && savingMessage) {
+        return savingMessage;
+      }
       return customSystemMessage;
     }
     return defaultPromptConfigForModel?.system_message || '';
@@ -91,7 +98,6 @@ export default function SystemMessageBox({
     })
       .then(() => {
         experimentInfoMutate();
-        setHasEdited(false);
         return true;
       })
       .catch(() => {
@@ -136,7 +142,11 @@ export default function SystemMessageBox({
   };
 
   const handleSave = () => {
-    if (!isOverrideEnabled) return;
+    if (!isOverrideEnabled || isSaving) return;
+
+    setIsSaving(true);
+    // Store the message we're trying to save
+    setSavingMessage(customSystemMessage);
 
     let newPrompt = experimentInfo?.config?.prompt_template;
 
@@ -157,10 +167,20 @@ export default function SystemMessageBox({
     newPrompt.system_message = processedMessage;
 
     savePromptToServer(newPrompt);
+
+    // Keep the saving state for 900ms to give visual feedback
+    setTimeout(() => {
+      setIsSaving(false);
+      setHasEdited(false);
+      setSavingMessage('');
+    }, 900);
   };
 
   // Update state when experiment info changes (e.g., model change)
   useEffect(() => {
+    // Don't update state while saving to prevent flickering
+    if (isSaving) return;
+
     const currentPromptTemplate = SafeJSONParse(
       experimentInfo?.config?.prompt_template,
       {},
@@ -178,6 +198,7 @@ export default function SystemMessageBox({
   }, [
     experimentInfo?.config?.prompt_template,
     defaultPromptConfigForModel?.system_message,
+    isSaving,
   ]);
 
   return (
@@ -217,12 +238,13 @@ export default function SystemMessageBox({
               '--Textarea-focusedHighlight': 'transparent !important',
               opacity: isOverrideEnabled ? 1 : 0.7,
               cursor: isOverrideEnabled ? 'text' : 'default',
-              paddingBottom: isOverrideEnabled && hasEdited ? '40px' : '0px',
+              paddingBottom:
+                isOverrideEnabled && (hasEdited || isSaving) ? '40px' : '0px',
             }}
           />
         </FormControl>
 
-        {isOverrideEnabled && hasEdited && (
+        {isOverrideEnabled && (hasEdited || isSaving) && (
           <div
             style={{
               position: 'absolute',
@@ -237,12 +259,16 @@ export default function SystemMessageBox({
               size="sm"
               variant="solid"
               onClick={handleSave}
+              disabled={isSaving}
+              startDecorator={
+                isSaving ? <CircularProgress size="sm" /> : undefined
+              }
               sx={{
                 padding: '4px 12px',
                 fontSize: '12px',
               }}
             >
-              Save
+              {isSaving ? 'Saving...' : 'Save'}
             </Button>
           </div>
         )}
