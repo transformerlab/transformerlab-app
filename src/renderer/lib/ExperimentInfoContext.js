@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useState,
   useEffect,
+  useCallback,
 } from 'react'; // Import useMemo
 import useSWR from 'swr';
 
@@ -17,6 +18,55 @@ const ExperimentInfoContext = createContext(undefined);
 export function ExperimentInfoProvider({ connection, children }) {
   const [experimentId, setExperimentId] = useState(null);
 
+  const handleSetExperimentId = useCallback(
+    async (id) => {
+      console.log('Setting experimentId:', id);
+      setExperimentId(id);
+
+      if (experimentId === null || !window.storage || !connection) return;
+
+      const connectionWithoutDots = connection.replace(/\./g, '-');
+      window.storage.set(`experimentId.${connectionWithoutDots}`, id);
+
+      let recentExperiments =
+        (await window.storage.get(
+          `recentExperiments.${connectionWithoutDots}`,
+        )) || [];
+      if (!Array.isArray(recentExperiments)) {
+        recentExperiments = [];
+      }
+      // Go through each element and delete it if it if can't be parsed as a number
+      recentExperiments = recentExperiments.filter((exp) => {
+        return !Number.isNaN(Number(exp));
+      });
+      // first check if id is already in the list
+      if (recentExperiments.includes(id)) {
+        // If it is, remove it
+        recentExperiments = recentExperiments.filter((exp) => exp !== id);
+      }
+      recentExperiments.push(id);
+      if (recentExperiments.length > 5) {
+        recentExperiments.shift();
+      }
+      await window.storage.set(
+        `recentExperiments.${connectionWithoutDots}`,
+        recentExperiments,
+      );
+    },
+    [connection, experimentId],
+  );
+
+  const getRecentExperiments = useCallback(async () => {
+    if (!window.storage || !connection) return [];
+
+    const connectionWithoutDots = connection.replace(/\./g, '-');
+    const recentExperiments =
+      (await window.storage.get(
+        `recentExperiments.${connectionWithoutDots}`,
+      )) || [];
+    return Array.isArray(recentExperiments) ? recentExperiments : [];
+  }, [connection]);
+
   // Load experimentId from storage or default
   useEffect(() => {
     async function getSavedExperimentId() {
@@ -27,26 +77,17 @@ export function ExperimentInfoProvider({ connection, children }) {
         ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
         : null;
       if (storedExperimentId) {
-        setExperimentId(Number(storedExperimentId));
-      } else if (connection && connection !== '') {
-        setExperimentId(1);
+        handleSetExperimentId(Number(storedExperimentId));
       } else {
-        setExperimentId(null);
+        handleSetExperimentId(null);
       }
     }
     if (connection === '' || !connection) {
-      setExperimentId(null);
+      handleSetExperimentId(null);
       return;
     }
     getSavedExperimentId();
   }, [connection]);
-
-  // Persist experimentId to storage
-  useEffect(() => {
-    if (experimentId === null || !window.storage || !connection) return;
-    const connectionWithoutDots = connection.replace(/\./g, '-');
-    window.storage.set(`experimentId.${connectionWithoutDots}`, experimentId);
-  }, [experimentId, connection]);
 
   const {
     data: experimentInfo,
@@ -62,19 +103,21 @@ export function ExperimentInfoProvider({ connection, children }) {
   const contextValue = useMemo(() => {
     return {
       experimentId,
-      setExperimentId,
+      setExperimentId: handleSetExperimentId,
       experimentInfo,
       experimentInfoError,
       experimentInfoIsLoading,
       experimentInfoMutate,
+      getRecentExperiments, // Add the new method to the context value
     };
   }, [
     experimentId,
-    setExperimentId,
+    handleSetExperimentId,
     experimentInfo,
     experimentInfoError,
     experimentInfoIsLoading,
     experimentInfoMutate,
+    getRecentExperiments,
   ]);
   // Dependencies: Re-create contextValue ONLY if these values change
 
@@ -94,6 +137,7 @@ export function ExperimentInfoProvider({ connection, children }) {
  *   experimentInfoError: any,
  *   experimentInfoIsLoading: boolean,
  *   experimentInfoMutate: (...args: any[]) => Promise<any>
+ *   getRecentExperiments: () => Promise<string[]>
  * }}
  */
 export function useExperimentInfo() {

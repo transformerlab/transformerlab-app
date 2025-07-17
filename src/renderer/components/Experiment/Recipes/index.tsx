@@ -36,14 +36,10 @@ export default function RecipesModal({
     <Modal open={modalOpen}>
       <ModalDialog
         sx={{
-          top: '3vh', // Sit 20% from the top of the screen
           margin: 'auto',
-          transform: 'translateX(-50%)', // This undoes the default translateY that centers vertically
-          width: '100vw',
-          // maxWidth: '700px',
-          height: '100vh',
           overflow: 'hidden',
         }}
+        layout="fullscreen"
       >
         <ModalClose onClick={() => handleClose()} />
         {isCreatingLoadingState && (
@@ -71,7 +67,10 @@ export default function RecipesModal({
               installRecipe={handleCreateNewExperiment}
             />
           ) : (
-            <ListRecipes setSelectedRecipe={setSelectedRecipe} />
+            <ListRecipes
+              setSelectedRecipe={setSelectedRecipe}
+              close={handleClose}
+            />
           ))}
       </ModalDialog>
     </Modal>
