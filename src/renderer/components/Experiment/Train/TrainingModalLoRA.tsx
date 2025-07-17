@@ -1,4 +1,5 @@
 import { useState, FormEvent, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -552,8 +553,50 @@ export default function TrainingModalLoRA({
             height: '100%',
             justifyContent: 'space-between',
           }}
+          noValidate
           onSubmit={async (event: FormEvent<HTMLFormElement>) => {
             event.preventDefault();
+
+            const formEl = event.currentTarget;
+
+            if (!formEl.checkValidity()) {
+              const firstInvalid = formEl.querySelector(':invalid') as
+                | HTMLElement
+                | null;
+
+              if (firstInvalid) {
+                const tabPanel = firstInvalid.closest(
+                  '[data-tab-index]',
+                ) as HTMLElement | null;
+
+                if (tabPanel) {
+                  const idxAttr = tabPanel.getAttribute('data-tab-index');
+                  const idx = idxAttr ? Number(idxAttr) : NaN;
+
+                  if (!Number.isNaN(idx)) {
+                    flushSync(() => setCurrentTab(idx));
+                  }
+                }
+              }
+
+              requestAnimationFrame(() => {
+                formEl.reportValidity();
+
+                const invalidEl = formEl.querySelector(':invalid') as
+                  | HTMLElement
+                  | null;
+
+                if (invalidEl) {
+                  invalidEl.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                  });
+                  invalidEl.focus();
+                }
+              });
+
+              return;
+            }
             const formData = new FormData(event.currentTarget);
             let formJson = Object.fromEntries((formData as any).entries());
 
@@ -665,16 +708,16 @@ export default function TrainingModalLoRA({
               <Tab>Plugin Config</Tab>
               {runSweeps && <Tab>Sweep Config</Tab>}
             </TabList>
-            <TabPanel value={0} sx={{ p: 2, overflow: 'auto' }}>
+            <TabPanel data-tab-index={0} value={0} sx={{ p: 2, overflow: 'auto' }}>
               <PluginIntroduction
                 experimentInfo={experimentInfo}
                 pluginId={pluginId}
               />
             </TabPanel>
-            <TabPanel value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel data-tab-index={1} value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <TrainingModalFirstTab />
             </TabPanel>
-            <TabPanel value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel data-tab-index={3} value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <TrainingModalDataTemplatingTab
                 selectedDataset={selectedDataset}
                 currentDatasetInfo={currentDatasetInfo}
@@ -692,7 +735,7 @@ export default function TrainingModalLoRA({
                 setFormattingChatTemplate={setFormattingChatTemplate}
               />
             </TabPanel>
-            <TabPanel value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel data-tab-index={2} value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <>
                 {currentTab === 2 && (
                   <OneTimePopup title="How to Create a Training Template:">
@@ -730,7 +773,7 @@ export default function TrainingModalLoRA({
                 />
               </>
             </TabPanel>
-            <TabPanel value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel data-tab-index={4} value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
@@ -738,7 +781,7 @@ export default function TrainingModalLoRA({
               />
             </TabPanel>
             {runSweeps && (
-              <TabPanel value={5} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TabPanel data-tab-index={5} value={5} sx={{ p: 2, overflow: 'auto' }} keepMounted>
                 <SweepConfigTab
                   trainingTypeData={trainingTypeData}
                   sweepConfig={sweepConfig}
