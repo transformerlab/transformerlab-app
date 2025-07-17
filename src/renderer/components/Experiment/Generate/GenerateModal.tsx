@@ -253,7 +253,7 @@ export default function GenerateModal({
           }
 
           if (
-            hasDatasetKey &&
+            datasetKeyExists &&
             generationConfig.script_parameters.dataset_name
           ) {
             setSelectedDataset(generationConfig.script_parameters.dataset_name);
