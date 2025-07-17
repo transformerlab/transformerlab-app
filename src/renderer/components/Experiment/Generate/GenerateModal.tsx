@@ -217,8 +217,6 @@ export default function GenerateModal({
         currentGenerationId &&
         currentGenerationId != ''
       ) {
-        console.log(currentGenerationId);
-        console.log(generationData);
         const generationConfig = JSON.parse(generationData.config);
         if (generationConfig) {
           setConfig(generationConfig.script_parameters);
@@ -253,7 +251,7 @@ export default function GenerateModal({
           }
 
           if (
-            hasDatasetKey &&
+            datasetKeyExists &&
             generationConfig.script_parameters.dataset_name
           ) {
             setSelectedDataset(generationConfig.script_parameters.dataset_name);
