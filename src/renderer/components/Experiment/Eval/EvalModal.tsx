@@ -197,8 +197,16 @@ export default function EvalModal({
             key.toLowerCase().includes('tasks'),
           );
           if (tasksKeyExists) {
-            evalConfig.tasks = evalConfig.tasks.split(',');
-            setConfig(evalConfig);
+            // If tasks key exists and evalConfig.tasks is not an array,
+            // split it into an array
+            if (!Array.isArray(evalConfig.tasks)) {
+              // Ensure tasks is an array
+              if (typeof evalConfig.tasks === 'string') {
+                // If tasks is a string, split it into an array
+                evalConfig.tasks = evalConfig.tasks.split(',');
+              }
+              setConfig(evalConfig);
+            }
           }
 
           if (hasDatasetKey && evalConfig.dataset_name.length > 0) {
