@@ -31,7 +31,7 @@ export default function SystemMessageBox({
   );
 
   const [isOverrideEnabled, setIsOverrideEnabled] = useState(() => {
-    return promptTemplate?.system_prompt_override === true;
+    return promptTemplate?.system_message_override === true;
   });
 
   const [customSystemMessage, setCustomSystemMessage] = useState(() => {
@@ -118,14 +118,14 @@ export default function SystemMessageBox({
 
     if (checked) {
       // Enable override - set flag and current custom message
-      newPrompt.system_prompt_override = true;
+      newPrompt.system_message_override = true;
       newPrompt.system_message =
         customSystemMessage ||
         defaultPromptConfigForModel?.system_message ||
         '';
     } else {
       // Disable override - remove flag and system_message field
-      delete newPrompt.system_prompt_override;
+      delete newPrompt.system_message_override;
       delete newPrompt.system_message;
     }
 
@@ -157,7 +157,7 @@ export default function SystemMessageBox({
     // Preprocess system message to replace date placeholders
     const processedMessage = preprocessSystemMessage(customSystemMessage);
 
-    newPrompt.system_prompt_override = true;
+    newPrompt.system_message_override = true;
     newPrompt.system_message = processedMessage;
 
     savePromptToServer(newPrompt);
@@ -171,7 +171,7 @@ export default function SystemMessageBox({
     );
 
     const overrideEnabled =
-      currentPromptTemplate?.system_prompt_override === true;
+      currentPromptTemplate?.system_message_override === true;
     setIsOverrideEnabled(overrideEnabled);
 
     if (overrideEnabled) {
@@ -227,7 +227,7 @@ export default function SystemMessageBox({
 
       <FormControl sx={{ marginTop: 1, marginBottom: 1 }}>
         <Checkbox
-          label="Use Custom System Prompt"
+          label="Use Custom System Message"
           checked={isOverrideEnabled}
           onChange={(e) => handleOverrideToggle(e.target.checked)}
           sx={{
