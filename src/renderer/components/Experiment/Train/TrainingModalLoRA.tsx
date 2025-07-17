@@ -190,6 +190,9 @@ export default function TrainingModalLoRA({
     if (open) {
       if (!task_id || task_id === '') {
         setNameInput(generateFriendlyName());
+      } else {
+        // If we have a task_id and modal is opening, refetch the template data
+        templateMutate();
       }
     } else {
       // Reset all form state when modal closes
@@ -204,7 +207,7 @@ export default function TrainingModalLoRA({
       setFormattingTemplate('');
       setFormattingChatTemplate('');
     }
-  }, [open, task_id]);
+  }, [open, task_id, templateMutate]);
 
   // Whenever template data updates, we need to update state variables used in the form.
   useEffect(() => {
