@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { API_URL } from 'renderer/lib/api-client/urls';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
@@ -70,8 +71,22 @@ export default function Welcome() {
   // Automatically open recipes modal when no experiment is selected AND API is connected
   // BUT NOT when the connection modal is open (when there's no connection)
   useEffect(() => {
+    // Check if we're disconnected (API_URL is null means no connection)
+    const isConnected = API_URL() !== null;
+    console.log('isConnected', isConnected);
+    console.log('API_URL()', API_URL());
+
+    // If disconnected, reset our tracking and don't open modal
+    if (!isConnected) {
+      if (hasInitiallyConnected) {
+        setHasInitiallyConnected(false);
+      }
+      setRecipesModalOpen(false);
+      return;
+    }
+
     // Track when we first get a successful connection
-    if (server && !isLoading && !isError) {
+    if (server && !isLoading && !isError && isConnected) {
       setHasInitiallyConnected(true);
     }
 
@@ -81,7 +96,8 @@ export default function Welcome() {
       !experimentInfo &&
       server &&
       !isLoading &&
-      !isError
+      !isError &&
+      isConnected
     ) {
       const timer = setTimeout(() => {
         setRecipesModalOpen(true);
@@ -89,8 +105,6 @@ export default function Welcome() {
       return () => clearTimeout(timer);
     }
 
-    // Close modal if connection is lost, there's an error, or experiment is selected
-    setRecipesModalOpen(false);
     return undefined;
   }, [experimentInfo, isLoading, server, isError, hasInitiallyConnected]);
 
