@@ -196,15 +196,6 @@ export default function SystemMessageBox({
         <span>System message</span>
       </FormLabel>
 
-      {/* Override checkbox */}
-      <FormControl sx={{ marginBottom: 2 }}>
-        <Checkbox
-          label="Use Custom System Prompt"
-          checked={isOverrideEnabled}
-          onChange={(e) => handleOverrideToggle(e.target.checked)}
-        />
-      </FormControl>
-
       <Sheet
         variant="outlined"
         id="system-message-box"
@@ -233,6 +224,20 @@ export default function SystemMessageBox({
           />
         </FormControl>
       </Sheet>
+
+      <FormControl sx={{ marginTop: 1, marginBottom: 1 }}>
+        <Checkbox
+          label="Use Custom System Prompt"
+          checked={isOverrideEnabled}
+          onChange={(e) => handleOverrideToggle(e.target.checked)}
+          sx={{
+            fontSize: 'sm',
+            '& .MuiCheckbox-label': {
+              fontSize: 'sm',
+            },
+          }}
+        />
+      </FormControl>
 
       <FormHelperText
         sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}
