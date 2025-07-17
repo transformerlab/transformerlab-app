@@ -120,9 +120,11 @@ export default function TrainLoRA({}) {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('TRAIN', ''), fetcher, {
-    refreshInterval: 2000,
-  });
+  } = useSWR(
+    chatAPI.Endpoints.Jobs.ListByTypeInExperiment(experimentInfo?.id, 'TRAIN'),
+    fetcher,
+    { refreshInterval: 2000 },
+  );
 
   const {
     data: downloadJobs,

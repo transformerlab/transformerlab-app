@@ -37,6 +37,7 @@ import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import { formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { downloadModelFromGallery } from '../../lib/transformerlab-api-sdk';
+import { useExperimentInfo } from '../../lib/ExperimentInfoContext.js';
 
 function getModelHuggingFaceURL(model) {
   const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
@@ -178,6 +179,7 @@ export default function ModelGroups() {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const [groupSearchText, setGroupSearchText] = useState('');
+  const { experimentInfo } = useExperimentInfo();
 
   const {
     data: groupData,
@@ -791,12 +793,15 @@ export default function ModelGroups() {
                               setCurrentlyDownloading(row.name);
                               try {
                                 let response = await fetch(
-                                  chatAPI.Endpoints.Jobs.Create(),
+                                  chatAPI.Endpoints.Jobs.Create(
+                                    experimentInfo?.id,
+                                  ),
                                 );
                                 const newJobId = await response.json();
                                 setJobId(newJobId);
                                 response = await downloadModelFromGallery(
                                   row?.uniqueID,
+                                  experimentInfo?.id,
                                   newJobId,
                                 );
                                 if (response?.status !== 'success') {

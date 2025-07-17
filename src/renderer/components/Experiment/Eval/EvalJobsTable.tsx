@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from '../Train/JobProgress';
+import { useExperimentInfo } from '../../../lib/ExperimentInfoContext.js';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -212,6 +213,8 @@ const EvalJobsTable = () => {
   const [fileNameForDetailedReport, setFileNameForDetailedReport] =
     useState('');
 
+  const { experimentInfo } = useExperimentInfo();
+
   const fetchCSV = async (jobId) => {
     const response = await fetch(
       chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId),
@@ -225,10 +228,11 @@ const EvalJobsTable = () => {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('EVAL', ''), fetcher, {
-    refreshInterval: 2000,
-    fallbackData: [],
-  });
+  } = useSWR(
+    chatAPI.Endpoints.Jobs.ListByTypeInExperiment(experimentInfo?.id, 'EVAL'),
+    fetcher,
+    { refreshInterval: 2000, fallbackData: [] },
+  );
 
   const handleCombinedReports = async (
     comparisonType: 'summary' | 'detailed' = 'summary',
