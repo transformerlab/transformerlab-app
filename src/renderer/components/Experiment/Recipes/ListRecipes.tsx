@@ -74,7 +74,9 @@ export default function ListRecipes({
 
   return (
     <>
-      <Typography level="h2">👋 Welcome to Transformer Lab!</Typography>
+      <Typography level="h2" sx={{ pt: '20px' }}>
+        👋 Welcome to Transformer Lab!
+      </Typography>
       <Sheet
         sx={{
           display: 'flex',
