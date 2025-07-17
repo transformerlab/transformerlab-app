@@ -182,7 +182,7 @@ export default function PluginDetails() {
   const editorRef = useRef(null);
 
   useEffect(() => {
-    if (data !== null) {
+    if (data !== null && data !== 'FILE NOT FOUND') {
       if (editorRef?.current && typeof data === 'string') {
         editorRef?.current?.setValue(data);
       }
@@ -190,12 +190,25 @@ export default function PluginDetails() {
         readOnly: false,
       });
       editorRef?.current?.layout();
+    } else if (data === 'FILE NOT FOUND') {
+      // Handle case where file doesn't exist - set empty content
+      if (editorRef?.current) {
+        editorRef?.current?.setValue('');
+        editorRef?.current?.updateOptions({
+          readOnly: false,
+        });
+        editorRef?.current?.layout();
+      }
     }
   }, [data]);
 
   function handleEditorDidMount(editor, monaco) {
     editorRef.current = editor;
-    if (editorRef?.current && typeof data === 'string') {
+    if (
+      editorRef?.current &&
+      typeof data === 'string' &&
+      data !== 'FILE NOT FOUND'
+    ) {
       editorRef?.current?.setValue(data);
       editorRef?.current?.updateOptions({
         readOnly: false,
