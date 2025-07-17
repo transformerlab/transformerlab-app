@@ -96,6 +96,7 @@ export default function TrainingModalLoRA({
   if (
     trainingTypeData &&
     trainingTypeData !== 'undefined' &&
+    trainingTypeData !== 'FILE NOT FOUND' &&
     trainingTypeData.length > 0
   ) {
     trainingType = SafeJSONParse(trainingTypeData)?.train_type || 'LoRA';
@@ -105,6 +106,7 @@ export default function TrainingModalLoRA({
   if (
     trainingTypeData &&
     trainingTypeData !== 'undefined' &&
+    trainingTypeData !== 'FILE NOT FOUND' &&
     trainingTypeData.length > 0
   ) {
     const parsedData = SafeJSONParse(trainingTypeData, {});

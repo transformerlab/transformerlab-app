@@ -122,7 +122,8 @@ function TrainingModalDataTemplatingTab({
   const [debouncedTemplate] = useDebounce(template, 3000);
   const [debouncedChatTemplate] = useDebounce(chatTemplate, 3000);
 
-  const parsedData = SafeJSONParse(data, null);
+  const parsedData =
+    data && data !== 'FILE NOT FOUND' ? SafeJSONParse(data, null) : null;
 
   function PreviewSection() {
     if (applyChatTemplate && !chatColumn) {
