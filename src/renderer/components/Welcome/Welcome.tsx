@@ -73,8 +73,6 @@ export default function Welcome() {
   useEffect(() => {
     // Check if we're disconnected (API_URL is null means no connection)
     const isConnected = API_URL() !== null;
-    console.log('isConnected', isConnected);
-    console.log('API_URL()', API_URL());
 
     // If disconnected, reset our tracking and don't open modal
     if (!isConnected) {
