@@ -36,7 +36,9 @@ export default function NewNodeModal({
   const [validationError, setValidationError] = useState('');
 
   const { data: tasksData } = useSWR(
-    open ? chatAPI.Endpoints.Tasks.List() : null,
+    open && mode !== 'OTHER' && mode !== 'DOWNLOAD_MODEL'
+      ? chatAPI.Endpoints.Tasks.ListByTypeInExperiment(mode, experimentInfo.id)
+      : null,
     fetcher,
   );
 
@@ -45,14 +47,8 @@ export default function NewNodeModal({
     setMode(newValue);
     setSelectedTask(''); // Reset task selection when mode changes
     setValidationError(''); // Clear validation errors
-    if (tasksData && newValue !== 'OTHER' && newValue !== 'DOWNLOAD_MODEL') {
-      const filteredTasks = tasksData.filter(
-        (task: any) => task.type === newValue,
-      );
-      setAvailableTasks(filteredTasks);
-    } else {
-      setAvailableTasks([]);
-    }
+    // No need to manually filter since API does it for us
+    setAvailableTasks([]);
   };
 
   useEffect(() => {
@@ -62,8 +58,8 @@ export default function NewNodeModal({
       mode !== 'DOWNLOAD_MODEL' &&
       tasksData?.detail !== 'Not Found'
     ) {
-      const filteredTasks = tasksData.filter((task: any) => task.type === mode);
-      setAvailableTasks(filteredTasks);
+      // Tasks are already filtered by type and experiment from the API
+      setAvailableTasks(Array.isArray(tasksData) ? tasksData : ([] as any));
     } else {
       setAvailableTasks([]);
     }
