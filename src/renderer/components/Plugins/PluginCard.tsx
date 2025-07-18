@@ -258,6 +258,18 @@ export default function PluginCard({
                 )
               }
               onClick={async () => {
+                if (
+                  experimentInfo?.id === null ||
+                  experimentInfo?.id === undefined ||
+                  experimentInfo?.id === '' ||
+                  experimentInfo?.id === 'undefined'
+                ) {
+                  alert(
+                    'Error: No experiment selected. Please select an experiment before installing plugins.',
+                  );
+                  return;
+                }
+
                 setInstalling(plugin.uniqueId);
                 await fetch(
                   chatAPI.Endpoints.Experiment.InstallPlugin(
