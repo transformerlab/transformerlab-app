@@ -148,20 +148,18 @@ const GenerateJobsTable = () => {
             </tr>
           </thead>
           <tbody>
-            {jobs
-              ?.filter((job) => job.experiment_id === experimentInfo?.id)
-              .map((job) => (
-                <tr key={job.id}>
-                  <td>{job.id}</td>
-                  <td>
-                    {job?.job_data?.plugin}
-                    <br />
-                    {job?.job_data?.generator}
-                  </td>
-                  <td>
-                    <JobProgress job={job} />
-                  </td>
-                  {/* <td>
+            {jobs?.map((job) => (
+              <tr key={job.id}>
+                <td>{job.id}</td>
+                <td>
+                  {job?.job_data?.plugin}
+                  <br />
+                  {job?.job_data?.generator}
+                </td>
+                <td>
+                  <JobProgress job={job} />
+                </td>
+                {/* <td>
                   Started:&nbsp;
                   {String(dayjs(job?.created_at).fromNow())}
                   <br />
@@ -172,41 +170,41 @@ const GenerateJobsTable = () => {
                     )
                     .humanize()}
                 </td> */}
-                  <td>
-                    {/* <RenderScore score={job?.job_data?.score} /> */}
-                    <Link
-                      onClick={() => handleOpenCSVModal(job)}
-                      sx={{ mt: 1, ml: 1 }}
-                      startDecorator={<Grid3X3Icon size="14px" />}
-                    >
-                      Dataset Preview
-                    </Link>
-                  </td>
+                <td>
+                  {/* <RenderScore score={job?.job_data?.score} /> */}
+                  <Link
+                    onClick={() => handleOpenCSVModal(job)}
+                    sx={{ mt: 1, ml: 1 }}
+                    startDecorator={<Grid3X3Icon size="14px" />}
+                  >
+                    Dataset Preview
+                  </Link>
+                </td>
 
-                  <td>
-                    <ButtonGroup
-                      variant="soft"
-                      sx={{ justifyContent: 'flex-end' }}
+                <td>
+                  <ButtonGroup
+                    variant="soft"
+                    sx={{ justifyContent: 'flex-end' }}
+                  >
+                    <Button
+                      onClick={() => {
+                        setViewOutputFromJob(job?.id);
+                      }}
                     >
-                      <Button
-                        onClick={() => {
-                          setViewOutputFromJob(job?.id);
+                      View Output
+                    </Button>
+                    <IconButton variant="plain">
+                      <Trash2Icon
+                        onClick={async () => {
+                          await fetch(chatAPI.Endpoints.Jobs.Delete(job?.id));
+                          jobsMutate();
                         }}
-                      >
-                        View Output
-                      </Button>
-                      <IconButton variant="plain">
-                        <Trash2Icon
-                          onClick={async () => {
-                            await fetch(chatAPI.Endpoints.Jobs.Delete(job?.id));
-                            jobsMutate();
-                          }}
-                        />
-                      </IconButton>
-                    </ButtonGroup>
-                  </td>
-                </tr>
-              ))}
+                      />
+                    </IconButton>
+                  </ButtonGroup>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </Table>
         {/* <Box sx={{ overflow: 'scroll' }}>
