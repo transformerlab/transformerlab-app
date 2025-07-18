@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   CircularProgress,
   Grid,
   List,
@@ -22,10 +23,9 @@ export default function ListRecipes({
   close,
   showRecentExperiments = true,
 }) {
-  const [topExperiments, setTopExperiments] = useState<
+  const [allExperiments, setAllExperiments] = useState<
     Array<{ name: string; id: number }>
   >([]);
-  const [showAllExperiments, setShowAllExperiments] = useState(false);
   const { setExperimentId } = useExperimentInfo();
 
   // This gets all the available experiments
@@ -36,27 +36,26 @@ export default function ListRecipes({
 
   // get all experiments on mount
   useEffect(() => {
-    async function fetchTopExperiments() {
+    async function fetchAllExperiments() {
       if (!Array.isArray(experimentsAll)) {
         console.error('experimentsAll is not an array:', experimentsAll);
         return;
       }
 
       // Get all experiments and map them to the required format
-      const allExperiments = experimentsAll.map((exp) => ({
+      const experiments = experimentsAll.map((exp) => ({
         name: exp.name,
         id: exp.id,
       }));
 
-      setTopExperiments(allExperiments);
+      setAllExperiments(experiments);
     }
-    fetchTopExperiments();
+    fetchAllExperiments();
   }, [experimentsAll]);
 
   const { data, isLoading } = useAPI('recipes', ['getAll']);
 
   const { data: serverInfo } = useAPI('server', ['info']);
-  const device = serverInfo?.device;
 
   // Sort data by an extra field called zOrder if it exists, put all
   // recipes without zOrder at the end
@@ -89,54 +88,69 @@ export default function ListRecipes({
           <Sheet
             sx={{
               p: 2,
-              overflowY: 'auto',
+              overflow: 'hidden',
               borderRadius: 'md',
               width: '240px',
             }}
-            variant="outlined"
+            variant="soft"
             color="neutral"
           >
             <Typography level="h4" mb={1}>
-              {showAllExperiments ? 'All Experiments' : 'Experiments'}
+              Saved Experiments
             </Typography>
-            <List sx={{ width: 160 }} component="nav">
-              {topExperiments.length === 0 && (
-                <ListItem>
-                  <ListItemButton disabled>No experiments yet</ListItemButton>
-                </ListItem>
-              )}
-              {(showAllExperiments
-                ? topExperiments
-                : topExperiments.slice(0, 5)
-              ).map(
-                (experiment, idx) =>
-                  experiment && (
-                    <ListItem
-                      key={experiment.id ?? idx}
-                      onClick={() => {
-                        setExperimentId(experiment?.id);
-                        close();
-                      }}
-                    >
-                      <ListItemButton>{experiment?.name}</ListItemButton>
-                    </ListItem>
-                  ),
-              )}
-              {!showAllExperiments && topExperiments.length > 5 && (
-                <ListItem>
-                  <ListItemButton onClick={() => setShowAllExperiments(true)}>
-                    See All...
-                  </ListItemButton>
-                </ListItem>
-              )}
-              {showAllExperiments && (
-                <ListItem>
-                  <ListItemButton onClick={() => setShowAllExperiments(false)}>
-                    Show Less
-                  </ListItemButton>
-                </ListItem>
-              )}
-            </List>
+            <Box
+              sx={{
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                maxHeight: '100%',
+              }}
+            >
+              <List
+                sx={{
+                  width: 160,
+                }}
+                component="nav"
+              >
+                {allExperiments.length === 0 && (
+                  <ListItem>
+                    <ListItemButton disabled>No experiments yet</ListItemButton>
+                  </ListItem>
+                )}
+
+                {allExperiments.map(
+                  (experiment, idx) =>
+                    experiment && (
+                      <ListItem
+                        key={experiment.id ?? idx}
+                        onClick={() => {
+                          setExperimentId(experiment?.id);
+                          close();
+                        }}
+                      >
+                        <ListItemButton
+                          title={experiment?.name}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <span
+                            style={{
+                              textOverflow: 'ellipsis',
+                              overflow: 'hidden',
+                              whiteSpace: 'nowrap',
+                              display: 'block',
+                              width: '100%',
+                            }}
+                          >
+                            {experiment?.name}
+                          </span>
+                        </ListItemButton>
+                      </ListItem>
+                    ),
+                )}
+              </List>
+            </Box>
           </Sheet>
         )}
         <Sheet
