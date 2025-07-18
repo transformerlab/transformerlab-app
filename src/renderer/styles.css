@@ -151,16 +151,7 @@ html[data-joy-color-scheme='dark'] .FirstSidebar_Content .Mui-disabled {
   color: rgb(156, 144, 144) !important;
 }
 
-/* Make the Select Experiment menu look nice in dark and light */
-html[data-joy-color-scheme='light'] .select-experiment-menu {
-  background-color: rgb(202, 195, 212);
-}
 
-html[data-joy-color-scheme='dark'] .select-experiment-menu {
-  background-color: rgb(111, 106, 117);
-  box-shadow: 1px 1px 8px rgba(0, 0, 0, 0.2);
-  border: none;
-}
 
 /* This will highlight errors where a div is a child of a p which is
 not allowed */
@@ -260,10 +251,8 @@ code if we want */
 
 .react-flow__node-customNode {
   padding: 0px;
-  border-radius: var(
-    --xy-node-border-radius,
-    var(--xy-node-border-radius-default)
-  );
+  border-radius: var(--xy-node-border-radius,
+      var(--xy-node-border-radius-default));
   font-size: 12px;
   min-width: 200px;
   color: var(--xy-node-color, var(--xy-node-color-default));

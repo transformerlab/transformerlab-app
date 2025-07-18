@@ -21,6 +21,7 @@ import {
   Dropdown,
   MenuButton,
   Tooltip,
+  Box,
 } from '@mui/joy';
 import { useState, useEffect, FormEvent, useCallback } from 'react';
 import useSWR from 'swr';
@@ -299,43 +300,67 @@ export default function SelectExperimentMenu({ models }) {
           )}
           <Menu
             className="select-experiment-menu"
-            variant="plain"
+            variant="soft"
             sx={{
-              width: 170,
+              width: 270,
               overflowX: 'hidden',
-              overflowY: 'auto',
+              overflowY: 'hidden',
               maxHeight: '80dvh',
               // make scrollbar thin:
               scrollbarWidth: 'thin',
               scrollbarColor:
                 'var(--joy-palette-neutral-plainColor) transparent',
             }}
+            placement="bottom-start"
+            color="neutral"
           >
-            {data &&
-              data.map((experiment: any) => {
-                return (
-                  <MenuItem
-                    selected={experimentInfo?.name === experiment.name}
-                    variant={
-                      experimentInfo?.name === experiment.name
-                        ? 'soft'
-                        : undefined
-                    }
-                    onClick={createHandleClose(experiment.id)}
-                    key={experiment.id}
-                    sx={{ display: 'flex', width: '170px' }}
-                  >
-                    {experiment.name}
-
-                    {/* <Typography level="body2" textColor="neutral.300" ml="auto">
-                      <XSquareIcon size="20px" onClick={() => alert('del')} />
-                    </Typography> */}
-                    {experimentInfo?.name === experiment.name && (
-                      <CheckIcon style={{ marginLeft: 'auto' }} />
-                    )}
-                  </MenuItem>
-                );
-              })}
+            <Box
+              sx={{
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                scrollbarColor:
+                  'var(--joy-palette-background-level3) transparent',
+              }}
+            >
+              {data &&
+                data.map((experiment: any) => {
+                  return (
+                    <MenuItem
+                      selected={experimentInfo?.name === experiment.name}
+                      variant={
+                        experimentInfo?.name === experiment.name
+                          ? 'soft'
+                          : undefined
+                      }
+                      onClick={createHandleClose(experiment.id)}
+                      key={experiment.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <span
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                        title={experiment.name}
+                      >
+                        {experiment.name}
+                      </span>
+                      {experimentInfo?.name === experiment.name && (
+                        <CheckIcon style={{ marginLeft: 'auto' }} />
+                      )}
+                    </MenuItem>
+                  );
+                })}
+            </Box>
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)}>
               <ListItemDecorator>
@@ -350,6 +375,7 @@ export default function SelectExperimentMenu({ models }) {
         modalOpen={modalOpen}
         setModalOpen={setModalOpen}
         createNewExperiment={createNewExperiment}
+        showRecentExperiments={false}
       />
     </div>
   );
