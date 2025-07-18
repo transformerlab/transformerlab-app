@@ -63,7 +63,7 @@ export default function Welcome() {
     useState<boolean>(false);
 
   const { server, isLoading, isError } = chatAPI.useServerStats();
-  const { experimentInfo, setExperimentId } = useExperimentInfo();
+  const { setExperimentId } = useExperimentInfo();
 
   const navigate = useNavigate();
 
@@ -87,18 +87,36 @@ export default function Welcome() {
       setHasInitiallyConnected(true);
     }
 
-    // Only open recipes modal after initial connection is stable
-    if (
-      hasInitiallyConnected &&
-      !experimentInfo &&
-      server &&
-      !isLoading &&
-      !isError &&
-      isConnected
-    ) {
-      setRecipesModalOpen(true);
-    }
-  }, [experimentInfo, isLoading, server, isError, hasInitiallyConnected]);
+    // Check if there's a stored experiment for this connection
+    const checkStoredExperiment = async () => {
+      if (
+        !hasInitiallyConnected ||
+        !server ||
+        isLoading ||
+        isError ||
+        !isConnected
+      ) {
+        return;
+      }
+
+      const connection = API_URL();
+      if (!connection) return;
+
+      const connectionWithoutDots = connection.replace(/\./g, '-');
+      const storedExperimentId = (window as any).storage
+        ? await (window as any).storage.get(
+            `experimentId.${connectionWithoutDots}`,
+          )
+        : null;
+
+      // Only open recipes modal if no stored experiment ID exists
+      if (!storedExperimentId) {
+        setRecipesModalOpen(true);
+      }
+    };
+
+    checkStoredExperiment();
+  }, [isLoading, server, isError, hasInitiallyConnected]);
 
   const cpu = server?.cpu;
   const os = server?.os;
