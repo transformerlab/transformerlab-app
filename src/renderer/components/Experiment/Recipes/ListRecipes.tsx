@@ -73,9 +73,7 @@ export default function ListRecipes({
 
   return (
     <>
-      <Typography level="h2" sx={{ pt: '20px' }}>
-        👋 Welcome to Transformer Lab!
-      </Typography>
+      <Typography level="h2">👋 Welcome to Transformer Lab!</Typography>
       <Sheet
         sx={{
           display: 'flex',
@@ -87,7 +85,6 @@ export default function ListRecipes({
         {showRecentExperiments && (
           <Sheet
             sx={{
-              p: 2,
               overflow: 'hidden',
               borderRadius: 'md',
               width: '240px',
@@ -95,7 +92,7 @@ export default function ListRecipes({
             variant="soft"
             color="neutral"
           >
-            <Typography level="h4" mb={1}>
+            <Typography level="h4" mb={1} pt={2} px={2}>
               Saved Experiments
             </Typography>
             <Box
@@ -103,6 +100,10 @@ export default function ListRecipes({
                 overflowY: 'auto',
                 overflowX: 'hidden',
                 maxHeight: '100%',
+                p: 1,
+                scrollbarWidth: 'thin',
+                scrollbarColor:
+                  'var(--joy-palette-background-level3) transparent',
               }}
             >
               <List
@@ -133,6 +134,7 @@ export default function ListRecipes({
                             display: 'flex',
                             alignItems: 'center',
                           }}
+                          variant="soft"
                         >
                           <span
                             style={{
