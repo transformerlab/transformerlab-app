@@ -11,6 +11,7 @@ import { useState } from 'react';
 
 import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 import ShowArchitectures from '../Shared/ListArchitectures';
+import { useNotification } from '../Shared/NotificationSystem';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -56,6 +57,7 @@ export default function PluginCard({
   isExperimental = false,
 }) {
   const [installing, setInstalling] = useState(null);
+  const { addNotification } = useNotification();
 
   // eslint-disable-next-line react/no-unstable-nested-components
   function WillThisPluginWorkOnMyMachine({ pluginArchitectures, machineType }) {
@@ -264,9 +266,11 @@ export default function PluginCard({
                   experimentInfo?.id === '' ||
                   experimentInfo?.id === 'undefined'
                 ) {
-                  alert(
-                    'Error: No experiment selected. Please select an experiment before installing plugins.',
-                  );
+                  addNotification({
+                    type: 'danger',
+                    message:
+                      'Error: No experiment selected. Please select an experiment before installing plugins.',
+                  });
                   return;
                 }
 
@@ -289,9 +293,11 @@ export default function PluginCard({
                       }
                     }
                   } else {
-                    alert(
-                      'Error: The API did not return a response. Plugin installation failed.',
-                    );
+                    addNotification({
+                      type: 'danger',
+                      message:
+                        'Error: The API did not return a response. Plugin installation failed.',
+                    });
                   }
                 });
                 setInstalling(null);
