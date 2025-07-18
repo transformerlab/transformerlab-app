@@ -31,16 +31,10 @@ export function isRecipeCompatibleWithDevice(recipe: any, device: any) {
   if (!device) return false;
 
   if (device === 'apple_silicon') {
-    return (
-      recipe.requiredMachineArchitecture.includes('mlx') ||
-      recipe.requiredMachineArchitecture.includes('cpu')
-    );
+    return recipe.requiredMachineArchitecture.includes('mlx');
   }
   if (device === 'nvidia') {
-    return (
-      recipe.requiredMachineArchitecture.includes('cuda') ||
-      recipe.requiredMachineArchitecture.includes('cpu')
-    );
+    return recipe.requiredMachineArchitecture.includes('cuda');
   }
   if (device === 'amd') {
     return recipe.requiredMachineArchitecture.includes('amd');
