@@ -64,7 +64,6 @@ export default function Welcome() {
 
   const { server, isLoading, isError } = chatAPI.useServerStats();
   const { experimentInfo, setExperimentId } = useExperimentInfo();
-  console.log('experimentInfo', experimentInfo);
 
   const navigate = useNavigate();
 
@@ -97,13 +96,8 @@ export default function Welcome() {
       !isError &&
       isConnected
     ) {
-      const timer = setTimeout(() => {
-        setRecipesModalOpen(true);
-      }, 500); // Small delay to ensure connection is stable
-      return () => clearTimeout(timer);
+      setRecipesModalOpen(true);
     }
-
-    return undefined;
   }, [experimentInfo, isLoading, server, isError, hasInitiallyConnected]);
 
   const cpu = server?.cpu;
