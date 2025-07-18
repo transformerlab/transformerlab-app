@@ -7,11 +7,13 @@ import { PlusIcon } from 'lucide-react';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import ImportModelsModal from './ImportModelsModal';
 import GGUFFileSelectionModal from './GGUFFileSelectionModal';
+import { useExperimentInfo } from '../../lib/ExperimentInfoContext.js';
 
 // Needs to share jobId with ModelsStore
 // If you start a download on one it should stop you from starting on the other
 // Also this is how the import bar tells teh model store to show a download progress bar
 export default function ImportModelsBar({ jobId, setJobId }) {
+  const { experimentInfo } = useExperimentInfo();
   const [importModelsModalOpen, setImportModelsModalOpen] = useState(false);
   const [ggufModalOpen, setGgufModalOpen] = useState(false);
   const [ggufModelData, setGgufModelData] = useState(null);
@@ -19,13 +21,16 @@ export default function ImportModelsBar({ jobId, setJobId }) {
   const downloadFile = async (modelId, filename) => {
     setJobId(-1);
     try {
-      const jobResponse = await fetch(chatAPI.Endpoints.Jobs.Create());
+      const jobResponse = await fetch(
+        chatAPI.Endpoints.Jobs.Create(experimentInfo?.id),
+      );
       const newJobId = await jobResponse.json();
       setJobId(newJobId);
 
       const response = await chatAPI.downloadGGUFFile(
         modelId,
         filename,
+        experimentInfo?.id,
         newJobId,
       );
 
@@ -91,7 +96,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                       setJobId(-1);
                       try {
                         const jobResponse = await fetch(
-                          chatAPI.Endpoints.Jobs.Create(),
+                          chatAPI.Endpoints.Jobs.Create(experimentInfo?.id),
                         );
                         const newJobId = await jobResponse.json();
                         setJobId(newJobId);
@@ -100,6 +105,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                         const response =
                           await chatAPI.downloadModelFromHuggingFace(
                             model,
+                            experimentInfo?.id,
                             newJobId,
                           );
                         console.log(response);

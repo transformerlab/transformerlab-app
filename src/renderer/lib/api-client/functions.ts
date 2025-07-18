@@ -98,13 +98,14 @@ export async function registerUser(
 
 export async function downloadModelFromHuggingFace(
   modelName: string,
+  experiment_id: number,
   job_id = null,
 ) {
   console.log(encodeURIComponent(modelName));
 
   let requestString = `${API_URL()}model/download_from_huggingface?model=${encodeURIComponent(
     modelName,
-  )}`;
+  )}&experiment_id=${experiment_id}`;
   if (job_id) {
     requestString += `&job_id=${job_id}`;
   }
@@ -128,11 +129,12 @@ export async function downloadModelFromHuggingFace(
 export async function downloadGGUFFile(
   modelId: string,
   filename: string,
+  experiment_id: number,
   job_id = null,
 ) {
   let requestString = `${API_URL()}model/download_gguf_file?model=${encodeURIComponent(
     modelId,
-  )}&filename=${encodeURIComponent(filename)}`;
+  )}&filename=${encodeURIComponent(filename)}&experiment_id=${experiment_id}`;
   if (job_id) {
     requestString += `&job_id=${job_id}`;
   }
@@ -155,13 +157,14 @@ export async function downloadGGUFFile(
 
 export async function downloadModelFromGallery(
   galleryID: string,
+  experiment_id: number,
   job_id = null,
 ) {
   console.log(encodeURIComponent(galleryID));
 
   let requestString = `${API_URL()}model/download_model_from_gallery?gallery_id=${encodeURIComponent(
     galleryID,
-  )}`;
+  )}&experiment_id=${experiment_id}`;
   if (job_id) {
     requestString += `&job_id=${job_id}`;
   }

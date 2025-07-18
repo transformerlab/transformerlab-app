@@ -412,6 +412,8 @@ Endpoints.Experiment = {
 
 Endpoints.Jobs = {
   List: () => `${API_URL()}jobs/list`,
+  ListByTypeInExperiment: (experimentId: string, jobType: string) =>
+    `${API_URL()}jobs/list_by_type_in_experiment?experiment_id=${experimentId}&job_type=${jobType}`,
   Get: (jobId: string) => `${API_URL()}train/job/${jobId}`,
   Create: (
     experimentId?: string,

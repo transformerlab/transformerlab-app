@@ -25,6 +25,7 @@ import dayjs from 'dayjs';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewCSVModal from './ViewCSVModal';
 import DatasetTable from 'renderer/components/Data/DatasetTable';
+import { useExperimentInfo } from '../../../lib/ExperimentInfoContext.js';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -80,15 +81,21 @@ const GenerateJobsTable = () => {
   const [openCSVModal, setOpenCSVModal] = useState(false);
   const [currentJob, setCurrentJob] = useState(null);
   const [currentJobId, setCurrentJobId] = useState(null);
+  const { experimentInfo } = useExperimentInfo();
 
   const {
     data: jobs,
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('GENERATE', ''), fetcher, {
-    refreshInterval: 2000,
-  });
+  } = useSWR(
+    chatAPI.Endpoints.Jobs.ListByTypeInExperiment(
+      experimentInfo?.id,
+      'GENERATE',
+    ),
+    fetcher,
+    { refreshInterval: 2000 },
+  );
 
   useEffect(() => {
     // Component did mount logic here

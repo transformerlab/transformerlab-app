@@ -13,6 +13,7 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import JobProgress from '../Train/JobProgress';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
+import { useExperimentInfo } from '../../../lib/ExperimentInfoContext.js';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -45,13 +46,15 @@ const ExportJobsTable = () => {
     -1,
   );
 
+  const { experimentInfo } = useExperimentInfo();
+
   const {
     data: jobs,
     error,
     isLoading,
     mutate: jobsMutate,
   } = useSWR<Job[]>(
-    chatAPI.Endpoints.Jobs.GetJobsOfType('EXPORT', ''),
+    chatAPI.Endpoints.Jobs.ListByTypeInExperiment(experimentInfo?.id, 'EXPORT'),
     fetcher,
     {
       refreshInterval: 2000,

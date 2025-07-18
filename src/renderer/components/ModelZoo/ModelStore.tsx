@@ -38,6 +38,7 @@ import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import ModelDetailsModal from './ModelDetailsModal';
 import ImportModelsBar from './ImportModelsBar';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
+import { useExperimentInfo } from '../../lib/ExperimentInfoContext.js';
 
 import {
   modelTypes,
@@ -99,6 +100,7 @@ function getModelHuggingFaceURL(model) {
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
+  const { experimentInfo } = useExperimentInfo();
   const [order, setOrder] = useState<Order>('asc');
   const [orderBy, setOrderBy] = useState('name');
   // jobId is null if there is no current download in progress,
@@ -535,12 +537,15 @@ export default function ModelStore() {
                               setCurrentlyDownloading(row.name);
                               try {
                                 let response = await fetch(
-                                  chatAPI.Endpoints.Jobs.Create(),
+                                  chatAPI.Endpoints.Jobs.Create(
+                                    experimentInfo?.id,
+                                  ),
                                 );
                                 const newJobId = await response.json();
                                 setJobId(newJobId);
                                 response = await downloadModelFromGallery(
                                   row?.uniqueID,
+                                  experimentInfo?.id,
                                   newJobId,
                                 );
                                 if (response?.status == 'error') {

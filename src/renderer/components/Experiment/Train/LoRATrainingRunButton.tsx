@@ -161,7 +161,7 @@ export default function LoRATrainingRunButton({
             }
             if (!modelInLocalList) {
               chatAPI
-                .downloadModelFromHuggingFace(model)
+                .downloadModelFromHuggingFace(model, experimentId)
                 .then((response) => {
                   if (response.status == 'error') {
                     console.log(response);
