@@ -39,8 +39,8 @@ export default function RecipesModal({
         sx={{
           margin: 'auto',
           overflow: 'hidden',
-          width: '100%',
-          height: '100%',
+          width: '94%',
+          height: '94%',
         }}
       >
         <ModalClose onClick={() => handleClose()} />
