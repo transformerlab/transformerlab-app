@@ -235,7 +235,6 @@ export default function PluginCard({
                     ) {
                       await fetch(
                         chatAPI.Endpoints.Experiment.DeletePlugin(
-                          experimentInfo?.id,
                           plugin?.uniqueId,
                         ),
                       );
@@ -276,10 +275,7 @@ export default function PluginCard({
 
                 setInstalling(plugin.uniqueId);
                 await fetch(
-                  chatAPI.Endpoints.Experiment.InstallPlugin(
-                    experimentInfo?.id,
-                    plugin.uniqueId,
-                  ),
+                  chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
                 ).then(async (response) => {
                   if (response.ok) {
                     const responseBody = await response.json();

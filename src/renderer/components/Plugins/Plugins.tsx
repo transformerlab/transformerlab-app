@@ -72,10 +72,7 @@ export default function Plugins({ setLogsDrawerOpen = null }) {
               for (const plugin of pluginsToUpdate) {
                 setInstalling(plugin.name);
                 await fetch(
-                  chatAPI.Endpoints.Experiment.InstallPlugin(
-                    experimentInfo?.id,
-                    plugin.uniqueId,
-                  ),
+                  chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
                 );
                 console.log('Installing plugin:', plugin);
               }
