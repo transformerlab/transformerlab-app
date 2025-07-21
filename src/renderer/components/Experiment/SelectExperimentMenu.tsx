@@ -215,6 +215,9 @@ export default function SelectExperimentMenu({ models }) {
                     paddingRight: 0,
                     minHeight: '22px',
                     height: '22px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {experimentInfo?.name || 'Select'}
@@ -264,7 +267,8 @@ export default function SelectExperimentMenu({ models }) {
                   height: '22px',
                   overflow: 'hidden',
                   justifyContent: 'flex-start',
-                  textWrapMode: 'nowrap',
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 {experimentInfo?.name || 'Select'}
