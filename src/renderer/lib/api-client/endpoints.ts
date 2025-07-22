@@ -348,14 +348,10 @@ Endpoints.Experiment = {
         conversationId
       }`,
     ),
-  InstallPlugin: (experimentId: string, pluginId: string) =>
-    `${API_URL()}experiment/${
-      experimentId
-    }/plugins/install_plugin_to_experiment?plugin_name=${pluginId}`,
-  DeletePlugin: (experimentId: string, pluginId: string) =>
-    `${API_URL()}experiment/${
-      experimentId
-    }/plugins/delete_plugin_from_experiment?plugin_name=${pluginId}`,
+  InstallPlugin: (pluginId: string) =>
+    `${API_URL()}plugins/gallery/${pluginId}/install`,
+  DeletePlugin: (pluginId: string) =>
+    `${API_URL()}plugins/delete_plugin?plugin_name=${pluginId}`,
   ListScripts: (experimentId: string) =>
     FULL_PATH(`experiment/${experimentId}/plugins/list`),
   ListScriptsOfType: (
@@ -392,10 +388,6 @@ Endpoints.Experiment = {
     }/save_file_contents?filename=${filename}`,
   ScriptCreateNew: (experimentId: string, pluginId: string) =>
     `${API_URL()}experiment/${experimentId}/plugins/new_plugin?pluginId=${
-      pluginId
-    }`,
-  ScriptDeletePlugin: (experimentId: string, pluginId: string) =>
-    `${API_URL()}experiment/${experimentId}plugins/delete_plugin?pluginId=${
       pluginId
     }`,
   GetOutputFromJob: (jobId: string) => `${API_URL()}train/job/${jobId}/output`,
