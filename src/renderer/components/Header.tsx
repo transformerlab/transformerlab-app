@@ -306,6 +306,10 @@ function StatsBar({ connection, setConnection }) {
                         size="sm"
                         sx={{ m: 0, p: 1 }}
                         onClick={() => {
+                          // Clear the API URL when disconnecting
+                          if ((window as any).TransformerLab) {
+                            (window as any).TransformerLab.API_URL = null;
+                          }
                           setConnection('');
                         }}
                       >

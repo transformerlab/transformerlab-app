@@ -30,13 +30,15 @@ export default function NewNodeModal({
   selectedWorkflow,
   experimentInfo,
 }) {
-  const [mode, setMode] = useState('OTHER');
+  const [mode, setMode] = useState('TRAIN');
   const [availableTasks, setAvailableTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState('');
   const [validationError, setValidationError] = useState('');
 
   const { data: tasksData } = useSWR(
-    open ? chatAPI.Endpoints.Tasks.List() : null,
+    open && mode !== 'OTHER' && mode !== 'DOWNLOAD_MODEL'
+      ? chatAPI.Endpoints.Tasks.ListByTypeInExperiment(mode, experimentInfo.id)
+      : null,
     fetcher,
   );
 
@@ -45,14 +47,8 @@ export default function NewNodeModal({
     setMode(newValue);
     setSelectedTask(''); // Reset task selection when mode changes
     setValidationError(''); // Clear validation errors
-    if (tasksData && newValue !== 'OTHER' && newValue !== 'DOWNLOAD_MODEL') {
-      const filteredTasks = tasksData.filter(
-        (task: any) => task.type === newValue,
-      );
-      setAvailableTasks(filteredTasks);
-    } else {
-      setAvailableTasks([]);
-    }
+    // No need to manually filter since API does it for us
+    setAvailableTasks([]);
   };
 
   useEffect(() => {
@@ -62,8 +58,8 @@ export default function NewNodeModal({
       mode !== 'DOWNLOAD_MODEL' &&
       tasksData?.detail !== 'Not Found'
     ) {
-      const filteredTasks = tasksData.filter((task: any) => task.type === mode);
-      setAvailableTasks(filteredTasks);
+      // Tasks are already filtered by type and experiment from the API
+      setAvailableTasks(Array.isArray(tasksData) ? tasksData : ([] as any));
     } else {
       setAvailableTasks([]);
     }
@@ -116,7 +112,10 @@ export default function NewNodeModal({
                 ),
               );
             } else {
-              const selectedTaskName = selectedTask;
+              const selectedTaskObj: any = availableTasks.find(
+                (task: any) => (task.id || task.name) === selectedTask,
+              );
+              const selectedTaskName = selectedTaskObj?.name || selectedTask;
 
               const nodeData = {
                 name,
@@ -170,11 +169,11 @@ export default function NewNodeModal({
                     }}
                   >
                     {availableTasks.map((task: any) => (
-                      <ListItem key={task.name} sx={{ p: 0 }}>
+                      <ListItem key={task.id || task.name} sx={{ p: 0 }}>
                         <ListItemButton
-                          selected={selectedTask === task.name}
+                          selected={selectedTask === (task.id || task.name)}
                           onClick={() => {
-                            setSelectedTask(task.name);
+                            setSelectedTask(task.id || task.name);
                             setValidationError('');
                           }}
                           sx={{

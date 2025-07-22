@@ -9,6 +9,9 @@ import {
   Select,
   Sheet,
   Option,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
   Box,
   Chip,
   Typography,
@@ -229,42 +232,49 @@ export default function PluginGallery({
 
             {/* Incompatible plugins */}
             {groupedPlugins[type].incompatible.length > 0 && (
-              <>
-                <Typography
-                  level="title-sm"
-                  sx={{
-                    mt: 3,
-                    mb: 1,
-                    color: 'text.secondary',
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    pb: 1,
-                  }}
-                >
-                  Incompatibe Plugins:
-                </Typography>
-                <Grid container spacing={2} sx={{ flexGrow: 1 }}>
-                  {groupedPlugins[type].incompatible.map((plugin) => (
-                    <Grid xs={4} key={plugin.id}>
-                      <Box sx={{ opacity: 0.6 }}>
-                        <PluginCard
-                          plugin={plugin}
-                          type={plugin.type}
-                          download
-                          experimentInfo={experimentInfo}
-                          parentMutate={mutate}
-                          machineType={device}
-                          setLogsDrawerOpen={setLogsDrawerOpen}
-                          isExperimental={
-                            Array.isArray(plugin?.supports) &&
-                            plugin.supports.includes('experimental')
-                          }
-                        />
-                      </Box>
-                    </Grid>
-                  ))}
-                </Grid>
-              </>
+              <Accordion
+                sx={{ mt: 3 }}
+                defaultExpanded={false}
+                variant="plain"
+              >
+                <AccordionSummary>
+                  <Typography
+                    level="title-sm"
+                    sx={{
+                      color: 'text.secondary',
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      width: '100%',
+                      pb: 1,
+                    }}
+                  >
+                    {`Incompatible ${type} plugins (${groupedPlugins[type].incompatible.length})`}
+                  </Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Grid container spacing={2} sx={{ flexGrow: 1 }}>
+                    {groupedPlugins[type].incompatible.map((plugin) => (
+                      <Grid xs={4} key={plugin.id}>
+                        <Box sx={{ opacity: 0.6 }}>
+                          <PluginCard
+                            plugin={plugin}
+                            type={plugin.type}
+                            download
+                            experimentInfo={experimentInfo}
+                            parentMutate={mutate}
+                            machineType={device}
+                            setLogsDrawerOpen={setLogsDrawerOpen}
+                            isExperimental={
+                              Array.isArray(plugin?.supports) &&
+                              plugin.supports.includes('experimental')
+                            }
+                          />
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
             )}
           </Box>
         ))}

@@ -21,6 +21,7 @@ import {
   Dropdown,
   MenuButton,
   Tooltip,
+  Box,
 } from '@mui/joy';
 import { useState, useEffect, FormEvent, useCallback } from 'react';
 import useSWR from 'swr';
@@ -214,6 +215,9 @@ export default function SelectExperimentMenu({ models }) {
                     paddingRight: 0,
                     minHeight: '22px',
                     height: '22px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {experimentInfo?.name || 'Select'}
@@ -263,7 +267,8 @@ export default function SelectExperimentMenu({ models }) {
                   height: '22px',
                   overflow: 'hidden',
                   justifyContent: 'flex-start',
-                  textWrapMode: 'nowrap',
+                  whiteSpace: 'nowrap',
+                  textOverflow: 'ellipsis',
                 }}
               >
                 {experimentInfo?.name || 'Select'}
@@ -299,43 +304,67 @@ export default function SelectExperimentMenu({ models }) {
           )}
           <Menu
             className="select-experiment-menu"
-            variant="plain"
+            variant="soft"
             sx={{
-              width: 170,
+              width: 270,
               overflowX: 'hidden',
-              overflowY: 'auto',
+              overflowY: 'hidden',
               maxHeight: '80dvh',
               // make scrollbar thin:
               scrollbarWidth: 'thin',
               scrollbarColor:
                 'var(--joy-palette-neutral-plainColor) transparent',
             }}
+            placement="bottom-start"
+            color="neutral"
           >
-            {data &&
-              data.map((experiment: any) => {
-                return (
-                  <MenuItem
-                    selected={experimentInfo?.name === experiment.name}
-                    variant={
-                      experimentInfo?.name === experiment.name
-                        ? 'soft'
-                        : undefined
-                    }
-                    onClick={createHandleClose(experiment.id)}
-                    key={experiment.id}
-                    sx={{ display: 'flex', width: '170px' }}
-                  >
-                    {experiment.name}
-
-                    {/* <Typography level="body2" textColor="neutral.300" ml="auto">
-                      <XSquareIcon size="20px" onClick={() => alert('del')} />
-                    </Typography> */}
-                    {experimentInfo?.name === experiment.name && (
-                      <CheckIcon style={{ marginLeft: 'auto' }} />
-                    )}
-                  </MenuItem>
-                );
-              })}
+            <Box
+              sx={{
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                scrollbarColor:
+                  'var(--joy-palette-background-level3) transparent',
+              }}
+            >
+              {data &&
+                data.map((experiment: any) => {
+                  return (
+                    <MenuItem
+                      selected={experimentInfo?.name === experiment.name}
+                      variant={
+                        experimentInfo?.name === experiment.name
+                          ? 'soft'
+                          : undefined
+                      }
+                      onClick={createHandleClose(experiment.id)}
+                      key={experiment.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <span
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                        title={experiment.name}
+                      >
+                        {experiment.name}
+                      </span>
+                      {experimentInfo?.name === experiment.name && (
+                        <CheckIcon style={{ marginLeft: 'auto' }} />
+                      )}
+                    </MenuItem>
+                  );
+                })}
+            </Box>
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)}>
               <ListItemDecorator>
@@ -347,50 +376,11 @@ export default function SelectExperimentMenu({ models }) {
         </Dropdown>
       </FormControl>
       <RecipesModal
-        modalOpen={modalOpen && DEV_MODE}
+        modalOpen={modalOpen}
         setModalOpen={setModalOpen}
         createNewExperiment={createNewExperiment}
+        showRecentExperiments={false}
       />
-      <Modal open={modalOpen && !DEV_MODE} onClose={() => setModalOpen(false)}>
-        <ModalDialog
-          aria-labelledby="basic-modal-dialog-title"
-          aria-describedby="basic-modal-dialog-description"
-          sx={{ maxWidth: 500 }}
-        >
-          <Typography id="basic-modal-dialog-title" component="h2">
-            Create new experiment
-          </Typography>
-          {/* <Typography
-            id="basic-modal-dialog-description"
-            textColor="text.tertiary"
-          >
-            Please supply a friendly name for your project
-          </Typography> */}
-          <form
-            onSubmit={async (event: FormEvent<HTMLFormElement>) => {
-              event.preventDefault();
-              const form = new FormData(event.target);
-              createNewExperiment(form.get('name') as string);
-              setModalOpen(false);
-            }}
-          >
-            <Stack spacing={2}>
-              <FormControl>
-                <FormLabel>Experiment Name</FormLabel>
-                <Input name="name" autoFocus required />
-              </FormControl>
-              {/* <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Input required />
-              </FormControl> */}
-              <Button type="submit">Submit</Button>
-              <Button variant="soft" onClick={() => setModalOpen(false)}>
-                Cancel
-              </Button>
-            </Stack>
-          </form>
-        </ModalDialog>
-      </Modal>
     </div>
   );
 }

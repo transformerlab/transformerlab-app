@@ -1,8 +1,8 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 
-import { Button, Sheet, Stack, Typography } from '@mui/joy';
+import { Sheet, Stack, Typography } from '@mui/joy';
 
 import labImage from './img/lab.jpg';
 
@@ -16,11 +16,15 @@ import {
   PlayCircleIcon,
 } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { API_URL } from 'renderer/lib/api-client/urls';
 
 import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 import DownloadFirstModelModal from '../DownloadFirstModelModal';
 import HexLogo from '../Shared/HexLogo';
+import RecipesModal from '../Experiment/Recipes';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -54,13 +58,103 @@ export default function Welcome() {
   const [modelDownloadModalOpen, setModelDownloadModalOpen] =
     useState<boolean>(false);
 
+  const [recipesModalOpen, setRecipesModalOpen] = useState<boolean>(false);
+  const [hasInitiallyConnected, setHasInitiallyConnected] =
+    useState<boolean>(false);
+
   const { server, isLoading, isError } = chatAPI.useServerStats();
+  const { setExperimentId } = useExperimentInfo();
 
   const navigate = useNavigate();
+
+  // Automatically open recipes modal when no experiment is selected AND API is connected
+  // BUT NOT when the connection modal is open (when there's no connection)
+  useEffect(() => {
+    // Check if we're disconnected (API_URL is null means no connection)
+    const isConnected = API_URL() !== null;
+
+    // If disconnected, reset our tracking and don't open modal
+    if (!isConnected) {
+      if (hasInitiallyConnected) {
+        setHasInitiallyConnected(false);
+      }
+      setRecipesModalOpen(false);
+      return;
+    }
+
+    // Track when we first get a successful connection
+    if (server && !isLoading && !isError && isConnected) {
+      setHasInitiallyConnected(true);
+    }
+
+    // Check if there's a stored experiment for this connection
+    const checkStoredExperiment = async () => {
+      if (
+        !hasInitiallyConnected ||
+        !server ||
+        isLoading ||
+        isError ||
+        !isConnected
+      ) {
+        return;
+      }
+
+      const connection = API_URL();
+      if (!connection) return;
+
+      const connectionWithoutDots = connection.replace(/\./g, '-');
+      const storedExperimentId = (window as any).storage
+        ? await (window as any).storage.get(
+            `experimentId.${connectionWithoutDots}`,
+          )
+        : null;
+
+      // Only open recipes modal if no stored experiment ID exists
+      if (!storedExperimentId) {
+        setRecipesModalOpen(true);
+      }
+    };
+
+    checkStoredExperiment();
+  }, [isLoading, server, isError, hasInitiallyConnected]);
 
   const cpu = server?.cpu;
   const os = server?.os;
   const device = server?.device;
+
+  // Create experiment creation callback
+  const createNewExperiment = async (name: string, fromRecipeId = null) => {
+    let newId = 0;
+
+    if (fromRecipeId === null) {
+      const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+      newId = await response.json();
+    } else {
+      const response = await fetch(
+        getAPIFullPath('recipes', ['createExperiment'], {
+          id: fromRecipeId,
+          experiment_name: name,
+        }),
+        {
+          method: 'POST',
+        },
+      );
+      const responseJson = await response.json();
+      if (!(responseJson?.status === 'success')) {
+        alert(
+          `Error creating experiment from recipe: ${responseJson?.message || 'Unknown error'}`,
+        );
+        return;
+      }
+      newId = responseJson?.data?.experiment_id;
+    }
+    setExperimentId(newId);
+
+    // Navigate to Notes page if experiment was created from a recipe AND recipe is not blank
+    if (fromRecipeId !== null && fromRecipeId !== -1) {
+      navigate('/experiment/notes');
+    }
+  };
 
   return (
     <>
@@ -68,6 +162,13 @@ export default function Welcome() {
         open={modelDownloadModalOpen}
         setOpen={setModelDownloadModalOpen}
         server={server}
+      />
+
+      <RecipesModal
+        modalOpen={recipesModalOpen}
+        setModalOpen={setRecipesModalOpen}
+        createNewExperiment={createNewExperiment}
+        showRecentExperiments={true}
       />
 
       <Sheet
@@ -133,6 +234,7 @@ export default function Welcome() {
                   </Typography>
                 </li>
               </ul>
+
               {/* <Button
               endDecorator={<ArrowRightCircleIcon />}
               size="lg"

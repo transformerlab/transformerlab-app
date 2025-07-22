@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { Modal, Box, Typography, ModalDialog, ModalClose, Table } from '@mui/joy';
+import {
+  Modal,
+  Box,
+  Typography,
+  ModalDialog,
+  ModalClose,
+  Table,
+} from '@mui/joy';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
@@ -116,13 +123,9 @@ export default function JobDetails({ jobId, onClose }) {
               }}
             >
               <OutputTerminal
-                logEndpoint={
-                  data?.type === 'TRAIN'
-                    ? chatAPI.Endpoints.Experiment.StreamOutputFromTrainingJob(
-                        data?.id,
-                      )
-                    : chatAPI.Endpoints.Experiment.StreamOutputFromJob(data?.id)
-                }
+                logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+                  data?.id,
+                )}
                 lineAnimationDelay={1}
               />
             </Box>

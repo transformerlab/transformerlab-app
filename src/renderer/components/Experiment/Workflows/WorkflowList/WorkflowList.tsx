@@ -24,12 +24,14 @@ import {
   BracesIcon,
   EllipsisIcon,
   PenIcon,
+  PencilIcon,
   PlayIcon,
   PlusCircleIcon,
   Trash2Icon,
   WorkflowIcon,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { Editor } from '@monaco-editor/react';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
@@ -37,8 +39,83 @@ import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';
 import { useNotification } from '../../../Shared/NotificationSystem';
+import fairyflossTheme from '../../../Shared/fairyfloss.tmTheme.js';
 
-function ShowCode({ code }) {
+const { parseTmTheme } = require('monaco-themes');
+
+function setTheme(editor: any, monaco: any) {
+  const themeData = parseTmTheme(fairyflossTheme);
+  monaco.editor.defineTheme('my-theme', themeData);
+  monaco.editor.setTheme('my-theme');
+}
+
+function ShowCode({
+  code,
+  experimentInfo,
+  mutateWorkflows,
+}: {
+  code: any;
+  experimentInfo: any;
+  mutateWorkflows: any;
+}) {
+  const editorRef = useRef<any>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Set up the editor with the current config JSON
+  useEffect(() => {
+    if (editorRef.current && code?.config) {
+      try {
+        const parsedConfig = JSON.parse(code.config);
+        const formattedJson = JSON.stringify(parsedConfig, null, 2);
+        editorRef.current.setValue(formattedJson);
+      } catch (e) {
+        editorRef.current.setValue(code.config || '{}');
+      }
+    }
+  }, [code?.config, isEditing]);
+
+  function handleEditorDidMount(editor: any, monaco: any) {
+    editorRef.current = editor;
+    if (code?.config) {
+      try {
+        const parsedConfig = JSON.parse(code.config);
+        const formattedJson = JSON.stringify(parsedConfig, null, 2);
+        editor.setValue(formattedJson);
+      } catch (e) {
+        editor.setValue(code.config || '{}');
+      }
+    }
+    setTheme(editor, monaco);
+  }
+
+  async function saveValue() {
+    const value = editorRef.current?.getValue();
+
+    try {
+      // Parse the JSON to validate and convert to object
+      const configObject = JSON.parse(value);
+
+      // Use the new direct config update endpoint
+      const response = await fetch(
+        chatAPI.Endpoints.Workflows.UpdateConfig(code.id, experimentInfo.id),
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(configObject),
+        },
+      );
+
+      if (response.ok) {
+        mutateWorkflows();
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error('Error saving workflow:', error);
+    }
+  }
+
   const config = code?.config;
 
   if (!config) {
@@ -46,17 +123,114 @@ function ShowCode({ code }) {
   }
 
   let parsedConfig = {};
-
   try {
     parsedConfig = JSON.parse(config);
   } catch (e) {}
 
   return (
     <Box
-      sx={{ width: '100%', backgroundColor: '#F7F9FB', overflow: 'scroll' }}
-      p={4}
+      sx={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
     >
-      <pre>{JSON.stringify(parsedConfig, null, 2)}</pre>
+      {!isEditing && (
+        <Box
+          sx={{
+            width: '100%',
+            backgroundColor: 'background.level1',
+            overflow: 'auto',
+            flexGrow: 1,
+            p: 4,
+          }}
+        >
+          <pre>{JSON.stringify(parsedConfig, null, 2)}</pre>
+        </Box>
+      )}
+      {isEditing && (
+        <Box
+          sx={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            flexGrow: 1,
+          }}
+        >
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              backgroundColor: '#ddd',
+              flexGrow: 1,
+            }}
+          >
+            <Editor
+              defaultLanguage="json"
+              theme="my-theme"
+              height="100%"
+              width="100%"
+              options={{
+                minimap: {
+                  enabled: false,
+                },
+                fontSize: 14,
+                cursorStyle: 'block',
+                wordWrap: 'on',
+              }}
+              onMount={handleEditorDidMount}
+            />
+          </Box>
+        </Box>
+      )}
+      <Box
+        display="flex"
+        flexDirection="row"
+        gap={1}
+        sx={{
+          width: '100%',
+          justifyContent: 'flex-end',
+          alignContent: 'center',
+          p: 2,
+          flexShrink: 0,
+        }}
+      >
+        {isEditing ? (
+          <>
+            <Button
+              onClick={() => {
+                saveValue();
+              }}
+              color="success"
+            >
+              Save
+            </Button>
+            <Button
+              variant="plain"
+              color="danger"
+              onClick={() => setIsEditing(false)}
+            >
+              Cancel
+            </Button>
+          </>
+        ) : (
+          <Button
+            onClick={() => {
+              setIsEditing(true);
+            }}
+            color="primary"
+            variant="solid"
+            startDecorator={<PencilIcon size="18px" />}
+          >
+            Edit
+          </Button>
+        )}
+      </Box>
     </Box>
   );
 }
@@ -75,7 +249,7 @@ export default function WorkflowList({ experimentInfo }) {
     error: workflowsError,
     isLoading: isLoading,
     mutate: mutateWorkflows,
-  } = useSWR<Workflow[]>(
+  } = useSWR(
     experimentInfo?.id
       ? chatAPI.Endpoints.Workflows.ListInExperiment(experimentInfo.id)
       : null,
@@ -278,7 +452,11 @@ export default function WorkflowList({ experimentInfo }) {
           >
             {selectedWorkflow ? (
               viewCodeMode ? (
-                <ShowCode code={selectedWorkflow} />
+                <ShowCode
+                  code={selectedWorkflow}
+                  experimentInfo={experimentInfo}
+                  mutateWorkflows={mutateWorkflows}
+                />
               ) : (
                 <WorkflowCanvas
                   selectedWorkflow={selectedWorkflow}

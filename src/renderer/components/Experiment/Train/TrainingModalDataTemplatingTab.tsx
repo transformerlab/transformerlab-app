@@ -122,7 +122,8 @@ function TrainingModalDataTemplatingTab({
   const [debouncedTemplate] = useDebounce(template, 3000);
   const [debouncedChatTemplate] = useDebounce(chatTemplate, 3000);
 
-  const parsedData = SafeJSONParse(data, null);
+  const parsedData =
+    data && data !== 'FILE NOT FOUND' ? SafeJSONParse(data, null) : null;
 
   function PreviewSection() {
     if (applyChatTemplate && !chatColumn) {
@@ -306,15 +307,16 @@ function TrainingModalDataTemplatingTab({
         flexDirection: 'column',
       }}
     >
-      {chatTemplateData?.data && (
-        <Stack direction="row" spacing={2} alignItems="center" mb={2}>
-          <Switch
-            checked={applyChatTemplate}
-            onChange={(e) => setApplyChatTemplate(e.target.checked)}
-          />
-          <Typography level="body-md">Apply Chat Template</Typography>
-        </Stack>
-      )}
+      {chatTemplateData?.data &&
+        parsedData?.supports?.includes('chat_template_formatting') && (
+          <Stack direction="row" spacing={2} alignItems="center" mb={2}>
+            <Switch
+              checked={applyChatTemplate}
+              onChange={(e) => setApplyChatTemplate(e.target.checked)}
+            />
+            <Typography level="body-md">Apply Chat Template</Typography>
+          </Stack>
+        )}
       {parsedData?.training_template_format !== 'none' && (
         <>
           <Alert sx={{ mt: 1 }} color="danger">

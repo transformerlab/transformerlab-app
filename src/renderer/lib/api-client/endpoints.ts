@@ -30,6 +30,8 @@ Endpoints.Workflows = {
     `?name=${name}`,
   UpdateName: (workflowId: string, new_name: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/update_name?new_name=${new_name}`,
+  UpdateConfig: (workflowId: string, experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/workflows/${workflowId}/config`,
   DeleteWorkflow: (workflowId: string, experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/delete/${workflowId}`,
   AddNode: (workflowId: string, node: string, experimentId: string) =>
@@ -248,14 +250,6 @@ Endpoints.Tools = {
     `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
 };
 
-Endpoints.Recipes = {
-  Import: (name: string) =>
-    `${API_URL()}train/template/import?name=${encodeURIComponent(name)}`,
-  Export: (template_id: number) =>
-    `${API_URL()}train/template/${template_id}/export`,
-  Gallery: () => `${API_URL()}train/template/gallery`,
-};
-
 Endpoints.ServerInfo = {
   Get: () => `${API_URL()}server/info`,
   PythonLibraries: () => `${API_URL()}server/python_libraries`,
@@ -344,12 +338,6 @@ Endpoints.Experiment = {
       pluginName
     }&plugin_architecture=${pluginArchitecture}&plugin_params=${pluginParams}`;
   },
-  GetExportJobs: (id: string) => {
-    return `${API_URL()}experiment/${id}/export/jobs`;
-  },
-  GetExportJobDetails: (experimentId: string, jobId: string) => {
-    return `${API_URL()}experiment/${experimentId}/export/job?jobId=${jobId}`;
-  },
   SaveConversation: (experimentId: String) =>
     `${API_URL()}experiment/${experimentId}/conversations/save`,
   GetConversations: (experimentId: string) =>
@@ -360,14 +348,10 @@ Endpoints.Experiment = {
         conversationId
       }`,
     ),
-  InstallPlugin: (experimentId: string, pluginId: string) =>
-    `${API_URL()}experiment/${
-      experimentId
-    }/plugins/install_plugin_to_experiment?plugin_name=${pluginId}`,
-  DeletePlugin: (experimentId: string, pluginId: string) =>
-    `${API_URL()}experiment/${
-      experimentId
-    }/plugins/delete_plugin_from_experiment?plugin_name=${pluginId}`,
+  InstallPlugin: (pluginId: string) =>
+    `${API_URL()}plugins/gallery/${pluginId}/install`,
+  DeletePlugin: (pluginId: string) =>
+    `${API_URL()}plugins/delete_plugin?plugin_name=${pluginId}`,
   ListScripts: (experimentId: string) =>
     FULL_PATH(`experiment/${experimentId}/plugins/list`),
   ListScriptsOfType: (
@@ -406,15 +390,9 @@ Endpoints.Experiment = {
     `${API_URL()}experiment/${experimentId}/plugins/new_plugin?pluginId=${
       pluginId
     }`,
-  ScriptDeletePlugin: (experimentId: string, pluginId: string) =>
-    `${API_URL()}experiment/${experimentId}plugins/delete_plugin?pluginId=${
-      pluginId
-    }`,
   GetOutputFromJob: (jobId: string) => `${API_URL()}train/job/${jobId}/output`,
-  StreamOutputFromTrainingJob: (jobId: string, sweep: boolean = false) =>
-    `${API_URL()}train/job/${jobId}/stream_output?sweeps=${sweep}`,
-  StreamOutputFromJob: (jobId: string) =>
-    `${API_URL()}jobs/${jobId}/stream_output`,
+  StreamOutputFromJob: (jobId: string, sweep: boolean = false) =>
+    `${API_URL()}jobs/${jobId}/stream_output?sweeps=${sweep}`,
   StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
     `${API_URL()}jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
   GetAdditionalDetails: (jobId: string, task: string = 'view') =>

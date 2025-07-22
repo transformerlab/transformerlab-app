@@ -11,6 +11,7 @@ import { useState } from 'react';
 
 import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 import ShowArchitectures from '../Shared/ListArchitectures';
+import { useNotification } from '../Shared/NotificationSystem';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -59,6 +60,7 @@ export default function PluginCard({
   isExperimental = false,
 }) {
   const [installing, setInstalling] = useState(null);
+  const { addNotification } = useNotification();
 
   // eslint-disable-next-line react/no-unstable-nested-components
   function WillThisPluginWorkOnMyMachine({ pluginArchitectures, machineType }) {
@@ -236,7 +238,6 @@ export default function PluginCard({
                     ) {
                       await fetch(
                         chatAPI.Endpoints.Experiment.DeletePlugin(
-                          experimentInfo?.id,
                           plugin?.uniqueId,
                         ),
                       );
@@ -261,12 +262,23 @@ export default function PluginCard({
                 )
               }
               onClick={async () => {
+                if (
+                  experimentInfo?.id === null ||
+                  experimentInfo?.id === undefined ||
+                  experimentInfo?.id === '' ||
+                  experimentInfo?.id === 'undefined'
+                ) {
+                  addNotification({
+                    type: 'danger',
+                    message:
+                      'Error: No experiment selected. Please select an experiment before installing plugins.',
+                  });
+                  return;
+                }
+
                 setInstalling(plugin.uniqueId);
                 await fetch(
-                  chatAPI.Endpoints.Experiment.InstallPlugin(
-                    experimentInfo?.id,
-                    plugin.uniqueId,
-                  ),
+                  chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
                 ).then(async (response) => {
                   if (response.ok) {
                     const responseBody = await response.json();
@@ -280,9 +292,11 @@ export default function PluginCard({
                       }
                     }
                   } else {
-                    alert(
-                      'Error: The API did not return a response. Plugin installation failed.',
-                    );
+                    addNotification({
+                      type: 'danger',
+                      message:
+                        'Error: The API did not return a response. Plugin installation failed.',
+                    });
                   }
                 });
                 setInstalling(null);

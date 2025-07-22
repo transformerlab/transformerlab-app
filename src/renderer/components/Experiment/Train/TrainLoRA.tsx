@@ -49,7 +49,6 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import LoRATrainingRunButton from './LoRATrainingRunButton';
 import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
-import ImportRecipeModal from './ImportRecipeModal';
 import ViewEvalImagesModal from './ViewEvalImagesModal';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 dayjs.extend(relativeTime);
@@ -104,7 +103,6 @@ export default function TrainLoRA({}) {
     useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
-  const [importRecipeModalOpen, setImportRecipeModalOpen] = useState(false);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [templateID, setTemplateID] = useState('-1');
   const [currentPlugin, setCurrentPlugin] = useState('');
@@ -192,12 +190,7 @@ export default function TrainLoRA({}) {
         sweeps={viewOutputFromSweepJob}
         setsweepJob={setViewOutputFromSweepJob}
       />
-      <ImportRecipeModal
-        open={importRecipeModalOpen}
-        setOpen={setImportRecipeModalOpen}
-        mutate={mutate}
-        experiment_id={experimentInfo?.id}
-      />
+
       <ViewEvalImagesModal
         open={viewEvalImagesFromJob !== -1}
         onClose={() => setViewEvalImagesFromJob(-1)}
@@ -233,21 +226,6 @@ export default function TrainLoRA({}) {
               New
             </MenuButton>
             <Menu sx={{ maxWidth: '300px' }}>
-              <MenuItem disabled variant="soft" color="primary">
-                <Typography level="title-sm">
-                  Start from a pre-existing recipe:
-                </Typography>
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setImportRecipeModalOpen(true);
-                }}
-              >
-                <ListItemDecorator>
-                  <ScrollIcon />
-                </ListItemDecorator>
-                <Typography level="title-sm">Recipe Library</Typography>
-              </MenuItem>
               <MenuItem disabled variant="soft" color="primary">
                 <Typography level="title-sm">
                   Select a training plugin from the following list:
