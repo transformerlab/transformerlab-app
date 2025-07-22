@@ -19,7 +19,11 @@ import {
   Alert,
   Select,
   Option,
-  Chip,
+  Dropdown,
+  Menu,
+  MenuButton,
+  MenuItem,
+  ListItemDecorator,
 } from '@mui/joy';
 import {
   ChevronDown,
@@ -32,6 +36,7 @@ import {
   HistoryIcon,
   AlertTriangleIcon,
   PlugIcon,
+  Plug2Icon,
 } from 'lucide-react';
 import {
   getAPIFullPath,
@@ -919,31 +924,61 @@ export default function Diffusion() {
         width: '100%',
       }}
     >
-      <FormControl
-        size="sm"
-        sx={{ alignSelf: 'flex-end', minWidth: 240, mr: 2 }}
+      <Stack
+        direction="row"
+        justifyContent="flex-end"
+        alignItems="center"
+        gap={1}
+        sx={{ mr: 2, mb: 1 }}
       >
-        <FormLabel sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <PlugIcon size={16} />
-          Diffusion Plugin
-        </FormLabel>
-        <Select
-          value={selectedPlugin}
-          onChange={(_, val) => setSelectedPlugin(val)}
-          placeholder="Select plugin"
-          slotProps={{ button: { sx: { whiteSpace: 'nowrap' } } }}
-        >
-          {availableDiffusionPlugins.map((plugin) => (
-            <Option key={plugin.uniqueId} value={plugin.uniqueId}>
-              <Chip>{plugin.displayName || plugin.uniqueId}</Chip>
-            </Option>
-          ))}
-        </Select>
-      </FormControl>
+        <Dropdown>
+          <MenuButton
+            variant={selectedPlugin ? 'solid' : 'outlined'}
+            color="primary"
+            size="sm"
+            startDecorator={<Plug2Icon size={16} />}
+          >
+            Select Plugin
+          </MenuButton>
+          <Menu sx={{ maxWidth: '300px' }}>
+            <MenuItem disabled variant="soft" color="primary">
+              <Typography level="title-sm">
+                Select a diffusion plugin from the following list:
+              </Typography>
+            </MenuItem>
+            <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
+              {availableDiffusionPlugins.map((plugin) => (
+                <MenuItem
+                  key={plugin.uniqueId}
+                  onClick={() => setSelectedPlugin(plugin.uniqueId)}
+                >
+                  <ListItemDecorator>
+                    <Plug2Icon />
+                  </ListItemDecorator>
+                  <div>
+                    {plugin.name || plugin.displayName || plugin.uniqueId}
+                    <Typography
+                      level="body-xs"
+                      sx={{ color: 'var(--joy-palette-neutral-400)' }}
+                    >
+                      {plugin.description || ''}
+                    </Typography>
+                  </div>
+                </MenuItem>
+              ))}
+            </Box>
+          </Menu>
+        </Dropdown>
+      </Stack>
 
       <Tabs
         value={activeTab}
         onChange={(event, newValue) => {
+          // Prevent switching to inpainting tab if no plugin is selected
+          if (newValue === 'inpainting' && !selectedPlugin) {
+            return;
+          }
+
           setActiveTab(newValue as string);
           setCurrentImageIndex(0); // Reset image index when switching tabs
 
@@ -957,7 +992,9 @@ export default function Diffusion() {
       >
         <TabList>
           <Tab value="generate">Generate Image</Tab>
-          <Tab value="inpainting">Inpainting</Tab>
+          <Tab value="inpainting" disabled={!selectedPlugin}>
+            Inpainting
+          </Tab>
           <Tab value="history">Image History</Tab>
         </TabList>
 
@@ -1510,6 +1547,25 @@ export default function Diffusion() {
                 <Typography color="danger">
                   This model is not eligible for diffusion.
                 </Typography>
+              )}
+              {!selectedPlugin && (
+                <Alert
+                  color="warning"
+                  variant="soft"
+                  startDecorator={<PlugIcon />}
+                  sx={{
+                    mt: 1,
+                    maxWidth: '100%',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <Typography level="body-sm">
+                    <strong>No diffusion plugin selected.</strong> Please select
+                    a diffusion plugin from the top-right tab or install one
+                    from the plugins tab, if not done already, before generating
+                    images.
+                  </Typography>
+                </Alert>
               )}
               {isAppleSilicon() && (
                 <Alert
