@@ -6,8 +6,10 @@ import {
   FormLabel,
   Sheet,
   Textarea,
+  Box,
 } from '@mui/joy';
 import { useEffect, useState } from 'react';
+import { RotateCcwIcon } from 'lucide-react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import SafeJSONParse from '../../Shared/SafeJSONParse';
@@ -203,15 +205,23 @@ export default function SystemMessageBox({
 
   return (
     <div>
-      <FormLabel
-        sx={{
-          justifyContent: 'space-between',
-          width: '100%',
-          marginBottom: '3px',
-        }}
-      >
-        <span>System message</span>
-      </FormLabel>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+        <FormLabel>System message</FormLabel>
+        {isOverrideEnabled && (
+          <Button
+            variant="plain"
+            size="sm"
+            onClick={() => {
+              setCustomSystemMessage(defaultPromptConfigForModel?.system_message || '');
+              setHasEdited(true);
+            }}
+            startDecorator={<RotateCcwIcon size={14} />}
+            sx={{ '--Button-gap': '4px', fontSize: '0.75rem', padding: '2px 8px' }}
+          >
+            Reset to Default
+          </Button>
+        )}
+      </Box>
 
       <Sheet
         variant="outlined"
