@@ -57,16 +57,6 @@ const DatasetTableWithTemplate = ({
       ...(shouldUseChatTemplate ? { modelName, chatColumn } : {}),
     },
   );
-  useEffect(() => {
-    if (result?.status === 'error') {
-      addNotification({
-        type: 'warning',
-        message:
-          result.message ||
-          'An error occurred while applying the chat template. Please check your selected column.',
-      });
-    }
-  }, [result, addNotification]);
 
   useEffect(() => {
     setDatasetLen(null);
@@ -84,6 +74,12 @@ const DatasetTableWithTemplate = ({
   if (!result?.data?.rows) {
     if (isLoading) {
       return <LinearProgress />;
+    }
+    if (result?.status === 'error') {
+      addNotification({
+        type: 'warning',
+        message: result?.message,
+      });
     }
     return '';
   }
