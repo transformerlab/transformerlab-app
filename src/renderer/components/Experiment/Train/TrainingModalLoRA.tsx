@@ -103,7 +103,6 @@ export default function TrainingModalLoRA({
   const [chatColumn, setChatColumn] = useState('');
   const [formattingTemplate, setFormattingTemplate] = useState('');
   const [formattingChatTemplate, setFormattingChatTemplate] = useState('');
-  console.log('Experiment Info:', experimentInfo);
 
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
