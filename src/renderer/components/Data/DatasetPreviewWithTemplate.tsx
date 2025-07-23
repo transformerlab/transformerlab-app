@@ -73,6 +73,16 @@ const DatasetTableWithTemplate = ({
     if (isLoading) {
       return <LinearProgress />;
     }
+    if (result?.status === 'error') {
+      return (
+        <Alert color="danger" variant="soft">
+          <pre>
+            {result.message ||
+              'An error occurred while applying the chat template. Please check your selected column.'}
+          </pre>
+        </Alert>
+      );
+    }
     return '';
   }
   return (

@@ -32,6 +32,29 @@ import TrainingModalDataTemplatingTab from './TrainingModalDataTemplatingTab';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
+function isValidChatMessageList(input: any): boolean {
+  try {
+    const parsed = typeof input === 'string' ? JSON.parse(input) : input;
+
+    if (!Array.isArray(parsed)) return false;
+
+    for (const msg of parsed) {
+      if (
+        typeof msg !== 'object' ||
+        msg === null ||
+        typeof msg.role !== 'string' ||
+        typeof msg.content !== 'string'
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function PluginIntroduction({ experimentInfo, pluginId }) {
   const { data, error, isLoading } = useSWR(
     chatAPI.Endpoints.Experiment.ScriptGetFile(
@@ -80,6 +103,7 @@ export default function TrainingModalLoRA({
   const [chatColumn, setChatColumn] = useState('');
   const [formattingTemplate, setFormattingTemplate] = useState('');
   const [formattingChatTemplate, setFormattingChatTemplate] = useState('');
+  console.log('Experiment Info:', experimentInfo);
 
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
@@ -593,9 +617,9 @@ export default function TrainingModalLoRA({
             // If the form is not valid
             if (!formEl.checkValidity()) {
               // Get the first invalid element
-              const firstInvalid = formEl.querySelector(':invalid') as
-                | HTMLElement
-                | null;
+              const firstInvalid = formEl.querySelector(
+                ':invalid',
+              ) as HTMLElement | null;
 
               if (firstInvalid) {
                 // Get the tab containing the invalid element
@@ -621,9 +645,9 @@ export default function TrainingModalLoRA({
 
                 // Get invalid element again (after triggering browser validation)
                 // reportValidity() can cause the browser to update validation state
-                const invalidEl = formEl.querySelector(':invalid') as
-                  | HTMLElement
-                  | null;
+                const invalidEl = formEl.querySelector(
+                  ':invalid',
+                ) as HTMLElement | null;
 
                 if (invalidEl) {
                   // Scroll to the element and focus it
@@ -748,16 +772,30 @@ export default function TrainingModalLoRA({
               <Tab>Plugin Config</Tab>
               {runSweeps && <Tab>Sweep Config</Tab>}
             </TabList>
-            <TabPanel data-tab-index={0} value={0} sx={{ p: 2, overflow: 'auto' }}>
+            <TabPanel
+              data-tab-index={0}
+              value={0}
+              sx={{ p: 2, overflow: 'auto' }}
+            >
               <PluginIntroduction
                 experimentInfo={experimentInfo}
                 pluginId={pluginId}
               />
             </TabPanel>
-            <TabPanel data-tab-index={1} value={1} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel
+              data-tab-index={1}
+              value={1}
+              sx={{ p: 2, overflow: 'auto' }}
+              keepMounted
+            >
               <TrainingModalFirstTab />
             </TabPanel>
-            <TabPanel data-tab-index={3} value={3} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel
+              data-tab-index={3}
+              value={3}
+              sx={{ p: 2, overflow: 'auto' }}
+              keepMounted
+            >
               <TrainingModalDataTemplatingTab
                 selectedDataset={selectedDataset}
                 currentDatasetInfo={currentDatasetInfo}
@@ -775,7 +813,12 @@ export default function TrainingModalLoRA({
                 setFormattingChatTemplate={setFormattingChatTemplate}
               />
             </TabPanel>
-            <TabPanel data-tab-index={2} value={2} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel
+              data-tab-index={2}
+              value={2}
+              sx={{ p: 2, overflow: 'auto' }}
+              keepMounted
+            >
               <>
                 {currentTab === 2 && (
                   <OneTimePopup title="How to Create a Training Template:">
@@ -813,7 +856,12 @@ export default function TrainingModalLoRA({
                 />
               </>
             </TabPanel>
-            <TabPanel data-tab-index={4} value={4} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+            <TabPanel
+              data-tab-index={4}
+              value={4}
+              sx={{ p: 2, overflow: 'auto' }}
+              keepMounted
+            >
               <DynamicPluginForm
                 experimentInfo={experimentInfo}
                 plugin={pluginId}
@@ -821,7 +869,12 @@ export default function TrainingModalLoRA({
               />
             </TabPanel>
             {runSweeps && (
-              <TabPanel data-tab-index={5} value={5} sx={{ p: 2, overflow: 'auto' }} keepMounted>
+              <TabPanel
+                data-tab-index={5}
+                value={5}
+                sx={{ p: 2, overflow: 'auto' }}
+                keepMounted
+              >
                 <SweepConfigTab
                   trainingTypeData={trainingTypeData}
                   sweepConfig={sweepConfig}
@@ -839,7 +892,10 @@ export default function TrainingModalLoRA({
               type="submit"
               color="success"
               disabled={
-                applyChatTemplate && (!chatColumn || chatColumn.trim() === '')
+                applyChatTemplate &&
+                (!chatColumn ||
+                  chatColumn.trim() === '' ||
+                  !isValidChatMessageList(chatColumn))
               }
             >
               Save Training Template
