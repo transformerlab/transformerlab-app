@@ -112,7 +112,10 @@ const GenerateJobsTable = () => {
 
   const fetchGenerateCSV = async (jobId) => {
     const response = await fetch(
-      chatAPI.Endpoints.Experiment.GetGeneratedDataset(jobId),
+      chatAPI.Endpoints.Experiment.GetGeneratedDataset(
+        experimentInfo?.id,
+        jobId,
+      ),
     );
     const text = await response.text();
     return text;
