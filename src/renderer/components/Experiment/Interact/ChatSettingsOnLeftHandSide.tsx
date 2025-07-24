@@ -7,73 +7,32 @@ import {
   Textarea,
   Typography,
 } from '@mui/joy';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import PreviousMessageList from './PreviousMessageList';
 import PromptSettingsModal from './PromptSettingsModal';
-import AddMCPServerDialog from './AddMCPServerDialog';
+import { Modal, ModalDialog, ModalClose } from '@mui/joy';
+import { Editor } from '@monaco-editor/react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 // fetcher used by SWR
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 const fetchToolsWithMcp = async () => {
-  try {
-    // Fetch MCP_SERVER config
-    const configResp = await fetch(
-      chatAPI.getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
-    );
-    if (!configResp.ok) {
-      console.error(
-        'Config fetch failed:',
-        configResp.status,
-        configResp.statusText,
-      );
-      throw new Error(`HTTP error! status: ${configResp.status}`);
-    }
+  // 1. load ~/.transformerlab/mcp.json
+  const cfgResp = await fetch(chatAPI.Endpoints.MCP.ConfigGet());
+  const cfg = await cfgResp.json();
 
-    const configData = await configResp.json();
+  // 2. build active‑list from server IDs present in the file
+  const activeIds = Object.keys(cfg.servers || {});
+  if (activeIds.length === 0) return [];
 
-    let mcp_server_file = '';
-    let mcp_args = '';
-    let mcp_env = '';
-
-    if (configData) {
-      try {
-        const parsed = JSON.parse(configData);
-        mcp_server_file = parsed.serverName || '';
-        mcp_args = parsed.args || '';
-        mcp_env = parsed.env || '';
-      } catch (parseError) {
-        console.error('Error parsing config data:', parseError);
-      }
-    }
-
-    // Build tools list URL
-    let url = chatAPI.Endpoints.Tools.List();
-    if (mcp_server_file) {
-      url += `?mcp_server_file=${encodeURIComponent(mcp_server_file)}`;
-      if (mcp_args) {
-        url += `&mcp_args=${encodeURIComponent(mcp_args)}`;
-      }
-      if (mcp_env) {
-        url += `&mcp_env=${encodeURIComponent(mcp_env)}`;
-      }
-    }
-
-    const resp = await fetch(url);
-    if (!resp.ok) {
-      console.error('Tools fetch failed:', resp.status, resp.statusText);
-      throw new Error(`HTTP error! status: ${resp.status}`);
-    }
-
-    return resp.json();
-  } catch (error) {
-    console.error('Error in fetchToolsWithMcp:', error);
-    // Return empty array on error to prevent SWR from failing
-    return [];
-  }
+  // 3. call /mcp/list
+  const url = chatAPI.Endpoints.MCP.List(activeIds);
+  const listResp = await fetch(url);
+  if (!listResp.ok) throw new Error(await listResp.text());
+  return listResp.json();
 };
 
 export default function ChatSettingsOnLeftHandSide({
@@ -93,7 +52,41 @@ export default function ChatSettingsOnLeftHandSide({
   showPreviousMessages = true,
 }) {
   const [showPromptSettingsModal, setShowPromptSettingsModal] = useState(false);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [mcpEditorOpen, setMcpEditorOpen] = useState(false);
+  const [mcpJson, setMcpJson] = useState('');
+
+  useEffect(() => {
+    if (mcpEditorOpen) {
+      fetch(chatAPI.Endpoints.MCP.ConfigGet())
+        .then((res) => res.json())
+        .then((data) => {
+          setMcpJson(JSON.stringify(data, null, 2));
+        })
+        .catch(() => setMcpJson('{}'));
+    }
+  }, [mcpEditorOpen]);
+
+  const handleEditorDidMount = (editor, monaco) => {};
+  const handleEditorChange = (value) => setMcpJson(value);
+  const handleSaveMcpJson = async () => {
+    try {
+      const response = await fetch(chatAPI.Endpoints.MCP.ConfigSet(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: mcpJson,
+      });
+      if (!response.ok) {
+        let errorText = await response.text();
+        alert('Failed to save MCP config: ' + errorText);
+        return;
+      }
+      alert('MCP config saved successfully!');
+      setMcpEditorOpen(false);
+      mutateTools();
+    } catch (error) {
+      alert('Error saving MCP config.');
+    }
+  };
 
   // Get a list of tools to display
   // const { data: available_tools } = useSWR(
@@ -195,16 +188,62 @@ export default function ChatSettingsOnLeftHandSide({
                   No tools available. Add an MCP server to enable tools.
                 </Typography>
               )}
-              <Button onClick={() => setAddDialogOpen(true)} sx={{ mb: 1 }}>
-                Add MCP Server
+              <Button onClick={() => setMcpEditorOpen(true)} sx={{ mb: 1 }}>
+                Configure MCP Servers
               </Button>
-              <AddMCPServerDialog
-                open={addDialogOpen}
-                onClose={() => setAddDialogOpen(false)}
-                onInstalled={() => {
-                  mutateTools();
-                }}
-              />
+
+              {mcpEditorOpen && (
+                <Modal
+                  open={mcpEditorOpen}
+                  onClose={() => setMcpEditorOpen(false)}
+                >
+                  <ModalDialog
+                    sx={{
+                      minWidth: '70vw',
+                      minHeight: '60vh',
+                      overflow: 'auto',
+                    }}
+                  >
+                    <ModalClose onClick={() => setMcpEditorOpen(false)} />
+                    <Typography level="h4" sx={{ mb: 2 }}>
+                      Edit MCP Servers JSON
+                    </Typography>
+                    <Box sx={{ height: '50vh', width: '100%', mb: 2 }}>
+                      <Editor
+                        defaultLanguage="json"
+                        theme="my-theme"
+                        height="100%"
+                        width="100%"
+                        value={mcpJson}
+                        onMount={handleEditorDidMount}
+                        onChange={handleEditorChange}
+                        options={{
+                          minimap: { enabled: false },
+                          fontSize: 14,
+                          wordWrap: 'on',
+                        }}
+                      />
+                    </Box>
+                    <Box
+                      display="flex"
+                      flexDirection="row"
+                      gap={1}
+                      justifyContent="flex-end"
+                    >
+                      <Button onClick={handleSaveMcpJson} color="success">
+                        Save
+                      </Button>
+                      <Button
+                        variant="plain"
+                        color="danger"
+                        onClick={() => setMcpEditorOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </Box>
+                  </ModalDialog>
+                </Modal>
+              )}
             </>
           )}
         </Sheet>

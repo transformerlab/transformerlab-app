@@ -241,14 +241,14 @@ Endpoints.BatchedPrompts = {
     `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
 };
 
-Endpoints.Tools = {
-  Call: (function_name: string, function_arguments: string) =>
-    `${API_URL()}tools/call/${function_name}?params=${function_arguments}`,
-  Prompt: () => `${API_URL()}tools/prompt`,
-  List: () => `${API_URL()}tools/list`,
-  InstallMcpPlugin: (serverName: string) =>
-    `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
+Endpoints.MCP = {
+  List: (activeIds: string[]) =>
+    `${API_URL()}mcp/list?active=${activeIds.join(',')}`,
+  Call: (toolFullName: string) => `${API_URL()}mcp/call/${toolFullName}`,
+  ConfigGet: () => `${API_URL()}mcp/config`,
+  ConfigSet: () => `${API_URL()}mcp/config`,
 };
+
 
 Endpoints.ServerInfo = {
   Get: () => `${API_URL()}server/info`,
