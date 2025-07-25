@@ -12,15 +12,14 @@ import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import OutputTerminal from 'renderer/components/OutputTerminal';
 const fetcher = (url) => fetch(url).then((res) => res.json());
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
-export default function JobDetails({ jobId, onClose }) {
+
+export default function JobDetails({ experimentId, jobId, onClose }) {
   const [open, setOpen] = useState(true);
-  const { experimentInfo } = useExperimentInfo();
 
   const { data } = useSWR(
-    experimentInfo?.id && jobId
-      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
+    experimentId && jobId
+      ? chatAPI.Endpoints.Jobs.Get(experimentId, jobId)
       : null,
     fetcher,
   );
@@ -131,7 +130,8 @@ export default function JobDetails({ jobId, onClose }) {
             >
               <OutputTerminal
                 logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-                  data?.id,
+                  experimentId,
+                  jobId,
                 )}
                 lineAnimationDelay={1}
               />
