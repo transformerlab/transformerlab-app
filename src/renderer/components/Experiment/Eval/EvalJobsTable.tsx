@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from '../Train/JobProgress';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -199,6 +200,7 @@ function transformMetrics(
 }
 
 const EvalJobsTable = () => {
+  const { experimentInfo } = useExperimentInfo();
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
@@ -214,7 +216,10 @@ const EvalJobsTable = () => {
 
   const fetchCSV = async (jobId) => {
     const response = await fetch(
-      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId),
+      chatAPI.Endpoints.Experiment.GetAdditionalDetails(
+        experimentInfo?.id,
+        jobId,
+      ),
     );
     const text = await response.text();
     return text;
@@ -225,10 +230,16 @@ const EvalJobsTable = () => {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('EVAL', ''), fetcher, {
-    refreshInterval: 2000,
-    fallbackData: [],
-  });
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'EVAL', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 2000,
+      fallbackData: [],
+    },
+  );
 
   const handleCombinedReports = async (
     comparisonType: 'summary' | 'detailed' = 'summary',
@@ -467,7 +478,12 @@ const EvalJobsTable = () => {
                     <IconButton variant="plain">
                       <Trash2Icon
                         onClick={async () => {
-                          await fetch(chatAPI.Endpoints.Jobs.Delete(job?.id));
+                          await fetch(
+                            chatAPI.Endpoints.Jobs.Delete(
+                              experimentInfo.id,
+                              job?.id,
+                            ),
+                          );
                           jobsMutate();
                         }}
                       />

@@ -4,12 +4,19 @@ import { Button, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { Editor } from '@monaco-editor/react';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ViewOutputModal({ jobId, setJobId }) {
+  const { experimentInfo } = useExperimentInfo();
   const { data, error, isLoading, isValidating, mutate } = useSWR(
-    jobId == -1 ? null : chatAPI.Endpoints.Experiment.GetOutputFromJob(jobId),
+    jobId == -1
+      ? null
+      : chatAPI.Endpoints.Experiment.GetOutputFromJob(
+          experimentInfo?.id,
+          jobId,
+        ),
     fetcher,
     {
       refreshInterval: 5000, //refresh every 5 seconds

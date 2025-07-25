@@ -38,6 +38,7 @@ import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import ModelDetailsModal from './ModelDetailsModal';
 import ImportModelsBar from './ImportModelsBar';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 import {
   modelTypes,
@@ -99,6 +100,7 @@ function getModelHuggingFaceURL(model) {
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
+  const { experimentInfo } = useExperimentInfo();
   const [order, setOrder] = useState<Order>('asc');
   const [orderBy, setOrderBy] = useState('name');
   // jobId is null if there is no current download in progress,
@@ -119,7 +121,9 @@ export default function ModelStore() {
   } = useSWR(chatAPI.Endpoints.Models.Gallery(), fetcher);
 
   const { data: modelDownloadProgress } = useSWR(
-    jobId && jobId != '-1' ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
+    jobId && jobId != '-1' && experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
+      : null,
     fetcher,
     { refreshInterval: 2000 },
   );
@@ -140,7 +144,14 @@ export default function ModelStore() {
   // Record the jobID and model Name
   useEffect(() => {
     console.log(obj);
-    fetch(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'))
+    if (!experimentInfo?.id) return;
+    fetch(
+      chatAPI.Endpoints.Jobs.GetJobsOfType(
+        experimentInfo.id,
+        'DOWNLOAD_MODEL',
+        'RUNNING',
+      ),
+    )
       .then(async (response) => {
         const jobs = await response.json();
         if (jobs.length) {
@@ -153,7 +164,7 @@ export default function ModelStore() {
       .catch((e) => {
         console.log(e);
       });
-  }, [obj]);
+  }, [obj, experimentInfo?.id]);
 
   useEffect(() => {
     if (currentlyDownloading?.status == 'COMPLETE') {
@@ -237,7 +248,9 @@ export default function ModelStore() {
             onClick={async () => {
               setCanceling(true);
               try {
-                let response = await fetch(chatAPI.Endpoints.Jobs.Stop(jobId));
+                let response = await fetch(
+                  chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, jobId),
+                );
                 if (response.ok) {
                   setJobId(null);
                   setCurrentlyDownloading(null);
@@ -535,7 +548,9 @@ export default function ModelStore() {
                               setCurrentlyDownloading(row.name);
                               try {
                                 let response = await fetch(
-                                  chatAPI.Endpoints.Jobs.Create(),
+                                  chatAPI.Endpoints.Jobs.Create(
+                                    experimentInfo.id,
+                                  ),
                                 );
                                 const newJobId = await response.json();
                                 setJobId(newJobId);
