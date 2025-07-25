@@ -169,7 +169,7 @@ export default function Diffusion() {
   const [inpaintingGuidanceScale, setInpaintingGuidanceScale] = useState(7.5);
   const [inpaintingSeed, setInpaintingSeed] = useState('');
   const [inpaintingNegativePrompt, setInpaintingNegativePrompt] = useState('');
-  const [inpaintingStrength, setInpaintingStrength] = useState(0.8);
+  const [inpaintingStrength, setInpaintingStrength] = useState(1.0);
   const [inpaintingInputImageBase64, setInpaintingInputImageBase64] =
     useState('');
   const [inpaintingMaskImageBase64, setInpaintingMaskImageBase64] =
@@ -248,6 +248,15 @@ export default function Diffusion() {
 
   const availableDiffusionPlugins =
     diffusionPlugins?.filter((p) => p.type === 'diffusion') || [];
+
+  // Auto-select the first available plugin if none is selected
+  useEffect(() => {
+    if (!selectedPlugin && availableDiffusionPlugins.length > 0) {
+      setSelectedPlugin(availableDiffusionPlugins[0].uniqueId);
+    }
+    // Only run when plugins or selection changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableDiffusionPlugins, selectedPlugin]);
 
   let runningDiffusionJob = diffusionJobs?.find(
     (job) => job.id === latestJobId,
@@ -931,44 +940,38 @@ export default function Diffusion() {
         gap={1}
         sx={{ mr: 2, mb: 1 }}
       >
-        <Dropdown>
-          <MenuButton
-            variant={selectedPlugin ? 'solid' : 'outlined'}
-            color="primary"
-            size="sm"
+        <FormControl sx={{ minWidth: 220 }}>
+          <LabelWithTooltip tooltip="Select a diffusion plugin to use for image generation.">
+            Diffusion Plugin
+          </LabelWithTooltip>
+          <Select
+            value={selectedPlugin || ''}
+            onChange={(_, value) => setSelectedPlugin(value)}
             startDecorator={<Plug2Icon size={16} />}
+            style={{
+              width: '100%',
+              height: 36,
+              borderRadius: 6,
+              border: '1px solid #ccc',
+              padding: '4px 8px',
+              fontSize: '15px',
+              background: '#fff',
+            }}
+            placeholder="Select a plugin"
+            disabled={availableDiffusionPlugins.length === 0}
           >
-            Select Plugin
-          </MenuButton>
-          <Menu sx={{ maxWidth: '300px' }}>
-            <MenuItem disabled variant="soft" color="primary">
-              <Typography level="title-sm">
-                Select a diffusion plugin from the following list:
-              </Typography>
-            </MenuItem>
-            <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
-              {availableDiffusionPlugins.map((plugin) => (
-                <MenuItem
-                  key={plugin.uniqueId}
-                  onClick={() => setSelectedPlugin(plugin.uniqueId)}
-                >
-                  <ListItemDecorator>
-                    <Plug2Icon />
-                  </ListItemDecorator>
-                  <div>
-                    {plugin.name || plugin.displayName || plugin.uniqueId}
-                    <Typography
-                      level="body-xs"
-                      sx={{ color: 'var(--joy-palette-neutral-400)' }}
-                    >
-                      {plugin.description || ''}
-                    </Typography>
-                  </div>
-                </MenuItem>
-              ))}
-            </Box>
-          </Menu>
-        </Dropdown>
+            {availableDiffusionPlugins.length === 0 && (
+              <Option value="" disabled>
+                No plugins available
+              </Option>
+            )}
+            {availableDiffusionPlugins.map((plugin) => (
+              <Option key={plugin.uniqueId} value={plugin.uniqueId}>
+                {plugin.name || plugin.displayName || plugin.uniqueId}
+              </Option>
+            ))}
+          </Select>
+        </FormControl>
       </Stack>
 
       <Tabs
