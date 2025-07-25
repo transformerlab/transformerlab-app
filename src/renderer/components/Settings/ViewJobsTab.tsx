@@ -78,7 +78,7 @@ export default function ViewJobsTab() {
                   <td>{job.id}</td>
                   <td>{job.type}</td>
                   <td>{job.status}</td>
-                  <td>{job.progress}</td>
+                  <td>{Number(job.progress).toFixed(2)}</td>
                   <td>
                     <pre
                       style={{
