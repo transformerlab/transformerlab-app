@@ -13,7 +13,6 @@ import useSWR from 'swr';
 import OutputTerminal from 'renderer/components/OutputTerminal';
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
-
 export default function JobDetails({ experimentId, jobId, onClose }) {
   const [open, setOpen] = useState(true);
 
@@ -130,7 +129,6 @@ export default function JobDetails({ experimentId, jobId, onClose }) {
             >
               <OutputTerminal
                 logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-                  experimentId,
                   jobId,
                 )}
                 lineAnimationDelay={1}

@@ -32,12 +32,10 @@ export default function ViewOutputModalStreaming({
   const logEndpoint =
     fileName !== ''
       ? chatAPI.Endpoints.Experiment.StreamDetailedJSONReportFromJob(
-          experimentInfo?.id,
           jobId,
           fileName,
         )
       : chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-          experimentInfo?.id,
           jobId,
         );
   const title_sentence =
@@ -46,7 +44,6 @@ export default function ViewOutputModalStreaming({
   const handleDownload = async () => {
     const response = await fetch(
       chatAPI.Endpoints.Experiment.GetAdditionalDetails(
-        experimentInfo?.id,
         jobId,
         'download',
       ),

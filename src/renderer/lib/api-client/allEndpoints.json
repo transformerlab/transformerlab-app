@@ -234,6 +234,5 @@
       "method": "GET",
       "path": "train/job/{job_id}/sweep_results"
     }
-
   }
 }
