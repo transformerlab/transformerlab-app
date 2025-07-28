@@ -267,7 +267,8 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "publisherName": "Transformer Lab Inc."
     },
     "linux": {
       "target": [
