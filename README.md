@@ -49,6 +49,7 @@ Transformer Lab is proud to be supported by Mozilla through the <a href="https:/
 
 ## Features
 
+
 Transformer Lab allows you to:
 
 - 💕 **One-click Download Hundreds of Popular Models**:
@@ -57,6 +58,7 @@ Transformer Lab allows you to:
 - 🎶 **Finetune / Train Across Different Hardware**
   - Finetune using MLX on Apple Silicon
   - Finetune using Huggingface on GPU
+  - Finetune Diffusion LoRAs on GPU
 - ⚖️ **RLHF and Preference Optimization**
   - DPO
   - ORPO
@@ -69,6 +71,8 @@ Transformer Lab allows you to:
 - 💬 **Chat with Models**
   - Chat
   - Completions
+  - Visualize Model Architecture
+  - Inspect activations & attention for each generated token
   - Preset (Templated) Prompts
   - Chat History
   - Tweak generation parameters
@@ -79,6 +83,8 @@ Transformer Lab allows you to:
   - Huggingface Transformers
   - vLLM
   - Llama CPP
+- 🖼️ **Support for Image Diffusion Models**
+  - Run and experiment with image generation models (e.g., Stable Diffusion, Flux, etc.)
 - 🧑‍🎓 **Evaluate models**
 - 📖 **RAG (Retreival Augmented Generation)**
   - Drag and Drop File UI
