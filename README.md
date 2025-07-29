@@ -64,7 +64,7 @@ Transformer Lab allows you to:
   - ORPO
   - SIMPO
   - Reward Modeling
-- 💻 **Work with LLMs Across Operating Systems**:
+- 💻 **Work with Models Across Operating Systems**:
   - Windows App
   - MacOS App
   - Linux
@@ -108,7 +108,7 @@ Transformer Lab allows you to:
 - 📝 **Prompt Editing**
   - Easily edit System Messages or Prompt Templates
 - 📜 **Inference Logs**
-  - While doing inference or RAG, view a log of the raw queries sent to the LLM
+  - While doing inference or RAG, view a log of the raw queries sent to the model
 
 And you can do the above, all through a simple cross-platform GUI.
 
