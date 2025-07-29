@@ -80,15 +80,16 @@ Transformer Lab allows you to:
   - Tool Use / Function Calling (in alpha)
 - 🚂 **Use Different Inference Engines**
   - MLX on Apple Silicon
-  - Huggingface Transformers
+  - FastChat
   - vLLM
   - Llama CPP
+  - SGLang
 - 🖼️ **Support for Image Diffusion Models**
   - Run and experiment with image generation models (e.g., Stable Diffusion, Flux, etc.)
 - 🧑‍🎓 **Evaluate models**
 - 📖 **RAG (Retreival Augmented Generation)**
   - Drag and Drop File UI
-  - Works on Apple MLX, Transformers, and other engines
+  - Works on Apple MLX, FastChat, and other engines
 - 📓 **Build Datasets for Training**
   - Pull from hundreds of common datasets available on HuggingFace
   - Provide your own dataset using drag and drop
@@ -100,7 +101,7 @@ Transformer Lab allows you to:
 - 🔀 **Convert Models Across Platforms**
   - Convert from/to Huggingface, MLX, GGUF
 - 🔌 **Plugin Support**
-  - Easily pull from a library of existing plugins
+  - Easily install from a gallery of existing plugins
   - Write your own plugins to extend functionality
 - 🧑‍💻 **Embedded Monaco Code Editor**
   - Edit plugins and view what's happening behind the scenes
