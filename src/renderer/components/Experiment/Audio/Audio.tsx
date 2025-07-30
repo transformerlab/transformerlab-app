@@ -1,172 +1,240 @@
-import React, { useRef, useState, useEffect } from "react";
+import * as React from 'react';
+import {
+  Sheet,
+  FormControl,
+  Button,
+  Typography,
+  Box,
+  Select,
+  Option,
+  Input,
+} from '@mui/joy';
 
-// You need to install three.js as a dependency:
-// npm install three
-
-import * as THREE from "three";
+// Import Three.js and useEffect for visualization
+import * as THREE from 'three';
 
 const voices = [
-  "af_bella", "af_heart", "af_nicole", "af_nova", "af_sarah", "af_sky",
-  "am_adam", "am_michael", "bf_emma", "bf_isabella", "bm_george", "bm_lewis"
+  'af_bella', 'af_heart', 'af_nicole', 'af_nova', 'af_sarah', 'af_sky',
+  'am_adam', 'am_michael', 'bf_emma', 'bf_isabella', 'bm_george', 'bm_lewis'
 ];
 const models = [
-  "mlx-community/Kokoro-82M-4bit",
-  "mlx-community/Kokoro-82M-6bit",
-  "mlx-community/Kokoro-82M-8bit",
-  "mlx-community/Kokoro-82M-bf16"
+  'mlx-community/Kokoro-82M-4bit',
+  'mlx-community/Kokoro-82M-6bit',
+  'mlx-community/Kokoro-82M-8bit',
+  'mlx-community/Kokoro-82M-bf16'
 ];
 
 export default function Audio() {
-  const [tab, setTab] = useState<"tts"|"upload"|"s2s">("tts");
-  const [text, setText] = useState("");
-  const [voice, setVoice] = useState(voices[0]);
-  const [model, setModel] = useState(models[0]);
-  const [speed, setSpeed] = useState(1.0);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [status, setStatus] = useState("Upload an audio file to begin visualization");
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const threeCanvasRef = useRef<HTMLDivElement>(null);
+  // State for UI controls
+  const [tab, setTab] = React.useState<'tts' | 'upload' | 's2s'>('tts');
+  const [text, setText] = React.useState('');
+  const [voice, setVoice] = React.useState(voices[0]);
+  const [model, setModel] = React.useState(models[0]);
+  const [speed, setSpeed] = React.useState(1.0);
+  const threeMountRef = React.useRef<HTMLDivElement>(null);
 
-  // --- Three.js setup (simple orb with pulsing animation) ---
-  useEffect(() => {
-    if (!threeCanvasRef.current) return;
-    let mount = threeCanvasRef.current;
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+  // Three.js orb setup (dummy visualization)
+  React.useEffect(() => {
+    const mount = threeMountRef.current;
+    if (!mount) return;
+    const width = mount.clientWidth || 400;
+    const height = 300;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    camera.position.z = 80;
+
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(width, height);
     renderer.setClearColor(0x000000);
 
     mount.appendChild(renderer.domElement);
 
-    camera.position.z = 100;
-    // Simple light
-    scene.add(new THREE.AmbientLight(0x404040));
     const sphereGeom = new THREE.IcosahedronGeometry(30, 4);
     const sphereMat = new THREE.MeshPhongMaterial({ color: 0x0088ff, shininess: 30 });
     const sphere = new THREE.Mesh(sphereGeom, sphereMat);
     scene.add(sphere);
 
-    let animationId: number;
+    scene.add(new THREE.AmbientLight(0x404040));
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    let frameId: number;
     function animate() {
-      animationId = requestAnimationFrame(animate);
+      frameId = requestAnimationFrame(animate);
       sphere.rotation.y += 0.01;
       sphere.rotation.x += 0.002;
       renderer.render(scene, camera);
     }
     animate();
 
-    // Cleanup
     return () => {
-      cancelAnimationFrame(animationId);
+      cancelAnimationFrame(frameId);
       renderer.dispose();
       mount.removeChild(renderer.domElement);
     };
   }, []);
 
   return (
-    <div style={{
-      position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
-      background: "#000", fontFamily: "Arial, sans-serif"
-    }}>
-      <div id="controls"
-        style={{
-          position: "fixed", top: 20, left: 20, zIndex: 10, color: "white",
-          background: "rgba(0,0,0,0.5)", padding: 15, borderRadius: 10, maxWidth: 350
+    <Sheet
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        minHeight: '100%',
+        overflow: 'hidden',
+        bgcolor: 'background.level1',
+      }}
+    >
+      {/* Top Bar Title */}
+      <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Typography level="h4" sx={{ color: 'primary.400' }}>
+          3D Orb Audio Visualization
+        </Typography>
+      </Box>
+
+      {/* Main content area */}
+      <Box sx={{
+        display: 'flex',
+        flexDirection: { xs: 'column', md: 'row' },
+        gap: 3,
+        p: 3,
+        height: '100%',
+        bgcolor: 'background.body',
+      }}>
+        {/* Controls pane */}
+        <Sheet sx={{
+          minWidth: 340,
+          maxWidth: 370,
+          bgcolor: 'background.level2',
+          borderRadius: 'md',
+          p: 3,
+          boxShadow: 'md',
         }}>
-        <h1>MLX-Audio Player</h1>
-        <div style={{
-          display: "flex", gap: 4, marginBottom: 12, borderBottom: "1px solid #444"
-        }}>
-          <button
-            className={tab === "tts" ? "active" : ""}
-            onClick={() => setTab("tts")}
-            style={{ background: tab === "tts" ? "#4CAF50" : "#333", color: "white", border: "none", padding: "8px 16px", borderRadius: "5px 5px 0 0" }}
-          >Text to Speech</button>
-          <button
-            className={tab === "upload" ? "active" : ""}
-            onClick={() => setTab("upload")}
-            style={{ background: tab === "upload" ? "#4CAF50" : "#333", color: "white", border: "none", padding: "8px 16px", borderRadius: "5px 5px 0 0" }}
-          >File Upload</button>
-          <button
-            className={tab === "s2s" ? "active" : ""}
-            onClick={() => setTab("s2s")}
-            style={{ background: tab === "s2s" ? "#4CAF50" : "#333", color: "white", border: "none", padding: "8px 16px", borderRadius: "5px 5px 0 0" }}
-          >Speech to Speech</button>
-        </div>
+          <Typography level="h5" sx={{ mb: 2 }}>MLX-Audio Player</Typography>
+          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+            <Button
+              size="sm"
+              variant={tab === 'tts' ? "solid" : "soft"}
+              color={tab === 'tts' ? "primary" : "neutral"}
+              onClick={() => setTab('tts')}
+            >Text to Speech</Button>
+            <Button
+              size="sm"
+              variant={tab === 'upload' ? "solid" : "soft"}
+              color={tab === 'upload' ? "primary" : "neutral"}
+              onClick={() => setTab('upload')}
+            >File Upload</Button>
+            <Button
+              size="sm"
+              variant={tab === 's2s' ? "solid" : "soft"}
+              color={tab === 's2s' ? "primary" : "neutral"}
+              onClick={() => setTab('s2s')}
+            >Speech to Speech</Button>
+          </Box>
 
-        {/* Text to speech tab */}
-        {tab === "tts" && (
-          <div>
-            <div style={{ marginBottom: 10 }}>
-              <label>Text to convert:</label>
-              <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Enter text here..." style={{ width: "100%" }} />
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label>Voice:</label>
-              <select value={voice} onChange={e => setVoice(e.target.value)} style={{ width: "100%" }}>
-                {voices.map(v => <option key={v}>{v}</option>)}
-              </select>
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label>Model:</label>
-              <select value={model} onChange={e => setModel(e.target.value)} style={{ width: "100%" }}>
-                {models.map(m => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label>Speech Speed: <span>{speed}x</span></label>
-              <input type="range" min={0.5} max={2.0} step={0.1} value={speed}
-                onChange={e => setSpeed(Number(e.target.value))} />
-            </div>
-            <button style={{ background: "#4CAF50", color: "white", borderRadius: 4, border: "none", padding: "8px 16px", marginRight: 8 }}>Generate Speech</button>
-            <button style={{ background: "#2196F3", color: "white", borderRadius: 4, border: "none", padding: "8px 16px" }}>Open Output Folder</button>
-          </div>
-        )}
+          {/* Tab: Text to Speech */}
+          {tab === 'tts' && (
+            <Box>
+              <FormControl sx={{ mb: 2 }}>
+                <Typography level="body-sm" sx={{ mb: 1 }}>Text to convert:</Typography>
+                <Input
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  placeholder="Enter text here..."
+                  sx={{ width: '100%' }}
+                />
+              </FormControl>
+              <FormControl sx={{ mb: 2 }}>
+                <Typography level="body-sm" sx={{ mb: 1 }}>Voice:</Typography>
+                <Select value={voice} onChange={(_, v) => setVoice(v!)} sx={{ width: '100%' }}>
+                  {voices.map(v => <Option key={v} value={v}>{v}</Option>)}
+                </Select>
+              </FormControl>
+              <FormControl sx={{ mb: 2 }}>
+                <Typography level="body-sm" sx={{ mb: 1 }}>Model:</Typography>
+                <Select value={model} onChange={(_, v) => setModel(v!)} sx={{ width: '100%' }}>
+                  {models.map(m => <Option key={m} value={m}>{m}</Option>)}
+                </Select>
+              </FormControl>
+              <FormControl sx={{ mb: 2 }}>
+                <Typography level="body-sm">Speech Speed: <b>{speed}x</b></Typography>
+                <input
+                  type="range"
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  value={speed}
+                  onChange={e => setSpeed(Number(e.target.value))}
+                  style={{ width: '100%' }}
+                />
+              </FormControl>
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Button color="primary">Generate Speech</Button>
+                <Button color="info">Open Output Folder</Button>
+              </Box>
+            </Box>
+          )}
 
-        {/* File upload tab */}
-        {tab === "upload" && (
-          <div>
-            <input type="file" accept="audio/*" onChange={e => {
-              if (e.target.files && e.target.files[0]) setUploadFile(e.target.files[0]);
-            }} />
-            <div style={{ marginTop: 10 }}>
-              <button disabled={!uploadFile} style={{ background: "#4CAF50", color: "white", borderRadius: 4, border: "none", padding: "8px 16px", marginRight: 8 }}>Play</button>
-              <button disabled style={{ background: "#f44336", color: "white", borderRadius: 4, border: "none", padding: "8px 16px" }}>Stop</button>
-            </div>
-            <div>{status}</div>
-          </div>
-        )}
+          {/* Tab: File Upload */}
+          {tab === 'upload' && (
+            <Box>
+              <FormControl sx={{ mb: 2 }}>
+                <Input type="file" sx={{ width: '100%' }} />
+              </FormControl>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button color="success" disabled>Play</Button>
+                <Button color="danger" disabled>Stop</Button>
+              </Box>
+              <Typography level="body-sm" sx={{ mt: 2 }}>Upload an audio file to begin visualization</Typography>
+            </Box>
+          )}
 
-        {/* Speech to speech tab */}
-        {tab === "s2s" && (
-          <div>
-            <h3>Real-time Speech Conversion</h3>
-            <div>
-              <label>Voice:</label>
-              <select style={{ width: "100%" }}>{voices.map(v => <option key={v}>{v}</option>)}</select>
-            </div>
-            <div>
-              <label>Model:</label>
-              <select style={{ width: "100%" }}><option value="kokoro_82m_4bit">Kokoro 82M 4bit</option></select>
-            </div>
-            <div>
-              <label>Speech Speed: <span>1.0x</span></label>
-              <input type="range" min={0.5} max={2.0} step={0.1} defaultValue={1.0} />
-            </div>
-            <button style={{ background: "#4CAF50", color: "white", borderRadius: 4, border: "none", padding: "8px 16px" }}>Start Stream</button>
-            <div style={{ marginTop: 10, color: "#4CAF50", fontWeight: "bold" }}></div>
-          </div>
-        )}
+          {/* Tab: Speech to Speech */}
+          {tab === 's2s' && (
+            <Box>
+              <Typography level="body-md" sx={{ mb: 2 }}>Real-time Speech Conversion</Typography>
+              <FormControl sx={{ mb: 2 }}>
+                <Typography level="body-sm" sx={{ mb: 1 }}>Voice:</Typography>
+                <Select sx={{ width: '100%' }}>
+                  {voices.map(v => <Option key={v} value={v}>{v}</Option>)}
+                </Select>
+              </FormControl>
+              <FormControl sx={{ mb: 2 }}>
+                <Typography level="body-sm" sx={{ mb: 1 }}>Model:</Typography>
+                <Select sx={{ width: '100%' }}>
+                  <Option value="kokoro_82m_4bit">Kokoro 82M 4bit</Option>
+                </Select>
+              </FormControl>
+              <FormControl sx={{ mb: 2 }}>
+                <Typography level="body-sm">Speech Speed: <b>1.0x</b></Typography>
+                <input type="range" min={0.5} max={2.0} step={0.1} defaultValue={1.0} style={{ width: '100%' }} />
+              </FormControl>
+              <Button color="primary">Start Stream</Button>
+              <Typography level="body-sm" sx={{ mt: 2, color: 'success.500' }}></Typography>
+            </Box>
+          )}
 
-        <audio ref={audioRef} autoPlay style={{ display: "none" }} />
-      </div>
-      <div ref={threeCanvasRef} style={{
-        position: "absolute", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 1
-      }} />
-    </div>
+        </Sheet>
+
+        {/* Visualization pane */}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 320,
+            minHeight: 320,
+            bgcolor: 'background.level1',
+            borderRadius: 'md',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: 'sm',
+          }}
+        >
+          <div ref={threeMountRef} style={{ width: '380px', height: '300px', background: '#111', borderRadius: '10px' }} />
+        </Box>
+      </Box>
+    </Sheet>
   );
 }
