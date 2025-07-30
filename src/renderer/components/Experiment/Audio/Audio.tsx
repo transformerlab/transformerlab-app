@@ -21,45 +21,11 @@ const models = [
   'mlx-community/Kokoro-82M-bf16'
 ];
 
- const sendNewMessageToLLM = async (text: String, image?: string) => {
-    // Add new user message to chat history
-    var newChats = addUserChat(text, image);
-
-    const timeoutId = setTimeout(() => {
-      setIsThinking(true);
-    }, 100);
-
-    const systemMessage =
-      document.getElementsByName('system-message')[0]?.value;
-
-    // Get a list of all the existing chats so we can send them to the LLM
-    let texts = getChatsInLLMFormat();
-
-    // Add the user's message
-    if (image && image !== '') {
-      //Images must be sent in this format for fastchat
-      texts.push({
-        role: 'user',
-        content: [
-          { type: 'text', text: text },
-          { type: 'image_url', image_url: image },
-        ],
-      });
-      //texts.push({ role: 'user', content: { image } });
-    } else {
-      texts.push({ role: 'user', content: text });
-    }
-
+ const sendNewMessageToTTS = async (text: String, image?: string) => {
+    //no idea for now if we need this or not
     const generationParamsJSON = experimentInfo?.config?.generationParams;
     const generationParameters = JSON.parse(generationParamsJSON);
 
-    try {
-      generationParameters.stop_str = JSON.parse(
-        generationParameters?.stop_str,
-      );
-    } catch (e) {
-      console.log('Error parsing stop strings as JSON');
-    }
 
     // Send them over
     const result = await chatAPI.sendAndReceiveStreaming(
@@ -75,69 +41,7 @@ const models = [
       image,
       generationParameters?.minP,
     );
-
-    clearTimeout(timeoutId);
-    setIsThinking(false);
-    // Add Response to Chat Array:
-
-    let numberOfTokens = await chatAPI.countTokens(currentModel, [
-      result?.text,
-    ]);
-    numberOfTokens = numberOfTokens?.tokenCount;
-    console.log('Number of Tokens: ', numberOfTokens);
-    console.log(result);
-    const timeToFirstToken = result?.timeToFirstToken;
-    const tokensPerSecond = (numberOfTokens / parseFloat(result?.time)) * 1000;
-
-    newChats = [
-      ...newChats,
-      {
-        t: result?.text,
-        user: 'bot',
-        key: result?.id,
-        numberOfTokens: numberOfTokens,
-        timeToFirstToken: timeToFirstToken,
-        tokensPerSecond: tokensPerSecond,
-      },
-    ];
-
-    setChats((prevChat) => [
-      ...prevChat,
-      {
-        t: result?.text,
-        user: 'bot',
-        key: result?.id,
-        numberOfTokens: numberOfTokens,
-        timeToFirstToken: timeToFirstToken,
-        tokensPerSecond: tokensPerSecond,
-      },
-    ]);
-
-    // If this is a new conversation, generate a new conversation Id
-    var cid = conversationId;
-    const experimentId = experimentInfo?.id;
-
-    if (cid == null) {
-      cid = Math.random().toString(36).substring(7);
-      setConversationId(cid);
-    }
-
-    //save the conversation to the server
-    fetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversation_id: cid,
-        conversation: JSON.stringify(newChats),
-      }),
-    }).then((response) => {
-      conversationsMutate();
-    });
-
-    scrollChatToBottom();
-    focusChatInput();
+    
     return result?.text;
   };
 
