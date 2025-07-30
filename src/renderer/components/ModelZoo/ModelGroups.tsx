@@ -37,7 +37,6 @@ import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import { formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { downloadModelFromGallery } from '../../lib/transformerlab-api-sdk';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function getModelHuggingFaceURL(model) {
   const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
@@ -164,7 +163,7 @@ function ModelGroupsSkeleton() {
   );
 }
 
-export default function ModelGroups() {
+export default function ModelGroups({ experimentInfo }) {
   const navigate = useNavigate();
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('name');
@@ -279,8 +278,14 @@ export default function ModelGroups() {
       }}
     >
       <Box sx={{ position: 'relative', marginBottom: 2 }}>
-        <DownloadProgressBox jobId={jobId} assetName={currentlyDownloading} />
-        {jobId && (
+        {experimentInfo && (
+          <DownloadProgressBox
+            jobId={jobId}
+            assetName={currentlyDownloading}
+            experimentId={experimentInfo.id}
+          />
+        )}
+        {jobId && experimentInfo && (
           <Button
             variant="outlined"
             size="sm"
@@ -288,7 +293,9 @@ export default function ModelGroups() {
             disabled={canceling}
             onClick={async () => {
               setCanceling(true);
-              const response = await fetch(chatAPI.Endpoints.Jobs.Stop(jobId));
+              const response = await fetch(
+                chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, jobId),
+              );
               if (response.ok) {
                 setJobId(null);
                 setCurrentlyDownloading(null);
@@ -792,7 +799,9 @@ export default function ModelGroups() {
                               setCurrentlyDownloading(row.name);
                               try {
                                 let response = await fetch(
-                                  chatAPI.Endpoints.Jobs.Create(experimentInfo.id),
+                                  chatAPI.Endpoints.Jobs.Create(
+                                    experimentInfo.id,
+                                  ),
                                 );
                                 const newJobId = await response.json();
                                 setJobId(newJobId);

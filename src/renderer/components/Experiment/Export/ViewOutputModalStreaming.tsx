@@ -33,7 +33,9 @@ export default function ViewOutputModalStreaming({
 }: ViewOutputModalStreamingProps) {
   const { experimentInfo } = useExperimentInfo();
   const { data: jobDetails } = useSWR<JobDetails>(
-    jobId && jobId !== -1 ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
+    jobId && jobId !== -1
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
+      : null,
     fetcher,
     { refreshInterval: 2000 },
   );

@@ -238,7 +238,11 @@ export default function ModelStore() {
           width: '100%',
         }}
       >
-        <DownloadProgressBox jobId={jobId} assetName={currentlyDownloading} />
+        <DownloadProgressBox
+          jobId={jobId}
+          assetName={currentlyDownloading}
+          experimentId={experimentInfo.id}
+        />
         {jobId && (
           <Button
             variant="outlined"

@@ -220,6 +220,7 @@ export default function TrainLoRA({}) {
           <DownloadProgressBox
             jobId={downloadJobs[0]?.id}
             assetName={downloadJobs[0]?.job_data.model}
+            experimentId={experimentInfo.id}
           />
         )}
         {/* <Typography level="h1">Train</Typography> */}
