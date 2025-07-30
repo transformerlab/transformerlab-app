@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import {
   Sheet,
   FormControl,
@@ -34,7 +34,7 @@ export async function sendAndReceiveAudioPath(
 
   let response;
   try {
-    response = await fetch(`${INFERENCE_SERVER_URL()}v1/audio/speech`, {
+    response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/speech`, {
       method: 'POST', // or 'PUT'
       headers: {
         'Content-Type': 'application/json',
