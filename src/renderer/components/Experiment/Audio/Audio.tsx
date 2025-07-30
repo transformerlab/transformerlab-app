@@ -1,5 +1,7 @@
 import * as React from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+
 import {
   Sheet,
   FormControl,
@@ -10,16 +12,11 @@ import {
   Option,
   Input,
 } from '@mui/joy';
+  
 
 const voices = [
   'af_bella', 'af_heart', 'af_nicole', 'af_nova', 'af_sarah', 'af_sky',
   'am_adam', 'am_michael', 'bf_emma', 'bf_isabella', 'bm_george', 'bm_lewis'
-];
-const models = [
-  'mlx-community/Kokoro-82M-4bit',
-  'mlx-community/Kokoro-82M-6bit',
-  'mlx-community/Kokoro-82M-8bit',
-  'mlx-community/Kokoro-82M-bf16'
 ];
 
 export async function sendAndReceiveAudioPath(
@@ -77,9 +74,10 @@ const sendNewMessageToTTS = async (
 };
 
 export default function Audio() {
+  const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
+  const currentModel = experimentInfo?.config?.foundation;
   const [text, setText] = React.useState('');
   const [voice, setVoice] = React.useState(voices[0]);
-  const [model, setModel] = React.useState(models[0]); // will remove later, only for testing
   const [speed, setSpeed] = React.useState(1.0);
   const [resultMessage, setResultMessage] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -134,15 +132,6 @@ export default function Audio() {
         </FormControl>
 
         <FormControl sx={{ mb: 2 }}>
-          <Typography level="body-sm" sx={{ mb: 1 }}>
-            Model:
-          </Typography>
-          <Select value={model} onChange={(_, v) => setModel(v!)} sx={{ width: '100%' }}>
-            {models.map(m => <Option key={m} value={m}>{m}</Option>)}
-          </Select>
-        </FormControl>
-
-        <FormControl sx={{ mb: 2 }}>
           <Typography level="body-sm">
             Speech Speed: <b>{speed}x</b>
           </Typography>
@@ -157,7 +146,7 @@ export default function Audio() {
           />
         </FormControl>
 
-        <Button color="primary" sx={{ mt: 2 }} onClick={() => sendNewMessageToTTS(text, model, setResultMessage, setIsLoading)}
+        <Button color="primary" sx={{ mt: 2 }} onClick={() => sendNewMessageToTTS(text, currentModel, setResultMessage, setIsLoading)}
   loading={isLoading}>
           Generate Speech
         </Button>
