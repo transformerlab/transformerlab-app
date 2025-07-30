@@ -301,14 +301,24 @@ export default function ExportModal({
       if (pluginParams.outtype) qType = pluginParams.outtype as string;
       else if (pluginParams.q_bits) qType = `${pluginParams.q_bits}bit`;
 
-      // Determine plugin architecture (this would ideally come from the plugin config)
-      const pluginArchitecture = 'GGUF'; // Default, should be extracted from plugin metadata
+      console.log('Plugin Parameters:', pluginParams);
+      // Determine plugin architecture from pluginId
+      let pluginArchitecture = '';
+      if (pluginId === 'gguf_exporter') pluginArchitecture = 'GGUF';
+      else if (pluginId === 'mlx_exporter') pluginArchitecture = 'MLX';
+      else if (pluginId === 'llamafile_exporter')
+        pluginArchitecture = 'LLAMAFILE';
+      else pluginArchitecture = pluginId ? pluginId.toUpperCase() : 'GGUF';
 
       let outputModelId = `${pluginArchitecture}-${inputModelIdWithoutAuthor}-${conversionTime}`;
       if (qType) outputModelId += `-${qType}`;
 
       if (pluginArchitecture === 'GGUF') {
         outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}.gguf`;
+      } else if (pluginArchitecture === 'MLX') {
+        outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}-mlx`;
+      } else if (pluginArchitecture === 'LLAMAFILE') {
+        outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}-llamafile`;
       }
 
       const exportConfig = {
