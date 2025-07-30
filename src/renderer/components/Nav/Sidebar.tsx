@@ -149,6 +149,12 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         />
       )}
       <SubNavItem
+        title="Audio"
+        path="/experiment/audio"
+        icon={<WorkflowIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem
         title="Workflows"
         path="/experiment/workflows"
         icon={<WorkflowIcon />}
