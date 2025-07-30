@@ -303,34 +303,20 @@ export default function ExportModal({
 
       // Determine plugin architecture from pluginId
       let pluginArchitecture = '';
-      if (pluginId === 'gguf_exporter') pluginArchitecture = 'GGUF';
-      else if (pluginId === 'mlx_exporter') pluginArchitecture = 'MLX';
-      else if (pluginId === 'llamafile_exporter')
+      if (pluginId.toLowerCase().includes('gguf')) pluginArchitecture = 'GGUF';
+      else if (pluginId.toLowerCase().includes('mlx'))
+        pluginArchitecture = 'MLX';
+      else if (pluginId.toLowerCase().includes('llamafile'))
         pluginArchitecture = 'LLAMAFILE';
       else pluginArchitecture = pluginId ? pluginId.toUpperCase() : 'GGUF';
 
-      let outputModelId = `${pluginArchitecture}-${inputModelIdWithoutAuthor}-${conversionTime}`;
-      if (qType) outputModelId += `-${qType}`;
-
-      if (pluginArchitecture === 'GGUF') {
-        outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}.gguf`;
-      } else if (pluginArchitecture === 'MLX') {
-        outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}-mlx`;
-      } else if (pluginArchitecture === 'LLAMAFILE') {
-        outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}-llamafile`;
-      }
-
+      // Only send required fields to backend
       const exportConfig = {
         plugin_name: pluginId,
         input_model_id: inputModelId,
         input_model_path: expConfig.foundation_filename || inputModelId,
         input_model_architecture: expConfig.foundation_model_architecture,
-        output_model_id: outputModelId,
         output_model_architecture: pluginArchitecture,
-        output_model_name: `${inputModelIdWithoutAuthor} - ${pluginArchitecture}${qType ? ` - ${qType}` : ''}`,
-        output_model_path: `/models/${outputModelId}`,
-        output_filename: pluginArchitecture === 'GGUF' ? outputModelId : '',
-        script_directory: `/plugins/${pluginId}`,
         params: pluginParams,
         run_name: formJson.template_name,
       };
@@ -343,11 +329,8 @@ export default function ExportModal({
         plugin_architecture: pluginArchitecture,
       });
 
-      const outputs = JSON.stringify({
-        exported_model_path: `/models/${outputModelId}`,
-        output_model_id: outputModelId,
-        export_status: 'pending',
-      });
+      // Outputs: keep for UI, but do not send to backend (can be empty or minimal)
+      const outputs = JSON.stringify({});
 
       if (currentExportId && currentExportId !== '') {
         await updateTask(
