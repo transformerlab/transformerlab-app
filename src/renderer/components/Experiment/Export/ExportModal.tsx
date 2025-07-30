@@ -301,22 +301,12 @@ export default function ExportModal({
       if (pluginParams.outtype) qType = pluginParams.outtype as string;
       else if (pluginParams.q_bits) qType = `${pluginParams.q_bits}bit`;
 
-      // Determine plugin architecture from pluginId
-      let pluginArchitecture = '';
-      if (pluginId.toLowerCase().includes('gguf')) pluginArchitecture = 'GGUF';
-      else if (pluginId.toLowerCase().includes('mlx'))
-        pluginArchitecture = 'MLX';
-      else if (pluginId.toLowerCase().includes('llamafile'))
-        pluginArchitecture = 'LLAMAFILE';
-      else pluginArchitecture = pluginId ? pluginId.toUpperCase() : 'GGUF';
-
       // Only send required fields to backend
       const exportConfig = {
         plugin_name: pluginId,
         input_model_id: inputModelId,
         input_model_path: expConfig.foundation_filename || inputModelId,
         input_model_architecture: expConfig.foundation_model_architecture,
-        output_model_architecture: pluginArchitecture,
         params: pluginParams,
         run_name: formJson.template_name,
       };
@@ -326,7 +316,6 @@ export default function ExportModal({
         input_model_path: expConfig.foundation_filename || inputModelId,
         input_model_architecture: expConfig.foundation_model_architecture,
         plugin_name: pluginId,
-        plugin_architecture: pluginArchitecture,
       });
 
       // Outputs: keep for UI, but do not send to backend (can be empty or minimal)

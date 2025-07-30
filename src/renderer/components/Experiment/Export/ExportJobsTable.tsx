@@ -81,7 +81,6 @@ const ExportJobsTable = () => {
               <th style={{ width: '50px' }}>Id</th>
               <th>Exporter</th>
               <th>Progress</th>
-              <th>Output Model</th>
               <th>&nbsp;</th>
             </tr>
           </thead>
@@ -93,23 +92,6 @@ const ExportJobsTable = () => {
                   <td>{job?.job_data?.plugin}</td>
                   <td>
                     <JobProgress job={job} />
-                  </td>
-                  <td>
-                    {(() => {
-                      // Try to get output model name from job_data first
-                      let outputModelName = job?.job_data?.output_model_name;
-
-                      // If not found, try to parse it from config using SafeJSONParse
-                      if (!outputModelName && job?.job_data?.config) {
-                        const config = SafeJSONParse(
-                          job.job_data.config,
-                          {} as any,
-                        );
-                        outputModelName = config?.output_model_name;
-                      }
-
-                      return outputModelName || 'N/A';
-                    })()}
                   </td>
                   <td>
                     <ButtonGroup
