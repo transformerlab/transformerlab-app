@@ -15,12 +15,8 @@ interface AudioPlayerProps {
   };
   metadata: {
     path?: string;
-    sampling_rate?: number;
     duration?: number;
-    samples?: number;
-    format?: string;
   };
-  transcription?: string;
 }
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioData, metadata }) => {

@@ -186,9 +186,6 @@ const DatasetTable = ({ datasetId }: { datasetId: string }) => {
                                   const mergedMetadata = {
                                     ...cellData.array.metadata,
                                     path: cellData.path,
-                                    sampling_rate:
-                                      cellData.sampling_rate ||
-                                      cellData.array.metadata?.sampling_rate,
                                   };
 
                                   return (
