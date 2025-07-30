@@ -23,17 +23,17 @@ const models = [
 
 export async function sendAndReceiveAudioPath(
   currentModel: string,
-  texts: any,
+  text: any,
 ) {
 
   const data: any = {
     model: currentModel,
-    texts,
+    text,
   };
 
   let response;
   try {
-    response = await fetch(`${INFERENCE_SERVER_URL()}v1/chat/completions`, {
+    response = await fetch(`${INFERENCE_SERVER_URL()}v1/audio/speech`, {
       method: 'POST', // or 'PUT'
       headers: {
         'Content-Type': 'application/json',
@@ -67,18 +67,9 @@ export async function sendAndReceiveAudioPath(
 
 
     // Send them over
-    const result = await chatAPI.sendAndReceiveStreaming(
+    const result = await sendAndReceiveAudioPath(
       currentModel,
-      adaptor,
-      texts,
-      generationParameters?.temperature,
-      generationParameters?.maxTokens,
-      generationParameters?.topP,
-      generationParameters?.frequencyPenalty,
-      systemMessage,
-      generationParameters?.stop_str,
-      image,
-      generationParameters?.minP,
+      texts
     );
 
     return result?.text;
