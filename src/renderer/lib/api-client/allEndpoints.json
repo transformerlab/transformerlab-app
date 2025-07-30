@@ -87,6 +87,10 @@
     "stop": {
       "method": "GET",
       "path": "jobs/{jobId}/stop"
+    },
+    "getCheckpoints": {
+      "method": "GET",
+      "path": "jobs/{jobId}/checkpoints"
     }
   },
   "datasets": {
@@ -234,6 +238,5 @@
       "method": "GET",
       "path": "train/job/{job_id}/sweep_results"
     }
-
   }
 }
