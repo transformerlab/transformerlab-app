@@ -10,9 +10,6 @@ import {
   Input,
 } from '@mui/joy';
 
-// Import Three.js and useEffect for visualization
-import * as THREE from 'three';
-
 const voices = [
   'af_bella', 'af_heart', 'af_nicole', 'af_nova', 'af_sarah', 'af_sky',
   'am_adam', 'am_michael', 'bf_emma', 'bf_isabella', 'bm_george', 'bm_lewis'
@@ -31,50 +28,6 @@ export default function Audio() {
   const [voice, setVoice] = React.useState(voices[0]);
   const [model, setModel] = React.useState(models[0]);
   const [speed, setSpeed] = React.useState(1.0);
-  const threeMountRef = React.useRef<HTMLDivElement>(null);
-
-  // Three.js orb setup (dummy visualization)
-  React.useEffect(() => {
-    const mount = threeMountRef.current;
-    if (!mount) return;
-    const width = mount.clientWidth || 400;
-    const height = 300;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    camera.position.z = 80;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(width, height);
-    renderer.setClearColor(0x000000);
-
-    mount.appendChild(renderer.domElement);
-
-    const sphereGeom = new THREE.IcosahedronGeometry(30, 4);
-    const sphereMat = new THREE.MeshPhongMaterial({ color: 0x0088ff, shininess: 30 });
-    const sphere = new THREE.Mesh(sphereGeom, sphereMat);
-    scene.add(sphere);
-
-    scene.add(new THREE.AmbientLight(0x404040));
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(1, 1, 1);
-    scene.add(directionalLight);
-
-    let frameId: number;
-    function animate() {
-      frameId = requestAnimationFrame(animate);
-      sphere.rotation.y += 0.01;
-      sphere.rotation.x += 0.002;
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      renderer.dispose();
-      mount.removeChild(renderer.domElement);
-    };
-  }, []);
 
   return (
     <Sheet
@@ -90,7 +43,7 @@ export default function Audio() {
       {/* Top Bar Title */}
       <Box sx={{ px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
         <Typography level="h4" sx={{ color: 'primary.400' }}>
-          3D Orb Audio Visualization
+          MLX-Audio Player
         </Typography>
       </Box>
 
@@ -103,7 +56,7 @@ export default function Audio() {
         height: '100%',
         bgcolor: 'background.body',
       }}>
-        {/* Controls pane */}
+        {/* Controls pane (single full-width panel) */}
         <Sheet sx={{
           minWidth: 340,
           maxWidth: 370,
@@ -112,7 +65,6 @@ export default function Audio() {
           p: 3,
           boxShadow: 'md',
         }}>
-          <Typography level="h5" sx={{ mb: 2 }}>MLX-Audio Player</Typography>
           <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
             <Button
               size="sm"
@@ -217,23 +169,6 @@ export default function Audio() {
           )}
 
         </Sheet>
-
-        {/* Visualization pane */}
-        <Box
-          sx={{
-            flex: 1,
-            minWidth: 320,
-            minHeight: 320,
-            bgcolor: 'background.level1',
-            borderRadius: 'md',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: 'sm',
-          }}
-        >
-          <div ref={threeMountRef} style={{ width: '380px', height: '300px', background: '#111', borderRadius: '10px' }} />
-        </Box>
       </Box>
     </Sheet>
   );
