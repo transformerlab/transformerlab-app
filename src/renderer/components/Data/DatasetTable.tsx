@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   Button,
   Table,
-  CircularProgress,
   Box,
   IconButton,
   iconButtonClasses,
@@ -10,33 +9,33 @@ import {
   Select,
   Option,
   FormControl,
-  FormLabel,
-  LinearProgress,
   Typography,
   Skeleton,
   Tooltip,
 } from '@mui/joy';
 
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import useSWR from 'swr';
-const fetcher = (url) =>
+import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import AudioPlayer from './AudioPlayer';
+
+const fetcher = (url: string) =>
   fetch(url)
     .then((res) => res.json())
     .then((data) => data);
 
-const DatasetTable = ({ datasetId }) => {
+const DatasetTable = ({ datasetId }: { datasetId: string }) => {
   const [pageNumber, setPageNumber] = useState(1);
   const [numOfPages, setNumOfPages] = useState(1);
-  const [datasetLen, setDatasetLen] = useState(null);
+  const [datasetLen, setDatasetLen] = useState<number | null>(null);
   let pageSize = 10; //Set the number of rows per page
   const offset = (pageNumber - 1) * pageSize; //Calculate current row number to start from
 
-  const [split, setSplit] = useState(''); //Set the default split to display
+  const [split, setSplit] = useState(''); // Set the default split to display
   const [showingSplit, setShowingSplit] = useState(''); // We use this to show the user what split is shown without triggering a re-call of the data
 
-  //Set the pagination for the dataset
-  const setPagination = (totalRows, rowsPerPage) => {
+  // Set the pagination for the dataset
+  const setPagination = (totalRows: number, rowsPerPage: number) => {
     const totalPages = Math.ceil(totalRows / rowsPerPage);
     setNumOfPages(totalPages);
   };
@@ -173,28 +172,75 @@ const DatasetTable = ({ datasetId }) => {
                                 textOverflow: 'ellipsis',
                               }}
                             >
-                              {typeof data.data['columns'][key][rowIndex] ===
-                                'string' &&
-                              data.data['columns'][key][rowIndex].startsWith(
-                                'data:image/',
-                              ) ? (
-                                <img
-                                  src={data.data['columns'][key][rowIndex]}
-                                  alt="preview"
-                                  style={{
-                                    maxWidth: 120,
-                                    maxHeight: 120,
-                                    display: 'block',
-                                  }}
-                                />
-                              ) : typeof data.data['columns'][key][rowIndex] ===
-                                'string' ? (
-                                data.data['columns'][key][rowIndex]
-                              ) : (
-                                JSON.stringify(
-                                  data.data['columns'][key][rowIndex],
-                                )
-                              )}
+                              {(() => {
+                                const cellData =
+                                  data.data['columns'][key][rowIndex];
+
+                                // Handle audio data with nested structure
+                                if (
+                                  typeof cellData === 'object' &&
+                                  cellData !== null &&
+                                  cellData.array?.audio_data_url
+                                ) {
+                                  // Merge metadata from both array.metadata and root level
+                                  const mergedMetadata = {
+                                    ...cellData.array.metadata,
+                                    path: cellData.path,
+                                    sampling_rate:
+                                      cellData.sampling_rate ||
+                                      cellData.array.metadata?.sampling_rate,
+                                  };
+
+                                  return (
+                                    <AudioPlayer
+                                      audioData={cellData.array}
+                                      metadata={mergedMetadata}
+                                      transcription={cellData.transcription}
+                                    />
+                                  );
+                                }
+
+                                // Handle audio data (object with audio_data_url at root level)
+                                if (
+                                  typeof cellData === 'object' &&
+                                  cellData !== null &&
+                                  cellData.audio_data_url
+                                ) {
+                                  return (
+                                    <AudioPlayer
+                                      audioData={cellData}
+                                      metadata={cellData.metadata}
+                                      transcription={cellData.transcription}
+                                    />
+                                  );
+                                }
+
+                                // Handle image data (string starting with data:image/)
+                                if (
+                                  typeof cellData === 'string' &&
+                                  cellData.startsWith('data:image/')
+                                ) {
+                                  return (
+                                    <img
+                                      src={cellData}
+                                      alt="preview"
+                                      style={{
+                                        maxWidth: 120,
+                                        maxHeight: 120,
+                                        display: 'block',
+                                      }}
+                                    />
+                                  );
+                                }
+
+                                // Handle regular strings
+                                if (typeof cellData === 'string') {
+                                  return cellData;
+                                }
+
+                                // Handle other data types
+                                return JSON.stringify(cellData);
+                              })()}
                             </div>
                           </Tooltip>
                         </td>
