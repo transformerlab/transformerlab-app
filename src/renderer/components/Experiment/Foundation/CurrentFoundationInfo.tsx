@@ -113,11 +113,8 @@ export default function CurrentFoundationInfo({
   const [currentlyInstalling, setCurrentlyInstalling] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const { data: baseProvenance, error: baseProvenanceError } = useSWR(
-    huggingfaceId && experimentInfo?.id
-      ? chatAPI.Endpoints.Models.ModelProvenance(
-          huggingfaceId,
-          experimentInfo.id,
-        )
+    huggingfaceId
+      ? chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId)
       : null,
     fetcher,
   );
@@ -129,12 +126,9 @@ export default function CurrentFoundationInfo({
   const device = serverInfo?.device;
 
   const { data: adaptorProvenance, error: adaptorProvenanceError } = useSWR(
-    selectedProvenanceModel &&
-      selectedProvenanceModel !== huggingfaceId &&
-      experimentInfo?.id
+    selectedProvenanceModel && selectedProvenanceModel !== huggingfaceId
       ? chatAPI.Endpoints.Models.ModelProvenance(
           `${huggingfaceId}_${selectedProvenanceModel}`,
-          experimentInfo.id,
         )
       : null,
     fetcher,
