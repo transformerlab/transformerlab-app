@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
 import {
   Sheet,
   FormControl,
@@ -42,7 +43,7 @@ export async function sendAndReceiveAudioPath(
       body: JSON.stringify(data),
     });
   } catch (error) {
-    console.log('Exception accessing completions API:', error);
+    console.log('Exception accessing Audio API:', error);
     alert('Network connection error');
     return null;
   }
@@ -50,36 +51,39 @@ export async function sendAndReceiveAudioPath(
   // if invalid response then return now
   if (!response.ok) {
     const response_json = await response.json();
-    console.log('Completions API response:', response_json);
-    const error_text = `Completions API Error
+    console.log('Audio API response:', response_json);
+    const error_text = `Audio API Error
       HTTP Error Code: ${response?.status}
       ${response_json?.message}`;
     console.log(error_text);
     alert(error_text);
     return null;
   }
+  return await response.json();
 }
 
- const sendNewMessageToTTS = async (text: String, image?: string) => {
-    //no idea for now if we need this or not
-    const generationParamsJSON = experimentInfo?.config?.generationParams;
-    const generationParameters = JSON.parse(generationParamsJSON);
+const sendNewMessageToTTS = async (
+  text: string,
+  tempModel: string,
+  setResultMessage: (msg: string) => void,
+  setIsLoading: (loading: boolean) => void
+) => {
+  setIsLoading(true);
 
+  const result = await sendAndReceiveAudioPath(tempModel, text);
+  setResultMessage(result?.message ?? 'Something went wrong. No message received.');
 
-    // Send them over
-    const result = await sendAndReceiveAudioPath(
-      currentModel,
-      texts
-    );
-
-    return result?.text;
-  };
+  setIsLoading(false);
+};
 
 export default function Audio() {
   const [text, setText] = React.useState('');
   const [voice, setVoice] = React.useState(voices[0]);
-  const [model, setModel] = React.useState(models[0]);
+  const [model, setModel] = React.useState(models[0]); // will remove later, only for testing
   const [speed, setSpeed] = React.useState(1.0);
+  const [resultMessage, setResultMessage] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+
 
   return (
     <Sheet
@@ -153,9 +157,15 @@ export default function Audio() {
           />
         </FormControl>
 
-        <Button color="primary" sx={{ mt: 2 }}>
+        <Button color="primary" sx={{ mt: 2 }} onClick={() => sendNewMessageToTTS(text, model, setResultMessage, setIsLoading)}
+  loading={isLoading}>
           Generate Speech
         </Button>
+        {resultMessage && (
+          <Typography level="body-sm" sx={{ mt: 2 }}>
+            {resultMessage}
+          </Typography>
+        )}
       </Box>
     </Sheet>
   );
