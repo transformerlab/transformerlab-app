@@ -301,7 +301,6 @@ export default function ExportModal({
       if (pluginParams.outtype) qType = pluginParams.outtype as string;
       else if (pluginParams.q_bits) qType = `${pluginParams.q_bits}bit`;
 
-      console.log('Plugin Parameters:', pluginParams);
       // Determine plugin architecture from pluginId
       let pluginArchitecture = '';
       if (pluginId === 'gguf_exporter') pluginArchitecture = 'GGUF';
