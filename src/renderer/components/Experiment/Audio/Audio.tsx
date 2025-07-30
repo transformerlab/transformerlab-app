@@ -21,48 +21,15 @@ const models = [
   'mlx-community/Kokoro-82M-bf16'
 ];
 
-export async function sendAndReceiveStreaming(
+export async function sendAndReceiveAudioPath(
   currentModel: string,
-  //currentAdaptor: string,
   texts: any,
-  //temperature: number,
-  //maxTokens: number,
-  //topP: number,
-  //freqencyPenalty: number,
-  //systemMessage: string,
-  //stopString = null,
-  //image?: string,
-  //minP?: number,
 ) {
-  //let shortModelName = currentModel.split('/').slice(-1)[0];
 
-  let messages = [];
-  //messages.push({ role: 'system', content: systemMessage });
-  messages = messages.concat(texts);
   const data: any = {
-    model: shortModelName,
-    adaptor: currentAdaptor,
-    stream: true, // For streaming responses
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-    top_p: topP,
-    frequency_penalty: freqencyPenalty,
-    system_message: systemMessage,
-    ...(minP !== undefined ? { min_p: minP } : {}),
+    model: currentModel,
+    texts,
   };
-
-  // console.log('data', data);
-
-  if (stopString) {
-    data.stop = stopString;
-  }
-
-  let result;
-  var id = Math.random() * 1000;
-
-  const resultText = document.getElementById('resultText');
-  if (resultText) resultText.innerText = '';
 
   let response;
   try {
@@ -91,92 +58,6 @@ export async function sendAndReceiveStreaming(
     alert(error_text);
     return null;
   }
-
-  // Read the response as a stream of data
-  const reader = response?.body?.getReader();
-  const decoder = new TextDecoder('utf-8');
-
-  let finalResult = '';
-
-  var start = performance.now();
-  var firstTokenTime = null;
-  var end = start;
-  stopStreaming = false;
-
-  // Reader loop
-  try {
-    while (true) {
-      // eslint-disable-next-line no-await-in-loop
-      const { done, value } = await reader.read();
-
-      if (stopStreaming) {
-        console.log('User requested to stop streaming');
-        stopStreaming = false;
-        reader?.cancel();
-      }
-
-      if (firstTokenTime == null) firstTokenTime = performance.now();
-
-      if (done) {
-        break;
-      }
-      // Massage and parse the chunk of data
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
-
-      let parsedLines = [];
-      //console.log(lines);
-      try {
-        parsedLines = lines
-          .map((line) => line.replace(/^data: /, '').trim()) // Remove the "data: " prefix
-          .filter((line) => line !== '' && line !== '[DONE]') // Remove empty lines and "[DONE]"
-          .map((line) => JSON.parse(line)); // Parse the JSON string
-      } catch (error) {
-        console.log('error parsing line', error);
-      }
-      // console.log(parsedLines);
-
-      // eslint-disable-next-line no-restricted-syntax
-      for (const parsedLine of parsedLines) {
-        const { choices } = parsedLine;
-        const { delta } = choices[0];
-        const { content } = delta;
-
-        id = parsedLine.id;
-        // Update the UI with the new content
-        if (content) {
-          finalResult += content;
-          if (resultText) {
-            document.getElementById('resultText').innerText = finalResult;
-            setTimeout(
-              () => document.getElementById('endofchat')?.scrollIntoView(),
-              100,
-            );
-          }
-        }
-      }
-    }
-
-    result = finalResult;
-  } catch (error) {
-    console.log('There was an error:', error);
-  }
-
-  // Stop clock:
-  end = performance.now();
-  var time = end - firstTokenTime;
-  var timeToFirstToken = firstTokenTime - start;
-
-  if (result) {
-    if (resultText) resultText.innerText = '';
-    return {
-      id: id,
-      text: result,
-      time: time,
-      timeToFirstToken: timeToFirstToken,
-    };
-  }
-  return null;
 }
 
  const sendNewMessageToTTS = async (text: String, image?: string) => {
