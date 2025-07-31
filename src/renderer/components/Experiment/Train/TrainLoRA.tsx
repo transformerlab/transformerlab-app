@@ -530,7 +530,7 @@ export default function TrainLoRA({}) {
                               Sweep Output
                             </Button>
                           )}
-                          {(job?.job_data?.checkpoints || true) && (
+                          {job?.job_data?.checkpoints && (
                             <Button
                               size="sm"
                               variant="plain"
