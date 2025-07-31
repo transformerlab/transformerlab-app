@@ -9,6 +9,7 @@ import {
 } from '@mui/joy';
 import { PlayIcon } from 'lucide-react';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { formatBytes } from 'renderer/lib/utils';
 
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   const { data, isLoading: checkpointsLoading } = useAPI(
@@ -24,7 +25,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
 
   return (
     <Modal open={open} onClose={() => onClose()}>
-      <ModalDialog sx={{ minWidth: 600 }}>
+      <ModalDialog sx={{ minWidth: '80%' }}>
         <ModalClose />
 
         <Typography level="h4" component="h2">
@@ -38,16 +39,28 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
             <Table>
               <thead>
                 <tr>
+                  <th width="50px">#</th>
                   <th>Checkpoint</th>
                   <th>Date</th>
+                  <th width="100px">Size</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {data?.checkpoints?.map((checkpoint, index) => (
                   <tr key={index}>
-                    <td>{checkpoint.filename}</td>
+                    <td>
+                      <Typography level="body-sm">
+                        {data?.checkpoints?.length - index}.
+                      </Typography>
+                    </td>
+                    <td>
+                      <Typography level="title-sm">
+                        {checkpoint.filename}
+                      </Typography>
+                    </td>
                     <td>{new Date(checkpoint.date).toLocaleString()}</td>
+                    <td>{formatBytes(checkpoint.size)}</td>
                     <td>
                       <Button
                         size="sm"
@@ -57,7 +70,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                         }
                         startDecorator={<PlayIcon />}
                       >
-                        Restart train from here
+                        Restart training from here
                       </Button>
                     </td>
                   </tr>
