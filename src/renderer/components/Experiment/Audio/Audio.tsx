@@ -11,6 +11,7 @@ import {
   Select,
   Option,
   Input,
+  Stack,
 } from '@mui/joy';
   
 
@@ -22,11 +23,17 @@ const voices = [
 export async function sendAndReceiveAudioPath(
   currentModel: string,
   text: any,
+  //note: Need to pass more params
+  //voice: string,
+  //speed: number,
 ) {
 
   const data: any = {
     model: currentModel,
     text,
+    //note: need to pass more params
+    //voice,
+    //speed,
   };
 
   let response;
@@ -59,103 +66,157 @@ export async function sendAndReceiveAudioPath(
   return await response.json();
 }
 
-const sendNewMessageToTTS = async (
-  text: string,
-  tempModel: string,
-  setResultMessage: (msg: string) => void,
-  setIsLoading: (loading: boolean) => void
-) => {
-  setIsLoading(true);
-
-  const result = await sendAndReceiveAudioPath(tempModel, text);
-  setResultMessage(result?.message ?? 'Something went wrong. No message received.');
-
-  setIsLoading(false);
-};
-
 export default function Audio() {
-  const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
+  const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
+  
   const [text, setText] = React.useState('');
   const [voice, setVoice] = React.useState(voices[0]);
   const [speed, setSpeed] = React.useState(1.0);
-  const [resultMessage, setResultMessage] = React.useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+
+  const handleTTSGeneration = async () => {
+    setIsLoading(true);
+    setAudioUrl(null);
+    setErrorMessage(null);
+
+    // note: need to pass more params
+    const result = await sendAndReceiveAudioPath(currentModel, text);
+
+    if (result && result.messages) {
+      setAudioUrl(result.messages);
+    } else {
+      setErrorMessage(result?.message || 'Something went wrong. No audio URL received.');
+    }
+
+    setIsLoading(false);
+  };
 
 
   return (
-    <Sheet
+    <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        minHeight: '100%',
-        overflow: 'hidden',
         bgcolor: 'background.level1',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 4,
+        overflow: 'hidden',
       }}
     >
-      <Box
-        sx={{
-          width: 340,
-          bgcolor: 'background.level2',
-          borderRadius: 'md',
-          boxShadow: 'md',
-          p: 3,
+      {/* Top Header */}
+      <Box 
+        sx={{ 
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.surface',
         }}
       >
-        <Typography level="h4" sx={{ mb: 2 }}>
-          Text to Speech
-        </Typography>
-
-        <FormControl sx={{ mb: 2 }}>
-          <Typography level="body-sm" sx={{ mb: 1 }}>
-            Text to convert:
-          </Typography>
-          <Input
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder="Enter text here..."
-            sx={{ width: '100%' }}
-          />
-        </FormControl>
-
-        <FormControl sx={{ mb: 2 }}>
-          <Typography level="body-sm" sx={{ mb: 1 }}>
-            Voice:
-          </Typography>
-          <Select value={voice} onChange={(_, v) => setVoice(v!)} sx={{ width: '100%' }}>
-            {voices.map(v => <Option key={v} value={v}>{v}</Option>)}
-          </Select>
-        </FormControl>
-
-        <FormControl sx={{ mb: 2 }}>
-          <Typography level="body-sm">
-            Speech Speed: <b>{speed}x</b>
-          </Typography>
-          <input
-            type="range"
-            min={0.5}
-            max={2.0}
-            step={0.1}
-            value={speed}
-            onChange={e => setSpeed(Number(e.target.value))}
-            style={{ width: '100%' }}
-          />
-        </FormControl>
-
-        <Button color="primary" sx={{ mt: 2 }} onClick={() => sendNewMessageToTTS(text, currentModel, setResultMessage, setIsLoading)}
-  loading={isLoading}>
-          Generate Speech
-        </Button>
-        {resultMessage && (
-          <Typography level="body-sm" sx={{ mt: 2 }}>
-            {resultMessage}
-          </Typography>
-        )}
+        <Typography level="h4">Text to Speech</Typography>
+        <Typography level="body-sm">{currentModel}</Typography>
       </Box>
-    </Sheet>
+
+      {/* Main content area, split into sidebar and main panel */}
+      <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
+        
+        {/* Left-hand Settings Sidebar */}
+        <Sheet
+          sx={{
+            width: 250,
+            p: 2,
+            borderRight: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'background.surface',
+            overflowY: 'auto',
+          }}
+        >
+          <Stack spacing={2}>
+            <FormControl>
+              <Typography level="body-sm">Voice</Typography>
+              <Select value={voice} onChange={(_, v) => setVoice(v!)}>
+                {voices.map(v => <Option key={v} value={v}>{v}</Option>)}
+              </Select>
+            </FormControl>
+
+            <FormControl>
+              <Typography level="body-sm">
+                Speech Speed: <b>{speed}x</b>
+              </Typography>
+              <input
+                type="range"
+                min={0.5}
+                max={2.0}
+                step={0.1}
+                value={speed}
+                onChange={e => setSpeed(Number(e.target.value))}
+                style={{ width: '100%' }}
+              />
+            </FormControl>
+          </Stack>
+        </Sheet>
+
+        {/* Right-hand Main Panel for Input/Output */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            p: 3,
+            bgcolor: 'background.level1',
+          }}
+        >
+          <Box sx={{ flexGrow: 1, overflowY: 'auto', pb: 2 }}>
+            {audioUrl && (
+              <Box sx={{ mb: 2 }}>
+                <Typography level="body-sm" sx={{ mb: 1 }}>Generated Audio:</Typography>
+                <audio controls src={audioUrl} style={{ width: '100%' }} />
+              </Box>
+            )}
+            
+            {errorMessage && (
+              <Typography level="body-sm" color="danger" sx={{ mt: 2 }}>
+                {errorMessage}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Input box and button */}
+          <Box 
+            sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              p: 1,
+              bgcolor: 'background.surface',
+              borderRadius: 'md',
+              boxShadow: 'md',
+            }}
+          >
+            <Input
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="Enter text to convert to speech..."
+              sx={{ flexGrow: 1 }}
+              multiline
+              minRows={1}
+            />
+            <Button 
+              color="primary" 
+              onClick={handleTTSGeneration}
+              loading={isLoading}
+              disabled={!text.trim()}
+            >
+              Generate
+            </Button>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
   );
 }
