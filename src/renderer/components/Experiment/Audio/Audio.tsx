@@ -10,11 +10,12 @@ import {
   Box,
   Select,
   Option,
-  Input,
+  Textarea, 
   Stack,
+  Slider, 
+  FormLabel,
 } from '@mui/joy';
   
-
 const voices = [
   'af_bella', 'af_heart', 'af_nicole', 'af_nova', 'af_sarah', 'af_sky',
   'am_adam', 'am_michael', 'bf_emma', 'bf_isabella', 'bm_george', 'bm_lewis'
@@ -23,15 +24,12 @@ const voices = [
 export async function sendAndReceiveAudioPath(
   currentModel: string,
   text: any,
-  //note: Need to pass more params
   //voice: string,
   //speed: number,
 ) {
-
   const data: any = {
     model: currentModel,
     text,
-    //note: need to pass more params
     //voice,
     //speed,
   };
@@ -39,7 +37,7 @@ export async function sendAndReceiveAudioPath(
   let response;
   try {
     response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/tts`, {
-      method: 'POST', // or 'PUT'
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         accept: 'application/json',
@@ -52,7 +50,6 @@ export async function sendAndReceiveAudioPath(
     return null;
   }
 
-  // if invalid response then return now
   if (!response.ok) {
     const response_json = await response.json();
     console.log('Audio API response:', response_json);
@@ -77,13 +74,11 @@ export default function Audio() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-
   const handleTTSGeneration = async () => {
     setIsLoading(true);
     setAudioUrl(null);
     setErrorMessage(null);
 
-    // note: need to pass more params
     const result = await sendAndReceiveAudioPath(currentModel, text);
 
     if (result && result.messages) {
@@ -95,14 +90,13 @@ export default function Audio() {
     setIsLoading(false);
   };
 
-
   return (
     <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        bgcolor: 'background.level1',
+        bgcolor: 'background.surface',
         overflow: 'hidden',
       }}
     >
@@ -114,7 +108,7 @@ export default function Audio() {
           alignItems: 'center',
           p: 2,
           borderBottom: '1px solid',
-          borderColor: 'divider',
+          borderColor: 'background.level2',
           bgcolor: 'background.surface',
         }}
       >
@@ -128,34 +122,32 @@ export default function Audio() {
         {/* Left-hand Settings Sidebar */}
         <Sheet
           sx={{
-            width: 250,
-            p: 2,
+            width: 300,
+            p: 3,
             borderRight: '1px solid',
-            borderColor: 'divider',
+            borderColor: 'background.level2',
             bgcolor: 'background.surface',
             overflowY: 'auto',
           }}
         >
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             <FormControl>
-              <Typography level="body-sm">Voice</Typography>
+              <FormLabel>Voice</FormLabel>
               <Select value={voice} onChange={(_, v) => setVoice(v!)}>
                 {voices.map(v => <Option key={v} value={v}>{v}</Option>)}
               </Select>
             </FormControl>
 
             <FormControl>
-              <Typography level="body-sm">
-                Speech Speed: <b>{speed}x</b>
-              </Typography>
-              <input
-                type="range"
+              <FormLabel>Speech Speed: <b>{speed}x</b></FormLabel>
+              <Slider
+                aria-label="Speech Speed"
+                value={speed}
+                onChange={(_, v) => setSpeed(v as number)}
                 min={0.5}
                 max={2.0}
                 step={0.1}
-                value={speed}
-                onChange={e => setSpeed(Number(e.target.value))}
-                style={{ width: '100%' }}
+                valueLabelDisplay="auto"
               />
             </FormControl>
           </Stack>
@@ -168,52 +160,55 @@ export default function Audio() {
             display: 'flex',
             flexDirection: 'column',
             p: 3,
-            bgcolor: 'background.level1',
+            bgcolor: 'background.surface',
           }}
         >
-          <Box sx={{ flexGrow: 1, overflowY: 'auto', pb: 2 }}>
+          {/* Large text input area at the top */}
+          <FormControl sx={{ flexGrow: 1 }}>
+            <Textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              placeholder="Enter your text here for speech generation..."
+              sx={{
+                height: '100%',
+                minHeight: '100px',
+                p: 2,
+                borderRadius: 'md',
+                fontSize: 'md',
+                lineHeight: 'md',
+                borderColor: 'background.level3',
+                '&:hover, &:focus-within': {
+                  borderColor: 'primary.plainActiveBorder',
+                  boxShadow: 'md',
+                },
+              }}
+            />
+          </FormControl>
+          
+          {/* Controls and output below the text input */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <Button 
+              color="primary" 
+              onClick={handleTTSGeneration}
+              loading={isLoading}
+              disabled={!text.trim()}
+              sx={{ alignSelf: 'flex-start' }} // Align to the left
+            >
+              Generate Speech
+            </Button>
+
             {audioUrl && (
-              <Box sx={{ mb: 2 }}>
+              <Box sx={{ width: '100%' }}>
                 <Typography level="body-sm" sx={{ mb: 1 }}>Generated Audio:</Typography>
                 <audio controls src={audioUrl} style={{ width: '100%' }} />
               </Box>
             )}
             
             {errorMessage && (
-              <Typography level="body-sm" color="danger" sx={{ mt: 2 }}>
+              <Typography level="body-sm" color="danger">
                 {errorMessage}
               </Typography>
             )}
-          </Box>
-
-          {/* Input box and button */}
-          <Box 
-            sx={{ 
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1,
-              p: 1,
-              bgcolor: 'background.surface',
-              borderRadius: 'md',
-              boxShadow: 'md',
-            }}
-          >
-            <Input
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="Enter text to convert to speech..."
-              sx={{ flexGrow: 1 }}
-              multiline
-              minRows={1}
-            />
-            <Button 
-              color="primary" 
-              onClick={handleTTSGeneration}
-              loading={isLoading}
-              disabled={!text.trim()}
-            >
-              Generate
-            </Button>
           </Box>
         </Box>
       </Box>
