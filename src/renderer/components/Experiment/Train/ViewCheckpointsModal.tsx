@@ -66,7 +66,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                       <th>Checkpoint</th>
                       <th>Date</th>
                       <th width="100px">Size</th>
-                      <th>Action</th>
+                      <th style={{ textAlign: 'right' }}>&nbsp;</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -84,7 +84,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                         </td>
                         <td>{new Date(checkpoint.date).toLocaleString()}</td>
                         <td>{formatBytes(checkpoint.size)}</td>
-                        <td>
+                        <td style={{ textAlign: 'right' }}>
                           <Button
                             size="sm"
                             variant="outlined"
