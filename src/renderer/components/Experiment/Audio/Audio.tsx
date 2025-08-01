@@ -90,15 +90,6 @@ export default function Audio() {
     setIsLoading(false);
   };
   
-  const handleOpenFolder = () => {
-    
-    if (window.electronAPI && window.electronAPI.openPath) {
-      window.electronAPI.openPath(audioUrl);
-    } else {
-      console.warn('Electron API not available to open folder. Path:', audioUrl);
-      alert(`Could not open folder. Please navigate to: ${audioUrl}`);
-    }
-  };
 
   return (
     <Box
@@ -206,18 +197,14 @@ export default function Audio() {
               >
                 Generate Speech
               </Button>
-              <Button 
-                color="primary"
-                onClick={handleOpenFolder}
-                disabled={!audioUrl}
-              >
-                Open Output Folder
-              </Button>
             </Stack>
 
+            {/* Display audio player and message when audioUrl is not null */}
             {audioUrl && (
               <Box sx={{ width: '100%' }}>
-                <Typography level="body-sm" sx={{ mb: 1 }}>Generated Audio:</Typography>
+                <Typography level="body-sm" sx={{ mb: 1 }}>
+                  Generated audio file: <a href={audioUrl} target="_blank">{audioUrl}</a>
+                </Typography>
                 <audio controls src={audioUrl} style={{ width: '100%' }} />
               </Box>
             )}
