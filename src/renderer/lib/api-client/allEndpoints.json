@@ -33,7 +33,7 @@
       "path": "tasks/{id}/update"
     },
     "queue": {
-      "method": "POST",
+      "method": "GET",
       "path": "tasks/{id}/queue"
     }
   },
