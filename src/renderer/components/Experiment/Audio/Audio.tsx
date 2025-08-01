@@ -10,9 +10,9 @@ import {
   Box,
   Select,
   Option,
-  Textarea, 
+  Textarea,
   Stack,
-  Slider, 
+  Slider,
   FormLabel,
 } from '@mui/joy';
   
@@ -88,6 +88,16 @@ export default function Audio() {
     }
 
     setIsLoading(false);
+  };
+  
+  const handleOpenFolder = () => {
+    
+    if (window.electronAPI && window.electronAPI.openPath) {
+      window.electronAPI.openPath(audioUrl);
+    } else {
+      console.warn('Electron API not available to open folder. Path:', audioUrl);
+      alert(`Could not open folder. Please navigate to: ${audioUrl}`);
+    }
   };
 
   return (
@@ -187,15 +197,23 @@ export default function Audio() {
           
           {/* Controls and output below the text input */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-            <Button 
-              color="primary" 
-              onClick={handleTTSGeneration}
-              loading={isLoading}
-              disabled={!text.trim()}
-              sx={{ alignSelf: 'flex-start' }} // Align to the left
-            >
-              Generate Speech
-            </Button>
+            <Stack direction="row" spacing={1} sx={{ alignSelf: 'flex-start' }}>
+              <Button 
+                color="primary" 
+                onClick={handleTTSGeneration}
+                loading={isLoading}
+                disabled={!text.trim()}
+              >
+                Generate Speech
+              </Button>
+              <Button 
+                color="primary"
+                onClick={handleOpenFolder}
+                disabled={!audioUrl}
+              >
+                Open Output Folder
+              </Button>
+            </Stack>
 
             {audioUrl && (
               <Box sx={{ width: '100%' }}>
