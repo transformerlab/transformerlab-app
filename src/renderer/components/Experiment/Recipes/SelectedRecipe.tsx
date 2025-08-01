@@ -197,7 +197,9 @@ const RecipeDependenciesWithProgress = ({
     jobsKey,
     async () => {
       const promises = allJobIds.map((jobId: any) =>
-        fetch(chatAPI.Endpoints.Jobs.Get(jobId)).then((res) => res.json()),
+        fetch(getAPIFullPath('recipes', ['jobStatus'], { job_id: jobId })).then(
+          (res) => res.json(),
+        ),
       );
       const results = await Promise.all(promises);
 

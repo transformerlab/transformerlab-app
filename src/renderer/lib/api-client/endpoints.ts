@@ -390,7 +390,7 @@ Endpoints.Experiment = {
     `${API_URL()}experiment/${experimentId}/plugins/new_plugin?pluginId=${
       pluginId
     }`,
-  GetOutputFromJob: (jobId: string) => `${API_URL()}train/job/${jobId}/output`,
+  GetOutputFromJob: (jobId: string) => `${API_URL()}jobs/${jobId}/output`,
   StreamOutputFromJob: (jobId: string, sweep: boolean = false) =>
     `${API_URL()}jobs/${jobId}/stream_output?sweeps=${sweep}`,
   StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
@@ -403,21 +403,27 @@ Endpoints.Experiment = {
 };
 
 Endpoints.Jobs = {
-  List: () => `${API_URL()}jobs/list`,
-  Get: (jobId: string) => `${API_URL()}train/job/${jobId}`,
+  List: (experimentId: number) =>
+    `${API_URL()}experiment/${experimentId}/jobs/list`,
+  Get: (experimentId: number, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}`,
   Create: (
-    experimentId?: string,
+    experimentId: number,
     type?: string,
     status?: string,
     data?: string, // Should be JSON
   ) =>
-    `${API_URL()}jobs/create` +
-    `?status=${status || 'CREATED'}${
-      experimentId ? `&experiment_id=${experimentId}` : ''
-    }${type ? `&type=${type}` : ''}${data ? `&data=${data}` : ''}`,
-  GetJobsOfType: (type: string = '', status: string = '') =>
-    `${API_URL()}jobs/list?type=${type}&status=${status}`,
-  Delete: (jobId: string) => `${API_URL()}jobs/delete/${jobId}`,
+    `${API_URL()}experiment/${experimentId}/jobs/create` +
+    `?status=${status || 'CREATED'}` +
+    `${type ? `&type=${type}` : ''}${data ? `&data=${data}` : ''}`,
+  GetJobsOfType: (
+    experimentId: number,
+    type: string = '',
+    status: string = '',
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/list?type=${type}&status=${status}`,
+  Delete: (experimentId: number, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/delete/${jobId}`,
   GetTrainingTemplate: (template_id: string) =>
     `${API_URL()}jobs/template/${template_id}`,
   UpdateTrainingTemplate: (
@@ -428,9 +434,7 @@ Endpoints.Jobs = {
     config: Object,
   ) =>
     `${API_URL()}jobs/template/update` +
-    `?template_id=${template_id}&name=${name}&description=${description}&type=${
-      type
-    }&config=${config}`,
+    `?template_id=${template_id}&name=${name}&description=${description}&type=${type}&config=${config}`,
   Stop: (jobId: string) => `${API_URL()}jobs/${jobId}/stop`,
   GetEvalImages: (jobId: string) => `${API_URL()}jobs/${jobId}/get_eval_images`,
   GetEvalImage: (jobId: string, filename: string) =>

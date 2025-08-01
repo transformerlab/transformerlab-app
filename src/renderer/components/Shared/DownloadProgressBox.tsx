@@ -27,9 +27,15 @@ const getStatusIcon = (status) => {
   }
 };
 
-export default function DownloadProgressBox({ jobId, assetName }) {
+export default function DownloadProgressBox({
+  jobId,
+  assetName,
+  experimentId,
+}) {
   const { data: downloadProgress } = useSWR(
-    jobId && jobId !== '-1' ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
+    jobId && jobId !== '-1'
+      ? chatAPI.Endpoints.Jobs.Get(experimentId, jobId)
+      : null,
     fetcher,
     { refreshInterval: 2000 },
   );

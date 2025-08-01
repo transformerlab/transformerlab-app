@@ -6,6 +6,7 @@ import { Box, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from 'renderer/lib/api-client/urls';
 import OutputTerminal from 'renderer/components/OutputTerminal';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -30,8 +31,11 @@ export default function ViewOutputModalStreaming({
   jobId,
   setJobId,
 }: ViewOutputModalStreamingProps) {
+  const { experimentInfo } = useExperimentInfo();
   const { data: jobDetails } = useSWR<JobDetails>(
-    jobId && jobId !== -1 ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
+    jobId && jobId !== -1
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
+      : null,
     fetcher,
     { refreshInterval: 2000 },
   );

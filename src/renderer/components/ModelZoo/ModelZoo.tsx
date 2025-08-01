@@ -72,7 +72,7 @@ export default function ModelZoo({ tab = 'store' }) {
             flex: 1,
           }}
         >
-          <ModelGroups />
+          <ModelGroups experimentInfo={experimentInfo} />
         </TabPanel>
       </Tabs>
     </Sheet>
