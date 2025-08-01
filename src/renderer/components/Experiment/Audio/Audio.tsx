@@ -120,7 +120,6 @@ export default function Audio() {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        bgcolor: 'background.surface',
         overflow: 'hidden',
       }}
     >
@@ -131,12 +130,9 @@ export default function Audio() {
           justifyContent: 'space-between',
           alignItems: 'center',
           p: 2,
-          borderBottom: '1px solid',
-          borderColor: 'background.level2',
-          bgcolor: 'background.surface',
         }}
       >
-        <Typography level="h4">Text to Speech</Typography>
+        <Typography level="h2">Text to Speech</Typography>
         <Typography level="body-sm">{currentModel}</Typography>
       </Box>
 
@@ -147,9 +143,6 @@ export default function Audio() {
           sx={{
             width: 300,
             p: 3,
-            borderRight: '1px solid',
-            borderColor: 'background.level2',
-            bgcolor: 'background.surface',
             overflowY: 'auto',
           }}
         >
@@ -182,7 +175,6 @@ export default function Audio() {
             display: 'flex',
             flexDirection: 'column',
             p: 3,
-            bgcolor: 'background.surface',
           }}
         >
           {/* Large text input area at the top */}
@@ -198,11 +190,6 @@ export default function Audio() {
                 borderRadius: 'md',
                 fontSize: 'md',
                 lineHeight: 'md',
-                borderColor: 'background.level3',
-                '&:hover, &:focus-within': {
-                  borderColor: 'primary.plainActiveBorder',
-                  boxShadow: 'md',
-                },
               }}
             />
           </FormControl>

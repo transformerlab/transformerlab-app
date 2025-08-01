@@ -301,27 +301,12 @@ export default function ExportModal({
       if (pluginParams.outtype) qType = pluginParams.outtype as string;
       else if (pluginParams.q_bits) qType = `${pluginParams.q_bits}bit`;
 
-      // Determine plugin architecture (this would ideally come from the plugin config)
-      const pluginArchitecture = 'GGUF'; // Default, should be extracted from plugin metadata
-
-      let outputModelId = `${pluginArchitecture}-${inputModelIdWithoutAuthor}-${conversionTime}`;
-      if (qType) outputModelId += `-${qType}`;
-
-      if (pluginArchitecture === 'GGUF') {
-        outputModelId = `${inputModelIdWithoutAuthor}-${conversionTime}${qType ? `-${qType}` : ''}.gguf`;
-      }
-
+      // Only send required fields to backend
       const exportConfig = {
         plugin_name: pluginId,
         input_model_id: inputModelId,
         input_model_path: expConfig.foundation_filename || inputModelId,
         input_model_architecture: expConfig.foundation_model_architecture,
-        output_model_id: outputModelId,
-        output_model_architecture: pluginArchitecture,
-        output_model_name: `${inputModelIdWithoutAuthor} - ${pluginArchitecture}${qType ? ` - ${qType}` : ''}`,
-        output_model_path: `/models/${outputModelId}`,
-        output_filename: pluginArchitecture === 'GGUF' ? outputModelId : '',
-        script_directory: `/plugins/${pluginId}`,
         params: pluginParams,
         run_name: formJson.template_name,
       };
@@ -331,14 +316,10 @@ export default function ExportModal({
         input_model_path: expConfig.foundation_filename || inputModelId,
         input_model_architecture: expConfig.foundation_model_architecture,
         plugin_name: pluginId,
-        plugin_architecture: pluginArchitecture,
       });
 
-      const outputs = JSON.stringify({
-        exported_model_path: `/models/${outputModelId}`,
-        output_model_id: outputModelId,
-        export_status: 'pending',
-      });
+      // Outputs: keep for UI, but do not send to backend (can be empty or minimal)
+      const outputs = JSON.stringify({});
 
       if (currentExportId && currentExportId !== '') {
         await updateTask(
