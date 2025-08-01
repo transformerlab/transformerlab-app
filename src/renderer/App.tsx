@@ -121,6 +121,7 @@ function AppContent({
             flexDirection: 'row',
             justifyContent: 'space-between',
             height: '18px',
+            lineHeight: '18px',
           }}
         >
           <div>&nbsp;</div>

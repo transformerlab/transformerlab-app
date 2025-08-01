@@ -31,26 +31,14 @@ function formatExportConfig(config: any): ReactElement {
   }
 
   const pluginName = config.plugin_name || 'N/A';
-  const outputModelArchitecture = config.output_model_architecture || 'N/A';
-  const params = config.params || {};
-
-  // Extract quantization info if available
-  let quantization = '';
-  if (params.outtype) {
-    quantization = params.outtype;
-  } else if (params.q_bits) {
-    quantization = `${params.q_bits}bit`;
-  }
+  const inputModelId = config.input_model_id || 'N/A';
 
   return (
     <>
-      <b>Format:</b> {outputModelArchitecture} <br />
       <b>Plugin:</b> {pluginName} <br />
-      {quantization && (
-        <>
-          <b>Quantization:</b> {quantization} <br />
-        </>
-      )}
+      <>
+        <b>Input Model:</b> {inputModelId} <br />
+      </>
     </>
   );
 }
