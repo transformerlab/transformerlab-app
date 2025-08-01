@@ -15,6 +15,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { ChevronLeftIcon, ChevronRightIcon, Sheet } from 'lucide-react';
 import useSWR from 'swr';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useNotification } from '../Shared/NotificationSystem';
 
 const fetcher = (url) =>
   fetch(url)
@@ -39,6 +40,7 @@ const DatasetTableWithTemplate = ({
   };
 
   const shouldUseChatTemplate = !!modelName && !!chatColumn;
+  const { addNotification } = useNotification();
 
   const {
     data: result,
@@ -72,6 +74,12 @@ const DatasetTableWithTemplate = ({
   if (!result?.data?.rows) {
     if (isLoading) {
       return <LinearProgress />;
+    }
+    if (result?.status === 'error') {
+      addNotification({
+        type: 'warning',
+        message: result?.message,
+      });
     }
     return '';
   }
