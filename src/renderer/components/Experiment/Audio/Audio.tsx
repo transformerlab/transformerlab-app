@@ -22,8 +22,8 @@ import {
   DialogTitle,
 } from '@mui/joy';
   
-const audioFormats = ['wav', 'mp3', 'ogg'];
-const sampleRates = [16000, 22050, 44100, 48000];
+const audioFormats = ['wav', 'flac', 'ogg'];
+const sampleRates = [16000, 22050, 24000, 44100, 48000];
 
 export async function sendAndReceiveAudioPath(
   currentModel: string,
@@ -88,7 +88,7 @@ export default function Audio() {
   const [stream, setStream] = React.useState(false);
   const [filePrefix, setFilePrefix] = React.useState('output_audio');
   const [audioFormat, setAudioFormat] = React.useState(audioFormats[0]);
-  const [sampleRate, setSampleRate] = React.useState(sampleRates[0]);
+  const [sampleRate, setSampleRate] = React.useState(24000);
   const [temperature, setTemperature] = React.useState(0.7);
   
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
@@ -251,12 +251,20 @@ export default function Audio() {
 
       {/* The Modal for All Generation Settings */}
       <Modal open={showSettingsModal} onClose={() => setShowSettingsModal(false)}>
-        <ModalDialog layout="center" variant="outlined" sx={{ minWidth: 500 }}>
+        <ModalDialog variant="outlined" sx={{ minWidth: 400, minHeight: 300 }}>
           <ModalClose />
           <DialogTitle>Generation Settings</DialogTitle>
-          <Stack spacing={2} sx={{ py: 2 }}>
+          <Stack spacing={3} sx={{ py: 2 }}>
+            
+            {/* Sample Rate */}
+            <FormControl>
+              <FormLabel>Sample Rate</FormLabel>
+              <Select value={String(sampleRate)} onChange={(_, v) => setSampleRate(Number(v!))}>
+                {sampleRates.map(rate => <Option key={rate} value={String(rate)}>{rate} Hz</Option>)}
+              </Select>
+            </FormControl>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
               <FormControl>
                 <FormLabel>Temperature: <b>{temperature.toFixed(1)}</b></FormLabel>
                 <Slider
@@ -283,14 +291,6 @@ export default function Audio() {
                 />
               </FormControl>
             </Box>
-
-
-            <FormControl>
-              <FormLabel>Sample Rate</FormLabel>
-              <Select value={sampleRate} onChange={(_, v) => setSampleRate(Number(v!))}>
-                {sampleRates.map(rate => <Option key={rate} value={rate}>{rate} Hz</Option>)}
-              </Select>
-            </FormControl>
               
             <FormControl orientation="horizontal" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
               <FormLabel sx={{ mb: 0 }}>Stream Output</FormLabel>
