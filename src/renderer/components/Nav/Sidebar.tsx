@@ -22,6 +22,7 @@ import {
   UserIcon,
   LogOutIcon,
   LogInIcon,
+  AudioLinesIcon,
 } from 'lucide-react';
 
 import { RiImageAiLine } from 'react-icons/ri';
@@ -151,7 +152,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
       <SubNavItem
         title="Audio"
         path="/experiment/audio"
-        icon={<WorkflowIcon />}
+        icon={<AudioLinesIcon />}
         disabled={!experimentInfo?.name}
       />
       <SubNavItem
