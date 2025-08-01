@@ -22,10 +22,6 @@ import {
   DialogTitle,
 } from '@mui/joy';
   
-const voices = [
-  'af_bella', 'af_heart', 'af_nicole', 'af_nova', 'af_sarah', 'af_sky',
-  'am_adam', 'am_michael', 'bf_emma', 'bf_isabella', 'bm_george', 'bm_lewis'
-];
 const audioFormats = ['wav', 'mp3', 'ogg'];
 const sampleRates = [16000, 22050, 44100, 48000];
 
@@ -37,7 +33,6 @@ export async function sendAndReceiveAudioPath(
   audio_format: string,
   sample_rate: number,
   temperature: number,
-  voice: string,
   speed: number
 ) {
   const data: any = {
@@ -48,7 +43,6 @@ export async function sendAndReceiveAudioPath(
     audio_format,
     sample_rate,
     temperature,
-    voice,
     speed,
   };
 
@@ -86,7 +80,6 @@ export default function Audio() {
   const currentModel = experimentInfo?.config?.foundation;
   
   const [text, setText] = React.useState('');
-  const [voice, setVoice] = React.useState(voices[0]);
   const [speed, setSpeed] = React.useState(1.0);
   const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -113,7 +106,6 @@ export default function Audio() {
       audioFormat,
       sampleRate,
       temperature,
-      voice,
       speed
     );
     
@@ -292,12 +284,6 @@ export default function Audio() {
               </FormControl>
             </Box>
 
-            <FormControl>
-              <FormLabel>Voice</FormLabel>
-              <Select value={voice} onChange={(_, v) => setVoice(v!)}>
-                {voices.map(v => <Option key={v} value={v}>{v}</Option>)}
-              </Select>
-            </FormControl>
 
             <FormControl>
               <FormLabel>Sample Rate</FormLabel>
