@@ -187,7 +187,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           title="Audio"
           path="/experiment/audio"
           icon={<AudioLinesIcon />}
-          disabled={!experimentInfo?.name}
+          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
       )}
       <SubNavItem
