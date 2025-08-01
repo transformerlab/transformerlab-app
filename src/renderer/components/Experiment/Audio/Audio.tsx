@@ -14,24 +14,42 @@ import {
   Stack,
   Slider,
   FormLabel,
+  Switch,
+  Input,
+  Modal,
+  ModalDialog,
+  ModalClose,
+  DialogTitle,
 } from '@mui/joy';
   
 const voices = [
   'af_bella', 'af_heart', 'af_nicole', 'af_nova', 'af_sarah', 'af_sky',
   'am_adam', 'am_michael', 'bf_emma', 'bf_isabella', 'bm_george', 'bm_lewis'
 ];
+const audioFormats = ['wav', 'mp3', 'ogg'];
+const sampleRates = [16000, 22050, 44100, 48000];
 
 export async function sendAndReceiveAudioPath(
   currentModel: string,
   text: any,
-  //voice: string,
-  //speed: number,
+  stream: boolean,
+  file_prefix: string,
+  audio_format: string,
+  sample_rate: number,
+  temperature: number,
+  voice: string,
+  speed: number
 ) {
   const data: any = {
     model: currentModel,
     text,
-    //voice,
-    //speed,
+    stream,
+    file_prefix,
+    audio_format,
+    sample_rate,
+    temperature,
+    voice,
+    speed,
   };
 
   let response;
@@ -74,13 +92,31 @@ export default function Audio() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
+  const [stream, setStream] = React.useState(false);
+  const [filePrefix, setFilePrefix] = React.useState('output_audio');
+  const [audioFormat, setAudioFormat] = React.useState(audioFormats[0]);
+  const [sampleRate, setSampleRate] = React.useState(sampleRates[0]);
+  const [temperature, setTemperature] = React.useState(0.7);
+  
+  const [showSettingsModal, setShowSettingsModal] = React.useState(false);
+
   const handleTTSGeneration = async () => {
     setIsLoading(true);
     setAudioUrl(null);
     setErrorMessage(null);
 
-    const result = await sendAndReceiveAudioPath(currentModel, text);
-
+    const result = await sendAndReceiveAudioPath(
+      currentModel,
+      text,
+      stream,
+      filePrefix,
+      audioFormat,
+      sampleRate,
+      temperature,
+      voice,
+      speed
+    );
+    
     if (result && result.messages) {
       setAudioUrl(result.messages);
     } else {
@@ -89,8 +125,6 @@ export default function Audio() {
 
     setIsLoading(false);
   };
-  
-
   return (
     <Box
       sx={{
@@ -133,23 +167,29 @@ export default function Audio() {
         >
           <Stack spacing={3}>
             <FormControl>
-              <FormLabel>Voice</FormLabel>
-              <Select value={voice} onChange={(_, v) => setVoice(v!)}>
-                {voices.map(v => <Option key={v} value={v}>{v}</Option>)}
+              <FormLabel>Output File Name</FormLabel>
+              <Input
+                value={filePrefix}
+                onChange={(e) => setFilePrefix(e.target.value)}
+                placeholder="e.g., my_speech_file"
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Audio Format</FormLabel>
+              <Select value={audioFormat} onChange={(_, v) => setAudioFormat(v!)}>
+                {audioFormats.map(format => <Option key={format} value={format}>{format}</Option>)}
               </Select>
             </FormControl>
 
             <FormControl>
-              <FormLabel>Speech Speed: <b>{speed}x</b></FormLabel>
-              <Slider
-                aria-label="Speech Speed"
-                value={speed}
-                onChange={(_, v) => setSpeed(v as number)}
-                min={0.5}
-                max={2.0}
-                step={0.1}
-                valueLabelDisplay="auto"
-              />
+              <Button
+                variant="soft"
+                onClick={() => setShowSettingsModal(true)}
+                sx={{ width: '100%' }}
+              >
+                All Generation Settings
+              </Button>
             </FormControl>
           </Stack>
         </Sheet>
@@ -199,7 +239,6 @@ export default function Audio() {
               </Button>
             </Stack>
 
-            {/* Display audio player and message when audioUrl is not null */}
             {audioUrl && (
               <Box sx={{ width: '100%' }}>
                 <Typography level="body-sm" sx={{ mb: 1 }}>
@@ -217,6 +256,68 @@ export default function Audio() {
           </Box>
         </Box>
       </Box>
+
+      {/* The Modal for All Generation Settings */}
+      <Modal open={showSettingsModal} onClose={() => setShowSettingsModal(false)}>
+        <ModalDialog layout="center" variant="outlined" sx={{ minWidth: 500 }}>
+          <ModalClose />
+          <DialogTitle>Generation Settings</DialogTitle>
+          <Stack spacing={2} sx={{ py: 2 }}>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <FormControl>
+                <FormLabel>Temperature: <b>{temperature.toFixed(1)}</b></FormLabel>
+                <Slider
+                  aria-label="Temperature"
+                  value={temperature}
+                  onChange={(_, v) => setTemperature(v as number)}
+                  min={0.0}
+                  max={1.0}
+                  step={0.1}
+                  valueLabelDisplay="auto"
+                />
+              </FormControl>
+
+              <FormControl>
+                <FormLabel>Speech Speed: <b>{speed}x</b></FormLabel>
+                <Slider
+                  aria-label="Speech Speed"
+                  value={speed}
+                  onChange={(_, v) => setSpeed(v as number)}
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  valueLabelDisplay="auto"
+                />
+              </FormControl>
+            </Box>
+
+            <FormControl>
+              <FormLabel>Voice</FormLabel>
+              <Select value={voice} onChange={(_, v) => setVoice(v!)}>
+                {voices.map(v => <Option key={v} value={v}>{v}</Option>)}
+              </Select>
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Sample Rate</FormLabel>
+              <Select value={sampleRate} onChange={(_, v) => setSampleRate(Number(v!))}>
+                {sampleRates.map(rate => <Option key={rate} value={rate}>{rate} Hz</Option>)}
+              </Select>
+            </FormControl>
+              
+            <FormControl orientation="horizontal" sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+              <FormLabel sx={{ mb: 0 }}>Stream Output</FormLabel>
+              <Switch
+                checked={stream}
+                onChange={(event) => setStream(event.target.checked)}
+                size="md"
+              />
+            </FormControl>
+
+          </Stack>
+        </ModalDialog>
+      </Modal>
     </Box>
   );
 }
