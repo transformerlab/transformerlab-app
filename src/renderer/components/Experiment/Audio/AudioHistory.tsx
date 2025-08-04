@@ -11,8 +11,10 @@ import {
 import { DownloadIcon, Trash2Icon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import AudioPlayer from '../../Data/AudioPlayer';
+import { mutate } from 'swr';
 
 interface AudioHistoryItem {
+  id: string; // Added id property
   type: string;
   text: string;
   filename: string;
@@ -27,10 +29,11 @@ interface AudioHistoryItem {
 interface AudioHistoryProps {
   audioHistory: AudioHistoryItem[];
   experimentId: string;
+  mutateHistory: () => void;
 }
 
 const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
-  ({ audioHistory, experimentId }, ref) => {
+  ({ audioHistory, experimentId, mutateHistory }, ref) => {
     return (
       <Sheet
         ref={ref}
@@ -109,7 +112,31 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                   Temp: {item.temperature}
                 </Chip>
                 <Box sx={{ flex: 1 }} />
-                <IconButton size="sm" color="neutral" sx={{ ml: 1 }}>
+                <IconButton
+                  size="sm"
+                  color="neutral"
+                  sx={{ ml: 1 }}
+                  onClick={async () => {
+                    if (
+                      window.confirm(
+                        'Are you sure you want to delete this audio file?',
+                      )
+                    ) {
+                      const deleteURL = getAPIFullPath(
+                        'conversations',
+                        ['deleteAudioFile'],
+                        {
+                          id: item.id,
+                          experimentId,
+                        },
+                      );
+                      await fetch(deleteURL, {
+                        method: 'DELETE',
+                      });
+                      mutateHistory();
+                    }
+                  }}
+                >
                   <Trash2Icon size={18} />
                 </IconButton>
               </Box>

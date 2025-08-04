@@ -286,6 +286,7 @@ export default function Audio() {
             ref={audioHistoryRef}
             audioHistory={audioHistory || []}
             experimentId={experimentInfo?.id}
+            mutateHistory={mutateHistory}
           />
         </Box>
       </Box>
