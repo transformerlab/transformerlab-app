@@ -8,7 +8,7 @@ import {
   Sheet,
   IconButton,
 } from '@mui/joy';
-import { DownloadIcon } from 'lucide-react';
+import { DownloadIcon, Trash2Icon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import AudioPlayer from '../../Data/AudioPlayer';
 
@@ -65,8 +65,8 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                     &quot;
                   </Typography>
                   {/* <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
-                  {item.filename}
-                </Typography> */}
+                {item.filename}
+              </Typography> */}
                 </Box>
               </Box>
 
@@ -108,6 +108,10 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                 <Chip size="sm" variant="soft" color="neutral">
                   Temp: {item.temperature}
                 </Chip>
+                <Box sx={{ flex: 1 }} />
+                <IconButton size="sm" color="neutral" sx={{ ml: 1 }}>
+                  <Trash2Icon size={18} />
+                </IconButton>
               </Box>
             </ListItem>
           ))}
