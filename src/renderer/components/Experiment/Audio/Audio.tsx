@@ -233,18 +233,6 @@ export default function Audio() {
               </Button>
             </Stack>
 
-            {audioUrl && (
-              <Box sx={{ width: '100%' }}>
-                <Typography level="body-sm" sx={{ mb: 1 }}>
-                  Generated audio file:{' '}
-                  <a href={audioUrl} target="_blank">
-                    {audioUrl}
-                  </a>
-                </Typography>
-                <audio controls src={audioUrl} style={{ width: '100%' }} />
-              </Box>
-            )}
-
             {errorMessage && (
               <Typography level="body-sm" color="danger">
                 {errorMessage}
