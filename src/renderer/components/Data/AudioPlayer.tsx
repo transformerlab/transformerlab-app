@@ -21,7 +21,6 @@ interface AudioPlayerProps {
 }
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioData, metadata }) => {
-  const [isPlaying, setIsPlaying] = React.useState(false);
   const [wavesurfer, setWavesurfer] = React.useState<WaveSurfer | null>(null);
   const waveformRef = React.useRef<HTMLDivElement>(null);
   const isDestroyedRef = React.useRef(false);
@@ -35,7 +34,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioData, metadata }) => {
         // progressColor: '#7c3aed',
         cursorColor: 'var(--joy-palette-primary-400)',
         height: 60,
-        responsive: true,
         normalize: true,
         barWidth: 3,
         barGap: 2,
@@ -46,22 +44,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioData, metadata }) => {
       });
 
       ws.load(audioData.audio_data_url);
-
-      ws.on('play', () => {
-        if (!isDestroyedRef.current) {
-          setIsPlaying(true);
-        }
-      });
-      ws.on('pause', () => {
-        if (!isDestroyedRef.current) {
-          setIsPlaying(false);
-        }
-      });
-      ws.on('finish', () => {
-        if (!isDestroyedRef.current) {
-          setIsPlaying(false);
-        }
-      });
 
       setWavesurfer(ws);
 

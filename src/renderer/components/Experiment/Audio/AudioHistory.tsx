@@ -33,29 +33,6 @@ const AudioHistory: React.FC<AudioHistoryProps> = ({
   audioHistory,
   experimentId,
 }) => {
-  const handleDownloadAudio = (filename: string) => {
-    const url = getAPIFullPath('conversations', ['downloadAudioFile'], {
-      experimentId,
-      filename,
-    });
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  if (!audioHistory || audioHistory.length === 0) {
-    return (
-      <Sheet variant="outlined" sx={{ p: 2, borderRadius: 'md' }}>
-        <Typography level="body-sm" color="neutral">
-          No audio history available
-        </Typography>
-      </Sheet>
-    );
-  }
-
   return (
     <Sheet
       variant="plain"
@@ -78,29 +55,20 @@ const AudioHistory: React.FC<AudioHistoryProps> = ({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',
-                mb: 2,
               }}
             >
               <Box sx={{ flex: 1, mr: 2 }}>
-                <Typography
-                  level="body-md"
-                  sx={{ fontWeight: 'bold', mb: 0.5 }}
-                >
-                  &quot;{item.text}&quot;
+                <Typography level="body-md" sx={{ mb: 0.5 }}>
+                  &quot;
+                  {item.text.length > 300
+                    ? `${item.text.slice(0, 300)}…`
+                    : item.text}
+                  &quot;
                 </Typography>
                 {/* <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
                   {item.filename}
                 </Typography> */}
               </Box>
-
-              <IconButton
-                size="sm"
-                variant="soft"
-                color="neutral"
-                onClick={() => handleDownloadAudio(item.filename)}
-              >
-                <DownloadIcon />
-              </IconButton>
             </Box>
 
             {/* Audio Player */}

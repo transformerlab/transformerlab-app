@@ -143,13 +143,13 @@ export default function Audio() {
       </Box>
 
       {/* Main content area, split into sidebar and main panel */}
-      <Box sx={{ display: 'flex', flexGrow: 1, minHeight: 0 }}>
+      <Box sx={{ display: 'flex', minHeight: 0 }}>
         {/* Left-hand Settings Sidebar */}
         <Sheet
           sx={{
-            width: 300,
-            p: 3,
+            p: 1,
             overflowY: 'auto',
+            minWidth: '220px',
           }}
         >
           <Stack spacing={3}>
@@ -177,10 +177,10 @@ export default function Audio() {
         {/* Right-hand Main Panel for Input/Output */}
         <Box
           sx={{
-            flexGrow: 1,
             display: 'flex',
             flexDirection: 'column',
-            p: 3,
+            p: 1,
+            width: '100%',
           }}
         >
           <AudioHistory
@@ -204,7 +204,14 @@ export default function Audio() {
           </FormControl>
 
           {/* Controls and output below the text input */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              mt: 2,
+            }}
+          >
             <Stack direction="row" spacing={1} sx={{ alignSelf: 'flex-start' }}>
               <Button
                 color="primary"
