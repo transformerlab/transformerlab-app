@@ -78,9 +78,13 @@ export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
 
-  const { data: audioHistory } = useAPI('conversations', ['getAudioHistory'], {
-    experimentId: experimentInfo?.id,
-  });
+  const { data: audioHistory, mutate: mutateHistory } = useAPI(
+    'conversations',
+    ['getAudioHistory'],
+    {
+      experimentId: experimentInfo?.id,
+    },
+  );
 
   const [text, setText] = React.useState('');
   const [speed, setSpeed] = React.useState(1.0);
@@ -94,6 +98,8 @@ export default function Audio() {
   const [temperature, setTemperature] = React.useState(0.7);
 
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
+
+  const audioHistoryRef = React.useRef<HTMLDivElement>(null);
 
   const handleTTSGeneration = async () => {
     setIsLoading(true);
@@ -119,6 +125,12 @@ export default function Audio() {
     }
 
     setIsLoading(false);
+    mutateHistory();
+
+    // Scroll AudioHistory to the top after generation
+    if (audioHistoryRef.current) {
+      audioHistoryRef.current.scrollTop = 0;
+    }
   };
   return (
     <Box
@@ -183,22 +195,20 @@ export default function Audio() {
             width: '100%',
           }}
         >
-          <AudioHistory
-            audioHistory={audioHistory}
-            experimentId={experimentInfo?.id}
-          />
           {/* Large text input area at the top */}
-          <FormControl sx={{ flexGrow: 1 }}>
-            <Textarea
+          <FormControl sx={{ flexGrow: 1, mt: 1 }}>
+            <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Enter your text here for speech generation..."
-              sx={{
+              style={{
                 minHeight: '100px',
-                p: 2,
-                borderRadius: 'md',
-                fontSize: 'md',
-                lineHeight: 'md',
+                padding: '16px',
+                borderRadius: '8px',
+                fontSize: '16px',
+                lineHeight: '1.5',
+                maxHeight: '200px',
+                overflowY: 'auto',
               }}
             />
           </FormControl>
@@ -209,7 +219,7 @@ export default function Audio() {
               display: 'flex',
               flexDirection: 'column',
               gap: 2,
-              mt: 2,
+              my: 2,
             }}
           >
             <Stack direction="row" spacing={1} sx={{ alignSelf: 'flex-start' }}>
@@ -241,6 +251,11 @@ export default function Audio() {
               </Typography>
             )}
           </Box>
+          <AudioHistory
+            ref={audioHistoryRef}
+            audioHistory={audioHistory || []}
+            experimentId={experimentInfo?.id}
+          />
         </Box>
       </Box>
 
