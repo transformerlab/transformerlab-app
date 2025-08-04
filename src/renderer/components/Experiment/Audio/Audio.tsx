@@ -21,6 +21,8 @@ import {
   ModalClose,
   DialogTitle,
 } from '@mui/joy';
+import { useAPI } from '../../../lib/transformerlab-api-sdk';
+import AudioHistory from './AudioHistory';
 
 const sampleRates = [16000, 22050, 24000, 44100, 48000];
 
@@ -75,6 +77,10 @@ export async function sendAndReceiveAudioPath(
 export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
+
+  const { data: audioHistory } = useAPI('conversations', ['getAudioHistory'], {
+    experimentId: experimentInfo?.id,
+  });
 
   const [text, setText] = React.useState('');
   const [speed, setSpeed] = React.useState(1.0);
@@ -177,6 +183,10 @@ export default function Audio() {
             p: 3,
           }}
         >
+          <AudioHistory
+            audioHistory={audioHistory}
+            experimentId={experimentInfo?.id}
+          />
           {/* Large text input area at the top */}
           <FormControl sx={{ flexGrow: 1 }}>
             <Textarea
@@ -184,7 +194,6 @@ export default function Audio() {
               onChange={(e) => setText(e.target.value)}
               placeholder="Enter your text here for speech generation..."
               sx={{
-                height: '100%',
                 minHeight: '100px',
                 p: 2,
                 borderRadius: 'md',

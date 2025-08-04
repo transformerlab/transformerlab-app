@@ -242,5 +242,15 @@
       "method": "GET",
       "path": "train/job/{job_id}/sweep_results"
     }
+  },
+  "conversations": {
+    "getAudioHistory": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/conversations/list_audio"
+    },
+    "downloadAudioFile": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/conversations/download_audio?filename={filename}"
+    }
   }
 }
