@@ -147,7 +147,8 @@ export default function Audio() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          p: 2,
+          p: 1,
+          mb: 2,
         }}
       >
         <Typography level="h2">Text to Speech</Typography>
@@ -160,28 +161,70 @@ export default function Audio() {
         <Sheet
           sx={{
             p: 1,
+            pr: 2,
             overflowY: 'auto',
             minWidth: '220px',
           }}
         >
-          <Stack spacing={3}>
+          <Typography level="title-lg" sx={{ mb: 1 }}>
+            Generation Settings:
+          </Typography>
+          <Stack spacing={3} sx={{ py: 2 }}>
+            {/* Sample Rate */}
             <FormControl>
-              <FormLabel>Output File Name</FormLabel>
-              <Input
-                value={filePrefix}
-                onChange={(e) => setFilePrefix(e.target.value)}
-                placeholder="e.g., my_speech_file"
+              <FormLabel>Sample Rate</FormLabel>
+              <Select
+                value={String(sampleRate)}
+                onChange={(_, v) => setSampleRate(Number(v!))}
+              >
+                {sampleRates.map((rate) => (
+                  <Option key={rate} value={String(rate)}>
+                    {rate} Hz
+                  </Option>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>
+                Temperature: <b>{temperature.toFixed(1)}</b>
+              </FormLabel>
+              <Slider
+                aria-label="Temperature"
+                value={temperature}
+                onChange={(_, v) => setTemperature(v as number)}
+                min={0.0}
+                max={1.0}
+                step={0.1}
+                valueLabelDisplay="auto"
               />
             </FormControl>
 
             <FormControl>
-              <Button
-                variant="soft"
-                onClick={() => setShowSettingsModal(true)}
-                sx={{ width: '100%' }}
-              >
-                All Generation Settings
-              </Button>
+              <FormLabel>
+                Speech Speed: <b>{speed}x</b>
+              </FormLabel>
+              <Slider
+                aria-label="Speech Speed"
+                value={speed}
+                onChange={(_, v) => setSpeed(v as number)}
+                min={0.5}
+                max={2.0}
+                step={0.1}
+                valueLabelDisplay="auto"
+              />
+            </FormControl>
+
+            <FormControl
+              orientation="horizontal"
+              sx={{ justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <FormLabel sx={{ mb: 0 }}>Stream Output</FormLabel>
+              <Switch
+                checked={stream}
+                onChange={(event) => setStream(event.target.checked)}
+                size="md"
+              />
             </FormControl>
           </Stack>
         </Sheet>
@@ -255,68 +298,6 @@ export default function Audio() {
         <ModalDialog variant="outlined" sx={{ minWidth: 400, minHeight: 300 }}>
           <ModalClose />
           <DialogTitle>Generation Settings</DialogTitle>
-          <Stack spacing={3} sx={{ py: 2 }}>
-            {/* Sample Rate */}
-            <FormControl>
-              <FormLabel>Sample Rate</FormLabel>
-              <Select
-                value={String(sampleRate)}
-                onChange={(_, v) => setSampleRate(Number(v!))}
-              >
-                {sampleRates.map((rate) => (
-                  <Option key={rate} value={String(rate)}>
-                    {rate} Hz
-                  </Option>
-                ))}
-              </Select>
-            </FormControl>
-
-            <Box
-              sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}
-            >
-              <FormControl>
-                <FormLabel>
-                  Temperature: <b>{temperature.toFixed(1)}</b>
-                </FormLabel>
-                <Slider
-                  aria-label="Temperature"
-                  value={temperature}
-                  onChange={(_, v) => setTemperature(v as number)}
-                  min={0.0}
-                  max={1.0}
-                  step={0.1}
-                  valueLabelDisplay="auto"
-                />
-              </FormControl>
-
-              <FormControl>
-                <FormLabel>
-                  Speech Speed: <b>{speed}x</b>
-                </FormLabel>
-                <Slider
-                  aria-label="Speech Speed"
-                  value={speed}
-                  onChange={(_, v) => setSpeed(v as number)}
-                  min={0.5}
-                  max={2.0}
-                  step={0.1}
-                  valueLabelDisplay="auto"
-                />
-              </FormControl>
-            </Box>
-
-            <FormControl
-              orientation="horizontal"
-              sx={{ justifyContent: 'space-between', alignItems: 'center' }}
-            >
-              <FormLabel sx={{ mb: 0 }}>Stream Output</FormLabel>
-              <Switch
-                checked={stream}
-                onChange={(event) => setStream(event.target.checked)}
-                size="md"
-              />
-            </FormControl>
-          </Stack>
         </ModalDialog>
       </Modal>
     </Box>
