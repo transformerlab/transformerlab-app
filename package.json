@@ -147,7 +147,8 @@
     "three": "^0.175.0",
     "tree-kill": "^1.2.2",
     "use-debounce": "^9.0.4",
-    "validator": "^13.7.0"
+    "validator": "^13.7.0",
+    "wavesurfer.js": "^7.10.1"
   },
   "devDependencies": {
     "@electron/notarize": "^2.1.0",
