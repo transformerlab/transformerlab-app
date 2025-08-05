@@ -45,7 +45,7 @@ export async function sendAndReceiveAudioPath(
 
   let response;
   try {
-    response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/tts`, {
+    response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/speech`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
