@@ -29,7 +29,6 @@ const sampleRates = [16000, 22050, 24000, 44100, 48000];
 export async function sendAndReceiveAudioPath(
   currentModel: string,
   text: any,
-  stream: boolean,
   file_prefix: string,
   sample_rate: number,
   temperature: number,
@@ -38,7 +37,6 @@ export async function sendAndReceiveAudioPath(
   const data: any = {
     model: currentModel,
     text: text,
-    stream: stream,
     file_prefix: file_prefix,
     sample_rate: sample_rate,
     temperature: temperature,
@@ -92,7 +90,6 @@ export default function Audio() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  const [stream, setStream] = React.useState(false);
   const [filePrefix, setFilePrefix] = React.useState('output_audio');
   const [sampleRate, setSampleRate] = React.useState(24000);
   const [temperature, setTemperature] = React.useState(0.7);
@@ -109,7 +106,6 @@ export default function Audio() {
     const result = await sendAndReceiveAudioPath(
       currentModel,
       text,
-      stream,
       filePrefix,
       sampleRate,
       temperature,
@@ -212,18 +208,6 @@ export default function Audio() {
                 max={2.0}
                 step={0.1}
                 valueLabelDisplay="auto"
-              />
-            </FormControl>
-
-            <FormControl
-              orientation="horizontal"
-              sx={{ justifyContent: 'space-between', alignItems: 'center' }}
-            >
-              <FormLabel sx={{ mb: 0 }}>Stream Output</FormLabel>
-              <Switch
-                checked={stream}
-                onChange={(event) => setStream(event.target.checked)}
-                size="md"
               />
             </FormControl>
           </Stack>
