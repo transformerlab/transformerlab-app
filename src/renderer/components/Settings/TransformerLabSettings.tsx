@@ -38,6 +38,26 @@ export default function TransformerLabSettings() {
   const [showExperimentalPlugins, setShowExperimentalPlugins] =
     React.useState(false);
   const [latticeMode, setLatticeMode] = React.useState(false);
+  const [showLatticeApiKey, setShowLatticeApiKey] = React.useState(false);
+  const [latticeIsSaving, setLatticeIsSaving] = React.useState(false);
+  const [latticeSaveStatus, setLatticeSaveStatus] = React.useState(''); // 'success', 'error', or ''
+
+  // Get Lattice API key and URL from config
+  const { data: latticeApiKey, mutate: latticeApiKeyMutate } = useAPI(
+    'config',
+    ['get'],
+    {
+      key: 'LATTICE_API_KEY',
+    },
+  );
+
+  const { data: latticeApiUrl, mutate: latticeApiUrlMutate } = useAPI(
+    'config',
+    ['get'],
+    {
+      key: 'LATTICE_API_URL',
+    },
+  );
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -323,6 +343,104 @@ export default function TransformerLabSettings() {
                   : 'Lattice mode is disabled. Enable to access Lattice features.'}
               </FormHelperText>
             </FormControl>
+
+            {/* Lattice API Configuration */}
+            {latticeMode && (
+              <>
+                <Divider sx={{ mt: 2, mb: 2 }} />
+                <Typography level="title-lg" marginBottom={2}>
+                  Lattice Configuration:
+                </Typography>
+                <FormControl sx={{ maxWidth: '500px', mb: 2 }}>
+                  <FormLabel>Lattice API URL</FormLabel>
+                  <Input
+                    name="latticeApiUrl"
+                    defaultValue={latticeApiUrl || ''}
+                    placeholder="Enter the Lattice API URL (e.g., http://localhost:8000)"
+                  />
+                </FormControl>
+                <FormControl sx={{ maxWidth: '500px', mb: 2 }}>
+                  <FormLabel>Lattice API Key</FormLabel>
+                  <Input
+                    name="latticeApiKey"
+                    defaultValue={latticeApiKey || ''}
+                    type={showLatticeApiKey ? 'text' : 'password'}
+                    placeholder="Enter your Lattice API key"
+                    endDecorator={
+                      <IconButton
+                        onClick={() => setShowLatticeApiKey(!showLatticeApiKey)}
+                      >
+                        {showLatticeApiKey ? <EyeOffIcon /> : <EyeIcon />}
+                      </IconButton>
+                    }
+                  />
+                </FormControl>
+
+                {/* Success/Error feedback */}
+                {latticeSaveStatus === 'success' && (
+                  <Alert color="success" sx={{ mb: 2 }}>
+                    Lattice configuration saved successfully!
+                  </Alert>
+                )}
+                {latticeSaveStatus === 'error' && (
+                  <Alert color="danger" sx={{ mb: 2 }}>
+                    Failed to save Lattice configuration. Please try again.
+                  </Alert>
+                )}
+
+                <Button
+                  loading={latticeIsSaving}
+                  onClick={async () => {
+                    setLatticeIsSaving(true);
+                    setLatticeSaveStatus('');
+
+                    try {
+                      const apiUrl =
+                        document.getElementsByName('latticeApiUrl')[0].value;
+                      const apiKey =
+                        document.getElementsByName('latticeApiKey')[0].value;
+
+                      // Save API URL
+                      await fetch(
+                        getAPIFullPath('config', ['set'], {
+                          key: 'LATTICE_API_URL',
+                          value: apiUrl,
+                        }),
+                      );
+
+                      // Save API Key
+                      await fetch(
+                        getAPIFullPath('config', ['set'], {
+                          key: 'LATTICE_API_KEY',
+                          value: apiKey,
+                        }),
+                      );
+
+                      latticeApiUrlMutate(apiUrl);
+                      latticeApiKeyMutate(apiKey);
+
+                      setLatticeSaveStatus('success');
+
+                      // Clear success message after 3 seconds
+                      setTimeout(() => {
+                        setLatticeSaveStatus('');
+                      }, 3000);
+                    } catch (error) {
+                      console.error(
+                        'Error saving Lattice configuration:',
+                        error,
+                      );
+                      setLatticeSaveStatus('error');
+                    } finally {
+                      setLatticeIsSaving(false);
+                    }
+                  }}
+                  sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-start' }}
+                >
+                  {latticeIsSaving ? 'Saving...' : 'Save'}
+                </Button>
+              </>
+            )}
           </TabPanel>
           <TabPanel
             value={1}

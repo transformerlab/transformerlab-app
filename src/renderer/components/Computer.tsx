@@ -4,7 +4,6 @@ import Sheet from '@mui/joy/Sheet';
 
 import {
   Box,
-  Button,
   Card,
   CardContent,
   FormControl,
@@ -38,15 +37,10 @@ import { FaLinux } from 'react-icons/fa6';
 
 import { formatBytes } from 'renderer/lib/utils';
 
-import {
-  useServerStats,
-  useAPI,
-  getAPIFullPath,
-} from 'renderer/lib/transformerlab-api-sdk';
+import { useServerStats, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useState, useEffect } from 'react';
 
 import { FaPython } from 'react-icons/fa';
-import LatticeLoginModal from './Computer/LatticeLoginModal';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
@@ -76,27 +70,17 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function Computer() {
   const [searchText, setSearchText] = useState('');
   const [latticeMode, setLatticeMode] = useState(false);
-  const [isLatticeLoginModalOpen, setIsLatticeLoginModalOpen] = useState(false);
 
   const { server, isLoading, isError } = useServerStats();
 
   const { data: pythonLibraries } = useAPI('server', ['pythonLibraries']);
 
-  // Get Lattice API key from config
-  const {
-    data: latticeApiKey,
-    isLoading: latticeApiKeyLoading,
-    mutate: latticeApiKeyMutate,
-  } = useAPI('config', ['get'], {
+  // Get Lattice API key and URL from config
+  const { data: latticeApiKey } = useAPI('config', ['get'], {
     key: 'LATTICE_API_KEY',
   });
 
-  // Get Lattice API URL from config
-  const {
-    data: latticeApiUrl,
-    isLoading: latticeApiUrlLoading,
-    mutate: latticeApiUrlMutate,
-  } = useAPI('config', ['get'], {
+  const { data: latticeApiUrl } = useAPI('config', ['get'], {
     key: 'LATTICE_API_URL',
   });
 
@@ -108,34 +92,6 @@ export default function Computer() {
     };
     fetchLatticeMode();
   }, []);
-
-  const handleLatticeLogin = async (apiKey: string, apiUrl: string) => {
-    try {
-      // Save the API key to server config
-      await fetch(
-        getAPIFullPath('config', ['set'], {
-          key: 'LATTICE_API_KEY',
-          value: apiKey,
-        }),
-      );
-
-      // Save the API URL to server config
-      await fetch(
-        getAPIFullPath('config', ['set'], {
-          key: 'LATTICE_API_URL',
-          value: apiUrl,
-        }),
-      );
-
-      // Update the local state
-      latticeApiKeyMutate(apiKey);
-      latticeApiUrlMutate(apiUrl);
-      // You can add additional logic here to test the API key or make a login request
-    } catch (error) {
-      console.error('Failed to save Lattice configuration:', error);
-    }
-  };
-
   return (
     <Sheet
       sx={{
@@ -156,6 +112,9 @@ export default function Computer() {
         <TabList>
           <Tab>Server Information</Tab>
           <Tab>Python Libraries</Tab>
+          {latticeMode && latticeApiKey && latticeApiUrl && (
+            <Tab>Cloud Compute</Tab>
+          )}
         </TabList>
         <TabPanel
           value={0}
@@ -178,37 +137,6 @@ export default function Computer() {
               <Typography level="h2" paddingBottom={1}>
                 Server Information
               </Typography>
-              {/* Login to Lattice Button */}
-              <Box sx={{ mb: 2 }}>
-                <Button
-                  variant="soft"
-                  disabled={!latticeMode}
-                  onClick={() => setIsLatticeLoginModalOpen(true)}
-                  sx={{ mb: 1 }}
-                >
-                  {latticeApiKey
-                    ? 'Update Lattice API Key'
-                    : 'Login to Lattice'}
-                </Button>
-                {!latticeMode && (
-                  <Typography level="body-sm" color="neutral">
-                    Enable Lattice Mode in Settings to use this feature
-                  </Typography>
-                )}
-                {latticeMode && latticeApiKey && latticeApiUrl && (
-                  <Typography level="body-sm" color="success">
-                    Lattice API key and URL are configured
-                  </Typography>
-                )}
-                {latticeMode &&
-                  (latticeApiKey || latticeApiUrl) &&
-                  !(latticeApiKey && latticeApiUrl) && (
-                    <Typography level="body-sm" color="warning">
-                      Lattice configuration incomplete (missing{' '}
-                      {!latticeApiKey ? 'API key' : 'API URL'})
-                    </Typography>
-                  )}
-              </Box>
               <Sheet
                 className="OrderTableContainer"
                 sx={{
@@ -559,16 +487,35 @@ export default function Computer() {
             )}
           </Sheet>
         </TabPanel>
-      </Tabs>
 
-      {/* Lattice Login Modal */}
-      <LatticeLoginModal
-        open={isLatticeLoginModalOpen}
-        onClose={() => setIsLatticeLoginModalOpen(false)}
-        onSave={handleLatticeLogin}
-        existingApiKey={latticeApiKey || ''}
-        existingApiUrl={latticeApiUrl || ''}
-      />
+        {/* Cloud Compute Tab - only show when Lattice is configured */}
+        {latticeMode && latticeApiKey && latticeApiUrl && (
+          <TabPanel
+            value={2}
+            style={{
+              height: '100%',
+              overflow: 'auto',
+            }}
+          >
+            <Sheet
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '90%',
+                overflow: 'hidden',
+                gap: '1rem',
+              }}
+            >
+              <Typography level="h2" paddingTop={0}>
+                Cloud Compute
+              </Typography>
+              <Typography level="body-md">
+                This is a placeholder for the Lattice cloud compute interface.
+              </Typography>
+            </Sheet>
+          </TabPanel>
+        )}
+      </Tabs>
     </Sheet>
   );
 }
