@@ -190,6 +190,16 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
       )}
+      {/* Show Audio tab only if pipelineTag is text-to-speech */}
+
+{/* {pipelineTag === 'speech-to-text' && ( */}
+        <SubNavItem
+          title="Audio"
+          path="/experiment/audio-stt"
+          icon={<AudioLinesIcon />}
+          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
+        />
+      {/* )} */}
       <SubNavItem
         title="Workflows"
         path="/experiment/workflows"
