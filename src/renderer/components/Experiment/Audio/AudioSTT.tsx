@@ -1,0 +1,223 @@
+
+import * as React from 'react';
+import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+
+import {
+  Sheet,
+  FormControl,
+  Button,
+  Typography,
+  Box,
+  Select,
+  Option,
+  Textarea,
+  Stack,
+  Slider,
+  FormLabel,
+  Switch,
+  Input,
+  Modal,
+  ModalDialog,
+  ModalClose,
+  DialogTitle,
+} from '@mui/joy';
+import { useAPI } from '../../../lib/transformerlab-api-sdk';
+import AudioHistory from './AudioHistory';
+
+
+export async function sendAndReceiveTranscription(
+  currentModel: string,
+  audioPath: string,
+  //format: string,
+) {
+  const data: any = {
+    model: currentModel,
+    audioPath: audioPath,
+  };
+
+  let response;
+  try {
+    response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/transcriptions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+  } catch (error) {
+    console.log('Exception accessing Audio API:', error);
+    alert('Network connection error');
+    return null;
+  }
+
+  if (!response.ok) {
+    const response_json = await response.json();
+    console.log('Audio API response:', response_json);
+    const error_text = `Audio API Error
+      HTTP Error Code: ${response?.status}
+      ${response_json?.message}`;
+    console.log(error_text);
+    alert(error_text);
+    return null;
+  }
+  return await response.json();
+}
+
+export default function Audio() {
+  const { experimentInfo } = useExperimentInfo();
+  const currentModel = experimentInfo?.config?.foundation;
+
+
+  const { data: audioHistory, mutate: mutateHistory } = useAPI(
+    'conversations',
+    ['getAudioHistory'],
+    {
+      experimentId: experimentInfo?.id,
+    },
+  );
+
+
+  // Audio upload state and handler
+const [inputAudio, setInputAudio] = React.useState('');
+const [audioPath, setAudioPath] = React.useState<string | null>(null);
+const handleAudioUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setInputAudio(result);
+    };
+    reader.readAsDataURL(file);
+  }
+};
+const handleRemoveAudio = () => {
+  setInputAudio('');
+};
+  const [transcription, setTranscription] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+
+  const transcriptionHistoryRef = React.useRef<HTMLDivElement>(null);
+
+  const handleSTTGeneration = async () => {
+    setIsLoading(true);
+    setTranscription(null);
+    setErrorMessage(null);
+
+    const result = await sendAndReceiveTranscription(
+      currentModel,
+      audioPath,
+    );
+
+    if (result && result.messages) {
+      setTranscription(result.messages);
+    } else {
+      setErrorMessage(
+        result?.message || 'Something went wrong. No transcription received.',
+      );
+    }
+
+    setIsLoading(false);
+    mutateHistory();
+
+    // Scroll AudioHistory to the top after generation
+    if (transcriptionHistoryRef.current) {
+      transcriptionHistoryRef.current.scrollTop = 0;
+    }
+  };
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Top Header */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 1,
+          mb: 2,
+        }}
+      >
+        <Typography level="h2">Speech to Text</Typography>
+        <Typography level="body-sm">{currentModel}</Typography>
+      </Box>
+
+      {/* Main content area, split into sidebar and main panel */}
+      <Box sx={{ display: 'flex', minHeight: 0 }}>
+        {/* Left-hand Settings Sidebar */}
+        <Sheet
+          sx={{
+            p: 1,
+            pr: 2,
+            overflowY: 'auto',
+            minWidth: '220px',
+          }}
+        >
+        </Sheet>
+
+        {/* Right-hand Main Panel for Input/Output */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            p: 1,
+            width: '100%',
+          }}
+        >
+          {/* Large text input area at the top */}
+          <FormControl sx={{ flexGrow: 1, mt: 1 }}>
+            <FormLabel>Upload Audio File</FormLabel>
+            <Input
+                type="file"
+                accept=".wav, .mp3, .ogg, .flac" //TODO: restrict to audio files
+                onChange={handleAudioUpload}
+            />
+            </FormControl>
+
+          {/* Controls and output below the text input */}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              my: 2,
+            }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignSelf: 'flex-start' }}>
+              <Button
+                color="primary"
+                onClick={handleSTTGeneration}
+                loading={isLoading}
+                disabled={!inputAudio}
+              >
+                Generate Transcription
+              </Button>
+            </Stack>
+
+            {errorMessage && (
+              <Typography level="body-sm" color="danger">
+                {errorMessage}
+              </Typography>
+            )}
+          </Box>
+          {/* <AudioHistory
+            ref={audioHistoryRef}
+            audioHistory={audioHistory || []}
+            experimentId={experimentInfo?.id}
+            mutateHistory={mutateHistory}
+          /> */}
+        </Box>
+      </Box>
+    </Box>
+  );
+}
