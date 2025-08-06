@@ -41,6 +41,7 @@ import { useServerStats, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useState, useEffect } from 'react';
 
 import { FaPython } from 'react-icons/fa';
+import NodePools from './CloudCluster/NodePools';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
@@ -497,22 +498,10 @@ export default function Computer() {
               overflow: 'auto',
             }}
           >
-            <Sheet
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                height: '90%',
-                overflow: 'hidden',
-                gap: '1rem',
-              }}
-            >
-              <Typography level="h2" paddingTop={0}>
-                Cloud Compute
-              </Typography>
-              <Typography level="body-md">
-                This is a placeholder for the Lattice cloud compute interface.
-              </Typography>
-            </Sheet>
+            <NodePools
+              latticeApiUrl={latticeApiUrl}
+              latticeApiKey={latticeApiKey}
+            />
           </TabPanel>
         )}
       </Tabs>
