@@ -37,6 +37,7 @@ export default function TransformerLabSettings() {
   const [doNotTrack, setDoNotTrack] = React.useState(false);
   const [showExperimentalPlugins, setShowExperimentalPlugins] =
     React.useState(false);
+  const [latticeMode, setLatticeMode] = React.useState(false);
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -54,6 +55,14 @@ export default function TransformerLabSettings() {
     fetchShowExperimental();
   }, []);
 
+  React.useEffect(() => {
+    const fetchLatticeMode = async () => {
+      const value = await window.storage.get('LATTICE_MODE');
+      setLatticeMode(value === 'true');
+    };
+    fetchLatticeMode();
+  }, []);
+
   const handleDoNotTrackChange = (event) => {
     const checked = event.target.checked;
     setDoNotTrack(checked);
@@ -64,6 +73,12 @@ export default function TransformerLabSettings() {
     const checked = event.target.checked;
     setShowExperimentalPlugins(checked);
     window.storage.set('SHOW_EXPERIMENTAL_PLUGINS', checked.toString());
+  };
+
+  const handleLatticeModeChange = (event) => {
+    const checked = event.target.checked;
+    setLatticeMode(checked);
+    window.storage.set('LATTICE_MODE', checked.toString());
   };
 
   const {
@@ -292,6 +307,20 @@ export default function TransformerLabSettings() {
                 {showExperimentalPlugins
                   ? 'Experimental plugins will be visible in the Plugin Gallery.'
                   : 'Experimental plugins will be hidden from the Plugin Gallery.'}
+              </FormHelperText>
+            </FormControl>
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Lattice Mode</FormLabel>
+              <Switch
+                checked={latticeMode}
+                onChange={handleLatticeModeChange}
+                sx={{ alignSelf: 'flex-start' }}
+                color={latticeMode ? 'success' : 'neutral'}
+              />
+              <FormHelperText>
+                {latticeMode
+                  ? 'Lattice mode is enabled. You can connect to Lattice services.'
+                  : 'Lattice mode is disabled. Enable to access Lattice features.'}
               </FormHelperText>
             </FormControl>
           </TabPanel>
