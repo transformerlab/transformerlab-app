@@ -118,7 +118,7 @@ export default function Computer() {
           value: apiKey,
         }),
       );
-      
+
       // Save the API URL to server config
       await fetch(
         getAPIFullPath('config', ['set'], {
@@ -126,7 +126,7 @@ export default function Computer() {
           value: apiUrl,
         }),
       );
-      
+
       // Update the local state
       latticeApiKeyMutate(apiKey);
       latticeApiUrlMutate(apiUrl);
@@ -200,11 +200,14 @@ export default function Computer() {
                     Lattice API key and URL are configured
                   </Typography>
                 )}
-                {latticeMode && (latticeApiKey || latticeApiUrl) && !(latticeApiKey && latticeApiUrl) && (
-                  <Typography level="body-sm" color="warning">
-                    Lattice configuration incomplete (missing {!latticeApiKey ? 'API key' : 'API URL'})
-                  </Typography>
-                )}
+                {latticeMode &&
+                  (latticeApiKey || latticeApiUrl) &&
+                  !(latticeApiKey && latticeApiUrl) && (
+                    <Typography level="body-sm" color="warning">
+                      Lattice configuration incomplete (missing{' '}
+                      {!latticeApiKey ? 'API key' : 'API URL'})
+                    </Typography>
+                  )}
               </Box>
               <Sheet
                 className="OrderTableContainer"
