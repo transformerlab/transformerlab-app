@@ -82,19 +82,26 @@ export default function Audio() {
   // Audio upload state and handler
 const [inputAudio, setInputAudio] = React.useState('');
 const [audioPath, setAudioPath] = React.useState<string | null>(null);
-const handleAudioUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+
+const handleAudioUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
   const file = event.target.files?.[0];
   if (file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      setInputAudio(result);
-    };
-    reader.readAsDataURL(file);
+    setInputAudio(file);
+
+    const formData = new FormData();
+    formData.append('audio', file);
+
+    try {
+      const response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json();
+      setAudioPath(result.audioPath); // Save path returned by backend
+    } catch (error) {
+      setErrorMessage('Audio upload failed');
+    }
   }
-};
-const handleRemoveAudio = () => {
-  setInputAudio('');
 };
   const [transcription, setTranscription] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
