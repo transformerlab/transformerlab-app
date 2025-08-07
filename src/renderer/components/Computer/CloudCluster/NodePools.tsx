@@ -56,6 +56,8 @@ export default function NodePools({
 
     setNodePoolsLoading(true);
     try {
+      console.log('Fetching node pools from', latticeApiUrl);
+      console.log('Using API Key:', latticeApiKey);
       const response = await fetch(
         `${latticeApiUrl}/api/v1/skypilot/ssh-clusters`,
         {
