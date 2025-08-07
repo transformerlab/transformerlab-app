@@ -35,6 +35,7 @@ export async function sendAndReceiveTranscription(
     audio_path: audioPath,
     experiment_id: experimentId,
   };
+  console.log(data)
 
   let response;
   try {
