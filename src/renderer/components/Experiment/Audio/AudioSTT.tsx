@@ -27,11 +27,13 @@ import AudioHistory from './AudioHistory';
 export async function sendAndReceiveTranscription(
   currentModel: string,
   audioPath: string,
+  experimentId?: number,
   //format: string,
 ) {
   const data: any = {
     model: currentModel,
     audioPath: audioPath,
+    experimentId: experimentId,
   };
 
   let response;
@@ -80,7 +82,7 @@ export default function Audio() {
 
   // Audio upload state and handler
   const [inputAudio, setInputAudio] = React.useState('');
-  const [audioPath, setAudioPath] = React.useState<string | null>(null);
+  const [audioPath, setAudioPath] = React.useState('');
 
   const handleAudioUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
