@@ -1,4 +1,3 @@
-
 import * as React from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -25,7 +24,6 @@ import {
 import { useAPI } from '../../../lib/transformerlab-api-sdk';
 import AudioHistory from './AudioHistory';
 
-
 export async function sendAndReceiveTranscription(
   currentModel: string,
   audioPath: string,
@@ -38,14 +36,17 @@ export async function sendAndReceiveTranscription(
 
   let response;
   try {
-    response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/transcriptions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    response = await fetch(
+      `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/transcriptions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
   } catch (error) {
     console.log('Exception accessing Audio API:', error);
     alert('Network connection error');
@@ -69,7 +70,6 @@ export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
 
-
   const { data: audioHistory, mutate: mutateHistory } = useAPI(
     'conversations',
     ['getAudioHistory'],
@@ -78,35 +78,38 @@ export default function Audio() {
     },
   );
 
-
   // Audio upload state and handler
-const [inputAudio, setInputAudio] = React.useState('');
-const [audioPath, setAudioPath] = React.useState<string | null>(null);
+  const [inputAudio, setInputAudio] = React.useState('');
+  const [audioPath, setAudioPath] = React.useState<string | null>(null);
 
-const handleAudioUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  const file = event.target.files?.[0];
-  if (file) {
-    setInputAudio(file);
+  const handleAudioUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setInputAudio(file);
 
-    const formData = new FormData();
-    formData.append('audio', file);
+      const formData = new FormData();
+      formData.append('audio', file);
 
-    try {
-      const response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      const result = await response.json();
-      setAudioPath(result.audioPath); // Save path returned by backend
-    } catch (error) {
-      setErrorMessage('Audio upload failed');
+      try {
+        const response = await fetch(
+          `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload`,
+          {
+            method: 'POST',
+            body: formData,
+          },
+        );
+        const result = await response.json();
+        setAudioPath(result.audioPath);
+      } catch (error) {
+        setErrorMessage('Audio upload failed');
+      }
     }
-  }
-};
+  };
   const [transcription, setTranscription] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-
 
   const transcriptionHistoryRef = React.useRef<HTMLDivElement>(null);
 
@@ -115,10 +118,7 @@ const handleAudioUpload = async (event: React.ChangeEvent<HTMLInputElement>) => 
     setTranscription(null);
     setErrorMessage(null);
 
-    const result = await sendAndReceiveTranscription(
-      currentModel,
-      audioPath,
-    );
+    const result = await sendAndReceiveTranscription(currentModel, audioPath);
 
     if (result && result.messages) {
       setTranscription(result.messages);
@@ -169,8 +169,7 @@ const handleAudioUpload = async (event: React.ChangeEvent<HTMLInputElement>) => 
             overflowY: 'auto',
             minWidth: '220px',
           }}
-        >
-        </Sheet>
+        ></Sheet>
 
         {/* Right-hand Main Panel for Input/Output */}
         <Box
@@ -185,11 +184,11 @@ const handleAudioUpload = async (event: React.ChangeEvent<HTMLInputElement>) => 
           <FormControl sx={{ flexGrow: 1, mt: 1 }}>
             <FormLabel>Upload Audio File</FormLabel>
             <Input
-                type="file"
-                accept=".wav, .mp3, .ogg, .flac" //TODO: restrict to audio files
-                onChange={handleAudioUpload}
+              type="file"
+              accept=".wav, .mp3, .ogg, .flac" //TODO: restrict to audio files
+              onChange={handleAudioUpload}
             />
-            </FormControl>
+          </FormControl>
 
           {/* Controls and output below the text input */}
           <Box
