@@ -115,8 +115,8 @@ export default function Audio() {
       speed,
     );
 
-    if (result && result.messages) {
-      setAudioUrl(result.messages);
+    if (result && result.message) {
+      setAudioUrl(result.message);
     } else {
       setErrorMessage(
         result?.message || 'Something went wrong. No audio URL received.',
