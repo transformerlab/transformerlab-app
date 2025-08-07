@@ -33,7 +33,7 @@ export async function sendAndReceiveTranscription(
   const data: any = {
     model: currentModel,
     audioPath: audioPath,
-    experimentId: experimentId,
+    experiment_id: experimentId,
   };
 
   let response;
@@ -92,6 +92,7 @@ export default function Audio() {
       setInputAudio(file);
 
       const formData = new FormData();
+      formData.append('experimentId', experimentInfo?.id);
       formData.append('audio', file);
 
       try {
@@ -120,7 +121,7 @@ export default function Audio() {
     setTranscription(null);
     setErrorMessage(null);
 
-    const result = await sendAndReceiveTranscription(currentModel, audioPath);
+    const result = await sendAndReceiveTranscription(currentModel, audioPath, experimentInfo?.id);
 
     if (result && result.messages) {
       setTranscription(result.messages);
