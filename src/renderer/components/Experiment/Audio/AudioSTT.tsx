@@ -32,7 +32,7 @@ export async function sendAndReceiveTranscription(
 ) {
   const data: any = {
     model: currentModel,
-    audioPath: audioPath,
+    audio_path: audioPath,
     experiment_id: experimentId,
   };
 
