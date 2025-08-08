@@ -113,7 +113,9 @@ export default function CurrentFoundationInfo({
   const [currentlyInstalling, setCurrentlyInstalling] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const { data: baseProvenance, error: baseProvenanceError } = useSWR(
-    chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
+    huggingfaceId
+      ? chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId)
+      : null,
     fetcher,
   );
 
@@ -148,7 +150,9 @@ export default function CurrentFoundationInfo({
   const pollJobStatus = (jobId) => {
     const intervalId = setInterval(async () => {
       try {
-        const response = await fetch(chatAPI.Endpoints.Jobs.Get(jobId));
+        const response = await fetch(
+          chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId),
+        );
         const result = await response.json();
 
         if (
@@ -494,6 +498,7 @@ export default function CurrentFoundationInfo({
                 <DownloadProgressBox
                   jobId={jobId}
                   assetName={currentlyInstalling}
+                  experimentId={experimentInfo.id}
                 />
 
                 {jobId && (
