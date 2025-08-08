@@ -11,8 +11,12 @@ import {
   Table,
   Typography,
   Sheet,
+  Chip,
+  Box,
+  Card,
+  CardContent,
 } from '@mui/joy';
-import { RotateCcwIcon } from 'lucide-react';
+import { RotateCcwIcon, Settings, Activity } from 'lucide-react';
 import { useNotification } from '../../Shared/NotificationSystem';
 
 interface SSHCluster {
@@ -33,14 +37,40 @@ interface ClusterResponse {
   nodes: SSHNode[];
 }
 
+interface RunpodConfigMap {
+  [configKey: string]: {
+    name: string;
+    api_key?: string;
+    allowed_gpu_types: string[];
+    max_instances: number;
+  };
+}
+
+interface RunpodConfigResponse {
+  configs: RunpodConfigMap;
+  default_config: string | null;
+  is_configured: boolean;
+  sky_check_result?: {
+    valid: boolean;
+    output: string;
+    message: string;
+  };
+}
+
+interface RunpodInstancesResponse {
+  current_count: number;
+  max_instances: number;
+  can_launch: boolean;
+}
+
 interface NodePoolsProps {
   latticeApiUrl?: string;
   latticeApiKey?: string;
 }
 
 export default function NodePools({
-  latticeApiUrl,
-  latticeApiKey,
+  latticeApiUrl = '',
+  latticeApiKey = '',
 }: NodePoolsProps) {
   const { addNotification } = useNotification();
   const [selectedNodePool, setSelectedNodePool] = React.useState<string>('');
@@ -50,14 +80,19 @@ export default function NodePools({
   const [nodePoolDetails, setNodePoolDetails] =
     React.useState<ClusterResponse | null>(null);
 
+  // RunPod state
+  const [runpodConfig, setRunpodConfig] =
+    React.useState<RunpodConfigResponse | null>(null);
+  const [runpodInstances, setRunpodInstances] =
+    React.useState<RunpodInstancesResponse | null>(null);
+  const [runpodLoading, setRunpodLoading] = React.useState<boolean>(false);
+
   // Fetch node pools function
   const fetchNodePools = React.useCallback(async () => {
     if (!latticeApiUrl || !latticeApiKey) return;
 
     setNodePoolsLoading(true);
     try {
-      console.log('Fetching node pools from', latticeApiUrl);
-      console.log('Using API Key:', latticeApiKey);
       const response = await fetch(
         `${latticeApiUrl}/api/v1/skypilot/ssh-clusters`,
         {
@@ -140,12 +175,73 @@ export default function NodePools({
     [latticeApiUrl, latticeApiKey, addNotification],
   );
 
+  // Fetch RunPod config
+  const fetchRunpodConfig = React.useCallback(async () => {
+    if (!latticeApiUrl || !latticeApiKey) return;
+
+    try {
+      const response = await fetch(
+        `${latticeApiUrl}/api/v1/skypilot/runpod/config`,
+        {
+          headers: {
+            Authorization: `Bearer ${latticeApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data: RunpodConfigResponse = await response.json();
+        setRunpodConfig(data);
+      }
+    } catch (error) {
+      // Silently fail for RunPod data
+    }
+  }, [latticeApiUrl, latticeApiKey]);
+
+  // Fetch RunPod instances
+  const fetchRunpodInstances = React.useCallback(async () => {
+    if (!latticeApiUrl || !latticeApiKey) return;
+
+    try {
+      const response = await fetch(
+        `${latticeApiUrl}/api/v1/skypilot/runpod/instances`,
+        {
+          headers: {
+            Authorization: `Bearer ${latticeApiKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (response.ok) {
+        const data: RunpodInstancesResponse = await response.json();
+        setRunpodInstances(data);
+      }
+    } catch (error) {
+      // Silently fail for RunPod data
+    }
+  }, [latticeApiUrl, latticeApiKey]);
+
+  // Fetch all RunPod data
+  const fetchRunpodData = React.useCallback(async () => {
+    if (!latticeApiUrl || !latticeApiKey) return;
+
+    setRunpodLoading(true);
+    try {
+      await Promise.all([fetchRunpodConfig(), fetchRunpodInstances()]);
+    } finally {
+      setRunpodLoading(false);
+    }
+  }, [latticeApiUrl, latticeApiKey, fetchRunpodConfig, fetchRunpodInstances]);
+
   // Fetch node pools when credentials are available
   React.useEffect(() => {
     if (latticeApiUrl && latticeApiKey) {
       fetchNodePools();
+      fetchRunpodData();
     }
-  }, [latticeApiUrl, latticeApiKey, fetchNodePools]);
+  }, [latticeApiUrl, latticeApiKey, fetchNodePools, fetchRunpodData]);
 
   // Fetch details when a node pool is selected
   React.useEffect(() => {
@@ -168,7 +264,7 @@ export default function NodePools({
   }
 
   return (
-    <Sheet sx={{ p: 2 }}>
+    <Sheet sx={{ p: 2, height: '100%', overflow: 'auto' }}>
       <Typography level="h2" marginBottom={2}>
         Cloud Node Pools
       </Typography>
@@ -302,6 +398,199 @@ export default function NodePools({
           Loading cluster details...
         </Typography>
       )}
+
+      {/* RunPod Information Section */}
+      <Divider sx={{ my: 4 }} />
+
+      <Typography level="h3" marginBottom={2}>
+        RunPod GPU Resources
+      </Typography>
+      <Typography level="body-md" marginBottom={3} color="neutral">
+        View RunPod GPU availability, configuration, and current usage.
+      </Typography>
+
+      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+        <Button
+          variant="soft"
+          onClick={fetchRunpodData}
+          loading={runpodLoading}
+          sx={{ maxWidth: '150px' }}
+          startDecorator={<RotateCcwIcon size={16} />}
+        >
+          Refresh RunPod
+        </Button>
+      </Box>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: 3,
+        }}
+      >
+        {/* RunPod Configuration Card */}
+        <Card variant="outlined">
+          <CardContent>
+            <Typography
+              level="title-lg"
+              sx={{ mb: 1 }}
+              startDecorator={<Settings size={20} />}
+            >
+              RunPod Configuration
+            </Typography>
+            {runpodConfig ? (
+              <Box>
+                <Typography level="body-sm" color="neutral" sx={{ mb: 2 }}>
+                  Status:{' '}
+                  {runpodConfig.is_configured ? (
+                    <Chip size="sm" color="success" variant="soft">
+                      Configured
+                    </Chip>
+                  ) : (
+                    <Chip size="sm" color="warning" variant="soft">
+                      Not Configured
+                    </Chip>
+                  )}
+                </Typography>
+
+                {runpodConfig.default_config && (
+                  <Typography level="body-sm" sx={{ mb: 1 }}>
+                    <strong>Default Config:</strong>{' '}
+                    {runpodConfig.default_config}
+                  </Typography>
+                )}
+
+                {Object.entries(runpodConfig.configs).map(([key, config]) => (
+                  <Box
+                    key={key}
+                    sx={{
+                      mb: 2,
+                      p: 2,
+                      backgroundColor: 'background.level1',
+                      borderRadius: 'sm',
+                    }}
+                  >
+                    <Typography level="body-sm" sx={{ fontWeight: 'medium' }}>
+                      {config.name}
+                    </Typography>
+                    <Typography level="body-xs" color="neutral">
+                      Max Instances: {config.max_instances}
+                    </Typography>
+                    <Typography level="body-xs" color="neutral">
+                      Allowed GPUs: {config.allowed_gpu_types.length} types
+                    </Typography>
+                  </Box>
+                ))}
+
+                {runpodConfig.sky_check_result && (
+                  <Box
+                    sx={{
+                      mt: 2,
+                      p: 1,
+                      backgroundColor: runpodConfig.sky_check_result.valid
+                        ? 'success.softBg'
+                        : 'warning.softBg',
+                      borderRadius: 'sm',
+                    }}
+                  >
+                    <Typography
+                      level="body-xs"
+                      color={
+                        runpodConfig.sky_check_result.valid
+                          ? 'success'
+                          : 'warning'
+                      }
+                    >
+                      {runpodConfig.sky_check_result.message}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            ) : (
+              <Typography level="body-sm" color="neutral">
+                Loading configuration...
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* RunPod Instance Usage Card */}
+        <Card variant="outlined">
+          <CardContent>
+            <Typography
+              level="title-lg"
+              sx={{ mb: 1 }}
+              startDecorator={<Activity size={20} />}
+            >
+              Instance Usage
+            </Typography>
+            {runpodInstances ? (
+              <Box>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    mb: 2,
+                  }}
+                >
+                  <Typography level="body-sm">Current Instances:</Typography>
+                  <Chip size="sm" color="primary" variant="soft">
+                    {runpodInstances.current_count}
+                  </Chip>
+                </Box>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    mb: 2,
+                  }}
+                >
+                  <Typography level="body-sm">Max Allowed:</Typography>
+                  <Typography level="body-sm">
+                    {runpodInstances.max_instances}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    mb: 2,
+                  }}
+                >
+                  <Typography level="body-sm">Can Launch New:</Typography>
+                  <Chip
+                    size="sm"
+                    color={runpodInstances.can_launch ? 'success' : 'danger'}
+                    variant="soft"
+                  >
+                    {runpodInstances.can_launch ? 'Yes' : 'No'}
+                  </Chip>
+                </Box>
+
+                {runpodInstances.current_count > 0 && (
+                  <Box
+                    sx={{
+                      mt: 2,
+                      p: 2,
+                      backgroundColor: 'background.level1',
+                      borderRadius: 'sm',
+                    }}
+                  >
+                    <Typography level="body-xs" color="neutral">
+                      Usage: {runpodInstances.current_count}/
+                      {runpodInstances.max_instances} instances
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            ) : (
+              <Typography level="body-sm" color="neutral">
+                Loading instance data...
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
     </Sheet>
   );
 }

@@ -257,17 +257,36 @@ export default function ActiveClusters({
   };
 
   const getJobStatusColor = (status: string) => {
-    switch (status.toUpperCase()) {
+    // Remove JobStatus. prefix and convert to uppercase for comparison
+    const cleanStatus = status.replace('JobStatus.', '').toUpperCase();
+
+    switch (cleanStatus) {
       case 'RUNNING':
         return 'success';
       case 'PENDING':
+      case 'SETTING_UP':
         return 'warning';
       case 'COMPLETED':
+      case 'SUCCEEDED':
         return 'primary';
       case 'FAILED':
         return 'danger';
       default:
         return 'neutral';
+    }
+  };
+
+  const getJobStatusText = (status: string) => {
+    // Remove JobStatus. prefix and clean up the display text
+    const cleanStatus = status.replace('JobStatus.', '');
+    
+    switch (cleanStatus.toUpperCase()) {
+      case 'SETTING_UP':
+        return 'Setting Up';
+      case 'SUCCEEDED':
+        return 'Completed';
+      default:
+        return cleanStatus.charAt(0).toUpperCase() + cleanStatus.slice(1).toLowerCase();
     }
   };
 
@@ -305,6 +324,12 @@ export default function ActiveClusters({
             placeholder="Choose an active cluster..."
             value={selectedCluster}
             onChange={(_, value) => setSelectedCluster(value || '')}
+            renderValue={(option) => (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Server size={16} />
+                {option?.value}
+              </Box>
+            )}
           >
             {clusters.map((cluster) => (
               <Option key={cluster.cluster_name} value={cluster.cluster_name}>
@@ -524,7 +549,7 @@ export default function ActiveClusters({
                           color={getJobStatusColor(job.status)}
                           variant="soft"
                         >
-                          {job.status}
+                          {getJobStatusText(job.status)}
                         </Chip>
                       </td>
                       <td>
