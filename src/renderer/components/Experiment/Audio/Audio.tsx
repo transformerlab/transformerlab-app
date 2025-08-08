@@ -226,7 +226,7 @@ export default function Audio() {
           }}
         >
           {/* Large text input area at the top */}
-          <FormControl sx={{ flexGrow: 1, mt: 1 }}>
+          <FormControl sx={{ mt: 1 }}>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}

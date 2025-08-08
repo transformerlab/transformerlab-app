@@ -37,7 +37,7 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
       <Sheet
         ref={ref}
         variant="plain"
-        sx={{ borderRadius: 'md', overflowY: 'scroll', pr: 1 }}
+        sx={{ borderRadius: 'md', overflowY: 'auto', pr: 1 }}
       >
         <List sx={{ p: 0 }}>
           {Array.isArray(audioHistory) && audioHistory.length > 0 ? (
