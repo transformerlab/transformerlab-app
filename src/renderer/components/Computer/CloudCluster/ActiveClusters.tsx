@@ -447,7 +447,8 @@ export default function ActiveClusters({
                 </Typography>
 
                 <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
-                  Available Operations: {clusterType.available_operations.join(', ')}
+                  Available Operations:{' '}
+                  {clusterType.available_operations.join(', ')}
                 </Typography>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
