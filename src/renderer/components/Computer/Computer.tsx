@@ -42,6 +42,7 @@ import { useState, useEffect } from 'react';
 
 import { FaPython } from 'react-icons/fa';
 import NodePools from './CloudCluster/NodePools';
+import ActiveClusters from './CloudCluster/ActiveClusters';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
@@ -498,10 +499,55 @@ export default function Computer() {
               overflow: 'auto',
             }}
           >
-            <NodePools
-              latticeApiUrl={latticeApiUrl}
-              latticeApiKey={latticeApiKey}
-            />
+            <Sheet
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                overflow: 'hidden',
+              }}
+            >
+              <Typography level="h2" paddingBottom={2}>
+                Cloud Compute
+              </Typography>
+              <Tabs
+                orientation="horizontal"
+                sx={{
+                  height: '100%',
+                  display: 'block',
+                  overflow: 'hidden',
+                }}
+              >
+                <TabList>
+                  <Tab>Node Pools</Tab>
+                  <Tab>Active Clusters</Tab>
+                </TabList>
+                <TabPanel
+                  value={0}
+                  sx={{
+                    overflow: 'hidden',
+                    height: '100%',
+                  }}
+                >
+                  <NodePools
+                    latticeApiUrl={latticeApiUrl}
+                    latticeApiKey={latticeApiKey}
+                  />
+                </TabPanel>
+                <TabPanel
+                  value={1}
+                  sx={{
+                    overflow: 'hidden',
+                    height: '100%',
+                  }}
+                >
+                  <ActiveClusters
+                    latticeApiUrl={latticeApiUrl}
+                    latticeApiKey={latticeApiKey}
+                  />
+                </TabPanel>
+              </Tabs>
+            </Sheet>
           </TabPanel>
         )}
       </Tabs>

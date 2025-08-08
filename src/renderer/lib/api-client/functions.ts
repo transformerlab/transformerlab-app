@@ -434,3 +434,73 @@ export async function getTemplateForModel(modelName: string) {
 
   return result;
 }
+
+// SkyPilot API Functions
+export async function fetchActiveClusters(
+  clusterNames?: string[],
+  apiKey?: string,
+): Promise<any> {
+  const url = `${API_URL()}skypilot/status${
+    clusterNames && clusterNames.length > 0
+      ? `?cluster_names=${clusterNames.join(',')}`
+      : ''
+  }`;
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    throw new Error('Failed to fetch active clusters');
+  }
+  const data = await response.json();
+  return data.clusters;
+}
+
+export async function fetchClusterType(
+  clusterName: string,
+  apiKey?: string,
+): Promise<any> {
+  const url = `${API_URL()}skypilot/cluster-type/${clusterName}`;
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch cluster type for ${clusterName}`);
+  }
+  return response.json();
+}
+
+export async function fetchClusterJobs(
+  clusterName: string,
+  apiKey?: string,
+): Promise<any> {
+  const url = `${API_URL()}skypilot/jobs/${clusterName}`;
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch jobs for cluster ${clusterName}`);
+  }
+  const data = await response.json();
+  return data.jobs;
+}
