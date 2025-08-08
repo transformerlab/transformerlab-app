@@ -8,6 +8,7 @@ import {
   IconButton,
 } from '@mui/joy';
 import { Play, Pause, Volume2 } from 'lucide-react';
+import WaveSurfer from 'wavesurfer.js';
 
 interface AudioPlayerProps {
   audioData: {
@@ -20,47 +21,69 @@ interface AudioPlayerProps {
 }
 
 const AudioPlayer: React.FC<AudioPlayerProps> = ({ audioData, metadata }) => {
-  const [isPlaying, setIsPlaying] = React.useState(false);
-  const [audio] = React.useState(new Audio(audioData.audio_data_url));
+  const [wavesurfer, setWavesurfer] = React.useState<WaveSurfer | null>(null);
+  const waveformRef = React.useRef<HTMLDivElement>(null);
+  const isDestroyedRef = React.useRef(false);
 
-  const togglePlay = () => {
-    if (isPlaying) {
-      audio.pause();
-      setIsPlaying(false);
-    } else {
-      audio.play();
-      setIsPlaying(true);
-    }
-  };
-
-  // Handle audio ended event
+  // Initialize Wavesurfer
   React.useEffect(() => {
-    const handleEnded = () => setIsPlaying(false);
-    audio.addEventListener('ended', handleEnded);
-    return () => audio.removeEventListener('ended', handleEnded);
-  }, [audio]);
+    if (waveformRef.current && !wavesurfer && !isDestroyedRef.current) {
+      const ws = WaveSurfer.create({
+        container: waveformRef.current,
+        waveColor: '#4f46e5',
+        // progressColor: '#7c3aed',
+        cursorColor: 'var(--joy-palette-primary-400)',
+        height: 60,
+        normalize: true,
+        barWidth: 3,
+        barGap: 2,
+        barRadius: 3,
+        fillParent: true,
+        pixelRatio: 1,
+        mediaControls: true,
+      });
+
+      ws.load(audioData.audio_data_url);
+
+      setWavesurfer(ws);
+
+      return () => {
+        isDestroyedRef.current = true;
+        if (ws && !ws.isDestroyed) {
+          try {
+            ws.pause();
+            ws.destroy();
+          } catch (error) {
+            // Ignore errors during cleanup
+            console.warn('Error destroying wavesurfer:', error);
+          }
+        }
+        setWavesurfer(null);
+      };
+    }
+  }, [audioData.audio_data_url]);
+
+  // Reset destroyed flag when audio URL changes
+  React.useEffect(() => {
+    isDestroyedRef.current = false;
+  }, [audioData.audio_data_url]);
 
   return (
-    <Card variant="outlined" sx={{ maxWidth: 400 }}>
+    <Card>
       <CardContent>
         <Stack spacing={2}>
-          {/* Audio Controls */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton
-              size="sm"
-              variant="solid"
-              color="primary"
-              onClick={togglePlay}
-            >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-            </IconButton>
-            <Volume2 size={16} />
-            <Typography level="body-sm">
-              {metadata?.duration
-                ? `${metadata.duration.toFixed(1)}s`
-                : 'Audio'}
-            </Typography>
-          </Box>
+          {/* Waveform */}
+          <Box
+            ref={waveformRef}
+            sx={{
+              width: '100%',
+              minHeight: '60px',
+              border: '1px solid',
+              borderColor: 'divider',
+              borderRadius: 'sm',
+              padding: 1,
+            }}
+          />
 
           {/* File Path Only */}
           {metadata?.path && (

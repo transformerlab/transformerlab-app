@@ -22,6 +22,7 @@ import {
   UserIcon,
   LogOutIcon,
   LogInIcon,
+  AudioLinesIcon,
 } from 'lucide-react';
 
 import { RiImageAiLine } from 'react-icons/ri';
@@ -57,6 +58,8 @@ import ColorSchemeToggle from './ColorSchemeToggle';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
+  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
+
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
   >(null);
@@ -80,14 +83,45 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
     );
   }
 
-  // Check if the current foundation model is a diffusion model
+  // Check if the current foundation model is a diffusion model and fetch pipeline_tag in the same effect
   useEffect(() => {
-    const checkValidDiffusion = async () => {
+    const checkValidDiffusionAndPipelineTag = async () => {
+      console.log('COMING INSIDE THE EFFECT');
       if (!experimentInfo?.config?.foundation) {
+        setIsValidDiffusionModel(false);
+        setPipelineTag(null);
+        console.log('RETURNING HERE');
+        return;
+      }
+
+      let pipelineTagResult = null;
+
+      // Check pipeline_tag first
+      try {
+        const url = getAPIFullPath('models', ['pipeline_tag'], {
+          modelName: experimentInfo.config.foundation,
+        });
+        const response = await fetch(url, { method: 'GET' });
+        if (!response.ok) {
+          setPipelineTag(null);
+        } else {
+          const data = await response.json();
+          console.log('Pipeline tag data:', data);
+          pipelineTagResult = data?.data || null;
+          setPipelineTag(pipelineTagResult);
+        }
+      } catch (e) {
+        setPipelineTag(null);
+        console.error('Error fetching pipeline tag:', e);
+      }
+
+      // If pipelineTag is text-to-speech, never show diffusion tab
+      if (pipelineTagResult === 'text-to-speech') {
         setIsValidDiffusionModel(false);
         return;
       }
 
+      // Otherwise, check diffusion
       try {
         const response = await fetch(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
@@ -98,21 +132,17 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           },
         );
 
-        // Handle 404 or other non-ok responses
         if (!response.ok) {
           setIsValidDiffusionModel(false);
-          return;
+        } else {
+          const data = await response.json();
+          setIsValidDiffusionModel(data.is_valid_diffusion_model ?? false);
         }
-
-        const data = await response.json();
-        // Handle case where is_valid_diffusion_model property doesn't exist
-        setIsValidDiffusionModel(data.is_valid_diffusion_model ?? false);
       } catch (e) {
         setIsValidDiffusionModel(false);
       }
     };
-
-    checkValidDiffusion();
+    checkValidDiffusionAndPipelineTag();
   }, [experimentInfo?.config?.foundation]);
 
   return (
@@ -130,15 +160,18 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         icon={<LayersIcon strokeWidth={1} />}
         disabled={!experimentInfo?.name}
       />
-      {/* Show Interact tab only if the model is NOT a diffusion model */}
-      {(isValidDiffusionModel === false || isValidDiffusionModel === null) && (
-        <SubNavItem
-          title="Interact"
-          path="/experiment/chat"
-          icon={<MessageCircleIcon strokeWidth={9} />}
-          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
-        />
-      )}
+      {/* Show Interact tab only if not diffusion and not text-to-speech */}
+      {(isValidDiffusionModel === false || isValidDiffusionModel === null) &&
+        pipelineTag !== 'text-to-speech' && (
+          <SubNavItem
+            title="Interact"
+            path="/experiment/chat"
+            icon={<MessageCircleIcon strokeWidth={9} />}
+            disabled={
+              !experimentInfo?.name || activeModelIsNotSameAsFoundation()
+            }
+          />
+        )}
       {/* Show Diffusion tab only if the model IS a diffusion model */}
       {isValidDiffusionModel === true && (
         <SubNavItem
@@ -146,6 +179,15 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           path="/experiment/diffusion"
           icon={<RiImageAiLine />}
           disabled={!experimentInfo?.name}
+        />
+      )}
+      {/* Show Audio tab only if pipelineTag is text-to-speech */}
+      {pipelineTag === 'text-to-speech' && (
+        <SubNavItem
+          title="Audio"
+          path="/experiment/audio"
+          icon={<AudioLinesIcon />}
+          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
       )}
       <SubNavItem
