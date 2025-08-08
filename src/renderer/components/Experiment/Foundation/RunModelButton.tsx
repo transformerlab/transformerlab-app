@@ -244,19 +244,24 @@ export default function RunModelButton({
                   experimentInfo?.id,
                 );
                 if (response?.status == 'error') {
-                  if (setLogsDrawerOpen) {
-                    setLogsDrawerOpen(true);
-                  }
                   if (
                     response?.message?.includes(
                       'Process terminated with exit code 1',
                     )
                   ) {
+                    if (setLogsDrawerOpen) {
+                      setLogsDrawerOpen(true);
+                    }
                     alert(
                       'Could not start model. Please check the console at the bottom of the page for detailed logs.',
                     );
                   } else {
-                    alert(`Failed to start model:\n${response?.message}`);
+                    if (!response?.message?.includes('Job stopped by user')) {
+                      if (setLogsDrawerOpen) {
+                        setLogsDrawerOpen(true);
+                      }
+                      alert(`Failed to start model:\n${response?.message}`);
+                    }
                   }
                   setJobId(null);
                   return;
