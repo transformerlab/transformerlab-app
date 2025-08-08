@@ -1,6 +1,6 @@
 import * as React from 'react';
+import useSWR from 'swr';
 import {
-  Button,
   CircularProgress,
   Divider,
   FormControl,
@@ -16,7 +16,7 @@ import {
   Card,
   CardContent,
 } from '@mui/joy';
-import { RotateCcwIcon, Settings, Activity } from 'lucide-react';
+import { Settings, Activity } from 'lucide-react';
 import { useNotification } from '../../Shared/NotificationSystem';
 
 interface SSHCluster {
@@ -74,34 +74,20 @@ export default function NodePools({
 }: NodePoolsProps) {
   const { addNotification } = useNotification();
   const [selectedNodePool, setSelectedNodePool] = React.useState<string>('');
-  const [nodePoolsLoading, setNodePoolsLoading] =
-    React.useState<boolean>(false);
-  const [nodePools, setNodePools] = React.useState<SSHCluster[]>([]);
-  const [nodePoolDetails, setNodePoolDetails] =
-    React.useState<ClusterResponse | null>(null);
 
-  // RunPod state
-  const [runpodConfig, setRunpodConfig] =
-    React.useState<RunpodConfigResponse | null>(null);
-  const [runpodInstances, setRunpodInstances] =
-    React.useState<RunpodInstancesResponse | null>(null);
-  const [runpodLoading, setRunpodLoading] = React.useState<boolean>(false);
+  // SWR fetcher function
+  const fetcher = React.useCallback(
+    async (url: string) => {
+      if (!latticeApiUrl || !latticeApiKey) {
+        throw new Error('Missing API credentials');
+      }
 
-  // Fetch node pools function
-  const fetchNodePools = React.useCallback(async () => {
-    if (!latticeApiUrl || !latticeApiKey) return;
-
-    setNodePoolsLoading(true);
-    try {
-      const response = await fetch(
-        `${latticeApiUrl}/api/v1/skypilot/ssh-clusters`,
-        {
-          headers: {
-            Authorization: `Bearer ${latticeApiKey}`,
-            'Content-Type': 'application/json',
-          },
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${latticeApiKey}`,
+          'Content-Type': 'application/json',
         },
-      );
+      });
 
       if (response.status === 401) {
         addNotification({
@@ -109,148 +95,87 @@ export default function NodePools({
           message:
             'Authentication failed. Please check your API key in Settings.',
         });
-        setNodePools([]);
-        return;
+        throw new Error('Authentication failed');
       }
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch node pools (${response.status})`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      setNodePools(data.ssh_clusters || []);
-    } catch (error) {
-      addNotification({
-        type: 'danger',
-        message: 'Failed to fetch node pools. Please check your configuration.',
-      });
-      setNodePools([]);
-    } finally {
-      setNodePoolsLoading(false);
-    }
-  }, [latticeApiUrl, latticeApiKey, addNotification]);
-
-  // Fetch node pool details function
-  const fetchNodePoolDetails = React.useCallback(
-    async (clusterName: string) => {
-      if (!latticeApiUrl || !latticeApiKey || !clusterName) return;
-
-      try {
-        const response = await fetch(
-          `${latticeApiUrl}/api/v1/clusters/${clusterName}`,
-          {
-            headers: {
-              Authorization: `Bearer ${latticeApiKey}`,
-              'Content-Type': 'application/json',
-            },
-          },
-        );
-
-        if (response.status === 401) {
-          addNotification({
-            type: 'danger',
-            message:
-              'Authentication failed. Please check your API key in Settings.',
-          });
-          setNodePoolDetails(null);
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch details for cluster ${clusterName} (${response.status})`,
-          );
-        }
-
-        const data = await response.json();
-        setNodePoolDetails(data);
-      } catch (error) {
-        addNotification({
-          type: 'warning',
-          message: `Failed to fetch details for cluster ${clusterName}`,
-        });
-        setNodePoolDetails(null);
-      }
+      return response.json();
     },
     [latticeApiUrl, latticeApiKey, addNotification],
   );
 
-  // Fetch RunPod config
-  const fetchRunpodConfig = React.useCallback(async () => {
-    if (!latticeApiUrl || !latticeApiKey) return;
+  // SWR hooks for data fetching
+  const { data: nodePoolsData, isLoading: nodePoolsLoading } = useSWR(
+    latticeApiUrl && latticeApiKey
+      ? `${latticeApiUrl}/api/v1/skypilot/ssh-clusters`
+      : null,
+    fetcher,
+    {
+      refreshInterval: 10000, // Refresh every 10 seconds (less frequent for node pools)
+      revalidateOnFocus: true,
+      onError: (error) => {
+        if (error.message !== 'Authentication failed') {
+          addNotification({
+            type: 'danger',
+            message:
+              'Failed to fetch node pools. Please check your configuration.',
+          });
+        }
+      },
+    },
+  );
 
-    try {
-      const response = await fetch(
-        `${latticeApiUrl}/api/v1/skypilot/runpod/config`,
-        {
-          headers: {
-            Authorization: `Bearer ${latticeApiKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+  const { data: nodePoolDetails } = useSWR<ClusterResponse>(
+    latticeApiUrl && latticeApiKey && selectedNodePool
+      ? `${latticeApiUrl}/api/v1/clusters/${selectedNodePool}`
+      : null,
+    fetcher,
+    {
+      onError: (error) => {
+        if (error.message !== 'Authentication failed') {
+          addNotification({
+            type: 'warning',
+            message: `Failed to fetch details for cluster ${selectedNodePool}`,
+          });
+        }
+      },
+    },
+  );
 
-      if (response.ok) {
-        const data: RunpodConfigResponse = await response.json();
-        setRunpodConfig(data);
-      }
-    } catch (error) {
-      // Silently fail for RunPod data
-    }
-  }, [latticeApiUrl, latticeApiKey]);
+  const { data: runpodConfigData } = useSWR<RunpodConfigResponse>(
+    latticeApiUrl && latticeApiKey
+      ? `${latticeApiUrl}/api/v1/skypilot/runpod/config`
+      : null,
+    fetcher,
+    {
+      refreshInterval: 120000, // Refresh every 2 minutes (config changes less frequently)
+      revalidateOnFocus: false, // Don't auto-refresh on focus for config data
+      onError: () => {
+        // Silently fail for RunPod data as it's optional
+      },
+    },
+  );
 
-  // Fetch RunPod instances
-  const fetchRunpodInstances = React.useCallback(async () => {
-    if (!latticeApiUrl || !latticeApiKey) return;
+  const { data: runpodInstancesData } = useSWR<RunpodInstancesResponse>(
+    latticeApiUrl && latticeApiKey
+      ? `${latticeApiUrl}/api/v1/skypilot/runpod/instances`
+      : null,
+    fetcher,
+    {
+      refreshInterval: 10000, // Refresh every 30 seconds for instance data
+      onError: () => {
+        // Silently fail for RunPod data as it's optional
+      },
+    },
+  );
 
-    try {
-      const response = await fetch(
-        `${latticeApiUrl}/api/v1/skypilot/runpod/instances`,
-        {
-          headers: {
-            Authorization: `Bearer ${latticeApiKey}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      if (response.ok) {
-        const data: RunpodInstancesResponse = await response.json();
-        setRunpodInstances(data);
-      }
-    } catch (error) {
-      // Silently fail for RunPod data
-    }
-  }, [latticeApiUrl, latticeApiKey]);
-
-  // Fetch all RunPod data
-  const fetchRunpodData = React.useCallback(async () => {
-    if (!latticeApiUrl || !latticeApiKey) return;
-
-    setRunpodLoading(true);
-    try {
-      await Promise.all([fetchRunpodConfig(), fetchRunpodInstances()]);
-    } finally {
-      setRunpodLoading(false);
-    }
-  }, [latticeApiUrl, latticeApiKey, fetchRunpodConfig, fetchRunpodInstances]);
-
-  // Fetch node pools when credentials are available
-  React.useEffect(() => {
-    if (latticeApiUrl && latticeApiKey) {
-      fetchNodePools();
-      fetchRunpodData();
-    }
-  }, [latticeApiUrl, latticeApiKey, fetchNodePools, fetchRunpodData]);
-
-  // Fetch details when a node pool is selected
-  React.useEffect(() => {
-    if (selectedNodePool) {
-      fetchNodePoolDetails(selectedNodePool);
-    } else {
-      setNodePoolDetails(null);
-    }
-  }, [selectedNodePool, fetchNodePoolDetails]);
+  // Extract data from SWR responses
+  const nodePools = nodePoolsData?.ssh_clusters || [];
+  const runpodConfig = runpodConfigData || null;
+  const runpodInstances = runpodInstancesData || null;
 
   if (!latticeApiUrl || !latticeApiKey) {
     return (
@@ -283,7 +208,7 @@ export default function NodePools({
             value={selectedNodePool}
             onChange={(_, value) => setSelectedNodePool(value || '')}
           >
-            {nodePools.map((pool) => (
+            {nodePools.map((pool: SSHCluster) => (
               <Option key={pool.name} value={pool.name}>
                 {pool.name} ({pool.hosts_count} hosts)
                 {pool.has_defaults && ' ✓'}
@@ -297,16 +222,6 @@ export default function NodePools({
             : 'Select a node pool to view details'}
         </FormHelperText>
       </FormControl>
-
-      <Button
-        variant="soft"
-        onClick={fetchNodePools}
-        loading={nodePoolsLoading}
-        sx={{ mb: 3, maxWidth: '150px' }}
-        startDecorator={<RotateCcwIcon size={16} />}
-      >
-        Refresh
-      </Button>
 
       {/* Node Pool Details */}
       {nodePoolDetails && (
@@ -408,18 +323,6 @@ export default function NodePools({
       <Typography level="body-md" marginBottom={3} color="neutral">
         View RunPod GPU availability, configuration, and current usage.
       </Typography>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <Button
-          variant="soft"
-          onClick={fetchRunpodData}
-          loading={runpodLoading}
-          sx={{ maxWidth: '150px' }}
-          startDecorator={<RotateCcwIcon size={16} />}
-        >
-          Refresh RunPod
-        </Button>
-      </Box>
 
       <Box
         sx={{

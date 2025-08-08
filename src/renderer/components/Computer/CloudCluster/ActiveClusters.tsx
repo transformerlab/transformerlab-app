@@ -1,6 +1,6 @@
 import * as React from 'react';
+import useSWR from 'swr';
 import {
-  Button,
   CircularProgress,
   Divider,
   FormControl,
@@ -14,7 +14,7 @@ import {
   Chip,
   Box,
 } from '@mui/joy';
-import { RotateCcwIcon, Server, Clock, Zap } from 'lucide-react';
+import { Server, Clock, Zap } from 'lucide-react';
 import { useNotification } from '../../Shared/NotificationSystem';
 
 interface ClusterStatus {
@@ -69,20 +69,15 @@ export default function ActiveClusters({
 }: ActiveClustersProps) {
   const { addNotification } = useNotification();
   const [selectedCluster, setSelectedCluster] = React.useState<string>('');
-  const [clustersLoading, setClustersLoading] = React.useState<boolean>(false);
-  const [clusters, setClusters] = React.useState<ClusterStatus[]>([]);
-  const [clusterType, setClusterType] = React.useState<ClusterTypeInfo | null>(
-    null,
-  );
-  const [clusterJobs, setClusterJobs] = React.useState<JobRecord[]>([]);
 
-  // Fetch active clusters function
-  const fetchActiveClusters = React.useCallback(async () => {
-    if (!latticeApiUrl || !latticeApiKey) return;
+  // SWR fetcher function
+  const fetcher = React.useCallback(
+    async (url: string) => {
+      if (!latticeApiUrl || !latticeApiKey) {
+        throw new Error('Missing API credentials');
+      }
 
-    setClustersLoading(true);
-    try {
-      const response = await fetch(`${latticeApiUrl}/api/v1/skypilot/status`, {
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${latticeApiKey}`,
           'Content-Type': 'application/json',
@@ -95,135 +90,79 @@ export default function ActiveClusters({
           message:
             'Authentication failed. Please check your API key in Settings.',
         });
-        setClusters([]);
-        return;
+        throw new Error('Authentication failed');
       }
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch active clusters (${response.status})`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data: StatusResponse = await response.json();
-      setClusters(data.clusters || []);
-    } catch (error) {
-      addNotification({
-        type: 'danger',
-        message:
-          'Failed to fetch active clusters. Please check your configuration.',
-      });
-      setClusters([]);
-    } finally {
-      setClustersLoading(false);
-    }
-  }, [latticeApiUrl, latticeApiKey, addNotification]);
-
-  // Fetch cluster type information
-  const fetchClusterType = React.useCallback(
-    async (clusterName: string) => {
-      if (!latticeApiUrl || !latticeApiKey || !clusterName) return;
-
-      try {
-        const response = await fetch(
-          `${latticeApiUrl}/api/v1/skypilot/cluster-type/${clusterName}`,
-          {
-            headers: {
-              Authorization: `Bearer ${latticeApiKey}`,
-              'Content-Type': 'application/json',
-            },
-          },
-        );
-
-        if (response.status === 401) {
-          addNotification({
-            type: 'danger',
-            message:
-              'Authentication failed. Please check your API key in Settings.',
-          });
-          setClusterType(null);
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch cluster type for ${clusterName} (${response.status})`,
-          );
-        }
-
-        const data: ClusterTypeInfo = await response.json();
-        setClusterType(data);
-      } catch (error) {
-        addNotification({
-          type: 'warning',
-          message: `Failed to fetch cluster type for ${clusterName}`,
-        });
-        setClusterType(null);
-      }
+      return response.json();
     },
     [latticeApiUrl, latticeApiKey, addNotification],
   );
 
-  // Fetch cluster jobs
-  const fetchClusterJobs = React.useCallback(
-    async (clusterName: string) => {
-      if (!latticeApiUrl || !latticeApiKey || !clusterName) return;
+  // SWR hooks for data fetching
+  const { data: clustersData, isLoading: clustersLoading } =
+    useSWR<StatusResponse>(
+      latticeApiUrl && latticeApiKey
+        ? `${latticeApiUrl}/api/v1/skypilot/status`
+        : null,
+      fetcher,
+      {
+        refreshInterval: 10000, // Refresh every 10 seconds
+        revalidateOnFocus: true,
+        onError: (error) => {
+          if (error.message !== 'Authentication failed') {
+            addNotification({
+              type: 'danger',
+              message:
+                'Failed to fetch active clusters. Please check your configuration.',
+            });
+          }
+        },
+      },
+    );
 
-      try {
-        const response = await fetch(
-          `${latticeApiUrl}/api/v1/skypilot/jobs/${clusterName}`,
-          {
-            headers: {
-              Authorization: `Bearer ${latticeApiKey}`,
-              'Content-Type': 'application/json',
-            },
-          },
-        );
-
-        if (response.status === 401) {
+  const { data: clusterTypeData } = useSWR<ClusterTypeInfo>(
+    latticeApiUrl && latticeApiKey && selectedCluster
+      ? `${latticeApiUrl}/api/v1/skypilot/cluster-type/${selectedCluster}`
+      : null,
+    fetcher,
+    {
+      onError: (error) => {
+        if (error.message !== 'Authentication failed') {
           addNotification({
-            type: 'danger',
-            message:
-              'Authentication failed. Please check your API key in Settings.',
+            type: 'warning',
+            message: `Failed to fetch cluster type for ${selectedCluster}`,
           });
-          setClusterJobs([]);
-          return;
         }
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch jobs for ${clusterName} (${response.status})`,
-          );
-        }
-
-        const data: JobQueueResponse = await response.json();
-        setClusterJobs(data.jobs || []);
-      } catch (error) {
-        addNotification({
-          type: 'warning',
-          message: `Failed to fetch jobs for ${clusterName}`,
-        });
-        setClusterJobs([]);
-      }
+      },
     },
-    [latticeApiUrl, latticeApiKey, addNotification],
   );
 
-  // Fetch clusters when credentials are available
-  React.useEffect(() => {
-    if (latticeApiUrl && latticeApiKey) {
-      fetchActiveClusters();
-    }
-  }, [latticeApiUrl, latticeApiKey, fetchActiveClusters]);
+  const { data: clusterJobsData } = useSWR<JobQueueResponse>(
+    latticeApiUrl && latticeApiKey && selectedCluster
+      ? `${latticeApiUrl}/api/v1/skypilot/jobs/${selectedCluster}`
+      : null,
+    fetcher,
+    {
+      refreshInterval: 10000, // Refresh jobs more frequently (every 10 seconds)
+      onError: (error) => {
+        if (error.message !== 'Authentication failed') {
+          addNotification({
+            type: 'warning',
+            message: `Failed to fetch jobs for ${selectedCluster}`,
+          });
+        }
+      },
+    },
+  );
 
-  // Fetch details when a cluster is selected
-  React.useEffect(() => {
-    if (selectedCluster) {
-      fetchClusterType(selectedCluster);
-      fetchClusterJobs(selectedCluster);
-    } else {
-      setClusterType(null);
-      setClusterJobs([]);
-    }
-  }, [selectedCluster, fetchClusterType, fetchClusterJobs]);
+  // Extract data from SWR responses
+  const clusters = clustersData?.clusters || [];
+  const clusterType = clusterTypeData || null;
+  const clusterJobs = clusterJobsData?.jobs || [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -279,14 +218,17 @@ export default function ActiveClusters({
   const getJobStatusText = (status: string) => {
     // Remove JobStatus. prefix and clean up the display text
     const cleanStatus = status.replace('JobStatus.', '');
-    
+
     switch (cleanStatus.toUpperCase()) {
       case 'SETTING_UP':
         return 'Setting Up';
       case 'SUCCEEDED':
         return 'Completed';
       default:
-        return cleanStatus.charAt(0).toUpperCase() + cleanStatus.slice(1).toLowerCase();
+        return (
+          cleanStatus.charAt(0).toUpperCase() +
+          cleanStatus.slice(1).toLowerCase()
+        );
     }
   };
 
@@ -308,7 +250,7 @@ export default function ActiveClusters({
   return (
     <Sheet sx={{ p: 2 }}>
       <Typography level="h2" marginBottom={2}>
-        Active Clusters (SkyPilot)
+        Active Clusters (Lattice)
       </Typography>
       <Typography level="body-md" marginBottom={3} color="neutral">
         Manage and monitor your dynamically launched SkyPilot clusters that are
@@ -354,16 +296,6 @@ export default function ActiveClusters({
             : 'Select a cluster to view details and jobs'}
         </FormHelperText>
       </FormControl>
-
-      <Button
-        variant="soft"
-        onClick={fetchActiveClusters}
-        loading={clustersLoading}
-        sx={{ mb: 3, maxWidth: '150px' }}
-        startDecorator={<RotateCcwIcon size={16} />}
-      >
-        Refresh
-      </Button>
 
       {/* Cluster Overview */}
       {selectedCluster && currentCluster && (
