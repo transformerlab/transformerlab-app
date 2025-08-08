@@ -27,6 +27,7 @@ import AudioHistory from './AudioHistory';
 const sampleRates = [16000, 22050, 24000, 44100, 48000];
 
 export async function sendAndReceiveAudioPath(
+  experimentId: number,
   currentModel: string,
   text: any,
   file_prefix: string,
@@ -35,6 +36,7 @@ export async function sendAndReceiveAudioPath(
   speed: number,
 ) {
   const data: any = {
+    experiment_id: experimentId,
     model: currentModel,
     text: text,
     file_prefix: file_prefix,
@@ -104,6 +106,7 @@ export default function Audio() {
     setErrorMessage(null);
 
     const result = await sendAndReceiveAudioPath(
+      experimentInfo?.id,
       currentModel,
       text,
       filePrefix,
@@ -112,8 +115,8 @@ export default function Audio() {
       speed,
     );
 
-    if (result && result.messages) {
-      setAudioUrl(result.messages);
+    if (result && result.message) {
+      setAudioUrl(result.message);
     } else {
       setErrorMessage(
         result?.message || 'Something went wrong. No audio URL received.',
@@ -223,7 +226,7 @@ export default function Audio() {
           }}
         >
           {/* Large text input area at the top */}
-          <FormControl sx={{ flexGrow: 1, mt: 1 }}>
+          <FormControl sx={{ mt: 1 }}>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}

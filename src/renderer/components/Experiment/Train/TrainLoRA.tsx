@@ -123,9 +123,15 @@ export default function TrainLoRA({}) {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('TRAIN', ''), fetcher, {
-    refreshInterval: 2000,
-  });
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'TRAIN', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 2000,
+    },
+  );
 
   const {
     data: downloadJobs,
@@ -133,7 +139,13 @@ export default function TrainLoRA({}) {
     isLoading: downloadJobsIsLoading,
     mutate: downloadJobsMutate,
   } = useSWR(
-    chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'),
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo.id,
+          'DOWNLOAD_MODEL',
+          'RUNNING',
+        )
+      : null,
     fetcher,
     {
       refreshInterval: 2000,
@@ -215,6 +227,7 @@ export default function TrainLoRA({}) {
           <DownloadProgressBox
             jobId={downloadJobs[0]?.id}
             assetName={downloadJobs[0]?.job_data.model}
+            experimentId={experimentInfo.id}
           />
         )}
         {/* <Typography level="h1">Train</Typography> */}
@@ -546,7 +559,10 @@ export default function TrainLoRA({}) {
                             <Trash2Icon
                               onClick={async () => {
                                 await fetch(
-                                  chatAPI.Endpoints.Jobs.Delete(job.id),
+                                  chatAPI.Endpoints.Jobs.Delete(
+                                    experimentInfo.id,
+                                    job.id,
+                                  ),
                                 );
                                 jobsMutate();
                               }}
