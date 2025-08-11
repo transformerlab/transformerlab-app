@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@mui/joy';
 import { useAPI } from '../../../lib/transformerlab-api-sdk';
-import AudioHistory from './AudioHistory';
+import TranscriptionHistory from './TranscriptionHistory';
 
 export async function sendAndReceiveTranscription(
   currentModel: string,
@@ -30,12 +30,11 @@ export async function sendAndReceiveTranscription(
   experimentId?: number,
   //format: string,
 ) {
-  const data: any = {
-    model: currentModel,
-    audio_path: audioPath,
-    experiment_id: experimentId,
-  };
-  console.log(data)
+    const data: any = {
+        model: currentModel,
+        audio_path: audioPath,
+        experiment_id: experimentId,
+    };
 
   let response;
   try {
@@ -73,9 +72,9 @@ export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
 
-  const { data: audioHistory, mutate: mutateHistory } = useAPI(
+  const { data: transcriptionHistory, mutate: mutateHistory } = useAPI(
     'conversations',
-    ['getAudioHistory'],
+    ['getTranscriptionHistory'],
     {
       experimentId: experimentInfo?.id,
     },
@@ -89,24 +88,29 @@ export default function Audio() {
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
+    console.log('test',event.target.files)
     if (file) {
       setInputAudio(file);
+    event.target.value = '';
 
+        console.log(experimentInfo?.id)
       const formData = new FormData();
       formData.append('experimentId', experimentInfo?.id);
       formData.append('audio', file);
 
       try {
         const response = await fetch(
-          `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload`,
+          `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload?experimentId=${experimentInfo?.id}`,
           {
             method: 'POST',
             body: formData,
           },
         );
         const result = await response.json();
+        console.log('Upload result:', result);
         setAudioPath(result.audioPath);
       } catch (error) {
+        console.log('are we here?');
         setErrorMessage('Audio upload failed');
       }
     }
@@ -124,8 +128,8 @@ export default function Audio() {
 
     const result = await sendAndReceiveTranscription(currentModel, audioPath, experimentInfo?.id);
 
-    if (result && result.messages) {
-      setTranscription(result.messages);
+    if (result && result.message) {
+      setTranscription(result.message);
     } else {
       setErrorMessage(
         result?.message || 'Something went wrong. No transcription received.',
@@ -189,7 +193,7 @@ export default function Audio() {
             <FormLabel>Upload Audio File</FormLabel>
             <Input
               type="file"
-              accept=".wav, .mp3, .ogg, .flac" //TODO: restrict to audio files
+              accept="audio/*" //TODO: restrict to audio files
               onChange={handleAudioUpload}
             />
           </FormControl>
@@ -220,12 +224,12 @@ export default function Audio() {
               </Typography>
             )}
           </Box>
-          {/* <AudioHistory
-            ref={audioHistoryRef}
-            audioHistory={audioHistory || []}
+          <TranscriptionHistory
+            ref={transcriptionHistoryRef}
+            transcriptionHistory={transcriptionHistory || []}
             experimentId={experimentInfo?.id}
             mutateHistory={mutateHistory}
-          /> */}
+          />
         </Box>
       </Box>
     </Box>
