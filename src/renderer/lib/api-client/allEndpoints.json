@@ -258,7 +258,7 @@
     },
     "getTranscriptionHistory": {
       "method": "GET",
-      "path": "experiment/{experimentId}/conversations/list_transcriptions"
+      "path": "experiment/{experimentId}/conversations/list_transcription"
     },
     "downloadTranscriptionFile": {
       "method": "GET",

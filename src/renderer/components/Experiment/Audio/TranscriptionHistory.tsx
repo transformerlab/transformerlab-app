@@ -40,7 +40,7 @@ const TranscriptionHistory = React.forwardRef<
     if (transcriptionHistory) {
       transcriptionHistory.forEach(async (item) => {
         if (!textContents[item.id]) {
-          const textUrl = getAPIFullPath('conversations', ['download_text'], {
+          const textUrl = getAPIFullPath('conversations', ['downloadTranscriptionFile'], {
             experimentId,
             filename: item.text_filename,
           });
@@ -86,7 +86,7 @@ const TranscriptionHistory = React.forwardRef<
                     audioData={{
                       audio_data_url: getAPIFullPath(
                         'conversations',
-                        ['download_audio'],
+                        ['downloadAudioFile'],
                         {
                           experimentId,
                           filename: item.audio_path,
