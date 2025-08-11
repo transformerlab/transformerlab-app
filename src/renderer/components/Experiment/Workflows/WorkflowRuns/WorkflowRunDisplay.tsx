@@ -21,9 +21,17 @@ import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-function WorkflowJobProgress({ jobId }: { jobId: string }) {
+function WorkflowJobProgress({
+  experimentId,
+  jobId,
+}: {
+  experimentId: number;
+  jobId: string;
+}) {
   const { data: jobData } = useSWR(
-    jobId ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
+    experimentId && jobId
+      ? chatAPI.Endpoints.Jobs.Get(experimentId, jobId)
+      : null,
     fetcher,
     { refreshInterval: 2000 },
   );
@@ -81,6 +89,7 @@ export default function WorkflowRunDisplay({
   return (
     <Card variant="outlined" sx={{ padding: 2 }}>
       <JobDetails
+        experimentId={experimentInfo.id}
         jobId={viewJobDetails}
         onClose={() => {
           setViewJobDetails(null);
@@ -159,13 +168,21 @@ export default function WorkflowRunDisplay({
                 </Typography>
               </Box>
               <Box sx={{ flex: 1, px: 2 }}>
-                <WorkflowJobProgress jobId={job.jobID} />
+                {job.jobID ? (
+                  <WorkflowJobProgress
+                    experimentId={experimentInfo.id}
+                    jobId={job.jobID}
+                  />
+                ) : (
+                  <Typography color="danger">Invalid job ID</Typography>
+                )}
               </Box>
               <Button
                 variant="outlined"
                 sx={{ flexShrink: 0 }}
+                disabled={!job.jobID}
                 onClick={() => {
-                  setViewJobDetails(job?.jobID);
+                  if (job.jobID) setViewJobDetails(job?.jobID);
                 }}
               >
                 Output

@@ -11,6 +11,7 @@ import {
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OutputTerminal from 'renderer/components/OutputTerminal';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url) => fetch(url).then((res) => res.json());
 
@@ -27,19 +28,25 @@ export default function ViewOutputModalStreaming({
   fileName,
   setFileName,
 }: ViewOutputModalStreamingProps) {
+  const { experimentInfo } = useExperimentInfo();
   const logEndpoint =
     fileName !== ''
       ? chatAPI.Endpoints.Experiment.StreamDetailedJSONReportFromJob(
           jobId,
           fileName,
         )
-      : chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
+      : chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+          jobId,
+        );
   const title_sentence =
     fileName !== '' ? 'Detailed Report for Job' : 'Output from Job';
 
   const handleDownload = async () => {
     const response = await fetch(
-      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId, 'download'),
+      chatAPI.Endpoints.Experiment.GetAdditionalDetails(
+        jobId,
+        'download',
+      ),
     );
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);

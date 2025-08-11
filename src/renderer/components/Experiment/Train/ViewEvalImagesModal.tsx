@@ -51,7 +51,7 @@ export default function ViewEvalImagesModal({
     isLoading,
   } = useSWR<EvalImagesResponse>(
     open && jobId && jobId !== -1
-      ? chatAPI.Endpoints.Jobs.GetEvalImages(jobId.toString())
+      ? chatAPI.Endpoints.Jobs.GetEvalImages(jobId)
       : null,
     fetcher,
     {

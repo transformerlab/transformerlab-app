@@ -28,3 +28,10 @@ npm-debug.log.*
 *.css.d.ts
 *.sass.d.ts
 *.scss.d.ts
+
+# IDEs
+# NOTE: Cursor automatically ignores files in .gitignore and a default list on their website
+# Override with ! prefix in .cursorignore.
+# https://docs.cursor.com/context/ignore-files#default-ignore-list
+.cursor/
+.cursorignore

@@ -34,6 +34,7 @@ import {
   StopCircleIcon,
   Trash2Icon,
   UploadIcon,
+  WaypointsIcon,
 } from 'lucide-react';
 
 import dayjs from 'dayjs';
@@ -51,6 +52,7 @@ import TensorboardModal from './TensorboardModal';
 import ViewOutputModal from './ViewOutputModal';
 import ViewEvalImagesModal from './ViewEvalImagesModal';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import ViewCheckpointsModal from './ViewCheckpointsModal';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -106,6 +108,7 @@ export default function TrainLoRA({}) {
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [templateID, setTemplateID] = useState('-1');
   const [currentPlugin, setCurrentPlugin] = useState('');
+  const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState(-1);
 
   const { data, error, isLoading, mutate } = useSWR(
     chatAPI.Endpoints.Tasks.ListByTypeInExperiment('TRAIN', experimentInfo?.id),
@@ -120,9 +123,15 @@ export default function TrainLoRA({}) {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('TRAIN', ''), fetcher, {
-    refreshInterval: 2000,
-  });
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'TRAIN', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 2000,
+    },
+  );
 
   const {
     data: downloadJobs,
@@ -130,7 +139,13 @@ export default function TrainLoRA({}) {
     isLoading: downloadJobsIsLoading,
     mutate: downloadJobsMutate,
   } = useSWR(
-    chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'),
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo.id,
+          'DOWNLOAD_MODEL',
+          'RUNNING',
+        )
+      : null,
     fetcher,
     {
       refreshInterval: 2000,
@@ -190,11 +205,15 @@ export default function TrainLoRA({}) {
         sweeps={viewOutputFromSweepJob}
         setsweepJob={setViewOutputFromSweepJob}
       />
-
       <ViewEvalImagesModal
         open={viewEvalImagesFromJob !== -1}
         onClose={() => setViewEvalImagesFromJob(-1)}
         jobId={viewEvalImagesFromJob}
+      />
+      <ViewCheckpointsModal
+        open={viewCheckpointsFromJob !== -1}
+        onClose={() => setViewCheckpointsFromJob(-1)}
+        jobId={viewCheckpointsFromJob}
       />
       <Sheet
         sx={{
@@ -208,6 +227,7 @@ export default function TrainLoRA({}) {
           <DownloadProgressBox
             jobId={downloadJobs[0]?.id}
             assetName={downloadJobs[0]?.job_data.model}
+            experimentId={experimentInfo.id}
           />
         )}
         {/* <Typography level="h1">Train</Typography> */}
@@ -523,11 +543,26 @@ export default function TrainLoRA({}) {
                               Sweep Output
                             </Button>
                           )}
+                          {job?.job_data?.checkpoints && (
+                            <Button
+                              size="sm"
+                              variant="plain"
+                              onClick={() => {
+                                setViewCheckpointsFromJob(job?.id);
+                              }}
+                              startDecorator={<WaypointsIcon />}
+                            >
+                              Checkpoints
+                            </Button>
+                          )}
                           <IconButton variant="plain">
                             <Trash2Icon
                               onClick={async () => {
                                 await fetch(
-                                  chatAPI.Endpoints.Jobs.Delete(job.id),
+                                  chatAPI.Endpoints.Jobs.Delete(
+                                    experimentInfo.id,
+                                    job.id,
+                                  ),
                                 );
                                 jobsMutate();
                               }}
