@@ -90,15 +90,15 @@
     },
     "stop": {
       "method": "GET",
-      "path": "jobs/{jobId}/stop"
+      "path": "experiment/{experimentId}/jobs/{jobId}/stop"
     },
     "getJobsOfType": {
       "method": "GET",
-      "path": "jobs/list"
+      "path": "experiment/{experimentId}/jobs/list"
     },
     "getCheckpoints": {
       "method": "GET",
-      "path": "jobs/{jobId}/checkpoints"
+      "path": "experiment/{experimentId}/jobs/{jobId}/checkpoints"
     }
   },
   "datasets": {

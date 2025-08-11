@@ -118,6 +118,7 @@ export default function Diffusion() {
     {
       type: 'DIFFUSION',
       status: '',
+      experimentId: experimentInfo?.id,
     },
     {
       refreshInterval: 1000,
@@ -550,7 +551,10 @@ export default function Diffusion() {
       const poll = async () => {
         try {
           const res = await fetch(
-            getAPIFullPath('jobs', ['get'], { id: jobId }),
+            getAPIFullPath('jobs', ['get'], {
+              id: jobId,
+              experimentId: experimentInfo?.id,
+            }),
             { method: 'GET' },
           );
           const job = await res.json();

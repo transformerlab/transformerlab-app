@@ -10,12 +10,14 @@ import {
 import { PlayIcon } from 'lucide-react';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
+  const { experimentInfo } = useExperimentInfo();
   const { data, isLoading: checkpointsLoading } = useAPI(
     'jobs',
     ['getCheckpoints'],
-    { jobId },
+    { jobId, experimentId: experimentInfo?.id },
   );
 
   const handleRestartFromCheckpoint = (checkpoint) => {

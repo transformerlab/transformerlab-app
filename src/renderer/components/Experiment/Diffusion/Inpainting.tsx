@@ -37,6 +37,7 @@ import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import JobProgress from '../Train/JobProgress';
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
 import HistoryImageSelector from './HistoryImageSelector';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -163,12 +164,15 @@ export default function Inpainting({
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  const { experimentInfo } = useExperimentInfo();
+
   const { data: diffusionJobs } = useAPI(
     'jobs',
     ['getJobsOfType'],
     {
       type: 'DIFFUSION',
       status: '',
+      experimentId: experimentInfo?.id,
     },
     {
       refreshInterval: 1000,
