@@ -435,10 +435,12 @@ Endpoints.Jobs = {
   ) =>
     `${API_URL()}jobs/template/update` +
     `?template_id=${template_id}&name=${name}&description=${description}&type=${type}&config=${config}`,
-  Stop: (jobId: string) => `${API_URL()}jobs/${jobId}/stop`,
-  GetEvalImages: (jobId: string) => `${API_URL()}jobs/${jobId}/get_eval_images`,
-  GetEvalImage: (jobId: string, filename: string) =>
-    `${API_URL()}jobs/${jobId}/image/${filename}`,
+  Stop: (experimentId: number, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
+  GetEvalImages: (experimentId: number, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
+  GetEvalImage: (experimentId: number, jobId: string, filename: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/image/${filename}`,
 };
 
 Endpoints.Global = {
