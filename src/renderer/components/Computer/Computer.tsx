@@ -72,6 +72,8 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function Computer() {
   const [searchText, setSearchText] = useState('');
   const [latticeMode, setLatticeMode] = useState(false);
+  const [latticeCredentialsValid, setLatticeCredentialsValid] = useState(false);
+  const [validatingCredentials, setValidatingCredentials] = useState(false);
 
   const { server, isLoading, isError } = useServerStats();
 
@@ -86,6 +88,34 @@ export default function Computer() {
     key: 'LATTICE_API_URL',
   });
 
+  // Function to validate Lattice credentials
+  const validateLatticeCredentials = async (apiUrl: string, apiKey: string) => {
+    if (!apiUrl || !apiKey) {
+      setLatticeCredentialsValid(false);
+      return false;
+    }
+
+    setValidatingCredentials(true);
+    try {
+      // Try a simple status endpoint to check if credentials are valid
+      const response = await fetch(`${apiUrl}/api/v1/skypilot/status`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const isValid = response.status !== 401;
+      setLatticeCredentialsValid(isValid);
+      return isValid;
+    } catch (error) {
+      setLatticeCredentialsValid(false);
+      return false;
+    } finally {
+      setValidatingCredentials(false);
+    }
+  };
+
   // Check if Lattice Mode is enabled
   useEffect(() => {
     const fetchLatticeMode = async () => {
@@ -94,6 +124,15 @@ export default function Computer() {
     };
     fetchLatticeMode();
   }, []);
+
+  // Validate credentials when they change
+  useEffect(() => {
+    if (latticeMode && latticeApiUrl && latticeApiKey) {
+      validateLatticeCredentials(latticeApiUrl, latticeApiKey);
+    } else {
+      setLatticeCredentialsValid(false);
+    }
+  }, [latticeMode, latticeApiUrl, latticeApiKey]);
   return (
     <Sheet
       sx={{
@@ -114,9 +153,7 @@ export default function Computer() {
         <TabList>
           <Tab>Server Information</Tab>
           <Tab>Python Libraries</Tab>
-          {latticeMode && latticeApiKey && latticeApiUrl && (
-            <Tab>Cloud Compute</Tab>
-          )}
+          {latticeMode && latticeCredentialsValid && <Tab>Cloud Compute</Tab>}
         </TabList>
         <TabPanel
           value={0}
@@ -490,8 +527,8 @@ export default function Computer() {
           </Sheet>
         </TabPanel>
 
-        {/* Cloud Compute Tab - only show when Lattice is configured */}
-        {latticeMode && latticeApiKey && latticeApiUrl && (
+        {/* Cloud Compute Tab - only show when Lattice is configured and credentials are valid */}
+        {latticeMode && latticeCredentialsValid && (
           <TabPanel
             value={2}
             style={{
