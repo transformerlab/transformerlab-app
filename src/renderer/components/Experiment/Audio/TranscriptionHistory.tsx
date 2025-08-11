@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   List,
   ListItem,
@@ -10,38 +10,57 @@ import {
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
-//import AudioPlayer from '../../Data/AudioPlayer';
+import AudioPlayer from '../../Data/AudioPlayer';
 
 interface TranscriptionHistoryItem {
-  id: string; // Added id property
-  type: string;
-  text: string;
+  id: string;
+  audio_path: string;
+  text_filename: string;
   filename: string;
   model: string;
-  speed: number;
-  audio_format: string;
-  sample_rate: number;
-  temperature: number;
-  audio_data_url?: string; // Add audio data URL for the AudioPlayer
+  text_format: string;
 }
 
-interface AudioHistoryProps {
-  audioHistory: AudioHistoryItem[] | null | undefined;
+interface TranscriptionHistoryProps {
+  transcriptionHistory: TranscriptionHistoryItem[] | null | undefined;
   experimentId: string;
   mutateHistory: () => void;
 }
 
-const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
-  ({ audioHistory, experimentId, mutateHistory }, ref) => {
+const TranscriptionHistory = React.forwardRef<HTMLDivElement, TranscriptionHistoryProps>(
+  ({ transcriptionHistory, experimentId, mutateHistory }, ref) => {
+    const [textContents, setTextContents] = useState<{ [key: string]: string }>({});
+
+    // Fetch text for each item
+    useEffect(() => {
+      if (transcriptionHistory) {
+        transcriptionHistory.forEach(async (item) => {
+          if (!textContents[item.id]) {
+            const textUrl = getAPIFullPath(
+              'conversations',
+              ['download_text'],
+              {
+                experimentId,
+                filename: item.text_filename,
+              },
+            );
+            try {
+              const response = await fetch(textUrl);
+              const text = await response.text();
+              setTextContents((prev) => ({ ...prev, [item.id]: text }));
+            } catch (err) {
+              setTextContents((prev) => ({ ...prev, [item.id]: 'Error loading transcription.' }));
+            }
+          }
+        });
+      }
+    }, [transcriptionHistory, experimentId]);
+
     return (
-      <Sheet
-        ref={ref}
-        variant="plain"
-        sx={{ borderRadius: 'md', overflowY: 'scroll', pr: 1 }}
-      >
+      <Sheet ref={ref} variant="plain" sx={{ borderRadius: 'md', overflowY: 'scroll', pr: 1 }}>
         <List sx={{ p: 0 }}>
-          {Array.isArray(audioHistory) && audioHistory.length > 0 ? (
-            audioHistory.map((item) => (
+          {Array.isArray(transcriptionHistory) && transcriptionHistory.length > 0 ? (
+            transcriptionHistory.map((item) => (
               <ListItem
                 key={item.filename}
                 variant="soft"
@@ -52,64 +71,46 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                   mb: 2,
                 }}
               >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                  }}
-                >
-                  <Box sx={{ flex: 1, mr: 2 }}>
-                    <Typography level="body-md" sx={{ mb: 0.5 }}>
-                      &quot;
-                      {item.text.length > 300
-                        ? `${item.text.slice(0, 300)}…`
-                        : item.text}
-                      &quot;
-                    </Typography>
-                    {/* <Typography level="body-sm" color="neutral" sx={{ mb: 1 }}>
-                  {item.filename}
-                </Typography> */}
-                  </Box>
-                </Box>
-
-                {/* Audio Player */}
-                {item.filename && (
+                {/* Audio Player first */}
+                {item.audio_path && (
                   <Box sx={{ mb: 2 }}>
                     <AudioPlayer
                       audioData={{
                         audio_data_url: getAPIFullPath(
                           'conversations',
-                          ['downloadAudioFile'],
+                          ['download_audio'],
                           {
                             experimentId,
-                            filename: item.filename,
+                            filename: item.audio_path,
                           },
                         ),
                       }}
                       metadata={{
-                        path: item.filename,
-                        duration: undefined, // Duration not available in history data
+                        path: item.audio_path,
+                        duration: undefined,
                       }}
                     />
                   </Box>
                 )}
+
+                {/* Text from .txt file */}
+                <Box sx={{ flex: 1, mr: 2 }}>
+                  <Typography level="body-md" sx={{ mb: 0.5 }}>
+                    {textContents[item.id]
+                      ? `"${textContents[item.id].length > 300
+                          ? `${textContents[item.id].slice(0, 300)}…`
+                          : textContents[item.id]
+                        }"`
+                      : 'Loading transcription...'}
+                  </Typography>
+                </Box>
 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   <Chip size="sm" variant="soft" color="primary">
                     {item.model.split('/').pop()}
                   </Chip>
                   <Chip size="sm" variant="soft" color="neutral">
-                    {item.audio_format.toUpperCase()}
-                  </Chip>
-                  <Chip size="sm" variant="soft" color="neutral">
-                    {item.sample_rate / 1000}kHz
-                  </Chip>
-                  <Chip size="sm" variant="soft" color="neutral">
-                    Speed: {item.speed}x
-                  </Chip>
-                  <Chip size="sm" variant="soft" color="neutral">
-                    Temp: {item.temperature}
+                    {item.text_format.toUpperCase()}
                   </Chip>
                   <Box sx={{ flex: 1 }} />
                   <IconButton
@@ -119,18 +120,19 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                     onClick={async () => {
                       if (
                         window.confirm(
-                          'Are you sure you want to delete this audio file?',
+                          'Are you sure you want to delete this audio/text file?',
                         )
                       ) {
-                        const deleteURL = getAPIFullPath(
+                        // Delete text file
+                        const deleteTextURL = getAPIFullPath(
                           'conversations',
-                          ['deleteAudioFile'],
+                          ['delete_text'],
                           {
                             id: item.id,
                             experimentId,
                           },
                         );
-                        await fetch(deleteURL, {
+                        await fetch(deleteTextURL, {
                           method: 'DELETE',
                         });
                         mutateHistory();
@@ -145,7 +147,7 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
           ) : (
             <ListItem>
               <Typography level="body-sm" color="neutral">
-                No audio history available
+                No transcription history available
               </Typography>
             </ListItem>
           )}
@@ -155,6 +157,6 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
   },
 );
 
-AudioHistory.displayName = 'AudioHistory';
+TranscriptionHistory.displayName = 'TranscriptionHistory';
 
-export default AudioHistory;
+export default TranscriptionHistory;
