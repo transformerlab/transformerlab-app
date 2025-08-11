@@ -14,8 +14,9 @@ import AudioPlayer from '../../Data/AudioPlayer';
 
 interface TranscriptionHistoryItem {
   id: string;
+  type: string;
+  audio_folder: string;
   audio_path: string;
-  text_filename: string;
   filename: string;
   model: string;
   text_format: string;
@@ -42,7 +43,7 @@ const TranscriptionHistory = React.forwardRef<
         if (!textContents[item.id]) {
           const textUrl = getAPIFullPath('conversations', ['downloadTranscriptionFile'], {
             experimentId,
-            filename: item.text_filename,
+            filename: item.filename,
           });
           try {
             const response = await fetch(textUrl);
@@ -86,10 +87,11 @@ const TranscriptionHistory = React.forwardRef<
                     audioData={{
                       audio_data_url: getAPIFullPath(
                         'conversations',
-                        ['downloadAudioFile'],
+                        ['downloadAudioFileWithAudioFolder'],
                         {
                           experimentId,
                           filename: item.audio_path,
+                          audioFolder: 'uploaded_audio',
                         },
                       ),
                     }}
