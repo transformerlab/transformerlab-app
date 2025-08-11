@@ -255,6 +255,18 @@
     "deleteAudioFile": {
       "method": "DELETE",
       "path": "experiment/{experimentId}/conversations/delete_audio?id={id}"
+    },
+    "getTranscriptionHistory": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/conversations/list_transcriptions"
+    },
+    "downloadTranscriptionFile": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/conversations/download_transcription?filename={filename}"
+    },
+    "deleteTranscriptionFile": {
+      "method": "DELETE",
+      "path": "experiment/{experimentId}/conversations/delete_transcription?id={id}"
     }
   }
 }
