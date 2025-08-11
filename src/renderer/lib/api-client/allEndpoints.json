@@ -252,6 +252,10 @@
       "method": "GET",
       "path": "experiment/{experimentId}/conversations/download_audio?filename={filename}"
     },
+    "downloadAudioFileWithAudioFolder": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/conversations/download_audio?filename={filename}&audioFolder={audioFolder}"
+    },
     "deleteAudioFile": {
       "method": "DELETE",
       "path": "experiment/{experimentId}/conversations/delete_audio?id={id}"
