@@ -30,11 +30,11 @@ export async function sendAndReceiveTranscription(
   experimentId?: number,
   //format: string,
 ) {
-    const data: any = {
-        model: currentModel,
-        audio_path: audioPath,
-        experiment_id: experimentId,
-    };
+  const data: any = {
+    model: currentModel,
+    audio_path: audioPath,
+    experiment_id: experimentId,
+  };
 
   let response;
   try {
@@ -88,12 +88,12 @@ export default function Audio() {
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const file = event.target.files?.[0];
-    console.log('test',event.target.files)
+    console.log('test', event.target.files);
     if (file) {
       setInputAudio(file);
-    event.target.value = '';
+      event.target.value = '';
 
-        console.log(experimentInfo?.id)
+      console.log(experimentInfo?.id);
       const formData = new FormData();
       formData.append('experimentId', experimentInfo?.id);
       formData.append('audio', file);
@@ -126,7 +126,11 @@ export default function Audio() {
     setTranscription(null);
     setErrorMessage(null);
 
-    const result = await sendAndReceiveTranscription(currentModel, audioPath, experimentInfo?.id);
+    const result = await sendAndReceiveTranscription(
+      currentModel,
+      audioPath,
+      experimentInfo?.id,
+    );
 
     if (result && result.message) {
       setTranscription(result.message);
