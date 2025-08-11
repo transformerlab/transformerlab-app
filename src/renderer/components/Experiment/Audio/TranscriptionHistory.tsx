@@ -41,10 +41,14 @@ const TranscriptionHistory = React.forwardRef<
     if (transcriptionHistory) {
       transcriptionHistory.forEach(async (item) => {
         if (!textContents[item.id]) {
-          const textUrl = getAPIFullPath('conversations', ['downloadTranscriptionFile'], {
-            experimentId,
-            filename: item.filename,
-          });
+          const textUrl = getAPIFullPath(
+            'conversations',
+            ['downloadTranscriptionFile'],
+            {
+              experimentId,
+              filename: item.filename,
+            },
+          );
           try {
             const response = await fetch(textUrl);
             const text = await response.text();
