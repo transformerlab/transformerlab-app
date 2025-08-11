@@ -134,7 +134,7 @@ export default function ActiveClusters({
         if (error.message !== 'Authentication failed') {
           addNotification({
             type: 'warning',
-            message: `Failed to fetch cluster type for ${selectedCluster}`,
+            message: `Failed to fetch instance type for ${selectedCluster}`,
           });
         }
       },
@@ -241,7 +241,7 @@ export default function ActiveClusters({
       <Sheet sx={{ p: 2 }}>
         <Typography level="body-lg" textAlign="center" color="neutral">
           Please configure Lattice API credentials in Settings to view Active
-          Clusters.
+          Instances.
         </Typography>
       </Sheet>
     );
@@ -250,20 +250,19 @@ export default function ActiveClusters({
   return (
     <Sheet sx={{ p: 2 }}>
       <Typography level="h2" marginBottom={2}>
-        Active Clusters (Lattice)
+        Active Instances
       </Typography>
       <Typography level="body-md" marginBottom={3} color="neutral">
-        Manage and monitor your dynamically launched SkyPilot clusters that are
+        Manage and monitor your dynamically launched SkyPilot instances that are
         currently running or stopped.
       </Typography>
-
       <FormControl sx={{ maxWidth: '500px', mb: 2 }}>
-        <FormLabel>Select Active Cluster</FormLabel>
+        <FormLabel>Select Active Instance</FormLabel>
         {clustersLoading ? (
           <CircularProgress size="sm" />
         ) : (
           <Select
-            placeholder="Choose an active cluster..."
+            placeholder="Choose an active instance..."
             value={selectedCluster}
             onChange={(_, value) => setSelectedCluster(value || '')}
             renderValue={(option) => (
@@ -292,11 +291,10 @@ export default function ActiveClusters({
         )}
         <FormHelperText>
           {clusters.length === 0 && !clustersLoading
-            ? 'No active clusters found. Check your API configuration.'
-            : 'Select a cluster to view details and jobs'}
+            ? 'No active instances found.'
+            : 'Select an instance to view details and jobs'}
         </FormHelperText>
       </FormControl>
-
       {/* Cluster Overview */}
       {selectedCluster && currentCluster && (
         <>
@@ -306,7 +304,7 @@ export default function ActiveClusters({
             sx={{ p: 3, borderRadius: 'md', maxWidth: '800px', mb: 3 }}
           >
             <Typography level="title-lg" sx={{ mb: 2 }}>
-              Cluster Overview: {selectedCluster}
+              Instance Overview: {selectedCluster}
             </Typography>
 
             <Box
@@ -390,7 +388,7 @@ export default function ActiveClusters({
                 }}
               >
                 <Typography level="title-sm" sx={{ mb: 1 }}>
-                  Cluster Type: {clusterType.cluster_type}
+                  Instance Type: {clusterType.cluster_type}
                   {clusterType.is_ssh && (
                     <Chip
                       size="sm"
@@ -518,7 +516,6 @@ export default function ActiveClusters({
           </Sheet>
         </>
       )}
-
       {!selectedCluster && clusters.length > 0 && (
         <Typography
           level="body-md"
@@ -526,7 +523,7 @@ export default function ActiveClusters({
           color="neutral"
           sx={{ py: 4 }}
         >
-          Select a cluster above to view its details and running jobs.
+          Select an instance above to view its details and running jobs.
         </Typography>
       )}
     </Sheet>
