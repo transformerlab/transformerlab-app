@@ -204,11 +204,11 @@ export default function Audio() {
               sx={{ width: '100%' , mb: 1}}
             >
               {audioFileName ? audioFileName : 'Select Audio File'}
-              <Input
+              <input
                 type="file"
                 accept="audio/*"
                 onChange={handleAudioUpload}
-                sx={{ display: 'none' }}
+                style={{ display: 'none' }}
               />
             </Button>
             {audioFileName && (
