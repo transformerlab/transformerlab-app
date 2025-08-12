@@ -197,11 +197,25 @@ export default function Audio() {
           {/* Large text input area at the top */}
           <FormControl sx={{ flexGrow: 1, mt: 1 }}>
             <FormLabel>Upload Audio File</FormLabel>
-            <Input
-              type="file"
-              accept="audio/*" //TODO: restrict to audio files
-              onChange={handleAudioUpload}
-            />
+            <Button
+              component="label"
+              variant="solid"
+              size="lg"
+              sx={{ width: '100%' , mb: 1}}
+            >
+              {audioFileName ? audioFileName : 'Select Audio File'}
+              <Input
+                type="file"
+                accept="audio/*"
+                onChange={handleAudioUpload}
+                sx={{ display: 'none' }}
+              />
+            </Button>
+            {audioFileName && (
+              <Typography level="body-sm" sx={{ mb: 1 }}>
+                Selected file: {audioFileName}
+              </Typography>
+            )}
           </FormControl>
 
           {/* Controls and output below the text input */}
