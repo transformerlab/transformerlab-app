@@ -83,6 +83,7 @@ export default function Audio() {
   // Audio upload state and handler
   const [inputAudio, setInputAudio] = React.useState('');
   const [audioPath, setAudioPath] = React.useState('');
+  const [audioFileName, setAudioFileName] = React.useState('');
 
   const handleAudioUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -91,6 +92,7 @@ export default function Audio() {
     console.log('test', event.target.files);
     if (file) {
       setInputAudio(file);
+      setAudioFileName(file.name);
       event.target.value = '';
 
       console.log(experimentInfo?.id);
