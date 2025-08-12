@@ -178,72 +178,74 @@ export default function Audio() {
         {/* Left-hand Settings Sidebar */}
         <Sheet
           sx={{
-            p: 1,
-            pr: 2,
-            overflowY: 'auto',
-            minWidth: '220px',
+            p: 3,
+            minWidth: 320,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 2,
+            borderRadius: 8,
+            boxShadow: 'md',
+            bgcolor: 'background.surface',
           }}
-        ></Sheet>
+        >
+          <Typography level="h4" sx={{ mb: 1 }}>
+            Upload Audio
+          </Typography>
+          <Typography level="body-sm" sx={{ color: 'text.tertiary', mb: 2 }}>
+            Select an audio file (WAV, MP3, FLAC, etc.) for transcription. Only audio files are accepted.
+          </Typography>
+          <Button
+            component="label"
+            variant="soft"
+            size="lg"
+            sx={{ width: '100%', mb: 1 }}
+          >
+            {audioFileName ? audioFileName : 'Choose Audio File'}
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleAudioUpload}
+              style={{ display: 'none' }}
+            />
+          </Button>
+          {audioFileName && (
+            <Typography level="body-xs" sx={{ color: 'success.600', mt: 1 }}>
+              Selected: {audioFileName}
+            </Typography>
+          )}
+          <Button
+            color="primary"
+            onClick={handleSTTGeneration}
+            loading={isLoading}
+            disabled={!inputAudio}
+            sx={{ width: '100%', mt: 2 }}
+          >
+            Generate Transcription
+          </Button>
+          {errorMessage && (
+            <Typography level="body-sm" color="danger" sx={{ mt: 2 }}>
+              {errorMessage}
+            </Typography>
+          )}
+        </Sheet>
 
-        {/* Right-hand Main Panel for Input/Output */}
+        {/* Right-hand Main Panel for Output */}
         <Box
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            p: 1,
+            p: 3,
             width: '100%',
+            borderRadius: 8,
+            boxShadow: 'md',
+            bgcolor: 'background.surface',
+            minHeight: 400,
           }}
         >
-          {/* Large text input area at the top */}
-          <FormControl sx={{ flexGrow: 1, mt: 1 }}>
-            <FormLabel>Upload Audio File</FormLabel>
-            <Button
-              component="label"
-              variant="solid"
-              size="lg"
-              sx={{ width: '100%' , mb: 1}}
-            >
-              {audioFileName ? audioFileName : 'Select Audio File'}
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={handleAudioUpload}
-                style={{ display: 'none' }}
-              />
-            </Button>
-            {audioFileName && (
-              <Typography level="body-sm" sx={{ mb: 1 }}>
-                Selected file: {audioFileName}
-              </Typography>
-            )}
-          </FormControl>
-
-          {/* Controls and output below the text input */}
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              my: 2,
-            }}
-          >
-            <Stack direction="row" spacing={1} sx={{ alignSelf: 'flex-start' }}>
-              <Button
-                color="primary"
-                onClick={handleSTTGeneration}
-                loading={isLoading}
-                disabled={!inputAudio}
-              >
-                Generate Transcription
-              </Button>
-            </Stack>
-
-            {errorMessage && (
-              <Typography level="body-sm" color="danger">
-                {errorMessage}
-              </Typography>
-            )}
-          </Box>
+          <Typography level="h4" sx={{ mb: 2 }}>
+            Transcription
+          </Typography>
           <TranscriptionHistory
             ref={transcriptionHistoryRef}
             transcriptionHistory={transcriptionHistory || []}
