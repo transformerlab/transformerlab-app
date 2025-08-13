@@ -193,6 +193,7 @@ const DatasetTable = ({ datasetId }: { datasetId: string }) => {
                                       audioData={cellData.array}
                                       metadata={mergedMetadata}
                                       transcription={cellData.transcription}
+                                      compact
                                     />
                                   );
                                 }
@@ -208,6 +209,7 @@ const DatasetTable = ({ datasetId }: { datasetId: string }) => {
                                       audioData={cellData}
                                       metadata={cellData.metadata}
                                       transcription={cellData.transcription}
+                                      compact
                                     />
                                   );
                                 }
