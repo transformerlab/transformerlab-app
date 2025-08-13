@@ -288,11 +288,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <strong>Duration:</strong> {metadata.duration}s
               </Box>
             )}
-            {transcription && (
-              <Box sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                <strong>Transcription:</strong> {transcription}
-              </Box>
-            )}
           </Stack>
         </Stack>
       </CardContent>
