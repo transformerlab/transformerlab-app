@@ -141,7 +141,7 @@ const TranscriptionHistory = React.forwardRef<
                       // Delete text file
                       const deleteTextURL = getAPIFullPath(
                         'conversations',
-                        ['delete_text'],
+                        ['deleteTranscriptionFile'],
                         {
                           id: item.id,
                           experimentId,
