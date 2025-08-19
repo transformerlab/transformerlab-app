@@ -179,7 +179,8 @@ export default function RunModelButton({
   }
 
   useEffect(() => {
-    if (!data || !pipelineTagLoaded || supportedEngines.length === 0) return;
+    // Add this single line to wait for pipeline tag loading
+    if (!data || !pipelineTagLoaded) return;
 
     let objExperimentInfo = null;
     if (experimentInfo?.config?.inferenceParams) {
@@ -190,34 +191,57 @@ export default function RunModelButton({
       }
     }
 
+    // Check if current engine is still supported after filtering
     const currentEngine = objExperimentInfo?.inferenceEngine;
     const currentEngineIsSupported = supportedEngines.some(
       (engine) => engine.uniqueId === currentEngine,
     );
 
-    if (!currentEngine || !currentEngineIsSupported) {
-      const firstEngine = supportedEngines[0];
-      const newSettings = {
-        inferenceEngine: firstEngine.uniqueId,
-        inferenceEngineFriendlyName: firstEngine.name,
-      };
-      setInferenceSettings(newSettings);
+    if (
+      objExperimentInfo == null ||
+      objExperimentInfo?.inferenceEngine == null ||
+      !currentEngineIsSupported // Add this condition
+    ) {
+      // If there are supportedEngines, set the first one from supported engines as default
+      if (supportedEngines.length > 0) {
+        const firstEngine = supportedEngines[0];
+        const newInferenceSettings = {
+          inferenceEngine: firstEngine.uniqueId || null,
+          inferenceEngineFriendlyName: firstEngine.name || '',
+        };
+        setInferenceSettings(newInferenceSettings);
 
-      if (experimentInfo?.id) {
-        fetch(
-          chatAPI.Endpoints.Experiment.UpdateConfig(
-            experimentInfo.id,
-            'inferenceParams',
-            JSON.stringify(newSettings),
-          ),
-        ).catch(console.error);
+        // Update the experiment config with the first supported engine
+        if (experimentInfo?.id) {
+          fetch(
+            chatAPI.Endpoints.Experiment.UpdateConfig(
+              experimentInfo.id,
+              'inferenceParams',
+              JSON.stringify(newInferenceSettings),
+            ),
+          ).catch(() => {
+            console.error(
+              'Failed to update inferenceParams in experiment config',
+            );
+          });
+        }
+      } else {
+        // This preserves the older logic where we try to get the default inference engine for a blank experiment
+        (async () => {
+          const { inferenceEngine, inferenceEngineFriendlyName } =
+            await getDefaultinferenceEngines();
+          setInferenceSettings({
+            inferenceEngine: inferenceEngine || null,
+            inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
+          });
+        })();
       }
     } else {
       setInferenceSettings(objExperimentInfo);
     }
   }, [
     data,
-    pipelineTagLoaded,
+    pipelineTagLoaded, // Add this dependency
     supportedEngines,
     experimentInfo?.id,
     experimentInfo?.config?.inferenceParams,
