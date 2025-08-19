@@ -178,17 +178,14 @@ export default function RunModelButton({
     };
   }
 
+  // Set a default inference Engine if there is none
   useEffect(() => {
     // Add this single line to wait for pipeline tag loading
     if (!data || !pipelineTagLoaded) return;
 
     let objExperimentInfo = null;
     if (experimentInfo?.config?.inferenceParams) {
-      try {
-        objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
-      } catch (e) {
-        console.error('Failed to parse inferenceParams:', e);
-      }
+      objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
     }
 
     // Check if current engine is still supported after filtering
@@ -200,7 +197,7 @@ export default function RunModelButton({
     if (
       objExperimentInfo == null ||
       objExperimentInfo?.inferenceEngine == null ||
-      !currentEngineIsSupported // Add this condition
+      !currentEngineIsSupported
     ) {
       // If there are supportedEngines, set the first one from supported engines as default
       if (supportedEngines.length > 0) {
