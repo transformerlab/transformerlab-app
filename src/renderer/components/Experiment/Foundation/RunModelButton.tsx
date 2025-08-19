@@ -65,20 +65,22 @@ export default function RunModelButton({
     if (!data) {
       return [];
     }
-    
+
     const filtered = data.filter((row) => {
       // Check if plugin supports the architecture
-      const supportsArchitecture = Array.isArray(row.model_architectures) &&
+      const supportsArchitecture =
+        Array.isArray(row.model_architectures) &&
         row.model_architectures.some(
           (arch) => arch.toLowerCase() === archTag.toLowerCase(),
         );
-      
+
       // Check if plugin has text-to-speech support
-      const hasTextToSpeechSupport = Array.isArray(row.supports) &&
+      const hasTextToSpeechSupport =
+        Array.isArray(row.supports) &&
         row.supports.some(
           (support) => support.toLowerCase() === 'text-to-speech',
         );
-      
+
       // Apply filtering logic based on pipeline tag
       if (pipelineTag === 'text-to-speech') {
         // For text-to-speech models: must support architecture AND text-to-speech
@@ -88,7 +90,7 @@ export default function RunModelButton({
         return supportsArchitecture && !hasTextToSpeechSupport;
       }
     });
-    
+
     return filtered;
   }, [data, archTag, pipelineTag]);
 
