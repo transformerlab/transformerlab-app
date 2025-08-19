@@ -41,6 +41,7 @@ export default function RunModelButton({
 }) {
   const [jobId, setJobId] = useState(null);
   const [showRunSettings, setShowRunSettings] = useState(false);
+  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
     inferenceEngineFriendlyName: '',
@@ -64,15 +65,32 @@ export default function RunModelButton({
     if (!data) {
       return [];
     }
-    const filtered = data.filter(
-      (row) =>
-        Array.isArray(row.model_architectures) &&
+    
+    const filtered = data.filter((row) => {
+      // Check if plugin supports the architecture
+      const supportsArchitecture = Array.isArray(row.model_architectures) &&
         row.model_architectures.some(
           (arch) => arch.toLowerCase() === archTag.toLowerCase(),
-        ),
-    );
+        );
+      
+      // Check if plugin has text-to-speech support
+      const hasTextToSpeechSupport = Array.isArray(row.supports) &&
+        row.supports.some(
+          (support) => support.toLowerCase() === 'text-to-speech',
+        );
+      
+      // Apply filtering logic based on pipeline tag
+      if (pipelineTag === 'text-to-speech') {
+        // For text-to-speech models: must support architecture AND text-to-speech
+        return supportsArchitecture && hasTextToSpeechSupport;
+      } else {
+        // For non-text-to-speech models: must support architecture but NOT text-to-speech
+        return supportsArchitecture && !hasTextToSpeechSupport;
+      }
+    });
+    
     return filtered;
-  }, [data, archTag]);
+  }, [data, archTag, pipelineTag]);
 
   const unsupportedEngines = React.useMemo(() => {
     if (!data) {
@@ -179,7 +197,7 @@ export default function RunModelButton({
     } else {
       setInferenceSettings(objExperimentInfo);
     }
-  }, [experimentInfo, supportedEngines]);
+  }, [experimentInfo, supportedEngines, pipelineTag]);
 
   // Check if the current foundation model is a diffusion model
   useEffect(() => {
@@ -206,6 +224,33 @@ export default function RunModelButton({
     };
 
     checkValidDiffusion();
+  }, [experimentInfo?.config?.foundation]);
+
+  useEffect(() => {
+    const fetchPipelineTag = async () => {
+      if (!experimentInfo?.config?.foundation) {
+        setPipelineTag(null);
+        return;
+      }
+
+      try {
+        const url = getAPIFullPath('models', ['pipeline_tag'], {
+          modelName: experimentInfo.config.foundation,
+        });
+        const response = await fetch(url, { method: 'GET' });
+        if (!response.ok) {
+          setPipelineTag(null);
+        } else {
+          const data = await response.json();
+          setPipelineTag(data?.data || null);
+        }
+      } catch (e) {
+        setPipelineTag(null);
+        console.error('Error fetching pipeline tag:', e);
+      }
+    };
+
+    fetchPipelineTag();
   }, [experimentInfo?.config?.foundation]);
 
   function Engine() {
