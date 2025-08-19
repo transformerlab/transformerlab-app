@@ -18,7 +18,7 @@ import InferenceEngineModal from './InferenceEngineModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
-import React, { useState } from 'react';
+import React from 'react';
 
 import { Link } from 'react-router-dom';
 
@@ -42,6 +42,7 @@ export default function RunModelButton({
   const [jobId, setJobId] = useState(null);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
+  const [pipelineTagLoaded, setPipelineTagLoaded] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
     inferenceEngineFriendlyName: '',
@@ -61,52 +62,66 @@ export default function RunModelButton({
 
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
 
-  const supportedEngines = React.useMemo(() => {
-    if (!data) {
-      return [];
-    }
-
-    const filtered = data.filter((row) => {
-      // Check if plugin supports the architecture
-      const supportsArchitecture =
-        Array.isArray(row.model_architectures) &&
-        row.model_architectures.some(
-          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
-        );
-
-      // Check if plugin has text-to-speech support
-      const hasTextToSpeechSupport =
-        Array.isArray(row.supports) &&
-        row.supports.some(
-          (support) => support.toLowerCase() === 'text-to-speech',
-        );
-
-      // Apply filtering logic based on pipeline tag
-      if (pipelineTag === 'text-to-speech') {
-        // For text-to-speech models: must support architecture AND text-to-speech
-        return supportsArchitecture && hasTextToSpeechSupport;
-      } else {
-        // For non-text-to-speech models: must support architecture but NOT text-to-speech
-        return supportsArchitecture && !hasTextToSpeechSupport;
+  // Fetch pipeline tag effect
+  useEffect(() => {
+    const fetchPipelineTag = async () => {
+      if (!experimentInfo?.config?.foundation) {
+        setPipelineTag(null);
+        setPipelineTagLoaded(true);
+        return;
       }
-    });
 
-    return filtered;
-  }, [data, archTag, pipelineTag]);
+      setPipelineTagLoaded(false);
+      try {
+        const url = getAPIFullPath('models', ['pipeline_tag'], {
+          modelName: experimentInfo.config.foundation,
+        });
+        const response = await fetch(url, { method: 'GET' });
+        if (!response.ok) {
+          setPipelineTag(null);
+        } else {
+          const data = await response.json();
+          setPipelineTag(data?.data || null);
+        }
+      } catch (e) {
+        setPipelineTag(null);
+        console.error('Error fetching pipeline tag:', e);
+      } finally {
+        setPipelineTagLoaded(true);
+      }
+    };
+
+    fetchPipelineTag();
+  }, [experimentInfo?.config?.foundation]);
+
+  const supportedEngines = React.useMemo(() => {
+    if (!data || !pipelineTagLoaded) return [];
+    
+    return data.filter((row) => {
+      const supportsArchitecture = Array.isArray(row.model_architectures) &&
+        row.model_architectures.some(arch => arch.toLowerCase() === archTag.toLowerCase());
+      
+      const hasTextToSpeechSupport = Array.isArray(row.supports) &&
+        row.supports.some(support => support.toLowerCase() === 'text-to-speech');
+      
+      if (!supportsArchitecture) return false;
+      
+      // For text-to-speech models: must also have text-to-speech support
+      if (pipelineTag === 'text-to-speech') {
+        return hasTextToSpeechSupport;
+      }
+      
+      // For non-text-to-speech models: must NOT have text-to-speech support
+      return !hasTextToSpeechSupport;
+    });
+  }, [data, archTag, pipelineTag, pipelineTagLoaded]);
 
   const unsupportedEngines = React.useMemo(() => {
-    if (!data) {
-      return [];
-    }
-    const filtered = data.filter(
-      (row) =>
-        !Array.isArray(row.model_architectures) ||
-        !row.model_architectures.some(
-          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
-        ),
-    );
-    return filtered;
-  }, [data, archTag]);
+    if (!data) return [];
+
+    // Simply return everything that's NOT in supportedEngines
+    return data.filter(row => !supportedEngines.some(supported => supported.uniqueId === row.uniqueId));
+  }, [data, supportedEngines]);
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -152,54 +167,42 @@ export default function RunModelButton({
     };
   }
 
-  // Set a default inference Engine if there is none
   useEffect(() => {
+    if (!data || !pipelineTagLoaded || supportedEngines.length === 0) return;
+
     let objExperimentInfo = null;
     if (experimentInfo?.config?.inferenceParams) {
-      objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
+      try {
+        objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
+      } catch (e) {
+        console.error('Failed to parse inferenceParams:', e);
+      }
     }
-    if (
-      objExperimentInfo == null ||
-      objExperimentInfo?.inferenceEngine == null
-    ) {
-      // If there are supportedEngines, set the first one from supported engines as default
-      if (supportedEngines.length > 0) {
-        const firstEngine = supportedEngines[0];
-        const newInferenceSettings = {
-          inferenceEngine: firstEngine.uniqueId || null,
-          inferenceEngineFriendlyName: firstEngine.name || '',
-        };
-        setInferenceSettings(newInferenceSettings);
 
-        // Update the experiment config with the first supported engine
-        if (experimentInfo?.id) {
-          fetch(
-            chatAPI.Endpoints.Experiment.UpdateConfig(
-              experimentInfo.id,
-              'inferenceParams',
-              JSON.stringify(newInferenceSettings),
-            ),
-          ).catch(() => {
-            console.error(
-              'Failed to update inferenceParams in experiment config',
-            );
-          });
-        }
-      } else {
-        // This preserves the older logic where we try to get the default inference engine for a blank experiment
-        (async () => {
-          const { inferenceEngine, inferenceEngineFriendlyName } =
-            await getDefaultinferenceEngines();
-          setInferenceSettings({
-            inferenceEngine: inferenceEngine || null,
-            inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
-          });
-        })();
+    const currentEngine = objExperimentInfo?.inferenceEngine;
+    const currentEngineIsSupported = supportedEngines.some(engine => engine.uniqueId === currentEngine);
+    
+    if (!currentEngine || !currentEngineIsSupported) {
+      const firstEngine = supportedEngines[0];
+      const newSettings = {
+        inferenceEngine: firstEngine.uniqueId,
+        inferenceEngineFriendlyName: firstEngine.name,
+      };
+      setInferenceSettings(newSettings);
+      
+      if (experimentInfo?.id) {
+        fetch(
+          chatAPI.Endpoints.Experiment.UpdateConfig(
+            experimentInfo.id,
+            'inferenceParams',
+            JSON.stringify(newSettings),
+          ),
+        ).catch(console.error);
       }
     } else {
       setInferenceSettings(objExperimentInfo);
     }
-  }, [experimentInfo, supportedEngines, pipelineTag]);
+  }, [data, pipelineTagLoaded, supportedEngines, experimentInfo?.id, experimentInfo?.config?.inferenceParams]);
 
   // Check if the current foundation model is a diffusion model
   useEffect(() => {
@@ -226,33 +229,6 @@ export default function RunModelButton({
     };
 
     checkValidDiffusion();
-  }, [experimentInfo?.config?.foundation]);
-
-  useEffect(() => {
-    const fetchPipelineTag = async () => {
-      if (!experimentInfo?.config?.foundation) {
-        setPipelineTag(null);
-        return;
-      }
-
-      try {
-        const url = getAPIFullPath('models', ['pipeline_tag'], {
-          modelName: experimentInfo.config.foundation,
-        });
-        const response = await fetch(url, { method: 'GET' });
-        if (!response.ok) {
-          setPipelineTag(null);
-        } else {
-          const data = await response.json();
-          setPipelineTag(data?.data || null);
-        }
-      } catch (e) {
-        setPipelineTag(null);
-        console.error('Error fetching pipeline tag:', e);
-      }
-    };
-
-    fetchPipelineTag();
   }, [experimentInfo?.config?.foundation]);
 
   function Engine() {
