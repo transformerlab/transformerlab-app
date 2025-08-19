@@ -96,21 +96,27 @@ export default function RunModelButton({
 
   const supportedEngines = React.useMemo(() => {
     if (!data || !pipelineTagLoaded) return [];
-    
+
     return data.filter((row) => {
-      const supportsArchitecture = Array.isArray(row.model_architectures) &&
-        row.model_architectures.some(arch => arch.toLowerCase() === archTag.toLowerCase());
-      
-      const hasTextToSpeechSupport = Array.isArray(row.supports) &&
-        row.supports.some(support => support.toLowerCase() === 'text-to-speech');
-      
+      const supportsArchitecture =
+        Array.isArray(row.model_architectures) &&
+        row.model_architectures.some(
+          (arch) => arch.toLowerCase() === archTag.toLowerCase(),
+        );
+
+      const hasTextToSpeechSupport =
+        Array.isArray(row.supports) &&
+        row.supports.some(
+          (support) => support.toLowerCase() === 'text-to-speech',
+        );
+
       if (!supportsArchitecture) return false;
-      
+
       // For text-to-speech models: must also have text-to-speech support
       if (pipelineTag === 'text-to-speech') {
         return hasTextToSpeechSupport;
       }
-      
+
       // For non-text-to-speech models: must NOT have text-to-speech support
       return !hasTextToSpeechSupport;
     });
@@ -120,7 +126,12 @@ export default function RunModelButton({
     if (!data) return [];
 
     // Simply return everything that's NOT in supportedEngines
-    return data.filter(row => !supportedEngines.some(supported => supported.uniqueId === row.uniqueId));
+    return data.filter(
+      (row) =>
+        !supportedEngines.some(
+          (supported) => supported.uniqueId === row.uniqueId,
+        ),
+    );
   }, [data, supportedEngines]);
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
@@ -180,8 +191,10 @@ export default function RunModelButton({
     }
 
     const currentEngine = objExperimentInfo?.inferenceEngine;
-    const currentEngineIsSupported = supportedEngines.some(engine => engine.uniqueId === currentEngine);
-    
+    const currentEngineIsSupported = supportedEngines.some(
+      (engine) => engine.uniqueId === currentEngine,
+    );
+
     if (!currentEngine || !currentEngineIsSupported) {
       const firstEngine = supportedEngines[0];
       const newSettings = {
@@ -189,7 +202,7 @@ export default function RunModelButton({
         inferenceEngineFriendlyName: firstEngine.name,
       };
       setInferenceSettings(newSettings);
-      
+
       if (experimentInfo?.id) {
         fetch(
           chatAPI.Endpoints.Experiment.UpdateConfig(
@@ -202,7 +215,13 @@ export default function RunModelButton({
     } else {
       setInferenceSettings(objExperimentInfo);
     }
-  }, [data, pipelineTagLoaded, supportedEngines, experimentInfo?.id, experimentInfo?.config?.inferenceParams]);
+  }, [
+    data,
+    pipelineTagLoaded,
+    supportedEngines,
+    experimentInfo?.id,
+    experimentInfo?.config?.inferenceParams,
+  ]);
 
   // Check if the current foundation model is a diffusion model
   useEffect(() => {
