@@ -244,7 +244,6 @@ Endpoints.BatchedPrompts = {
 Endpoints.Tools = {
   Call: (function_name: string, function_arguments: string) =>
     `${API_URL()}tools/call/${function_name}?params=${function_arguments}`,
-  Prompt: () => `${API_URL()}tools/prompt`,
   List: () => `${API_URL()}tools/list`,
   InstallMcpPlugin: (serverName: string) =>
     `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
