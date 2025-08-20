@@ -67,7 +67,6 @@ export async function sendAndReceiveStreaming(
   maxTokens: number,
   topP: number,
   freqencyPenalty: number,
-  systemMessage: string,
   stopString = null,
   image?: string,
   minP?: number,
@@ -79,7 +78,6 @@ export async function sendAndReceiveStreaming(
   // }
 
   let messages = [];
-  // messages.push({ role: 'system', content: systemMessage });
   messages = messages.concat(texts);
   const data: any = {
     model: shortModelName,
@@ -90,7 +88,6 @@ export async function sendAndReceiveStreaming(
     max_tokens: maxTokens,
     top_p: topP,
     frequency_penalty: freqencyPenalty,
-    // system_message: systemMessage,
     ...(minP !== undefined ? { min_p: minP } : {}),
   };
 

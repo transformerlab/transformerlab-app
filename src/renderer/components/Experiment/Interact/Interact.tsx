@@ -278,8 +278,6 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
-    const systemMessage = '';
-
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
 
@@ -318,7 +316,6 @@ export default function Chat({
       generationParameters?.maxTokens,
       generationParameters?.topP,
       generationParameters?.frequencyPenalty,
-      systemMessage,
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
@@ -443,8 +440,6 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
-    const systemMessage = '';
-
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
 
@@ -483,7 +478,6 @@ export default function Chat({
       generationParameters?.maxTokens,
       generationParameters?.topP,
       generationParameters?.frequencyPenalty,
-      systemMessage,
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
@@ -563,7 +557,6 @@ export default function Chat({
             generationParameters?.maxTokens,
             generationParameters?.topP,
             generationParameters?.frequencyPenalty,
-            systemMessage,
             generationParameters?.stop_str,
             image,
             generationParameters?.minP,
