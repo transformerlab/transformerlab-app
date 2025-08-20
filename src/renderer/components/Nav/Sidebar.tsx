@@ -86,11 +86,9 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   // Check if the current foundation model is a diffusion model and fetch pipeline_tag in the same effect
   useEffect(() => {
     const checkValidDiffusionAndPipelineTag = async () => {
-      console.log('COMING INSIDE THE EFFECT');
       if (!experimentInfo?.config?.foundation) {
         setIsValidDiffusionModel(false);
         setPipelineTag(null);
-        console.log('RETURNING HERE');
         return;
       }
 
