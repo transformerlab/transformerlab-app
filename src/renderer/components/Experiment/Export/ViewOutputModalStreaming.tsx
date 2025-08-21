@@ -41,8 +41,10 @@ export default function ViewOutputModalStreaming({
   );
 
   // // Create a custom endpoint for export job output
-  const outputEndpoint =
-    chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
+  const outputEndpoint = chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+    experimentInfo.id,
+    jobId,
+  );
 
   return (
     <Modal open={jobId !== -1} onClose={() => setJobId(-1)}>
