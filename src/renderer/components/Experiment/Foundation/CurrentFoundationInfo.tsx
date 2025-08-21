@@ -262,7 +262,12 @@ export default function CurrentFoundationInfo({
   const handleCancelDownload = async () => {
     if (jobId) {
       setCanceling(true);
-      const response = await fetch(getAPIFullPath('jobs', ['stop'], { jobId }));
+      const response = await fetch(
+        getAPIFullPath('jobs', ['stop'], {
+          id: jobId,
+          experimentId: experimentInfo?.id,
+        }),
+      );
       if (response.ok) {
         setJobId(null);
         setCurrentlyInstalling(null);
