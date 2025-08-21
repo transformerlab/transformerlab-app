@@ -86,15 +86,11 @@
   "jobs": {
     "get": {
       "method": "GET",
-      "path": "jobs/{id}"
+      "path": "experiment/{experimentId}/jobs/{id}"
     },
     "stop": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/stop"
-    },
-    "getJobsOfType": {
-      "method": "GET",
-      "path": "experiment/{experimentId}/jobs/list"
     },
     "getCheckpoints": {
       "method": "GET",

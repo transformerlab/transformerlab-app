@@ -264,8 +264,8 @@ export default function CurrentFoundationInfo({
       setCanceling(true);
       const response = await fetch(
         getAPIFullPath('jobs', ['stop'], {
+          id: jobId,
           experimentId: experimentInfo?.id,
-          jobId,
         }),
       );
       if (response.ok) {

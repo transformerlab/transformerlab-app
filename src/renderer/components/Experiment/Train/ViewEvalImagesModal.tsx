@@ -46,14 +46,15 @@ export default function ViewEvalImagesModal({
     [key: string]: boolean;
   }>({});
 
-  const { experimentInfo } = useExperimentInfo();
+  const { experimentId } = useExperimentInfo();
+
   const {
     data: imagesData,
     error,
     isLoading,
   } = useSWR<EvalImagesResponse>(
     open && jobId && jobId !== -1
-      ? chatAPI.Endpoints.Jobs.GetEvalImages(experimentInfo?.id, jobId)
+      ? chatAPI.Endpoints.Jobs.GetEvalImages(experimentId, jobId)
       : null,
     fetcher,
     {
