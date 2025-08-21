@@ -16,6 +16,7 @@ import {
 } from '@mui/joy';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -45,13 +46,15 @@ export default function ViewEvalImagesModal({
     [key: string]: boolean;
   }>({});
 
+  const { experimentId } = useExperimentInfo();
+
   const {
     data: imagesData,
     error,
     isLoading,
   } = useSWR<EvalImagesResponse>(
     open && jobId && jobId !== -1
-      ? chatAPI.Endpoints.Jobs.GetEvalImages(jobId)
+      ? chatAPI.Endpoints.Jobs.GetEvalImages(experimentId, jobId)
       : null,
     fetcher,
     {
