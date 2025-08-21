@@ -95,6 +95,10 @@
     "getCheckpoints": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/checkpoints"
+    },
+    "getJobsOfType": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
     }
   },
   "datasets": {

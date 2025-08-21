@@ -424,29 +424,10 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/list?type=${type}&status=${status}`,
   Delete: (experimentId: number, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/delete/${jobId}`,
-<<<<<<< HEAD
-  GetTrainingTemplate: (template_id: string) =>
-    `${API_URL()}jobs/template/${template_id}`,
-  UpdateTrainingTemplate: (
-    template_id: string,
-    name: string,
-    description: string,
-    type: string,
-    config: Object,
-  ) =>
-    `${API_URL()}jobs/template/update` +
-    `?template_id=${template_id}&name=${name}&description=${description}&type=${type}&config=${config}`,
-=======
->>>>>>> e6c5ca91b1575d2960a24cf68b8c0fca544f9ae8
   Stop: (experimentId: number, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
   GetEvalImages: (experimentId: number, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
-<<<<<<< HEAD
-  GetEvalImage: (experimentId: number, jobId: string, filename: string) =>
-    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/image/${filename}`,
-=======
->>>>>>> e6c5ca91b1575d2960a24cf68b8c0fca544f9ae8
 };
 
 Endpoints.Global = {
