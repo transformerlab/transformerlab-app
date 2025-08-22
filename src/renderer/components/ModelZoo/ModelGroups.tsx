@@ -199,7 +199,7 @@ export default function ModelGroups({ experimentInfo }) {
   useEffect(() => {
     fetch(
       chatAPI.Endpoints.Jobs.GetJobsOfType(
-        experimentInfo.id,
+        experimentInfo?.id,
         'DOWNLOAD_MODEL',
         'RUNNING',
       ),

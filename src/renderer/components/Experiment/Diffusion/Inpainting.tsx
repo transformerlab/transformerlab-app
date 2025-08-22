@@ -1,4 +1,10 @@
-import React, { useState, useCallback, Dispatch, SetStateAction } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  Dispatch,
+  SetStateAction,
+} from 'react';
 import {
   Box,
   Button,
@@ -25,12 +31,13 @@ import {
   ChevronUp,
   Info,
 } from 'lucide-react';
-
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { RxMaskOff, RxMaskOn } from 'react-icons/rx';
-
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
+import JobProgress from '../Train/JobProgress';
 import ReactCanvasPaint from '../../Shared/ReactCanvasPaint/ReactCanvasPaint';
 import HistoryImageSelector from './HistoryImageSelector';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -96,6 +103,11 @@ interface InpaintingProps {
   setImageHeight: Dispatch<SetStateAction<string>>;
   numImages: number;
   setNumImages: Dispatch<SetStateAction<number>>;
+  latestJobId: number | null;
+  setViewOutputJobId: Dispatch<SetStateAction<number>>;
+  setViewOutputFileName: Dispatch<SetStateAction<string>>;
+  pendingJob: number | null;
+  setPendingJob: Dispatch<SetStateAction<number>>;
 }
 
 export default function Inpainting({
@@ -133,6 +145,11 @@ export default function Inpainting({
   setImageHeight,
   numImages,
   setNumImages,
+  latestJobId,
+  setViewOutputJobId,
+  setViewOutputFileName,
+  pendingJob,
+  setPendingJob,
 }: InpaintingProps) {
   const [strokeSize, setStrokeSize] = useState(20);
   const [drawMode, setDrawMode] = useState<'pencil' | 'eraser'>('pencil');
@@ -146,6 +163,47 @@ export default function Inpainting({
   const [maskRenderStyle, setMaskRenderStyle] = useState('red');
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const { experimentInfo } = useExperimentInfo();
+
+  const { data: diffusionJobs } = useAPI(
+    'jobs',
+    ['getJobsOfType'],
+    {
+      type: 'DIFFUSION',
+      status: '',
+      experimentId: experimentInfo?.id,
+    },
+    {
+      refreshInterval: 1000,
+    },
+  );
+
+  let runningDiffusionJob = diffusionJobs?.find(
+    (job) => job.id === latestJobId,
+  );
+
+  if (
+    !runningDiffusionJob &&
+    pendingJob === latestJobId &&
+    latestJobId !== null
+  ) {
+    // Show placeholder immediately before polling picks up the real job
+    runningDiffusionJob = {
+      id: latestJobId,
+      status: 'QUEUED',
+    };
+  }
+
+  // When the real job arrives and is not in initial QUEUED placeholder state, clear pending
+  useEffect(() => {
+    const realJobExists = diffusionJobs?.some(
+      (job) => job.id === latestJobId && job.status !== 'QUEUED',
+    );
+    if (realJobExists) {
+      setPendingJob(null);
+    }
+  }, [diffusionJobs, latestJobId]);
 
   // Calculate actual image dimensions and canvas positioning
   const updateCanvasDimensions = useCallback(() => {
@@ -675,9 +733,21 @@ export default function Inpainting({
         )}
 
         {error && (
-          <Typography color="danger" level="body-sm">
-            {error}
-          </Typography>
+          <Stack direction="row" spacing={2} alignItems="center" mt={1}>
+            <Typography color="danger" level="body-sm">
+              {error}
+            </Typography>
+            {latestJobId && (
+              <Button
+                onClick={() => setViewOutputJobId(latestJobId)}
+                color="primary"
+                variant="soft"
+                size="sm"
+              >
+                View Output
+              </Button>
+            )}
+          </Stack>
         )}
       </Stack>
 
@@ -768,6 +838,24 @@ export default function Inpainting({
         )}
 
         {/* Generated Images */}
+        {loading && latestJobId && runningDiffusionJob && (
+          <Box sx={{ mt: 2 }}>
+            <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
+              Generating...
+            </Typography>
+            <Box display="flex" alignItems="center" gap={1}>
+              <JobProgress job={runningDiffusionJob} />
+              <Button
+                size="sm"
+                variant="soft"
+                onClick={() => setViewOutputJobId(runningDiffusionJob.id)}
+              >
+                View Output
+              </Button>
+            </Box>
+          </Box>
+        )}
+
         {generatedImages.length > 0 && (
           <Stack spacing={2} sx={{ height: '50%' }}>
             <Typography level="h4">Generated Results</Typography>
@@ -890,14 +978,30 @@ export default function Inpainting({
                 ))}
               </Stack>
             )}
-
-            <Button
-              onClick={handleSaveAllImages}
-              variant="solid"
-              color="primary"
-            >
-              Save All Images
-            </Button>
+            {latestJobId && (
+              <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                <Button
+                  onClick={() => setViewOutputJobId(latestJobId)}
+                  color="primary"
+                  variant="soft"
+                  size="md"
+                  fullWidth
+                >
+                  View Output
+                </Button>
+                <Button
+                  onClick={handleSaveAllImages}
+                  color="primary"
+                  variant="solid"
+                  size="md"
+                  fullWidth
+                >
+                  {generatedImages.length > 1
+                    ? 'Save All Images'
+                    : 'Save Image'}
+                </Button>
+              </Stack>
+            )}
           </Stack>
         )}
       </Stack>

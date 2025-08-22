@@ -37,6 +37,9 @@ function getTint(type: string) {
     case 'generator':
       tint = colorArray[5];
       break;
+    case 'diffusion':
+      tint = colorArray[6];
+      break;
     default:
       tint = 'var(--joy-palette-background-surface)';
   }
