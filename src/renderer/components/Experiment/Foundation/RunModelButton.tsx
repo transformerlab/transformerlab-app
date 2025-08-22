@@ -104,13 +104,13 @@ export default function RunModelButton({
           (arch) => arch.toLowerCase() === archTag.toLowerCase(),
         );
 
+      if (!supportsArchitecture) return false;
+
       const hasTextToSpeechSupport =
         Array.isArray(row.supports) &&
         row.supports.some(
-          (support) => support.toLowerCase() === 'text-to-speech',
+          (support: string) => support.toLowerCase() === 'text-to-speech',
         );
-
-      if (!supportsArchitecture) return false;
 
       // For text-to-speech models: must also have text-to-speech support
       if (pipelineTag === 'text-to-speech') {
