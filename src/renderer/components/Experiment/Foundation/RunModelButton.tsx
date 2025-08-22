@@ -120,7 +120,7 @@ export default function RunModelButton({
       // For non-text-to-speech models: must NOT have text-to-speech support
       return !hasTextToSpeechSupport;
     });
-  }, [data, archTag, pipelineTag, pipelineTagLoaded]);
+  }, [data, pipelineTagLoaded]);
 
   const unsupportedEngines = React.useMemo(() => {
     if (!data) return [];
