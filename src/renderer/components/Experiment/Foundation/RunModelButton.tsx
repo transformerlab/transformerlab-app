@@ -238,7 +238,7 @@ export default function RunModelButton({
     }
   }, [
     data,
-    pipelineTagLoaded, // Add this dependency
+    pipelineTagLoaded,
     supportedEngines,
     experimentInfo?.id,
     experimentInfo?.config?.inferenceParams,
