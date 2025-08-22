@@ -319,6 +319,7 @@ export default function Chat({
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
+      'chat',
     );
 
     clearTimeout(timeoutId);
@@ -481,6 +482,7 @@ export default function Chat({
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
+      'tools',
     );
 
     // The model may make repeated tool calls but don't let it get stuck in a loop
@@ -560,6 +562,7 @@ export default function Chat({
             generationParameters?.stop_str,
             image,
             generationParameters?.minP,
+            'tools',
           );
         }
       }

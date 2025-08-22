@@ -10,6 +10,7 @@ export async function sendAndReceive(
   topP: number,
   systemMessage: string,
   minP?: number,
+  requestType: 'chat' | 'tools' = 'chat',
 ) {
   const shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -37,6 +38,7 @@ export async function sendAndReceive(
         headers: {
           'Content-Type': 'application/json',
           accept: 'application/json',
+          'X-Request-Type': requestType,
         },
         body: JSON.stringify(data),
       },
@@ -70,6 +72,7 @@ export async function sendAndReceiveStreaming(
   stopString = null,
   image?: string,
   minP?: number,
+  requestType: 'chat' | 'tools' = 'chat',
 ) {
   let shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -110,6 +113,7 @@ export async function sendAndReceiveStreaming(
       headers: {
         'Content-Type': 'application/json',
         accept: 'application/json',
+        'X-Request-Type': requestType,
       },
       body: JSON.stringify(data),
     });
