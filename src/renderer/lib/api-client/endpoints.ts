@@ -390,16 +390,30 @@ Endpoints.Experiment = {
     `${API_URL()}experiment/${experimentId}/plugins/new_plugin?pluginId=${
       pluginId
     }`,
-  GetOutputFromJob: (jobId: string) => `${API_URL()}jobs/${jobId}/output`,
-  StreamOutputFromJob: (jobId: string, sweep: boolean = false) =>
-    `${API_URL()}jobs/${jobId}/stream_output?sweeps=${sweep}`,
-  StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
-    `${API_URL()}jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
-  GetAdditionalDetails: (jobId: string, task: string = 'view') =>
-    `${API_URL()}jobs/${jobId}/get_additional_details?task=${task}`,
-  GetGeneratedDataset: (jobId: string) =>
-    `${API_URL()}jobs/${jobId}/get_generated_dataset`,
-  GetPlotJSON: (jobId: string) => `${API_URL()}jobs/${jobId}/get_figure_json`,
+  GetOutputFromJob: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/output`,
+  StreamOutputFromJob: (
+    experimentId: string,
+    jobId: string,
+    sweep: boolean = false,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stream_output?sweeps=${sweep}`,
+  StreamDetailedJSONReportFromJob: (
+    experimentId: string,
+    jobId: string,
+    fileName: string,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
+  GetAdditionalDetails: (
+    experimentId: string,
+    jobId: string,
+    task: string = 'view',
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_additional_details?task=${task}`,
+  GetGeneratedDataset: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_generated_dataset`,
+  GetPlotJSON: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_figure_json`,
 };
 
 Endpoints.Jobs = {
