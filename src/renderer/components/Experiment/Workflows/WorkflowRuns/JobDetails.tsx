@@ -129,6 +129,7 @@ export default function JobDetails({ experimentId, jobId, onClose }) {
             >
               <OutputTerminal
                 logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+                  experimentId,
                   jobId,
                 )}
                 lineAnimationDelay={1}

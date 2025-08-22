@@ -139,6 +139,7 @@ export default function ViewOutputModalStreaming({
             >
               <OutputTerminal
                 logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+                  experimentInfo.id,
                   jobId,
                   sweeps,
                 )}
