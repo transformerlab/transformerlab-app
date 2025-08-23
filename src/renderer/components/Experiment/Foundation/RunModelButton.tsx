@@ -41,8 +41,6 @@ export default function RunModelButton({
 }) {
   const [jobId, setJobId] = useState(null);
   const [showRunSettings, setShowRunSettings] = useState(false);
-  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
-  const [pipelineTagLoaded, setPipelineTagLoaded] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
     inferenceEngineFriendlyName: '',
@@ -60,42 +58,23 @@ export default function RunModelButton({
     },
   );
 
+  const { data: pipelineTagData, isLoading: pipelineTagLoading } = useAPI(
+    'models',
+    ['pipeline_tag'],
+    {
+      modelName: experimentInfo?.config?.foundation,
+    },
+    {
+      skip: !experimentInfo?.config?.foundation,
+    },
+  );
+
+  const pipelineTag = pipelineTagData?.data || null;
+
   const archTag = experimentInfo?.config?.foundation_model_architecture ?? '';
 
-  // Fetch pipeline tag effect
-  useEffect(() => {
-    const fetchPipelineTag = async () => {
-      if (!experimentInfo?.config?.foundation) {
-        setPipelineTag(null);
-        setPipelineTagLoaded(true);
-        return;
-      }
-
-      setPipelineTagLoaded(false);
-      try {
-        const url = getAPIFullPath('models', ['pipeline_tag'], {
-          modelName: experimentInfo.config.foundation,
-        });
-        const response = await fetch(url, { method: 'GET' });
-        if (!response.ok) {
-          setPipelineTag(null);
-        } else {
-          const data = await response.json();
-          setPipelineTag(data?.data || null);
-        }
-      } catch (e) {
-        setPipelineTag(null);
-        console.error('Error fetching pipeline tag:', e);
-      } finally {
-        setPipelineTagLoaded(true);
-      }
-    };
-
-    fetchPipelineTag();
-  }, [experimentInfo?.config?.foundation]);
-
   const supportedEngines = React.useMemo(() => {
-    if (!data || !pipelineTagLoaded) return [];
+    if (!data || pipelineTagLoading) return [];
 
     return data.filter((row) => {
       const supportsArchitecture =
@@ -120,7 +99,7 @@ export default function RunModelButton({
       // For non-text-to-speech models: must NOT have text-to-speech support
       return !hasTextToSpeechSupport;
     });
-  }, [data, pipelineTagLoaded]);
+  }, [data, pipelineTagLoading, pipelineTag, archTag]);
 
   const unsupportedEngines = React.useMemo(() => {
     if (!data) return [];
@@ -181,7 +160,7 @@ export default function RunModelButton({
   // Set a default inference Engine if there is none
   useEffect(() => {
     // Add this single line to wait for pipeline tag loading
-    if (!data || !pipelineTagLoaded) return;
+    if (!data || pipelineTagLoading) return;
 
     let objExperimentInfo = null;
     if (experimentInfo?.config?.inferenceParams) {
@@ -238,7 +217,7 @@ export default function RunModelButton({
     }
   }, [
     data,
-    pipelineTagLoaded,
+    pipelineTagLoading,
     supportedEngines,
     experimentInfo?.id,
     experimentInfo?.config?.inferenceParams,
