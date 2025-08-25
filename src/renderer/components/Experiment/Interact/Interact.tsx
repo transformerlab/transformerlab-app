@@ -29,11 +29,7 @@ import Tokenize from './Tokenize';
 import Embeddings from '../Embeddings';
 import { ChevronDownIcon } from 'lucide-react';
 
-import {
-  scrollChatToBottom,
-  focusChatInput,
-  getAgentSystemMessage,
-} from './interactUtils';
+import { scrollChatToBottom, focusChatInput } from './interactUtils';
 import Batched from './Batched/Batched';
 import VisualizeLogProbs from './VisualizeLogProbs';
 import VisualizeGeneration from './VisualizeGeneration';
@@ -98,9 +94,7 @@ export default function Chat({
   // But we should improve this later
   if (mode === 'chat' || mode === 'tools') {
     // textToDebounce += experimentInfo?.config?.prompt_template?.system_message;
-    const systemMessage =
-      document.getElementsByName('system-message')[0]?.value;
-    textToDebounce += systemMessage || '';
+    textToDebounce += '';
     textToDebounce += '\n';
     chats.forEach((c) => {
       textToDebounce += c.t;
@@ -146,21 +140,6 @@ export default function Chat({
     const asyncTasks = async () => {
       const result = await chatAPI.getTemplateForModel(currentModel);
       const t = result?.system_message;
-
-      const parsedPromptData =
-        experimentInfo?.config?.prompt_template?.system_message;
-
-      if (parsedPromptData && document.getElementsByName('system-message')[0]) {
-        document.getElementsByName('system-message')[0].value =
-          parsedPromptData;
-      } else if (t) {
-        if (document.getElementsByName('system-message')[0])
-          document.getElementsByName('system-message')[0].value = t;
-      } else {
-        if (document.getElementsByName('system-message')[0]) {
-          document.getElementsByName('system-message')[0].value = '';
-        }
-      }
 
       const startingChats = [];
 
@@ -299,9 +278,6 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
-    const systemMessage =
-      document.getElementsByName('system-message')[0]?.value;
-
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
 
@@ -340,7 +316,6 @@ export default function Chat({
       generationParameters?.maxTokens,
       generationParameters?.topP,
       generationParameters?.frequencyPenalty,
-      systemMessage,
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
@@ -465,8 +440,6 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
-    const systemMessage = await getAgentSystemMessage();
-
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
 
@@ -505,7 +478,6 @@ export default function Chat({
       generationParameters?.maxTokens,
       generationParameters?.topP,
       generationParameters?.frequencyPenalty,
-      systemMessage,
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
@@ -585,7 +557,6 @@ export default function Chat({
             generationParameters?.maxTokens,
             generationParameters?.topP,
             generationParameters?.frequencyPenalty,
-            systemMessage,
             generationParameters?.stop_str,
             image,
             generationParameters?.minP,

@@ -31,22 +31,3 @@ export async function getMcpServerFile() {
   }
   return { mcp_server_file: '', mcp_args: '', mcp_env: '' };
 }
-
-// Get the System Message from the backend.
-// Returns a default prompt if there was an error.
-export async function getAgentSystemMessage() {
-  const { mcp_server_file, mcp_args, mcp_env } = await getMcpServerFile();
-  let url = chatAPI.Endpoints.Tools.Prompt();
-  const params = [];
-  if (mcp_server_file)
-    params.push(`mcp_server_file=${encodeURIComponent(mcp_server_file)}`);
-  if (mcp_args) params.push(`mcp_args=${encodeURIComponent(mcp_args)}`);
-  if (mcp_env) params.push(`mcp_env=${encodeURIComponent(mcp_env)}`);
-  if (params.length > 0) {
-    url += (url.includes('?') ? '&' : '?') + params.join('&');
-  }
-  const prompt = await fetch(url)
-    .then((res) => res.json())
-    .catch((error) => 'You are a helpful chatbot assistant.');
-  return prompt;
-}
