@@ -1,5 +1,7 @@
 import { Alert, Button, CircularProgress, Typography } from '@mui/joy';
 import {
+  CheckCheckIcon,
+  CheckCircle2Icon,
   InfoIcon,
   PlayCircleIcon,
   Plug2Icon,
@@ -369,7 +371,7 @@ export default function RunModelButton({
       {supportedEngines.length > 0 ? (
         <Engine />
       ) : isValidDiffusionModel === true ? (
-        <Alert startDecorator={<InfoIcon />} color="warning">
+        <Alert startDecorator={<CheckCircle2Icon />} color="success">
           <Typography level="body-sm">
             You can now run inference using this diffusion model. Go to{' '}
             <Link to="/experiment/diffusion">

@@ -218,6 +218,7 @@ export const colorArray = [
   '#e8a838',
   '#61c0bf',
   '#97e3d5',
+  '#d6b3e2',
 ];
 
 export function mixColorWithBackground(color: string, percent = '50'): string {
