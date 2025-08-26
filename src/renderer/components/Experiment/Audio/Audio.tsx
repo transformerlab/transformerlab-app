@@ -20,6 +20,8 @@ import {
   ModalDialog,
   ModalClose,
   DialogTitle,
+  Divider,
+  Card,
 } from '@mui/joy';
 import { useAPI } from '../../../lib/transformerlab-api-sdk';
 import AudioHistory from './AudioHistory';
@@ -34,6 +36,7 @@ export async function sendAndReceiveAudioPath(
   sample_rate: number,
   temperature: number,
   speed: number,
+  audioPath?: string,
 ) {
   const data: any = {
     experiment_id: experimentId,
@@ -44,6 +47,11 @@ export async function sendAndReceiveAudioPath(
     temperature: temperature,
     speed: speed,
   };
+
+  // Add audio path if provided
+  if (audioPath) {
+    data.audio_path = audioPath;
+  }
 
   let response;
   try {
@@ -65,6 +73,41 @@ export async function sendAndReceiveAudioPath(
     const response_json = await response.json();
     console.log('Audio API response:', response_json);
     const error_text = `Audio API Error
+      HTTP Error Code: ${response?.status}
+      ${response_json?.message}`;
+    console.log(error_text);
+    alert(error_text);
+    return null;
+  }
+  return await response.json();
+}
+
+export async function uploadAudioFile(
+  experimentId: number,
+  audioFile: File,
+): Promise<any> {
+  const formData = new FormData();
+  formData.append('audio', audioFile);
+
+  let response;
+  try {
+    response = await fetch(
+      `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload?experimentId=${experimentId}`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+    );
+  } catch (error) {
+    console.log('Exception uploading audio file:', error);
+    alert('Network connection error');
+    return null;
+  }
+
+  if (!response.ok) {
+    const response_json = await response.json();
+    console.log('Audio upload response:', response_json);
+    const error_text = `Audio Upload Error
       HTTP Error Code: ${response?.status}
       ${response_json?.message}`;
     console.log(error_text);
@@ -98,6 +141,15 @@ export default function Audio() {
 
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
 
+  // Audio upload states
+  const [selectedAudioFile, setSelectedAudioFile] = React.useState<File | null>(
+    null,
+  );
+  const [uploadedAudioPath, setUploadedAudioPath] = React.useState<
+    string | null
+  >(null);
+  const [isUploading, setIsUploading] = React.useState(false);
+
   const audioHistoryRef = React.useRef<HTMLDivElement>(null);
 
   const handleTTSGeneration = async () => {
@@ -113,6 +165,7 @@ export default function Audio() {
       sampleRate,
       temperature,
       speed,
+      uploadedAudioPath || undefined,
     );
 
     if (result && result.message) {
@@ -130,6 +183,37 @@ export default function Audio() {
     if (audioHistoryRef.current) {
       audioHistoryRef.current.scrollTop = 0;
     }
+  };
+
+  const handleAudioUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Check if file is audio
+    if (!file.type.startsWith('audio/')) {
+      alert('Please select an audio file');
+      return;
+    }
+
+    setSelectedAudioFile(file);
+    setIsUploading(true);
+
+    const result = await uploadAudioFile(experimentInfo?.id, file);
+
+    if (result && result.audioPath) {
+      setUploadedAudioPath(result.audioPath);
+    } else {
+      alert('Failed to upload audio file');
+    }
+
+    setIsUploading(false);
+  };
+
+  const handleClearUpload = () => {
+    setSelectedAudioFile(null);
+    setUploadedAudioPath(null);
   };
   return (
     <Box
@@ -213,6 +297,60 @@ export default function Audio() {
                 valueLabelDisplay="auto"
               />
             </FormControl>
+          </Stack>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Audio Upload Section */}
+          <Typography level="title-lg" sx={{ mb: 1 }}>
+            Audio Upload:
+          </Typography>
+          <Stack spacing={2} sx={{ py: 1 }}>
+            <FormControl>
+              <FormLabel>Upload Audio File</FormLabel>
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={handleAudioUpload}
+                style={{ display: 'none' }}
+                id="audio-upload-input"
+              />
+              <Button
+                component="label"
+                htmlFor="audio-upload-input"
+                variant="outlined"
+                color="neutral"
+                loading={isUploading}
+                size="sm"
+              >
+                Choose Audio File
+              </Button>
+            </FormControl>
+
+            {selectedAudioFile && (
+              <Card variant="soft" sx={{ p: 2 }}>
+                <Typography level="body-sm" sx={{ mb: 1 }}>
+                  Selected: {selectedAudioFile.name}
+                </Typography>
+                <Typography level="body-xs" color="neutral">
+                  Size: {(selectedAudioFile.size / 1024 / 1024).toFixed(2)} MB
+                </Typography>
+                {uploadedAudioPath && (
+                  <Typography level="body-xs" color="success" sx={{ mt: 1 }}>
+                    ✓ Upload successful
+                  </Typography>
+                )}
+                <Button
+                  size="sm"
+                  variant="plain"
+                  color="danger"
+                  onClick={handleClearUpload}
+                  sx={{ mt: 1, alignSelf: 'flex-start' }}
+                >
+                  Clear
+                </Button>
+              </Card>
+            )}
           </Stack>
         </Sheet>
 
