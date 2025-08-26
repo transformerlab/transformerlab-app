@@ -10,7 +10,6 @@ export async function sendAndReceive(
   topP: number,
   systemMessage: string,
   minP?: number,
-  requestType: 'chat' | 'tools' = 'chat',
 ) {
   const shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -38,7 +37,6 @@ export async function sendAndReceive(
         headers: {
           'Content-Type': 'application/json',
           accept: 'application/json',
-          'X-Request-Type': requestType,
         },
         body: JSON.stringify(data),
       },
@@ -72,7 +70,7 @@ export async function sendAndReceiveStreaming(
   stopString = null,
   image?: string,
   minP?: number,
-  requestType: 'chat' | 'tools' = 'chat',
+  tools?: any,
 ) {
   let shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -92,6 +90,7 @@ export async function sendAndReceiveStreaming(
     top_p: topP,
     frequency_penalty: freqencyPenalty,
     ...(minP !== undefined ? { min_p: minP } : {}),
+    ...(tools !== undefined ? { tools } : {}),
   };
 
   // console.log('data', data);
@@ -113,7 +112,6 @@ export async function sendAndReceiveStreaming(
       headers: {
         'Content-Type': 'application/json',
         accept: 'application/json',
-        'X-Request-Type': requestType,
       },
       body: JSON.stringify(data),
     });
@@ -788,6 +786,25 @@ export async function callTool(
 
 export async function getAvailableModels() {
   const response = await fetch(API_URL() + 'model/gallery');
+  const result = await response.json();
+  return result;
+}
+
+export async function getToolsForCompletions() {
+  const { mcp_server_file, mcp_args, mcp_env } = await getMcpServerFile();
+  let url = chatAPI.Endpoints.Tools.All();
+
+  // Add query parameters if present
+  const params = [];
+  if (mcp_server_file)
+    params.push(`mcp_server_file=${encodeURIComponent(mcp_server_file)}`);
+  if (mcp_args) params.push(`mcp_args=${encodeURIComponent(mcp_args)}`);
+  if (mcp_env) params.push(`mcp_env=${encodeURIComponent(mcp_env)}`);
+  if (params.length > 0) {
+    url += (url.includes('?') ? '&' : '?') + params.join('&');
+  }
+
+  const response = await fetch(url);
   const result = await response.json();
   return result;
 }

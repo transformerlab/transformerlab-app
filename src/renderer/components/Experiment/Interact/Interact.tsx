@@ -278,8 +278,17 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
+    // Get the system message from the UI
+    const systemMessage =
+      document.getElementsByName('system-message')[0]?.value || '';
+
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
+
+    // Add system message if it exists
+    if (systemMessage && systemMessage.trim() !== '') {
+      texts.unshift({ role: 'system', content: systemMessage });
+    }
 
     // Add the user's message
     if (image && image !== '') {
@@ -319,7 +328,6 @@ export default function Chat({
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
-      'chat',
     );
 
     clearTimeout(timeoutId);
@@ -441,6 +449,9 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
+    // Get tools for tool calling
+    const tools = await chatAPI.getToolsForCompletions();
+
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
 
@@ -470,7 +481,7 @@ export default function Chat({
       console.log('Error parsing stop strings as JSON');
     }
 
-    // Send them over
+    // Send them over with tools
     let result = await chatAPI.sendAndReceiveStreaming(
       currentModel,
       adaptor,
@@ -482,7 +493,7 @@ export default function Chat({
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
-      'tools',
+      tools,
     );
 
     // The model may make repeated tool calls but don't let it get stuck in a loop
@@ -562,7 +573,7 @@ export default function Chat({
             generationParameters?.stop_str,
             image,
             generationParameters?.minP,
-            'tools',
+            tools,
           );
         }
       }

@@ -168,6 +168,7 @@ export default function ChatPage({
             defaultPromptConfigForModel={defaultPromptConfigForModel}
           />
         )}
+
         <Sheet
           variant="plain"
           sx={{
