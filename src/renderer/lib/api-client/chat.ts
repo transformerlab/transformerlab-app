@@ -67,7 +67,7 @@ export async function sendAndReceiveStreaming(
   maxTokens: number,
   topP: number,
   freqencyPenalty: number,
-  systemMessage?: string,
+  systemMessage: string,
   stopString = null,
   image?: string,
   minP?: number,
