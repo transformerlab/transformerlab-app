@@ -249,7 +249,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             >
               {isPlaying ? <Pause size={16} /> : <Play size={16} />}
             </IconButton>
-            <Volume2 size={16} />
             {isLoading && (
               <Typography level="body-sm" color="neutral">
                 Loading...
@@ -275,6 +274,15 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
               opacity: isLoading ? 0.5 : 1,
             }}
           />
+
+          {/* Native Audio Controls */}
+          <audio
+            src={audioData.audio_data_url}
+            controls
+            style={{ width: '100%' }}
+          >
+            <track kind="captions" />
+          </audio>
 
           {/* Metadata */}
           <Stack spacing={1}>
