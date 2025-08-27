@@ -94,7 +94,9 @@ export default function Chat({
   // But we should improve this later
   if (mode === 'chat' || mode === 'tools') {
     // textToDebounce += experimentInfo?.config?.prompt_template?.system_message;
-    textToDebounce += '';
+    const systemMessage =
+      document.getElementsByName('system-message')[0]?.value;
+    textToDebounce += systemMessage || '';
     textToDebounce += '\n';
     chats.forEach((c) => {
       textToDebounce += c.t;
@@ -140,6 +142,21 @@ export default function Chat({
     const asyncTasks = async () => {
       const result = await chatAPI.getTemplateForModel(currentModel);
       const t = result?.system_message;
+
+      const parsedPromptData =
+        experimentInfo?.config?.prompt_template?.system_message;
+
+      if (parsedPromptData && document.getElementsByName('system-message')[0]) {
+        document.getElementsByName('system-message')[0].value =
+          parsedPromptData;
+      } else if (t) {
+        if (document.getElementsByName('system-message')[0])
+          document.getElementsByName('system-message')[0].value = t;
+      } else {
+        if (document.getElementsByName('system-message')[0]) {
+          document.getElementsByName('system-message')[0].value = '';
+        }
+      }
 
       const startingChats = [];
 
@@ -278,17 +295,11 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
-    // Get the system message from the UI
     const systemMessage =
-      document.getElementsByName('system-message')[0]?.value || '';
+      document.getElementsByName('system-message')[0]?.value;
 
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
-
-    // Add system message if it exists
-    if (systemMessage && systemMessage.trim() !== '') {
-      texts.unshift({ role: 'system', content: systemMessage });
-    }
 
     // Add the user's message
     if (image && image !== '') {
@@ -325,6 +336,7 @@ export default function Chat({
       generationParameters?.maxTokens,
       generationParameters?.topP,
       generationParameters?.frequencyPenalty,
+      systemMessage,
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
@@ -449,6 +461,9 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
+    const systemMessage =
+      document.getElementsByName('system-message')[0]?.value || '';
+
     // Get tools for tool calling
     const tools = await chatAPI.getToolsForCompletions();
 
@@ -490,6 +505,7 @@ export default function Chat({
       generationParameters?.maxTokens,
       generationParameters?.topP,
       generationParameters?.frequencyPenalty,
+      systemMessage,
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
@@ -570,6 +586,7 @@ export default function Chat({
             generationParameters?.maxTokens,
             generationParameters?.topP,
             generationParameters?.frequencyPenalty,
+            systemMessage,
             generationParameters?.stop_str,
             image,
             generationParameters?.minP,
