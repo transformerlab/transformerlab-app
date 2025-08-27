@@ -36,6 +36,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [currentTime, setCurrentTime] = React.useState<number>(0);
   const waveformRef = React.useRef<HTMLDivElement>(null);
   const audioRef = React.useRef<HTMLAudioElement>(null);
+  const nativeAudioRef = React.useRef<HTMLAudioElement>(null);
   const isDestroyedRef = React.useRef(false);
 
   // Compact mode handlers
@@ -67,6 +68,33 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handleError = () => {
     setError('Failed to load audio');
     setIsLoading(false);
+  };
+
+  // Native audio handlers for syncing with WaveSurfer
+  const handleNativePlay = () => {
+    if (wavesurfer && !compact) {
+      wavesurfer.play();
+    }
+    setIsPlaying(true);
+  };
+
+  const handleNativePause = () => {
+    if (wavesurfer && !compact) {
+      wavesurfer.pause();
+    }
+    setIsPlaying(false);
+  };
+
+  const handleNativeSeek = (event: React.SyntheticEvent<HTMLAudioElement>) => {
+    if (wavesurfer && !compact) {
+      const audio = event.currentTarget;
+      const audioCurrentTime = audio.currentTime;
+      const audioDuration = audio.duration;
+      if (audioDuration > 0) {
+        const progress = audioCurrentTime / audioDuration;
+        wavesurfer.seekTo(progress);
+      }
+    }
   };
 
   const formatTime = (time: number) => {
@@ -150,17 +178,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     isDestroyedRef.current = false;
   }, [audioData?.audio_data_url]);
 
-  // Regular mode handlers
-  const handlePlayPauseRegular = () => {
-    if (wavesurfer) {
-      if (isPlaying) {
-        wavesurfer.pause();
-      } else {
-        wavesurfer.play();
-      }
-    }
-  };
-
   // Compact mode render
   if (compact) {
     return (
@@ -239,27 +256,17 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     <Card sx={{ minWidth: '300px' }}>
       <CardContent>
         <Stack spacing={2}>
-          {/* Controls */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton
-              size="sm"
-              variant="soft"
-              onClick={handlePlayPauseRegular}
-              disabled={!wavesurfer || isLoading || !!error}
-            >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-            </IconButton>
-            {isLoading && (
-              <Typography level="body-sm" color="neutral">
-                Loading...
-              </Typography>
-            )}
-            {error && (
-              <Typography level="body-sm" color="danger">
-                {error}
-              </Typography>
-            )}
-          </Box>
+          {/* Status Messages */}
+          {isLoading && (
+            <Typography level="body-sm" color="neutral">
+              Loading...
+            </Typography>
+          )}
+          {error && (
+            <Typography level="body-sm" color="danger">
+              {error}
+            </Typography>
+          )}
 
           {/* Waveform */}
           <Box
@@ -277,9 +284,13 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
           {/* Native Audio Controls */}
           <audio
+            ref={nativeAudioRef}
             src={audioData.audio_data_url}
             controls
             style={{ width: '100%' }}
+            onPlay={handleNativePlay}
+            onPause={handleNativePause}
+            onSeeked={handleNativeSeek}
           >
             <track kind="captions" />
           </audio>
