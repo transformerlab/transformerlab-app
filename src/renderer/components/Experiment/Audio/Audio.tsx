@@ -193,7 +193,7 @@ export default function Audio() {
           </Typography>
           <Stack spacing={3} sx={{ py: 2 }}>
             {/* Voice Selection */}
-            {Object.keys(availableVoices).length > 0 && (
+            {Object.keys(modelConfigVoices).length > 0 && (
               <>
                 <FormControl>
                   <FormLabel>Language</FormLabel>
@@ -205,7 +205,7 @@ export default function Audio() {
                     }}
                     placeholder="Select language..."
                   >
-                    {Object.keys(availableVoices).map((language) => (
+                    {Object.keys(modelConfigVoices).map((language) => (
                       <Option key={language} value={language}>
                         {language}
                       </Option>
@@ -213,7 +213,7 @@ export default function Audio() {
                   </Select>
                 </FormControl>
 
-                {selectedLanguage && availableVoices[selectedLanguage] && (
+                {selectedLanguage && modelConfigVoices[selectedLanguage] && (
                   <FormControl>
                     <FormLabel>Voice</FormLabel>
                     <Select
@@ -221,7 +221,7 @@ export default function Audio() {
                       onChange={(_, v) => setSelectedVoice(v as string)}
                       placeholder="Select voice..."
                     >
-                      {availableVoices[selectedLanguage].map((voice: string) => (
+                      {modelConfigVoices[selectedLanguage].map((voice: string) => (
                         <Option key={voice} value={voice}>
                           {voice}
                         </Option>
