@@ -34,6 +34,7 @@ export async function sendAndReceiveAudioPath(
   sample_rate: number,
   temperature: number,
   speed: number,
+  voice?: string,
 ) {
   const data: any = {
     experiment_id: experimentId,
@@ -44,6 +45,11 @@ export async function sendAndReceiveAudioPath(
     temperature: temperature,
     speed: speed,
   };
+
+  // Add voice if provided
+  if (voice) {
+    data.voice = voice;
+  }
 
   let response;
   try {
@@ -78,6 +84,20 @@ export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
 
+  // Fetch model config from gallery
+  const { data: modelData } = useAPI(
+    'models',
+    ['getModelDetailsFromGallery'],
+    {
+      modelId: currentModel,
+    },
+    {
+      enabled: !!currentModel,
+    }
+  );
+
+  const modelConfigVoices = modelData?.model_config?.voices || {};
+
   const { data: audioHistory, mutate: mutateHistory } = useAPI(
     'conversations',
     ['getAudioHistory'],
@@ -95,6 +115,8 @@ export default function Audio() {
   const [filePrefix, setFilePrefix] = React.useState('output_audio');
   const [sampleRate, setSampleRate] = React.useState(24000);
   const [temperature, setTemperature] = React.useState(0.7);
+  const [selectedLanguage, setSelectedLanguage] = React.useState('');
+  const [selectedVoice, setSelectedVoice] = React.useState('');
 
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
 
@@ -113,6 +135,7 @@ export default function Audio() {
       sampleRate,
       temperature,
       speed,
+      selectedVoice || undefined,
     );
 
     if (result && result.message) {
@@ -169,6 +192,46 @@ export default function Audio() {
             Generation Settings:
           </Typography>
           <Stack spacing={3} sx={{ py: 2 }}>
+            {/* Voice Selection */}
+            {Object.keys(availableVoices).length > 0 && (
+              <>
+                <FormControl>
+                  <FormLabel>Language</FormLabel>
+                  <Select
+                    value={selectedLanguage}
+                    onChange={(_, v) => {
+                      setSelectedLanguage(v as string);
+                      setSelectedVoice(''); // Reset voice when language changes
+                    }}
+                    placeholder="Select language..."
+                  >
+                    {Object.keys(availableVoices).map((language) => (
+                      <Option key={language} value={language}>
+                        {language}
+                      </Option>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {selectedLanguage && availableVoices[selectedLanguage] && (
+                  <FormControl>
+                    <FormLabel>Voice</FormLabel>
+                    <Select
+                      value={selectedVoice}
+                      onChange={(_, v) => setSelectedVoice(v as string)}
+                      placeholder="Select voice..."
+                    >
+                      {availableVoices[selectedLanguage].map((voice: string) => (
+                        <Option key={voice} value={voice}>
+                          {voice}
+                        </Option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </>
+            )}
+
             {/* Sample Rate */}
             <FormControl>
               <FormLabel>Sample Rate</FormLabel>
