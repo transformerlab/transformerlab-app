@@ -31,6 +31,7 @@ const sampleRates = [16000, 22050, 24000, 44100, 48000];
 export async function sendAndReceiveAudioPath(
   experimentId: number,
   currentModel: string,
+  adaptor: string,
   text: any,
   file_prefix: string,
   sample_rate: number,
@@ -41,6 +42,7 @@ export async function sendAndReceiveAudioPath(
   const data: any = {
     experiment_id: experimentId,
     model: currentModel,
+    adaptor: adaptor,
     text: text,
     file_prefix: file_prefix,
     sample_rate: sample_rate,
@@ -122,6 +124,7 @@ export async function uploadAudioFile(
 export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
+  const adaptor = experimentInfo?.config?.adaptor || '';
 
   const { data: audioHistory, mutate: mutateHistory } = useAPI(
     'conversations',
@@ -162,6 +165,7 @@ export default function Audio() {
     const result = await sendAndReceiveAudioPath(
       experimentInfo?.id,
       currentModel,
+      adaptor,
       text,
       filePrefix,
       sampleRate,
