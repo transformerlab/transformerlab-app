@@ -85,8 +85,10 @@ export default function Audio() {
   const currentModel = experimentInfo?.config?.foundation;
 
   // Fetch model config from gallery
-  const processedModelId = currentModel ? currentModel.replace(/\//g, '~~~') : null;
-  
+  const processedModelId = currentModel
+    ? currentModel.replace(/\//g, '~~~')
+    : null;
+
   const { data: modelData } = useAPI(
     'models',
     ['getModelDetailsFromGallery'],
@@ -95,7 +97,7 @@ export default function Audio() {
     },
     {
       enabled: !!currentModel,
-    }
+    },
   );
   const modelConfigVoices = modelData?.model_config?.voices || {};
 
@@ -222,11 +224,13 @@ export default function Audio() {
                       onChange={(_, v) => setSelectedVoice(v as string)}
                       placeholder="Select voice..."
                     >
-                      {modelConfigVoices[selectedLanguage].map((voice: string) => (
-                        <Option key={voice} value={voice}>
-                          {voice}
-                        </Option>
-                      ))}
+                      {modelConfigVoices[selectedLanguage].map(
+                        (voice: string) => (
+                          <Option key={voice} value={voice}>
+                            {voice}
+                          </Option>
+                        ),
+                      )}
                     </Select>
                   </FormControl>
                 )}
