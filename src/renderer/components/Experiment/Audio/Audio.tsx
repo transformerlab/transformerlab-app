@@ -64,6 +64,7 @@ export async function sendAndReceiveAudioPath(
       body: JSON.stringify(data),
     });
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null; // Ignore aborts
     console.log('Exception accessing Audio API:', error);
     alert('Network connection error');
     return null;
@@ -99,6 +100,7 @@ export async function uploadAudioFile(
       },
     );
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return null; // Ignore aborts
     console.log('Exception uploading audio file:', error);
     alert('Network connection error');
     return null;
