@@ -38,9 +38,11 @@ import { FaLinux } from 'react-icons/fa6';
 import { formatBytes } from 'renderer/lib/utils';
 
 import { useServerStats, useAPI } from 'renderer/lib/transformerlab-api-sdk';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { FaPython } from 'react-icons/fa';
+import NodePools from './CloudCluster/NodePools';
+import ActiveClusters from './CloudCluster/ActiveClusters';
 
 function ComputerCard({ children, title, description = '', chip = '', icon }) {
   return (
@@ -69,11 +71,68 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Computer() {
   const [searchText, setSearchText] = useState('');
+  const [latticeMode, setLatticeMode] = useState(false);
+  const [latticeCredentialsValid, setLatticeCredentialsValid] = useState(false);
+  const [validatingCredentials, setValidatingCredentials] = useState(false);
 
   const { server, isLoading, isError } = useServerStats();
 
   const { data: pythonLibraries } = useAPI('server', ['pythonLibraries']);
 
+  // Get Lattice API key and URL from config
+  const { data: latticeApiKey } = useAPI('config', ['get'], {
+    key: 'LATTICE_API_KEY',
+  });
+
+  const { data: latticeApiUrl } = useAPI('config', ['get'], {
+    key: 'LATTICE_API_URL',
+  });
+
+  // Function to validate Lattice credentials
+  const validateLatticeCredentials = async (apiUrl: string, apiKey: string) => {
+    if (!apiUrl || !apiKey) {
+      setLatticeCredentialsValid(false);
+      return false;
+    }
+
+    setValidatingCredentials(true);
+    try {
+      // Try a simple status endpoint to check if credentials are valid
+      const response = await fetch(`${apiUrl}/api/v1/skypilot/status`, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const isValid = response.status !== 401;
+      setLatticeCredentialsValid(isValid);
+      return isValid;
+    } catch (error) {
+      setLatticeCredentialsValid(false);
+      return false;
+    } finally {
+      setValidatingCredentials(false);
+    }
+  };
+
+  // Check if Lattice Mode is enabled
+  useEffect(() => {
+    const fetchLatticeMode = async () => {
+      const value = await window.storage.get('LATTICE_MODE');
+      setLatticeMode(value === 'true');
+    };
+    fetchLatticeMode();
+  }, []);
+
+  // Validate credentials when they change
+  useEffect(() => {
+    if (latticeMode && latticeApiUrl && latticeApiKey) {
+      validateLatticeCredentials(latticeApiUrl, latticeApiKey);
+    } else {
+      setLatticeCredentialsValid(false);
+    }
+  }, [latticeMode, latticeApiUrl, latticeApiKey]);
   return (
     <Sheet
       sx={{
@@ -94,6 +153,7 @@ export default function Computer() {
         <TabList>
           <Tab>Server Information</Tab>
           <Tab>Python Libraries</Tab>
+          {latticeMode && latticeCredentialsValid && <Tab>Cloud Compute</Tab>}
         </TabList>
         <TabPanel
           value={0}
@@ -466,6 +526,67 @@ export default function Computer() {
             )}
           </Sheet>
         </TabPanel>
+
+        {/* Cloud Compute Tab - only show when Lattice is configured and credentials are valid */}
+        {latticeMode && latticeCredentialsValid && (
+          <TabPanel
+            value={2}
+            style={{
+              height: '100%',
+              overflow: 'auto',
+            }}
+          >
+            <Sheet
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%',
+                overflow: 'hidden',
+              }}
+            >
+              <Typography level="h2" paddingBottom={2}>
+                Cloud Compute
+              </Typography>
+              <Tabs
+                orientation="horizontal"
+                sx={{
+                  height: '100%',
+                  display: 'block',
+                  overflow: 'hidden',
+                }}
+              >
+                <TabList>
+                  <Tab>Node Pools</Tab>
+                  <Tab>Active Clusters</Tab>
+                </TabList>
+                <TabPanel
+                  value={0}
+                  sx={{
+                    overflow: 'hidden',
+                    height: '100%',
+                  }}
+                >
+                  <NodePools
+                    latticeApiUrl={latticeApiUrl}
+                    latticeApiKey={latticeApiKey}
+                  />
+                </TabPanel>
+                <TabPanel
+                  value={1}
+                  sx={{
+                    overflow: 'hidden',
+                    height: '100%',
+                  }}
+                >
+                  <ActiveClusters
+                    latticeApiUrl={latticeApiUrl}
+                    latticeApiKey={latticeApiKey}
+                  />
+                </TabPanel>
+              </Tabs>
+            </Sheet>
+          </TabPanel>
+        )}
       </Tabs>
     </Sheet>
   );
