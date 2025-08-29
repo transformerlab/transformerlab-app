@@ -353,7 +353,7 @@ export default function Audio() {
                   onClick={handleClearUpload}
                   sx={{ mt: 1, alignSelf: 'flex-start' }}
                 >
-                  Clear
+                  Deselect Audio
                 </Button>
               </Card>
             )}
