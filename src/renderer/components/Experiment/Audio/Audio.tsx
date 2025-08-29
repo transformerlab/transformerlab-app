@@ -95,7 +95,7 @@ export async function uploadAudioFile(
   let response;
   try {
     response = await fetch(
-      `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload?experimentId=${experimentId}`,
+      `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload_reference?experimentId=${experimentId}`,
       {
         method: 'POST',
         body: formData,
