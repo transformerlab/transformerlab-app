@@ -43,7 +43,7 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
       <Markdown remarkPlugins={[remarkGfm]} className="editableSheetContent">
         {data && data != 'FILE NOT FOUND'
           ? data
-          : 'No description for this plugin is availabe.'}
+          : 'No description for this plugin is available.'}
       </Markdown>
     </>
   );
