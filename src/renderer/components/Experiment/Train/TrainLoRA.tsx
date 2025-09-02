@@ -18,6 +18,7 @@ import {
   Table,
   Typography,
   Box,
+  Alert,
 } from '@mui/joy';
 
 import {
@@ -236,66 +237,73 @@ export default function TrainLoRA({}) {
             Training Templates
           </Typography>
 
-          <Dropdown>
-            <MenuButton
-              color="primary"
-              size="sm"
-              startDecorator={<PlusIcon />}
-              variant="solid"
-            >
-              New
-            </MenuButton>
-            <Menu sx={{ maxWidth: '300px' }}>
-              <MenuItem disabled variant="soft" color="primary">
-                <Typography level="title-sm">
-                  Select a training plugin from the following list:
-                </Typography>
-              </MenuItem>
-              <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
-                {pluginsList.map((plugin) => (
-                  <MenuItem
-                    onClick={() => {
-                      setTemplateID('-1');
-                      setCurrentPlugin(plugin.uniqueId);
-                      setOpen(true);
-                    }}
-                    key={plugin.uniqueId}
-                    disabled={
-                      plugin.model_architectures
-                        ? !plugin.model_architectures.includes(
+          {pluginsList.length === 0 ? (
+            <Alert color="danger">
+              No Training Plugins available, please install a plugin from the
+              Plugins tab.
+            </Alert>
+          ) : (
+            <Dropdown>
+              <MenuButton
+                color="primary"
+                size="sm"
+                startDecorator={<PlusIcon />}
+                variant="solid"
+              >
+                New
+              </MenuButton>
+              <Menu sx={{ maxWidth: '300px' }}>
+                <MenuItem disabled variant="soft" color="primary">
+                  <Typography level="title-sm">
+                    Select a training plugin from the following list:
+                  </Typography>
+                </MenuItem>
+                <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
+                  {pluginsList.map((plugin) => (
+                    <MenuItem
+                      onClick={() => {
+                        setTemplateID('-1');
+                        setCurrentPlugin(plugin.uniqueId);
+                        setOpen(true);
+                      }}
+                      key={plugin.uniqueId}
+                      disabled={
+                        plugin.model_architectures
+                          ? !plugin.model_architectures.includes(
+                              modelArchitecture,
+                            ) &&
+                            !plugin.model_architectures.includes(
+                              embeddingModelArchitecture,
+                            )
+                          : false
+                      }
+                    >
+                      <ListItemDecorator>
+                        <Plug2Icon />
+                      </ListItemDecorator>
+                      <div>
+                        {plugin.name}
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: 'var(--joy-palette-neutral-400)' }}
+                        >
+                          {plugin.model_architectures &&
+                          !plugin.model_architectures.includes(
                             modelArchitecture,
                           ) &&
                           !plugin.model_architectures.includes(
                             embeddingModelArchitecture,
                           )
-                        : false
-                    }
-                  >
-                    <ListItemDecorator>
-                      <Plug2Icon />
-                    </ListItemDecorator>
-                    <div>
-                      {plugin.name}
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: 'var(--joy-palette-neutral-400)' }}
-                      >
-                        {plugin.model_architectures &&
-                        !plugin.model_architectures.includes(
-                          modelArchitecture,
-                        ) &&
-                        !plugin.model_architectures.includes(
-                          embeddingModelArchitecture,
-                        )
-                          ? '(Does not support this model architecture)'
-                          : ''}
-                      </Typography>
-                    </div>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </Dropdown>
+                            ? '(Does not support this model architecture)'
+                            : ''}
+                        </Typography>
+                      </div>
+                    </MenuItem>
+                  ))}
+                </Box>
+              </Menu>
+            </Dropdown>
+          )}
         </Stack>
         <Sheet
           variant="soft"
