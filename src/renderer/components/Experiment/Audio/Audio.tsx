@@ -176,6 +176,8 @@ export default function Audio() {
 
     if (result && result.message) {
       setAudioUrl(result.message);
+      // Reset audio cloning after successful generation
+      handleClearUpload();
     } else {
       setErrorMessage(
         result?.message || 'Something went wrong. No audio URL received.',
