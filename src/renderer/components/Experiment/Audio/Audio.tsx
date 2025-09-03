@@ -243,7 +243,16 @@ export default function Audio() {
         }}
       >
         <Typography level="h2">Text to Speech</Typography>
-        <Typography level="body-sm">{currentModel}</Typography>
+        <Box sx={{ textAlign: 'right' }}>
+          <Typography level="body-sm">
+            {currentModel}
+          </Typography>
+          {adaptor && (
+            <Typography level="body-xs" color="neutral">
+              {adaptor}
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       {/* Main content area, split into sidebar and main panel */}
