@@ -18,6 +18,7 @@ interface AudioHistoryItem {
   text: string;
   filename: string;
   model: string;
+  adaptor?: string; // Add adaptor property
   speed: number;
   audio_format: string;
   sample_rate: number;
@@ -98,6 +99,9 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   <Chip size="sm" variant="soft" color="primary">
                     {item.model.split('/').pop()}
+                    {item.adaptor && item.adaptor.trim() !== '' && (
+                      <> + {item.adaptor.split('/').pop()}</>
+                    )}
                   </Chip>
                   <Chip size="sm" variant="soft" color="neutral">
                     {item.audio_format.toUpperCase()}
