@@ -244,9 +244,7 @@ export default function Audio() {
       >
         <Typography level="h2">Text to Speech</Typography>
         <Box sx={{ textAlign: 'right' }}>
-          <Typography level="body-sm">
-            {currentModel}
-          </Typography>
+          <Typography level="body-sm">{currentModel}</Typography>
           {adaptor && (
             <Typography level="body-xs" color="neutral">
               {adaptor}
