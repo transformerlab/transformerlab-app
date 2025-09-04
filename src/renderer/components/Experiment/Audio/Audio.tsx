@@ -124,6 +124,8 @@ export async function uploadAudioFile(
 export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
+  const foundationModelArchitecture = experimentInfo?.config?.foundation_model_architecture
+;
   const adaptor = experimentInfo?.config?.adaptor || '';
 
   const { data: audioHistory, mutate: mutateHistory } = useAPI(
@@ -316,57 +318,68 @@ export default function Audio() {
 
           <Divider sx={{ my: 2 }} />
 
-          {/* Audio Upload Section */}
-          <Typography level="title-lg" sx={{ mb: 1 }}>
-            Audio Cloning:
-          </Typography>
-          <Stack spacing={2} sx={{ py: 1 }}>
-            <FormControl>
-              <FormLabel>Upload Audio File</FormLabel>
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={handleAudioUpload}
-                style={{ display: 'none' }}
-                id="audio-upload-input"
-              />
-              <Button
-                component="label"
-                htmlFor="audio-upload-input"
-                variant="outlined"
-                color="neutral"
-                loading={isUploading}
-                size="sm"
-              >
-                Choose Audio File
-              </Button>
-            </FormControl>
+          {/* Audio Upload Section - Only show if not MLX architecture */}
+          {!foundationModelArchitecture?.includes('MLX') && (
+            <>
+              <Typography level="title-lg" sx={{ mb: 1 }}>
+                Audio Cloning:
+              </Typography>
+              <Stack spacing={2} sx={{ py: 1 }}>
+                <FormControl>
+                  <FormLabel>Upload Audio File</FormLabel>
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={handleAudioUpload}
+                    style={{ display: 'none' }}
+                    id="audio-upload-input"
+                  />
+                  <Button
+                    component="label"
+                    htmlFor="audio-upload-input"
+                    variant="outlined"
+                    color="neutral"
+                    loading={isUploading}
+                    size="sm"
+                  >
+                    Choose Audio File
+                  </Button>
+                </FormControl>
 
-            {selectedAudioFile && (
-              <Card variant="soft" sx={{ p: 2 }}>
-                <Typography level="body-sm" sx={{ mb: 1 }}>
-                  Selected: {selectedAudioFile.name}
-                </Typography>
-                <Typography level="body-xs" color="neutral">
-                  Size: {(selectedAudioFile.size / 1024 / 1024).toFixed(2)} MB
-                </Typography>
-                {uploadedAudioPath && (
-                  <Typography level="body-xs" color="success" sx={{ mt: 1 }}>
-                    ✓ Upload successful
-                  </Typography>
+                {selectedAudioFile && (
+                  <Card variant="soft" sx={{ p: 2 }}>
+                    <Typography level="body-sm" sx={{ mb: 1 }}>
+                      Selected: {selectedAudioFile.name}
+                    </Typography>
+                    <Typography level="body-xs" color="neutral">
+                      Size: {(selectedAudioFile.size / 1024 / 1024).toFixed(2)} MB
+                    </Typography>
+                    {uploadedAudioPath && (
+                      <Typography level="body-xs" color="success" sx={{ mt: 1 }}>
+                        ✓ Upload successful
+                      </Typography>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      color="danger"
+                      onClick={handleClearUpload}
+                      sx={{ mt: 1, alignSelf: 'flex-start' }}
+                    >
+                      Deselect Audio
+                    </Button>
+                  </Card>
                 )}
-                <Button
-                  size="sm"
-                  variant="plain"
-                  color="danger"
-                  onClick={handleClearUpload}
-                  sx={{ mt: 1, alignSelf: 'flex-start' }}
-                >
-                  Deselect Audio
-                </Button>
-              </Card>
-            )}
-          </Stack>
+              </Stack>
+            </>
+          )}
+
+          {/* Show message when MLX is detected */}
+          {foundationModelArchitecture?.includes('MLX') && (
+            <Typography level="body-sm" color="neutral" sx={{ py: 2, fontStyle: 'italic' }}>
+              Audio cloning is not available for MLX models.
+            </Typography>
+          )}
         </Sheet>
 
         {/* Right-hand Main Panel for Input/Output */}
