@@ -378,17 +378,6 @@ export default function Audio() {
               </Stack>
             </>
           )}
-
-          {/* Show message when MLX is detected */}
-          {foundationModelArchitecture?.includes('MLX') && (
-            <Typography
-              level="body-sm"
-              color="neutral"
-              sx={{ py: 2, fontStyle: 'italic' }}
-            >
-              Audio cloning is not available for MLX models.
-            </Typography>
-          )}
         </Sheet>
 
         {/* Right-hand Main Panel for Input/Output */}
