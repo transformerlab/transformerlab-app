@@ -124,8 +124,8 @@ export async function uploadAudioFile(
 export default function Audio() {
   const { experimentInfo } = useExperimentInfo();
   const currentModel = experimentInfo?.config?.foundation;
-  const foundationModelArchitecture = experimentInfo?.config?.foundation_model_architecture
-;
+  const foundationModelArchitecture =
+    experimentInfo?.config?.foundation_model_architecture;
   const adaptor = experimentInfo?.config?.adaptor || '';
 
   const { data: audioHistory, mutate: mutateHistory } = useAPI(
@@ -352,10 +352,15 @@ export default function Audio() {
                       Selected: {selectedAudioFile.name}
                     </Typography>
                     <Typography level="body-xs" color="neutral">
-                      Size: {(selectedAudioFile.size / 1024 / 1024).toFixed(2)} MB
+                      Size: {(selectedAudioFile.size / 1024 / 1024).toFixed(2)}{' '}
+                      MB
                     </Typography>
                     {uploadedAudioPath && (
-                      <Typography level="body-xs" color="success" sx={{ mt: 1 }}>
+                      <Typography
+                        level="body-xs"
+                        color="success"
+                        sx={{ mt: 1 }}
+                      >
                         ✓ Upload successful
                       </Typography>
                     )}
@@ -376,7 +381,11 @@ export default function Audio() {
 
           {/* Show message when MLX is detected */}
           {foundationModelArchitecture?.includes('MLX') && (
-            <Typography level="body-sm" color="neutral" sx={{ py: 2, fontStyle: 'italic' }}>
+            <Typography
+              level="body-sm"
+              color="neutral"
+              sx={{ py: 2, fontStyle: 'italic' }}
+            >
               Audio cloning is not available for MLX models.
             </Typography>
           )}
