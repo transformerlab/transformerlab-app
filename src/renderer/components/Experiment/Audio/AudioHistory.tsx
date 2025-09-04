@@ -13,7 +13,7 @@ import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import AudioPlayer from '../../Data/AudioPlayer';
 
 interface AudioHistoryItem {
-  id: string; // Added id property
+  id: string;
   type: string;
   text: string;
   filename: string;
@@ -23,6 +23,7 @@ interface AudioHistoryItem {
   audio_format: string;
   sample_rate: number;
   temperature: number;
+  voice?: string;
   audio_data_url?: string; // Add audio data URL for the AudioPlayer
 }
 
@@ -103,6 +104,11 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                       <> + {item.adaptor.split('/').pop()}</>
                     )}
                   </Chip>
+                  {item.voice && (
+                    <Chip size="sm" variant="soft" color="neutral">
+                      Voice: {item.voice}
+                    </Chip>
+                  )}
                   <Chip size="sm" variant="soft" color="neutral">
                     {item.audio_format.toUpperCase()}
                   </Chip>
