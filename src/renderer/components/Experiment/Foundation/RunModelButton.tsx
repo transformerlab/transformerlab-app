@@ -90,7 +90,8 @@ export default function RunModelButton({
       const hasTextToSpeechSupport =
         Array.isArray(row.supports) &&
         row.supports.some(
-          (support: string) => support.toLowerCase() === 'text-to-speech',
+          // Some models list as text-to-speech, others as text-to-audio
+          (support: string) => (support.toLowerCase() === 'text-to-speech' || pipelineTag === 'text-to-audio'),
         );
 
       // For text-to-speech models: must also have text-to-speech support
