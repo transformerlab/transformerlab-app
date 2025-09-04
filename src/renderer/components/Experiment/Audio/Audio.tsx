@@ -316,11 +316,10 @@ export default function Audio() {
             </FormControl>
           </Stack>
 
-          <Divider sx={{ my: 2 }} />
-
           {/* Audio Upload Section - Only show if not MLX architecture */}
           {!foundationModelArchitecture?.includes('MLX') && (
             <>
+              <Divider sx={{ my: 2 }} />
               <Typography level="title-lg" sx={{ mb: 1 }}>
                 Audio Cloning:
               </Typography>
