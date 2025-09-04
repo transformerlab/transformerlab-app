@@ -55,11 +55,11 @@ export async function sendAndReceiveAudioPath(
   if (voice) {
     data.voice = voice;
   }
-  
+
   if (language) {
     data.language = language;
   }
-  
+
   // Add audio path if provided
   if (audioPath) {
     data.audio_path = audioPath;
