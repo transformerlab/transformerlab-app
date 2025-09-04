@@ -39,6 +39,7 @@ export async function sendAndReceiveAudioPath(
   speed: number,
   voice?: string,
   audioPath?: string,
+  language?: string,
 ) {
   const data: any = {
     experiment_id: experimentId,
@@ -51,9 +52,12 @@ export async function sendAndReceiveAudioPath(
     speed: speed,
   };
 
-  // Add voice if provided
   if (voice) {
     data.voice = voice;
+  }
+  
+  if (language) {
+    data.language = language;
   }
   
   // Add audio path if provided
@@ -198,6 +202,7 @@ export default function Audio() {
       speed,
       selectedVoice || undefined,
       uploadedAudioPath || undefined,
+      selectedLanguage || undefined,
     );
 
     if (result && result.message) {
