@@ -374,11 +374,38 @@ export default function ModelGroups({ experimentInfo }) {
             }}
           >
             {[...groupData]
-              .filter((group) =>
-                group.name
-                  .toLowerCase()
-                  .includes(groupSearchText.toLowerCase()),
-              )
+              .filter((group) => {
+                if (!groupSearchText) return true;
+
+                const searchLower = groupSearchText.toLowerCase();
+
+                // Search in group properties
+                const groupFields = [
+                  group.name,
+                  group.description,
+                  ...(group.tags || []),
+                ];
+
+                // Search in model properties within the group
+                const modelFields =
+                  group.models?.flatMap((model) => [
+                    model.name,
+                    model.architecture,
+                    model.license,
+                    model.description,
+                    model.huggingface_repo,
+                    model.id,
+                    ...(model.tags || []),
+                  ]) || [];
+
+                const allSearchableFields = [...groupFields, ...modelFields];
+
+                return allSearchableFields.some(
+                  (field) =>
+                    field &&
+                    field.toString().toLowerCase().includes(searchLower),
+                );
+              })
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((group) => {
                 const isSelected = selectedGroup?.name === group.name;
