@@ -81,6 +81,10 @@
     "pipeline_tag": {
       "method": "GET",
       "path": "model/pipeline_tag?model_name={modelName}"
+    },
+    "getModelDetailsFromGallery": {
+      "method": "GET",
+      "path": "model/gallery/{modelId}"
     }
   },
   "jobs": {

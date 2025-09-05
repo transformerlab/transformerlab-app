@@ -14,6 +14,7 @@ export {
   sendBatchedCompletion,
   sendBatchedChat,
   callTool,
+  getToolsForCompletions,
   getEmbeddings,
   tokenize,
   generateLogProbs,
