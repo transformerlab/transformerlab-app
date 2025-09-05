@@ -32,19 +32,22 @@ export default function ViewOutputModalStreaming({
   setJobId,
 }: ViewOutputModalStreamingProps) {
   const { experimentInfo } = useExperimentInfo();
-  const { data: jobDetails } = useSWR<JobDetails>(
-    jobId && jobId !== -1
+
+  const jobDetailsUrl =
+    experimentInfo && jobId && jobId !== -1
       ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
-      : null,
-    fetcher,
-    { refreshInterval: 2000 },
-  );
+      : null;
+
+  const { data: jobDetails } = useSWR<JobDetails>(jobDetailsUrl, fetcher, {
+    refreshInterval: 2000,
+  });
 
   // // Create a custom endpoint for export job output
-  const outputEndpoint = chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-    experimentInfo.id,
-    jobId,
-  );
+  const outputEndpoint = experimentInfo
+    ? chatAPI.Endpoints.Experiment.StreamOutputFromJob(experimentInfo.id, jobId)
+    : null;
+
+  if (!experimentInfo) return null;
 
   return (
     <Modal open={jobId !== -1} onClose={() => setJobId(-1)}>

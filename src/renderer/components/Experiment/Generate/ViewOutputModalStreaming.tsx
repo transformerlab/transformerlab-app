@@ -10,6 +10,7 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ViewOutputModalStreaming({ jobId, setJobId }) {
   const { experimentInfo } = useExperimentInfo();
+  if (!experimentInfo) return null;
   return (
     <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
       <ModalDialog sx={{ width: '80vw', height: '80vh' }}>

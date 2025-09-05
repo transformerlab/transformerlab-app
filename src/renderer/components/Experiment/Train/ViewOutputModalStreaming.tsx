@@ -28,7 +28,7 @@ export default function ViewOutputModalStreaming({
   setsweepJob,
 }) {
   const { experimentInfo } = useExperimentInfo();
-  if (jobId === -1) {
+  if (jobId === -1 || !experimentInfo) {
     return null;
   }
   const [tab, setTab] = useState(0);
