@@ -38,11 +38,9 @@ export default function ViewOutputModalStreaming({
       ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
       : null;
 
-  const { data: jobDetails } = useSWR<JobDetails>(
-    jobDetailsUrl,
-    fetcher,
-    { refreshInterval: 2000 }
-  );
+  const { data: jobDetails } = useSWR<JobDetails>(jobDetailsUrl, fetcher, {
+    refreshInterval: 2000,
+  });
 
   // // Create a custom endpoint for export job output
   const outputEndpoint = experimentInfo
