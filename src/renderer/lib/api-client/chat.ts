@@ -71,6 +71,7 @@ export async function sendAndReceiveStreaming(
   stopString = null,
   image?: string,
   minP?: number,
+  tools?: any,
 ) {
   let shortModelName = currentModel.split('/').slice(-1)[0];
 
@@ -92,6 +93,7 @@ export async function sendAndReceiveStreaming(
     frequency_penalty: freqencyPenalty,
     system_message: systemMessage,
     ...(minP !== undefined ? { min_p: minP } : {}),
+    ...(tools !== undefined ? { tools } : {}),
   };
 
   // console.log('data', data);
@@ -787,6 +789,25 @@ export async function callTool(
 
 export async function getAvailableModels() {
   const response = await fetch(API_URL() + 'model/gallery');
+  const result = await response.json();
+  return result;
+}
+
+export async function getToolsForCompletions() {
+  const { mcp_server_file, mcp_args, mcp_env } = await getMcpServerFile();
+  let url = chatAPI.Endpoints.Tools.All();
+
+  // Add query parameters if present
+  const params = [];
+  if (mcp_server_file)
+    params.push(`mcp_server_file=${encodeURIComponent(mcp_server_file)}`);
+  if (mcp_args) params.push(`mcp_args=${encodeURIComponent(mcp_args)}`);
+  if (mcp_env) params.push(`mcp_env=${encodeURIComponent(mcp_env)}`);
+  if (params.length > 0) {
+    url += (url.includes('?') ? '&' : '?') + params.join('&');
+  }
+
+  const response = await fetch(url);
   const result = await response.json();
   return result;
 }

@@ -29,11 +29,7 @@ import Tokenize from './Tokenize';
 import Embeddings from '../Embeddings';
 import { ChevronDownIcon } from 'lucide-react';
 
-import {
-  scrollChatToBottom,
-  focusChatInput,
-  getAgentSystemMessage,
-} from './interactUtils';
+import { scrollChatToBottom, focusChatInput } from './interactUtils';
 import Batched from './Batched/Batched';
 import VisualizeLogProbs from './VisualizeLogProbs';
 import VisualizeGeneration from './VisualizeGeneration';
@@ -465,7 +461,11 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
-    const systemMessage = await getAgentSystemMessage();
+    const systemMessage =
+      document.getElementsByName('system-message')[0]?.value || '';
+
+    // Get tools for tool calling
+    const tools = await chatAPI.getToolsForCompletions();
 
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
@@ -496,7 +496,7 @@ export default function Chat({
       console.log('Error parsing stop strings as JSON');
     }
 
-    // Send them over
+    // Send them over with tools
     let result = await chatAPI.sendAndReceiveStreaming(
       currentModel,
       adaptor,
@@ -509,6 +509,7 @@ export default function Chat({
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
+      tools,
     );
 
     // The model may make repeated tool calls but don't let it get stuck in a loop
@@ -589,6 +590,7 @@ export default function Chat({
             generationParameters?.stop_str,
             image,
             generationParameters?.minP,
+            tools,
           );
         }
       }
