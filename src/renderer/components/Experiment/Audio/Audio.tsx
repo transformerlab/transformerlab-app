@@ -37,6 +37,7 @@ export async function sendAndReceiveAudioPath(
   sample_rate: number,
   temperature: number,
   speed: number,
+  topP: number,
   voice?: string,
   audioPath?: string,
 ) {
@@ -49,6 +50,7 @@ export async function sendAndReceiveAudioPath(
     sample_rate: sample_rate,
     temperature: temperature,
     speed: speed,
+    top_p: topP,
   };
 
   if (voice) {
@@ -167,6 +169,7 @@ export default function Audio() {
   const [filePrefix, setFilePrefix] = React.useState('output_audio');
   const [sampleRate, setSampleRate] = React.useState(24000);
   const [temperature, setTemperature] = React.useState(0.7);
+  const [topP, setTopP] = React.useState(1.0);
   const [selectedLanguage, setSelectedLanguage] = React.useState('');
   const [selectedVoice, setSelectedVoice] = React.useState('');
 
@@ -197,6 +200,7 @@ export default function Audio() {
       sampleRate,
       temperature,
       speed,
+      topP,
       selectedVoice || undefined,
       uploadedAudioPath || undefined,
     );
@@ -363,6 +367,21 @@ export default function Audio() {
                 min={0.0}
                 max={1.0}
                 step={0.1}
+                valueLabelDisplay="auto"
+              />
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>
+                Top P: <b>{topP.toFixed(2)}</b>
+              </FormLabel>
+              <Slider
+                aria-label="Top P"
+                value={topP}
+                onChange={(_, v) => setTopP(v as number)}
+                min={0.0}
+                max={1.0}
+                step={0.01}
                 valueLabelDisplay="auto"
               />
             </FormControl>
