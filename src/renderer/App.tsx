@@ -25,6 +25,7 @@ import {
   ExperimentInfoProvider,
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
+import * as chatAPI from './lib/transformerlab-api-sdk';
 
 type AppContentProps = {
   connection: string;
@@ -151,7 +152,11 @@ function AppContent({
             width: '100%',
           }}
         >
-          <OutputTerminal initialMessage="** Running a Model will Display Output Here **" />
+          <OutputTerminal
+            key={connection}
+            logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
+            initialMessage="** Running a Model will Display Output Here **"
+          />
         </Box>
       </Box>
       <AutoUpdateModal />
