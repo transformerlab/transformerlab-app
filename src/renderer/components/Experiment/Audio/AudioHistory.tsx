@@ -23,6 +23,7 @@ interface AudioHistoryItem {
   audio_format: string;
   sample_rate: number;
   temperature: number;
+  top_p?: number;
   voice?: string;
   audio_data_url?: string; // Add audio data URL for the AudioPlayer
 }
@@ -120,6 +121,9 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                   </Chip>
                   <Chip size="sm" variant="soft" color="neutral">
                     Temp: {item.temperature}
+                  </Chip>
+                  <Chip size="sm" variant="soft" color="neutral">
+                    Top P: {item.top_p ? item.top_p : 'N/A'}
                   </Chip>
                   <Box sx={{ flex: 1 }} />
                   <IconButton
