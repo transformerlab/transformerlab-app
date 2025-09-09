@@ -22,6 +22,7 @@ import {
   DialogTitle,
   Divider,
   Card,
+  Alert,
 } from '@mui/joy';
 import { useAPI } from '../../../lib/transformerlab-api-sdk';
 import AudioHistory from './AudioHistory';
@@ -132,6 +133,8 @@ export default function Audio() {
   const foundationModelArchitecture =
     experimentInfo?.config?.foundation_model_architecture;
   const adaptor = experimentInfo?.config?.adaptor || '';
+
+  const { models } = chatAPI.useModelStatus();
 
   // Fetch model config from gallery
   const processedModelId = currentModel
@@ -257,6 +260,7 @@ export default function Audio() {
         flexDirection: 'column',
         height: '100%',
         overflow: 'hidden',
+        position: 'relative',
       }}
     >
       {/* Top Header */}
@@ -518,6 +522,29 @@ export default function Audio() {
           <DialogTitle>Generation Settings</DialogTitle>
         </ModalDialog>
       </Modal>
+
+      {/* No Model Running Modal */}
+      <Sheet
+        sx={{
+          position: 'absolute',
+          top: '0%',
+          left: '0%',
+          zIndex: 10000,
+          backgroundColor: 'var(--joy-palette-neutral-softBg)',
+          opacity: 0.9,
+          borderRadius: 'md',
+          padding: 2,
+          height: !models?.[0]?.id && experimentInfo ? '90dvh' : 'inherit',
+          width: !models?.[0]?.id && experimentInfo ? '100dvh' : 'inherit',
+          visibility: !models?.[0]?.id && experimentInfo ? 'visible' : 'hidden',
+        }}
+      >
+        <Alert
+          sx={{ position: 'relative', top: '50%', justifyContent: 'center' }}
+        >
+          No Model is Running
+        </Alert>
+      </Sheet>
     </Box>
   );
 }
