@@ -153,6 +153,7 @@ function AppContent({
           }}
         >
           <OutputTerminal
+            key={connection}
             logEndpoint={chatAPI.Endpoints.ServerInfo.StreamLog()}
             initialMessage="** Running a Model will Display Output Here **"
           />
