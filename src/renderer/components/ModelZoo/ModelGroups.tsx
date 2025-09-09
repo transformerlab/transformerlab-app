@@ -178,6 +178,7 @@ export default function ModelGroups({ experimentInfo }) {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const [groupSearchText, setGroupSearchText] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const {
     data: groupData,
@@ -223,7 +224,7 @@ export default function ModelGroups({ experimentInfo }) {
 
   useEffect(() => {
     if (selectedGroup) {
-      setFilters({ archived: false, license: 'All', architecture: 'All' });
+      setFilters({ archived: false, architecture: 'All' });
     }
   }, [selectedGroup]);
 
@@ -240,17 +241,17 @@ export default function ModelGroups({ experimentInfo }) {
     }
   }, [groupData, selectedGroup]);
 
-  const getLicenseOptions = (models) => {
-    const lowercaseSet = new Set();
-    models?.forEach((m) => {
+  const getLicenseOptions = (models: any[]): string[] => {
+    const lowercaseSet = new Set<string>();
+    models?.forEach((m: any) => {
       if (m.license) lowercaseSet.add(m.license.toLowerCase());
     });
     return Array.from(lowercaseSet).sort();
   };
 
-  const getArchitectureOptions = (models) => {
-    const lowercaseSet = new Set();
-    models?.forEach((m) => {
+  const getArchitectureOptions = (models: any[]): string[] => {
+    const lowercaseSet = new Set<string>();
+    models?.forEach((m: any) => {
       if (m.architecture) lowercaseSet.add(m.architecture.toLowerCase());
     });
     return Array.from(lowercaseSet).sort();
@@ -259,7 +260,7 @@ export default function ModelGroups({ experimentInfo }) {
   const licenseOptions = selectedGroup
     ? getLicenseOptions(selectedGroup.models)
     : [];
-  const archOptions = selectedGroup
+  const archOptions: string[] = selectedGroup
     ? getArchitectureOptions(selectedGroup.models)
     : [];
 
@@ -267,7 +268,7 @@ export default function ModelGroups({ experimentInfo }) {
   if (error) return <Typography>Error loading model groups.</Typography>;
   if (!groupData || !selectedGroup) return null;
 
-  const handleSortClick = (column) => {
+  const handleSortClick = (column: string) => {
     const isAsc = orderBy === column && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(column);
@@ -357,7 +358,7 @@ export default function ModelGroups({ experimentInfo }) {
             }}
           >
             <Input
-              placeholder="Search groups"
+              placeholder="Search"
               value={groupSearchText}
               onChange={(e) => setGroupSearchText(e.target.value)}
               startDecorator={<SearchIcon />}
@@ -388,7 +389,7 @@ export default function ModelGroups({ experimentInfo }) {
 
                 // Search in model properties within the group
                 const modelFields =
-                  group.models?.flatMap((model) => [
+                  group.models?.flatMap((model: any) => [
                     model.name,
                     model.architecture,
                     model.license,
@@ -513,72 +514,86 @@ export default function ModelGroups({ experimentInfo }) {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1,
+                  justifyContent: 'space-between',
                   flexWrap: 'wrap',
                   mb: 1,
                 }}
               >
-                <Typography level="h4">
-                  {selectedGroup.name.charAt(0).toUpperCase() +
-                    selectedGroup.name.slice(1)}
-                </Typography>
-                {selectedGroup.tags?.map((tag) => (
-                  <Chip
-                    key={tag}
-                    size="sm"
-                    variant="outlined"
-                    sx={{
-                      fontSize: '0.7rem',
-                      variant: 'soft',
-                      color: 'info',
-                    }}
-                  >
-                    {tag}
-                  </Chip>
-                ))}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Typography level="h4">
+                    {selectedGroup.name.charAt(0).toUpperCase() +
+                      selectedGroup.name.slice(1)}
+                  </Typography>
+                  {selectedGroup.tags?.map((tag: string) => (
+                    <Chip
+                      key={tag}
+                      size="sm"
+                      variant="outlined"
+                      sx={{
+                        fontSize: '0.7rem',
+                        variant: 'soft',
+                        color: 'info',
+                      }}
+                    >
+                      {tag}
+                    </Chip>
+                  ))}
+                </Box>
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  Filters {showFilters ? '▲' : '▼'}
+                </Button>
               </Box>
               {/* <Typography level="body-md" sx={{ mb: 2 }}>
                 {selectedGroup.description}
               </Typography> */}
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                <FormControl sx={{ flex: 1 }} size="sm">
-                  <FormLabel>&nbsp;</FormLabel>
-                  <Input
-                    placeholder="Search"
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    startDecorator={<SearchIcon />}
-                  />
-                </FormControl>
-                <FormControl size="sm">
-                  <FormLabel>Status</FormLabel>
-                  <Select
-                    value={filters?.archived}
-                    onChange={(e, newValue) =>
-                      setFilters({ ...filters, archived: newValue })
-                    }
-                  >
-                    <Option value={false}>Hide Archived</Option>
-                    <Option value="All">Show Archived</Option>
-                  </Select>
-                </FormControl>
-                <FormControl size="sm">
-                  <FormLabel>Architecture</FormLabel>
-                  <Select
-                    value={filters?.architecture}
-                    onChange={(e, newValue) =>
-                      setFilters({ ...filters, architecture: newValue })
-                    }
-                  >
-                    <Option value="All">All</Option>
-                    {archOptions.map((type) => (
-                      <Option key={type} value={type}>
-                        {type}
-                      </Option>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
+              {showFilters && (
+                <Box
+                  sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 1 }}
+                >
+                  <FormControl size="sm">
+                    <FormLabel>Status</FormLabel>
+                    <Select
+                      value={filters?.archived}
+                      onChange={(e, newValue) =>
+                        setFilters({ ...filters, archived: newValue ?? false })
+                      }
+                    >
+                      <Option value={false}>Hide Archived</Option>
+                      <Option value="All">Show Archived</Option>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="sm">
+                    <FormLabel>Architecture</FormLabel>
+                    <Select
+                      value={filters?.architecture}
+                      onChange={(e, newValue) =>
+                        setFilters({
+                          ...filters,
+                          architecture: newValue ?? 'All',
+                        })
+                      }
+                    >
+                      <Option value="All">All</Option>
+                      {archOptions.map((type: string) => (
+                        <Option key={type} value={type}>
+                          {type}
+                        </Option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
             </Sheet>
 
             <Box
