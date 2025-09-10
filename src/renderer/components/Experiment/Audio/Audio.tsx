@@ -253,7 +253,7 @@ export default function Audio() {
     }
 
     setIsUploading(false);
-    
+
     // Reset the input value to allow uploading the same file again or ensure clean state
     event.target.value = '';
   };
