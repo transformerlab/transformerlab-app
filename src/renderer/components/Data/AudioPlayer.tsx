@@ -70,32 +70,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
     setIsLoading(false);
   };
 
-  // Native audio handlers for syncing with WaveSurfer
-  const handleNativePlay = () => {
-    if (wavesurfer && !compact) {
-      wavesurfer.play();
-    }
-    setIsPlaying(true);
-  };
-
-  const handleNativePause = () => {
-    if (wavesurfer && !compact) {
-      wavesurfer.pause();
-    }
-    setIsPlaying(false);
-  };
-
-  const handleNativeSeek = (event: React.SyntheticEvent<HTMLAudioElement>) => {
-    if (wavesurfer && !compact) {
-      const audio = event.currentTarget;
-      const audioCurrentTime = audio.currentTime;
-      const audioDuration = audio.duration;
-      if (audioDuration > 0) {
-        const progress = audioCurrentTime / audioDuration;
-        wavesurfer.seekTo(progress);
-      }
-    }
-  };
+  // No longer need manual syncing handlers as WaveSurfer will use the native audio element
 
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
@@ -105,73 +80,70 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   // Regular mode - WaveSurfer player effects
   React.useEffect(() => {
+    // Skip if we're in compact mode or missing required refs/data
     if (
-      !compact &&
-      waveformRef.current &&
-      !wavesurfer &&
-      !isDestroyedRef.current &&
-      audioData?.audio_data_url
+      compact ||
+      !waveformRef.current ||
+      !nativeAudioRef.current ||
+      isDestroyedRef.current ||
+      !audioData?.audio_data_url
     ) {
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        const ws = WaveSurfer.create({
-          container: waveformRef.current,
-          waveColor: '#4f46e5',
-          progressColor: '#7c3aed',
-          cursorColor: 'var(--joy-palette-primary-400)',
-          height: 60,
-          normalize: true,
-          barWidth: 3,
-          barGap: 2,
-          barRadius: 3,
-          fillParent: true,
-          mediaControls: false,
-        });
-
-        ws.on('ready', () => {
-          setIsLoading(false);
-        });
-
-        ws.on('play', () => {
-          setIsPlaying(true);
-        });
-
-        ws.on('pause', () => {
-          setIsPlaying(false);
-        });
-
-        ws.on('error', () => {
-          setError('Failed to load audio');
-          setIsLoading(false);
-        });
-
-        ws.load(audioData.audio_data_url);
-        setWavesurfer(ws);
-
-        return () => {
-          isDestroyedRef.current = true;
-          if (ws) {
-            try {
-              ws.pause();
-              ws.destroy();
-            } catch (cleanupError) {
-              // Ignore errors during cleanup
-            }
-          }
-          setWavesurfer(null);
-          setIsPlaying(false);
-          setIsLoading(true);
-          setError(null);
-        };
-      } catch (initError) {
-        setError('Failed to initialize audio player');
-        setIsLoading(false);
-      }
+      return undefined;
     }
 
-    return undefined;
+    // Set initial states
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Create a reference to the current audio element
+      const audioElement = nativeAudioRef.current;
+
+      // Create a WaveSurfer instance
+      const ws = WaveSurfer.create({
+        container: waveformRef.current,
+        media: audioElement,
+        waveColor: '#4f46e5',
+        progressColor: '#7c3aed',
+        cursorColor: 'var(--joy-palette-primary-400)',
+        height: 60,
+        normalize: true,
+        barWidth: 3,
+        barGap: 2,
+        barRadius: 3,
+        fillParent: true,
+      });
+
+      // Set up event listeners
+      ws.on('ready', () => setIsLoading(false));
+      ws.on('play', () => setIsPlaying(true));
+      ws.on('pause', () => setIsPlaying(false));
+      ws.on('error', () => {
+        setError('Failed to load audio');
+        setIsLoading(false);
+      });
+
+      // Store the WaveSurfer instance in state
+      setWavesurfer(ws);
+
+      // Return cleanup function
+      return () => {
+        isDestroyedRef.current = true;
+        try {
+          ws.destroy();
+        } catch (cleanupError) {
+          // Ignore errors during cleanup
+        }
+        setWavesurfer(null);
+        setIsPlaying(false);
+        setIsLoading(true);
+        setError(null);
+      };
+    } catch (initError) {
+      setError('Failed to initialize audio player');
+      setIsLoading(false);
+      return undefined;
+    }
   }, [compact, audioData?.audio_data_url]);
 
   React.useEffect(() => {
@@ -288,9 +260,6 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             src={audioData.audio_data_url}
             controls
             style={{ width: '100%' }}
-            onPlay={handleNativePlay}
-            onPause={handleNativePause}
-            onSeeked={handleNativeSeek}
           >
             <track kind="captions" />
           </audio>
