@@ -9,7 +9,8 @@ import { useEffect, useRef } from 'react';
  * @returns string with human readable bytes
  */
 export function formatBytes(bytes: number, decimals = 2): string {
-  if (!+bytes) return '0 Bytes';
+  // Handle invalid inputs (NaN, undefined, null, negative values)
+  if (!Number.isFinite(bytes) || bytes < 0) return '0 Bytes';
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
