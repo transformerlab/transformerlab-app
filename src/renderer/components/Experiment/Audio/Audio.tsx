@@ -236,6 +236,8 @@ export default function Audio() {
     // Check if file is audio
     if (!file.type.startsWith('audio/')) {
       alert('Please select an audio file');
+      // Reset the input value to allow re-selection
+      event.target.value = '';
       return;
     }
 
@@ -251,6 +253,9 @@ export default function Audio() {
     }
 
     setIsUploading(false);
+
+    // Reset the input value to allow uploading the same file again or ensure clean state
+    event.target.value = '';
   };
 
   const handleClearUpload = () => {
