@@ -311,6 +311,11 @@ function UserDetailsPanel({ userDetails, mutate }) {
           size="18px"
           onClick={async () => {
             await logout();
+            await Promise.all([
+              window.storage.delete('accessToken'),
+              window.storage.delete('userName'),
+              window.storage.delete('userEmail'),
+            ]);
             mutate();
             alert('User logged out.');
           }}

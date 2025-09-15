@@ -19,9 +19,10 @@ import {
 import { TriangleAlert, EyeIcon, EyeOffIcon } from 'lucide-react';
 
 import { login, registerUser } from 'renderer/lib/transformerlab-api-sdk';
+import { API_URL } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function UserLoginModal({ open, onClose }) {
-  const [loginErrorMessage, setLoginErrorMessage] = useState(null);
+  const [loginErrorMessage, setLoginErrorMessage] = useState<string | null>(null);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
@@ -138,6 +139,93 @@ export default function UserLoginModal({ open, onClose }) {
                   />
                 </FormControl>
                 <Button type="submit">Login</Button>
+                {window.platform?.appmode === 'cloud' && (
+                  <Button
+                    variant="soft"
+                    onClick={async () => {
+                      try {
+                        const w: any = window as any;
+                        const fallbackBase = `${window.location.origin}${window.location.pathname}${window.location.pathname.endsWith('/') ? '' : '/'}`;
+                        const apiBase = (API_URL && API_URL()) || (w.TransformerLab?.API_URL) || fallbackBase;
+                        // Add a cache-buster to avoid browsers (or proxies) returning 304 with HTML body
+                        const cacheBuster = Date.now().toString();
+                        const authorizeEndpoint = `${apiBase}auth/workos/authorize?cb=${cacheBuster}`;
+
+                        const resp = await fetch(authorizeEndpoint, {
+                          method: 'GET',
+                          headers: {
+                            'Cache-Control': 'no-store, no-cache, must-revalidate',
+                            Pragma: 'no-cache',
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json, */*;q=0.8',
+                          },
+                        });
+
+                        if (resp.status === 304) {
+                          // Treat 304 as an error for this JSON-init endpoint; force retry logic by clearing state
+                          await w.storage.delete('authWorkosState');
+                          setLoginErrorMessage('Failed to initiate SSO (stale cached response). Please try again.');
+                          return;
+                        }
+
+                        if (!resp.ok) {
+                          await w.storage.delete('authWorkosState');
+                          setLoginErrorMessage(`Failed to initiate SSO (HTTP ${resp.status}).`);
+                          return;
+                        }
+
+                        let data: any = null;
+                        const contentType = resp.headers.get('content-type') || '';
+                        try {
+                          if (contentType.includes('application/json')) {
+                            data = await resp.json();
+                          } else {
+                            const text = await resp.text();
+                            // If HTML came back, this is unexpected
+                            if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+                              throw new Error('Server returned HTML instead of JSON.');
+                            }
+                            // Attempt a lenient parse
+                            try { data = JSON.parse(text); } catch { data = { detail: 'Unexpected response format.' }; }
+                          }
+                        } catch (parseErr) {
+                          await w.storage.delete('authWorkosState');
+                          setLoginErrorMessage('SSO start failed: ' + parseErr);
+                          return;
+                        }
+                        const redirectTo = data?.authorization_url;
+                        if (redirectTo) {
+                          try {
+                            const redirectUrl = new URL(redirectTo);
+                            const stateFromQuery = redirectUrl.searchParams.get('state');
+                            const hash = redirectUrl.hash || '';
+                            const stateFromHash = hash
+                              ? new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash).get('state')
+                              : null;
+                            const stateValue = stateFromQuery || stateFromHash || data?.state || null;
+                            if (stateValue) {
+                              await w.storage.set('authWorkosState', stateValue);
+                            } else {
+                              await w.storage.delete('authWorkosState');
+                            }
+                          } catch {
+                            await w.storage.delete('authWorkosState');
+                          }
+                          window.location.href = redirectTo;
+                        } else {
+                          await w.storage.delete('authWorkosState');
+                          setLoginErrorMessage(data?.detail || 'Failed to initiate SSO.');
+                        }
+                      } catch (e) {
+                        const w: any = window as any;
+                        await w.storage.delete('authWorkosState');
+                        setLoginErrorMessage('SSO start failed: ' + e);
+                      }
+                    }}
+                  >
+                    Login with WorkOS
+                  </Button>
+                )}
               </Stack>
             </form>
           </TabPanel>

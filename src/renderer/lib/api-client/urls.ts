@@ -1,7 +1,14 @@
 import endpointsJson from './allEndpoints.json';
 
 export function API_URL() {
-  return window.TransformerLab?.API_URL || null;
+  const raw = (window as any).TransformerLab?.API_URL || null;
+  if (!raw) return null;
+  let base = String(raw);
+  // Strip any hash fragments (e.g., from HashRouter URLs)
+  if (base.includes('#')) base = base.split('#')[0];
+  // Ensure trailing slash for safe concatenation
+  if (!base.endsWith('/')) base = base + '/';
+  return base;
 }
 
 export function INFERENCE_SERVER_URL() {

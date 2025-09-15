@@ -26,6 +26,7 @@ import {
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
+import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
 
 type AppContentProps = {
   connection: string;
@@ -197,6 +198,8 @@ export default function App() {
     <NotificationProvider>
       <CssVarsProvider disableTransitionOnChange theme={theme}>
         <CssBaseline />
+        {/* Handle non-hash OAuth callback (/auth/callback) before rendering the app */}
+        <RootAuthCallbackHandler />
         <ExperimentInfoProvider connection={connection}>
           <AppContent
             connection={connection}
