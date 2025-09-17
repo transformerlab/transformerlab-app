@@ -29,7 +29,7 @@ export async function login(username: string, password: string) {
   // API Successfully returned, but was the authentication successful?
   const accessToken = result?.access_token;
   if (accessToken) {
-    window.storage.set('accessToken', accessToken);
+    await setAccessToken(accessToken);
     return {
       status: 'success',
       message: 'Logged in as ' + username,
@@ -42,6 +42,14 @@ export async function login(username: string, password: string) {
   }
 }
 
+export async function setAccessToken(token: string) {
+  if (!token) {
+    await window.storage.delete('accessToken');
+    return;
+  }
+  await window.storage.set('accessToken', token);
+}
+
 export async function getAccessToken() {
   const access_token = await window.storage.get('accessToken');
   return access_token || '';
@@ -49,6 +57,15 @@ export async function getAccessToken() {
 
 export async function logout() {
   await window.storage.delete('accessToken');
+  await window.storage.delete('refreshToken');
+}
+
+export async function setRefreshToken(token: string | null | undefined) {
+  if (!token) {
+    await window.storage.delete('refreshToken');
+    return;
+  }
+  await window.storage.set('refreshToken', token);
 }
 
 export async function registerUser(

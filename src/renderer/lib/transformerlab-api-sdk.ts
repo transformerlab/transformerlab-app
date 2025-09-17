@@ -26,6 +26,8 @@ export {
   login,
   logout,
   getAccessToken,
+  setAccessToken,
+  setRefreshToken,
   registerUser,
   downloadModelFromHuggingFace,
   downloadGGUFFile,
