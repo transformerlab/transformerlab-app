@@ -20,6 +20,7 @@ import { TriangleAlert, EyeIcon, EyeOffIcon } from 'lucide-react';
 
 import { login, registerUser } from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from 'renderer/lib/transformerlab-api-sdk';
+import { DEFAULT_API_FALLBACK } from './authCallbackUtils';
 
 export default function UserLoginModal({ open, onClose }) {
   const [loginErrorMessage, setLoginErrorMessage] = useState<string | null>(null);
@@ -145,7 +146,7 @@ export default function UserLoginModal({ open, onClose }) {
                     onClick={async () => {
                       try {
                         const w: any = window as any;
-                        const fallbackBase = `${window.location.origin}${window.location.pathname}${window.location.pathname.endsWith('/') ? '' : '/'}`;
+                        const fallbackBase = DEFAULT_API_FALLBACK;
                         const apiBase = (API_URL && API_URL()) || (w.TransformerLab?.API_URL) || fallbackBase;
                         // Add a cache-buster to avoid browsers (or proxies) returning 304 with HTML body
                         const cacheBuster = Date.now().toString();

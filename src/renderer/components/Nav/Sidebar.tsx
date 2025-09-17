@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 
 import {
   CodeIcon,
@@ -28,16 +28,27 @@ import {
 import { RiImageAiLine } from 'react-icons/ri';
 
 import {
+  Alert,
   Box,
   ButtonGroup,
+  Button,
   Divider,
+  FormControl,
+  FormLabel,
   IconButton,
+  Input,
   List,
   ListItem,
   ListItemButton,
   ListItemContent,
   ListItemDecorator,
+  Modal,
+  ModalClose,
+  ModalDialog,
+  Option,
+  Select,
   Sheet,
+  Stack,
   Tooltip,
   Typography,
 } from '@mui/joy';
@@ -48,6 +59,10 @@ import {
   useAPI,
   logout,
   getAPIFullPath,
+  getAccessToken,
+  setAccessToken,
+  setRefreshToken,
+  API_URL,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
@@ -268,7 +283,144 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   );
 }
 
-function UserDetailsPanel({ userDetails, mutate }) {
+function extractWorkOSDetails(userDetails: any) {
+  const accounts = Array.isArray(userDetails?.oauth_accounts)
+    ? userDetails.oauth_accounts
+    : [];
+  const workosAccount = accounts.find(
+    (account: any) =>
+      account?.oauth_name === 'workos' || account?.oauth_name === 'openid',
+  );
+
+  if (!workosAccount) {
+    return {
+      account: null,
+      organizationId: null,
+      organizationSlug: null,
+      organizations: [],
+    };
+  }
+
+  const accountData = (workosAccount?.account_data || {}) as any;
+  const workosMeta = (accountData?.workos || {}) as any;
+  const userinfo = (accountData?.userinfo || {}) as any;
+
+  const organizationId =
+    workosMeta?.organization_id ||
+    userinfo?.organization_id ||
+    userinfo?.org_id ||
+    null;
+
+  const organizationSlug =
+    workosMeta?.organization_slug ||
+    userinfo?.organization_slug ||
+    (typeof userinfo?.organization === 'object'
+      ? userinfo.organization?.slug || userinfo.organization?.name
+      : null) ||
+    null;
+
+  const organizationName =
+    workosMeta?.organization_name ||
+    (typeof userinfo?.organization === 'object'
+      ? userinfo.organization?.name || userinfo.organization?.slug
+      : null) ||
+    (typeof userinfo?.organization === 'string'
+      ? userinfo.organization
+      : null) ||
+    userinfo?.organization_name ||
+    null;
+
+  const rawOrganizations = [
+    ...(Array.isArray(userinfo?.organizations) ? userinfo.organizations : []),
+    ...(userinfo?.organization ? [userinfo.organization] : []),
+  ];
+
+  const organizations = rawOrganizations
+    .map((raw: any) => {
+      if (!raw || typeof raw !== 'object') {
+        if (typeof raw === 'string') {
+          return { id: raw, slug: null, name: null };
+        }
+        return null;
+      }
+      const id =
+        raw.id || raw.organization_id || raw.org_id || raw.profile_id || null;
+      const slug = raw.slug || raw.organization_slug || null;
+      const name = raw.name || raw.organization_name || raw.profile || null;
+      if (!id && !slug && !name) {
+        return null;
+      }
+      return { id, slug, name };
+    })
+    .filter((item: any) => item);
+
+  const deduped = organizations.reduce((acc: any[], org: any) => {
+    const key = org?.id || org?.slug || org?.name;
+    if (!key) {
+      return acc;
+    }
+    if (
+      !acc.some(
+        (existing) =>
+          (org?.id && existing?.id === org?.id) ||
+          (org?.slug && existing?.slug === org?.slug) ||
+          (org?.name && existing?.name === org?.name),
+      )
+    ) {
+      acc.push(org);
+    }
+    return acc;
+  }, [] as any[]);
+
+  const fallbackOrg =
+    organizationId || organizationSlug || organizationName
+      ? {
+          id: organizationId,
+          slug: organizationSlug,
+          name: organizationName || organizationSlug || organizationId || null,
+        }
+      : null;
+
+  if (
+    fallbackOrg &&
+    !deduped.some(
+      (existing) =>
+        (fallbackOrg.id && existing?.id === fallbackOrg.id) ||
+        (fallbackOrg.slug && existing?.slug === fallbackOrg.slug) ||
+        (fallbackOrg.name && existing?.name === fallbackOrg.name),
+    )
+  ) {
+    deduped.push(fallbackOrg);
+  }
+
+  return {
+    account: workosAccount,
+    organizationId,
+    organizationSlug,
+    organizationName,
+    organizations: deduped,
+  };
+}
+
+function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
+  const workosDetails = extractWorkOSDetails(userDetails);
+  const organizationDisplayParts: string[] = [];
+  if (workosDetails?.organizationName) {
+    organizationDisplayParts.push(workosDetails.organizationName);
+  }
+  const organizationIdentifier =
+    workosDetails?.organizationSlug || workosDetails?.organizationId;
+  if (
+    organizationIdentifier &&
+    (!workosDetails?.organizationName ||
+      workosDetails.organizationName !== organizationIdentifier)
+  ) {
+    organizationDisplayParts.push(organizationIdentifier);
+  }
+  const organizationDisplay =
+    organizationDisplayParts.length > 0
+      ? organizationDisplayParts.join(' / ')
+      : null;
   return (
     <>
       <UserIcon />
@@ -293,6 +445,19 @@ function UserDetailsPanel({ userDetails, mutate }) {
         >
           {userDetails?.email}
         </Typography>
+        {organizationDisplay ? (
+          <Typography
+            level="body-xs"
+            sx={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              color: 'text.secondary',
+            }}
+          >
+            WorkOS: {organizationDisplay}
+          </Typography>
+        ) : null}
       </Box>
 
       <IconButton
@@ -321,18 +486,148 @@ function UserDetailsPanel({ userDetails, mutate }) {
           }}
         />
       </IconButton>
+      {workosDetails?.account ? (
+        <Tooltip title="Manage WorkOS organization scope">
+          <IconButton
+            size="sm"
+            variant="plain"
+            color="neutral"
+            onClick={onManageWorkOS}
+            sx={{
+              cursor: 'pointer',
+              '&:hover': {
+                backgroundColor: 'var(--joy-palette-neutral-100)',
+                borderRadius: 'sm',
+              },
+            }}
+          >
+            <SettingsIcon size="18px" />
+          </IconButton>
+        </Tooltip>
+      ) : null}
     </>
   );
 }
 
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
+  const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
+  const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(null);
+  const [organizationInput, setOrganizationInput] = useState('');
+  const [scopeError, setScopeError] = useState<string | null>(null);
+  const [scopeSuccess, setScopeSuccess] = useState<string | null>(null);
+  const [isScoping, setIsScoping] = useState(false);
   const {
     data: userInfo,
     error: userError,
-    isLoading: userLoading,
     mutate: userMutate,
   } = useAPI('users', ['me'], {});
+
+  const workosDetails = userInfo ? extractWorkOSDetails(userInfo) : null;
+  const availableOrganizations = workosDetails?.organizations || [];
+  const currentOrgLabel =
+    workosDetails?.organizationName ||
+    workosDetails?.organizationSlug ||
+    workosDetails?.organizationId ||
+    'Not scoped';
+  const hasWorkOSAccount = Boolean(workosDetails?.account);
+
+  useEffect(() => {
+    if (workosScopeModalOpen) {
+      const defaultOrg = workosDetails?.organizationId || '';
+      setSelectedOrgOption(defaultOrg || null);
+      setOrganizationInput(defaultOrg || '');
+      setScopeError(null);
+      setScopeSuccess(null);
+    }
+  }, [workosScopeModalOpen, workosDetails?.organizationId]);
+
+  useEffect(() => {
+    if (!workosDetails?.account && workosScopeModalOpen) {
+      setWorkosScopeModalOpen(false);
+    }
+  }, [workosDetails?.account, workosScopeModalOpen]);
+
+  const handleScopeSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = organizationInput.trim();
+    if (!trimmed) {
+      setScopeError('Organization ID is required.');
+      setScopeSuccess(null);
+      return;
+    }
+
+    const apiBase = API_URL();
+    if (!apiBase) {
+      setScopeError('API URL is not configured. Set API URL before scoping.');
+      setScopeSuccess(null);
+      return;
+    }
+
+    setIsScoping(true);
+    setScopeError(null);
+    setScopeSuccess(null);
+
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        setScopeError('You must be logged in to scope your WorkOS session.');
+        setIsScoping(false);
+        return;
+      }
+
+      const response = await fetch(`${apiBase}auth/workos/scope`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ organization_id: trimmed }),
+      });
+
+      const rawText = await response.text();
+      let payload: any = null;
+      if (rawText) {
+        try {
+          payload = JSON.parse(rawText);
+        } catch (err) {
+          payload = null;
+        }
+      }
+
+      if (!response.ok) {
+        const detail =
+          (payload && (payload.detail || payload.message)) || rawText ||
+          `Failed with status ${response.status}`;
+        setScopeError(
+          typeof detail === 'string'
+            ? detail
+            : 'Failed to scope WorkOS session.',
+        );
+        setIsScoping(false);
+        return;
+      }
+
+      setScopeSuccess(
+        payload?.organization_slug
+          ? `Session scoped to ${payload.organization_slug}.`
+          : `Session scoped to ${payload?.organization_id || trimmed}.`,
+      );
+      setSelectedOrgOption(trimmed);
+      setOrganizationInput(trimmed);
+      if (payload?.access_token) {
+        await setAccessToken(payload.access_token);
+      }
+      if (payload?.refresh_token !== undefined) {
+        await setRefreshToken(payload.refresh_token);
+      }
+      await userMutate();
+    } catch (error: any) {
+      setScopeError(error?.message || 'Failed to scope WorkOS session.');
+    } finally {
+      setIsScoping(false);
+    }
+  };
 
   if (userError) {
     console.log(userError);
@@ -351,7 +646,11 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
         }}
       >
         {userInfo && userInfo.id ? (
-          <UserDetailsPanel userDetails={userInfo} mutate={userMutate} />
+          <UserDetailsPanel
+            userDetails={userInfo}
+            mutate={userMutate}
+            onManageWorkOS={() => setWorkosScopeModalOpen(true)}
+          />
         ) : (
           <List
             sx={{
@@ -426,6 +725,88 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
           userMutate();
         }}
       />
+      <Modal
+        open={workosScopeModalOpen && hasWorkOSAccount}
+        onClose={() => setWorkosScopeModalOpen(false)}
+      >
+        <ModalDialog aria-labelledby="workos-scope-title" sx={{ maxWidth: 420 }}>
+          <ModalClose />
+          <Typography id="workos-scope-title" level="title-lg">
+            WorkOS Organization Scope
+          </Typography>
+          <Typography level="body-sm" sx={{ mt: 1 }}>
+            Current organization:{' '}
+            <Typography component="span" level="body-sm" fontWeight="lg">
+              {currentOrgLabel}
+            </Typography>
+          </Typography>
+          {availableOrganizations.length > 0 ? (
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Choose an organization</FormLabel>
+              <Select
+                placeholder="Select organization"
+                value={selectedOrgOption || null}
+                onChange={(_event, value) => {
+                  const next = (value as string) || '';
+                  setSelectedOrgOption(next || null);
+                  setOrganizationInput(next);
+                }}
+              >
+                {availableOrganizations.map((org: any) => {
+                  const value = org?.id || org?.slug || org?.name;
+                  if (!value) {
+                    return null;
+                  }
+                  const labelParts = [org?.slug || org?.name].filter(Boolean);
+                  if (org?.id && org?.id !== value) {
+                    labelParts.push(`(${org.id})`);
+                  }
+                  const label = labelParts.join(' ');
+                  return (
+                    <Option key={value} value={value}>
+                      {label || value}
+                    </Option>
+                  );
+                })}
+              </Select>
+            </FormControl>
+          ) : (
+            <Typography level="body-xs" sx={{ mt: 2 }}>
+              We could not discover additional organizations automatically.
+              You can still paste an organization ID manually below.
+            </Typography>
+          )}
+          <form onSubmit={handleScopeSubmit}>
+            <Stack spacing={1.5} sx={{ mt: 2 }}>
+              <FormControl>
+                <FormLabel>Organization ID</FormLabel>
+                <Input
+                  placeholder="org_123"
+                  value={organizationInput}
+                  onChange={(event) => {
+                    setOrganizationInput(event.target.value);
+                    setSelectedOrgOption(event.target.value || null);
+                  }}
+                  autoFocus={availableOrganizations.length === 0}
+                />
+              </FormControl>
+              {scopeError ? (
+                <Alert color="danger" variant="soft">
+                  {scopeError}
+                </Alert>
+              ) : null}
+              {scopeSuccess ? (
+                <Alert color="success" variant="soft">
+                  {scopeSuccess}
+                </Alert>
+              ) : null}
+              <Button type="submit" disabled={isScoping}>
+                {isScoping ? 'Scoping...' : 'Update scope'}
+              </Button>
+            </Stack>
+          </form>
+        </ModalDialog>
+      </Modal>
     </>
   );
 }

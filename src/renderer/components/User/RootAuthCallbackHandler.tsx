@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Alert, CircularProgress, Sheet, Typography } from '@mui/joy';
 import { useNavigate } from 'react-router-dom';
-import { parseCallbackParams, processAuthCallback } from './authCallbackUtils';
+import {
+  DEFAULT_API_FALLBACK,
+  parseCallbackParams,
+  processAuthCallback,
+} from './authCallbackUtils';
 
 function isAuthCallbackLocation(loc: Location) {
   if (/\/auth\/callback\/?$/.test(loc.pathname)) {
@@ -52,7 +56,7 @@ export default function RootAuthCallbackHandler() {
         setStatus('loading');
 
         const basePath = getBasePath(window.location);
-        const fallbackBase = `${origin}${basePath}`;
+        const fallbackBase = DEFAULT_API_FALLBACK;
         const result = await processAuthCallback(cbParams, { fallbackBase });
         if (!result.ok) {
           setStatus('error');

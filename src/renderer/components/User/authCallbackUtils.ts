@@ -1,6 +1,8 @@
 /* eslint-disable prefer-template */
 /* eslint-disable no-console */
 
+export const DEFAULT_API_FALLBACK = 'http://localhost:8338/';
+
 export type CallbackParams = {
   code: string | null;
   state: string | null;
@@ -37,7 +39,7 @@ export function parseCallbackParams(loc: Location): CallbackParams {
   return { code, state, accessToken, name, email, apiUrl };
 }
 
-export function ensureFallbackApiUrl(fallbackBase: string) {
+export function ensureFallbackApiUrl(fallbackBase: string = DEFAULT_API_FALLBACK) {
   const w = window as any;
   w.TransformerLab = w.TransformerLab || {};
   if (!w.TransformerLab.API_URL) {
@@ -47,11 +49,15 @@ export function ensureFallbackApiUrl(fallbackBase: string) {
 
 export function safeSetApiUrl(
   maybeUrl: string | null | undefined,
-  fallbackBase: string,
+  fallbackBase: string = DEFAULT_API_FALLBACK,
   allowlistOrigins?: string[],
 ) {
   const w = window as any;
   w.TransformerLab = w.TransformerLab || {};
+  let fallbackOrigin: string | null = null;
+  try {
+    fallbackOrigin = new URL(fallbackBase).origin;
+  } catch {}
   try {
     if (maybeUrl) {
       const u = new URL(maybeUrl);
@@ -59,6 +65,26 @@ export function safeSetApiUrl(
       const allowlisted = Array.isArray(allowlistOrigins)
         ? allowlistOrigins.includes(u.origin)
         : false;
+      const existingRaw =
+        typeof w.TransformerLab.API_URL === 'string'
+          ? w.TransformerLab.API_URL
+          : null;
+      let existingOrigin: string | null = null;
+      if (existingRaw) {
+        try {
+          existingOrigin = new URL(existingRaw).origin;
+        } catch {}
+      }
+
+      if (
+        sameOrigin &&
+        existingOrigin &&
+        existingOrigin !== window.location.origin &&
+        (!fallbackOrigin || existingOrigin !== fallbackOrigin)
+      ) {
+        return;
+      }
+
       if (sameOrigin || allowlisted) {
         const path = u.pathname.endsWith('/') ? u.pathname : u.pathname + '/';
         w.TransformerLab.API_URL = u.origin + path;
@@ -66,7 +92,9 @@ export function safeSetApiUrl(
       }
     }
   } catch {}
-  w.TransformerLab.API_URL = fallbackBase;
+  if (!w.TransformerLab.API_URL) {
+    w.TransformerLab.API_URL = fallbackBase;
+  }
 }
 
 export async function storeProfile(params: {
@@ -82,10 +110,10 @@ export async function storeProfile(params: {
 
 export async function processAuthCallback(
   cb: CallbackParams,
-  opts: { fallbackBase: string; allowlistOrigins?: string[] },
+  opts: { fallbackBase?: string; allowlistOrigins?: string[] },
 ): Promise<ProcessResult> {
   try {
-    const { fallbackBase, allowlistOrigins } = opts;
+    const { fallbackBase = DEFAULT_API_FALLBACK, allowlistOrigins } = opts;
   const w: any = window as any;
   const expectedState = await w.storage.get('authWorkosState');
 
