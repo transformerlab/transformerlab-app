@@ -56,8 +56,21 @@ export async function getAccessToken() {
 }
 
 export async function logout() {
-  await window.storage.delete('accessToken');
-  await window.storage.delete('refreshToken');
+  try {
+    const apiBase = API_URL();
+    if (apiBase) {
+      await fetch(`${apiBase}auth/logout`, {
+        method: 'GET',
+        credentials: 'include',
+        redirect: 'follow',
+      });
+    }
+  } catch (e) {
+    // ignore network errors; proceed to clear local tokens
+  } finally {
+    await window.storage.delete('accessToken');
+    await window.storage.delete('refreshToken');
+  }
 }
 
 export async function setRefreshToken(token: string | null | undefined) {
