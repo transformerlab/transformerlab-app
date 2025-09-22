@@ -150,7 +150,7 @@ export default function UserLoginModal({ open, onClose }) {
                         const apiBase = (API_URL && API_URL()) || (w.TransformerLab?.API_URL) || fallbackBase;
                         // Add a cache-buster to avoid browsers (or proxies) returning 304 with HTML body
                         const cacheBuster = Date.now().toString();
-                        const authorizeEndpoint = `${apiBase}auth/workos/authorize?cb=${cacheBuster}`;
+                        const authorizeEndpoint = `${apiBase}auth/login-url?cb=${cacheBuster}`;
 
                         const resp = await fetch(authorizeEndpoint, {
                           method: 'GET',
@@ -194,7 +194,7 @@ export default function UserLoginModal({ open, onClose }) {
                           setLoginErrorMessage('SSO start failed: ' + parseErr);
                           return;
                         }
-                        const redirectTo = data?.authorization_url;
+                        const redirectTo = data?.login_url || data?.authorization_url;
                         if (redirectTo) {
                           try {
                             const redirectUrl = new URL(redirectTo);

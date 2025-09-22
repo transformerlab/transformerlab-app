@@ -74,6 +74,11 @@ export function getAPIFullPath(
   pathArray: string[],
   params: Record<string, any>,
 ): string {
+  const base = API_URL();
+  if (!base) {
+    // Defer until API base is known; callers like useSWR accept nulls
+    return null as any;
+  }
   const path = getPath(majorEntity, pathArray, params);
-  return `${API_URL()}${path}`;
+  return `${base}${path}`;
 }

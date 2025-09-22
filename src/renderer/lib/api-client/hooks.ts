@@ -12,16 +12,18 @@ export function useAPI(
   params: Record<string, any> = {},
   options: any = {},
 ) {
-  let path = getAPIFullPath(majorEntity, pathArray, params);
+  let path: string | null = getAPIFullPath(majorEntity, pathArray, params) as any;
   const fetcher = async (url: string) => {
     // check for an access token. Will be "" if user not logged in.
     const accessToken = await getAccessToken();
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     return fetch(url, {
-      headers: {
-        Authorization: accessToken ? `Bearer ${accessToken}` : '',
-        'Content-Type': 'application/json',
-      },
+      headers,
+      credentials: 'include',
     }).then((res) => {
       // Check for HTTP 401 which means user is not authorized
       if (res.status === 401) {
@@ -67,21 +69,26 @@ export function useAPI(
   };
 }
 
-const fetcher = (...args: any[]) =>
-  fetch(...args).then((res) => {
+const fetcher = (input: RequestInfo | URL, init?: RequestInit) =>
+  fetch(input, init).then(async (res) => {
     if (!res.ok) {
-      const error = new Error('An error occurred fetching ' + res.url);
-      error.response = res.json();
-      error.status = res.status;
+      const err: any = new Error('An error occurred fetching ' + res.url);
+      // attach details for callers
+      err.status = res.status;
+      try {
+        err.response = await res.json();
+      } catch {
+        err.response = null;
+      }
       console.log(res);
-      throw error;
+      throw err;
     }
     return res.json();
   });
 
 export function useModelStatus() {
   const api_url = API_URL();
-  const url = api_url ? api_url + 'server/worker_healthz' : null;
+  const url: string | null = api_url ? api_url + 'server/worker_healthz' : null;
 
   // Poll every 2 seconds
   const options = { refreshInterval: 2000 };
@@ -122,7 +129,7 @@ export function usePluginStatus(experimentInfo: any) {
 
 export function useServerStats() {
   const api_url = API_URL();
-  const url = api_url ? API_URL() + 'server/info' : null;
+  const url: string | null = api_url ? API_URL() + 'server/info' : null;
 
   // Poll every 1 seconds
   const options = { refreshInterval: 2000 };
@@ -137,7 +144,7 @@ export function useServerStats() {
   };
 }
 
-const fetchAndGetErrorStatus = async (url) => {
+const fetchAndGetErrorStatus = async (url: string) => {
   console.log('🛎️fetching', url);
 
   const res = await fetch(url);
@@ -147,7 +154,7 @@ const fetchAndGetErrorStatus = async (url) => {
   // If the status code is not in the range 200-299,
   // we still try to parse and throw it.
   if (!res.ok) {
-    const error = new Error('An error occurred while fetching the data.');
+    const error: any = new Error('An error occurred while fetching the data.');
     // Attach extra info to the error object.
     // error.info = await res.json(); //uncommenting this line breaks the error handling -- not sure why
     error.status = res.status;

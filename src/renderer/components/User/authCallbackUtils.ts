@@ -159,34 +159,30 @@ export async function processAuthCallback(
     }
 
     if (!cb.accessToken && cb.code) {
-      const response = await fetch(`${apiBase}auth/workos/callback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: cb.code, state: cb.state }),
+      // Backend handles code at GET /auth/callback by redirect; here we just verify session via /auth/check
+      const response = await fetch(`${apiBase}auth/check`, {
+        method: 'GET',
         credentials: 'include',
       });
 
       if (!response.ok) {
-        return { ok: false, message: 'SSO exchange failed.' };
+        return { ok: false, message: 'Login failed to establish session.' };
       }
 
       let data: any = null;
       try {
         data = await response.json();
       } catch (e) {
-        return { ok: false, message: 'SSO exchange failed: invalid server response.' };
+        return { ok: false, message: 'Login check failed: invalid server response.' };
       }
 
-      const { access_token: exchangedToken, name, email, api_url: apiUrlHint } = data || {};
-      if (apiUrlHint) {
-        safeSetApiUrl(apiUrlHint, fallbackBase, allowlistOrigins);
+      if (!data?.authenticated) {
+        return { ok: false, message: 'Login failed: not authenticated.' };
       }
 
-      if (!exchangedToken) {
-        return { ok: false, message: 'SSO exchange failed: missing access token.' };
-      }
-
-      await storeProfile({ accessToken: exchangedToken, name, email });
+      // Optionally store display info
+      const name = data?.first_name && data?.last_name ? `${data.first_name} ${data.last_name}` : data?.email;
+      await storeProfile({ name, email: data?.email });
       return { ok: true, message: 'Login successful. Redirecting...' };
     }
 

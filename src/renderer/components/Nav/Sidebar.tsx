@@ -521,7 +521,7 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
     data: userInfo,
     error: userError,
     mutate: userMutate,
-  } = useAPI('users', ['me'], {});
+  } = useAPI('auth', ['me'], {});
 
   const workosDetails = userInfo ? extractWorkOSDetails(userInfo) : null;
   const availableOrganizations = workosDetails?.organizations || [];
