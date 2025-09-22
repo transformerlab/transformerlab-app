@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { HistoryImage } from './types';
 
 export default function HistoryImageViewModal({
@@ -37,6 +38,7 @@ export default function HistoryImageViewModal({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [numImages, setNumImages] = useState(1);
+  const { experimentId } = useExperimentInfo();
   // const [hoveringMainImage, setHoveringMainImage] = useState(false);
 
   // Load all images for the selected item when modal opens
@@ -52,6 +54,7 @@ export default function HistoryImageViewModal({
         getAPIFullPath('diffusion', ['getImage'], {
           imageId: selectedImage.id,
           index,
+          experimentId,
         }),
       );
 
@@ -61,6 +64,7 @@ export default function HistoryImageViewModal({
           urls.push(
             getAPIFullPath('diffusion', ['getInputImage'], {
               imageId: selectedImage.id,
+              experimentId,
             }),
           );
         }
@@ -70,6 +74,7 @@ export default function HistoryImageViewModal({
             getAPIFullPath('diffusion', ['getProcessedImage'], {
               imageId: selectedImage.id,
               processed: true,
+              experimentId,
             }),
           );
         }
@@ -95,6 +100,7 @@ export default function HistoryImageViewModal({
       const link = document.createElement('a');
       link.href = getAPIFullPath('diffusion', ['getAllImages'], {
         imageId: selectedImage.id,
+        experimentId,
       });
 
       // Generate filename with timestamp
@@ -208,6 +214,7 @@ export default function HistoryImageViewModal({
                       getAPIFullPath('diffusion', ['getImage'], {
                         imageId: selectedImage?.id,
                         index: currentImageIndex,
+                        experimentId,
                       })
                     }
                     alt="Generated"
@@ -231,6 +238,7 @@ export default function HistoryImageViewModal({
                         <img
                           src={getAPIFullPath('diffusion', ['getInputImage'], {
                             imageId: selectedImage?.id,
+                            experimentId,
                           })}
                           alt="Input"
                           style={{
@@ -341,6 +349,7 @@ export default function HistoryImageViewModal({
                               ['getInputImage'],
                               {
                                 imageId: selectedImage?.id,
+                                experimentId,
                               },
                             )}
                             alt="Input"
@@ -379,6 +388,7 @@ export default function HistoryImageViewModal({
                               ['getInputImage'],
                               {
                                 imageId: selectedImage?.id,
+                                experimentId,
                               },
                             )}
                             alt="Input"
@@ -414,6 +424,7 @@ export default function HistoryImageViewModal({
                           <img
                             src={getAPIFullPath('diffusion', ['getMaskImage'], {
                               imageId: selectedImage?.id,
+                              experimentId,
                             })}
                             alt="Mask"
                             style={{
@@ -443,6 +454,7 @@ export default function HistoryImageViewModal({
                         <img
                           src={getAPIFullPath('diffusion', ['getInputImage'], {
                             imageId: selectedImage?.id,
+                            experimentId,
                           })}
                           alt="ControlNet Input"
                           style={{
@@ -485,6 +497,7 @@ export default function HistoryImageViewModal({
                             {
                               imageId: selectedImage?.id,
                               processed: true,
+                              experimentId,
                             },
                           )}
                           alt="Preprocessed"

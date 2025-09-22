@@ -56,6 +56,7 @@ type DiffusionProps = {
   experimentInfo: any;
 };
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -111,6 +112,7 @@ const samplePrompts = [
 
 export default function Diffusion() {
   const { experimentInfo } = useExperimentInfo();
+  const { addNotification } = useNotification();
   const analytics = useAnalytics();
   const { data: diffusionJobs } = useAPI(
     'jobs',
