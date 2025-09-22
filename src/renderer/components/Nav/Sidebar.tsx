@@ -473,6 +473,19 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
             {userDetails.email}
           </Typography>
         ) : null}
+        {userDetails?.email && userDetails?.organization_id ? (
+          <Typography
+            level="body-xs"
+            sx={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              color: 'text.secondary',
+            }}
+          >
+            Org ID: {userDetails.organization_id}
+          </Typography>
+        ) : null}
         {organizationDisplay ? (
           <Typography
             level="body-xs"
