@@ -422,9 +422,33 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
     organizationDisplayParts.length > 0
       ? organizationDisplayParts.join(' / ')
       : null;
+
+  // Extract user display information
+  const firstName = userDetails?.first_name || '';
+  const lastName = userDetails?.last_name || '';
+  const profilePictureUrl = userDetails?.profile_picture_url;
+
+  // Create display name - prefer first/last name, fallback to full name, then email
+  const displayName = firstName && lastName
+    ? `${firstName} ${lastName}`.trim()
+    : userDetails?.name || userDetails?.email || 'User';
+
   return (
     <>
-      <UserIcon />
+      {profilePictureUrl ? (
+        <img
+          src={profilePictureUrl}
+          alt="Profile"
+          style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            objectFit: 'cover',
+          }}
+        />
+      ) : (
+        <UserIcon />
+      )}
       <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography
           level="title-sm"
@@ -434,18 +458,21 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
             textOverflow: 'ellipsis',
           }}
         >
-          {userDetails?.name}
+          {displayName}
         </Typography>
-        <Typography
-          level="body-xs"
-          sx={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {userDetails?.email}
-        </Typography>
+        {firstName && lastName && userDetails?.email ? (
+          <Typography
+            level="body-xs"
+            sx={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              color: 'text.secondary',
+            }}
+          >
+            {userDetails.email}
+          </Typography>
+        ) : null}
         {organizationDisplay ? (
           <Typography
             level="body-xs"
