@@ -745,7 +745,7 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
       <Divider sx={{ my: 1 }} />
       <Box
         sx={{
-          display: DEV_MODE ? 'flex' : 'none',
+          display: DEV_MODE && window.platform?.appmode === 'cloud' ? 'flex' : 'none',
           gap: 1,
           alignItems: 'center',
           mb: 1,
