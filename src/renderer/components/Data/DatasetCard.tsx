@@ -71,10 +71,13 @@ export default function DatasetCard({
         setOpen={setDatasetInfoModalOpen}
       />
 
-      <Card variant="outlined" sx={{ height: '100%' }}>
+      <Card
+        variant="outlined"
+        sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+      >
         <CardContent
           orientation="vertical"
-          sx={{ justifyContent: 'space-between' }}
+          sx={{ justifyContent: 'space-between', flexGrow: 1, minHeight: 0 }}
         >
           <div>
             <Typography
@@ -86,8 +89,8 @@ export default function DatasetCard({
               {location === 'huggingfacehub' && ' 🤗'}
               {location === 'local' && ' '}
             </Typography>
-            <div style={{ overflow: 'clip' }}>
-              <Typography level="body-sm" sx={{ overflow: 'auto' }}>
+            <div style={{ overflow: 'hidden' }}>
+              <Typography level="body-sm" sx={{ overflow: 'hidden' }}>
                 {description}
               </Typography>
             </div>
@@ -111,8 +114,10 @@ export default function DatasetCard({
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'flex-end',
+            alignContent: 'flex-end',
             gap: 1,
             justifyContent: 'flex-end',
+            mt: 'auto',
           }}
         >
           {downloaded && (
