@@ -764,6 +764,56 @@ export async function sendBatchedChat(
   return results;
 }
 
+// Batched Text-to-Speech: send multiple texts to generate multiple audios
+export async function sendBatchedAudio(
+  experimentId: number,
+  currentModel: string,
+  adaptor: string,
+  texts: string[],
+  filePrefix: string,
+  sampleRate: number,
+  temperature: number,
+  speed: number,
+  topP: number,
+  voice?: string,
+  audioPath?: string,
+  batchSize: number = 64,
+): Promise<any[] | null> {
+  const data: any = {
+    experiment_id: experimentId,
+    model: currentModel,
+    adaptor: adaptor,
+    texts: texts,
+    file_prefix: filePrefix,
+    sample_rate: sampleRate,
+    temperature: temperature,
+    speed: speed,
+    top_p: topP,
+    batch_size: batchSize,
+    inference_url: `${INFERENCE_SERVER_URL()}v1/audio/speech`,
+  };
+
+  if (voice) data.voice = voice;
+  if (audioPath) data.audio_path = audioPath;
+
+  try {
+    const response = await fetch(`${API_URL()}batch/audio/speech`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) return null;
+    const results = await response.json();
+    return results;
+  } catch (err) {
+    console.log('Error in sendBatchedAudio:', err);
+    return null;
+  }
+}
+
 export async function callTool(
   function_name: String,
   function_args: Object = {},

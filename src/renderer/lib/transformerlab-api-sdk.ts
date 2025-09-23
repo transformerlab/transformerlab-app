@@ -13,6 +13,7 @@ export {
   sendCompletionReactWay,
   sendBatchedCompletion,
   sendBatchedChat,
+  sendBatchedAudio,
   callTool,
   getToolsForCompletions,
   getEmbeddings,
