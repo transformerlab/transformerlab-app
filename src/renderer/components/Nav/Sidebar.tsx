@@ -435,76 +435,90 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
 
   return (
     <>
-      {profilePictureUrl ? (
-        <img
-          src={profilePictureUrl}
-          alt="Profile"
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            objectFit: 'cover',
-          }}
-        />
-      ) : (
-        <UserIcon />
-      )}
-      <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography
-          level="title-sm"
-          sx={{
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {displayName}
-        </Typography>
-        {firstName && lastName && userDetails?.email ? (
+      <Tooltip
+        title={
+          <Stack spacing={1} sx={{ p: 1 }}>
+            {profilePictureUrl && (
+              <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                <img
+                  src={profilePictureUrl}
+                  alt="Profile"
+                  style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                  }}
+                />
+              </Box>
+            )}
+            <Typography level="title-sm" sx={{ textAlign: 'center' }}>
+              {displayName}
+            </Typography>
+            {userDetails?.email && (
+              <Typography level="body-xs" sx={{ textAlign: 'center' }}>
+                {userDetails.email}
+              </Typography>
+            )}
+            {userDetails?.organization_id && (
+              <Typography level="body-xs" sx={{ textAlign: 'center' }}>
+                Org ID: {userDetails.organization_id}
+              </Typography>
+            )}
+            {organizationDisplay && (
+              <Typography level="body-xs" sx={{ textAlign: 'center' }}>
+                WorkOS: {organizationDisplay}
+              </Typography>
+            )}
+          </Stack>
+        }
+        placement="top"
+        variant="outlined"
+        sx={{ maxWidth: 300 }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}>
+          {profilePictureUrl ? (
+            <img
+              src={profilePictureUrl}
+              alt="Profile"
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            <UserIcon size="32px" />
+          )}
           <Typography
-            level="body-xs"
+            level="title-sm"
             sx={{
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              color: 'text.secondary',
+              maxWidth: '120px',
             }}
           >
-            {userDetails.email}
+            {firstName || userDetails?.name || 'User'}
           </Typography>
-        ) : null}
-        {userDetails?.email && userDetails?.organization_id ? (
-          <Typography
-            level="body-xs"
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              color: 'text.secondary',
-            }}
-          >
-            Org ID: {userDetails.organization_id}
-          </Typography>
-        ) : null}
-        {organizationDisplay ? (
-          <Typography
-            level="body-xs"
-            sx={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              color: 'text.secondary',
-            }}
-          >
-            WorkOS: {organizationDisplay}
-          </Typography>
-        ) : null}
-      </Box>
+        </Box>
+      </Tooltip>
 
       <IconButton
         size="sm"
         variant="plain"
         color="neutral"
+        onClick={async () => {
+          await logout();
+          await Promise.all([
+            window.storage.delete('accessToken'),
+            window.storage.delete('userName'),
+            window.storage.delete('userEmail'),
+          ]);
+          mutate();
+          alert('User logged out.');
+        }}
         sx={{
           cursor: 'pointer',
           '&:hover': {
@@ -513,19 +527,7 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
           },
         }}
       >
-        <LogOutIcon
-          size="18px"
-          onClick={async () => {
-            await logout();
-            await Promise.all([
-              window.storage.delete('accessToken'),
-              window.storage.delete('userName'),
-              window.storage.delete('userEmail'),
-            ]);
-            mutate();
-            alert('User logged out.');
-          }}
-        />
+        <LogOutIcon size="18px" />
       </IconButton>
       {workosDetails?.account ? (
         <Tooltip title="Manage WorkOS organization scope">
@@ -637,6 +639,7 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [scopeSuccess, setScopeSuccess] = useState<string | null>(null);
   const [isScoping, setIsScoping] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const {
     data: userInfo,
     error: userError,
@@ -783,23 +786,48 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
             <ListItem className="FirstSidebar_Content">
               <ListItemButton
                 variant="plain"
+                disabled={isLoggingIn}
                 onClick={async () => {
-                  // Check if we're in cloud mode
-                  if (window.platform?.appmode === 'cloud') {
-                    try {
-                      await loginWithWorkOS();
-                    } catch (error) {
-                      console.error('Login failed:', error);
-                      // You could add a toast notification here if needed
+                  if (isLoggingIn) return; // Prevent multiple clicks
+
+                  setIsLoggingIn(true);
+                  try {
+                    // Check if we're in cloud mode
+                    if (window.platform?.appmode === 'cloud') {
+                      try {
+                        await loginWithWorkOS();
+                      } catch (error) {
+                        console.error('Login failed:', error);
+                        // You could add a toast notification here if needed
+                      }
+                    } else {
+                      // Open the modal for non-cloud modes
+                      setUserLoginModalOpen(true);
                     }
-                  } else {
-                    // Open the modal for non-cloud modes
-                    setUserLoginModalOpen(true);
+                  } finally {
+                    setIsLoggingIn(false);
                   }
                 }}
               >
                 <ListItemDecorator sx={{ minInlineSize: '30px' }}>
-                  <LogInIcon />
+                  {isLoggingIn ? (
+                    <Box
+                      sx={{
+                        width: '18px',
+                        height: '18px',
+                        border: '2px solid transparent',
+                        borderTop: '2px solid currentColor',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        '@keyframes spin': {
+                          '0%': { transform: 'rotate(0deg)' },
+                          '100%': { transform: 'rotate(360deg)' },
+                        },
+                      }}
+                    />
+                  ) : (
+                    <LogInIcon />
+                  )}
                 </ListItemDecorator>
                 <ListItemContent
                   sx={{
@@ -808,7 +836,9 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
                     alignContent: 'center',
                   }}
                 >
-                  <Typography level="body-sm">Login</Typography>
+                  <Typography level="body-sm">
+                    {isLoggingIn ? 'Logging in...' : 'Login'}
+                  </Typography>
                 </ListItemContent>
               </ListItemButton>
             </ListItem>
