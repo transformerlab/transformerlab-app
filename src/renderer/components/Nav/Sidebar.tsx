@@ -429,12 +429,20 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
   const profilePictureUrl = userDetails?.profile_picture_url;
 
   // Create display name - prefer first/last name, fallback to full name, then email
-  const displayName = firstName && lastName
-    ? `${firstName} ${lastName}`.trim()
-    : userDetails?.name || userDetails?.email || 'User';
+  const displayName =
+    firstName && lastName
+      ? `${firstName} ${lastName}`.trim()
+      : userDetails?.name || userDetails?.email || 'User';
 
   return (
-    <>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+      }}
+    >
       <Tooltip
         title={
           <Stack spacing={1} sx={{ p: 1 }}>
@@ -476,7 +484,16 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
         variant="outlined"
         sx={{ maxWidth: 300 }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            cursor: 'pointer',
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
           {profilePictureUrl ? (
             <img
               src={profilePictureUrl}
@@ -505,50 +522,52 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
         </Box>
       </Tooltip>
 
-      <IconButton
-        size="sm"
-        variant="plain"
-        color="neutral"
-        onClick={async () => {
-          await logout();
-          await Promise.all([
-            window.storage.delete('accessToken'),
-            window.storage.delete('userName'),
-            window.storage.delete('userEmail'),
-          ]);
-          mutate();
-          alert('User logged out.');
-        }}
-        sx={{
-          cursor: 'pointer',
-          '&:hover': {
-            backgroundColor: 'var(--joy-palette-neutral-100)',
-            borderRadius: 'sm',
-          },
-        }}
-      >
-        <LogOutIcon size="18px" />
-      </IconButton>
-      {workosDetails?.account ? (
-        <Tooltip title="Manage WorkOS organization scope">
-          <IconButton
-            size="sm"
-            variant="plain"
-            color="neutral"
-            onClick={onManageWorkOS}
-            sx={{
-              cursor: 'pointer',
-              '&:hover': {
-                backgroundColor: 'var(--joy-palette-neutral-100)',
-                borderRadius: 'sm',
-              },
-            }}
-          >
-            <SettingsIcon size="18px" />
-          </IconButton>
-        </Tooltip>
-      ) : null}
-    </>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {workosDetails?.account ? (
+          <Tooltip title="Manage WorkOS organization scope">
+            <IconButton
+              size="sm"
+              variant="plain"
+              color="neutral"
+              onClick={onManageWorkOS}
+              sx={{
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: 'var(--joy-palette-neutral-100)',
+                  borderRadius: 'sm',
+                },
+              }}
+            >
+              <SettingsIcon size="18px" />
+            </IconButton>
+          </Tooltip>
+        ) : null}
+        <IconButton
+          size="sm"
+          variant="plain"
+          color="neutral"
+          onClick={async () => {
+            await logout();
+            await Promise.all([
+              window.storage.delete('accessToken'),
+              window.storage.delete('userName'),
+              window.storage.delete('userEmail'),
+            ]);
+            mutate();
+            alert('User logged out.');
+          }}
+          sx={{
+            cursor: 'pointer',
+            '&:hover': {
+              backgroundColor: 'var(--joy-palette-neutral-100)',
+              borderRadius: 'sm',
+            },
+          }}
+        >
+          <LogOutIcon size="18px" />
+        </IconButton>
+      </Box>
+    </Box>
   );
 }
 
@@ -557,7 +576,8 @@ async function loginWithWorkOS() {
   try {
     const w: any = window as any;
     const fallbackBase = DEFAULT_API_FALLBACK;
-    const apiBase = (API_URL && API_URL()) || (w.TransformerLab?.API_URL) || fallbackBase;
+    const apiBase =
+      (API_URL && API_URL()) || w.TransformerLab?.API_URL || fallbackBase;
     // Add a cache-buster to avoid browsers (or proxies) returning 304 with HTML body
     const cacheBuster = Date.now().toString();
     const authorizeEndpoint = `${apiBase}auth/login-url?cb=${cacheBuster}`;
@@ -575,7 +595,9 @@ async function loginWithWorkOS() {
     if (resp.status === 304) {
       // Treat 304 as an error for this JSON-init endpoint; force retry logic by clearing state
       await w.storage.delete('authWorkosState');
-      throw new Error('Failed to initiate SSO (stale cached response). Please try again.');
+      throw new Error(
+        'Failed to initiate SSO (stale cached response). Please try again.',
+      );
     }
 
     if (!resp.ok) {
@@ -591,11 +613,18 @@ async function loginWithWorkOS() {
       } else {
         const text = await resp.text();
         // If HTML came back, this is unexpected
-        if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        if (
+          text.trim().startsWith('<!DOCTYPE') ||
+          text.trim().startsWith('<html')
+        ) {
           throw new Error('Server returned HTML instead of JSON.');
         }
         // Attempt a lenient parse
-        try { data = JSON.parse(text); } catch { data = { detail: 'Unexpected response format.' }; }
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { detail: 'Unexpected response format.' };
+        }
       }
     } catch (parseErr) {
       await w.storage.delete('authWorkosState');
@@ -608,9 +637,12 @@ async function loginWithWorkOS() {
         const stateFromQuery = redirectUrl.searchParams.get('state');
         const hash = redirectUrl.hash || '';
         const stateFromHash = hash
-          ? new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash).get('state')
+          ? new URLSearchParams(
+              hash.startsWith('#') ? hash.slice(1) : hash,
+            ).get('state')
           : null;
-        const stateValue = stateFromQuery || stateFromHash || data?.state || null;
+        const stateValue =
+          stateFromQuery || stateFromHash || data?.state || null;
         if (stateValue) {
           await w.storage.set('authWorkosState', stateValue);
         } else {
@@ -634,7 +666,9 @@ async function loginWithWorkOS() {
 function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
   const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
-  const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(null);
+  const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(
+    null,
+  );
   const [organizationInput, setOrganizationInput] = useState('');
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [scopeSuccess, setScopeSuccess] = useState<string | null>(null);
@@ -720,7 +754,8 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
 
       if (!response.ok) {
         const detail =
-          (payload && (payload.detail || payload.message)) || rawText ||
+          (payload && (payload.detail || payload.message)) ||
+          rawText ||
           `Failed with status ${response.status}`;
         setScopeError(
           typeof detail === 'string'
@@ -761,7 +796,8 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
       <Divider sx={{ my: 1 }} />
       <Box
         sx={{
-          display: DEV_MODE && window.platform?.appmode === 'cloud' ? 'flex' : 'none',
+          display:
+            DEV_MODE && window.platform?.appmode === 'cloud' ? 'flex' : 'none',
           gap: 1,
           alignItems: 'center',
           mb: 1,
@@ -892,7 +928,10 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
         open={workosScopeModalOpen && hasWorkOSAccount}
         onClose={() => setWorkosScopeModalOpen(false)}
       >
-        <ModalDialog aria-labelledby="workos-scope-title" sx={{ maxWidth: 420 }}>
+        <ModalDialog
+          aria-labelledby="workos-scope-title"
+          sx={{ maxWidth: 420 }}
+        >
           <ModalClose />
           <Typography id="workos-scope-title" level="title-lg">
             WorkOS Organization Scope
@@ -935,8 +974,8 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
             </FormControl>
           ) : (
             <Typography level="body-xs" sx={{ mt: 2 }}>
-              We could not discover additional organizations automatically.
-              You can still paste an organization ID manually below.
+              We could not discover additional organizations automatically. You
+              can still paste an organization ID manually below.
             </Typography>
           )}
           <form onSubmit={handleScopeSubmit}>
