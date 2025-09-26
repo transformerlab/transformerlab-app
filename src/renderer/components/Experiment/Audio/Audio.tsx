@@ -10,12 +10,9 @@ import {
   Box,
   Select,
   Option,
-  Textarea,
   Stack,
   Slider,
   FormLabel,
-  Switch,
-  Input,
   Modal,
   ModalDialog,
   ModalClose,
@@ -24,6 +21,7 @@ import {
   Card,
   Alert,
 } from '@mui/joy';
+import BatchedAudioModal from './BatchedAudioModal';
 import { useAPI } from '../../../lib/transformerlab-api-sdk';
 import AudioHistory from './AudioHistory';
 
@@ -175,6 +173,7 @@ export default function Audio() {
   const [topP, setTopP] = React.useState(1.0);
   const [selectedLanguage, setSelectedLanguage] = React.useState('');
   const [selectedVoice, setSelectedVoice] = React.useState('');
+  const [showBatchModal, setShowBatchModal] = React.useState(false);
 
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
 
@@ -194,7 +193,7 @@ export default function Audio() {
     setAudioUrl(null);
     setErrorMessage(null);
 
-    const result = await sendAndReceiveAudioPath(
+    const result: any = await sendAndReceiveAudioPath(
       experimentInfo?.id,
       currentModel,
       adaptor,
@@ -283,7 +282,14 @@ export default function Audio() {
         }}
       >
         <Typography level="h2">Text to Speech</Typography>
-        <Box sx={{ textAlign: 'right' }}>
+        <Box
+          sx={{
+            textAlign: 'right',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
           <Typography level="body-sm">{currentModel}</Typography>
           {adaptor && (
             <Typography level="body-xs" color="neutral">
@@ -484,11 +490,12 @@ export default function Audio() {
           }}
         >
           {/* Large text input area at the top */}
+          {/* Large text input area at the top */}
           <FormControl sx={{ mt: 1 }}>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Enter your text here for speech generation..."
+              placeholder={'Enter your text here for speech generation...'}
               style={{
                 minHeight: '100px',
                 padding: '16px',
@@ -519,6 +526,12 @@ export default function Audio() {
               >
                 Generate Speech
               </Button>
+              <Button
+                variant="outlined"
+                onClick={() => setShowBatchModal(true)}
+              >
+                Create Prompt Batch
+              </Button>
             </Stack>
 
             {errorMessage && (
@@ -546,6 +559,45 @@ export default function Audio() {
           <DialogTitle>Generation Settings</DialogTitle>
         </ModalDialog>
       </Modal>
+
+      <BatchedAudioModal
+        open={showBatchModal}
+        onClose={() => setShowBatchModal(false)}
+        isLoading={isLoading}
+        onSubmit={async (lines: string[]) => {
+          setIsLoading(true);
+          setErrorMessage(null);
+          try {
+            const result = await chatAPI.sendBatchedAudio(
+              experimentInfo?.id,
+              currentModel,
+              adaptor,
+              lines,
+              filePrefix,
+              sampleRate,
+              temperature,
+              speed,
+              topP,
+              selectedVoice || undefined,
+              uploadedAudioPath || undefined,
+            );
+            const anyOk = Array.isArray(result)
+              ? result.some((r) => r && r.message)
+              : false;
+            if (!anyOk) {
+              setErrorMessage('Batched generation failed.');
+            }
+            setShowBatchModal(false);
+            handleClearUpload();
+            mutateHistory();
+            if (audioHistoryRef.current) {
+              audioHistoryRef.current.scrollTop = 0;
+            }
+          } finally {
+            setIsLoading(false);
+          }
+        }}
+      />
 
       {/* No Model Running Modal */}
       <Sheet
