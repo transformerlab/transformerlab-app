@@ -286,7 +286,7 @@ export default function RunModelButton({
                   experimentInfo?.config?.adaptor,
                   inferenceEngine,
                   inferenceSettings,
-                  experimentInfo?.id,
+                  experimentInfo?.name,
                 );
                 if (response?.status == 'error') {
                   if (setLogsDrawerOpen) {
