@@ -156,10 +156,14 @@
   "users": {
     "me": {
       "method": "GET",
-      "path": "users/me"
+      "path": "auth/me"
     }
   },
   "auth": {
+    "me": {
+      "method": "GET",
+      "path": "auth/me"
+    },
     "login": {
       "method": "POST",
       "path": "auth/jwt/login"
