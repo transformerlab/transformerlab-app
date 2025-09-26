@@ -282,7 +282,14 @@ export default function Audio() {
         }}
       >
         <Typography level="h2">Text to Speech</Typography>
-        <Box sx={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box
+          sx={{
+            textAlign: 'right',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
           <Typography level="body-sm">{currentModel}</Typography>
           {adaptor && (
             <Typography level="body-xs" color="neutral">
@@ -519,8 +526,11 @@ export default function Audio() {
               >
                 Generate Speech
               </Button>
-              <Button variant="outlined" onClick={() => setShowBatchModal(true)}>
-                Send Batch
+              <Button
+                variant="outlined"
+                onClick={() => setShowBatchModal(true)}
+              >
+                Create Prompt Batch
               </Button>
             </Stack>
 

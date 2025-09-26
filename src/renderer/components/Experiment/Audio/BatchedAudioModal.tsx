@@ -18,7 +18,12 @@ type BatchedAudioModalProps = {
   onSubmit: (prompts: string[]) => Promise<void> | void;
 };
 
-export default function BatchedAudioModal({ open, onClose, isLoading = false, onSubmit }: BatchedAudioModalProps) {
+export default function BatchedAudioModal({
+  open,
+  onClose,
+  isLoading = false,
+  onSubmit,
+}: BatchedAudioModalProps) {
   const [prompts, setPrompts] = React.useState<string[]>(['']);
 
   function updatePrompt(index: number, value: string) {
@@ -35,6 +40,10 @@ export default function BatchedAudioModal({ open, onClose, isLoading = false, on
     setPrompts((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function resetPrompts() {
+    setPrompts(['']);
+  }
+
   async function handleSubmit() {
     const cleaned = prompts.map((p) => p.trim()).filter((p) => p.length > 0);
     if (cleaned.length === 0) return;
@@ -49,8 +58,8 @@ export default function BatchedAudioModal({ open, onClose, isLoading = false, on
         <Divider />
         <Stack spacing={2} sx={{ mt: 1 }}>
           <Typography level="body-sm" color="neutral">
-            Add one or more prompts. Each prompt can be multi-line. A separate audio
-            file will be generated for each prompt.
+            Add one or more prompts. Each prompt can be multi-line. A separate
+            audio file will be generated for each prompt.
           </Typography>
 
           <Stack spacing={1} sx={{ maxHeight: 360, overflowY: 'auto' }}>
@@ -70,9 +79,18 @@ export default function BatchedAudioModal({ open, onClose, isLoading = false, on
                     width: '100%',
                   }}
                 />
-                <Stack direction="row" spacing={1} sx={{ alignSelf: 'flex-end' }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ alignSelf: 'flex-end' }}
+                >
                   {prompts.length > 1 && (
-                    <Button size="sm" variant="plain" color="danger" onClick={() => removePrompt(idx)}>
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      color="danger"
+                      onClick={() => removePrompt(idx)}
+                    >
                       Remove
                     </Button>
                   )}
@@ -88,8 +106,18 @@ export default function BatchedAudioModal({ open, onClose, isLoading = false, on
           </Stack>
 
           <Stack direction="row" spacing={1} justifyContent="flex-end">
-            <Button variant="plain" onClick={onClose}>Cancel</Button>
-            <Button variant="solid" disabled={isLoading} loading={isLoading} onClick={handleSubmit}>
+            <Button variant="plain" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="outlined" onClick={resetPrompts}>
+              Reset
+            </Button>
+            <Button
+              variant="solid"
+              disabled={isLoading}
+              loading={isLoading}
+              onClick={handleSubmit}
+            >
               Send Batch
             </Button>
           </Stack>
@@ -98,5 +126,3 @@ export default function BatchedAudioModal({ open, onClose, isLoading = false, on
     </Modal>
   );
 }
-
-
