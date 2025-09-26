@@ -663,7 +663,7 @@ async function loginWithWorkOS() {
   }
 }
 
-function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
+function BottomMenuItems({ navigate, themeSetter }) {
   const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
   const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(
@@ -796,8 +796,7 @@ function BottomMenuItems({ DEV_MODE, navigate, themeSetter }) {
       <Divider sx={{ my: 1 }} />
       <Box
         sx={{
-          display:
-            DEV_MODE && window.platform?.appmode === 'cloud' ? 'flex' : 'none',
+          display: window.platform?.appmode === 'cloud' ? 'flex' : 'none',
           gap: 1,
           alignItems: 'center',
           mb: 1,
@@ -1082,7 +1081,6 @@ export default function Sidebar({
         outdatedPluginsCount={outdatedPlugins?.length}
       />
       <BottomMenuItems
-        DEV_MODE={DEV_MODE}
         navigate={navigate}
         themeSetter={themeSetter}
       />
