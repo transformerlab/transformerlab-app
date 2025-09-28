@@ -27,9 +27,9 @@ export function ExperimentInfoProvider({ connection, children }) {
         ? await window.storage.get(`experimentId.${connectionWithoutDots}`)
         : null;
       if (storedExperimentId) {
-        setExperimentId(Number(storedExperimentId));
+        setExperimentId(storedExperimentId);
       } else if (connection && connection !== '') {
-        setExperimentId(1);
+        setExperimentId('alpha');
       } else {
         setExperimentId(null);
       }
