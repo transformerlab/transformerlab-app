@@ -57,7 +57,6 @@ export function ExperimentInfoProvider({ connection, children }) {
     experimentId ? chatAPI.Endpoints.Experiment.Get(experimentId) : null,
     fetcher,
   );
-
   // Use useMemo to memoize the contextValue object
   const contextValue = useMemo(() => {
     return {
@@ -88,8 +87,8 @@ export function ExperimentInfoProvider({ connection, children }) {
 /**
  * Custom hook to access experiment info context.
  * @returns {{
- *   experimentId: number | null,
- *   setExperimentId: React.Dispatch<React.SetStateAction<number | null>>,
+ *   experimentId: string | null,
+ *   setExperimentId: React.Dispatch<React.SetStateAction<string | null>>,
  *   experimentInfo: any,
  *   experimentInfoError: any,
  *   experimentInfoIsLoading: boolean,
