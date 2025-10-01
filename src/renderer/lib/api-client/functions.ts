@@ -141,7 +141,9 @@ export async function downloadModelFromHuggingFace(
 
   let result = {};
   try {
-    const response = await fetch(requestString);
+    const response = await fetch(requestString, {
+      credentials: 'include',  // Send cookies with the request
+    });
     result = await response.json();
 
     // Error during fetch
@@ -169,7 +171,9 @@ export async function downloadGGUFFile(
 
   let result = {};
   try {
-    const response = await fetch(requestString);
+    const response = await fetch(requestString, {
+      credentials: 'include', // Send cookies with the request
+    });
     result = await response.json();
 
     // Error during fetch
@@ -195,7 +199,9 @@ export async function downloadModelFromGallery(
   if (job_id) {
     requestString += `&job_id=${job_id}`;
   }
-  const response = await fetch(requestString);
+  const response = await fetch(requestString, {
+    credentials: 'include', // Send cookies with the request
+  });
   const result = await response.json();
 
   return result;
