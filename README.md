@@ -39,6 +39,16 @@
 
 Transformer Lab is an app that allows anyone to experiment with Large Language Models.
 
+## K3D Knowledge Base
+
+The following documents provide a comprehensive overview of the Knowledge3D (K3D) project, a revolutionary paradigm shift in artificial intelligence architecture, memory, and human-AI interaction.
+
+*   [**K3D Whitepaper**](./docs/K3D_Whitepaper.md): The executive summary and foundational principles of the K3D project.
+*   [**K3D Architecture**](./docs/K3D_Architecture.md): A deep dive into the four architectural layers of the K3D system.
+*   [**Building a "Minecraft for Cognition"**](./docs/K3D_Minecraft_for_Cognition.md): An accessible explanation of the core concepts behind K3D.
+*   [**An AI with a Soul**](./docs/K3D_Vibe_Coder.md): The story of how a "Vibe Coder" and his AI orchestra are building a universe for knowledge.
+*   [**Investment Proposal**](./docs/K3D_Investment_Proposal.md): An investment proposal for architecting the future of spatial intelligence.
+
 ## Backed by Mozilla
 
 Transformer Lab is proud to be supported by Mozilla through the <a href="https://future.mozilla.org/builders/">Mozilla Builders Program</a>
