@@ -63,12 +63,17 @@ export async function sendAndReceiveAudioPath(
 
   let response;
   try {
+    const accessToken = await chatAPI.getAccessToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
     response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/speech`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
+      headers,
+      credentials: 'include',
       body: JSON.stringify(data),
     });
   } catch (error) {

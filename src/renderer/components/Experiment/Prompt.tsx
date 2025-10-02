@@ -20,10 +20,10 @@ import {
 import { ListRestartIcon, PencilIcon, SaveIcon } from 'lucide-react';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher, authenticatedFetch } from '../../lib/transformerlab-api-sdk';
 
 function resetValuesToDefaults(model) {
-  fetch(chatAPI.TEMPLATE_FOR_MODEL_URL(model))
+  authenticatedFetch(chatAPI.TEMPLATE_FOR_MODEL_URL(model))
     .then((response) => response.text())
     .then((data) => {
       console.log(data);

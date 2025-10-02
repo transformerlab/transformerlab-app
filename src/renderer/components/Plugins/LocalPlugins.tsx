@@ -16,7 +16,7 @@ import PluginCard from './PluginCard';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import NewPluginModal from './NewPluginModal';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 export default function LocalPlugins({
   experimentInfo,

@@ -30,7 +30,7 @@ import { generateFriendlyName } from 'renderer/lib/utils';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 import TrainingModalDataTemplatingTab from './TrainingModalDataTemplatingTab';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function isValidChatMessageList(input: any): boolean {
   try {

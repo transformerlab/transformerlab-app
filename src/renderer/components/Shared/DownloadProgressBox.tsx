@@ -12,8 +12,7 @@ import { ArrowDownIcon, CheckCircle2Icon, XCircleIcon } from 'lucide-react';
 import useSWR from 'swr';
 import { clamp, formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 const getStatusIcon = (status) => {
   switch (status) {

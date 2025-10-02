@@ -35,8 +35,7 @@ import VisualizeLogProbs from './VisualizeLogProbs';
 import VisualizeGeneration from './VisualizeGeneration';
 import ModelLayerVisualization from './ModelLayerVisualization';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 // const supports = [
 //   'chat',
 //   'completion',

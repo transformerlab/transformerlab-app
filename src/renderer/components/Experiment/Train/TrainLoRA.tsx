@@ -1,5 +1,6 @@
 import { ReactElement, useEffect, useState } from 'react';
 import useSWR from 'swr';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import Sheet from '@mui/joy/Sheet';
 
@@ -96,8 +97,6 @@ function formatJobConfig(c): ReactElement {
   );
   return r;
 }
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TrainLoRA({}) {
   const { experimentInfo } = useExperimentInfo();

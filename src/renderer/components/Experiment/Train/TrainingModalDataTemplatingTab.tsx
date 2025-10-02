@@ -22,8 +22,7 @@ import useSWR from 'swr';
 import { useDebounce } from 'use-debounce';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function TrainingModalDataTemplatingTab({
   selectedDataset,

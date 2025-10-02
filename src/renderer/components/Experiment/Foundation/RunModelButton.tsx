@@ -136,6 +136,12 @@ export default function RunModelButton({
         'model_architectures:' +
           experimentInfo?.config?.foundation_model_architecture, //filter
       ),
+      {
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
+        },
+      }
     );
     const inferenceEnginesJSON = await inferenceEngines.json();
     const experimentId = experimentInfo?.id;
@@ -152,6 +158,12 @@ export default function RunModelButton({
           inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
         }),
       ),
+      {
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
+        },
+      }
     );
 
     return {

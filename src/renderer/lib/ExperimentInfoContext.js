@@ -9,8 +9,7 @@ import React, {
 import useSWR from 'swr';
 
 import * as chatAPI from './transformerlab-api-sdk.ts'; // Adjust the import path as necessary
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from './transformerlab-api-sdk.ts';
 
 const ExperimentInfoContext = createContext(undefined);
 

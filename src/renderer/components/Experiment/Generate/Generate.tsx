@@ -2,6 +2,7 @@
 import { useState } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import Sheet from '@mui/joy/Sheet';
 
@@ -27,7 +28,6 @@ function getTemplateParametersForPlugin(pluginName, plugins) {
   return [];
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Generate({ addGeneration }) {
   const { experimentInfo, experimentInfoMutate } = useExperimentInfo();

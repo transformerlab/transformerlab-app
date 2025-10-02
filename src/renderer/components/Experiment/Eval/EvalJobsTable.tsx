@@ -41,7 +41,7 @@ var timezone = require('dayjs/plugin/timezone'); // dependent on utc plugin
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 function getLocalTimeSinceEvent(utcTimestamp) {
   // Parse the UTC timestamp

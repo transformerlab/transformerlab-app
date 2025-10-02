@@ -37,7 +37,7 @@ import { FaLinux } from 'react-icons/fa6';
 
 import { formatBytes } from 'renderer/lib/utils';
 
-import { useServerStats, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useServerStats, useAPI, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 
 import { FaPython } from 'react-icons/fa';
@@ -65,7 +65,6 @@ function StatRow({ title, value }) {
   );
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Computer() {
   const [searchText, setSearchText] = useState('');

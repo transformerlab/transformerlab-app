@@ -20,8 +20,7 @@ import duration from 'dayjs/plugin/duration';
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 interface Job {
   id: string;

@@ -21,8 +21,7 @@ import useSWR from 'swr';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import ExportModal from './ExportModal';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 function formatExportConfig(config: any): ReactElement {
   // Safety check for valid input

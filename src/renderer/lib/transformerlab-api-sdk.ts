@@ -55,6 +55,7 @@ export {
   usePluginStatus,
   useServerStats,
   useCheckLocalConnection,
+  fetcher,
 } from './api-client/hooks';
 
 export {

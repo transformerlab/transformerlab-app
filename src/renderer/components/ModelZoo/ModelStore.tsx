@@ -2,6 +2,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 import {
   FormControl,
@@ -96,8 +97,6 @@ function getModelHuggingFaceURL(model) {
   const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
   return 'https://huggingface.co/' + repo_id;
 }
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelStore() {
   const { experimentInfo } = useExperimentInfo();

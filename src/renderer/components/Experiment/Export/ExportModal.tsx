@@ -22,8 +22,7 @@ import {
 import { generateFriendlyName } from 'renderer/lib/utils';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import DynamicPluginForm from '../DynamicPluginForm';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 function PluginIntroduction({
   experimentInfo,

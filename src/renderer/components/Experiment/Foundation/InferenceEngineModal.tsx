@@ -17,7 +17,7 @@ import React, { useState } from 'react';
 import DynamicPluginForm from '../DynamicPluginForm';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 function EngineSelect({
   experimentInfo,

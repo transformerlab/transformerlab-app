@@ -5,7 +5,7 @@ import { ArrowRightFromLineIcon } from 'lucide-react';
 
 import DynamicPluginForm from '../DynamicPluginForm';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 /**
  * PluginSettingsModal

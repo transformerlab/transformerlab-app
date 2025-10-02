@@ -126,7 +126,12 @@ export default function DatasetCard({
                     if (
                       confirm('Are you sure you want to delete this dataset?')
                     ) {
-                      await fetch(chatAPI.Endpoints.Dataset.Delete(name));
+                      await fetch(chatAPI.Endpoints.Dataset.Delete(name), {
+                        credentials: 'include',
+                        headers: {
+                          'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
+                        },
+                      });
                       parentMutate();
                     }
                   }}

@@ -34,6 +34,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
@@ -234,8 +235,6 @@ function ShowCode({
     </Box>
   );
 }
-
-const fetcher = (url: any) => fetch(url).then((res) => res.json());
 
 export default function WorkflowList({ experimentInfo }) {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
