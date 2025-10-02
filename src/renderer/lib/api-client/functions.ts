@@ -55,7 +55,7 @@ export async function getAccessToken() {
 }
 
 // Helper function to create authenticated fetch requests
-async function authenticatedFetch(url: string, options: RequestInit = {}) {
+export async function authenticatedFetch(url: string, options: RequestInit = {}) {
   const accessToken = await getAccessToken();
 
   const headers: Record<string, string> = {

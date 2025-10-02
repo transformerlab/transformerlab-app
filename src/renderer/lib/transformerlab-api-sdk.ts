@@ -47,6 +47,7 @@ export {
   EXPERIMENT_EDIT_GENERATION,
   TEMPLATE_FOR_MODEL_URL,
   getTemplateForModel,
+  authenticatedFetch,
 } from './api-client/functions';
 
 export {
