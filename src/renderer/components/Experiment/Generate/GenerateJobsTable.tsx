@@ -35,7 +35,7 @@ dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 
-import { fetcher } from '../../lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function RenderScore({ score }) {
   if (score === undefined) {

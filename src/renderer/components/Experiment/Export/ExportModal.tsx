@@ -22,7 +22,7 @@ import {
 import { generateFriendlyName } from 'renderer/lib/utils';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import DynamicPluginForm from '../DynamicPluginForm';
-import { fetcher } from '../../lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function PluginIntroduction({
   experimentInfo,
