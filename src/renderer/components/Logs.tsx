@@ -21,7 +21,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { RotateCcwIcon } from 'lucide-react';
 
-const fetcher = (url) => fetch(url).then((res) => res.text());
+import { fetcher } from '../lib/transformerlab-api-sdk';
 
 function objectMinusPrompt(obj) {
   const { prompt, ...rest } = obj;

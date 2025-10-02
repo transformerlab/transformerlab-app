@@ -53,6 +53,7 @@ import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
@@ -311,7 +312,6 @@ function stableSort<T>(
   return stabilizedThis?.map((el) => el[0]);
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 type Order = 'asc' | 'desc';
 
 export default function Documents({

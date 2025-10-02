@@ -21,7 +21,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import DatasetCard from './DatasetCard';
 import NewDatasetModal from './NewDatasetModal';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 export function filterByFiltersDatasetID(data, searchText = '', filters = {}) {
   return data.filter((row) => {

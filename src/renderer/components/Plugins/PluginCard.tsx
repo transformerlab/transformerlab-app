@@ -12,8 +12,7 @@ import { useState } from 'react';
 import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 import ShowArchitectures from '../Shared/ListArchitectures';
 import { useNotification } from '../Shared/NotificationSystem';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 function getTint(type: string) {
   var tint = '';

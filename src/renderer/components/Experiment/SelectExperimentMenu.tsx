@@ -29,10 +29,8 @@ import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
-import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function ExperimentSettingsMenu({
   experimentInfo,
@@ -84,6 +82,12 @@ function ExperimentSettingsMenu({
             ) {
               await fetch(
                 chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id),
+                {
+                  credentials: 'include',
+                  headers: {
+                    'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
+                  },
+                }
               );
 
               // Find the next available experiment (first one in the list that's not the deleted one)
@@ -138,7 +142,12 @@ export default function SelectExperimentMenu({ models }) {
       let newId = 0;
 
       if (fromRecipeId === null) {
-        const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+        const response = await fetch(chatAPI.Endpoints.Experiment.Create(name), {
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
+          },
+        });
         newId = await response.json();
       } else {
         const response = await fetch(
@@ -148,6 +157,10 @@ export default function SelectExperimentMenu({ models }) {
           }),
           {
             method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
+            },
           },
         );
         const responseJson = await response.json();

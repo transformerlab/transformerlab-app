@@ -23,8 +23,7 @@ import { generateFriendlyName } from 'renderer/lib/utils';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
   const { data, error, isLoading } = useSWR(

@@ -69,22 +69,38 @@ export function useAPI(
   };
 }
 
-const fetcher = (input: RequestInfo | URL, init?: RequestInit) =>
-  fetch(input, init).then(async (res) => {
-    if (!res.ok) {
-      const err: any = new Error('An error occurred fetching ' + res.url);
-      // attach details for callers
-      err.status = res.status;
-      try {
-        err.response = await res.json();
-      } catch {
-        err.response = null;
-      }
-      console.log(res);
-      throw err;
-    }
-    return res.json();
+export const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const accessToken = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string>),
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const response = await fetch(input, {
+    ...init,
+    headers,
+    credentials: 'include',
   });
+
+  if (!response.ok) {
+    const err: any = new Error('An error occurred fetching ' + response.url);
+    // attach details for callers
+    err.status = response.status;
+    try {
+      err.response = await response.json();
+    } catch {
+      err.response = null;
+    }
+    console.log(response);
+    throw err;
+  }
+  return response.json();
+};
 
 export function useModelStatus() {
   const api_url = API_URL();

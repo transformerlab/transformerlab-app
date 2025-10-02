@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import WorkflowRunDisplay from './WorkflowRunDisplay';
 
-const fetcher = (url: any) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 
 function ListOfWorkflowRuns({
   workflowRuns,

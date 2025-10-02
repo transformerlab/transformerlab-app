@@ -32,7 +32,7 @@ const fakeTrigger = {
   workflow_run_name: 'Workflow Run 1',
 };
 
-const fetcher = (url: any) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 
 function ListOfTriggers({
   workflowRuns,

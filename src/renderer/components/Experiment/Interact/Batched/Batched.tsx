@@ -35,7 +35,7 @@ import useSWR from 'swr';
 import ThinSlider from '../ThinSlider';
 
 // fetcher used by SWR
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 
 export default function Batched({
   tokenCount,

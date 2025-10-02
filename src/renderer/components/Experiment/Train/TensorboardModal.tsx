@@ -12,8 +12,7 @@ import {
 } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { RotateCcwIcon, PencilIcon, CheckIcon, XIcon } from 'lucide-react';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function TensorboardModal({
   currentTensorboard,

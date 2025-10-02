@@ -25,8 +25,7 @@ import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import PickADocumentMenu from '../Rag/PickADocumentMenu';
 
 import { generateFriendlyName } from 'renderer/lib/utils';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
   const { data, error, isLoading } = useSWR(

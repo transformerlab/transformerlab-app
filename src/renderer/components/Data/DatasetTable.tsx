@@ -18,11 +18,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import AudioPlayer from './AudioPlayer';
-
-const fetcher = (url: string) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((data) => data);
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 const DatasetTable = ({ datasetId }: { datasetId: string }) => {
   const [pageNumber, setPageNumber] = useState(1);

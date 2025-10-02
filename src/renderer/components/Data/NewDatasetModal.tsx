@@ -19,7 +19,7 @@ import Dropzone from 'react-dropzone';
 import { IoCloudUploadOutline } from 'react-icons/io5';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher, authenticatedFetch } from '../../lib/transformerlab-api-sdk';
 
 export default function DatasetDetailsModal({ open, setOpen }) {
   const [newDatasetName, setNewDatasetName] = useState('');
@@ -47,7 +47,7 @@ export default function DatasetDetailsModal({ open, setOpen }) {
     if (data.status === 'error') {
       alert(data.message);
     } else {
-      await fetch(chatAPI.Endpoints.Dataset.FileUpload(newDatasetName), {
+      await authenticatedFetch(chatAPI.Endpoints.Dataset.FileUpload(newDatasetName), {
         method: 'POST',
         body: formData,
       });

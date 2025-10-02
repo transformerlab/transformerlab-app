@@ -7,8 +7,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from 'renderer/lib/api-client/urls';
 import OutputTerminal from 'renderer/components/OutputTerminal';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 interface ViewOutputModalStreamingProps {
   jobId: string | number;

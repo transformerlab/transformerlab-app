@@ -16,7 +16,7 @@ import {
 import { formatBytes } from '../../lib/utils';
 
 // fetcher used by SWR
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 export default function ModelDetailsModal({ modelId, setModelId }) {
   const {

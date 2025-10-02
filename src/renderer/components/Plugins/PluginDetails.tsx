@@ -38,6 +38,7 @@ const parseTmTheme = require('monaco-themes').parseTmTheme;
 import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 
@@ -146,7 +147,6 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.setTheme('my-theme');
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function PluginDetails() {
   const { experimentInfo } = useExperimentInfo();

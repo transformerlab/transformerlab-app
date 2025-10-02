@@ -29,6 +29,7 @@ import {
 import { useMemo, useState } from 'react';
 import RunModelButton from 'renderer/components/Experiment/Foundation/RunModelButton';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import {
   killWorker,
   useModelStatus,
@@ -40,7 +41,7 @@ import { FaEject } from 'react-icons/fa6';
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
 }
-const fetcher = (url) => fetch(url).then((res) => res.json());
+
 
 export default function ModelDetails({
   experimentInfo,

@@ -12,8 +12,7 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OutputTerminal from 'renderer/components/OutputTerminal';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 interface ViewOutputModalStreamingProps {
   jobId: number;
@@ -41,7 +40,7 @@ export default function ViewOutputModalStreaming({
           experimentInfo.id,
           jobId,
         );
-  const title_sentence =
+  const titleSentence =
     fileName !== '' ? 'Detailed Report for Job' : 'Output from Job';
 
   const handleDownload = async () => {
@@ -83,7 +82,7 @@ export default function ViewOutputModalStreaming({
           }}
         >
           <Typography level="h4" mb={2}>
-            {title_sentence} {jobId}
+            {titleSentence} {jobId}
           </Typography>
           {fileName !== '' && (
             <Button

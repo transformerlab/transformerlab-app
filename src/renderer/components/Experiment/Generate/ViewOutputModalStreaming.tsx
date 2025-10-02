@@ -5,8 +5,7 @@ import { Box, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OutputTerminal from 'renderer/components/OutputTerminal';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function ViewOutputModalStreaming({ jobId, setJobId }) {
   const { experimentInfo } = useExperimentInfo();
