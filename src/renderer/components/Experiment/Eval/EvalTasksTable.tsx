@@ -25,7 +25,7 @@ import useSWR from 'swr';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import EvalModal from './EvalModal';
-import { fetcher } from '../../lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function formatTemplateConfig(script_parameters): ReactElement {
   // Safety check for valid input
