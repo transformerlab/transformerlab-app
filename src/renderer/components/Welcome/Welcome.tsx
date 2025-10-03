@@ -68,10 +68,11 @@ export default function Welcome() {
   const navigate = useNavigate();
 
   // Automatically open recipes modal when no experiment is selected AND API is connected
-  // BUT NOT when the connection modal is open (when there's no connection)
+  // BUT ONLY after a user-initiated connection (prevents early open during background polling)
   useEffect(() => {
     // Check if we're disconnected (API_URL is null means no connection)
     const isConnected = API_URL() !== null;
+    const userInitiated = (window as any)?.TransformerLab?.UserInitiatedConnect;
 
     // If disconnected, reset our tracking and don't open modal
     if (!isConnected) {
@@ -94,7 +95,8 @@ export default function Welcome() {
         !server ||
         isLoading ||
         isError ||
-        !isConnected
+        !isConnected ||
+        !userInitiated
       ) {
         return;
       }
@@ -109,8 +111,8 @@ export default function Welcome() {
           )
         : null;
 
-      // Only open recipes modal if no stored experiment ID exists
-      if (!storedExperimentId) {
+      // Only open recipes modal if no stored experiment ID exists and connection was user-initiated
+      if (!storedExperimentId && userInitiated) {
         setRecipesModalOpen(true);
       }
     };
