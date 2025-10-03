@@ -39,8 +39,6 @@ export default function TransformerLabSettings() {
   const [doNotTrack, setDoNotTrack] = React.useState(false);
   const [showExperimentalPlugins, setShowExperimentalPlugins] =
     React.useState(false);
-  const [hfTokenModified, setHfTokenModified] = React.useState(false);
-  const [hfTokenValue, setHfTokenValue] = React.useState('');
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -58,22 +56,6 @@ export default function TransformerLabSettings() {
     fetchShowExperimental();
   }, []);
 
-  const {
-    data: hftoken,
-    error: hftokenerror,
-    isLoading: hftokenisloading,
-    mutate: hftokenmutate,
-  } = useAPI('config', ['get'], {
-    key: 'HuggingfaceUserAccessToken',
-  });
-
-  // Initialize HF token value when loaded
-  React.useEffect(() => {
-    if (hftoken && !hfTokenModified) {
-      setHfTokenValue(hftoken);
-    }
-  }, [hftoken, hfTokenModified]);
-
   const handleDoNotTrackChange = (event) => {
     const checked = event.target.checked;
     setDoNotTrack(checked);
@@ -86,11 +68,18 @@ export default function TransformerLabSettings() {
     window.storage.set('SHOW_EXPERIMENTAL_PLUGINS', checked.toString());
   };
 
-  const handleHfTokenChange = (event) => {
-    const newValue = event.target.value;
-    setHfTokenValue(newValue);
-    setHfTokenModified(newValue !== hftoken);
-  };
+  const {
+    data: hftoken,
+    error: hftokenerror,
+    isLoading: hftokenisloading,
+    mutate: hftokenmutate,
+  } = useAPI('config', ['get'], {
+    key: 'HuggingfaceUserAccessToken',
+  });
+  const [hfTokenValue, setHfTokenValue] = React.useState('');
+  React.useEffect(() => {
+    setHfTokenValue(hftoken ?? '');
+  }, [hftoken]);
   const [showJobsOfType, setShowJobsOfType] = React.useState('NONE');
   const [showProvidersPage, setShowProvidersPage] = React.useState(false);
 
@@ -165,9 +154,7 @@ export default function TransformerLabSettings() {
               Huggingface Credentials:
             </Typography>
             {canLogInToHuggingFace?.message === 'OK' ? (
-              <Alert color="success" sx={{ mb: 1 }}>
-                Login to Huggingface Successful
-              </Alert>
+              <Alert color="success">Login to Huggingface Successful</Alert>
             ) : (
               <Alert color="danger" sx={{ mb: 1 }}>
                 Login to Huggingface Failed. Please set credentials below.
@@ -181,13 +168,11 @@ export default function TransformerLabSettings() {
                 <Input
                   name="hftoken"
                   value={hfTokenValue}
-                  onChange={handleHfTokenChange}
+                  onChange={(e) => setHfTokenValue(e.target.value)}
                   type={showPassword ? 'text' : 'password'}
                   endDecorator={
                     <IconButton
-                      onClick={() => {
-                        setShowPassword(!showPassword);
-                      }}
+                      onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                     </IconButton>
@@ -198,20 +183,18 @@ export default function TransformerLabSettings() {
                 onClick={async () => {
                   const token = hfTokenValue;
                   await fetch(chatAPI.Endpoints.Models.HuggingFaceLogout());
-
                   await fetch(
                     getAPIFullPath('config', ['set'], {
                       key: 'HuggingfaceUserAccessToken',
                       value: token,
                     }),
                   );
-                  // Now manually log in to Huggingface
                   await fetch(chatAPI.Endpoints.Models.HuggingFaceLogin());
                   hftokenmutate(token);
+                  setHfTokenValue(token);
                   canLogInToHuggingFaceMutate();
-                  setHfTokenModified(false);
                 }}
-                disabled={!hfTokenModified}
+                disabled={hfTokenValue === (hftoken ?? '')}
                 sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}
               >
                 Save
