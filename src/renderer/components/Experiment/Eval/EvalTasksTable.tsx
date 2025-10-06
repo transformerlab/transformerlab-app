@@ -149,7 +149,7 @@ async function evaluationRun(taskId: string) {
   // fetch(
   //   chatAPI.Endpoints.Experiment.RunEvaluation(experimentId, plugin, evaluator)
   // );
-  await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
+  await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.Queue(taskId));
 }
 
 export default function EvalTasksTable({ experimentInfo }) {
@@ -341,7 +341,7 @@ export default function EvalTasksTable({ experimentInfo }) {
                       </Button>
                       <IconButton
                         onClick={async () => {
-                          await fetch(
+                          await chatAPI.authenticatedFetch(
                             chatAPI.Endpoints.Tasks.DeleteTask(evaluations.id),
                           );
                           mutateTasks();

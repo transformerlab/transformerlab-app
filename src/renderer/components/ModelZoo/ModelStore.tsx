@@ -251,7 +251,7 @@ export default function ModelStore() {
             onClick={async () => {
               setCanceling(true);
               try {
-                let response = await fetch(
+                let response = await chatAPI.authenticatedFetch(
                   chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, jobId),
                 );
                 if (response.ok) {

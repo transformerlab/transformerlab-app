@@ -449,7 +449,7 @@ export default function TrainLoRA({}) {
         {/* <ButtonGroup variant="soft">
           <Button
             onClick={() => {
-              fetch(chatAPI.API_URL() + 'train/job/start_next');
+              chatAPI.authenticatedFetch(chatAPI.API_URL() + 'train/job/start_next');
             }}
             startDecorator={<PlayIcon />}
           >
@@ -460,7 +460,7 @@ export default function TrainLoRA({}) {
             color="danger"
             startDecorator={<Trash2Icon />}
             onClick={() => {
-              fetch(chatAPI.API_URL() + 'train/job/delete_all');
+              chatAPI.authenticatedFetch(chatAPI.API_URL() + 'train/job/delete_all');
             }}
           >
             Delete all Jobs

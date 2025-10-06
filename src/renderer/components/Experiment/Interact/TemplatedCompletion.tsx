@@ -233,7 +233,7 @@ export default function TemplatedCompletion({
                     if (
                       confirm('Are you sure you want to delete this template?')
                     ) {
-                      await fetch(
+                      await chatAPI.authenticatedFetch(
                         chatAPI.Endpoints.Prompts.Delete(selectedTemplate.id),
                       );
                       templatesMutate();

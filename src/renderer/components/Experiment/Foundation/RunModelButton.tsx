@@ -237,7 +237,7 @@ export default function RunModelButton({
       }
 
       try {
-        const response = await fetch(
+        const response = await chatAPI.authenticatedFetch(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
           {
             method: 'POST',

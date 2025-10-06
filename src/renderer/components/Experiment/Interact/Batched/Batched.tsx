@@ -284,7 +284,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
   );
 
   async function addQuery(query) {
-    await fetch(chatAPI.Endpoints.BatchedPrompts.New(), {
+    await chatAPI.authenticatedFetch(chatAPI.Endpoints.BatchedPrompts.New(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -337,7 +337,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
                 </IconButton>
                 <IconButton
                   onClick={async () => {
-                    await fetch(
+                    await chatAPI.authenticatedFetch(
                       chatAPI.Endpoints.BatchedPrompts.Delete(query.name),
                     );
                     mutateBatchedPrompts();

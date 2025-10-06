@@ -248,7 +248,7 @@ const EvalJobsTable = () => {
       const jobIdsParam = selected.join(',');
       const compareEvalsUrl =
         chatAPI.Endpoints.Charts.CompareEvals(jobIdsParam);
-      const response = await fetch(compareEvalsUrl, { method: 'GET' });
+      const response = await chatAPI.authenticatedFetch(compareEvalsUrl, { method: 'GET' });
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
