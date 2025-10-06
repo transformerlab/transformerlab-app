@@ -152,7 +152,7 @@ const Flow = ({
       },
     };
     setEdges((els) => addEdge(newEdge, els));
-    fetch(
+    chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Workflows.AddEdge(
         selectedWorkflow?.id,
         params.source,
@@ -179,7 +179,7 @@ const Flow = ({
     if (!edgeReconnectSuccessful.current) {
       setEdges((eds) => {
         const updatedEdges = eds.filter((e) => e.id !== edge.id);
-        fetch(
+        chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Workflows.RemoveEdge(
             selectedWorkflow?.id,
             edge.source,
@@ -235,7 +235,7 @@ const Flow = ({
       const metadata = JSON.stringify({
         position: node.position,
       });
-      await fetch(
+      await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Workflows.EditNodeMetadata(
           workflowId,
           node?.id,
@@ -269,7 +269,7 @@ const Flow = ({
       onDelete={async ({ nodes, edges }) => {
         await Promise.all(
           nodes.map((node) =>
-            fetch(
+            chatAPI.authenticatedFetch(
               chatAPI.Endpoints.Workflows.DeleteNode(
                 workflowId,
                 node?.id,

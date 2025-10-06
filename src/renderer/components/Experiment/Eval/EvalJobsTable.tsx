@@ -41,7 +41,7 @@ var timezone = require('dayjs/plugin/timezone'); // dependent on utc plugin
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function getLocalTimeSinceEvent(utcTimestamp) {
   // Parse the UTC timestamp
@@ -215,7 +215,7 @@ const EvalJobsTable = () => {
     useState('');
 
   const fetchCSV = async (jobId) => {
-    const response = await fetch(
+    const response = await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.GetAdditionalDetails(
         experimentInfo.id,
         jobId,
@@ -248,7 +248,7 @@ const EvalJobsTable = () => {
       const jobIdsParam = selected.join(',');
       const compareEvalsUrl =
         chatAPI.Endpoints.Charts.CompareEvals(jobIdsParam);
-      const response = await fetch(compareEvalsUrl, { method: 'GET' });
+      const response = await chatAPI.authenticatedFetch(compareEvalsUrl, { method: 'GET' });
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -478,7 +478,7 @@ const EvalJobsTable = () => {
                     <IconButton variant="plain">
                       <Trash2Icon
                         onClick={async () => {
-                          await fetch(
+                          await chatAPI.authenticatedFetch(
                             chatAPI.Endpoints.Jobs.Delete(
                               experimentInfo.id,
                               job?.id,

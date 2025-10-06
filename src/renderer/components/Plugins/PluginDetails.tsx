@@ -38,6 +38,7 @@ const parseTmTheme = require('monaco-themes').parseTmTheme;
 import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 
@@ -111,7 +112,7 @@ function NewFileNameModal({
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             const newfile = formData.get('filename');
-            const response = await fetch(
+            const response = await chatAPI.authenticatedFetch(
               chatAPI.Endpoints.Experiment.ScriptNewFile(
                 experimentInfo?.id,
                 pluginName,
@@ -146,7 +147,6 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.setTheme('my-theme');
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function PluginDetails() {
   const { experimentInfo } = useExperimentInfo();
@@ -299,7 +299,7 @@ export default function PluginDetails() {
             if (
               confirm('Are you sure you want to delete this file?') === true
             ) {
-              const res = await fetch(
+              const res = await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Experiment.ScriptDeleteFile(
                   experimentInfo?.id,
                   pluginName,
@@ -324,7 +324,7 @@ export default function PluginDetails() {
           <Button
             startDecorator={<PlayCircleIcon />}
             onClick={() => {
-              fetch(
+              chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Plugins.RunPluginInstallScript(pluginName),
               );
             }}
@@ -335,7 +335,7 @@ export default function PluginDetails() {
         <Button
           disabled={currentFile == null ? true : false}
           onClick={() => {
-            fetch(
+            chatAPI.authenticatedFetch(
               chatAPI.Endpoints.Experiment.ScriptSaveFile(
                 experimentInfo?.id,
                 pluginName,

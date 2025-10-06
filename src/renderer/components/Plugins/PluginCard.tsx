@@ -13,8 +13,6 @@ import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 import ShowArchitectures from '../Shared/ListArchitectures';
 import { useNotification } from '../Shared/NotificationSystem';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
 function getTint(type: string) {
   var tint = '';
 
@@ -236,7 +234,7 @@ export default function PluginCard({
                     if (
                       confirm('Are you sure you want to delete this plugin?')
                     ) {
-                      await fetch(
+                      await chatAPI.authenticatedFetch(
                         chatAPI.Endpoints.Experiment.DeletePlugin(
                           plugin?.uniqueId,
                         ),
@@ -277,7 +275,7 @@ export default function PluginCard({
                 }
 
                 setInstalling(plugin.uniqueId);
-                await fetch(
+                await chatAPI.authenticatedFetch(
                   chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
                 ).then(async (response) => {
                   if (response.ok) {

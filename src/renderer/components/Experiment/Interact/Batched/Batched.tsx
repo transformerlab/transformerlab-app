@@ -35,7 +35,7 @@ import useSWR from 'swr';
 import ThinSlider from '../ThinSlider';
 
 // fetcher used by SWR
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 
 export default function Batched({
   tokenCount,
@@ -284,7 +284,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
   );
 
   async function addQuery(query) {
-    await fetch(chatAPI.Endpoints.BatchedPrompts.New(), {
+    await chatAPI.authenticatedFetch(chatAPI.Endpoints.BatchedPrompts.New(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -337,7 +337,7 @@ function ListOfBatchedQueries({ sendBatchOfQueries }) {
                 </IconButton>
                 <IconButton
                   onClick={async () => {
-                    await fetch(
+                    await chatAPI.authenticatedFetch(
                       chatAPI.Endpoints.BatchedPrompts.Delete(query.name),
                     );
                     mutateBatchedPrompts();

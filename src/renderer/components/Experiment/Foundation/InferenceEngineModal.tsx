@@ -17,8 +17,6 @@ import React, { useState } from 'react';
 import DynamicPluginForm from '../DynamicPluginForm';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
 function EngineSelect({
   experimentInfo,
   inferenceSettings,
@@ -137,7 +135,7 @@ export default function InferenceEngineModal({
 
             setInferenceSettings(newInferenceSettings);
 
-            await fetch(
+            await chatAPI.authenticatedFetch(
               chatAPI.Endpoints.Experiment.UpdateConfig(
                 experimentId,
                 'inferenceParams',

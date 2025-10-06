@@ -9,6 +9,7 @@ import {
 } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useCallback, useEffect, useState } from 'react';
 import useSWR from 'swr';
 
@@ -83,7 +84,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
     useState('chat');
 
-  const fetcher = (url) => fetch(url).then((res) => res.json());
+  // Use authenticated fetcher from SDK
 
   // Extract pluginId at the top level
   const inferenceParams = experimentInfo?.config?.inferenceParams;
@@ -158,7 +159,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
       }
 
       async function updateConfigs() {
-        await fetch(
+        await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
           {
             method: 'POST',
@@ -186,7 +187,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
 
   const setAdaptor = useCallback(
     (name) => {
-      fetch(
+      chatAPI.authenticatedFetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'adaptor',
@@ -219,7 +220,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
       }
 
       async function updateConfigs() {
-        await fetch(
+        await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
           {
             method: 'POST',
@@ -277,7 +278,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
 
   const setRagEngine = useCallback(
     async (name: string, rag_settings: any = {}) => {
-      await fetch(
+      await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
         {
           method: 'POST',

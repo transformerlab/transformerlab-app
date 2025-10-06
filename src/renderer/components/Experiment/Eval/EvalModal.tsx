@@ -23,8 +23,7 @@ import { generateFriendlyName } from 'renderer/lib/utils';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
   const { data, error, isLoading } = useSWR(
@@ -58,7 +57,7 @@ async function updateTask(
     config,
     outputs,
   };
-  const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
+  const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -87,7 +86,7 @@ async function createNewTask(
     outputs,
     type: 'EVAL',
   };
-  const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+  const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.NewTask(), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

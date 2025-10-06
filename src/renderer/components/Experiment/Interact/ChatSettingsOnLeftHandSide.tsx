@@ -16,12 +16,12 @@ import AddMCPServerDialog from './AddMCPServerDialog';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 // fetcher used by SWR
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher, authenticatedFetch } from '../../../lib/transformerlab-api-sdk';
 
 const fetchToolsWithMcp = async () => {
   try {
     // Fetch MCP_SERVER config
-    const configResp = await fetch(
+    const configResp = await authenticatedFetch(
       chatAPI.getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
     );
     if (!configResp.ok) {
@@ -62,7 +62,7 @@ const fetchToolsWithMcp = async () => {
       }
     }
 
-    const resp = await fetch(url);
+    const resp = await authenticatedFetch(url);
     if (!resp.ok) {
       console.error('Tools fetch failed:', resp.status, resp.statusText);
       throw new Error(`HTTP error! status: ${resp.status}`);

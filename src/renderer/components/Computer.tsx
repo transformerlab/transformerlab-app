@@ -65,7 +65,6 @@ function StatRow({ title, value }) {
   );
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function Computer() {
   const [searchText, setSearchText] = useState('');

@@ -12,7 +12,7 @@ import {
 } from '@mui/joy';
 
 // fetcher used by SWR
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 export default function TrainingJobDetailsModal({ jobId, setJobId }) {
   const {

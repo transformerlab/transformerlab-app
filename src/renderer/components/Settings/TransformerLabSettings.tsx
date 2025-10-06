@@ -28,9 +28,7 @@ import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 import AIProvidersSettings from './AIProvidersSettings';
 import ViewJobsTab from './ViewJobsTab';
 import { alignBox } from '@nivo/core';
-import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { getAPIFullPath, useAPI, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
@@ -180,14 +178,16 @@ export default function TransformerLabSettings() {
                     onClick={async () => {
                       const token =
                         document.getElementsByName('hftoken')[0].value;
-                      await fetch(
+                      await chatAPI.authenticatedFetch(
                         getAPIFullPath('config', ['set'], {
                           key: 'HuggingfaceUserAccessToken',
                           value: token,
                         }),
                       );
                       // Now manually log in to Huggingface
-                      await fetch(chatAPI.Endpoints.Models.HuggingFaceLogin());
+                      await chatAPI.authenticatedFetch(
+                        chatAPI.Endpoints.Models.HuggingFaceLogin(),
+                      );
                       hftokenmutate(token);
                       canLogInToHuggingFaceMutate();
                     }}
@@ -224,13 +224,15 @@ export default function TransformerLabSettings() {
                   onClick={async () => {
                     const token =
                       document.getElementsByName('wandbToken')[0].value;
-                    await fetch(
+                    await chatAPI.authenticatedFetch(
                       getAPIFullPath('config', ['set'], {
                         key: 'WANDB_API_KEY',
                         value: token,
                       }),
                     );
-                    await fetch(chatAPI.Endpoints.Models.wandbLogin());
+                    await chatAPI.authenticatedFetch(
+                      chatAPI.Endpoints.Models.wandbLogin(),
+                    );
                     wandbLoginMutate();
                   }}
                   sx={{ marginTop: 1, width: '100px', alignSelf: 'flex-end' }}

@@ -27,7 +27,7 @@ export default function ControlNetModal({
 
   const refresh = async () => {
     try {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         getAPIFullPath('diffusion', ['listControlnets'], { experimentId }),
       );
       const models = await response.json();
@@ -46,7 +46,7 @@ export default function ControlNetModal({
   }, [open]);
 
   const handleDelete = async (id: string) => {
-    await fetch(chatAPI.Endpoints.Models.Delete(id, true));
+    await chatAPI.authenticatedFetch(chatAPI.Endpoints.Models.Delete(id, true));
     if (selectedControlnet === id) onSelect('off');
     refresh();
   };

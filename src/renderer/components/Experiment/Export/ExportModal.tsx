@@ -22,8 +22,7 @@ import {
 import { generateFriendlyName } from 'renderer/lib/utils';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import DynamicPluginForm from '../DynamicPluginForm';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function PluginIntroduction({
   experimentInfo,
@@ -125,7 +124,7 @@ async function updateTask(
     config,
     outputs,
   };
-  const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(taskId), {
+  const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.UpdateTask(taskId), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -154,7 +153,7 @@ async function createNewTask(
     outputs,
     type: 'EXPORT',
   };
-  const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+  const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.NewTask(), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -271,7 +270,7 @@ export default function ExportModal({
 
     try {
       // Get experiment data for building the export configuration
-      const expResponse = await fetch(
+      const expResponse = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Experiment.Get(experimentInfo?.id),
       );
       const experiment = await expResponse.json();

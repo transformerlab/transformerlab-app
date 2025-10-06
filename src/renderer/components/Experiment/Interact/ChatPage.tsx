@@ -75,7 +75,7 @@ export default function ChatPage({
     }
     newPrompt.system_message = newSystemPrompt;
 
-    fetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
+    chatAPI.authenticatedFetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
       method: 'POST',
       body: JSON.stringify(newPrompt),
     }).then((response) => {

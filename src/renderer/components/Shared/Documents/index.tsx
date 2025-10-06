@@ -53,6 +53,7 @@ import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
@@ -71,7 +72,7 @@ function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
         <MenuItem
           color="danger"
           onClick={() => {
-            fetch(
+            chatAPI.authenticatedFetch(
               chatAPI.Endpoints.Documents.Delete(
                 experimentInfo?.id,
                 filename,
@@ -311,7 +312,6 @@ function stableSort<T>(
   return stabilizedThis?.map((el) => el[0]);
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 type Order = 'asc' | 'desc';
 
 export default function Documents({
@@ -360,7 +360,7 @@ export default function Documents({
   );
 
   const uploadFiles = async (currentFolder, formData) => {
-    fetch(
+    chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Documents.Upload(experimentInfo?.id, currentFolder),
       {
         method: 'POST',
@@ -385,7 +385,7 @@ export default function Documents({
 
   const createFolder = async (name: string) => {
     try {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Documents.CreateFolder(experimentInfo?.id, name),
         {
           method: 'POST',
@@ -534,7 +534,7 @@ export default function Documents({
                   .map((url) => url.trim())
                   .filter((url) => url && url.includes('://'));
                 if (validUrls.length > 0) {
-                  fetch(
+                  chatAPI.authenticatedFetch(
                     chatAPI.Endpoints.Documents.UploadLinks(
                       experimentInfo?.id,
                       currentFolder,
@@ -871,7 +871,7 @@ export default function Documents({
           color="neutral"
           variant="outlined"
           onClick={() => {
-            fetch(chatAPI.Endpoints.Rag.ReIndex(experimentInfo?.id));
+            chatAPI.authenticatedFetch(chatAPI.Endpoints.Rag.ReIndex(experimentInfo?.id));
           }}
         >
           Reindex

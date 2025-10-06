@@ -2,6 +2,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 import {
   FormControl,
@@ -97,8 +98,6 @@ function getModelHuggingFaceURL(model) {
   return 'https://huggingface.co/' + repo_id;
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
 export default function ModelStore() {
   const { experimentInfo } = useExperimentInfo();
   const [order, setOrder] = useState<Order>('asc');
@@ -145,7 +144,7 @@ export default function ModelStore() {
   useEffect(() => {
     console.log(obj);
     if (!experimentInfo?.id) return;
-    fetch(
+    chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Jobs.GetJobsOfType(
         experimentInfo.id,
         'DOWNLOAD_MODEL',
@@ -252,7 +251,7 @@ export default function ModelStore() {
             onClick={async () => {
               setCanceling(true);
               try {
-                let response = await fetch(
+                let response = await chatAPI.authenticatedFetch(
                   chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, jobId),
                 );
                 if (response.ok) {
@@ -551,7 +550,7 @@ export default function ModelStore() {
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
                               try {
-                                let response = await fetch(
+                let response = await chatAPI.authenticatedFetch(
                                   chatAPI.Endpoints.Jobs.Create(
                                     experimentInfo.id,
                                   ),

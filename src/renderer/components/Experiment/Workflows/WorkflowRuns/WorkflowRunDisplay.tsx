@@ -18,8 +18,7 @@ import useSWR from 'swr';
 import JobDetails from './JobDetails';
 import JobProgress from '../../Train/JobProgress';
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 
 function WorkflowJobProgress({
   experimentId,
@@ -70,7 +69,7 @@ export default function WorkflowRunDisplay({
 
   const handleCancelWorkflow = async () => {
     try {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Workflows.CancelRun(run.id, experimentInfo.id),
         { method: 'GET' },
       );
