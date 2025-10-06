@@ -215,7 +215,7 @@ const EvalJobsTable = () => {
     useState('');
 
   const fetchCSV = async (jobId) => {
-    const response = await fetch(
+    const response = await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.GetAdditionalDetails(
         experimentInfo.id,
         jobId,
@@ -478,7 +478,7 @@ const EvalJobsTable = () => {
                     <IconButton variant="plain">
                       <Trash2Icon
                         onClick={async () => {
-                          await fetch(
+                          await chatAPI.authenticatedFetch(
                             chatAPI.Endpoints.Jobs.Delete(
                               experimentInfo.id,
                               job?.id,
