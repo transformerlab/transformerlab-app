@@ -59,7 +59,6 @@ export async function authenticatedFetch(url: string, options: RequestInit = {})
   const accessToken = await getAccessToken();
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
 

@@ -12,7 +12,6 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OutputTerminal from 'renderer/components/OutputTerminal';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 interface ViewOutputModalStreamingProps {
   jobId: number;
@@ -45,7 +44,7 @@ export default function ViewOutputModalStreaming({
 
   const handleDownload = async () => {
     if (!experimentInfo) return;
-    const response = await fetch(
+    const response = await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.GetAdditionalDetails(
         experimentInfo.id,
         jobId,

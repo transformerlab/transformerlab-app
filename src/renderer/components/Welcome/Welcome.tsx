@@ -126,25 +126,19 @@ export default function Welcome() {
     let newId = 0;
 
     if (fromRecipeId === null) {
-      const response = await fetch(chatAPI.Endpoints.Experiment.Create(name), {
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
-        },
-      });
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Experiment.Create(name),
+      );
       newId = await response.json();
     } else {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         getAPIFullPath('recipes', ['createExperiment'], {
           id: fromRecipeId,
           experiment_name: name,
         }),
         {
           method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
-          },
+          headers: {},
         },
       );
       const responseJson = await response.json();

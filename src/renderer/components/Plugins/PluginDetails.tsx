@@ -112,7 +112,7 @@ function NewFileNameModal({
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
             const newfile = formData.get('filename');
-            const response = await fetch(
+            const response = await chatAPI.authenticatedFetch(
               chatAPI.Endpoints.Experiment.ScriptNewFile(
                 experimentInfo?.id,
                 pluginName,
@@ -299,7 +299,7 @@ export default function PluginDetails() {
             if (
               confirm('Are you sure you want to delete this file?') === true
             ) {
-              const res = await fetch(
+              const res = await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Experiment.ScriptDeleteFile(
                   experimentInfo?.id,
                   pluginName,
@@ -324,7 +324,7 @@ export default function PluginDetails() {
           <Button
             startDecorator={<PlayCircleIcon />}
             onClick={() => {
-              fetch(
+              chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Plugins.RunPluginInstallScript(pluginName),
               );
             }}
@@ -335,7 +335,7 @@ export default function PluginDetails() {
         <Button
           disabled={currentFile == null ? true : false}
           onClick={() => {
-            fetch(
+            chatAPI.authenticatedFetch(
               chatAPI.Endpoints.Experiment.ScriptSaveFile(
                 experimentInfo?.id,
                 pluginName,

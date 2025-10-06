@@ -2,7 +2,6 @@
 import { useState } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import Sheet from '@mui/joy/Sheet';
 

@@ -37,7 +37,7 @@ import { FaLinux } from 'react-icons/fa6';
 
 import { formatBytes } from 'renderer/lib/utils';
 
-import { useServerStats, useAPI, fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useServerStats, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 
 import { FaPython } from 'react-icons/fa';

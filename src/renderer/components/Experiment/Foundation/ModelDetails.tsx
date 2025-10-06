@@ -29,7 +29,6 @@ import {
 import { useMemo, useState } from 'react';
 import RunModelButton from 'renderer/components/Experiment/Foundation/RunModelButton';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import {
   killWorker,
   useModelStatus,

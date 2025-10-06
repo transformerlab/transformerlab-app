@@ -159,7 +159,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
       }
 
       async function updateConfigs() {
-        await fetch(
+        await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
           {
             method: 'POST',
@@ -187,7 +187,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
 
   const setAdaptor = useCallback(
     (name) => {
-      fetch(
+      chatAPI.authenticatedFetch(
         chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
           experimentInfo?.id,
           'adaptor',
@@ -220,7 +220,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
       }
 
       async function updateConfigs() {
-        await fetch(
+        await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
           {
             method: 'POST',
@@ -278,7 +278,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
 
   const setRagEngine = useCallback(
     async (name: string, rag_settings: any = {}) => {
-      await fetch(
+      await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
         {
           method: 'POST',

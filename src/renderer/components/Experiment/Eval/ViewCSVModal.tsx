@@ -241,7 +241,7 @@ const ViewCSVModal = ({
 
   const handleDownload = async () => {
     if (!compareData) {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Experiment.GetAdditionalDetails(
           experimentInfo.id,
           jobId,
