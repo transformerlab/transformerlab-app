@@ -18,7 +18,6 @@ import {
   SquareStackIcon,
   FileIcon,
   ChartColumnIncreasingIcon,
-  WorkflowIcon,
   UserIcon,
   LogOutIcon,
   LogInIcon,
@@ -206,12 +205,6 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
       )}
-      <SubNavItem
-        title="Workflows"
-        path="/experiment/workflows"
-        icon={<WorkflowIcon />}
-        disabled={!experimentInfo?.name}
-      />
       <SubNavItem
         title="Train"
         path="/experiment/training"
