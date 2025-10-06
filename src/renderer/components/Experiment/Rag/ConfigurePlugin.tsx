@@ -5,8 +5,6 @@ import { ArrowRightFromLineIcon } from 'lucide-react';
 
 import DynamicPluginForm from '../DynamicPluginForm';
 
-import { fetcher } from '../../../lib/transformerlab-api-sdk';
-
 /**
  * PluginSettingsModal
  * onClose is a function that gets executed anytime this modal gets closed (cancel or submit)
