@@ -69,7 +69,7 @@ export default function WorkflowRunDisplay({
 
   const handleCancelWorkflow = async () => {
     try {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Workflows.CancelRun(run.id, experimentInfo.id),
         { method: 'GET' },
       );

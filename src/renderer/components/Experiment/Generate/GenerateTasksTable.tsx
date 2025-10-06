@@ -80,7 +80,7 @@ function formatTemplateConfig(scriptParameters): ReactElement {
 }
 
 async function generationRun(taskId: string) {
-  await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
+  await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.Queue(taskId));
 }
 
 export default function GenerateTasksTable({
@@ -239,7 +239,7 @@ export default function GenerateTasksTable({
                       </Button>
                       <IconButton
                         onClick={async () => {
-                          await fetch(
+                          await chatAPI.authenticatedFetch(
                             chatAPI.Endpoints.Tasks.DeleteTask(generations.id),
                           );
                           mutate();

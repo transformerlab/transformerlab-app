@@ -58,7 +58,7 @@ function isModelValidArchitecture(
 }
 
 async function exportRun(taskId: string) {
-  await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
+  await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.Queue(taskId));
 }
 
 export default function ExportTasksTable({
@@ -235,7 +235,7 @@ export default function ExportTasksTable({
                       </Button>
                       <IconButton
                         onClick={async () => {
-                          await fetch(
+                          await chatAPI.authenticatedFetch(
                             chatAPI.Endpoints.Tasks.DeleteTask(task.id),
                           );
                           mutateTasks();

@@ -111,7 +111,7 @@ const GenerateJobsTable = () => {
   };
 
   const fetchGenerateCSV = async (jobId) => {
-    const response = await fetch(
+    const response = await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.GetGeneratedDataset(
         experimentInfo.id,
         jobId,
@@ -202,7 +202,7 @@ const GenerateJobsTable = () => {
                       <IconButton variant="plain">
                         <Trash2Icon
                           onClick={async () => {
-                            await fetch(
+                            await chatAPI.authenticatedFetch(
                               chatAPI.Endpoints.Jobs.Delete(
                                 experimentInfo.id,
                                 job?.id,

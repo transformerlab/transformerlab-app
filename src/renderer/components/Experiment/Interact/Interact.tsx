@@ -203,7 +203,7 @@ export default function Chat({
         });
       }
     } else {
-      fetch(
+      chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Experiment.UpdateConfig(
           experimentInfo?.id,
           'generationParams',
@@ -388,7 +388,7 @@ export default function Chat({
     }
 
     //save the conversation to the server
-    fetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
+    chatAPI.authenticatedFetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -642,7 +642,7 @@ export default function Chat({
     }
 
     //save the conversation to the server
-    fetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
+    chatAPI.authenticatedFetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

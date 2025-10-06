@@ -126,12 +126,9 @@ export default function DatasetCard({
                     if (
                       confirm('Are you sure you want to delete this dataset?')
                     ) {
-                      await fetch(chatAPI.Endpoints.Dataset.Delete(name), {
-                        credentials: 'include',
-                        headers: {
-                          'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
-                        },
-                      });
+                      await chatAPI.authenticatedFetch(
+                        chatAPI.Endpoints.Dataset.Delete(name),
+                      );
                       parentMutate();
                     }
                   }}
@@ -201,7 +198,8 @@ export default function DatasetCard({
               }
               onClick={() => {
                 setInstalling(true);
-                fetch(chatAPI.Endpoints.Dataset.Download(repo))
+                chatAPI
+                  .authenticatedFetch(chatAPI.Endpoints.Dataset.Download(repo))
                   .then((response) => {
                     if (!response.ok) {
                       console.log(response);

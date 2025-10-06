@@ -169,7 +169,7 @@ export default function TrainingModalLoRA({
       config: config,
       outputs: outputs,
     };
-    const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
+    const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -198,7 +198,7 @@ export default function TrainingModalLoRA({
       outputs: outputs,
       type: 'TRAIN',
     };
-    const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+    const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.NewTask(), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

@@ -85,7 +85,7 @@ async function updateTask(
     config: config,
     outputs: outputs,
   };
-  const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
+  const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -115,7 +115,7 @@ async function createNewTask(
     type: 'GENERATE',
   };
   console.log(configBody);
-  const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
+  const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.NewTask(), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

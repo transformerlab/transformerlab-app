@@ -63,19 +63,17 @@ export async function sendAndReceiveAudioPath(
 
   let response;
   try {
-    const accessToken = await chatAPI.getAccessToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
-    response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/speech`, {
-      method: 'POST',
-      headers,
-      credentials: 'include',
-      body: JSON.stringify(data),
-    });
+    response = await chatAPI.authenticatedFetch(
+      `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/speech`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
+      },
+    );
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') return null; // Ignore aborts
     console.log('Exception accessing Audio API:', error);
@@ -105,7 +103,7 @@ export async function uploadAudioFile(
 
   let response;
   try {
-    response = await fetch(
+    response = await chatAPI.authenticatedFetch(
       `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload_reference?experimentId=${experimentId}`,
       {
         method: 'POST',

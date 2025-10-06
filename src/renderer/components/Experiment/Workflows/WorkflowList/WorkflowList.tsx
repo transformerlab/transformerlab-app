@@ -272,7 +272,7 @@ export default function WorkflowList({ experimentInfo }) {
 
   async function runWorkflow(workflowId: string) {
     try {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Workflows.RunWorkflow(workflowId, experimentInfo.id),
       );
 
@@ -419,7 +419,7 @@ export default function WorkflowList({ experimentInfo }) {
                               '?',
                           )
                         ) {
-                          await fetch(
+                          await chatAPI.authenticatedFetch(
                             chatAPI.Endpoints.Workflows.DeleteWorkflow(
                               selectedWorkflow?.id,
                               experimentInfo.id,

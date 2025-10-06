@@ -4,7 +4,7 @@
 import useSWR from 'swr';
 import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
-import { getAccessToken } from './functions';
+import { getAccessToken, authenticatedFetch } from './functions';
 
 export function useAPI(
   majorEntity: string,
@@ -21,9 +21,8 @@ export function useAPI(
       'Content-Type': 'application/json',
     };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    return fetch(url, {
+    return authenticatedFetch(url, {
       headers,
-      credentials: 'include',
     }).then((res) => {
       // Check for HTTP 401 which means user is not authorized
       if (res.status === 401) {
@@ -81,10 +80,9 @@ export const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
     headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  const response = await fetch(input, {
+  const response = await authenticatedFetch(input as any, {
     ...init,
     headers,
-    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -163,7 +161,7 @@ export function useServerStats() {
 const fetchAndGetErrorStatus = async (url: string) => {
   console.log('🛎️fetching', url);
 
-  const res = await fetch(url);
+  const res = await authenticatedFetch(url);
 
   // console.log('🛎️fetched', res);
 

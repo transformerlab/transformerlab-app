@@ -135,7 +135,7 @@ export default function InferenceEngineModal({
 
             setInferenceSettings(newInferenceSettings);
 
-            await fetch(
+            await chatAPI.authenticatedFetch(
               chatAPI.Endpoints.Experiment.UpdateConfig(
                 experimentId,
                 'inferenceParams',

@@ -129,26 +129,21 @@ export default function RunModelButton({
   }
 
   async function getDefaultinferenceEngines() {
-    const inferenceEngines = await fetch(
+    const inferenceEngines = await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
         'loader', // type
         'model_architectures:' +
           experimentInfo?.config?.foundation_model_architecture, //filter
       ),
-      {
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
-        },
-      }
+      {}
     );
     const inferenceEnginesJSON = await inferenceEngines.json();
     const experimentId = experimentInfo?.id;
     const engine = inferenceEnginesJSON?.[0]?.uniqueId;
     const inferenceEngineFriendlyName = inferenceEnginesJSON?.[0]?.name || '';
 
-    await fetch(
+    await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.UpdateConfig(
         experimentId,
         'inferenceParams',
@@ -158,12 +153,7 @@ export default function RunModelButton({
           inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
         }),
       ),
-      {
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${await chatAPI.getAccessToken()}`,
-        },
-      }
+      {}
     );
 
     return {
@@ -204,7 +194,7 @@ export default function RunModelButton({
 
         // Update the experiment config with the first supported engine
         if (experimentInfo?.id) {
-          fetch(
+          chatAPI.authenticatedFetch(
             chatAPI.Endpoints.Experiment.UpdateConfig(
               experimentInfo.id,
               'inferenceParams',

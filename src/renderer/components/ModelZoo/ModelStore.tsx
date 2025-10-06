@@ -144,7 +144,7 @@ export default function ModelStore() {
   useEffect(() => {
     console.log(obj);
     if (!experimentInfo?.id) return;
-    fetch(
+    chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Jobs.GetJobsOfType(
         experimentInfo.id,
         'DOWNLOAD_MODEL',
@@ -550,7 +550,7 @@ export default function ModelStore() {
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
                               try {
-                                let response = await fetch(
+                let response = await chatAPI.authenticatedFetch(
                                   chatAPI.Endpoints.Jobs.Create(
                                     experimentInfo.id,
                                   ),

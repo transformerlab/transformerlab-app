@@ -81,8 +81,8 @@ export default function Prompt({
           const formData = new FormData(event.currentTarget);
           const formJson = Object.fromEntries((formData as any).entries());
           // alert(JSON.stringify(formJson));
-          fetch(
-            chatAPI.Endpoints.Endpoints.Experiment.SavePrompt(experimentId),
+          authenticatedFetch(
+            chatAPI.Endpoints.Experiment.SavePrompt(experimentId),
             {
               method: 'POST',
               body: JSON.stringify(formJson),

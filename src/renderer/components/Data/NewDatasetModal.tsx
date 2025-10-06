@@ -40,7 +40,7 @@ export default function DatasetDetailsModal({ open, setOpen }) {
 
   const uploadFiles = async (formData) => {
     setUploading(true);
-    const response = await fetch(
+    const response = await authenticatedFetch(
       chatAPI.Endpoints.Dataset.Create(newDatasetName),
     );
     const data = await response.json();

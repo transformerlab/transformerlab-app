@@ -45,7 +45,9 @@ export default function ExperimentSettings() {
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              fetch(chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id));
+              chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id),
+              );
               setExperimentId(null);
             }
           }}

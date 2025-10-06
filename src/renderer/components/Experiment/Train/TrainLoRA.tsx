@@ -422,7 +422,7 @@ export default function TrainLoRA({}) {
                               confirm(
                                 'Are you sure you want to delete this Training Template?',
                               ) &&
-                                (await fetch(
+                                (await chatAPI.authenticatedFetch(
                                   chatAPI.Endpoints.Tasks.DeleteTask(row.id),
                                 ));
                               mutate();
@@ -565,7 +565,7 @@ export default function TrainLoRA({}) {
                           <IconButton variant="plain">
                             <Trash2Icon
                               onClick={async () => {
-                                await fetch(
+                                await chatAPI.authenticatedFetch(
                                   chatAPI.Endpoints.Jobs.Delete(
                                     experimentInfo.id,
                                     job.id,

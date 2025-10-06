@@ -21,7 +21,7 @@ import { fetcher, authenticatedFetch } from '../../../lib/transformerlab-api-sdk
 const fetchToolsWithMcp = async () => {
   try {
     // Fetch MCP_SERVER config
-    const configResp = await fetch(
+    const configResp = await authenticatedFetch(
       chatAPI.getAPIFullPath('config', ['get'], { key: 'MCP_SERVER' }),
     );
     if (!configResp.ok) {
