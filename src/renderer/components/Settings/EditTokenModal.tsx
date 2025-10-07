@@ -94,7 +94,7 @@ const EditTokenModal = ({
               border: "none",
               borderRadius: "6px",
               padding: "6px 12px",
-              cursor: hasChanged ? "pointer" : "not-allowed",
+              cursor: hasChanged ? "pointer" : "",
               transition: "background 0.2s ease",
             }}
           >
