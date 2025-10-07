@@ -13,11 +13,18 @@ const EditTokenModal = ({
   token: string;
   onSave: (token: string) => void;
 }) => {
-  if (!open) return null;
-
   const [newToken, setNewToken] = React.useState(token);
 
-  const hasChanged = newToken.trim() !== token.trim();
+  // Reset state when modal opens or token changes
+  React.useEffect(() => {
+    if (open) {
+      setNewToken(token || '');
+    }
+  }, [open, token]);
+
+  if (!open) return null;
+
+  const hasChanged = (newToken || '').trim() !== (token || '').trim();
 
   return (
     <div
@@ -80,14 +87,14 @@ const EditTokenModal = ({
 
           <button
             disabled={!hasChanged}
-            onClick={() => onSave(newToken)}
+            onClick={() => onSave(newToken.trim())}
             style={{
               background: hasChanged ? "#0d6efd" : "#a0c4ff",
               color: "white",
               border: "none",
               borderRadius: "6px",
               padding: "6px 12px",
-              cursor: hasChanged ? "pointer" : "",
+              cursor: hasChanged ? "pointer" : "not-allowed",
               transition: "background 0.2s ease",
             }}
           >
