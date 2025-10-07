@@ -285,7 +285,7 @@ export default function TransformerLabSettings() {
               <div>
                 <div style={{ position: 'relative', width: '100%' }}>
                 <Alert color="success" style={{ width: '100%', margin: 0 }}>
-                  Login to Weights &amp; Biases Successful
+                  Login to Weights &amp; Biases Successful (API Key: {wandbToken})
                 </Alert>
                 <p
                   style={{
