@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
 import { Button, Stack, Typography } from '@mui/joy';
@@ -7,6 +8,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import { PlusIcon } from 'lucide-react';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
+import NewTaskModal from './NewTaskModal';
 
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -42,6 +44,15 @@ const jobs = [
 ];
 
 export default function Tasks() {
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleOpen = () => setModalOpen(true);
+  const handleClose = () => setModalOpen(false);
+  const handleSubmit = (data: any) => {
+    alert(`Submitted: ${JSON.stringify(data)}`);
+    setModalOpen(false);
+  };
+
   return (
     <Sheet
       sx={{
@@ -51,6 +62,11 @@ export default function Tasks() {
         overflow: 'hidden',
       }}
     >
+      <NewTaskModal
+        open={modalOpen}
+        onClose={handleClose}
+        onSubmit={handleSubmit}
+      />
       <Stack
         direction="row"
         justifyContent="space-between"
@@ -58,7 +74,9 @@ export default function Tasks() {
         gap={2}
       >
         <Typography level="title-md">Task Templates</Typography>
-        <Button startDecorator={<PlusIcon />}>New</Button>
+        <Button startDecorator={<PlusIcon />} onClick={handleOpen}>
+          New
+        </Button>
       </Stack>
       <Sheet
         variant="soft"
