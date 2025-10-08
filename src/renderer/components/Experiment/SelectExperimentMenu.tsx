@@ -127,7 +127,7 @@ export default function SelectExperimentMenu({ models }) {
     mutate();
   }, [experimentInfo]);
 
-  const createHandleClose = (id: number) => () => {
+  const createHandleClose = (id: string) => () => {
     setAnchorEl(null);
     setExperimentId(id);
   };
@@ -336,7 +336,7 @@ export default function SelectExperimentMenu({ models }) {
                           ? 'soft'
                           : undefined
                       }
-                      onClick={createHandleClose(experiment.id)}
+                      onClick={createHandleClose(experiment.name)}
                       key={experiment.id}
                       sx={{
                         display: 'flex',

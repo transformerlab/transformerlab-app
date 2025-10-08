@@ -417,12 +417,12 @@ Endpoints.Experiment = {
 };
 
 Endpoints.Jobs = {
-  List: (experimentId: number) =>
+  List: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/list`,
-  Get: (experimentId: number, jobId: string) =>
+  Get: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}`,
   Create: (
-    experimentId: number,
+    experimentId: string,
     type?: string,
     status?: string,
     data?: string, // Should be JSON
@@ -431,16 +431,16 @@ Endpoints.Jobs = {
     `?status=${status || 'CREATED'}` +
     `${type ? `&type=${type}` : ''}${data ? `&data=${data}` : ''}`,
   GetJobsOfType: (
-    experimentId: number,
+    experimentId: string,
     type: string = '',
     status: string = '',
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/list?type=${type}&status=${status}`,
-  Delete: (experimentId: number, jobId: string) =>
+  Delete: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/delete/${jobId}`,
-  Stop: (experimentId: number, jobId: string) =>
+  Stop: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
-  GetEvalImages: (experimentId: number, jobId: string) =>
+  GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
 };
 
