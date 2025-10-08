@@ -13,6 +13,7 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useCallback, useEffect, useState } from 'react';
 import useSWR from 'swr';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
 import Embeddings from './Experiment/Embeddings';
@@ -41,8 +42,8 @@ import FoundationHome from './Experiment/Foundation';
 import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
+import Tasks from './Experiment/Tasks/Tasks';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -187,15 +188,17 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
 
   const setAdaptor = useCallback(
     (name) => {
-      chatAPI.authenticatedFetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'adaptor',
-          name,
-        ),
-      ).then((res) => {
-        experimentInfoMutate();
-      });
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'adaptor',
+            name,
+          ),
+        )
+        .then((res) => {
+          experimentInfoMutate();
+        });
     },
     [experimentInfo, experimentInfoMutate],
   );
@@ -368,6 +371,8 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/experiment/embeddings" element={<Embeddings />} />
         <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route path="/experiment/training" element={<TrainLoRA />} />
+        <Route path="/experiment/tasks" element={<Tasks />} />
+
         <Route
           path="/experiment/eval"
           element={<Eval addEvaluation={experimentAddEvaluation} />}

@@ -23,6 +23,7 @@ import {
   LogOutIcon,
   LogInIcon,
   AudioLinesIcon,
+  StretchHorizontalIcon,
 } from 'lucide-react';
 
 import { RiImageAiLine } from 'react-icons/ri';
@@ -75,6 +76,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
+  const GPU_ORCHESTRATION_MODE = experimentInfo?.name === 'gpu';
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -170,84 +172,99 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         flex: 1,
       }}
     >
-      <SubNavItem
-        title="Foundation"
-        path="/experiment/model"
-        icon={<LayersIcon strokeWidth={1} />}
-        disabled={!experimentInfo?.name}
-      />
-      {/* Show Interact tab only if not diffusion and not text-to-speech */}
-      {(isValidDiffusionModel === false || isValidDiffusionModel === null) &&
-        pipelineTag !== 'text-to-speech' && (
-          <SubNavItem
-            title="Interact"
-            path="/experiment/chat"
-            icon={<MessageCircleIcon strokeWidth={9} />}
-            disabled={
-              !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-            }
-          />
-        )}
-      {/* Show Diffusion tab only if the model IS a diffusion model */}
-      {isValidDiffusionModel === true && (
+      {GPU_ORCHESTRATION_MODE ? (
         <SubNavItem
-          title="Diffusion"
-          path="/experiment/diffusion"
-          icon={<RiImageAiLine />}
+          title="Tasks"
+          path="/experiment/tasks"
+          icon={<StretchHorizontalIcon />}
           disabled={!experimentInfo?.name}
         />
+      ) : (
+        <>
+          <SubNavItem
+            title="Foundation"
+            path="/experiment/model"
+            icon={<LayersIcon strokeWidth={1} />}
+            disabled={!experimentInfo?.name}
+          />
+          {(isValidDiffusionModel === false ||
+            isValidDiffusionModel === null) &&
+            pipelineTag !== 'text-to-speech' && (
+              <SubNavItem
+                title="Interact"
+                path="/experiment/chat"
+                icon={<MessageCircleIcon strokeWidth={9} />}
+                disabled={
+                  !experimentInfo?.name || activeModelIsNotSameAsFoundation()
+                }
+              />
+            )}
+          {/* Show Diffusion tab only if the model IS a diffusion model */}
+          {isValidDiffusionModel === true && (
+            <SubNavItem
+              title="Diffusion"
+              path="/experiment/diffusion"
+              icon={<RiImageAiLine />}
+              disabled={!experimentInfo?.name}
+            />
+          )}
+          {/* Show Audio tab only if pipelineTag is text-to-speech */}
+          {pipelineTag === 'text-to-speech' && (
+            <SubNavItem
+              title="Audio"
+              path="/experiment/audio"
+              icon={<AudioLinesIcon />}
+              disabled={
+                !experimentInfo?.name || activeModelIsNotSameAsFoundation()
+              }
+            />
+          )}
+          <SubNavItem
+            title="Workflows"
+            path="/experiment/workflows"
+            icon={<WorkflowIcon />}
+            disabled={!experimentInfo?.name}
+          />
+          <SubNavItem
+            title="Train"
+            path="/experiment/training"
+            icon={<GraduationCapIcon />}
+            disabled={!experimentInfo?.name}
+          />
+          <SubNavItem
+            title="Generate"
+            path="/experiment/generate"
+            icon={<SquareStackIcon />}
+            disabled={!experimentInfo?.name}
+          />
+          <SubNavItem
+            title="Evaluate"
+            path="/experiment/eval"
+            icon={<ChartColumnIncreasingIcon />}
+            disabled={!experimentInfo?.name || isValidDiffusionModel === true}
+          />
+          <SubNavItem
+            title="Documents"
+            path="/experiment/documents"
+            icon={<FileIcon />}
+            disabled={!experimentInfo?.name}
+          />
+          <SubNavItem
+            title="Export"
+            path="/experiment/export"
+            icon={<ArrowRightFromLineIcon />}
+            disabled={
+              !experimentInfo?.name || !experimentInfo?.config?.foundation
+            }
+          />
+          <SubNavItem
+            title="Notes"
+            path="/experiment/notes"
+            icon={<FlaskConicalIcon />}
+            disabled={!experimentInfo?.name}
+          />
+        </>
       )}
-      {/* Show Audio tab only if pipelineTag is text-to-speech */}
-      {pipelineTag === 'text-to-speech' && (
-        <SubNavItem
-          title="Audio"
-          path="/experiment/audio"
-          icon={<AudioLinesIcon />}
-          disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
-        />
-      )}
-      <SubNavItem
-        title="Workflows"
-        path="/experiment/workflows"
-        icon={<WorkflowIcon />}
-        disabled={!experimentInfo?.name}
-      />
-      <SubNavItem
-        title="Train"
-        path="/experiment/training"
-        icon={<GraduationCapIcon />}
-        disabled={!experimentInfo?.name}
-      />
-      <SubNavItem
-        title="Generate"
-        path="/experiment/generate"
-        icon={<SquareStackIcon />}
-        disabled={!experimentInfo?.name}
-      />
-      <SubNavItem
-        title="Evaluate"
-        path="/experiment/eval"
-        icon={<ChartColumnIncreasingIcon />}
-        disabled={!experimentInfo?.name || isValidDiffusionModel === true}
-      />
-      <SubNavItem
-        title="Documents"
-        path="/experiment/documents"
-        icon={<FileIcon />}
-        disabled={!experimentInfo?.name}
-      />
-      <SubNavItem
-        title="Export"
-        path="/experiment/export"
-        icon={<ArrowRightFromLineIcon />}
-        disabled={!experimentInfo?.name || !experimentInfo?.config?.foundation}
-      />
-      <SubNavItem
-        title="Notes"
-        path="/experiment/notes"
-        icon={<FlaskConicalIcon />}
-        disabled={!experimentInfo?.name}
-      />
     </List>
   );
 }
@@ -1024,6 +1041,7 @@ export default function Sidebar({
   const navigate = useNavigate();
 
   const DEV_MODE = experimentInfo?.name === 'dev';
+  const GPU_ORCHESTRATION_MODE = experimentInfo?.name === 'gpu';
 
   return (
     <Sheet
@@ -1080,10 +1098,7 @@ export default function Sidebar({
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
       />
-      <BottomMenuItems
-        navigate={navigate}
-        themeSetter={themeSetter}
-      />
+      <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );
 }
