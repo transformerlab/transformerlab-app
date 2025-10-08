@@ -65,7 +65,6 @@ function StatRow({ title, value }) {
   );
 }
 
-
 export default function Computer() {
   const [searchText, setSearchText] = useState('');
 

@@ -41,7 +41,9 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
     if (mode === 'package') {
       serverName = serverName.replace(/-/g, '_');
     }
-    const resp = await authenticatedFetch(Endpoints.Tools.InstallMcpPlugin(serverName));
+    const resp = await authenticatedFetch(
+      Endpoints.Tools.InstallMcpPlugin(serverName),
+    );
     const result = await resp.json();
     setLoading(false);
     if (result.status === 'success') {

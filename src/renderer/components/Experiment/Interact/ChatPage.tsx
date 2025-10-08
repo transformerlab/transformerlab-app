@@ -75,12 +75,17 @@ export default function ChatPage({
     }
     newPrompt.system_message = newSystemPrompt;
 
-    chatAPI.authenticatedFetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
-      method: 'POST',
-      body: JSON.stringify(newPrompt),
-    }).then((response) => {
-      experimentInfoMutate();
-    });
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Experiment.SavePrompt(experimentId),
+        {
+          method: 'POST',
+          body: JSON.stringify(newPrompt),
+        },
+      )
+      .then((response) => {
+        experimentInfoMutate();
+      });
   };
 
   const [debouncedSystemMessage] = useDebounce(systemMessage, 1000);

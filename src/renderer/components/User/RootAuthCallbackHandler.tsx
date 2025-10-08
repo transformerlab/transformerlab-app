@@ -40,7 +40,9 @@ function getBasePath(loc: Location) {
 
 export default function RootAuthCallbackHandler() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<
+    'idle' | 'loading' | 'success' | 'error'
+  >('idle');
   const [message, setMessage] = useState<string>('');
 
   useEffect(() => {
@@ -67,8 +69,14 @@ export default function RootAuthCallbackHandler() {
         setMessage(result.message || 'Login successful. Redirecting...');
 
         // Clean URL then navigate immediately
-        const cleanedBasePath = basePath.endsWith('/') ? basePath : `${basePath}/`;
-        window.history.replaceState({}, document.title, `${origin}${cleanedBasePath}#/`);
+        const cleanedBasePath = basePath.endsWith('/')
+          ? basePath
+          : `${basePath}/`;
+        window.history.replaceState(
+          {},
+          document.title,
+          `${origin}${cleanedBasePath}#/`,
+        );
         // Navigate hash root so components mount with token available
         navigate('/', { replace: true });
         // Short microtask delay before reload to allow react-router to settle

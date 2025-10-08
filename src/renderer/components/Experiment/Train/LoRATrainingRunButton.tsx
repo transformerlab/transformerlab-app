@@ -117,14 +117,15 @@ export default function LoRATrainingRunButton({
 
         if (modelInLocalList && datasetInLocalList) {
           // Use fetch API to call endpoint
-          await chatAPI.authenticatedFetch(
-            chatAPI.Endpoints.Jobs.Create(
-              experimentId,
-              'TRAIN',
-              'QUEUED',
-              JSON.stringify(job_data),
-            ),
-          )
+          await chatAPI
+            .authenticatedFetch(
+              chatAPI.Endpoints.Jobs.Create(
+                experimentId,
+                'TRAIN',
+                'QUEUED',
+                JSON.stringify(job_data),
+              ),
+            )
             .then((response) => response.json())
             .then((data) => console.log(data))
             .catch((error) => console.log(error));

@@ -27,7 +27,6 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.setTheme('my-theme');
 }
 
-
 export default function ExperimentNotes({}) {
   const editorRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);

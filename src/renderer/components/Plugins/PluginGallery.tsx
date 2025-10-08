@@ -231,11 +231,7 @@ export default function PluginGallery({
 
             {/* Incompatible plugins */}
             {groupedPlugins[type].incompatible.length > 0 && (
-              <Accordion
-                sx={{ mt: 3 }}
-                defaultExpanded={false}
-                variant="plain"
-              >
+              <Accordion sx={{ mt: 3 }} defaultExpanded={false} variant="plain">
                 <AccordionSummary>
                   <Typography
                     level="title-sm"

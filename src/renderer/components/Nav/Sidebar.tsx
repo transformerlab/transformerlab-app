@@ -1080,10 +1080,7 @@ export default function Sidebar({
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
       />
-      <BottomMenuItems
-        navigate={navigate}
-        themeSetter={themeSetter}
-      />
+      <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );
 }

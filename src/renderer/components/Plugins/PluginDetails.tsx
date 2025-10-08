@@ -147,7 +147,6 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.setTheme('my-theme');
 }
 
-
 export default function PluginDetails() {
   const { experimentInfo } = useExperimentInfo();
   let { pluginName } = useParams();
@@ -335,19 +334,21 @@ export default function PluginDetails() {
         <Button
           disabled={currentFile == null ? true : false}
           onClick={() => {
-            chatAPI.authenticatedFetch(
-              chatAPI.Endpoints.Experiment.ScriptSaveFile(
-                experimentInfo?.id,
-                pluginName,
-                currentFile,
-              ),
-              {
-                method: 'POST',
-                body: editorRef?.current?.getValue(),
-              },
-            ).then(() => {
-              mutate();
-            });
+            chatAPI
+              .authenticatedFetch(
+                chatAPI.Endpoints.Experiment.ScriptSaveFile(
+                  experimentInfo?.id,
+                  pluginName,
+                  currentFile,
+                ),
+                {
+                  method: 'POST',
+                  body: editorRef?.current?.getValue(),
+                },
+              )
+              .then(() => {
+                mutate();
+              });
           }}
           startDecorator={<SaveIcon />}
         >

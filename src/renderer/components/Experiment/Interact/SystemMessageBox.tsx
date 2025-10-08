@@ -92,10 +92,14 @@ export default function SystemMessageBox({
   const savePromptToServer = (promptData: any) => {
     const experimentId = experimentInfo?.id;
 
-    chatAPI.authenticatedFetch(chatAPI.Endpoints.Experiment.SavePrompt(experimentId), {
-      method: 'POST',
-      body: JSON.stringify(promptData),
-    })
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Experiment.SavePrompt(experimentId),
+        {
+          method: 'POST',
+          body: JSON.stringify(promptData),
+        },
+      )
       .then(() => {
         experimentInfoMutate();
         return true;

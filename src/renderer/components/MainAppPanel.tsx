@@ -187,15 +187,17 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
 
   const setAdaptor = useCallback(
     (name) => {
-      chatAPI.authenticatedFetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'adaptor',
-          name,
-        ),
-      ).then((res) => {
-        experimentInfoMutate();
-      });
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'adaptor',
+            name,
+          ),
+        )
+        .then((res) => {
+          experimentInfoMutate();
+        });
     },
     [experimentInfo, experimentInfoMutate],
   );
