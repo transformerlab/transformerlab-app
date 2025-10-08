@@ -18,7 +18,6 @@ import {
   SquareStackIcon,
   FileIcon,
   ChartColumnIncreasingIcon,
-  WorkflowIcon,
   UserIcon,
   LogOutIcon,
   LogInIcon,

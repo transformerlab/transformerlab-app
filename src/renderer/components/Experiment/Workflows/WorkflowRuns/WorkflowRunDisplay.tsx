@@ -24,7 +24,7 @@ function WorkflowJobProgress({
   experimentId,
   jobId,
 }: {
-  experimentId: number;
+  experimentId: string;
   jobId: string;
 }) {
   const { data: jobData } = useSWR(
