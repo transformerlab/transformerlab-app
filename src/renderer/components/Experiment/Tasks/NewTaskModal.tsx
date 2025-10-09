@@ -13,34 +13,69 @@ import { ModalClose, ModalDialog } from '@mui/joy';
 type NewTaskModalProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { title: string; resources: string; code: string }) => void;
+  onSubmit: (data: {
+    title: string;
+    cluster_name: string;
+    command: string;
+    cpus?: string;
+    memory?: string;
+    disk_space?: string;
+    accelerators?: string;
+    num_nodes?: number;
+    setup?: string;
+  }) => void;
+  isSubmitting?: boolean;
 };
 
 export default function NewTaskModal({
   open,
   onClose,
   onSubmit,
+  isSubmitting = false,
 }: NewTaskModalProps) {
   const [title, setTitle] = React.useState('');
-  const [resources, setResources] = React.useState('');
-  const [code, setCode] = React.useState('');
+  const [clusterName, setClusterName] = React.useState('');
+  const [command, setCommand] = React.useState('');
+  const [cpus, setCpus] = React.useState('');
+  const [memory, setMemory] = React.useState('');
+  const [diskSpace, setDiskSpace] = React.useState('');
+  const [accelerators, setAccelerators] = React.useState('');
+  const [numNodes, setNumNodes] = React.useState('');
+  const [setup, setSetup] = React.useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ title, resources, code });
+    onSubmit({
+      title,
+      cluster_name: clusterName,
+      command,
+      cpus: cpus || undefined,
+      memory: memory || undefined,
+      disk_space: diskSpace || undefined,
+      accelerators: accelerators || undefined,
+      num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
+      setup: setup || undefined,
+    });
+    // Reset all form fields
     setTitle('');
-    setResources('');
-    setCode('');
+    setClusterName('');
+    setCommand('');
+    setCpus('');
+    setMemory('');
+    setDiskSpace('');
+    setAccelerators('');
+    setNumNodes('');
+    setSetup('');
     onClose();
   };
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog>
+      <ModalDialog sx={{ maxHeight: '90vh', overflow: 'hidden' }}>
         <ModalClose />
         <DialogTitle>New Task</DialogTitle>
         <form onSubmit={handleSubmit}>
-          <DialogContent>
+          <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
             <FormControl required>
               <FormLabel>Title</FormLabel>
               <Input
@@ -50,29 +85,92 @@ export default function NewTaskModal({
                 autoFocus
               />
             </FormControl>
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Resource Requirements</FormLabel>
+
+            <FormControl required sx={{ mt: 2 }}>
+              <FormLabel>Cluster Name</FormLabel>
               <Input
-                value={resources}
-                onChange={(e) => setResources(e.target.value)}
-                placeholder="e.g. 2 CPUs, 4GB RAM"
+                value={clusterName}
+                onChange={(e) => setClusterName(e.target.value)}
+                placeholder="Cluster name"
               />
             </FormControl>
+
             <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Code</FormLabel>
+              <FormLabel>CPUs</FormLabel>
+              <Input
+                value={cpus}
+                onChange={(e) => setCpus(e.target.value)}
+                placeholder="e.g. 2"
+              />
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Memory</FormLabel>
+              <Input
+                value={memory}
+                onChange={(e) => setMemory(e.target.value)}
+                placeholder="e.g. 4"
+              />
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Disk Space</FormLabel>
+              <Input
+                value={diskSpace}
+                onChange={(e) => setDiskSpace(e.target.value)}
+                placeholder="e.g. 20"
+              />
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Accelerators</FormLabel>
+              <Input
+                value={accelerators}
+                onChange={(e) => setAccelerators(e.target.value)}
+                placeholder="e.g. RTX3090:1"
+              />
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Number of Nodes</FormLabel>
+              <Input
+                type="number"
+                value={numNodes}
+                onChange={(e) => setNumNodes(e.target.value)}
+                placeholder="e.g. 1"
+              />
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Setup Command</FormLabel>
+              <Textarea
+                minRows={2}
+                value={setup}
+                onChange={(e) => setSetup(e.target.value)}
+                placeholder="Setup commands (optional)"
+              />
+            </FormControl>
+
+            <FormControl required sx={{ mt: 2 }}>
+              <FormLabel>Command</FormLabel>
               <Textarea
                 minRows={4}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="Paste your code here"
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                placeholder="Command to run"
               />
             </FormControl>
           </DialogContent>
           <DialogActions>
-            <Button variant="plain" color="neutral" onClick={onClose}>
+            <Button
+              variant="plain"
+              color="neutral"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="solid">
+            <Button type="submit" variant="solid" loading={isSubmitting}>
               Create Task
             </Button>
           </DialogActions>
