@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
 import { Button, Stack, Typography } from '@mui/joy';
@@ -18,42 +18,63 @@ const duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
-const tasksList = [
-  {
-    id: '1',
-    name: 'Task 1',
-    description: 'Description for Task 1',
-    type: 'training',
-    datasets: ['dataset1'],
-    config: JSON.stringify({}),
-    created: dayjs().subtract(1, 'day').toISOString(),
-    updated: dayjs().subtract(1, 'hour').toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Task 2',
-    description: 'Description for Task 2',
-    type: 'training',
-    datasets: ['dataset2'],
-    config: JSON.stringify({}),
-    created: dayjs().subtract(2, 'days').toISOString(),
-    updated: dayjs().subtract(2, 'hours').toISOString(),
-  },
-];
-
-const jobs = [
-  { id: 1, status: 'queued', job_data: { config: { name: 'Job 1' } } },
-  { id: 2, status: 'running', job_data: { config: { name: 'Job 2' } } },
-  { id: 3, status: 'completed', job_data: { config: { name: 'Job 3' } } },
-];
-
 export default function Tasks() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(false);
   const { experimentInfo } = useExperimentInfo();
 
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
+
+  const fetchTasks = async () => {
+    if (!experimentInfo?.id) return;
+
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.List()
+      );
+      const data = await response.json();
+
+      // Filter for remote tasks in this experiment only
+      const remoteTasks = data.filter((task: any) =>
+        task.remote_task === true && task.experiment_id === experimentInfo.id
+      );
+      setTasks(remoteTasks);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error fetching tasks:', error);
+    }
+  };
+
+  const fetchJobs = async () => {
+    if (!experimentInfo?.id) return;
+
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
+      );
+      const data = await response.json();
+      setJobs(data);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error fetching jobs:', error);
+    }
+  };
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([fetchTasks(), fetchJobs()]);
+    setLoading(false);
+  }, [experimentInfo?.id]);
+
+  useEffect(() => {
+    if (experimentInfo?.id) {
+      fetchData();
+    }
+  }, [experimentInfo?.id, fetchData]);
 
   const handleSubmit = async (data: any) => {
     if (!experimentInfo?.id) {
@@ -80,7 +101,7 @@ export default function Tasks() {
       if (data.setup) formData.append('setup', data.setup);
 
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.LaunchRemote(),
+        chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
         {
           method: 'POST',
           body: formData,
@@ -89,14 +110,16 @@ export default function Tasks() {
 
       const result = await response.json();
 
-      if (result.status === 'success') {
-        // eslint-disable-next-line no-alert
-        alert('Task launched successfully!');
-        setModalOpen(false);
-      } else {
-        // eslint-disable-next-line no-alert
-        alert(`Error: ${result.message}`);
-      }
+          if (result.status === 'success') {
+            // eslint-disable-next-line no-alert
+            alert('Task launched successfully!');
+            setModalOpen(false);
+            // Refresh the data to show the new task and job
+            await fetchData();
+          } else {
+            // eslint-disable-next-line no-alert
+            alert(`Error: ${result.message}`);
+          }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error launching task:', error);
@@ -133,23 +156,31 @@ export default function Tasks() {
           New
         </Button>
       </Stack>
-      <Sheet
-        variant="soft"
-        sx={{
-          px: 1,
-          mt: 1,
-          mb: 2,
-          flex: 1,
-          height: '100%',
-          overflow: 'auto',
-        }}
-      >
-        <TaskTemplateList tasksList={tasksList} />
-      </Sheet>
-      <Typography level="title-md">Runs</Typography>
-      <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        <JobsList jobs={jobs} />
-      </Sheet>
+          <Sheet
+            variant="soft"
+            sx={{
+              px: 1,
+              mt: 1,
+              mb: 2,
+              flex: 1,
+              height: '100%',
+              overflow: 'auto',
+            }}
+          >
+            {loading ? (
+              <Typography>Loading tasks...</Typography>
+            ) : (
+              <TaskTemplateList tasksList={tasks} />
+            )}
+          </Sheet>
+          <Typography level="title-md">Runs</Typography>
+          <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
+            {loading ? (
+              <Typography>Loading jobs...</Typography>
+            ) : (
+              <JobsList jobs={jobs} />
+            )}
+          </Sheet>
     </Sheet>
   );
 }

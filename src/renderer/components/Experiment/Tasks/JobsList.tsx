@@ -10,6 +10,40 @@ interface JobsListProps {
 }
 
 const JobsList: React.FC<JobsListProps> = ({ jobs }) => {
+  const getJobDetails = (job: any) => {
+    // Check if this is a remote task
+    if (job.job_data?.remote_task) {
+      return (
+        <div>
+          Cluster: {job.job_data.cluster_name || 'N/A'}
+          {job.job_data.accelerators && (
+            <>
+              <br />
+              Accelerators: {job.job_data.accelerators}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // For regular jobs, show template name or job type
+    if (job.job_data?.template_name) {
+      return (
+        <div>
+          <strong>{job.job_data.template_name}</strong>
+          <br />
+          Type: {job.type || 'Unknown'}
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <strong>{job.type || 'Unknown Job'}</strong>
+      </div>
+    );
+  };
+
   return (
     <Table>
       <thead>
@@ -21,13 +55,13 @@ const JobsList: React.FC<JobsListProps> = ({ jobs }) => {
         </tr>
       </thead>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
-        {jobs?.length > 0 &&
+        {jobs?.length > 0 ? (
           jobs?.map((job) => (
             <tr key={job.id}>
               <td>
                 <b>{job.id}</b>
               </td>
-              <td>s</td>
+              <td>{getJobDetails(job)}</td>
               <td>
                 <JobProgress job={job} />
               </td>
@@ -39,7 +73,14 @@ const JobsList: React.FC<JobsListProps> = ({ jobs }) => {
                 </ButtonGroup>
               </td>
             </tr>
-          ))}
+          ))
+        ) : (
+          <tr>
+            <td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>
+              No jobs found
+            </td>
+          </tr>
+        )}
       </tbody>
     </Table>
   );
