@@ -16,6 +16,7 @@ import {
   LogOutIcon,
   LogInIcon,
   StretchHorizontalIcon,
+  LibraryBigIcon,
 } from 'lucide-react';
 
 import {
@@ -112,6 +113,11 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
 
       <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
+      <SubNavItem
+        title="Task Library"
+        path="/task_library"
+        icon={<LibraryBigIcon />}
+      />
       <SubNavItem
         title="API"
         path="/api"
