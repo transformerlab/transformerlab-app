@@ -163,6 +163,7 @@ export default function Tasks() {
       formData.append('experimentId', experimentInfo.id);
       formData.append('cluster_name', data.cluster_name);
       formData.append('command', data.command);
+      formData.append('task_name', data.title);
 
       // Add optional parameters if they exist
       if (data.cpus) formData.append('cpus', data.cpus);
