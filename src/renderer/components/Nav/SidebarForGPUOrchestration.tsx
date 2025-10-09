@@ -3,29 +3,20 @@ import { useState, useEffect, FormEvent } from 'react';
 
 import {
   CodeIcon,
-  GraduationCapIcon,
-  LayersIcon,
-  MessageCircleIcon,
   BoxesIcon,
   FileTextIcon,
   MonitorIcon,
   FlaskConicalIcon,
   SettingsIcon,
   GithubIcon,
-  ArrowRightFromLineIcon,
   PlugIcon,
   TextIcon,
-  SquareStackIcon,
   FileIcon,
-  ChartColumnIncreasingIcon,
   UserIcon,
   LogOutIcon,
   LogInIcon,
-  AudioLinesIcon,
   StretchHorizontalIcon,
 } from 'lucide-react';
-
-import { RiImageAiLine } from 'react-icons/ri';
 
 import {
   Alert,
@@ -75,92 +66,6 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
-  const GPU_ORCHESTRATION_MODE = experimentInfo?.name === 'gpu';
-
-  const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
-    boolean | null
-  >(null);
-
-  function activeModelIsNotSameAsFoundation() {
-    if (models === null) {
-      return true;
-    }
-
-    if (!experimentInfo?.name) {
-      return true;
-    }
-
-    // The API may respond with the ID of the model, or the model filename or the adaptor
-    return (
-      models?.[0]?.id !==
-        experimentInfo?.config?.foundation?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !==
-        experimentInfo?.config?.foundation_filename?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !== experimentInfo?.config.adaptor
-    );
-  }
-
-  // Check if the current foundation model is a diffusion model and fetch pipeline_tag in the same effect
-  useEffect(() => {
-    const checkValidDiffusionAndPipelineTag = async () => {
-      if (!experimentInfo?.config?.foundation) {
-        setIsValidDiffusionModel(false);
-        setPipelineTag(null);
-        return;
-      }
-
-      let pipelineTagResult = null;
-
-      // Check pipeline_tag first
-      try {
-        const url = getAPIFullPath('models', ['pipeline_tag'], {
-          modelName: experimentInfo.config.foundation,
-        });
-        const response = await fetch(url, { method: 'GET' });
-        if (!response.ok) {
-          setPipelineTag(null);
-        } else {
-          const data = await response.json();
-          console.log('Pipeline tag data:', data);
-          pipelineTagResult = data?.data || null;
-          setPipelineTag(pipelineTagResult);
-        }
-      } catch (e) {
-        setPipelineTag(null);
-        console.error('Error fetching pipeline tag:', e);
-      }
-
-      // If pipelineTag is text-to-speech, never show diffusion tab
-      if (pipelineTagResult === 'text-to-speech') {
-        setIsValidDiffusionModel(false);
-        return;
-      }
-
-      // Otherwise, check diffusion
-      try {
-        const response = await fetch(
-          getAPIFullPath('diffusion', ['checkValidDiffusion'], {
-            experimentId: experimentInfo.id,
-          }),
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: experimentInfo.config.foundation }),
-          },
-        );
-
-        if (!response.ok) {
-          setIsValidDiffusionModel(false);
-        } else {
-          const data = await response.json();
-          setIsValidDiffusionModel(data.is_valid_diffusion_model ?? false);
-        }
-      } catch (e) {
-        setIsValidDiffusionModel(false);
-      }
-    };
-    checkValidDiffusionAndPipelineTag();
-  }, [experimentInfo?.config?.foundation]);
 
   return (
     <List
@@ -213,14 +118,6 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
         icon={<CodeIcon />}
         disabled={!experimentInfo?.name}
       />
-      <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
-      <SubNavItem
-        title="Plugins"
-        path="/plugins"
-        icon={<PlugIcon />}
-        counter={outdatedPluginsCount}
-      />
-      <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
     </List>
   );
 }
