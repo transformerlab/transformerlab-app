@@ -444,7 +444,10 @@ export default function MainAppPanel({
             />
           }
         />
-        <Route path="/data" element={<Data />} />
+        <Route
+          path="/data"
+          element={<Data gpuOrchestrationServer={gpuOrchestrationServer} />}
+        />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
