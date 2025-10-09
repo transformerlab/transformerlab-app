@@ -15,7 +15,7 @@ const JobsList: React.FC<JobsListProps> = ({ jobs }) => {
     if (job.job_data?.remote_task) {
       return (
         <div>
-          Cluster: {job.job_data.cluster_name || 'N/A'}
+          Instance: {job.job_data.cluster_name || 'N/A'}
           {job.job_data.accelerators && (
             <>
               <br />
