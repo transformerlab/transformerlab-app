@@ -120,7 +120,10 @@ function AppContent({
         }}
         id="main-app-panel"
       >
-        <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
+        <MainAppPanel
+          setLogsDrawerOpen={setLogsDrawerOpen as any}
+          gpuOrchestrationServer={gpuOrchestrationServer}
+        />
       </Box>
       <Box
         sx={{
