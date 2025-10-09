@@ -17,7 +17,7 @@ export default function ModelZoo({
   // If we are in GPU Orchestration Mode, even if the default tab is 'groups', we should
   // show the 'local' tab instead, since 'groups' doesn't work in this mode
   const filteredTab =
-    gpuOrchestrationServer === '' && tab === 'groups' ? 'local' : tab;
+    gpuOrchestrationServer !== '' && tab === 'groups' ? 'local' : tab;
 
   return (
     <Sheet
@@ -46,7 +46,7 @@ export default function ModelZoo({
         <TabList>
           <Tab value="local">Local Models</Tab>
           <Tab value="generated">Generated</Tab>
-          {gpuOrchestrationServer !== '' && (
+          {gpuOrchestrationServer === '' && (
             <Tab value="groups">
               <StoreIcon color="grey" />
               &nbsp; Model Store
