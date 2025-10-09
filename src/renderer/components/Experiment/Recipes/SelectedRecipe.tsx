@@ -23,7 +23,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ShowArchitectures from 'renderer/components/Shared/ListArchitectures';
 import { useAPI, getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { authenticatedFetch } from 'renderer/lib/api-client/functions';
 import useSWR from 'swr';
 
 export function isRecipeCompatibleWithDevice(recipe: any, device: any) {
@@ -197,9 +197,9 @@ const RecipeDependenciesWithProgress = ({
     jobsKey,
     async () => {
       const promises = allJobIds.map((jobId: any) =>
-        fetch(getAPIFullPath('recipes', ['jobStatus'], { job_id: jobId })).then(
-          (res) => res.json(),
-        ),
+        authenticatedFetch(
+          getAPIFullPath('recipes', ['jobStatus'], { job_id: jobId }),
+        ).then((res) => res.json()),
       );
       const results = await Promise.all(promises);
 
@@ -438,7 +438,7 @@ const RecipeDependenciesWithProgress = ({
               setIsInstallingDependencies(true);
 
               try {
-                const installTask = await fetch(
+                const installTask = await authenticatedFetch(
                   getAPIFullPath('recipes', ['installDependencies'], {
                     id: recipeId,
                   }),
@@ -524,7 +524,7 @@ export default function SelectedRecipe({
       return;
     }
 
-    const existingExperiments = await fetch(
+    const existingExperiments = await authenticatedFetch(
       getAPIFullPath('experiment', ['getAll'], {}),
     ).then((res) => res.json());
     if (existingExperiments.some((exp: any) => exp.name === name)) {
