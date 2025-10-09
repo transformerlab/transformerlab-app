@@ -71,7 +71,9 @@ export default function NewTaskModal({
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ maxHeight: '90vh', overflow: 'hidden' }}>
+      <ModalDialog
+        sx={{ maxHeight: '90vh', width: '70vw', overflow: 'hidden' }}
+      >
         <ModalClose />
         <DialogTitle>New Task</DialogTitle>
         <form onSubmit={handleSubmit}>
@@ -80,54 +82,72 @@ export default function NewTaskModal({
               <FormLabel>Title</FormLabel>
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setClusterName(`${e.target.value}-instance`);
+                }}
                 placeholder="Task title"
                 autoFocus
               />
             </FormControl>
 
-            <FormControl required sx={{ mt: 2 }}>
+            {/* <FormControl required sx={{ mt: 2 }}>
               <FormLabel>Cluster Name</FormLabel>
               <Input
                 value={clusterName}
                 onChange={(e) => setClusterName(e.target.value)}
                 placeholder="Cluster name"
               />
-            </FormControl>
+            </FormControl> */}
+
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '16px',
+                marginTop: '16px',
+              }}
+            >
+              <FormControl
+                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+              >
+                <FormLabel>CPUs</FormLabel>
+                <Input
+                  value={cpus}
+                  onChange={(e) => setCpus(e.target.value)}
+                  placeholder="e.g. 2"
+                />
+              </FormControl>
+
+              <FormControl
+                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+              >
+                <FormLabel>Memory (in GB)</FormLabel>
+                <Input
+                  value={memory}
+                  onChange={(e) => setMemory(e.target.value)}
+                  placeholder="e.g. 4"
+                />
+              </FormControl>
+
+              <FormControl
+                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+              >
+                <FormLabel>Disk Space (in GB)</FormLabel>
+                <Input
+                  value={diskSpace}
+                  onChange={(e) => setDiskSpace(e.target.value)}
+                  placeholder="e.g. 20"
+                />
+              </FormControl>
+            </div>
 
             <FormControl sx={{ mt: 2 }}>
-              <FormLabel>CPUs</FormLabel>
-              <Input
-                value={cpus}
-                onChange={(e) => setCpus(e.target.value)}
-                placeholder="e.g. 2"
-              />
-            </FormControl>
-
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Memory</FormLabel>
-              <Input
-                value={memory}
-                onChange={(e) => setMemory(e.target.value)}
-                placeholder="e.g. 4"
-              />
-            </FormControl>
-
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Disk Space</FormLabel>
-              <Input
-                value={diskSpace}
-                onChange={(e) => setDiskSpace(e.target.value)}
-                placeholder="e.g. 20"
-              />
-            </FormControl>
-
-            <FormControl sx={{ mt: 2 }}>
-              <FormLabel>Accelerators</FormLabel>
+              <FormLabel>Accelerators per Node</FormLabel>
               <Input
                 value={accelerators}
                 onChange={(e) => setAccelerators(e.target.value)}
-                placeholder="e.g. RTX3090:1"
+                placeholder="e.g. RTX3090:1 or H100:8"
               />
             </FormControl>
 
@@ -147,7 +167,7 @@ export default function NewTaskModal({
                 minRows={2}
                 value={setup}
                 onChange={(e) => setSetup(e.target.value)}
-                placeholder="Setup commands (optional)"
+                placeholder="Setup commands (optional) that runs before task is run. e.g. pip install -r requirements.txt"
               />
             </FormControl>
 
@@ -157,7 +177,7 @@ export default function NewTaskModal({
                 minRows={4}
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
-                placeholder="Command to run"
+                placeholder="e.g. python train.py --epochs 10"
               />
             </FormControl>
           </DialogContent>
