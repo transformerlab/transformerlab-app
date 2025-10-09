@@ -2,47 +2,47 @@ import React from 'react';
 import Table from '@mui/joy/Table';
 import ButtonGroup from '@mui/joy/ButtonGroup';
 import IconButton from '@mui/joy/IconButton';
-import { Trash2Icon } from 'lucide-react';
+import Button from '@mui/joy/Button';
+import {
+  Trash2Icon,
+  InfoIcon,
+  LineChartIcon,
+  WaypointsIcon,
+} from 'lucide-react';
 import JobProgress from './JobProgress';
 
 interface JobsListProps {
   jobs: any[];
   onDeleteJob?: (jobId: string) => void;
+  onViewOutput?: (jobId: string) => void;
+  onViewTensorboard?: (jobId: string) => void;
+  onViewCheckpoints?: (jobId: string) => void;
+  onViewEvalImages?: (jobId: string) => void;
+  onViewSweepOutput?: (jobId: string) => void;
 }
 
-const JobsList: React.FC<JobsListProps> = ({ jobs, onDeleteJob }) => {
-  const getJobDetails = (job: any) => {
-    // Check if this is a remote task
-    if (job.job_data?.remote_task) {
-      return (
-        <div>
-          Instance: {job.job_data.cluster_name || 'N/A'}
-          {job.job_data.accelerators && (
-            <>
-              <br />
-              Accelerators: {job.job_data.accelerators}
-            </>
-          )}
-        </div>
-      );
-    }
-
-    // For regular jobs, show template name or job type
+const JobsList: React.FC<JobsListProps> = ({
+  jobs,
+  onDeleteJob,
+  onViewOutput,
+  onViewTensorboard,
+  onViewCheckpoints,
+  onViewEvalImages,
+  onViewSweepOutput,
+}) => {
+  const formatJobConfig = (job: any) => {
+    // For jobs with template name, show template info
     if (job.job_data?.template_name) {
       return (
-        <div>
-          <strong>{job.job_data.template_name}</strong>
+        <>
+          <b>Template:</b> {job.job_data.template_name}
           <br />
-          Type: {job.type || 'Unknown'}
-        </div>
+          <b>Type:</b> {job.type || 'Unknown'}
+        </>
       );
     }
 
-    return (
-      <div>
-        <strong>{job.type || 'Unknown Job'}</strong>
-      </div>
-    );
+    return <b>{job.type || 'Unknown Job'}</b>;
   };
 
   return (
@@ -61,20 +61,78 @@ const JobsList: React.FC<JobsListProps> = ({ jobs, onDeleteJob }) => {
             <tr key={job.id}>
               <td>
                 <b>{job.id}</b>
+                <br />
+                <InfoIcon
+                  onClick={() => {
+                    const jobDataConfig = job?.job_data;
+                    if (typeof jobDataConfig === 'object') {
+                      alert(JSON.stringify(jobDataConfig, null, 2));
+                    } else {
+                      alert(jobDataConfig);
+                    }
+                  }}
+                  size="16px"
+                  color="var(--joy-palette-neutral-500)"
+                  style={{ cursor: 'pointer' }}
+                />
               </td>
-              <td>{getJobDetails(job)}</td>
+              <td>{formatJobConfig(job)}</td>
               <td>
                 <JobProgress job={job} />
               </td>
-              <td>
+              <td style={{}}>
                 <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
-                  <IconButton 
-                    variant="plain" 
-                    color="danger"
-                    onClick={() => onDeleteJob?.(job.id)}
-                    title="Delete job"
+                  {job?.job_data?.tensorboard_output_dir && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewTensorboard?.(job?.id)}
+                      startDecorator={<LineChartIcon />}
+                    >
+                      Tensorboard
+                    </Button>
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant="plain"
+                    onClick={() => onViewOutput?.(job?.id)}
                   >
-                    <Trash2Icon style={{ cursor: 'pointer' }} />
+                    Output
+                  </Button>
+                  {job?.job_data?.eval_images_dir && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewEvalImages?.(job?.id)}
+                    >
+                      View Eval Images
+                    </Button>
+                  )}
+                  {job?.job_data?.sweep_output_file && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewSweepOutput?.(job?.id)}
+                    >
+                      Sweep Output
+                    </Button>
+                  )}
+                  {job?.job_data?.checkpoints && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewCheckpoints?.(job?.id)}
+                      startDecorator={<WaypointsIcon />}
+                    >
+                      Checkpoints
+                    </Button>
+                  )}
+                  <IconButton variant="plain">
+                    <Trash2Icon
+                      onClick={() => onDeleteJob?.(job.id)}
+                      style={{ cursor: 'pointer' }}
+                    />
                   </IconButton>
                 </ButtonGroup>
               </td>

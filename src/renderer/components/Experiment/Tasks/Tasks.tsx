@@ -1,13 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
-import {
-  Button,
-  CircularProgress,
-  LinearProgress,
-  Stack,
-  Typography,
-} from '@mui/joy';
+import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -30,6 +24,11 @@ export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
+  const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
+  const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
+  const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
+  const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState(-1);
   const { experimentInfo } = useExperimentInfo();
 
   const handleOpen = () => setModalOpen(true);
@@ -252,7 +251,18 @@ export default function Tasks() {
         {loading ? (
           <LinearProgress />
         ) : (
-          <JobsList jobs={jobs} onDeleteJob={handleDeleteJob} />
+          <JobsList
+            jobs={jobs}
+            onDeleteJob={handleDeleteJob}
+            onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+            onViewTensorboard={(jobId) => setCurrentTensorboardForModal(parseInt(jobId))}
+            onViewCheckpoints={(jobId) => setViewCheckpointsFromJob(parseInt(jobId))}
+            onViewEvalImages={(jobId) => setViewEvalImagesFromJob(parseInt(jobId))}
+            onViewSweepOutput={(jobId) => {
+              setViewOutputFromSweepJob(true);
+              setViewOutputFromJob(parseInt(jobId));
+            }}
+          />
         )}
       </Sheet>
     </Sheet>
