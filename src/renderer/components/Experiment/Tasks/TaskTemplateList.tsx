@@ -1,5 +1,6 @@
 import React from 'react';
-import { Table, ButtonGroup, Typography } from '@mui/joy';
+import { Table, ButtonGroup, Typography, IconButton } from '@mui/joy';
+import { Trash2Icon } from 'lucide-react';
 
 type TaskRow = {
   id: string;
@@ -15,9 +16,13 @@ type TaskRow = {
 
 type TaskTemplateListProps = {
   tasksList: TaskRow[];
+  onDeleteTask?: (taskId: string) => void;
 };
 
-const TaskTemplateList: React.FC<TaskTemplateListProps> = ({ tasksList }) => {
+const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
+  tasksList,
+  onDeleteTask,
+}) => {
   const getResourcesInfo = (task: TaskRow) => {
     if (!task.remote_task || typeof task.config !== 'object') {
       return 'N/A';
@@ -32,7 +37,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({ tasksList }) => {
     if (config.accelerators) resources.push(`Accelerators: ${config.accelerators}`);
     if (config.num_nodes) resources.push(`Nodes: ${config.num_nodes}`);
 
-    return resources.length > 0 ? resources.join(', ') : 'No resources specified';
+    return resources.length > 0
+      ? resources.join(', ')
+      : 'No resources specified';
   };
 
   const getCommandInfo = (task: TaskRow) => {
@@ -51,12 +58,12 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({ tasksList }) => {
     <Table>
       <thead>
         <tr>
-          <th width="150px">Name</th>
-          <th>Command</th>
-          <th>Resources</th>
-          <th style={{ textAlign: 'right' }} width="250px">
-            &nbsp;
-          </th>
+        <th style={{ width: '150px' }}>Name</th>
+        <th>Command</th>
+        <th>Resources</th>
+        <th style={{ textAlign: 'right', width: '250px' }}>
+          Actions
+        </th>
         </tr>
       </thead>
       <tbody>
@@ -68,21 +75,26 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({ tasksList }) => {
               </Typography>
             </td>
             <td style={{ overflow: 'clip' }}>
-              <Typography level="body-sm">
-                {getCommandInfo(row)}
-              </Typography>
+              <Typography level="body-sm">{getCommandInfo(row)}</Typography>
             </td>
             <td style={{ overflow: 'hidden' }}>
-              <Typography level="body-sm">
-                {getResourcesInfo(row)}
-              </Typography>
+              <Typography level="body-sm">{getResourcesInfo(row)}</Typography>
             </td>
             <td
               style={{
                 overflow: 'visible',
               }}
             >
-              <ButtonGroup sx={{ justifyContent: 'flex-end' }}></ButtonGroup>
+              <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
+                <IconButton 
+                  variant="plain" 
+                  color="danger"
+                  onClick={() => onDeleteTask?.(row.id)}
+                  title="Delete task"
+                >
+                  <Trash2Icon style={{ cursor: 'pointer' }} />
+                </IconButton>
+              </ButtonGroup>
             </td>
           </tr>
         ))}

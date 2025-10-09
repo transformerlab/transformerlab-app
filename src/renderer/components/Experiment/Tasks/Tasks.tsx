@@ -76,6 +76,72 @@ export default function Tasks() {
     }
   }, [experimentInfo?.id, fetchData]);
 
+  const handleDeleteTask = async (taskId: string) => {
+    if (!experimentInfo?.id) return;
+
+    // eslint-disable-next-line no-alert
+    if (!confirm('Are you sure you want to delete this task?')) {
+      return;
+    }
+
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.DeleteTask(taskId),
+        {
+          method: 'GET',
+        },
+      );
+
+      if (response.ok) {
+        // eslint-disable-next-line no-alert
+        alert('Task deleted successfully!');
+        // Refresh the data to remove the deleted task
+        await fetchData();
+      } else {
+        // eslint-disable-next-line no-alert
+        alert('Failed to delete task. Please try again.');
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error deleting task:', error);
+      // eslint-disable-next-line no-alert
+      alert('Failed to delete task. Please try again.');
+    }
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    if (!experimentInfo?.id) return;
+
+    // eslint-disable-next-line no-alert
+    if (!confirm('Are you sure you want to delete this job?')) {
+      return;
+    }
+
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.Delete(experimentInfo.id, jobId),
+        {
+          method: 'GET',
+        },
+      );
+
+      if (response.ok) {
+        // eslint-disable-next-line no-alert
+        alert('Job deleted successfully!');
+        // Refresh the data to remove the deleted job
+        await fetchData();
+      } else {
+        // eslint-disable-next-line no-alert
+        alert('Failed to delete job. Please try again.');
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error deleting job:', error);
+      // eslint-disable-next-line no-alert
+      alert('Failed to delete job. Please try again.');
+    }
+  };
+
   const handleSubmit = async (data: any) => {
     if (!experimentInfo?.id) {
       // eslint-disable-next-line no-alert
@@ -170,7 +236,7 @@ export default function Tasks() {
             {loading ? (
               <Typography>Loading tasks...</Typography>
             ) : (
-              <TaskTemplateList tasksList={tasks} />
+              <TaskTemplateList tasksList={tasks} onDeleteTask={handleDeleteTask} />
             )}
           </Sheet>
           <Typography level="title-md">Runs</Typography>
@@ -178,7 +244,7 @@ export default function Tasks() {
             {loading ? (
               <Typography>Loading jobs...</Typography>
             ) : (
-              <JobsList jobs={jobs} />
+              <JobsList jobs={jobs} onDeleteJob={handleDeleteJob} />
             )}
           </Sheet>
     </Sheet>

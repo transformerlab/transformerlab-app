@@ -7,9 +7,10 @@ import JobProgress from './JobProgress';
 
 interface JobsListProps {
   jobs: any[];
+  onDeleteJob?: (jobId: string) => void;
 }
 
-const JobsList: React.FC<JobsListProps> = ({ jobs }) => {
+const JobsList: React.FC<JobsListProps> = ({ jobs, onDeleteJob }) => {
   const getJobDetails = (job: any) => {
     // Check if this is a remote task
     if (job.job_data?.remote_task) {
@@ -67,7 +68,12 @@ const JobsList: React.FC<JobsListProps> = ({ jobs }) => {
               </td>
               <td>
                 <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
-                  <IconButton variant="plain">
+                  <IconButton 
+                    variant="plain" 
+                    color="danger"
+                    onClick={() => onDeleteJob?.(job.id)}
+                    title="Delete job"
+                  >
                     <Trash2Icon style={{ cursor: 'pointer' }} />
                   </IconButton>
                 </ButtonGroup>
