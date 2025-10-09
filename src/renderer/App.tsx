@@ -37,6 +37,8 @@ type AppContentProps = {
   themeSetter: (name: string) => void;
   setSSHConnection: (conn: any) => void;
   setConnection: (conn: string) => void;
+  gpuOrchestrationServer: string;
+  setGPUOrchestrationServer: (server: string) => void;
 };
 
 function AppContent({
@@ -48,6 +50,8 @@ function AppContent({
   themeSetter,
   setSSHConnection,
   setConnection,
+  gpuOrchestrationServer,
+  setGPUOrchestrationServer,
 }: AppContentProps) {
   const onOutputDrawerDrag = useCallback(
     (pos: { y: number }) => {
@@ -80,7 +84,11 @@ function AppContent({
         `,
       })}
     >
-      <Header connection={connection} setConnection={setConnection} />
+      <Header
+        connection={connection}
+        setConnection={setConnection}
+        gpuOrchestrationServer={gpuOrchestrationServer}
+      />
       <Sidebar
         logsDrawerOpen={logsDrawerOpen}
         setLogsDrawerOpen={setLogsDrawerOpen as any}
@@ -166,6 +174,7 @@ function AppContent({
         connection={connection}
         setTerminalDrawerOpen={setLogsDrawerOpen}
         setSSHConnection={setSSHConnection}
+        setGPUOrchestrationServer={setGPUOrchestrationServer}
       />
     </Box>
   );
@@ -175,6 +184,7 @@ const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when f
 
 export default function App() {
   const [connection, setConnection] = useState('');
+  const [gpuOrchestrationServer, setGPUOrchestrationServer] = useState('');
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
   const [theme, setTheme] = useState(customTheme);
@@ -210,6 +220,8 @@ export default function App() {
             themeSetter={themeSetter}
             setSSHConnection={() => {}}
             setConnection={setConnection}
+            gpuOrchestrationServer={gpuOrchestrationServer}
+            setGPUOrchestrationServer={setGPUOrchestrationServer}
           />
         </ExperimentInfoProvider>
       </CssVarsProvider>
