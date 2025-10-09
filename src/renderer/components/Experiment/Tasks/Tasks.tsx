@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
-import { Button, Stack, Typography } from '@mui/joy';
+import {
+  Button,
+  CircularProgress,
+  LinearProgress,
+  Stack,
+  Typography,
+} from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -34,13 +40,14 @@ export default function Tasks() {
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.List()
+        chatAPI.Endpoints.Tasks.List(),
       );
       const data = await response.json();
 
       // Filter for remote tasks in this experiment only
-      const remoteTasks = data.filter((task: any) =>
-        task.remote_task === true && task.experiment_id === experimentInfo.id
+      const remoteTasks = data.filter(
+        (task: any) =>
+          task.remote_task === true && task.experiment_id === experimentInfo.id,
       );
       setTasks(remoteTasks);
     } catch (error) {
@@ -54,7 +61,7 @@ export default function Tasks() {
 
     try {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
+        chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', ''),
       );
       const data = await response.json();
       setJobs(data);
@@ -176,16 +183,16 @@ export default function Tasks() {
 
       const result = await response.json();
 
-          if (result.status === 'success') {
-            // eslint-disable-next-line no-alert
-            alert('Task launched successfully!');
-            setModalOpen(false);
-            // Refresh the data to show the new task and job
-            await fetchData();
-          } else {
-            // eslint-disable-next-line no-alert
-            alert(`Error: ${result.message}`);
-          }
+      if (result.status === 'success') {
+        // eslint-disable-next-line no-alert
+        alert('Task launched successfully!');
+        setModalOpen(false);
+        // Refresh the data to show the new task and job
+        await fetchData();
+      } else {
+        // eslint-disable-next-line no-alert
+        alert(`Error: ${result.message}`);
+      }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Error launching task:', error);
@@ -222,31 +229,31 @@ export default function Tasks() {
           New
         </Button>
       </Stack>
-          <Sheet
-            variant="soft"
-            sx={{
-              px: 1,
-              mt: 1,
-              mb: 2,
-              flex: 1,
-              height: '100%',
-              overflow: 'auto',
-            }}
-          >
-            {loading ? (
-              <Typography>Loading tasks...</Typography>
-            ) : (
-              <TaskTemplateList tasksList={tasks} onDeleteTask={handleDeleteTask} />
-            )}
-          </Sheet>
-          <Typography level="title-md">Runs</Typography>
-          <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-            {loading ? (
-              <Typography>Loading jobs...</Typography>
-            ) : (
-              <JobsList jobs={jobs} onDeleteJob={handleDeleteJob} />
-            )}
-          </Sheet>
+      <Sheet
+        variant="soft"
+        sx={{
+          px: 1,
+          mt: 1,
+          mb: 2,
+          flex: 1,
+          height: '100%',
+          overflow: 'auto',
+        }}
+      >
+        {loading ? (
+          <LinearProgress />
+        ) : (
+          <TaskTemplateList tasksList={tasks} onDeleteTask={handleDeleteTask} />
+        )}
+      </Sheet>
+      <Typography level="title-md">Runs</Typography>
+      <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
+        {loading ? (
+          <LinearProgress />
+        ) : (
+          <JobsList jobs={jobs} onDeleteJob={handleDeleteJob} />
+        )}
+      </Sheet>
     </Sheet>
   );
 }

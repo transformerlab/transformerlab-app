@@ -27,6 +27,7 @@ import {
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
+import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
 
 type AppContentProps = {
   connection: string;
@@ -89,11 +90,19 @@ function AppContent({
         setConnection={setConnection}
         gpuOrchestrationServer={gpuOrchestrationServer}
       />
-      <Sidebar
-        logsDrawerOpen={logsDrawerOpen}
-        setLogsDrawerOpen={setLogsDrawerOpen as any}
-        themeSetter={themeSetter}
-      />
+      {gpuOrchestrationServer !== '' ? (
+        <SidebarForGPUOrchestration
+          logsDrawerOpen={logsDrawerOpen}
+          setLogsDrawerOpen={setLogsDrawerOpen as any}
+          themeSetter={themeSetter}
+        />
+      ) : (
+        <Sidebar
+          logsDrawerOpen={logsDrawerOpen}
+          setLogsDrawerOpen={setLogsDrawerOpen as any}
+          themeSetter={themeSetter}
+        />
+      )}
       <Box
         sx={{
           px: {
