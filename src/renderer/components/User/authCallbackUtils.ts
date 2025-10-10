@@ -32,14 +32,17 @@ export function parseCallbackParams(loc: Location): CallbackParams {
   const hashParams = getHashSearchParams(loc);
   const code = params.get('code');
   const state = params.get('state');
-  const accessToken = params.get('access_token') || hashParams.get('access_token');
+  const accessToken =
+    params.get('access_token') || hashParams.get('access_token');
   const name = params.get('name') || hashParams.get('name');
   const email = params.get('email') || hashParams.get('email');
   const apiUrl = params.get('api_url') || hashParams.get('api_url');
   return { code, state, accessToken, name, email, apiUrl };
 }
 
-export function ensureFallbackApiUrl(fallbackBase: string = DEFAULT_API_FALLBACK) {
+export function ensureFallbackApiUrl(
+  fallbackBase: string = DEFAULT_API_FALLBACK,
+) {
   const w = window as any;
   w.TransformerLab = w.TransformerLab || {};
   if (!w.TransformerLab.API_URL) {
@@ -103,7 +106,8 @@ export async function storeProfile(params: {
   email?: string | null;
 }) {
   const w: any = window as any;
-  if (params.accessToken) await w.storage.set('accessToken', params.accessToken);
+  if (params.accessToken)
+    await w.storage.set('accessToken', params.accessToken);
   if (params.name) await w.storage.set('userName', params.name);
   if (params.email) await w.storage.set('userEmail', params.email);
 }
@@ -114,8 +118,8 @@ export async function processAuthCallback(
 ): Promise<ProcessResult> {
   try {
     const { fallbackBase = DEFAULT_API_FALLBACK, allowlistOrigins } = opts;
-  const w: any = window as any;
-  const expectedState = await w.storage.get('authWorkosState');
+    const w: any = window as any;
+    const expectedState = await w.storage.get('authWorkosState');
 
     // Updated state validation logic:
     // Some providers / flows may return an implicit access_token *without* echoing back the state.
@@ -125,19 +129,19 @@ export async function processAuthCallback(
     // 3. If we have a code (authorization code flow) and expectedState but missing cb.state, treat as error (more sensitive path).
     let requiresStateValidation = Boolean(expectedState && cb.state);
 
-  if (expectedState && cb.accessToken && !cb.state) {
+    if (expectedState && cb.accessToken && !cb.state) {
       // Implicit flow without state returned; accept token and proceed.
-  await w.storage.delete('authWorkosState');
+      await w.storage.delete('authWorkosState');
       requiresStateValidation = false;
     } else if (requiresStateValidation) {
       if (expectedState !== cb.state) {
-  await w.storage.delete('authWorkosState');
+        await w.storage.delete('authWorkosState');
         return { ok: false, message: 'Login failed: invalid state parameter.' };
       }
-  await w.storage.delete('authWorkosState');
+      await w.storage.delete('authWorkosState');
     } else if (expectedState && cb.code && !cb.state) {
       // Authorization code flow should return state; fail fast.
-  await w.storage.delete('authWorkosState');
+      await w.storage.delete('authWorkosState');
       return { ok: false, message: 'Login failed: missing state parameter.' };
     }
 
@@ -149,12 +153,17 @@ export async function processAuthCallback(
     }
 
     const apiBase =
-      ((window as any).TransformerLab && (window as any).TransformerLab.API_URL) ||
+      ((window as any).TransformerLab &&
+        (window as any).TransformerLab.API_URL) ||
       fallbackBase;
 
     // If token is present in URL, just store and finish
     if (cb.accessToken) {
-      await storeProfile({ accessToken: cb.accessToken, name: cb.name, email: cb.email });
+      await storeProfile({
+        accessToken: cb.accessToken,
+        name: cb.name,
+        email: cb.email,
+      });
       return { ok: true, message: 'Login successful. Redirecting...' };
     }
 
@@ -173,7 +182,10 @@ export async function processAuthCallback(
       try {
         data = await response.json();
       } catch (e) {
-        return { ok: false, message: 'Login check failed: invalid server response.' };
+        return {
+          ok: false,
+          message: 'Login check failed: invalid server response.',
+        };
       }
 
       if (!data?.authenticated) {
@@ -181,12 +193,18 @@ export async function processAuthCallback(
       }
 
       // Optionally store display info
-      const name = data?.first_name && data?.last_name ? `${data.first_name} ${data.last_name}` : data?.email;
+      const name =
+        data?.first_name && data?.last_name
+          ? `${data.first_name} ${data.last_name}`
+          : data?.email;
       await storeProfile({ name, email: data?.email });
       return { ok: true, message: 'Login successful. Redirecting...' };
     }
 
-    return { ok: false, message: 'Missing authorization code or token in callback URL.' };
+    return {
+      ok: false,
+      message: 'Missing authorization code or token in callback URL.',
+    };
   } catch (e) {
     return { ok: false, message: `Exception processing callback: ${e}` };
   }

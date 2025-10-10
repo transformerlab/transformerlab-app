@@ -55,7 +55,10 @@ export async function getAccessToken() {
 }
 
 // Helper function to create authenticated fetch requests
-export async function authenticatedFetch(url: string, options: RequestInit = {}) {
+export async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {},
+) {
   const accessToken = await getAccessToken();
 
   const headers: Record<string, string> = {
@@ -160,7 +163,7 @@ export async function downloadModelFromHuggingFace(
   let result = {};
   try {
     const response = await fetch(requestString, {
-      credentials: 'include',  // Send cookies with the request
+      credentials: 'include', // Send cookies with the request
     });
     result = await response.json();
 
@@ -388,13 +391,16 @@ export async function EXPERIMENT_ADD_EVALUATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await authenticatedFetch(API_URL() + 'experiment/' + id + '/evals/add', {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
+  const response = await authenticatedFetch(
+    API_URL() + 'experiment/' + id + '/evals/add',
+    {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+      },
+      body: JSON.stringify(newPlugin),
     },
-    body: JSON.stringify(newPlugin),
-  });
+  );
   const result = await response.json();
   return result;
 }
@@ -409,13 +415,16 @@ export async function EXPERIMENT_EDIT_EVALUATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await authenticatedFetch(API_URL() + 'experiment/' + id + '/evals/edit', {
-    method: 'POST',
-    headers: {
-      accept: 'application/json',
+  const response = await authenticatedFetch(
+    API_URL() + 'experiment/' + id + '/evals/edit',
+    {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+      },
+      body: JSON.stringify(newPlugin),
     },
-    body: JSON.stringify(newPlugin),
-  });
+  );
   const result = await response.json();
   return result;
 }

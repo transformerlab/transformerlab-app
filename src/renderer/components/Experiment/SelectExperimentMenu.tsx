@@ -58,13 +58,15 @@ function ExperimentSettingsMenu({
           variant="soft"
           onClick={() => {
             if (experimentInfo?.id) {
-              chatAPI.authenticatedFetch(
-                `${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`,
-              ).then(() => {
-                alert(
-                  `Your experiment was exported as a recipe to ~/.transformerlab/workspace/${experimentInfo.name}_export.json`,
-                );
-              });
+              chatAPI
+                .authenticatedFetch(
+                  `${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`,
+                )
+                .then(() => {
+                  alert(
+                    `Your experiment was exported as a recipe to ~/.transformerlab/workspace/${experimentInfo.name}_export.json`,
+                  );
+                });
             }
           }}
           disabled={!experimentInfo?.config?.foundation}
@@ -82,7 +84,7 @@ function ExperimentSettingsMenu({
             ) {
               await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id),
-                {}
+                {},
               );
 
               // Find the next available experiment (first one in the list that's not the deleted one)
@@ -137,7 +139,9 @@ export default function SelectExperimentMenu({ models }) {
       let newId = 0;
 
       if (fromRecipeId === null) {
-        const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Experiment.Create(name));
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Experiment.Create(name),
+        );
         newId = await response.json();
       } else {
         const response = await chatAPI.authenticatedFetch(

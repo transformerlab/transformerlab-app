@@ -28,7 +28,11 @@ import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 import AIProvidersSettings from './AIProvidersSettings';
 import ViewJobsTab from './ViewJobsTab';
 import { alignBox } from '@nivo/core';
-import { getAPIFullPath, useAPI, fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getAPIFullPath,
+  useAPI,
+  fetcher,
+} from 'renderer/lib/transformerlab-api-sdk';
 
 export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
