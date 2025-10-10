@@ -12,6 +12,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
+import ViewOutputModalStreaming from '../Train/ViewOutputModalStreaming';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -24,11 +25,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [currentTensorboardForModal, setCurrentTensorboardForModal] = useState(-1);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
-  const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
-  const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
-  const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState(-1);
   const { experimentInfo } = useExperimentInfo();
 
   const handleOpen = () => setModalOpen(true);
@@ -255,16 +252,13 @@ export default function Tasks() {
             jobs={jobs}
             onDeleteJob={handleDeleteJob}
             onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
-            onViewTensorboard={(jobId) => setCurrentTensorboardForModal(parseInt(jobId))}
-            onViewCheckpoints={(jobId) => setViewCheckpointsFromJob(parseInt(jobId))}
-            onViewEvalImages={(jobId) => setViewEvalImagesFromJob(parseInt(jobId))}
-            onViewSweepOutput={(jobId) => {
-              setViewOutputFromSweepJob(true);
-              setViewOutputFromJob(parseInt(jobId));
-            }}
           />
         )}
       </Sheet>
+      <ViewOutputModalStreaming
+        jobId={viewOutputFromJob}
+        setJobId={(jobId) => setViewOutputFromJob(jobId as number)}
+      />
     </Sheet>
   );
 }
