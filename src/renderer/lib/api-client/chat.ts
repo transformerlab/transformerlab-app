@@ -1,6 +1,7 @@
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
 import { getMcpServerFile } from 'renderer/components/Experiment/Interact/interactUtils';
 import * as chatAPI from './endpoints';
+import { getAccessToken, authenticatedFetch } from './functions';
 
 export async function sendAndReceive(
   currentModel: String,
@@ -30,7 +31,7 @@ export async function sendAndReceive(
   let result;
 
   try {
-    const response = await fetch(
+    const response = await authenticatedFetch(
       `${INFERENCE_SERVER_URL()}v1/chat/completions`,
       {
         method: 'POST', // or 'PUT'
@@ -110,14 +111,17 @@ export async function sendAndReceiveStreaming(
 
   let response;
   try {
-    response = await fetch(`${INFERENCE_SERVER_URL()}v1/chat/completions`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    response = await authenticatedFetch(
+      `${INFERENCE_SERVER_URL()}v1/chat/completions`,
+      {
+        method: 'POST', // or 'PUT'
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
   } catch (error) {
     console.log('Exception accessing completions API:', error);
     alert('Network connection error');
@@ -276,14 +280,17 @@ export async function sendCompletion(
   let response;
 
   try {
-    response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    response = await authenticatedFetch(
+      `${INFERENCE_SERVER_URL()}v1/completions`,
+      {
+        method: 'POST', // or 'PUT'
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
   } catch (error) {
     console.log('There was an error', error);
     return null;
@@ -440,14 +447,17 @@ export async function sendCompletionReactWay(
   let response;
 
   try {
-    response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    response = await authenticatedFetch(
+      `${INFERENCE_SERVER_URL()}v1/completions`,
+      {
+        method: 'POST', // or 'PUT'
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
   } catch (error) {
     console.log('There was an error', error);
     return null;
@@ -743,7 +753,7 @@ export async function sendBatchedChat(
   let response;
   const batchedChatUrl = `${API_URL()}batch/chat/completions`;
   try {
-    response = await fetch(batchedChatUrl, {
+    response = await authenticatedFetch(batchedChatUrl, {
       method: 'POST', // or 'PUT'
       headers: {
         'Content-Type': 'application/json',
@@ -797,14 +807,17 @@ export async function sendBatchedAudio(
   if (audioPath) data.audio_path = audioPath;
 
   try {
-    const response = await fetch(`${API_URL()}batch/audio/speech`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    const response = await authenticatedFetch(
+      `${API_URL()}batch/audio/speech`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
     if (!response.ok) return null;
     const results = await response.json();
     return results;
@@ -832,13 +845,25 @@ export async function callTool(
     url += (url.includes('?') ? '&' : '?') + params.join('&');
   }
 
-  const response = await fetch(url);
+  const accessToken = await getAccessToken();
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  const response = await authenticatedFetch(url, {
+    headers,
+  });
   const result = await response.json();
   return result;
 }
 
 export async function getAvailableModels() {
-  const response = await fetch(API_URL() + 'model/gallery');
+  const accessToken = await getAccessToken();
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  const response = await authenticatedFetch(API_URL() + 'model/gallery', {
+    headers,
+  });
   const result = await response.json();
   return result;
 }
@@ -857,7 +882,14 @@ export async function getToolsForCompletions() {
     url += (url.includes('?') ? '&' : '?') + params.join('&');
   }
 
-  const response = await fetch(url);
+  const accessToken = await getAccessToken();
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  const response = await fetch(url, {
+    headers,
+    credentials: 'include',
+  });
   const result = await response.json();
   return result;
 }
@@ -877,12 +909,16 @@ export async function getEmbeddings(model: string, text: string[]) {
   };
 
   try {
-    const response = await fetch(`${API_URL()}v1/embeddings`, {
+    const accessToken = await getAccessToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+    const response = await authenticatedFetch(`${API_URL()}v1/embeddings`, {
       method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
+      headers,
       body: JSON.stringify(data),
     });
     result = await response.json();
@@ -904,12 +940,16 @@ export async function tokenize(model: string, text: string) {
   };
 
   try {
-    const response = await fetch(`${API_URL()}tokenize`, {
+    const accessToken = await getAccessToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+    const response = await authenticatedFetch(`${API_URL()}tokenize`, {
       method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
-      },
+      headers,
       body: JSON.stringify(data),
     });
     result = await response.json();
@@ -944,14 +984,17 @@ export async function generateLogProbs(model: string, prompt: string) {
     data.stop = stopString;
   }
 
-  const response = await fetch(`${INFERENCE_SERVER_URL()}v1/completions`, {
-    method: 'POST', // or 'PUT'
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
+  const response = await authenticatedFetch(
+    `${INFERENCE_SERVER_URL()}v1/completions`,
+    {
+      method: 'POST', // or 'PUT'
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
+  );
 
   const result = await response.json();
 
@@ -981,14 +1024,21 @@ export async function countTokens(model: string, text: string[]) {
   };
 
   try {
-    const response = await fetch(`${API_URL()}api/v1/token_check`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    const accessToken = await getAccessToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+    const response = await authenticatedFetch(
+      `${API_URL()}api/v1/token_check`,
+      {
+        method: 'POST', // or 'PUT'
+        headers,
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
     result = await response.json();
   } catch (error) {
     console.log('There was an error', error);
@@ -1016,14 +1066,21 @@ export async function countChatTokens(model: string, text: any) {
   let result;
 
   try {
-    const response = await fetch(`${API_URL()}v1/chat/count_tokens`, {
-      method: 'POST', // or 'PUT'
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    const accessToken = await getAccessToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+    const response = await authenticatedFetch(
+      `${API_URL()}v1/chat/count_tokens`,
+      {
+        method: 'POST', // or 'PUT'
+        headers,
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
     result = await response.json();
   } catch (error) {
     console.log('There was an error', error);

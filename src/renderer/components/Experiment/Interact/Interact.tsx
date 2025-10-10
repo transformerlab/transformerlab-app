@@ -35,8 +35,7 @@ import VisualizeLogProbs from './VisualizeLogProbs';
 import VisualizeGeneration from './VisualizeGeneration';
 import ModelLayerVisualization from './ModelLayerVisualization';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 // const supports = [
 //   'chat',
 //   'completion',
@@ -204,15 +203,17 @@ export default function Chat({
         });
       }
     } else {
-      fetch(
-        chatAPI.Endpoints.Experiment.UpdateConfig(
-          experimentInfo?.id,
-          'generationParams',
-          JSON.stringify(generationParameters),
-        ),
-      ).then(() => {
-        experimentInfoMutate();
-      });
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.Endpoints.Experiment.UpdateConfig(
+            experimentInfo?.id,
+            'generationParams',
+            JSON.stringify(generationParameters),
+          ),
+        )
+        .then(() => {
+          experimentInfoMutate();
+        });
     }
   }, [generationParameters]);
 
@@ -389,18 +390,23 @@ export default function Chat({
     }
 
     //save the conversation to the server
-    fetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversation_id: cid,
-        conversation: JSON.stringify(newChats),
-      }),
-    }).then((response) => {
-      conversationsMutate();
-    });
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Experiment.SaveConversation(experimentId),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_id: cid,
+            conversation: JSON.stringify(newChats),
+          }),
+        },
+      )
+      .then((response) => {
+        conversationsMutate();
+      });
 
     scrollChatToBottom();
     focusChatInput();
@@ -643,18 +649,23 @@ export default function Chat({
     }
 
     //save the conversation to the server
-    fetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversation_id: cid,
-        conversation: JSON.stringify(newChats),
-      }),
-    }).then((response) => {
-      conversationsMutate();
-    });
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Experiment.SaveConversation(experimentId),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_id: cid,
+            conversation: JSON.stringify(newChats),
+          }),
+        },
+      )
+      .then((response) => {
+        conversationsMutate();
+      });
 
     scrollChatToBottom();
 

@@ -16,7 +16,7 @@ import { filterByFilters } from 'renderer/lib/utils';
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 export default function DataStore() {
   const [searchText, setSearchText] = useState('');

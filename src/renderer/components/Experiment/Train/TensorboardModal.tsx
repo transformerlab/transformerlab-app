@@ -12,8 +12,7 @@ import {
 } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { RotateCcwIcon, PencilIcon, CheckIcon, XIcon } from 'lucide-react';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function TensorboardModal({
   currentTensorboard,
@@ -83,7 +82,7 @@ export default function TensorboardModal({
         var job_id = currentTensorboard;
         setIframeReady(false);
 
-        await fetch(
+        await chatAPI.authenticatedFetch(
           chatAPI.API_URL() + 'train/tensorboard/start?job_id=' + job_id,
         );
 
@@ -96,9 +95,12 @@ export default function TensorboardModal({
             const mode =
               window?.platform?.appmode === 'cloud' ? 'no-cors' : 'cors';
             // eslint-disable-next-line no-await-in-loop
-            const tensorboardIsReady = await fetch(tensorboardUrl, {
-              mode,
-            });
+            const tensorboardIsReady = await chatAPI.authenticatedFetch(
+              tensorboardUrl as any,
+              {
+                mode,
+              },
+            );
             if (
               tensorboardIsReady.status === 200 ||
               tensorboardIsReady.status === 0

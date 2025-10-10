@@ -6,8 +6,7 @@ import { Button, Chip, Divider, Switch, Typography } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function ExperimentSettings() {
   const { experimentInfo, setExperimentId } = useExperimentInfo();
@@ -46,7 +45,9 @@ export default function ExperimentSettings() {
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              fetch(chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id));
+              chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id),
+              );
               setExperimentId(null);
             }
           }}

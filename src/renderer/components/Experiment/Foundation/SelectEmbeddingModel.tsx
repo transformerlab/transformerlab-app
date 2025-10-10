@@ -6,8 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import LocalModelsTable from 'renderer/components/ModelZoo/LocalModelsTable';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 export default function SelectEmbeddingModel({
   experimentInfo,

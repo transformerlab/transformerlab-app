@@ -40,7 +40,6 @@ import { FaEject } from 'react-icons/fa6';
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
 }
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ModelDetails({
   experimentInfo,
@@ -71,7 +70,7 @@ export default function ModelDetails({
     }
     setIsUploadLoading(true); //For the loading spinner
     try {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Models.UploadModelToHuggingFace(
           huggingfaceId,
           huggingfaceNewModelName,
@@ -102,18 +101,27 @@ export default function ModelDetails({
     // This is a local model
     if (experimentInfo?.config?.foundation_filename) {
       // TODO: Load in model details from the filesystem
-      fetch(chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(huggingfaceId))
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(huggingfaceId),
+        )
         .then((res) => res.json())
         .then((data) => setModelDetailsData(data))
         .catch((error) => console.log(error));
 
       // Try to see if this is a HuggingFace model
     } else if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
-      fetch(chatAPI.Endpoints.Models.GetLocalHFConfig(huggingfaceId))
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.Endpoints.Models.GetLocalHFConfig(huggingfaceId),
+        )
         .then((res) => res.json())
         .catch((error) => console.log(error));
 
-      fetch(chatAPI.Endpoints.Models.ModelDetailsFromGallery(huggingfaceId))
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.Endpoints.Models.ModelDetailsFromGallery(huggingfaceId),
+        )
         .then((res) => res.json())
         .then((data) => {
           setModelDetailsData(data);
@@ -252,7 +260,7 @@ export default function ModelDetails({
                 setIsEjecting(true);
                 try {
                   // Clear all foundation-related fields in the backend using bulk update
-                  await fetch(
+                  await chatAPI.authenticatedFetch(
                     chatAPI.Endpoints.Experiment.UpdateConfigs(
                       experimentInfo?.id,
                     ),

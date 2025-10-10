@@ -1,6 +1,5 @@
-import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
-
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { API_URL } from './urls';
 
 export async function login(username: string, password: string) {
   const loginURL = getAPIFullPath('auth', ['login'], {});
@@ -53,6 +52,28 @@ export async function setAccessToken(token: string) {
 export async function getAccessToken() {
   const access_token = await window.storage.get('accessToken');
   return access_token || '';
+}
+
+// Helper function to create authenticated fetch requests
+export async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {},
+) {
+  const accessToken = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
 }
 
 export async function logout() {
@@ -141,7 +162,9 @@ export async function downloadModelFromHuggingFace(
 
   let result = {};
   try {
-    const response = await fetch(requestString);
+    const response = await fetch(requestString, {
+      credentials: 'include', // Send cookies with the request
+    });
     result = await response.json();
 
     // Error during fetch
@@ -169,7 +192,9 @@ export async function downloadGGUFFile(
 
   let result = {};
   try {
-    const response = await fetch(requestString);
+    const response = await fetch(requestString, {
+      credentials: 'include', // Send cookies with the request
+    });
     result = await response.json();
 
     // Error during fetch
@@ -195,7 +220,9 @@ export async function downloadModelFromGallery(
   if (job_id) {
     requestString += `&job_id=${job_id}`;
   }
-  const response = await fetch(requestString);
+  const response = await fetch(requestString, {
+    credentials: 'include', // Send cookies with the request
+  });
   const result = await response.json();
 
   return result;
@@ -205,7 +232,7 @@ export async function downloadModelFromGallery(
 export async function activeModels() {
   let response;
   try {
-    response = await fetch(`${API_URL()}v1/models`);
+    response = await authenticatedFetch(`${API_URL()}v1/models`);
     // console.log('response ok?' + response.ok);
     const result = await response.json();
     return result;
@@ -220,7 +247,7 @@ export async function activeModels() {
 export async function apiHealthz() {
   let response;
   try {
-    response = await fetch(`${API_URL()}healthz`);
+    response = await authenticatedFetch(`${API_URL()}healthz`);
     // console.log('response ok?' + response.ok);
     const result = await response.json();
     return result;
@@ -234,7 +261,7 @@ export async function controllerHealthz() {
   let response;
   try {
     // For now we hard code the worker to the default FastChat API port of 21002
-    response = await fetch(API_URL() + 'v1/models', {
+    response = await authenticatedFetch(API_URL() + 'v1/models', {
       method: 'GET',
     });
     if (response.ok) {
@@ -251,7 +278,7 @@ export async function controllerHealthz() {
 export async function localaiHealthz() {
   let response;
   try {
-    response = await fetch(API_URL() + 'v1/models');
+    response = await authenticatedFetch(API_URL() + 'v1/models');
     // console.log('response ok?' + response.ok);
     const result = await response.json();
     return result;
@@ -264,7 +291,7 @@ export async function localaiHealthz() {
 export async function getComputerInfo() {
   let response;
   try {
-    response = await fetch(API_URL() + 'server/info');
+    response = await authenticatedFetch(API_URL() + 'server/info');
     // console.log('response ok?' + response.ok);
     const result = await response.json();
     return result;
@@ -297,7 +324,7 @@ export async function activateWorker(
   const paramsJSON = JSON.stringify(parameters);
 
   try {
-    response = await fetch(
+    response = await authenticatedFetch(
       API_URL() +
         'server/worker_start?model_name=' +
         model +
@@ -323,7 +350,7 @@ export async function activateWorker(
 export async function killWorker() {
   let response;
   try {
-    response = await fetch(API_URL() + 'server/worker_stop');
+    response = await authenticatedFetch(API_URL() + 'server/worker_stop');
     const result = await response.json();
     return result;
   } catch (error) {
@@ -364,14 +391,16 @@ export async function EXPERIMENT_ADD_EVALUATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await fetch(API_URL() + 'experiment/' + id + '/evals/add', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
+  const response = await authenticatedFetch(
+    API_URL() + 'experiment/' + id + '/evals/add',
+    {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+      },
+      body: JSON.stringify(newPlugin),
     },
-    body: JSON.stringify(newPlugin),
-  });
+  );
   const result = await response.json();
   return result;
 }
@@ -386,14 +415,16 @@ export async function EXPERIMENT_EDIT_EVALUATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await fetch(API_URL() + 'experiment/' + id + '/evals/edit', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
+  const response = await authenticatedFetch(
+    API_URL() + 'experiment/' + id + '/evals/edit',
+    {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+      },
+      body: JSON.stringify(newPlugin),
     },
-    body: JSON.stringify(newPlugin),
-  });
+  );
   const result = await response.json();
   return result;
 }
@@ -410,12 +441,11 @@ export async function EXPERIMENT_ADD_GENERATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await fetch(
+  const response = await authenticatedFetch(
     API_URL() + 'experiment/' + id + '/generations/add',
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         accept: 'application/json',
       },
       body: JSON.stringify(newPlugin),
@@ -435,12 +465,11 @@ export async function EXPERIMENT_EDIT_GENERATION(
     script_parameters: scriptParameters,
   };
 
-  const response = await fetch(
+  const response = await authenticatedFetch(
     API_URL() + 'experiment/' + id + '/generations/edit',
     {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
         accept: 'application/json',
       },
       body: JSON.stringify(newPlugin),
@@ -459,7 +488,7 @@ export async function getTemplateForModel(modelName: string) {
     return null;
   }
   const model = modelName.split('/')[1];
-  const response = await fetch(TEMPLATE_FOR_MODEL_URL(model));
+  const response = await authenticatedFetch(TEMPLATE_FOR_MODEL_URL(model));
   const result = await response.json();
 
   return result;

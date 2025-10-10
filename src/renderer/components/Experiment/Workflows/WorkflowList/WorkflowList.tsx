@@ -34,6 +34,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Editor } from '@monaco-editor/react';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
@@ -235,8 +236,6 @@ function ShowCode({
   );
 }
 
-const fetcher = (url: any) => fetch(url).then((res) => res.json());
-
 export default function WorkflowList({ experimentInfo }) {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(null);
   const [newWorkflowModalOpen, setNewWorkflowModalOpen] = useState(false);
@@ -273,7 +272,7 @@ export default function WorkflowList({ experimentInfo }) {
 
   async function runWorkflow(workflowId: string) {
     try {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Workflows.RunWorkflow(workflowId, experimentInfo.id),
       );
 
@@ -420,7 +419,7 @@ export default function WorkflowList({ experimentInfo }) {
                               '?',
                           )
                         ) {
-                          await fetch(
+                          await chatAPI.authenticatedFetch(
                             chatAPI.Endpoints.Workflows.DeleteWorkflow(
                               selectedWorkflow?.id,
                               experimentInfo.id,

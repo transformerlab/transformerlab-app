@@ -362,7 +362,11 @@ function StatsBar({ connection, setConnection }) {
   );
 }
 
-export default function Header({ connection, setConnection }) {
+export default function Header({
+  connection,
+  setConnection,
+  gpuOrchestrationServer,
+}) {
   const { experimentInfo } = useExperimentInfo();
 
   return (
@@ -407,6 +411,7 @@ export default function Header({ connection, setConnection }) {
       >
         <ModelCurrentlyPlayingBar experimentInfo={experimentInfo} />
       </div>
+
       <div
         style={{
           height: '100%',
@@ -415,7 +420,11 @@ export default function Header({ connection, setConnection }) {
           '-webkit-app-region': 'drag',
         }}
       />
-      <StatsBar connection={connection} setConnection={setConnection} />
+      {gpuOrchestrationServer ? (
+        <>GPU Orchestration Server: {gpuOrchestrationServer}&nbsp;&nbsp;</>
+      ) : (
+        <StatsBar connection={connection} setConnection={setConnection} />
+      )}
     </Sheet>
   );
 }

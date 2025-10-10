@@ -28,7 +28,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import TemplatedPromptModal from './TemplatedPromptModal';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 export default function TemplatedCompletion({
   experimentInfo,
@@ -233,7 +233,7 @@ export default function TemplatedCompletion({
                     if (
                       confirm('Are you sure you want to delete this template?')
                     ) {
-                      await fetch(
+                      await chatAPI.authenticatedFetch(
                         chatAPI.Endpoints.Prompts.Delete(selectedTemplate.id),
                       );
                       templatesMutate();

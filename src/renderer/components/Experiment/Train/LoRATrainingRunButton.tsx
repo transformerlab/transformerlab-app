@@ -42,7 +42,7 @@ export default function LoRATrainingRunButton({
           task_type: 'TRAIN',
           plugin_name: pluginName,
         });
-        await fetch(
+        await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Tasks.Queue(trainingTemplate.template_id),
         );
         return;
@@ -50,9 +50,8 @@ export default function LoRATrainingRunButton({
         console.log(job_data);
         const dataset = job_data.dataset;
 
-        const models_downloaded = await fetch(
-          chatAPI.Endpoints.Models.LocalList(),
-        )
+        const models_downloaded = await chatAPI
+          .authenticatedFetch(chatAPI.Endpoints.Models.LocalList())
           .then((response) => {
             // First check that the API responded correctly
             if (response.ok) {
@@ -85,9 +84,8 @@ export default function LoRATrainingRunButton({
           });
         }
 
-        const datasets_downloaded = await fetch(
-          chatAPI.Endpoints.Dataset.LocalList(),
-        )
+        const datasets_downloaded = await chatAPI
+          .authenticatedFetch(chatAPI.Endpoints.Dataset.LocalList())
           .then((response) => {
             // First check that the API responded correctly
             if (response.ok) {
@@ -119,14 +117,15 @@ export default function LoRATrainingRunButton({
 
         if (modelInLocalList && datasetInLocalList) {
           // Use fetch API to call endpoint
-          await fetch(
-            chatAPI.Endpoints.Jobs.Create(
-              experimentId,
-              'TRAIN',
-              'QUEUED',
-              JSON.stringify(job_data),
-            ),
-          )
+          await chatAPI
+            .authenticatedFetch(
+              chatAPI.Endpoints.Jobs.Create(
+                experimentId,
+                'TRAIN',
+                'QUEUED',
+                JSON.stringify(job_data),
+              ),
+            )
             .then((response) => response.json())
             .then((data) => console.log(data))
             .catch((error) => console.log(error));
@@ -147,7 +146,8 @@ export default function LoRATrainingRunButton({
           if (confirm(msg)) {
             // Use confirm() to get Accept/Cancel
             if (!datasetInLocalList) {
-              fetch(chatAPI.Endpoints.Dataset.Download(dataset))
+              chatAPI
+                .authenticatedFetch(chatAPI.Endpoints.Dataset.Download(dataset))
                 .then((response) => {
                   if (!response.ok) {
                     console.log(response);

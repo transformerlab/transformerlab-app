@@ -21,8 +21,7 @@ import React, { useState, useEffect } from 'react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
-
-const fetcher = (url: any) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 
 export default function NewNodeModal({
   open,
@@ -90,7 +89,7 @@ export default function NewNodeModal({
             if (mode === 'OTHER') {
               const nodeData = JSON.parse(formData.get('node') as string);
               nodeData.name = name;
-              await fetch(
+              await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
                   JSON.stringify(nodeData),
@@ -104,7 +103,7 @@ export default function NewNodeModal({
                 type: 'DOWNLOAD_MODEL',
                 model,
               };
-              await fetch(
+              await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
                   JSON.stringify(nodeData),
@@ -123,7 +122,7 @@ export default function NewNodeModal({
                 type: mode,
                 metadata: { task_name: selectedTaskName },
               };
-              await fetch(
+              await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Workflows.AddNode(
                   selectedWorkflow.id,
                   JSON.stringify(nodeData),

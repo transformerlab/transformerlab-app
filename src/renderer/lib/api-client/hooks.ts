@@ -4,7 +4,7 @@
 import useSWR from 'swr';
 import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
-import { getAccessToken } from './functions';
+import { getAccessToken, authenticatedFetch } from './functions';
 
 export function useAPI(
   majorEntity: string,
@@ -12,7 +12,11 @@ export function useAPI(
   params: Record<string, any> = {},
   options: any = {},
 ) {
-  let path: string | null = getAPIFullPath(majorEntity, pathArray, params) as any;
+  let path: string | null = getAPIFullPath(
+    majorEntity,
+    pathArray,
+    params,
+  ) as any;
   const fetcher = async (url: string) => {
     // check for an access token. Will be "" if user not logged in.
     const accessToken = await getAccessToken();
@@ -21,9 +25,8 @@ export function useAPI(
       'Content-Type': 'application/json',
     };
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    return fetch(url, {
+    return authenticatedFetch(url, {
       headers,
-      credentials: 'include',
     }).then((res) => {
       // Check for HTTP 401 which means user is not authorized
       if (res.status === 401) {
@@ -69,22 +72,37 @@ export function useAPI(
   };
 }
 
-const fetcher = (input: RequestInfo | URL, init?: RequestInit) =>
-  fetch(input, init).then(async (res) => {
-    if (!res.ok) {
-      const err: any = new Error('An error occurred fetching ' + res.url);
-      // attach details for callers
-      err.status = res.status;
-      try {
-        err.response = await res.json();
-      } catch {
-        err.response = null;
-      }
-      console.log(res);
-      throw err;
-    }
-    return res.json();
+export const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const accessToken = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string>),
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const response = await authenticatedFetch(input as any, {
+    ...init,
+    headers,
   });
+
+  if (!response.ok) {
+    const err: any = new Error('An error occurred fetching ' + response.url);
+    // attach details for callers
+    err.status = response.status;
+    try {
+      err.response = await response.json();
+    } catch {
+      err.response = null;
+    }
+    console.log(response);
+    throw err;
+  }
+  return response.json();
+};
 
 export function useModelStatus() {
   const api_url = API_URL();
@@ -147,7 +165,7 @@ export function useServerStats() {
 const fetchAndGetErrorStatus = async (url: string) => {
   console.log('🛎️fetching', url);
 
-  const res = await fetch(url);
+  const res = await authenticatedFetch(url);
 
   // console.log('🛎️fetched', res);
 

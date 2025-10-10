@@ -21,7 +21,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
   const downloadFile = async (modelId, filename) => {
     setJobId(-1);
     try {
-      const jobResponse = await fetch(
+      const jobResponse = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Jobs.Create(experimentInfo.id),
       );
       const newJobId = await jobResponse.json();
@@ -94,7 +94,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                     if (model) {
                       setJobId(-1);
                       try {
-                        const jobResponse = await fetch(
+                        const jobResponse = await chatAPI.authenticatedFetch(
                           chatAPI.Endpoints.Jobs.Create(experimentInfo.id),
                         );
                         const newJobId = await jobResponse.json();

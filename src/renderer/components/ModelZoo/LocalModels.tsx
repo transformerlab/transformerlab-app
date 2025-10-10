@@ -13,8 +13,7 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import Welcome from '../Welcome/Welcome';
 
 import LocalModelsTable from './LocalModelsTable';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 export default function LocalModels({
   pickAModelMode = false,

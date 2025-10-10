@@ -1,5 +1,6 @@
 import { ReactElement, useEffect, useState } from 'react';
 import useSWR from 'swr';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import Sheet from '@mui/joy/Sheet';
 
@@ -96,8 +97,6 @@ function formatJobConfig(c): ReactElement {
   );
   return r;
 }
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function TrainLoRA({}) {
   const { experimentInfo } = useExperimentInfo();
@@ -423,7 +422,7 @@ export default function TrainLoRA({}) {
                               confirm(
                                 'Are you sure you want to delete this Training Template?',
                               ) &&
-                                (await fetch(
+                                (await chatAPI.authenticatedFetch(
                                   chatAPI.Endpoints.Tasks.DeleteTask(row.id),
                                 ));
                               mutate();
@@ -450,7 +449,7 @@ export default function TrainLoRA({}) {
         {/* <ButtonGroup variant="soft">
           <Button
             onClick={() => {
-              fetch(chatAPI.API_URL() + 'train/job/start_next');
+              chatAPI.authenticatedFetch(chatAPI.API_URL() + 'train/job/start_next');
             }}
             startDecorator={<PlayIcon />}
           >
@@ -461,7 +460,7 @@ export default function TrainLoRA({}) {
             color="danger"
             startDecorator={<Trash2Icon />}
             onClick={() => {
-              fetch(chatAPI.API_URL() + 'train/job/delete_all');
+              chatAPI.authenticatedFetch(chatAPI.API_URL() + 'train/job/delete_all');
             }}
           >
             Delete all Jobs
@@ -566,7 +565,7 @@ export default function TrainLoRA({}) {
                           <IconButton variant="plain">
                             <Trash2Icon
                               onClick={async () => {
-                                await fetch(
+                                await chatAPI.authenticatedFetch(
                                   chatAPI.Endpoints.Jobs.Delete(
                                     experimentInfo.id,
                                     job.id,

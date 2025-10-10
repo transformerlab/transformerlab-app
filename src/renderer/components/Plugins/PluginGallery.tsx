@@ -22,8 +22,7 @@ import { SearchIcon } from 'lucide-react';
 import { filterByFilters } from 'renderer/lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import PluginCard from './PluginCard';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 export default function PluginGallery({
   experimentInfo,
@@ -232,11 +231,7 @@ export default function PluginGallery({
 
             {/* Incompatible plugins */}
             {groupedPlugins[type].incompatible.length > 0 && (
-              <Accordion
-                sx={{ mt: 3 }}
-                defaultExpanded={false}
-                variant="plain"
-              >
+              <Accordion sx={{ mt: 3 }} defaultExpanded={false} variant="plain">
                 <AccordionSummary>
                   <Typography
                     level="title-sm"

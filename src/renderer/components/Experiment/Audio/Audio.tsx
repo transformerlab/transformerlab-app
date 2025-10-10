@@ -28,7 +28,7 @@ import AudioHistory from './AudioHistory';
 const sampleRates = [16000, 22050, 24000, 44100, 48000];
 
 export async function sendAndReceiveAudioPath(
-  experimentId: number,
+  experimentId: string,
   currentModel: string,
   adaptor: string,
   text: any,
@@ -63,14 +63,17 @@ export async function sendAndReceiveAudioPath(
 
   let response;
   try {
-    response = await fetch(`${chatAPI.INFERENCE_SERVER_URL()}v1/audio/speech`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    response = await chatAPI.authenticatedFetch(
+      `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/speech`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(data),
       },
-      body: JSON.stringify(data),
-    });
+    );
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') return null; // Ignore aborts
     console.log('Exception accessing Audio API:', error);
@@ -92,7 +95,7 @@ export async function sendAndReceiveAudioPath(
 }
 
 export async function uploadAudioFile(
-  experimentId: number,
+  experimentId: string,
   audioFile: File,
 ): Promise<any> {
   const formData = new FormData();
@@ -100,7 +103,7 @@ export async function uploadAudioFile(
 
   let response;
   try {
-    response = await fetch(
+    response = await chatAPI.authenticatedFetch(
       `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload_reference?experimentId=${experimentId}`,
       {
         method: 'POST',

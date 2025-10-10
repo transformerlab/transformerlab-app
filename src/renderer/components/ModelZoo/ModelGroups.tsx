@@ -198,13 +198,14 @@ export default function ModelGroups({ experimentInfo }) {
   const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
 
   useEffect(() => {
-    fetch(
-      chatAPI.Endpoints.Jobs.GetJobsOfType(
-        experimentInfo?.id,
-        'DOWNLOAD_MODEL',
-        'RUNNING',
-      ),
-    )
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo?.id,
+          'DOWNLOAD_MODEL',
+          'RUNNING',
+        ),
+      )
       .then((res) => res.json())
       .then((jobs) => {
         if (jobs.length) {
@@ -300,7 +301,7 @@ export default function ModelGroups({ experimentInfo }) {
             disabled={canceling}
             onClick={async () => {
               setCanceling(true);
-              const response = await fetch(
+              const response = await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, jobId),
               );
               if (response.ok) {
@@ -846,7 +847,7 @@ export default function ModelGroups({ experimentInfo }) {
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
                               try {
-                                let response = await fetch(
+                                let response = await chatAPI.authenticatedFetch(
                                   chatAPI.Endpoints.Jobs.Create(
                                     experimentInfo.id,
                                   ),

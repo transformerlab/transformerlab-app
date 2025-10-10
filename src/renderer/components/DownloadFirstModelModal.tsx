@@ -165,7 +165,7 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
               setJobId(-1);
 
               // Create a new job and record the ID of the job so we can track download progress
-              const job_response = await fetch(
+              const job_response = await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Jobs.Create(experimentInfo?.id),
               );
               const newJobId = await job_response.json();

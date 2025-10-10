@@ -25,8 +25,7 @@ import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import PickADocumentMenu from '../Rag/PickADocumentMenu';
 
 import { generateFriendlyName } from 'renderer/lib/utils';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
   const { data, error, isLoading } = useSWR(
@@ -86,14 +85,17 @@ async function updateTask(
     config: config,
     outputs: outputs,
   };
-  const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
+  const response = await chatAPI.authenticatedFetch(
+    chatAPI.Endpoints.Tasks.UpdateTask(task_id),
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(configBody),
     },
-    body: JSON.stringify(configBody),
-  });
+  );
   const result = await response.json();
   return result;
 }
@@ -116,14 +118,17 @@ async function createNewTask(
     type: 'GENERATE',
   };
   console.log(configBody);
-  const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
+  const response = await chatAPI.authenticatedFetch(
+    chatAPI.Endpoints.Tasks.NewTask(),
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(configBody),
     },
-    body: JSON.stringify(configBody),
-  });
+  );
   const result = await response.json();
   return result;
 }

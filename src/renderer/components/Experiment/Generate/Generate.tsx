@@ -27,8 +27,6 @@ function getTemplateParametersForPlugin(pluginName, plugins) {
   return [];
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
 export default function Generate({ addGeneration }) {
   const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
   const [currentPlugin, setCurrentPlugin] = useState('');

@@ -91,7 +91,9 @@ export default function RunModelButton({
         Array.isArray(row.supports) &&
         row.supports.some(
           // Some models list as text-to-speech, others as text-to-audio
-          (support: string) => (support.toLowerCase() === 'text-to-speech' || pipelineTag === 'text-to-audio'),
+          (support: string) =>
+            support.toLowerCase() === 'text-to-speech' ||
+            pipelineTag === 'text-to-audio',
         );
 
       // For text-to-speech models: must also have text-to-speech support
@@ -129,20 +131,21 @@ export default function RunModelButton({
   }
 
   async function getDefaultinferenceEngines() {
-    const inferenceEngines = await fetch(
+    const inferenceEngines = await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.ListScriptsOfType(
         experimentInfo?.id,
         'loader', // type
         'model_architectures:' +
           experimentInfo?.config?.foundation_model_architecture, //filter
       ),
+      {},
     );
     const inferenceEnginesJSON = await inferenceEngines.json();
     const experimentId = experimentInfo?.id;
     const engine = inferenceEnginesJSON?.[0]?.uniqueId;
     const inferenceEngineFriendlyName = inferenceEnginesJSON?.[0]?.name || '';
 
-    await fetch(
+    await chatAPI.authenticatedFetch(
       chatAPI.Endpoints.Experiment.UpdateConfig(
         experimentId,
         'inferenceParams',
@@ -152,6 +155,7 @@ export default function RunModelButton({
           inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
         }),
       ),
+      {},
     );
 
     return {
@@ -192,17 +196,19 @@ export default function RunModelButton({
 
         // Update the experiment config with the first supported engine
         if (experimentInfo?.id) {
-          fetch(
-            chatAPI.Endpoints.Experiment.UpdateConfig(
-              experimentInfo.id,
-              'inferenceParams',
-              JSON.stringify(newInferenceSettings),
-            ),
-          ).catch(() => {
-            console.error(
-              'Failed to update inferenceParams in experiment config',
-            );
-          });
+          chatAPI
+            .authenticatedFetch(
+              chatAPI.Endpoints.Experiment.UpdateConfig(
+                experimentInfo.id,
+                'inferenceParams',
+                JSON.stringify(newInferenceSettings),
+              ),
+            )
+            .catch(() => {
+              console.error(
+                'Failed to update inferenceParams in experiment config',
+              );
+            });
         }
       } else {
         // This preserves the older logic where we try to get the default inference engine for a blank experiment
@@ -235,7 +241,7 @@ export default function RunModelButton({
       }
 
       try {
-        const response = await fetch(
+        const response = await chatAPI.authenticatedFetch(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
           {
             method: 'POST',
