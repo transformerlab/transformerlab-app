@@ -95,9 +95,12 @@ export default function TensorboardModal({
             const mode =
               window?.platform?.appmode === 'cloud' ? 'no-cors' : 'cors';
             // eslint-disable-next-line no-await-in-loop
-            const tensorboardIsReady = await chatAPI.authenticatedFetch(tensorboardUrl as any, {
-              mode,
-            });
+            const tensorboardIsReady = await chatAPI.authenticatedFetch(
+              tensorboardUrl as any,
+              {
+                mode,
+              },
+            );
             if (
               tensorboardIsReady.status === 200 ||
               tensorboardIsReady.status === 0

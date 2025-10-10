@@ -203,15 +203,17 @@ export default function Chat({
         });
       }
     } else {
-      chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Experiment.UpdateConfig(
-          experimentInfo?.id,
-          'generationParams',
-          JSON.stringify(generationParameters),
-        ),
-      ).then(() => {
-        experimentInfoMutate();
-      });
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.Endpoints.Experiment.UpdateConfig(
+            experimentInfo?.id,
+            'generationParams',
+            JSON.stringify(generationParameters),
+          ),
+        )
+        .then(() => {
+          experimentInfoMutate();
+        });
     }
   }, [generationParameters]);
 
@@ -388,18 +390,23 @@ export default function Chat({
     }
 
     //save the conversation to the server
-    chatAPI.authenticatedFetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversation_id: cid,
-        conversation: JSON.stringify(newChats),
-      }),
-    }).then((response) => {
-      conversationsMutate();
-    });
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Experiment.SaveConversation(experimentId),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_id: cid,
+            conversation: JSON.stringify(newChats),
+          }),
+        },
+      )
+      .then((response) => {
+        conversationsMutate();
+      });
 
     scrollChatToBottom();
     focusChatInput();
@@ -642,18 +649,23 @@ export default function Chat({
     }
 
     //save the conversation to the server
-    chatAPI.authenticatedFetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversation_id: cid,
-        conversation: JSON.stringify(newChats),
-      }),
-    }).then((response) => {
-      conversationsMutate();
-    });
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Experiment.SaveConversation(experimentId),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_id: cid,
+            conversation: JSON.stringify(newChats),
+          }),
+        },
+      )
+      .then((response) => {
+        conversationsMutate();
+      });
 
     scrollChatToBottom();
 

@@ -72,13 +72,14 @@ function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
         <MenuItem
           color="danger"
           onClick={() => {
-            chatAPI.authenticatedFetch(
-              chatAPI.Endpoints.Documents.Delete(
-                experimentInfo?.id,
-                filename,
-                foldername,
-              ),
-            )
+            chatAPI
+              .authenticatedFetch(
+                chatAPI.Endpoints.Documents.Delete(
+                  experimentInfo?.id,
+                  filename,
+                  foldername,
+                ),
+              )
               .then((response) => {
                 if (response.ok) {
                   console.log(response);
@@ -360,13 +361,14 @@ export default function Documents({
   );
 
   const uploadFiles = async (currentFolder, formData) => {
-    chatAPI.authenticatedFetch(
-      chatAPI.Endpoints.Documents.Upload(experimentInfo?.id, currentFolder),
-      {
-        method: 'POST',
-        body: formData,
-      },
-    )
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Documents.Upload(experimentInfo?.id, currentFolder),
+        {
+          method: 'POST',
+          body: formData,
+        },
+      )
       .then((response) => {
         if (response.ok) {
           return response.json();
@@ -534,21 +536,22 @@ export default function Documents({
                   .map((url) => url.trim())
                   .filter((url) => url && url.includes('://'));
                 if (validUrls.length > 0) {
-                  chatAPI.authenticatedFetch(
-                    chatAPI.Endpoints.Documents.UploadLinks(
-                      experimentInfo?.id,
-                      currentFolder,
-                    ),
-                    {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
+                  chatAPI
+                    .authenticatedFetch(
+                      chatAPI.Endpoints.Documents.UploadLinks(
+                        experimentInfo?.id,
+                        currentFolder,
+                      ),
+                      {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          urls: validUrls,
+                        }),
                       },
-                      body: JSON.stringify({
-                        urls: validUrls,
-                      }),
-                    },
-                  )
+                    )
                     .then((response) => {
                       if (!response.ok)
                         throw new Error('Failed to add webpages');
@@ -871,7 +874,9 @@ export default function Documents({
           color="neutral"
           variant="outlined"
           onClick={() => {
-            chatAPI.authenticatedFetch(chatAPI.Endpoints.Rag.ReIndex(experimentInfo?.id));
+            chatAPI.authenticatedFetch(
+              chatAPI.Endpoints.Rag.ReIndex(experimentInfo?.id),
+            );
           }}
         >
           Reindex

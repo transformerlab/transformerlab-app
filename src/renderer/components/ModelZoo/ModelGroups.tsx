@@ -198,13 +198,14 @@ export default function ModelGroups({ experimentInfo }) {
   const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
 
   useEffect(() => {
-    chatAPI.authenticatedFetch(
-      chatAPI.Endpoints.Jobs.GetJobsOfType(
-        experimentInfo?.id,
-        'DOWNLOAD_MODEL',
-        'RUNNING',
-      ),
-    )
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo?.id,
+          'DOWNLOAD_MODEL',
+          'RUNNING',
+        ),
+      )
       .then((res) => res.json())
       .then((jobs) => {
         if (jobs.length) {

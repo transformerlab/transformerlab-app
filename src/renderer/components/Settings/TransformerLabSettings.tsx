@@ -29,7 +29,11 @@ import AIProvidersSettings from './AIProvidersSettings';
 import EditTokenModal from './EditTokenModal';
 import ViewJobsTab from './ViewJobsTab';
 import { alignBox } from '@nivo/core';
-import { getAPIFullPath, useAPI, fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getAPIFullPath,
+  useAPI,
+  fetcher,
+} from 'renderer/lib/transformerlab-api-sdk';
 
 
 export default function TransformerLabSettings() {

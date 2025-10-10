@@ -7,9 +7,17 @@ import { useNavigate } from 'react-router-dom';
 import LocalModels from './LocalModels';
 import ModelGroups from './ModelGroups';
 
-export default function ModelZoo({ tab = 'store' }) {
+export default function ModelZoo({
+  tab = 'store',
+  gpuOrchestrationServer = '',
+}) {
   const navigate = useNavigate();
   const { experimentInfo } = useExperimentInfo();
+
+  // If we are in GPU Orchestration Mode, even if the default tab is 'groups', we should
+  // show the 'local' tab instead, since 'groups' doesn't work in this mode
+  const filteredTab =
+    gpuOrchestrationServer !== '' && tab === 'groups' ? 'local' : tab;
 
   return (
     <Sheet
@@ -30,7 +38,7 @@ export default function ModelZoo({ tab = 'store' }) {
           height: '100%',
           overflow: 'unset',
         }}
-        value={tab}
+        value={filteredTab}
         onChange={(e, newValue) => {
           navigate('/zoo/' + newValue);
         }}
@@ -38,11 +46,12 @@ export default function ModelZoo({ tab = 'store' }) {
         <TabList>
           <Tab value="local">Local Models</Tab>
           <Tab value="generated">Generated</Tab>
-          <Tab value="groups">
-            {' '}
-            <StoreIcon color="grey" />
-            &nbsp; Model Store
-          </Tab>
+          {gpuOrchestrationServer === '' && (
+            <Tab value="groups">
+              <StoreIcon color="grey" />
+              &nbsp; Model Store
+            </Tab>
+          )}
         </TabList>
         <TabPanel
           value="local"

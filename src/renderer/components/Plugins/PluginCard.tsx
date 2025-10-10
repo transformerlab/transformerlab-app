@@ -275,28 +275,30 @@ export default function PluginCard({
                 }
 
                 setInstalling(plugin.uniqueId);
-                await chatAPI.authenticatedFetch(
-                  chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
-                ).then(async (response) => {
-                  if (response.ok) {
-                    const responseBody = await response.json();
-                    console.log('Response Body:', responseBody);
-                    if (responseBody?.status == 'error') {
-                      alert(
-                        `Failed to install plugin:\n${responseBody?.message}`,
-                      );
-                      if (setLogsDrawerOpen) {
-                        setLogsDrawerOpen(true);
+                await chatAPI
+                  .authenticatedFetch(
+                    chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
+                  )
+                  .then(async (response) => {
+                    if (response.ok) {
+                      const responseBody = await response.json();
+                      console.log('Response Body:', responseBody);
+                      if (responseBody?.status == 'error') {
+                        alert(
+                          `Failed to install plugin:\n${responseBody?.message}`,
+                        );
+                        if (setLogsDrawerOpen) {
+                          setLogsDrawerOpen(true);
+                        }
                       }
+                    } else {
+                      addNotification({
+                        type: 'danger',
+                        message:
+                          'Error: The API did not return a response. Plugin installation failed.',
+                      });
                     }
-                  } else {
-                    addNotification({
-                      type: 'danger',
-                      message:
-                        'Error: The API did not return a response. Plugin installation failed.',
-                    });
-                  }
-                });
+                  });
                 setInstalling(null);
                 parentMutate();
               }}

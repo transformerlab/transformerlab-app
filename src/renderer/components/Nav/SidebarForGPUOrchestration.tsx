@@ -3,29 +3,21 @@ import { useState, useEffect, FormEvent } from 'react';
 
 import {
   CodeIcon,
-  GraduationCapIcon,
-  LayersIcon,
-  MessageCircleIcon,
   BoxesIcon,
   FileTextIcon,
   MonitorIcon,
   FlaskConicalIcon,
   SettingsIcon,
   GithubIcon,
-  ArrowRightFromLineIcon,
   PlugIcon,
   TextIcon,
-  SquareStackIcon,
   FileIcon,
-  ChartColumnIncreasingIcon,
   UserIcon,
   LogOutIcon,
   LogInIcon,
-  AudioLinesIcon,
   StretchHorizontalIcon,
+  LibraryBigIcon,
 } from 'lucide-react';
-
-import { RiImageAiLine } from 'react-icons/ri';
 
 import {
   Alert,
@@ -76,91 +68,6 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
 
-  const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
-    boolean | null
-  >(null);
-
-  function activeModelIsNotSameAsFoundation() {
-    if (models === null) {
-      return true;
-    }
-
-    if (!experimentInfo?.name) {
-      return true;
-    }
-
-    // The API may respond with the ID of the model, or the model filename or the adaptor
-    return (
-      models?.[0]?.id !==
-        experimentInfo?.config?.foundation?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !==
-        experimentInfo?.config?.foundation_filename?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !== experimentInfo?.config.adaptor
-    );
-  }
-
-  // Check if the current foundation model is a diffusion model and fetch pipeline_tag in the same effect
-  useEffect(() => {
-    const checkValidDiffusionAndPipelineTag = async () => {
-      if (!experimentInfo?.config?.foundation) {
-        setIsValidDiffusionModel(false);
-        setPipelineTag(null);
-        return;
-      }
-
-      let pipelineTagResult = null;
-
-      // Check pipeline_tag first
-      try {
-        const url = getAPIFullPath('models', ['pipeline_tag'], {
-          modelName: experimentInfo.config.foundation,
-        });
-        const response = await fetch(url, { method: 'GET' });
-        if (!response.ok) {
-          setPipelineTag(null);
-        } else {
-          const data = await response.json();
-          console.log('Pipeline tag data:', data);
-          pipelineTagResult = data?.data || null;
-          setPipelineTag(pipelineTagResult);
-        }
-      } catch (e) {
-        setPipelineTag(null);
-        console.error('Error fetching pipeline tag:', e);
-      }
-
-      // If pipelineTag is text-to-speech, never show diffusion tab
-      if (pipelineTagResult === 'text-to-speech') {
-        setIsValidDiffusionModel(false);
-        return;
-      }
-
-      // Otherwise, check diffusion
-      try {
-        const response = await fetch(
-          getAPIFullPath('diffusion', ['checkValidDiffusion'], {
-            experimentId: experimentInfo.id,
-          }),
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: experimentInfo.config.foundation }),
-          },
-        );
-
-        if (!response.ok) {
-          setIsValidDiffusionModel(false);
-        } else {
-          const data = await response.json();
-          setIsValidDiffusionModel(data.is_valid_diffusion_model ?? false);
-        }
-      } catch (e) {
-        setIsValidDiffusionModel(false);
-      }
-    };
-    checkValidDiffusionAndPipelineTag();
-  }, [experimentInfo?.config?.foundation]);
-
   return (
     <List
       sx={{
@@ -170,89 +77,24 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         flex: 1,
       }}
     >
-      <>
-        <SubNavItem
-          title="Foundation"
-          path="/experiment/model"
-          icon={<LayersIcon strokeWidth={1} />}
-          disabled={!experimentInfo?.name}
-        />
-        {(isValidDiffusionModel === false || isValidDiffusionModel === null) &&
-          pipelineTag !== 'text-to-speech' && (
-            <SubNavItem
-              title="Interact"
-              path="/experiment/chat"
-              icon={<MessageCircleIcon strokeWidth={9} />}
-              disabled={
-                !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-              }
-            />
-          )}
-        {/* Show Diffusion tab only if the model IS a diffusion model */}
-        {isValidDiffusionModel === true && (
-          <SubNavItem
-            title="Diffusion"
-            path="/experiment/diffusion"
-            icon={<RiImageAiLine />}
-            disabled={!experimentInfo?.name}
-          />
-        )}
-        {/* Show Audio tab only if pipelineTag is text-to-speech */}
-        {pipelineTag === 'text-to-speech' && (
-          <SubNavItem
-            title="Audio"
-            path="/experiment/audio"
-            icon={<AudioLinesIcon />}
-            disabled={
-              !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-            }
-          />
-        )}
-        {/* <SubNavItem
-            title="Workflows"
-            path="/experiment/workflows"
-            icon={<WorkflowIcon />}
-            disabled={!experimentInfo?.name}
-          /> */}
-        <SubNavItem
-          title="Train"
-          path="/experiment/training"
-          icon={<GraduationCapIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
-          title="Generate"
-          path="/experiment/generate"
-          icon={<SquareStackIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
-          title="Evaluate"
-          path="/experiment/eval"
-          icon={<ChartColumnIncreasingIcon />}
-          disabled={!experimentInfo?.name || isValidDiffusionModel === true}
-        />
-        <SubNavItem
-          title="Documents"
-          path="/experiment/documents"
-          icon={<FileIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
-          title="Export"
-          path="/experiment/export"
-          icon={<ArrowRightFromLineIcon />}
-          disabled={
-            !experimentInfo?.name || !experimentInfo?.config?.foundation
-          }
-        />
-        <SubNavItem
-          title="Notes"
-          path="/experiment/notes"
-          icon={<FlaskConicalIcon />}
-          disabled={!experimentInfo?.name}
-        />
-      </>
+      <SubNavItem
+        title="Tasks"
+        path="/experiment/tasks"
+        icon={<StretchHorizontalIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem
+        title="Documents"
+        path="/experiment/documents"
+        icon={<FileIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem
+        title="Notes"
+        path="/experiment/notes"
+        icon={<FlaskConicalIcon />}
+        disabled={!experimentInfo?.name}
+      />
     </List>
   );
 }
@@ -272,19 +114,16 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
       <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
       <SubNavItem
+        title="Task Library"
+        path="/task_library"
+        icon={<LibraryBigIcon />}
+      />
+      <SubNavItem
         title="API"
         path="/api"
         icon={<CodeIcon />}
         disabled={!experimentInfo?.name}
       />
-      <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
-      <SubNavItem
-        title="Plugins"
-        path="/plugins"
-        icon={<PlugIcon />}
-        counter={outdatedPluginsCount}
-      />
-      <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
     </List>
   );
 }
@@ -1017,7 +856,7 @@ function BottomMenuItems({ navigate, themeSetter }) {
   );
 }
 
-export default function Sidebar({
+export default function SidebarForGPUOrchestration({
   logsDrawerOpen,
   setLogsDrawerOpen,
   themeSetter,

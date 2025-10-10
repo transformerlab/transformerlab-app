@@ -47,10 +47,13 @@ export default function DatasetDetailsModal({ open, setOpen }) {
     if (data.status === 'error') {
       alert(data.message);
     } else {
-      await authenticatedFetch(chatAPI.Endpoints.Dataset.FileUpload(newDatasetName), {
-        method: 'POST',
-        body: formData,
-      });
+      await authenticatedFetch(
+        chatAPI.Endpoints.Dataset.FileUpload(newDatasetName),
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
     }
     setUploading(false);
     handleClose();

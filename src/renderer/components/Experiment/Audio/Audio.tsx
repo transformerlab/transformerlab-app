@@ -28,7 +28,7 @@ import AudioHistory from './AudioHistory';
 const sampleRates = [16000, 22050, 24000, 44100, 48000];
 
 export async function sendAndReceiveAudioPath(
-  experimentId: number,
+  experimentId: string,
   currentModel: string,
   adaptor: string,
   text: any,
@@ -95,7 +95,7 @@ export async function sendAndReceiveAudioPath(
 }
 
 export async function uploadAudioFile(
-  experimentId: number,
+  experimentId: string,
   audioFile: File,
 ): Promise<any> {
   const formData = new FormData();

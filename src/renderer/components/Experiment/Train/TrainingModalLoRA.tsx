@@ -169,14 +169,17 @@ export default function TrainingModalLoRA({
       config: config,
       outputs: outputs,
     };
-    const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    const response = await chatAPI.authenticatedFetch(
+      chatAPI.Endpoints.Tasks.UpdateTask(task_id),
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(configBody),
       },
-      body: JSON.stringify(configBody),
-    });
+    );
     const result = await response.json();
     return result;
   }
@@ -198,14 +201,17 @@ export default function TrainingModalLoRA({
       outputs: outputs,
       type: 'TRAIN',
     };
-    const response = await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.NewTask(), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        accept: 'application/json',
+    const response = await chatAPI.authenticatedFetch(
+      chatAPI.Endpoints.Tasks.NewTask(),
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          accept: 'application/json',
+        },
+        body: JSON.stringify(configBody),
       },
-      body: JSON.stringify(configBody),
-    });
+    );
     const result = await response.json();
     return result;
   }

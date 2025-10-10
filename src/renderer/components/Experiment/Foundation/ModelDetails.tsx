@@ -41,7 +41,6 @@ function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
 }
 
-
 export default function ModelDetails({
   experimentInfo,
   adaptor,

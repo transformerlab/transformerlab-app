@@ -27,7 +27,6 @@ function getTemplateParametersForPlugin(pluginName, plugins) {
   return [];
 }
 
-
 export default function Generate({ addGeneration }) {
   const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
   const [currentPlugin, setCurrentPlugin] = useState('');

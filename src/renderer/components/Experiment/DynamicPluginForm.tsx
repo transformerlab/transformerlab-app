@@ -556,7 +556,6 @@ const widgets: RegistryWidgetsType = {
   GEvalTasksWidget,
 };
 
-
 export default function DynamicPluginForm({
   experimentInfo,
   plugin,

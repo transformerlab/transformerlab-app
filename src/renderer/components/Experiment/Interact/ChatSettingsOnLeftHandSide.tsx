@@ -16,7 +16,10 @@ import AddMCPServerDialog from './AddMCPServerDialog';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 
 // fetcher used by SWR
-import { fetcher, authenticatedFetch } from '../../../lib/transformerlab-api-sdk';
+import {
+  fetcher,
+  authenticatedFetch,
+} from '../../../lib/transformerlab-api-sdk';
 
 const fetchToolsWithMcp = async () => {
   try {
