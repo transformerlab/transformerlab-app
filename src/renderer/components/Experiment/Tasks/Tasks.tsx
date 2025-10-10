@@ -12,7 +12,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
-import ViewOutputModalStreaming from '../Train/ViewOutputModalStreaming';
+import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 
 const duration = require('dayjs/plugin/duration');
 
