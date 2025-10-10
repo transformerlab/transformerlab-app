@@ -56,7 +56,8 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     const line = lineQueue.current.shift()!;
 
     try {
-      termRef.current.write(line.replace(/\n$/, '\r\n'));
+      // Write the line and add a newline
+      termRef.current.write(line + '\r\n');
     } catch (error) {
       console.error('PollingOutputTerminal: Error writing to terminal:', error);
     }
@@ -80,7 +81,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      return response.text();
+      return response.json();
     },
     {
       refreshInterval: refreshInterval,
@@ -139,24 +140,27 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     };
 
     // Process new content when data changes
-    if (outputData && outputData !== lastContent) {
-      // Only process new lines (content that wasn't there before)
-      if (lastContent) {
-        const newContent = outputData.slice(lastContent.length);
-        if (newContent.trim()) {
-          const newLines = newContent.split('\n').filter(line => line.trim());
-          addLinesOneByOne(newLines);
+    if (outputData && Array.isArray(outputData)) {
+      const currentLines = outputData.join('\n');
+      if (currentLines !== lastContent) {
+        // Only process new lines (content that wasn't there before)
+        if (lastContent) {
+          const newContent = currentLines.slice(lastContent.length);
+          if (newContent.trim()) {
+            // Split new content by newlines
+            const newLines = newContent.split('\n').filter(line => line.trim());
+            addLinesOneByOne(newLines);
+          }
+        } else {
+          // First time - clear the loading message and add all content
+          if (termRef.current) {
+            termRef.current.clear();
+          }
+          addLinesOneByOne(outputData);
         }
-      } else {
-        // First time - clear the loading message and add all content
-        if (termRef.current) {
-          termRef.current.clear();
-        }
-        const lines = outputData.split('\n').filter(line => line.trim());
-        addLinesOneByOne(lines);
-      }
 
-      setLastContent(outputData);
+        setLastContent(currentLines);
+      }
     }
 
     // Handle errors
