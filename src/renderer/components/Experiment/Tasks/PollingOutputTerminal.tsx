@@ -42,7 +42,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
         fitAddon.current.fit();
       }
     }, 300),
-    []
+    [],
   );
 
   const processQueue = () => {
@@ -72,7 +72,10 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
   };
 
   // Fetch the output file content directly using the Tasks-specific endpoint
-  const outputEndpoint = chatAPI.Endpoints.Experiment.GetTasksOutputFromJob(experimentId, jobId.toString());
+  const outputEndpoint = chatAPI.Endpoints.Experiment.GetTasksOutputFromJob(
+    experimentId,
+    jobId.toString(),
+  );
 
   const { data: outputData, error } = useSWR(
     outputEndpoint,
@@ -89,7 +92,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       revalidateOnReconnect: false,
       errorRetryCount: 3,
       errorRetryInterval: 5000,
-    }
+    },
   );
 
   // Terminal initialization (only once)
@@ -148,7 +151,9 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
           const newContent = currentLines.slice(lastContent.length);
           if (newContent.trim()) {
             // Split new content by newlines
-            const newLines = newContent.split('\n').filter(line => line.trim());
+            const newLines = newContent
+              .split('\n')
+              .filter((line) => line.trim());
             addLinesOneByOne(newLines);
           }
         } else {

@@ -2,10 +2,7 @@ import { Box, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import PollingOutputTerminal from './PollingOutputTerminal';
 
-export default function ViewOutputModalStreaming({
-  jobId,
-  setJobId,
-}) {
+export default function ViewOutputModalStreaming({ jobId, setJobId }) {
   const { experimentInfo } = useExperimentInfo();
   if (jobId === -1 || !experimentInfo) {
     return null;
