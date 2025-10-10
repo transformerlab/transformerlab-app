@@ -91,6 +91,11 @@ export default function LoginModal({
           ...recentConnections,
         ]);
       }
+      // Mark that a user initiated a successful connection so downstream UI can react
+      try {
+        (window as any).TransformerLab = (window as any).TransformerLab || {};
+        (window as any).TransformerLab.UserInitiatedConnect = true;
+      } catch {}
       if (response?.gpu_orchestration_server) {
         setGPUOrchestrationServer(response.gpu_orchestration_server);
       }
@@ -338,7 +343,10 @@ export default function LoginModal({
 
                 window.TransformerLab = {};
                 window.TransformerLab.API_URL = fullServer;
-
+                // Mark that a user initiated a connection via SSH form
+                try {
+                  (window as any).TransformerLab.UserInitiatedConnect = true;
+                } catch {}
                 setServer(fullServer);
               }}
             >

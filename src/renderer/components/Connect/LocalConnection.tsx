@@ -335,6 +335,10 @@ function InstallStepper({ setServer }) {
     const fullServer = 'http://' + 'localhost' + ':' + '8338' + '/';
     window.TransformerLab = {};
     window.TransformerLab.API_URL = fullServer;
+    // Mark that a user initiated a local connection
+    try {
+      (window as any).TransformerLab.UserInitiatedConnect = true;
+    } catch {}
     setActiveStep(Steps.indexOf('CHECK_IF_INSTALLED'));
     setServer(fullServer);
   }
