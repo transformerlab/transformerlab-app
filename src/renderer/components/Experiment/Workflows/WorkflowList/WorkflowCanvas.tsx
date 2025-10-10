@@ -179,17 +179,18 @@ const Flow = ({
     if (!edgeReconnectSuccessful.current) {
       setEdges((eds) => {
         const updatedEdges = eds.filter((e) => e.id !== edge.id);
-        chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Workflows.RemoveEdge(
-            selectedWorkflow?.id,
-            edge.source,
-            edge.target,
-            experimentInfo.id,
-          ),
-          {
-            method: 'POST',
-          },
-        )
+        chatAPI
+          .authenticatedFetch(
+            chatAPI.Endpoints.Workflows.RemoveEdge(
+              selectedWorkflow?.id,
+              edge.source,
+              edge.target,
+              experimentInfo.id,
+            ),
+            {
+              method: 'POST',
+            },
+          )
           .then(() => {
             mutateWorkflows();
             return updatedEdges;

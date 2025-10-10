@@ -34,7 +34,8 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     if (config.cpus) resources.push(`CPUs: ${config.cpus}`);
     if (config.memory) resources.push(`Memory: ${config.memory}`);
     if (config.disk_space) resources.push(`Disk: ${config.disk_space}`);
-    if (config.accelerators) resources.push(`Accelerators: ${config.accelerators}`);
+    if (config.accelerators)
+      resources.push(`Accelerators: ${config.accelerators}`);
     if (config.num_nodes) resources.push(`Nodes: ${config.num_nodes}`);
 
     return resources.length > 0
@@ -58,12 +59,10 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     <Table>
       <thead>
         <tr>
-        <th style={{ width: '150px' }}>Name</th>
-        <th>Command</th>
-        <th>Resources</th>
-        <th style={{ textAlign: 'right', width: '250px' }}>
-          Actions
-        </th>
+          <th style={{ width: '150px' }}>Name</th>
+          <th>Command</th>
+          <th>Resources</th>
+          <th style={{ textAlign: 'right', width: '250px' }}>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -86,8 +85,8 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
               }}
             >
               <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
-                <IconButton 
-                  variant="plain" 
+                <IconButton
+                  variant="plain"
                   color="danger"
                   onClick={() => onDeleteTask?.(row.id)}
                   title="Delete task"

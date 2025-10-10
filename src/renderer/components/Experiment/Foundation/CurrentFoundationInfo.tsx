@@ -29,7 +29,11 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { getAPIFullPath, fetcher, authenticatedFetch } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getAPIFullPath,
+  fetcher,
+  authenticatedFetch,
+} from 'renderer/lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
 import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
@@ -44,7 +48,6 @@ const fetchWithPost = ({ url, post }) =>
     method: 'POST',
     body: post,
   }).then((res) => res.json());
-
 
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
@@ -302,12 +305,16 @@ export default function CurrentFoundationInfo({
 
   useMemo(() => {
     if (experimentInfo?.config?.foundation_filename) {
-      authenticatedFetch(chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(huggingfaceId))
+      authenticatedFetch(
+        chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(huggingfaceId),
+      )
         .then((res) => res.json())
         .catch((error) => console.log(error));
       setHugggingfaceData({});
     } else if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
-      authenticatedFetch(chatAPI.Endpoints.Models.GetLocalHFConfig(huggingfaceId))
+      authenticatedFetch(
+        chatAPI.Endpoints.Models.GetLocalHFConfig(huggingfaceId),
+      )
         .then((res) => res.json())
         .then((data) => setHugggingfaceData(data))
         .catch((error) => console.log(error));

@@ -12,7 +12,11 @@ export function useAPI(
   params: Record<string, any> = {},
   options: any = {},
 ) {
-  let path: string | null = getAPIFullPath(majorEntity, pathArray, params) as any;
+  let path: string | null = getAPIFullPath(
+    majorEntity,
+    pathArray,
+    params,
+  ) as any;
   const fetcher = async (url: string) => {
     // check for an access token. Will be "" if user not logged in.
     const accessToken = await getAccessToken();
