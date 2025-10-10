@@ -392,6 +392,8 @@ Endpoints.Experiment = {
     }`,
   GetOutputFromJob: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/output`,
+  GetTasksOutputFromJob: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tasks_output`,
   StreamOutputFromJob: (
     experimentId: string,
     jobId: string,

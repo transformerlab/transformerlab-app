@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
 import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
@@ -6,12 +6,15 @@ import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { PlusIcon } from 'lucide-react';
+import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
+import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -21,67 +24,54 @@ dayjs.extend(relativeTime);
 export default function Tasks() {
   const [modalOpen, setModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tasks, setTasks] = useState([]);
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
-  const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
-  const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
-  const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState(-1);
+  const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
+  const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const { experimentInfo } = useExperimentInfo();
 
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
 
-  const fetchTasks = async () => {
-    if (!experimentInfo?.id) return;
+  // Fetch tasks with useSWR
+  const {
+    data: allTasks,
+    error: tasksError,
+    isLoading: tasksIsLoading,
+    mutate: tasksMutate,
+  } = useSWR(
+    experimentInfo?.id ? chatAPI.Endpoints.Tasks.List() : null,
+    fetcher,
+  );
 
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Tasks.List(),
-      );
-      const data = await response.json();
+  // Filter tasks for remote tasks in this experiment only
+  const tasks =
+    allTasks?.filter(
+      (task: any) =>
+        task.remote_task === true && task.experiment_id === experimentInfo?.id,
+    ) || [];
 
-      // Filter for remote tasks in this experiment only
-      const remoteTasks = data.filter(
-        (task: any) =>
-          task.remote_task === true && task.experiment_id === experimentInfo.id,
-      );
-      setTasks(remoteTasks);
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error fetching tasks:', error);
-    }
-  };
+  // Fetch jobs with automatic polling
+  const {
+    data: jobs,
+    error: jobsError,
+    isLoading: jobsIsLoading,
+    mutate: jobsMutate,
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 3000, // Poll every 3 seconds for job status updates
+      revalidateOnFocus: false, // Don't refetch when window regains focus
+      revalidateOnReconnect: true, // Refetch when network reconnects
+    },
+  );
 
-  const fetchJobs = async () => {
-    if (!experimentInfo?.id) return;
-
-    try {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', ''),
-      );
-      const data = await response.json();
-      setJobs(data);
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error fetching jobs:', error);
-    }
-  };
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    await Promise.all([fetchTasks(), fetchJobs()]);
-    setLoading(false);
-  }, [experimentInfo?.id]);
-
-  useEffect(() => {
-    if (experimentInfo?.id) {
-      fetchData();
-    }
-  }, [experimentInfo?.id, fetchData]);
+  const loading = tasksIsLoading || jobsIsLoading;
 
   const handleDeleteTask = async (taskId: string) => {
     if (!experimentInfo?.id) return;
@@ -103,7 +93,7 @@ export default function Tasks() {
         // eslint-disable-next-line no-alert
         alert('Task deleted successfully!');
         // Refresh the data to remove the deleted task
-        await fetchData();
+        await tasksMutate();
       } else {
         // eslint-disable-next-line no-alert
         alert('Failed to delete task. Please try again.');
@@ -136,7 +126,7 @@ export default function Tasks() {
         // eslint-disable-next-line no-alert
         alert('Job deleted successfully!');
         // Refresh the data to remove the deleted job
-        await fetchData();
+        await jobsMutate();
       } else {
         // eslint-disable-next-line no-alert
         alert('Failed to delete job. Please try again.');
@@ -189,7 +179,7 @@ export default function Tasks() {
         alert('Task launched successfully!');
         setModalOpen(false);
         // Refresh the data to show the new task and job
-        await fetchData();
+        await Promise.all([tasksMutate(), jobsMutate()]);
       } else {
         // eslint-disable-next-line no-alert
         alert(`Error: ${result.message}`);
@@ -272,6 +262,10 @@ export default function Tasks() {
           />
         )}
       </Sheet>
+      <ViewOutputModalStreaming
+        jobId={viewOutputFromJob}
+        setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
+      />
     </Sheet>
   );
 }

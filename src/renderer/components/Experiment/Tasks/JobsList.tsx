@@ -52,7 +52,7 @@ const JobsList: React.FC<JobsListProps> = ({
           <th style={{ width: '60px' }}>ID</th>
           <th>Details</th>
           <th>Status</th>
-          <th style={{ width: '400px' }}>Other</th>
+          <th style={{ width: '400px' }}></th>
         </tr>
       </thead>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
