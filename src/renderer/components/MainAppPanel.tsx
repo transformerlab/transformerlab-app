@@ -13,6 +13,7 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useCallback, useEffect, useState } from 'react';
 import useSWR from 'swr';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
 import Embeddings from './Experiment/Embeddings';
@@ -41,8 +42,8 @@ import FoundationHome from './Experiment/Foundation';
 import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
+import Tasks from './Experiment/Tasks/Tasks';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -78,7 +79,10 @@ export const PageTracker = () => {
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
 // On the leftmost panel.
-export default function MainAppPanel({ setLogsDrawerOpen = null }) {
+export default function MainAppPanel({
+  setLogsDrawerOpen = null,
+  gpuOrchestrationServer = '',
+}) {
   const { experimentInfo, experimentInfoMutate, setExperimentId } =
     useExperimentInfo();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
@@ -370,6 +374,8 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/experiment/embeddings" element={<Embeddings />} />
         <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route path="/experiment/training" element={<TrainLoRA />} />
+        <Route path="/experiment/tasks" element={<Tasks />} />
+
         <Route
           path="/experiment/eval"
           element={<Eval addEvaluation={experimentAddEvaluation} />}
@@ -393,12 +399,55 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/plugins/:pluginName" element={<PluginDetails />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
-        <Route path="/zoo" element={<ModelZoo tab="groups" />} />
-        <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
-        <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
-        <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
-        <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
-        <Route path="/data" element={<Data />} />
+        <Route
+          path="/zoo"
+          element={
+            <ModelZoo
+              tab="groups"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/local"
+          element={
+            <ModelZoo
+              tab="local"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/generated"
+          element={
+            <ModelZoo
+              tab="generated"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/store"
+          element={
+            <ModelZoo
+              tab="store"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/groups"
+          element={
+            <ModelZoo
+              tab="groups"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/data"
+          element={<Data gpuOrchestrationServer={gpuOrchestrationServer} />}
+        />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
