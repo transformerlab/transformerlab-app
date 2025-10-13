@@ -1,3 +1,4 @@
+import { Button } from '@mui/joy';
 import React from 'react';
 
 const EditTokenModal = ({
@@ -28,6 +29,14 @@ const EditTokenModal = ({
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          onClose();
+        }
+      }}
       style={{
         position: 'fixed',
         top: 0,
@@ -40,9 +49,10 @@ const EditTokenModal = ({
         justifyContent: 'center',
         zIndex: 1000,
       }}
-      onClick={onClose}
     >
       <div
+        role="presentation"
+        onClick={(e) => e.stopPropagation()}
         style={{
           backgroundColor: 'white',
           padding: '24px',
@@ -52,7 +62,6 @@ const EditTokenModal = ({
           maxWidth: '400px',
           position: 'relative',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         <h3 style={{ marginTop: 0 }}>Edit {name} Token</h3>
 
@@ -73,7 +82,7 @@ const EditTokenModal = ({
         <div
           style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}
         >
-          <button
+          <Button
             onClick={onClose}
             style={{
               background: '#ccc',
@@ -84,9 +93,9 @@ const EditTokenModal = ({
             }}
           >
             Cancel
-          </button>
+          </Button>
 
-          <button
+          <Button
             disabled={!hasChanged}
             onClick={() => onSave(newToken.trim())}
             style={{
@@ -100,7 +109,7 @@ const EditTokenModal = ({
             }}
           >
             Save
-          </button>
+          </Button>
         </div>
       </div>
     </div>
