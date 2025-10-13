@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 
 const EditTokenModal = ({
   open,
@@ -29,28 +29,28 @@ const EditTokenModal = ({
   return (
     <div
       style={{
-        position: "fixed",
+        position: 'fixed',
         top: 0,
         left: 0,
-        width: "100vw",
-        height: "100vh",
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         zIndex: 1000,
       }}
       onClick={onClose}
     >
       <div
         style={{
-          backgroundColor: "white",
-          padding: "24px",
-          borderRadius: "12px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-          width: "90%",
-          maxWidth: "400px",
-          position: "relative",
+          backgroundColor: 'white',
+          padding: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          width: '90%',
+          maxWidth: '400px',
+          position: 'relative',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -60,26 +60,27 @@ const EditTokenModal = ({
           type="text"
           placeholder="Enter new token"
           style={{
-            width: "100%",
-            padding: "8px",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-            marginBottom: "12px",
+            width: '100%',
+            padding: '8px',
+            borderRadius: '6px',
+            border: '1px solid #ccc',
+            marginBottom: '12px',
           }}
-          
           value={newToken}
           onChange={(e) => setNewToken(e.target.value)}
         />
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+        <div
+          style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}
+        >
           <button
             onClick={onClose}
             style={{
-              background: "#ccc",
-              border: "none",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              cursor: "pointer",
+              background: '#ccc',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              cursor: 'pointer',
             }}
           >
             Cancel
@@ -89,13 +90,13 @@ const EditTokenModal = ({
             disabled={!hasChanged}
             onClick={() => onSave(newToken.trim())}
             style={{
-              background: hasChanged ? "#0d6efd" : "#a0c4ff",
-              color: "white",
-              border: "none",
-              borderRadius: "6px",
-              padding: "6px 12px",
-              cursor: hasChanged ? "pointer" : "",
-              transition: "background 0.2s ease",
+              background: hasChanged ? '#0d6efd' : '#a0c4ff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              cursor: hasChanged ? 'pointer' : '',
+              transition: 'background 0.2s ease',
             }}
           >
             Save

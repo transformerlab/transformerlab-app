@@ -38,11 +38,12 @@ import {
 export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [doNotTrack, setDoNotTrack] = React.useState(false);
-  const [showHuggingfaceEditTokenModal, setShowHuggingfaceEditTokenModal] = React.useState(false);
-  const [showWandbEditTokenModal, setShowWandbEditTokenModal] = React.useState(false);
+  const [showHuggingfaceEditTokenModal, setShowHuggingfaceEditTokenModal] =
+    React.useState(false);
+  const [showWandbEditTokenModal, setShowWandbEditTokenModal] =
+    React.useState(false);
   const [showExperimentalPlugins, setShowExperimentalPlugins] =
     React.useState(false);
-
 
   React.useEffect(() => {
     const fetchDoNotTrack = async () => {
@@ -164,58 +165,58 @@ export default function TransformerLabSettings() {
             {canLogInToHuggingFace?.message === 'OK' ? (
               <div>
                 <div style={{ position: 'relative', width: '100%' }}>
-                <Alert color="success" style={{ width: '100%', margin: 0 }}>
-                  Login to Huggingface Successful
-                </Alert>
-                <p
-                  style={{
-                    position: 'absolute',
-                    right: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    margin: 0,
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    borderBottom: '1px solid',
-                  }}
-                  onClick={() => {
-                    setShowHuggingfaceEditTokenModal(!showHuggingfaceEditTokenModal);
-                  }}
-                >
-                  Edit
-                </p>
-
-              </div>
-              <div>
-                {showHuggingfaceEditTokenModal && (
-                  <EditTokenModal
-                    open={showHuggingfaceEditTokenModal}
-                    onClose={() => setShowHuggingfaceEditTokenModal(false)}
-                    name="Huggingface"
-                    token={hftoken}
-                    onSave={async (token) => {
-                      await chatAPI.authenticatedFetch(
-                        chatAPI.Endpoints.Models.HuggingFaceLogout(),
-                      );
-                      await chatAPI.authenticatedFetch(
-                        getAPIFullPath('config', ['set'], {
-                          key: 'HuggingfaceUserAccessToken',
-                          value: token,
-                        }),
-                      );
-                      // Now manually log in to Huggingface
-                      await chatAPI.authenticatedFetch(
-                        chatAPI.Endpoints.Models.HuggingFaceLogin(),
-                      );
-                      hftokenmutate(token);
-                      canLogInToHuggingFaceMutate();
-                      setShowHuggingfaceEditTokenModal(false);
+                  <Alert color="success" style={{ width: '100%', margin: 0 }}>
+                    Login to Huggingface Successful
+                  </Alert>
+                  <p
+                    style={{
+                      position: 'absolute',
+                      right: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      margin: 0,
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      borderBottom: '1px solid',
                     }}
-                  />
-                )}
+                    onClick={() => {
+                      setShowHuggingfaceEditTokenModal(
+                        !showHuggingfaceEditTokenModal,
+                      );
+                    }}
+                  >
+                    Edit
+                  </p>
+                </div>
+                <div>
+                  {showHuggingfaceEditTokenModal && (
+                    <EditTokenModal
+                      open={showHuggingfaceEditTokenModal}
+                      onClose={() => setShowHuggingfaceEditTokenModal(false)}
+                      name="Huggingface"
+                      token={hftoken}
+                      onSave={async (token) => {
+                        await chatAPI.authenticatedFetch(
+                          chatAPI.Endpoints.Models.HuggingFaceLogout(),
+                        );
+                        await chatAPI.authenticatedFetch(
+                          getAPIFullPath('config', ['set'], {
+                            key: 'HuggingfaceUserAccessToken',
+                            value: token,
+                          }),
+                        );
+                        // Now manually log in to Huggingface
+                        await chatAPI.authenticatedFetch(
+                          chatAPI.Endpoints.Models.HuggingFaceLogin(),
+                        );
+                        hftokenmutate(token);
+                        canLogInToHuggingFaceMutate();
+                        setShowHuggingfaceEditTokenModal(false);
+                      }}
+                    />
+                  )}
+                </div>
               </div>
-            </div>
-            
             ) : (
               <>
                 <Alert color="danger" sx={{ mb: 1 }}>
@@ -284,26 +285,26 @@ export default function TransformerLabSettings() {
             {wandbLoginStatus?.message === 'OK' ? (
               <div>
                 <div style={{ position: 'relative', width: '100%' }}>
-                <Alert color="success" style={{ width: '100%', margin: 0 }}>
-                  Login to Weights &amp; Biases Successful
-                </Alert>
-                <p
-                  style={{
-                    position: 'absolute',
-                    right: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    margin: 0,
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    borderBottom: '1px solid',
-                  }}
-                  onClick={() => {
-                    setShowWandbEditTokenModal(!showWandbEditTokenModal);
-                  }}
-                >
-                  Edit
-                </p>
+                  <Alert color="success" style={{ width: '100%', margin: 0 }}>
+                    Login to Weights &amp; Biases Successful
+                  </Alert>
+                  <p
+                    style={{
+                      position: 'absolute',
+                      right: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      margin: 0,
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      borderBottom: '1px solid',
+                    }}
+                    onClick={() => {
+                      setShowWandbEditTokenModal(!showWandbEditTokenModal);
+                    }}
+                  >
+                    Edit
+                  </p>
                 </div>
 
                 <div>
