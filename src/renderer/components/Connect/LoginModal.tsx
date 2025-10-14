@@ -106,7 +106,8 @@ export default function LoginModal({
       const currentPath = window.location.href;
       window.TransformerLab.API_URL = currentPath;
       console.log('Connecting to: ', window.TransformerLab.API_URL);
-      setServer(window.TransformerLab.API_URL);
+      // Call checkServer to verify the server is healthy before connecting
+      checkServer();
     }
   }, []);
 
