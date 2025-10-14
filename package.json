@@ -4,9 +4,9 @@
     "LLM",
     "LocalLLaMA"
   ],
-  "homepage": "https://transformerlab.ai",
+  "homepage": "https://lab.cloud",
   "bugs": {
-    "url": "https://transformerlab.ai"
+    "url": "https://lab.cloud"
   },
   "repository": {
     "type": "git",
@@ -16,7 +16,7 @@
   "author": {
     "name": "Ali Asaria",
     "email": "ali",
-    "url": "https://transformerlab.ai"
+    "url": "https://lab.cloud"
   },
   "contributors": [
     {
