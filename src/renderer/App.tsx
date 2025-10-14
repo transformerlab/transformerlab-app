@@ -28,7 +28,6 @@ import {
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
 import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
-import { apiHealthz } from './lib/api-client/functions';
 
 type AppContentProps = {
   connection: string;
@@ -55,24 +54,6 @@ function AppContent({
   gpuOrchestrationServer,
   setGPUOrchestrationServer,
 }: AppContentProps) {
-  // Check for GPU orchestration server on app initialization
-  useEffect(() => {
-    const checkGPUOrchestration = async () => {
-      if (!gpuOrchestrationServer && connection) {
-        try {
-          const response = await apiHealthz();
-          if (response?.gpu_orchestration_server) {
-            setGPUOrchestrationServer(response.gpu_orchestration_server);
-          }
-        } catch (error) {
-          // Server not available or health check failed
-          console.log('GPU orchestration health check failed:', error);
-        }
-      }
-    };
-
-    checkGPUOrchestration();
-  }, [connection, gpuOrchestrationServer, setGPUOrchestrationServer]);
   const onOutputDrawerDrag = useCallback(
     (pos: { y: number }) => {
       const ypos = pos.y;
