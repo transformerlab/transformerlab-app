@@ -257,12 +257,12 @@ export default function Welcome() {
             </Button> */}
             </Stack>
             <Typography level="body-lg" mt={2} sx={{ fontSize: '24px' }}>
-              Watch our{' '}
-              <a href="https://transformerlab.ai/docs/intro" target="_blank">
-                Getting Started Video
-              </a>
-              , or access our{' '}
-              <a href="https://transformerlab.ai/docs/intro" target="_blank">
+              Access our{' '}
+              <a
+                href="https://lab.cloud/docs/"
+                target="_blank"
+                rel="noreferrer"
+              >
                 full documentation
               </a>{' '}
               for more ideas!

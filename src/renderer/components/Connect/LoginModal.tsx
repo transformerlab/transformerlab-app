@@ -192,7 +192,7 @@ export default function LoginModal({
                 fontWeight={400}
               >
                 <a
-                  href="https://transformerlab.ai/docs/install/install-on-cloud"
+                  href="https://lab.cloud/docs/install/install-on-cloud"
                   target="_blank"
                   rel="noreferrer"
                 >

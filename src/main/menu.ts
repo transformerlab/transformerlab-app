@@ -161,13 +161,13 @@ export default class MenuBuilder {
         {
           label: 'Learn More',
           click() {
-            shell.openExternal('https://transformerlab.ai');
+            shell.openExternal('https://lab.cloud/');
           },
         },
         {
           label: 'Documentation',
           click() {
-            shell.openExternal('https://transformerlab.ai/docs/intro');
+            shell.openExternal('https://lab.cloud/docs/');
           },
         },
         // {
