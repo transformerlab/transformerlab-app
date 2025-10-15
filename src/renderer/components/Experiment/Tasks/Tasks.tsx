@@ -14,6 +14,7 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
+import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 
 const duration = require('dayjs/plugin/duration');
@@ -23,6 +24,8 @@ dayjs.extend(relativeTime);
 
 export default function Tasks() {
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
@@ -34,6 +37,10 @@ export default function Tasks() {
 
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
+  const handleEditClose = () => {
+    setEditModalOpen(false);
+    setTaskBeingEdited(null);
+  };
 
   // Fetch tasks with useSWR
   const {
@@ -239,6 +246,11 @@ export default function Tasks() {
     }
   };
 
+  const handleEditTask = (task: any) => {
+    setTaskBeingEdited(task);
+    setEditModalOpen(true);
+  };
+
   return (
     <Sheet
       sx={{
@@ -253,6 +265,14 @@ export default function Tasks() {
         onClose={handleClose}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+      />
+      <EditTaskModal
+        open={editModalOpen}
+        onClose={handleEditClose}
+        task={taskBeingEdited}
+        onSaved={async () => {
+          await tasksMutate();
+        }}
       />
       <Stack
         direction="row"
@@ -283,6 +303,7 @@ export default function Tasks() {
             tasksList={tasks}
             onDeleteTask={handleDeleteTask}
             onQueueTask={handleQueue}
+            onEditTask={handleEditTask}
           />
         )}
       </Sheet>
