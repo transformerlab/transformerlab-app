@@ -16,6 +16,7 @@ import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
 import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -34,6 +35,7 @@ export default function Tasks() {
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const { experimentInfo } = useExperimentInfo();
+  const { addNotification } = useNotification();
 
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
@@ -97,19 +99,24 @@ export default function Tasks() {
       );
 
       if (response.ok) {
-        // eslint-disable-next-line no-alert
-        alert('Task deleted successfully!');
+        addNotification({
+          type: 'success',
+          message: 'Task deleted successfully!',
+        });
         // Refresh the data to remove the deleted task
         await tasksMutate();
       } else {
-        // eslint-disable-next-line no-alert
-        alert('Failed to delete task. Please try again.');
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete task. Please try again.',
+        });
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('Error deleting task:', error);
-      // eslint-disable-next-line no-alert
-      alert('Failed to delete task. Please try again.');
+      addNotification({
+        type: 'danger',
+        message: 'Failed to delete task. Please try again.',
+      });
     }
   };
 
@@ -130,26 +137,30 @@ export default function Tasks() {
       );
 
       if (response.ok) {
-        // eslint-disable-next-line no-alert
-        alert('Job deleted successfully!');
+        addNotification({
+          type: 'success',
+          message: 'Job deleted successfully!',
+        });
         // Refresh the data to remove the deleted job
         await jobsMutate();
       } else {
-        // eslint-disable-next-line no-alert
-        alert('Failed to delete job. Please try again.');
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete job. Please try again.',
+        });
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('Error deleting job:', error);
-      // eslint-disable-next-line no-alert
-      alert('Failed to delete job. Please try again.');
+      addNotification({
+        type: 'danger',
+        message: 'Failed to delete job. Please try again.',
+      });
     }
   };
 
   const handleSubmit = async (data: any) => {
     if (!experimentInfo?.id) {
-      // eslint-disable-next-line no-alert
-      alert('No experiment selected');
+      addNotification({ type: 'warning', message: 'No experiment selected' });
       return;
     }
 
@@ -191,18 +202,23 @@ export default function Tasks() {
       if (response.ok) {
         setModalOpen(false);
         await tasksMutate();
-        // eslint-disable-next-line no-alert
-        alert('Task created. Use Queue to launch remotely.');
+        addNotification({
+          type: 'success',
+          message: 'Task created. Use Queue to launch remotely.',
+        });
       } else {
         const txt = await response.text();
-        // eslint-disable-next-line no-alert
-        alert(`Failed to create task: ${txt}`);
+        addNotification({
+          type: 'danger',
+          message: `Failed to create task: ${txt}`,
+        });
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('Error creating task:', error);
-      // eslint-disable-next-line no-alert
-      alert('Failed to create task. Please try again.');
+      addNotification({
+        type: 'danger',
+        message: 'Failed to create task. Please try again.',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -229,7 +245,8 @@ export default function Tasks() {
         formData.append('accelerators', String(cfg.accelerators));
       if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
       if (cfg.setup) formData.append('setup', String(cfg.setup));
-      if (cfg.uploaded_dir_path) formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+      if (cfg.uploaded_dir_path)
+        formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
 
       const resp = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
@@ -237,18 +254,23 @@ export default function Tasks() {
       );
       const result = await resp.json();
       if (result.status === 'success') {
-        // eslint-disable-next-line no-alert
-        alert('Task queued for remote launch.');
+        addNotification({
+          type: 'success',
+          message: 'Task queued for remote launch.',
+        });
         await Promise.all([jobsMutate(), tasksMutate()]);
       } else {
-        // eslint-disable-next-line no-alert
-        alert(`Remote launch failed: ${result.message}`);
+        addNotification({
+          type: 'danger',
+          message: `Remote launch failed: ${result.message}`,
+        });
       }
     } catch (e) {
-      // eslint-disable-next-line no-console
       console.error(e);
-      // eslint-disable-next-line no-alert
-      alert('Failed to queue remote task.');
+      addNotification({
+        type: 'danger',
+        message: 'Failed to queue remote task.',
+      });
     }
   };
 

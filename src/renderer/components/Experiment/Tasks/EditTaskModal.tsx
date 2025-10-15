@@ -12,6 +12,7 @@ import { ModalClose, ModalDialog, Sheet, Stack, Typography } from '@mui/joy';
 import { FolderIcon } from 'lucide-react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 type EditTaskModalProps = {
   open: boolean;
@@ -26,6 +27,7 @@ export default function EditTaskModal({
   task,
   onSaved = () => {},
 }: EditTaskModalProps) {
+  const { addNotification } = useNotification();
   const [title, setTitle] = React.useState('');
   const [command, setCommand] = React.useState('');
   const [clusterName, setClusterName] = React.useState('');
@@ -66,7 +68,7 @@ export default function EditTaskModal({
     e.preventDefault();
     if (!task) return;
     if (!command) {
-      alert('Command is required');
+      addNotification({ type: 'warning', message: 'Command is required' });
       return;
     }
     setSaving(true);
@@ -103,7 +105,10 @@ export default function EditTaskModal({
 
       if (!response.ok) {
         const txt = await response.text();
-        alert(`Failed to save task: ${txt}`);
+        addNotification({
+          type: 'danger',
+          message: `Failed to save task: ${txt}`,
+        });
         setSaving(false);
         return;
       }
@@ -114,7 +119,7 @@ export default function EditTaskModal({
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Failed to save task.');
+      addNotification({ type: 'danger', message: 'Failed to save task.' });
     } finally {
       setSaving(false);
     }
@@ -225,19 +230,26 @@ export default function EditTaskModal({
             </FormControl>
 
             {/* Show uploaded directory indicator if present */}
-            {task && (() => {
-              const cfg = typeof task.config === 'string' ? safeParse(task.config) : task.config || {};
-              return cfg.uploaded_dir_path ? (
-                <Sheet variant="soft" sx={{ p: 2, borderRadius: 'md', mt: 2 }}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <FolderIcon size={16} />
-                    <Typography level="body-sm">
-                      This task includes an uploaded directory
-                    </Typography>
-                  </Stack>
-                </Sheet>
-              ) : null;
-            })()}
+            {task &&
+              (() => {
+                const cfg =
+                  typeof task.config === 'string'
+                    ? safeParse(task.config)
+                    : task.config || {};
+                return cfg.uploaded_dir_path ? (
+                  <Sheet
+                    variant="soft"
+                    sx={{ p: 2, borderRadius: 'md', mt: 2 }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <FolderIcon size={16} />
+                      <Typography level="body-sm">
+                        This task includes an uploaded directory
+                      </Typography>
+                    </Stack>
+                  </Sheet>
+                ) : null;
+              })()}
           </DialogContent>
           <DialogActions>
             <Button
