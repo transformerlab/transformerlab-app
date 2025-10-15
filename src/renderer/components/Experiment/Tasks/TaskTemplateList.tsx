@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, ButtonGroup, Typography, IconButton } from '@mui/joy';
+import { Table, ButtonGroup, Typography, IconButton, Button } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
 
 type TaskRow = {
@@ -17,11 +17,13 @@ type TaskRow = {
 type TaskTemplateListProps = {
   tasksList: TaskRow[];
   onDeleteTask?: (taskId: string) => void;
+  onQueueTask?: (task: TaskRow) => void;
 };
 
 const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   tasksList,
   onDeleteTask,
+  onQueueTask,
 }) => {
   const getResourcesInfo = (task: TaskRow) => {
     if (!task.remote_task || typeof task.config !== 'object') {
@@ -85,6 +87,13 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
               }}
             >
               <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
+                <Button
+                  variant="soft"
+                  color="success"
+                  onClick={() => onQueueTask?.(row)}
+                >
+                  Queue
+                </Button>
                 <IconButton
                   variant="plain"
                   color="danger"
