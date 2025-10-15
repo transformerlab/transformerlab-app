@@ -111,7 +111,8 @@ export default function LoginModal({
       const currentPath = window.location.href;
       window.TransformerLab.API_URL = currentPath;
       console.log('Connecting to: ', window.TransformerLab.API_URL);
-      setServer(window.TransformerLab.API_URL);
+      // Call checkServer to verify the server is healthy before connecting
+      checkServer();
     }
   }, []);
 
@@ -196,7 +197,7 @@ export default function LoginModal({
                 fontWeight={400}
               >
                 <a
-                  href="https://transformerlab.ai/docs/install/install-on-cloud"
+                  href="https://lab.cloud/docs/install/install-on-cloud"
                   target="_blank"
                   rel="noreferrer"
                 >
