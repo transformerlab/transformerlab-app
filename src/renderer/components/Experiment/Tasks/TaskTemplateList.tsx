@@ -1,5 +1,6 @@
 import React from 'react';
 import { Table, ButtonGroup, Typography, IconButton, Button } from '@mui/joy';
+import { PlayIcon } from 'lucide-react';
 import { Trash2Icon } from 'lucide-react';
 
 type TaskRow = {
@@ -88,6 +89,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
             >
               <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
                 <Button
+                  startDecorator={<PlayIcon />}
                   variant="soft"
                   color="success"
                   onClick={() => onQueueTask?.(row)}
