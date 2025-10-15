@@ -9,6 +9,7 @@ import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import Textarea from '@mui/joy/Textarea';
 import { ModalClose, ModalDialog } from '@mui/joy';
+import DirectoryUpload from './DirectoryUpload';
 
 type NewTaskModalProps = {
   open: boolean;
@@ -23,6 +24,7 @@ type NewTaskModalProps = {
     accelerators?: string;
     num_nodes?: number;
     setup?: string;
+    uploaded_dir_path?: string;
   }) => void;
   isSubmitting?: boolean;
 };
@@ -42,6 +44,7 @@ export default function NewTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
+  const [uploadedDirPath, setUploadedDirPath] = React.useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +58,7 @@ export default function NewTaskModal({
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setup || undefined,
+      uploaded_dir_path: uploadedDirPath || undefined,
     });
     // Reset all form fields
     setTitle('');
@@ -66,6 +70,7 @@ export default function NewTaskModal({
     setAccelerators('');
     setNumNodes('');
     setSetup('');
+    setUploadedDirPath('');
     onClose();
   };
 
@@ -180,6 +185,12 @@ export default function NewTaskModal({
                 placeholder="e.g. python train.py --epochs 10"
               />
             </FormControl>
+
+            <DirectoryUpload
+              onUploadComplete={(path) => setUploadedDirPath(path)}
+              onUploadError={(error) => console.error('Upload error:', error)}
+              disabled={isSubmitting}
+            />
           </DialogContent>
           <DialogActions>
             <Button

@@ -169,6 +169,7 @@ export default function Tasks() {
           accelerators: data.accelerators || undefined,
           num_nodes: data.num_nodes || undefined,
           setup: data.setup || undefined,
+          uploaded_dir_path: data.uploaded_dir_path || undefined,
         },
         plugin: 'remote_orchestrator',
         outputs: {},
@@ -228,6 +229,7 @@ export default function Tasks() {
         formData.append('accelerators', String(cfg.accelerators));
       if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
       if (cfg.setup) formData.append('setup', String(cfg.setup));
+      if (cfg.uploaded_dir_path) formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
 
       const resp = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
