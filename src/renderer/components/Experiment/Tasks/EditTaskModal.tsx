@@ -8,7 +8,8 @@ import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import Textarea from '@mui/joy/Textarea';
-import { ModalClose, ModalDialog } from '@mui/joy';
+import { ModalClose, ModalDialog, Sheet, Stack, Typography } from '@mui/joy';
+import { FolderIcon } from 'lucide-react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
@@ -222,6 +223,21 @@ export default function EditTaskModal({
                 placeholder="e.g. python train.py --epochs 10"
               />
             </FormControl>
+
+            {/* Show uploaded directory indicator if present */}
+            {task && (() => {
+              const cfg = typeof task.config === 'string' ? safeParse(task.config) : task.config || {};
+              return cfg.uploaded_dir_path ? (
+                <Sheet variant="soft" sx={{ p: 2, borderRadius: 'md', mt: 2 }}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <FolderIcon size={16} />
+                    <Typography level="body-sm">
+                      This task includes an uploaded directory
+                    </Typography>
+                  </Stack>
+                </Sheet>
+              ) : null;
+            })()}
           </DialogContent>
           <DialogActions>
             <Button

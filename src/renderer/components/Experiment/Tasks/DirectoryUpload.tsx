@@ -197,9 +197,6 @@ export default function DirectoryUpload({
               )}
             </Stack>
 
-            <Typography level="body-xs" color="neutral">
-              Path: {uploadedDirPath}
-            </Typography>
             <Stack spacing={0.5}>
               <Typography level="body-xs" color="neutral">
                 Files ({uploadedFiles.length}):
