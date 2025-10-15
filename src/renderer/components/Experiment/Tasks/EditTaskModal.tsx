@@ -19,7 +19,12 @@ type EditTaskModalProps = {
   onSaved?: () => void;
 };
 
-export default function EditTaskModal({ open, onClose, task, onSaved = () => {} }: EditTaskModalProps) {
+export default function EditTaskModal({
+  open,
+  onClose,
+  task,
+  onSaved = () => {},
+}: EditTaskModalProps) {
   const [title, setTitle] = React.useState('');
   const [command, setCommand] = React.useState('');
   const [clusterName, setClusterName] = React.useState('');
@@ -42,7 +47,10 @@ export default function EditTaskModal({ open, onClose, task, onSaved = () => {} 
   React.useEffect(() => {
     if (!task) return;
     setTitle(task.name || '');
-    const cfg = typeof task.config === 'string' ? safeParse(task.config) : task.config || {};
+    const cfg =
+      typeof task.config === 'string'
+        ? safeParse(task.config)
+        : task.config || {};
     setClusterName(cfg.cluster_name || '');
     setCommand(cfg.command || '');
     setCpus(cfg.cpus != null ? String(cfg.cpus) : '');
@@ -113,7 +121,9 @@ export default function EditTaskModal({ open, onClose, task, onSaved = () => {} 
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ maxHeight: '90vh', width: '70vw', overflow: 'hidden' }}>
+      <ModalDialog
+        sx={{ maxHeight: '90vh', width: '70vw', overflow: 'hidden' }}
+      >
         <ModalClose />
         <DialogTitle>Edit Task</DialogTitle>
         <form onSubmit={handleSubmit}>
@@ -140,44 +150,86 @@ export default function EditTaskModal({ open, onClose, task, onSaved = () => {} 
                 marginTop: '16px',
               }}
             >
-              <FormControl sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}>
+              <FormControl
+                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+              >
                 <FormLabel>CPUs</FormLabel>
-                <Input value={cpus} onChange={(e) => setCpus(e.target.value)} placeholder="e.g. 2" />
+                <Input
+                  value={cpus}
+                  onChange={(e) => setCpus(e.target.value)}
+                  placeholder="e.g. 2"
+                />
               </FormControl>
 
-              <FormControl sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}>
+              <FormControl
+                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+              >
                 <FormLabel>Memory (in GB)</FormLabel>
-                <Input value={memory} onChange={(e) => setMemory(e.target.value)} placeholder="e.g. 4" />
+                <Input
+                  value={memory}
+                  onChange={(e) => setMemory(e.target.value)}
+                  placeholder="e.g. 4"
+                />
               </FormControl>
 
-              <FormControl sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}>
+              <FormControl
+                sx={{ flex: '1 1 calc(33.333% - 16px)', minWidth: '150px' }}
+              >
                 <FormLabel>Disk Space (in GB)</FormLabel>
-                <Input value={diskSpace} onChange={(e) => setDiskSpace(e.target.value)} placeholder="e.g. 20" />
+                <Input
+                  value={diskSpace}
+                  onChange={(e) => setDiskSpace(e.target.value)}
+                  placeholder="e.g. 20"
+                />
               </FormControl>
             </div>
 
             <FormControl sx={{ mt: 2 }}>
               <FormLabel>Accelerators per Node</FormLabel>
-              <Input value={accelerators} onChange={(e) => setAccelerators(e.target.value)} placeholder="e.g. RTX3090:1 or H100:8" />
+              <Input
+                value={accelerators}
+                onChange={(e) => setAccelerators(e.target.value)}
+                placeholder="e.g. RTX3090:1 or H100:8"
+              />
             </FormControl>
 
             <FormControl sx={{ mt: 2 }}>
               <FormLabel>Number of Nodes</FormLabel>
-              <Input type="number" value={numNodes} onChange={(e) => setNumNodes(e.target.value)} placeholder="e.g. 1" />
+              <Input
+                type="number"
+                value={numNodes}
+                onChange={(e) => setNumNodes(e.target.value)}
+                placeholder="e.g. 1"
+              />
             </FormControl>
 
             <FormControl sx={{ mt: 2 }}>
               <FormLabel>Setup Command</FormLabel>
-              <Textarea minRows={2} value={setup} onChange={(e) => setSetup(e.target.value)} placeholder="Setup commands (optional) that runs before task is run. e.g. pip install -r requirements.txt" />
+              <Textarea
+                minRows={2}
+                value={setup}
+                onChange={(e) => setSetup(e.target.value)}
+                placeholder="Setup commands (optional) that runs before task is run. e.g. pip install -r requirements.txt"
+              />
             </FormControl>
 
             <FormControl required sx={{ mt: 2 }}>
               <FormLabel>Command</FormLabel>
-              <Textarea minRows={4} value={command} onChange={(e) => setCommand(e.target.value)} placeholder="e.g. python train.py --epochs 10" />
+              <Textarea
+                minRows={4}
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                placeholder="e.g. python train.py --epochs 10"
+              />
             </FormControl>
           </DialogContent>
           <DialogActions>
-            <Button variant="plain" color="neutral" onClick={onClose} disabled={saving}>
+            <Button
+              variant="plain"
+              color="neutral"
+              onClick={onClose}
+              disabled={saving}
+            >
               Cancel
             </Button>
             <Button type="submit" variant="solid" loading={saving}>
@@ -189,5 +241,3 @@ export default function EditTaskModal({ open, onClose, task, onSaved = () => {} 
     </Modal>
   );
 }
-
-

@@ -211,7 +211,10 @@ export default function Tasks() {
     if (!experimentInfo?.id) return;
 
     try {
-      const cfg = typeof task.config === 'string' ? JSON.parse(task.config) : task.config || {};
+      const cfg =
+        typeof task.config === 'string'
+          ? JSON.parse(task.config)
+          : task.config || {};
       const formData = new FormData();
       formData.append('experimentId', experimentInfo.id);
       if (cfg.cluster_name) formData.append('cluster_name', cfg.cluster_name);
@@ -221,7 +224,8 @@ export default function Tasks() {
       if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
       if (cfg.memory) formData.append('memory', String(cfg.memory));
       if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
-      if (cfg.accelerators) formData.append('accelerators', String(cfg.accelerators));
+      if (cfg.accelerators)
+        formData.append('accelerators', String(cfg.accelerators));
       if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
       if (cfg.setup) formData.append('setup', String(cfg.setup));
 
