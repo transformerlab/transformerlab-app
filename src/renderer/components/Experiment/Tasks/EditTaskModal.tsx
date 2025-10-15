@@ -13,6 +13,7 @@ import { FolderIcon } from 'lucide-react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { SafeJSONParse } from 'renderer/components/Shared/SafeJSONParse';
 
 type EditTaskModalProps = {
   open: boolean;
@@ -39,21 +40,10 @@ export default function EditTaskModal({
   const [setup, setSetup] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
-  const safeParse = (s: string) => {
-    try {
-      return JSON.parse(s);
-    } catch {
-      return {} as any;
-    }
-  };
-
   React.useEffect(() => {
     if (!task) return;
     setTitle(task.name || '');
-    const cfg =
-      typeof task.config === 'string'
-        ? safeParse(task.config)
-        : task.config || {};
+    const cfg = SafeJSONParse(task.config, {});
     setClusterName(cfg.cluster_name || '');
     setCommand(cfg.command || '');
     setCpus(cfg.cpus != null ? String(cfg.cpus) : '');
@@ -232,10 +222,7 @@ export default function EditTaskModal({
             {/* Show uploaded directory indicator if present */}
             {task &&
               (() => {
-                const cfg =
-                  typeof task.config === 'string'
-                    ? safeParse(task.config)
-                    : task.config || {};
+                const cfg = SafeJSONParse(task.config, {});
                 return cfg.uploaded_dir_path ? (
                   <Sheet
                     variant="soft"
