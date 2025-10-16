@@ -131,7 +131,8 @@ const JobsList: React.FC<JobsListProps> = ({
                       Checkpoints
                     </Button>
                   )}
-                  {(job?.job_data?.artifacts || job?.job_data?.artifacts_dir) && (
+                  {(job?.job_data?.artifacts ||
+                    job?.job_data?.artifacts_dir) && (
                     <Button
                       size="sm"
                       variant="plain"

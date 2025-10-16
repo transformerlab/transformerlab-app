@@ -16,14 +16,17 @@ interface ViewArtifactsModalProps {
   jobId: number | string;
 }
 
-export default function ViewArtifactsModal({ open, onClose, jobId }: ViewArtifactsModalProps) {
+export default function ViewArtifactsModal({
+  open,
+  onClose,
+  jobId,
+}: ViewArtifactsModalProps) {
   const { experimentInfo } = useExperimentInfo();
   const { data, isLoading: artifactsLoading } = useAPI(
     'jobs',
     ['getArtifacts'],
     { jobId, experimentId: experimentInfo?.id },
   );
-
 
   let noArtifacts = false;
 
