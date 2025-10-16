@@ -19,6 +19,7 @@ import {
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import TaskModal from './TaskModal';
+import TaskGallery from './TaskGallery';
 
 export default function TaskLibrary({}) {
   const { experimentInfo } = useExperimentInfo();
@@ -60,6 +61,8 @@ export default function TaskLibrary({}) {
   // modal state to show TaskModal when creating/viewing a task
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTask, setModalTask] = useState<any | null>(null);
+  // gallery state for importing examples
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const handleCloseModal = () => {
     setModalOpen(false);
@@ -67,7 +70,20 @@ export default function TaskLibrary({}) {
   };
 
   const handleImportExample = () => {
-    console.log('Import example');
+    // open the example gallery
+    setGalleryOpen(true);
+  };
+
+  const handleSelectExample = (example: any) => {
+    // add selected example to tasks and close gallery
+    const newTask = {
+      id: example.id || `imported-${Date.now()}`,
+      title: example.title,
+      description: example.description,
+      yaml: example.yaml,
+    };
+    setTasks((prev) => [newTask, ...prev]);
+    setGalleryOpen(false);
   };
 
   const handleCreate = () => {
@@ -204,6 +220,12 @@ export default function TaskLibrary({}) {
         onClose={handleCloseModal}
         task={modalTask}
         onSave={handleSave}
+      />
+      {/* Example gallery modal */}
+      <TaskGallery
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        onSelect={handleSelectExample}
       />
     </Sheet>
   );
