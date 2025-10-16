@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import TaskModal from './TaskModal';
 
 export default function TaskLibrary({}) {
   const { experimentInfo } = useExperimentInfo();
@@ -56,18 +57,44 @@ export default function TaskLibrary({}) {
 
   const [tasks, setTasks] = useState(initialTasks);
 
+  // modal state to show TaskModal when creating/viewing a task
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalTask, setModalTask] = useState<any | null>(null);
+
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setModalTask(null);
+  };
+
   const handleImportExample = () => {
     console.log('Import example');
   };
 
   const handleCreate = () => {
-    // stub - replace with create flow
-    console.log('Create new task');
+    // open modal for a new task (modalTask null => new)
+    setModalTask(null);
+    setModalOpen(true);
   };
 
   const handleEdit = (taskId: string) => {
-    // stub - replace with edit flow
-    console.log('Edit', taskId);
+    // find the task and open the modal populated for editing
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+    setModalTask(t);
+    setModalOpen(true);
+  };
+
+  // save handler for both new and edited tasks
+  const handleSave = (savedTask: any) => {
+    setTasks((prev) => {
+      const exists = prev.some((t) => t.id === savedTask.id);
+      if (exists) {
+        return prev.map((t) => (t.id === savedTask.id ? savedTask : t));
+      }
+      return [savedTask, ...prev];
+    });
+    setModalOpen(false);
+    setModalTask(null);
   };
 
   const handleDelete = (taskId: string) => {
@@ -170,6 +197,14 @@ export default function TaskLibrary({}) {
           </ListItem>
         ))}
       </List>
+
+      {/* Task modal for create/view */}
+      <TaskModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        task={modalTask}
+        onSave={handleSave}
+      />
     </Sheet>
   );
 }
