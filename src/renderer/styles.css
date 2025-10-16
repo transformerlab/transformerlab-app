@@ -130,11 +130,12 @@ spinning gradient border effect */
 }
 
 .MuiSheet-root.Sidebar {
-  background-color: rgb(214, 207, 225, 1);
+  background-color: rgba(208, 208, 208, 0.25);
 }
 
+
 html[data-joy-color-scheme='dark'] .MuiSheet-root.Sidebar {
-  background-color: rgb(54, 50, 59);
+  background-color: rgb(37, 37, 37);
 }
 
 /* Color for sidebar disabled text */
@@ -249,10 +250,8 @@ code if we want */
 
 .react-flow__node-customNode {
   padding: 0px;
-  border-radius: var(
-    --xy-node-border-radius,
-    var(--xy-node-border-radius-default)
-  );
+  border-radius: var(--xy-node-border-radius,
+      var(--xy-node-border-radius-default));
   font-size: 12px;
   min-width: 200px;
   color: var(--xy-node-color, var(--xy-node-color-default));

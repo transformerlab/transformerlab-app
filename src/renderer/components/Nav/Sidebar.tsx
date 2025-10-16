@@ -1035,8 +1035,8 @@ export default function Sidebar({
       className="Sidebar"
       sx={{
         gridArea: 'sidebar',
-        borderRight: '1px solid',
-        borderColor: 'divider',
+        // borderRight: '1px solid',
+        // borderColor: 'red',
         transition: 'transform 0.4s',
         zIndex: 100,
         height: '100%',

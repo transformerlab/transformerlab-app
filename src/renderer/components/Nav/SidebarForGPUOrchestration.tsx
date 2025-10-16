@@ -872,10 +872,11 @@ export default function SidebarForGPUOrchestration({
   return (
     <Sheet
       className="Sidebar"
+      variant="soft"
       sx={{
         gridArea: 'sidebar',
-        borderRight: '1px solid',
-        borderColor: 'divider',
+        // borderRight: '1px solid',
+        // borderColor: 'divider',
         transition: 'transform 0.4s',
         zIndex: 100,
         height: '100%',
