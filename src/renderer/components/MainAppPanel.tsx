@@ -21,6 +21,7 @@ import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
+import TaskLibrary from './TaskLibrary/TaskLibrary';
 
 import Computer from './Computer';
 import Eval from './Experiment/Eval/Eval';
@@ -397,6 +398,7 @@ export default function MainAppPanel({
           element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
         />
         <Route path="/plugins/:pluginName" element={<PluginDetails />} />
+        <Route path="/task_library" element={<TaskLibrary />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
         <Route
