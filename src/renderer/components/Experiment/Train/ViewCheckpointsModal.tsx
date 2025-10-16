@@ -46,14 +46,18 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
               Checkpoints for Job {jobId}
             </Typography>
 
-            {!checkpointsLoading && data && (
+            {!checkpointsLoading && data && (data.model_name || data.adaptor_name) && (
               <Box sx={{ mb: 2 }}>
-                <Typography level="body-md">
-                  <strong>Model:</strong> {data.model_name}
-                </Typography>
-                <Typography level="body-md">
-                  <strong>Adaptor:</strong> {data.adaptor_name}
-                </Typography>
+                {data.model_name && (
+                  <Typography level="body-md">
+                    <strong>Model:</strong> {data.model_name}
+                  </Typography>
+                )}
+                {data.adaptor_name && (
+                  <Typography level="body-md">
+                    <strong>Adaptor:</strong> {data.adaptor_name}
+                  </Typography>
+                )}
               </Box>
             )}
 
