@@ -31,6 +31,7 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
   const [taskName, setTaskName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState('');
+  const [tag, setTag] = useState('OTHER');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const { addNotification } = useNotification();
@@ -57,6 +58,7 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
       form.set('task_name', taskName.trim());
       form.set('description', description.trim());
       form.set('source_task_id', selectedTaskId);
+      form.set('tag', tag);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -79,6 +81,7 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
         setTaskName('');
         setDescription('');
         setSelectedTaskId('');
+        setTag('OTHER');
       } else {
         setError(result.message || 'Failed to create task');
       }
@@ -97,6 +100,7 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
     setTaskName('');
     setDescription('');
     setSelectedTaskId('');
+    setTag('OTHER');
     setError('');
     onClose();
   };
@@ -149,6 +153,19 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
                   No REMOTE tasks available. Create a REMOTE task first.
                 </Typography>
               )}
+            </FormControl>
+
+            <FormControl>
+              <FormLabel>Tag</FormLabel>
+              <Select
+                value={tag}
+                onChange={(_, value) => setTag(value || 'OTHER')}
+                required
+              >
+                <Option value="TRAIN">TRAIN</Option>
+                <Option value="EVAL">EVAL</Option>
+                <Option value="OTHER">OTHER</Option>
+              </Select>
             </FormControl>
 
             {error && (

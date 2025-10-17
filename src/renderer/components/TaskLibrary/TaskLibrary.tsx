@@ -8,6 +8,8 @@ import Typography from '@mui/joy/Typography';
 import Box from '@mui/joy/Box';
 import IconButton from '@mui/joy/IconButton';
 import Button from '@mui/joy/Button';
+import Select from '@mui/joy/Select';
+import Option from '@mui/joy/Option';
 import { useMemo, useState } from 'react';
 import {
   RectangleVerticalIcon,
@@ -35,28 +37,48 @@ export default function TaskLibrary() {
   // local overlay for create/edit/delete without waiting for refetch
   const [overlayTasks, setOverlayTasks] = useState<any[]>([]);
 
+  // Filtering state
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'gallery' | 'local'>('all');
+  const [tagFilter, setTagFilter] = useState<string>('all');
+
   const tasks = useMemo(() => {
     const localGallery: any[] = localGalleryResp?.data ?? [];
     const remoteGallery: any[] = remoteGalleryResp?.data ?? [];
 
-    const localGalleryMapped = localGallery.map((g: any) => ({
-      id: `local:${g.subdir || g.id || g.name}`,
-      title: g.name || g.title || g.task_name || 'Task',
-      description: g.description || '',
-      _isLocal: true,
-      _subdir: g.subdir,
-    }));
+            const localGalleryMapped = localGallery.map((g: any) => ({
+                id: `local:${g.subdir || g.id || g.name}`,
+                title: g.name || g.title || g.task_name || 'Task',
+                description: g.description || '',
+                _isLocal: true,
+                _subdir: g.subdir,
+                _tag: g.tag || 'OTHER',
+            }));
 
-    const remoteGalleryMapped = remoteGallery.map((g: any) => ({
-      id: `gallery:${g.subdir || g.id || g.name}`,
-      title: g.name || g.title || g.task_name || 'Task',
-      description: g.description || '',
-      _isGallery: true,
-      _subdir: g.subdir,
-    }));
+            const remoteGalleryMapped = remoteGallery.map((g: any) => ({
+                id: `gallery:${g.subdir || g.id || g.name}`,
+                title: g.name || g.title || g.task_name || 'Task',
+                description: g.description || '',
+                _isGallery: true,
+                _subdir: g.subdir,
+                _tag: g.tag || 'OTHER',
+            }));
 
     return [...localGalleryMapped, ...remoteGalleryMapped, ...overlayTasks];
   }, [localGalleryResp, remoteGalleryResp, overlayTasks]);
+
+  // Filter tasks based on source and tag filters
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      // Source filter
+      if (sourceFilter === 'gallery' && !task._isGallery) return false;
+      if (sourceFilter === 'local' && !task._isLocal) return false;
+
+      // Tag filter
+      if (tagFilter !== 'all' && task._tag !== tagFilter) return false;
+
+      return true;
+    });
+  }, [tasks, sourceFilter, tagFilter]);
 
   // modal state to show TaskModal when creating/viewing a task
   const [modalOpen, setModalOpen] = useState(false);
@@ -207,6 +229,43 @@ export default function TaskLibrary() {
           </Button>
         </Box>
       </Box>
+
+      {/* Filter Controls */}
+      <Box sx={{ px: 2, py: 1, display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Typography level="body-sm" sx={{ minWidth: 'fit-content' }}>
+            Source:
+          </Typography>
+          <Select
+            value={sourceFilter}
+            onChange={(_, value) => setSourceFilter(value || 'all')}
+            size="sm"
+            sx={{ minWidth: 100 }}
+          >
+            <Option value="all">All</Option>
+            <Option value="gallery">Gallery</Option>
+            <Option value="local">Local</Option>
+          </Select>
+        </Box>
+
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Typography level="body-sm" sx={{ minWidth: 'fit-content' }}>
+            Tag:
+          </Typography>
+          <Select
+            value={tagFilter}
+            onChange={(_, value) => setTagFilter(value || 'all')}
+            size="sm"
+            sx={{ minWidth: 100 }}
+          >
+            <Option value="all">All</Option>
+            <Option value="TRAIN">TRAIN</Option>
+            <Option value="EVAL">EVAL</Option>
+            <Option value="OTHER">OTHER</Option>
+          </Select>
+        </Box>
+      </Box>
+
       <List
         sx={{
           overflow: 'auto',
@@ -214,7 +273,7 @@ export default function TaskLibrary() {
           pt: 2,
         }}
       >
-        {tasks.map((task: any) => (
+        {filteredTasks.map((task: any) => (
           <ListItem
             key={task.id}
             sx={{
@@ -234,20 +293,27 @@ export default function TaskLibrary() {
               <Typography level="body-sm" textColor="text.tertiary">
                 {task.description}
               </Typography>
-              {task._isLocal && (
-                <Box sx={{ mt: 0.5 }}>
+              <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                {task._isLocal && (
                   <Chip size="sm" color="success" variant="soft">
                     Local
                   </Chip>
-                </Box>
-              )}
-              {task._isGallery && (
-                <Box sx={{ mt: 0.5 }}>
+                )}
+                {task._isGallery && (
                   <Chip size="sm" color="primary" variant="soft">
                     Gallery
                   </Chip>
-                </Box>
-              )}
+                )}
+                {task._tag && (
+                  <Chip
+                    size="sm"
+                    color={task._tag === 'TRAIN' ? 'warning' : task._tag === 'EVAL' ? 'info' : 'neutral'}
+                    variant="soft"
+                  >
+                    {task._tag}
+                  </Chip>
+                )}
+              </Box>
             </ListItemContent>
 
             <Box
