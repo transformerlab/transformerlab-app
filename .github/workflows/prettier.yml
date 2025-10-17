@@ -20,8 +20,8 @@ jobs:
           node-version: "22"
           cache: "npm"
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Prettier
+        run: npm install -g prettier
 
       - name: Check Prettier formatting
         run: npm run format:check
