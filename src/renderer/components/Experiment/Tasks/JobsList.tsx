@@ -17,6 +17,7 @@ interface JobsListProps {
   onViewOutput?: (jobId: string) => void;
   onViewTensorboard?: (jobId: string) => void;
   onViewCheckpoints?: (jobId: string) => void;
+  onViewModels?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
 }
@@ -27,6 +28,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewOutput,
   onViewTensorboard,
   onViewCheckpoints,
+  onViewModels,
   onViewEvalImages,
   onViewSweepOutput,
 }) => {
@@ -126,6 +128,15 @@ const JobsList: React.FC<JobsListProps> = ({
                       startDecorator={<WaypointsIcon />}
                     >
                       Checkpoints
+                    </Button>
+                  )}
+                  {job?.job_data?.models && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewModels?.(job?.id)}
+                    >
+                      Models
                     </Button>
                   )}
                   <IconButton variant="plain">
