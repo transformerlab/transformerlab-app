@@ -120,6 +120,10 @@
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/checkpoints"
     },
+    "getArtifacts": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifacts"
+    },
     "getJobsOfType": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
