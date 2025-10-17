@@ -8,12 +8,31 @@ import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import Textarea from '@mui/joy/Textarea';
-import { ModalClose, ModalDialog, Sheet, Stack, Typography } from '@mui/joy';
+import {
+  FormHelperText,
+  ModalClose,
+  ModalDialog,
+  Sheet,
+  Stack,
+  Typography,
+} from '@mui/joy';
 import { FolderIcon } from 'lucide-react';
+import { Editor } from '@monaco-editor/react';
+import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { SafeJSONParse } from 'renderer/components/Shared/SafeJSONParse';
+import { useRef } from 'react';
+
+const { parseTmTheme } = require('monaco-themes');
+
+function setTheme(editor: any, monaco: any) {
+  const themeData = parseTmTheme(fairyflossTheme);
+
+  monaco.editor.defineTheme('my-theme', themeData);
+  monaco.editor.setTheme('my-theme');
+}
 
 type EditTaskModalProps = {
   open: boolean;
@@ -40,6 +59,9 @@ export default function EditTaskModal({
   const [setup, setSetup] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
+  const setupEditorRef = useRef<any>(null);
+  const commandEditorRef = useRef<any>(null);
+
   React.useEffect(() => {
     if (!task) return;
     setTitle(task.name || '');
@@ -54,23 +76,48 @@ export default function EditTaskModal({
     setSetup(cfg.setup != null ? String(cfg.setup) : '');
   }, [task]);
 
+  // Keep Monaco editors in sync if the state changes after mount
+  React.useEffect(() => {
+    if (
+      setupEditorRef.current &&
+      typeof setupEditorRef.current.setValue === 'function'
+    ) {
+      setupEditorRef.current.setValue(setup ?? '');
+    }
+  }, [setup]);
+
+  React.useEffect(() => {
+    if (
+      commandEditorRef.current &&
+      typeof commandEditorRef.current.setValue === 'function'
+    ) {
+      commandEditorRef.current.setValue(command ?? '');
+    }
+  }, [command]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const setupValue =
+      setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
+    const commandValue =
+      commandEditorRef?.current?.getValue?.() ?? (command || undefined);
+
     if (!task) return;
-    if (!command) {
+    if (!commandValue) {
       addNotification({ type: 'warning', message: 'Command is required' });
       return;
     }
     setSaving(true);
     const config = {
       cluster_name: clusterName,
-      command,
+      command: commandValue,
       cpus: cpus || undefined,
       memory: memory || undefined,
       disk_space: diskSpace || undefined,
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
-      setup: setup || undefined,
+      setup: setupValue || undefined,
     } as any;
 
     const body = {
@@ -114,6 +161,28 @@ export default function EditTaskModal({
       setSaving(false);
     }
   };
+
+  function handleSetupEditorDidMount(editor: any, monaco: any) {
+    setupEditorRef.current = editor;
+    setTheme(editor, monaco);
+    // initialize editor with current setup state
+    try {
+      editor.setValue(setup ?? '');
+    } catch (e) {
+      // ignore if setValue not available
+    }
+  }
+
+  function handleCommandEditorDidMount(editor: any, monaco: any) {
+    commandEditorRef.current = editor;
+    setTheme(editor, monaco);
+    // initialize editor with current command state
+    try {
+      editor.setValue(command ?? '');
+    } catch (e) {
+      // ignore if setValue not available
+    }
+  }
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -201,22 +270,59 @@ export default function EditTaskModal({
 
             <FormControl sx={{ mt: 2 }}>
               <FormLabel>Setup Command</FormLabel>
-              <Textarea
+              {/* <Textarea
                 minRows={2}
                 value={setup}
                 onChange={(e) => setSetup(e.target.value)}
                 placeholder="Setup commands (optional) that runs before task is run. e.g. pip install -r requirements.txt"
+              /> */}
+              <Editor
+                defaultLanguage="shell"
+                theme="my-theme"
+                defaultValue={setup}
+                height="6rem"
+                options={{
+                  minimap: {
+                    enabled: false,
+                  },
+                  fontSize: 18,
+                  cursorStyle: 'block',
+                  wordWrap: 'on',
+                }}
+                onMount={handleSetupEditorDidMount}
               />
+              <FormHelperText>
+                e.g. <code>pip install -r requirements.txt</code>
+              </FormHelperText>
             </FormControl>
 
             <FormControl required sx={{ mt: 2 }}>
               <FormLabel>Command</FormLabel>
-              <Textarea
+              {/* <Textarea
                 minRows={4}
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
                 placeholder="e.g. python train.py --epochs 10"
+              /> */}
+
+              <Editor
+                defaultLanguage="shell"
+                theme="my-theme"
+                defaultValue={command}
+                height="8rem"
+                options={{
+                  minimap: {
+                    enabled: false,
+                  },
+                  fontSize: 18,
+                  cursorStyle: 'block',
+                  wordWrap: 'on',
+                }}
+                onMount={handleCommandEditorDidMount}
               />
+              <FormHelperText>
+                e.g. <code>python train.py --epochs 10</code>
+              </FormHelperText>
             </FormControl>
 
             {/* Show uploaded directory indicator if present */}
