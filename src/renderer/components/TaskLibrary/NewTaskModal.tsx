@@ -18,7 +18,8 @@ import {
   Alert,
 } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { useAPI } from 'renderer/lib/api-client/hooks';
 
 interface NewTaskModalProps {
   open: boolean;
@@ -32,12 +33,10 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const { addNotification } = useNotification();
 
   // Fetch existing REMOTE tasks
-  const { data: remoteTasksResp } = useSWR(
-    chatAPI.getAPIFullPath('tasks', ['getAll'], {}),
-    chatAPI.fetcher
-  );
+  const { data: remoteTasksResp } = useAPI('tasks', ['getAll'], {});
 
   const remoteTasks = Array.isArray(remoteTasksResp)
     ? remoteTasksResp.filter((task: any) => task.remote_task === true)
@@ -71,6 +70,10 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
       const result = await response.json();
 
       if (result.status === 'success') {
+        addNotification({
+          type: 'success',
+          message: `Task "${taskName}" successfully exported to local gallery!`,
+        });
         onSuccess?.();
         onClose();
         setTaskName('');
@@ -80,6 +83,10 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
         setError(result.message || 'Failed to create task');
       }
     } catch (err) {
+      addNotification({
+        type: 'danger',
+        message: `Failed to export task: ${err}`,
+      });
       setError('Network error occurred');
     } finally {
       setIsSubmitting(false);

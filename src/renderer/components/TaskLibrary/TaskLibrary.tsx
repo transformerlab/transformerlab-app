@@ -18,23 +18,19 @@ import {
 } from 'lucide-react';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskModal from './TaskModal';
 import NewTaskModal from './NewTaskModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useAPI } from 'renderer/lib/api-client/hooks';
 import Chip from '@mui/joy/Chip';
 
-export default function TaskLibrary({}) {
+export default function TaskLibrary() {
   const { experimentInfo } = useExperimentInfo();
+  const { addNotification } = useNotification();
 
-  const { data: localGalleryResp } = useSWR(
-    chatAPI.getAPIFullPath('tasks', ['localGallery'], {}),
-    chatAPI.fetcher
-  );
-  const { data: remoteGalleryResp } = useSWR(
-    chatAPI.getAPIFullPath('tasks', ['gallery'], {}),
-    chatAPI.fetcher
-  );
+  const { data: localGalleryResp } = useAPI('tasks', ['localGallery'], {});
+  const { data: remoteGalleryResp } = useAPI('tasks', ['gallery'], {});
 
   // local overlay for create/edit/delete without waiting for refetch
   const [overlayTasks, setOverlayTasks] = useState<any[]>([]);
@@ -74,19 +70,81 @@ export default function TaskLibrary({}) {
   };
 
   const handleImportFromGallery = async (subdir: string) => {
-    const url = chatAPI.getAPIFullPath('tasks', ['importFromGallery'], {});
-    const form = new URLSearchParams();
-    form.set('subdir', subdir);
-    // experimentId optional; if available in context add it
-    if (experimentInfo?.id) form.set('experiment_id', experimentInfo.id);
-    await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: form.toString(),
-      credentials: 'include',
-    });
+    try {
+      const url = chatAPI.getAPIFullPath('tasks', ['importFromGallery'], {});
+      const form = new URLSearchParams();
+      form.set('subdir', subdir);
+      // experimentId optional; if available in context add it
+      if (experimentInfo?.id) form.set('experiment_id', experimentInfo.id);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: form.toString(),
+        credentials: 'include',
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        const action = result.action || 'imported';
+        addNotification({
+          type: 'success',
+          message: `Task ${action === 'updated' ? 'updated' : 'imported'} successfully from gallery!`,
+        });
+      } else {
+        addNotification({
+          type: 'danger',
+          message: `Failed to import task: ${result.message || 'Unknown error'}`,
+        });
+      }
+    } catch (error) {
+      addNotification({
+        type: 'danger',
+        message: `Failed to import task: ${error}`,
+      });
+    }
+  };
+
+  const handleImportFromLocal = async (subdir: string) => {
+    try {
+      const url = chatAPI.getAPIFullPath('tasks', ['importFromLocalGallery'], {});
+      const form = new URLSearchParams();
+      form.set('subdir', subdir);
+      // experimentId optional; if available in context add it
+      if (experimentInfo?.id) form.set('experiment_id', experimentInfo.id);
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: form.toString(),
+        credentials: 'include',
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'success') {
+        const action = result.action || 'imported';
+        addNotification({
+          type: 'success',
+          message: `Task ${action === 'updated' ? 'updated' : 'imported'} successfully from local gallery!`,
+        });
+      } else {
+        addNotification({
+          type: 'danger',
+          message: `Failed to import task: ${result.message || 'Unknown error'}`,
+        });
+      }
+    } catch (error) {
+      addNotification({
+        type: 'danger',
+        message: `Failed to import task: ${error}`,
+      });
+    }
   };
 
   const handleCreate = () => {
@@ -230,6 +288,17 @@ export default function TaskLibrary({}) {
                   size="sm"
                   variant="outlined"
                   onClick={() => handleImportFromGallery(task._subdir || task.id.split(':')[1])}
+                  startDecorator={<FilePlus size={12} />}
+                >
+                  Import
+                </Button>
+              )}
+
+              {task._isLocal && (
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  onClick={() => handleImportFromLocal(task._subdir || task.id.split(':')[1])}
                   startDecorator={<FilePlus size={12} />}
                 >
                   Import

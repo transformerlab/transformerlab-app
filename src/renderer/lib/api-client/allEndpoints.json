@@ -51,6 +51,10 @@
     "importToLocalGallery": {
       "method": "POST",
       "path": "tasks/export_to_local_gallery"
+    },
+    "importFromLocalGallery": {
+      "method": "POST",
+      "path": "tasks/import_from_local_gallery"
     }
   },
   "server": {
