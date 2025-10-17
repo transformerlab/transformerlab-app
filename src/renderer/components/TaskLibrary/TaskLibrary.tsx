@@ -27,26 +27,29 @@ export default function TaskLibrary({}) {
   const { experimentInfo } = useExperimentInfo();
 
   const { data: localTasksResp } = useSWR(
-    chatAPI.getAPIFullPath('tasks.getAll'),
+    chatAPI.getAPIFullPath('tasks', ['getAll'], {}),
     chatAPI.fetcher
   );
   const { data: galleryResp } = useSWR(
-    chatAPI.getAPIFullPath('tasks.gallery'),
+    chatAPI.getAPIFullPath('tasks', ['gallery'], {}),
     chatAPI.fetcher
   );
 
+  // local overlay for create/edit/delete without waiting for refetch
+  const [overlayTasks, setOverlayTasks] = useState<any[]>([]);
+
   const tasks = useMemo(() => {
     const local = Array.isArray(localTasksResp) ? localTasksResp : [];
-    const gallery = galleryResp?.data ?? [];
-    const galleryMapped = gallery.map((g) => ({
+    const gallery: any[] = galleryResp?.data ?? [];
+    const galleryMapped = gallery.map((g: any) => ({
       id: `gallery:${g.subdir || g.id || g.name}`,
       title: g.name || g.title || g.task_name || 'Task',
       description: g.description || '',
       _isGallery: true,
       _subdir: g.subdir,
     }));
-    return [...galleryMapped, ...local];
-  }, [localTasksResp, galleryResp]);
+    return [...galleryMapped, ...local, ...overlayTasks];
+  }, [localTasksResp, galleryResp, overlayTasks]);
 
   // modal state to show TaskModal when creating/viewing a task
   const [modalOpen, setModalOpen] = useState(false);
@@ -58,7 +61,7 @@ export default function TaskLibrary({}) {
   };
 
   const handleImportFromGallery = async (subdir: string) => {
-    const url = chatAPI.getAPIFullPath('tasks.importFromGallery');
+    const url = chatAPI.getAPIFullPath('tasks', ['importFromGallery'], {});
     const form = new URLSearchParams();
     form.set('subdir', subdir);
     // experimentId optional; if available in context add it
@@ -89,11 +92,9 @@ export default function TaskLibrary({}) {
 
   // save handler for both new and edited tasks
   const handleSave = (savedTask: any) => {
-    setTasks((prev) => {
+    setOverlayTasks((prev) => {
       const exists = prev.some((t) => t.id === savedTask.id);
-      if (exists) {
-        return prev.map((t) => (t.id === savedTask.id ? savedTask : t));
-      }
+      if (exists) return prev.map((t) => (t.id === savedTask.id ? savedTask : t));
       return [savedTask, ...prev];
     });
     setModalOpen(false);
@@ -102,7 +103,7 @@ export default function TaskLibrary({}) {
 
   const handleDelete = (taskId: string) => {
     if (!window.confirm('Delete this task?')) return;
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    setOverlayTasks((prev) => prev.filter((t) => t.id !== taskId));
   };
 
   return (
@@ -155,7 +156,7 @@ export default function TaskLibrary({}) {
 
             <ListItemContent sx={{ minWidth: 0 }}>
               <Typography fontWeight="lg">{task.title || task.name}</Typography>
-              <Typography level="body2" textColor="text.tertiary">
+              <Typography level="body-sm" textColor="text.tertiary">
                 {task.description}
               </Typography>
               {task._isGallery && (
