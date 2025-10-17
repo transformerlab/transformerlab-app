@@ -19,6 +19,7 @@ import {
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import TaskModal from './TaskModal';
+import NewTaskModal from './NewTaskModal';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import useSWR from 'swr';
 import Chip from '@mui/joy/Chip';
@@ -26,11 +27,11 @@ import Chip from '@mui/joy/Chip';
 export default function TaskLibrary({}) {
   const { experimentInfo } = useExperimentInfo();
 
-  const { data: localTasksResp } = useSWR(
-    chatAPI.getAPIFullPath('tasks', ['getAll'], {}),
+  const { data: localGalleryResp } = useSWR(
+    chatAPI.getAPIFullPath('tasks', ['localGallery'], {}),
     chatAPI.fetcher
   );
-  const { data: galleryResp } = useSWR(
+  const { data: remoteGalleryResp } = useSWR(
     chatAPI.getAPIFullPath('tasks', ['gallery'], {}),
     chatAPI.fetcher
   );
@@ -39,21 +40,33 @@ export default function TaskLibrary({}) {
   const [overlayTasks, setOverlayTasks] = useState<any[]>([]);
 
   const tasks = useMemo(() => {
-    const local = Array.isArray(localTasksResp) ? localTasksResp : [];
-    const gallery: any[] = galleryResp?.data ?? [];
-    const galleryMapped = gallery.map((g: any) => ({
+    const localGallery: any[] = localGalleryResp?.data ?? [];
+    const remoteGallery: any[] = remoteGalleryResp?.data ?? [];
+
+    const localGalleryMapped = localGallery.map((g: any) => ({
+      id: `local:${g.subdir || g.id || g.name}`,
+      title: g.name || g.title || g.task_name || 'Task',
+      description: g.description || '',
+      _isLocal: true,
+      _subdir: g.subdir,
+    }));
+
+    const remoteGalleryMapped = remoteGallery.map((g: any) => ({
       id: `gallery:${g.subdir || g.id || g.name}`,
       title: g.name || g.title || g.task_name || 'Task',
       description: g.description || '',
       _isGallery: true,
       _subdir: g.subdir,
     }));
-    return [...galleryMapped, ...local, ...overlayTasks];
-  }, [localTasksResp, galleryResp, overlayTasks]);
+
+    return [...localGalleryMapped, ...remoteGalleryMapped, ...overlayTasks];
+  }, [localGalleryResp, remoteGalleryResp, overlayTasks]);
 
   // modal state to show TaskModal when creating/viewing a task
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTask, setModalTask] = useState<any | null>(null);
+  // modal state for new task creation
+  const [newTaskModalOpen, setNewTaskModalOpen] = useState(false);
 
   const handleCloseModal = () => {
     setModalOpen(false);
@@ -77,9 +90,13 @@ export default function TaskLibrary({}) {
   };
 
   const handleCreate = () => {
-    // open modal for a new task (modalTask null => new)
-    setModalTask(null);
-    setModalOpen(true);
+    // open new task modal for importing from REMOTE tasks
+    setNewTaskModalOpen(true);
+  };
+
+  const handleNewTaskSuccess = () => {
+    // Refresh the local gallery data
+    // The SWR will automatically refetch
   };
 
   const handleEdit = (taskId: string) => {
@@ -159,6 +176,13 @@ export default function TaskLibrary({}) {
               <Typography level="body-sm" textColor="text.tertiary">
                 {task.description}
               </Typography>
+              {task._isLocal && (
+                <Box sx={{ mt: 0.5 }}>
+                  <Chip size="sm" color="success" variant="soft">
+                    Local
+                  </Chip>
+                </Box>
+              )}
               {task._isGallery && (
                 <Box sx={{ mt: 0.5 }}>
                   <Chip size="sm" color="primary" variant="soft">
@@ -177,7 +201,7 @@ export default function TaskLibrary({}) {
                 alignSelf: 'start',
               }}
             >
-              {!task._isGallery && (
+              {!task._isGallery && !task._isLocal && (
               <IconButton
                 size="sm"
                 variant="plain"
@@ -189,7 +213,7 @@ export default function TaskLibrary({}) {
               </IconButton>
               )}
 
-              {!task._isGallery && (
+              {!task._isGallery && !task._isLocal && (
               <IconButton
                 size="sm"
                 variant="plain"
@@ -222,6 +246,12 @@ export default function TaskLibrary({}) {
         onClose={handleCloseModal}
         task={modalTask}
         onSave={handleSave}
+      />
+      {/* New task modal for importing from REMOTE tasks */}
+      <NewTaskModal
+        open={newTaskModalOpen}
+        onClose={() => setNewTaskModalOpen(false)}
+        onSuccess={handleNewTaskSuccess}
       />
       {/* Gallery modal removed; items shown inline in list */}
     </Sheet>
