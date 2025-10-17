@@ -446,6 +446,7 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
   LaunchRemote: (experimentId: string) =>
     `${API_URL()}remote/launch?experimentId=${experimentId}`,
+  UploadRemote: () => `${API_URL()}remote/upload`,
 };
 
 Endpoints.Global = {
