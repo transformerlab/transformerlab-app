@@ -14,6 +14,7 @@ import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 
 import DirectoryUpload from './DirectoryUpload';
 import { useRef } from 'react';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 const { parseTmTheme } = require('monaco-themes');
 
@@ -48,6 +49,8 @@ export default function NewTaskModal({
   onSubmit,
   isSubmitting = false,
 }: NewTaskModalProps) {
+  const { addNotification } = useNotification();
+
   const [title, setTitle] = React.useState('');
   const [clusterName, setClusterName] = React.useState('');
   const [command, setCommand] = React.useState('');
@@ -69,6 +72,11 @@ export default function NewTaskModal({
       setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
     const commandValue =
       commandEditorRef?.current?.getValue?.() ?? (command || undefined);
+
+    if (!commandValue) {
+      addNotification({ type: 'warning', message: 'Command is required' });
+      return;
+    }
 
     onSubmit({
       title,
