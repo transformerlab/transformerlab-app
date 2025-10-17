@@ -1,6 +1,7 @@
 import React from 'react';
-import { Table, ButtonGroup, Typography, IconButton } from '@mui/joy';
-import { Trash2Icon } from 'lucide-react';
+import { Table, ButtonGroup, Typography, IconButton, Button } from '@mui/joy';
+import { PlayIcon, Trash2Icon } from 'lucide-react';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
 type TaskRow = {
   id: string;
@@ -16,19 +17,30 @@ type TaskRow = {
 
 type TaskTemplateListProps = {
   tasksList: TaskRow[];
-  onDeleteTask?: (taskId: string) => void;
+  onDeleteTask: (taskId: string) => void;
+  onQueueTask: (task: TaskRow) => void;
+  onEditTask: (task: TaskRow) => void;
 };
 
 const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   tasksList,
   onDeleteTask,
+  onQueueTask,
+  onEditTask,
 }) => {
   const getResourcesInfo = (task: TaskRow) => {
-    if (!task.remote_task || typeof task.config !== 'object') {
+    if (!task.remote_task) {
       return 'N/A';
     }
 
-    const config = task.config as any;
+    const config =
+      (typeof task.config === 'string'
+        ? SafeJSONParse(task.config as string, {})
+        : (task.config as any)) || {};
+
+    // Debug: verify parsed config shape
+    // eslint-disable-next-line no-console
+    console.debug('Task resources config', { id: task.id, config });
     const resources = [];
 
     if (config.cpus) resources.push(`CPUs: ${config.cpus}`);
@@ -44,11 +56,14 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   };
 
   const getCommandInfo = (task: TaskRow) => {
-    if (!task.remote_task || typeof task.config !== 'object') {
+    if (!task.remote_task) {
       return 'N/A';
     }
 
-    const config = task.config as any;
+    const config =
+      (typeof task.config === 'string'
+        ? SafeJSONParse(task.config as string, {})
+        : (task.config as any)) || {};
     const command = config.command || 'No command specified';
 
     // Truncate long commands
@@ -62,7 +77,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
           <th style={{ width: '150px' }}>Name</th>
           <th>Command</th>
           <th>Resources</th>
-          <th style={{ textAlign: 'right', width: '250px' }}>Actions</th>
+          <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -85,6 +100,17 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
               }}
             >
               <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
+                <Button
+                  startDecorator={<PlayIcon />}
+                  variant="soft"
+                  color="success"
+                  onClick={() => onQueueTask?.(row)}
+                >
+                  Queue
+                </Button>
+                <Button variant="outlined" onClick={() => onEditTask?.(row)}>
+                  Edit
+                </Button>
                 <IconButton
                   variant="plain"
                   color="danger"
