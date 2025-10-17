@@ -44,6 +44,7 @@ import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
+import TaskLibrary from './TaskLibrary/TaskLibrary';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -448,6 +449,7 @@ export default function MainAppPanel({
           path="/data"
           element={<Data gpuOrchestrationServer={gpuOrchestrationServer} />}
         />
+        <Route path="/task_library" element={<TaskLibrary />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />

@@ -35,6 +35,26 @@
     "queue": {
       "method": "POST",
       "path": "tasks/{id}/queue"
+    },
+    "gallery": {
+      "method": "GET",
+      "path": "tasks/gallery"
+    },
+    "importFromGallery": {
+      "method": "POST",
+      "path": "tasks/import_from_gallery"
+    },
+    "localGallery": {
+      "method": "GET",
+      "path": "tasks/local_gallery"
+    },
+    "importToLocalGallery": {
+      "method": "POST",
+      "path": "tasks/export_to_local_gallery"
+    },
+    "importFromLocalGallery": {
+      "method": "POST",
+      "path": "tasks/import_from_local_gallery"
     }
   },
   "server": {

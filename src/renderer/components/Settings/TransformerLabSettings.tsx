@@ -26,6 +26,7 @@ import useSWR from 'swr';
 import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 
 import AIProvidersSettings from './AIProvidersSettings';
+import EditTokenModal from './EditTokenModal';
 import ViewJobsTab from './ViewJobsTab';
 import { alignBox } from '@nivo/core';
 import {
@@ -37,6 +38,10 @@ import {
 export default function TransformerLabSettings() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [doNotTrack, setDoNotTrack] = React.useState(false);
+  const [showHuggingfaceEditTokenModal, setShowHuggingfaceEditTokenModal] =
+    React.useState(false);
+  const [showWandbEditTokenModal, setShowWandbEditTokenModal] =
+    React.useState(false);
   const [showExperimentalPlugins, setShowExperimentalPlugins] =
     React.useState(false);
 
@@ -75,6 +80,14 @@ export default function TransformerLabSettings() {
     mutate: hftokenmutate,
   } = useAPI('config', ['get'], {
     key: 'HuggingfaceUserAccessToken',
+  });
+  const {
+    data: wandbToken,
+    error: wandbTokenError,
+    isLoading: wandbTokenIsLoading,
+    mutate: wandbTokenMutate,
+  } = useAPI('config', ['get'], {
+    key: 'WANDB_API_KEY',
   });
   const [showJobsOfType, setShowJobsOfType] = React.useState('NONE');
   const [showProvidersPage, setShowProvidersPage] = React.useState(false);
@@ -150,7 +163,60 @@ export default function TransformerLabSettings() {
               Huggingface Credentials:
             </Typography>
             {canLogInToHuggingFace?.message === 'OK' ? (
-              <Alert color="success">Login to Huggingface Successful</Alert>
+              <div>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <Alert color="success" style={{ width: '100%', margin: 0 }}>
+                    Login to Huggingface Successful
+                  </Alert>
+                  <p
+                    style={{
+                      position: 'absolute',
+                      right: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      margin: 0,
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      borderBottom: '1px solid',
+                    }}
+                    onClick={() => {
+                      setShowHuggingfaceEditTokenModal(
+                        !showHuggingfaceEditTokenModal,
+                      );
+                    }}
+                  >
+                    Edit
+                  </p>
+                </div>
+                <div>
+                  {showHuggingfaceEditTokenModal && (
+                    <EditTokenModal
+                      open={showHuggingfaceEditTokenModal}
+                      onClose={() => setShowHuggingfaceEditTokenModal(false)}
+                      name="Huggingface"
+                      token={hftoken}
+                      onSave={async (token) => {
+                        await chatAPI.authenticatedFetch(
+                          chatAPI.Endpoints.Models.HuggingFaceLogout(),
+                        );
+                        await chatAPI.authenticatedFetch(
+                          getAPIFullPath('config', ['set'], {
+                            key: 'HuggingfaceUserAccessToken',
+                            value: token,
+                          }),
+                        );
+                        // Now manually log in to Huggingface
+                        await chatAPI.authenticatedFetch(
+                          chatAPI.Endpoints.Models.HuggingFaceLogin(),
+                        );
+                        hftokenmutate(token);
+                        canLogInToHuggingFaceMutate();
+                        setShowHuggingfaceEditTokenModal(false);
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
             ) : (
               <>
                 <Alert color="danger" sx={{ mb: 1 }}>
@@ -217,9 +283,54 @@ export default function TransformerLabSettings() {
               </>
             )}
             {wandbLoginStatus?.message === 'OK' ? (
-              <Alert color="success">
-                Login to Weights &amp; Biases Successful
-              </Alert>
+              <div>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <Alert color="success" style={{ width: '100%', margin: 0 }}>
+                    Login to Weights &amp; Biases Successful
+                  </Alert>
+                  <p
+                    style={{
+                      position: 'absolute',
+                      right: '16px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      margin: 0,
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      borderBottom: '1px solid',
+                    }}
+                    onClick={() => {
+                      setShowWandbEditTokenModal(!showWandbEditTokenModal);
+                    }}
+                  >
+                    Edit
+                  </p>
+                </div>
+
+                <div>
+                  {showWandbEditTokenModal && (
+                    <EditTokenModal
+                      open={showWandbEditTokenModal}
+                      onClose={() => setShowWandbEditTokenModal(false)}
+                      name="Weights &amp; Biases"
+                      token={wandbToken || ''}
+                      onSave={async (token) => {
+                        await chatAPI.authenticatedFetch(
+                          getAPIFullPath('config', ['set'], {
+                            key: 'WANDB_API_KEY',
+                            value: token,
+                          }),
+                        );
+                        await chatAPI.authenticatedFetch(
+                          chatAPI.Endpoints.Models.wandbLogin(),
+                        );
+                        wandbLoginMutate();
+                        setShowWandbEditTokenModal(false);
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
             ) : (
               <FormControl sx={{ maxWidth: '500px', mt: 2 }}>
                 <FormLabel>Weights &amp; Biases API Key</FormLabel>

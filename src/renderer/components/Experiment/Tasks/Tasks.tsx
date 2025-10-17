@@ -14,9 +14,14 @@ import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
+import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
+<<<<<<< HEAD
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
+=======
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+>>>>>>> fa6555da33484f0c52c8a4f27886b5fe3223099f
 
 const duration = require('dayjs/plugin/duration');
 
@@ -25,6 +30,8 @@ dayjs.extend(relativeTime);
 
 export default function Tasks() {
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
@@ -34,9 +41,14 @@ export default function Tasks() {
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const { experimentInfo } = useExperimentInfo();
+  const { addNotification } = useNotification();
 
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
+  const handleEditClose = () => {
+    setEditModalOpen(false);
+    setTaskBeingEdited(null);
+  };
 
   // Fetch tasks with useSWR
   const {
@@ -93,19 +105,24 @@ export default function Tasks() {
       );
 
       if (response.ok) {
-        // eslint-disable-next-line no-alert
-        alert('Task deleted successfully!');
+        addNotification({
+          type: 'success',
+          message: 'Task deleted successfully!',
+        });
         // Refresh the data to remove the deleted task
         await tasksMutate();
       } else {
-        // eslint-disable-next-line no-alert
-        alert('Failed to delete task. Please try again.');
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete task. Please try again.',
+        });
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('Error deleting task:', error);
-      // eslint-disable-next-line no-alert
-      alert('Failed to delete task. Please try again.');
+      addNotification({
+        type: 'danger',
+        message: 'Failed to delete task. Please try again.',
+      });
     }
   };
 
@@ -126,75 +143,146 @@ export default function Tasks() {
       );
 
       if (response.ok) {
-        // eslint-disable-next-line no-alert
-        alert('Job deleted successfully!');
+        addNotification({
+          type: 'success',
+          message: 'Job deleted successfully!',
+        });
         // Refresh the data to remove the deleted job
         await jobsMutate();
       } else {
-        // eslint-disable-next-line no-alert
-        alert('Failed to delete job. Please try again.');
+        addNotification({
+          type: 'danger',
+          message: 'Failed to delete job. Please try again.',
+        });
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
       console.error('Error deleting job:', error);
-      // eslint-disable-next-line no-alert
-      alert('Failed to delete job. Please try again.');
+      addNotification({
+        type: 'danger',
+        message: 'Failed to delete job. Please try again.',
+      });
     }
   };
 
   const handleSubmit = async (data: any) => {
     if (!experimentInfo?.id) {
-      // eslint-disable-next-line no-alert
-      alert('No experiment selected');
+      addNotification({ type: 'warning', message: 'No experiment selected' });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Prepare form data for the API call
-      const formData = new FormData();
-      formData.append('experimentId', experimentInfo.id);
-      formData.append('cluster_name', data.cluster_name);
-      formData.append('command', data.command);
-      formData.append('task_name', data.title);
-
-      // Add optional parameters if they exist
-      if (data.cpus) formData.append('cpus', data.cpus);
-      if (data.memory) formData.append('memory', data.memory);
-      if (data.disk_space) formData.append('disk_space', data.disk_space);
-      if (data.accelerators) formData.append('accelerators', data.accelerators);
-      if (data.num_nodes)
-        formData.append('num_nodes', data.num_nodes.toString());
-      if (data.setup) formData.append('setup', data.setup);
+      // Create a remote task template first
+      const payload = {
+        name: data.title,
+        type: 'REMOTE',
+        inputs: {},
+        config: {
+          cluster_name: data.cluster_name,
+          command: data.command,
+          cpus: data.cpus || undefined,
+          memory: data.memory || undefined,
+          disk_space: data.disk_space || undefined,
+          accelerators: data.accelerators || undefined,
+          num_nodes: data.num_nodes || undefined,
+          setup: data.setup || undefined,
+          uploaded_dir_path: data.uploaded_dir_path || undefined,
+        },
+        plugin: 'remote_orchestrator',
+        outputs: {},
+        experiment_id: experimentInfo.id,
+        remote_task: true,
+      } as any;
 
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
+        chatAPI.Endpoints.Tasks.NewTask(),
         {
-          method: 'POST',
-          body: formData,
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
         },
       );
 
-      const result = await response.json();
-
-      if (result.status === 'success') {
-        // eslint-disable-next-line no-alert
-        alert('Task launched successfully!');
+      if (response.ok) {
         setModalOpen(false);
-        // Refresh the data to show the new task and job
-        await Promise.all([tasksMutate(), jobsMutate()]);
+        await tasksMutate();
+        addNotification({
+          type: 'success',
+          message: 'Task created. Use Queue to launch remotely.',
+        });
       } else {
-        // eslint-disable-next-line no-alert
-        alert(`Error: ${result.message}`);
+        const txt = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to create task: ${txt}`,
+        });
       }
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Error launching task:', error);
-      // eslint-disable-next-line no-alert
-      alert('Failed to launch task. Please try again.');
+      console.error('Error creating task:', error);
+      addNotification({
+        type: 'danger',
+        message: 'Failed to create task. Please try again.',
+      });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleQueue = async (task: any) => {
+    if (!experimentInfo?.id) return;
+
+    try {
+      const cfg =
+        typeof task.config === 'string'
+          ? JSON.parse(task.config)
+          : task.config || {};
+      const formData = new FormData();
+      formData.append('experimentId', experimentInfo.id);
+      if (cfg.cluster_name) formData.append('cluster_name', cfg.cluster_name);
+      if (cfg.command) formData.append('command', cfg.command);
+      // Prefer the task name as job/task name
+      if (task.name) formData.append('task_name', task.name);
+      if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
+      if (cfg.memory) formData.append('memory', String(cfg.memory));
+      if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
+      if (cfg.accelerators)
+        formData.append('accelerators', String(cfg.accelerators));
+      if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
+      if (cfg.setup) formData.append('setup', String(cfg.setup));
+      if (cfg.uploaded_dir_path)
+        formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+
+      const resp = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
+        { method: 'POST', body: formData },
+      );
+      const result = await resp.json();
+      if (result.status === 'success') {
+        addNotification({
+          type: 'success',
+          message: 'Task queued for remote launch.',
+        });
+        await Promise.all([jobsMutate(), tasksMutate()]);
+      } else {
+        addNotification({
+          type: 'danger',
+          message: `Remote launch failed: ${result.message}`,
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      addNotification({
+        type: 'danger',
+        message: 'Failed to queue remote task.',
+      });
+    }
+  };
+
+  const handleEditTask = (task: any) => {
+    setTaskBeingEdited(task);
+    setEditModalOpen(true);
   };
 
   return (
@@ -211,6 +299,14 @@ export default function Tasks() {
         onClose={handleClose}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+      />
+      <EditTaskModal
+        open={editModalOpen}
+        onClose={handleEditClose}
+        task={taskBeingEdited}
+        onSaved={async () => {
+          await tasksMutate();
+        }}
       />
       <Stack
         direction="row"
@@ -237,7 +333,12 @@ export default function Tasks() {
         {loading ? (
           <LinearProgress />
         ) : (
-          <TaskTemplateList tasksList={tasks} onDeleteTask={handleDeleteTask} />
+          <TaskTemplateList
+            tasksList={tasks}
+            onDeleteTask={handleDeleteTask}
+            onQueueTask={handleQueue}
+            onEditTask={handleEditTask}
+          />
         )}
       </Sheet>
       <Typography level="title-md">Runs</Typography>

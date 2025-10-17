@@ -96,6 +96,19 @@ const JobsList: React.FC<JobsListProps> = ({
                     </Button>
                   )}
 
+                  {job?.job_data?.wandb_run_url && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => {
+                        window.open(job.job_data.wandb_run_url, '_blank');
+                      }}
+                      startDecorator={<LineChartIcon />}
+                    >
+                      W&B Tracking
+                    </Button>
+                  )}
+
                   <Button
                     size="sm"
                     variant="plain"
