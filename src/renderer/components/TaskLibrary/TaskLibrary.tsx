@@ -38,30 +38,32 @@ export default function TaskLibrary() {
   const [overlayTasks, setOverlayTasks] = useState<any[]>([]);
 
   // Filtering state
-  const [sourceFilter, setSourceFilter] = useState<'all' | 'gallery' | 'local'>('all');
+  const [sourceFilter, setSourceFilter] = useState<'all' | 'gallery' | 'local'>(
+    'all',
+  );
   const [tagFilter, setTagFilter] = useState<string>('all');
 
   const tasks = useMemo(() => {
     const localGallery: any[] = localGalleryResp?.data ?? [];
     const remoteGallery: any[] = remoteGalleryResp?.data ?? [];
 
-            const localGalleryMapped = localGallery.map((g: any) => ({
-                id: `local:${g.subdir || g.id || g.name}`,
-                title: g.name || g.title || g.task_name || 'Task',
-                description: g.description || '',
-                _isLocal: true,
-                _subdir: g.subdir,
-                _tag: g.tag || 'OTHER',
-            }));
+    const localGalleryMapped = localGallery.map((g: any) => ({
+      id: `local:${g.subdir || g.id || g.name}`,
+      title: g.name || g.title || g.task_name || 'Task',
+      description: g.description || '',
+      _isLocal: true,
+      _subdir: g.subdir,
+      _tag: g.tag || 'OTHER',
+    }));
 
-            const remoteGalleryMapped = remoteGallery.map((g: any) => ({
-                id: `gallery:${g.subdir || g.id || g.name}`,
-                title: g.name || g.title || g.task_name || 'Task',
-                description: g.description || '',
-                _isGallery: true,
-                _subdir: g.subdir,
-                _tag: g.tag || 'OTHER',
-            }));
+    const remoteGalleryMapped = remoteGallery.map((g: any) => ({
+      id: `gallery:${g.subdir || g.id || g.name}`,
+      title: g.name || g.title || g.task_name || 'Task',
+      description: g.description || '',
+      _isGallery: true,
+      _subdir: g.subdir,
+      _tag: g.tag || 'OTHER',
+    }));
 
     return [...localGalleryMapped, ...remoteGalleryMapped, ...overlayTasks];
   }, [localGalleryResp, remoteGalleryResp, overlayTasks]);
@@ -132,7 +134,11 @@ export default function TaskLibrary() {
 
   const handleImportFromLocal = async (subdir: string) => {
     try {
-      const url = chatAPI.getAPIFullPath('tasks', ['importFromLocalGallery'], {});
+      const url = chatAPI.getAPIFullPath(
+        'tasks',
+        ['importFromLocalGallery'],
+        {},
+      );
       const form = new URLSearchParams();
       form.set('subdir', subdir);
       // experimentId optional; if available in context add it
@@ -191,7 +197,8 @@ export default function TaskLibrary() {
   const handleSave = (savedTask: any) => {
     setOverlayTasks((prev) => {
       const exists = prev.some((t) => t.id === savedTask.id);
-      if (exists) return prev.map((t) => (t.id === savedTask.id ? savedTask : t));
+      if (exists)
+        return prev.map((t) => (t.id === savedTask.id ? savedTask : t));
       return [savedTask, ...prev];
     });
     setModalOpen(false);
@@ -293,7 +300,9 @@ export default function TaskLibrary() {
               <Typography level="body-sm" textColor="text.tertiary">
                 {task.description}
               </Typography>
-              <Box sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+              <Box
+                sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}
+              >
                 {task._isLocal && (
                   <Chip size="sm" color="success" variant="soft">
                     Local
@@ -307,7 +316,13 @@ export default function TaskLibrary() {
                 {task._tag && (
                   <Chip
                     size="sm"
-                    color={task._tag === 'TRAIN' ? 'warning' : task._tag === 'EVAL' ? 'info' : 'neutral'}
+                    color={
+                      task._tag === 'TRAIN'
+                        ? 'warning'
+                        : task._tag === 'EVAL'
+                          ? 'info'
+                          : 'neutral'
+                    }
                     variant="soft"
                   >
                     {task._tag}
@@ -326,34 +341,38 @@ export default function TaskLibrary() {
               }}
             >
               {!task._isGallery && !task._isLocal && (
-              <IconButton
-                size="sm"
-                variant="plain"
-                color="neutral"
-                aria-label={`Edit ${task.title}`}
-                onClick={() => handleEdit(task.id)}
-              >
-                <Edit2 size={16} />
-              </IconButton>
+                <IconButton
+                  size="sm"
+                  variant="plain"
+                  color="neutral"
+                  aria-label={`Edit ${task.title}`}
+                  onClick={() => handleEdit(task.id)}
+                >
+                  <Edit2 size={16} />
+                </IconButton>
               )}
 
               {!task._isGallery && !task._isLocal && (
-              <IconButton
-                size="sm"
-                variant="plain"
-                color="danger"
-                aria-label={`Delete ${task.title}`}
-                onClick={() => handleDelete(task.id)}
-              >
-                <Trash2 size={16} />
-              </IconButton>
+                <IconButton
+                  size="sm"
+                  variant="plain"
+                  color="danger"
+                  aria-label={`Delete ${task.title}`}
+                  onClick={() => handleDelete(task.id)}
+                >
+                  <Trash2 size={16} />
+                </IconButton>
               )}
 
               {task._isGallery && (
                 <Button
                   size="sm"
                   variant="outlined"
-                  onClick={() => handleImportFromGallery(task._subdir || task.id.split(':')[1])}
+                  onClick={() =>
+                    handleImportFromGallery(
+                      task._subdir || task.id.split(':')[1],
+                    )
+                  }
                   startDecorator={<FilePlus size={12} />}
                 >
                   Import
@@ -364,7 +383,9 @@ export default function TaskLibrary() {
                 <Button
                   size="sm"
                   variant="outlined"
-                  onClick={() => handleImportFromLocal(task._subdir || task.id.split(':')[1])}
+                  onClick={() =>
+                    handleImportFromLocal(task._subdir || task.id.split(':')[1])
+                  }
                   startDecorator={<FilePlus size={12} />}
                 >
                   Import

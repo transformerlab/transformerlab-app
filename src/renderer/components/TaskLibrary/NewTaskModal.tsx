@@ -27,7 +27,11 @@ interface NewTaskModalProps {
   onSuccess?: () => void;
 }
 
-export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalProps) {
+export default function NewTaskModal({
+  open,
+  onClose,
+  onSuccess,
+}: NewTaskModalProps) {
   const [taskName, setTaskName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedTaskId, setSelectedTaskId] = useState('');
@@ -168,11 +172,7 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
               </Select>
             </FormControl>
 
-            {error && (
-              <Alert color="danger">
-                {error}
-              </Alert>
-            )}
+            {error && <Alert color="danger">{error}</Alert>}
           </Box>
         </DialogContent>
 
@@ -183,7 +183,12 @@ export default function NewTaskModal({ open, onClose, onSuccess }: NewTaskModalP
           <Button
             onClick={handleSubmit}
             loading={isSubmitting}
-            disabled={!taskName.trim() || !description.trim() || !selectedTaskId || remoteTasks.length === 0}
+            disabled={
+              !taskName.trim() ||
+              !description.trim() ||
+              !selectedTaskId ||
+              remoteTasks.length === 0
+            }
           >
             Create Task
           </Button>
