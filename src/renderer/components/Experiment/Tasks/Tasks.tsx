@@ -16,12 +16,9 @@ import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
 import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
-<<<<<<< HEAD
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
-=======
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
->>>>>>> fa6555da33484f0c52c8a4f27886b5fe3223099f
 
 const duration = require('dayjs/plugin/duration');
 
