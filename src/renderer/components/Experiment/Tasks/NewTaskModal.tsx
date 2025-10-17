@@ -8,8 +8,21 @@ import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import Textarea from '@mui/joy/Textarea';
-import { ModalClose, ModalDialog } from '@mui/joy';
+import { FormHelperText, ModalClose, ModalDialog } from '@mui/joy';
+import { Editor } from '@monaco-editor/react';
+import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
+
 import DirectoryUpload from './DirectoryUpload';
+import { useRef } from 'react';
+
+const { parseTmTheme } = require('monaco-themes');
+
+function setTheme(editor: any, monaco: any) {
+  const themeData = parseTmTheme(fairyflossTheme);
+
+  monaco.editor.defineTheme('my-theme', themeData);
+  monaco.editor.setTheme('my-theme');
+}
 
 type NewTaskModalProps = {
   open: boolean;
@@ -45,19 +58,28 @@ export default function NewTaskModal({
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
   const [uploadedDirPath, setUploadedDirPath] = React.useState('');
+  // keep separate refs for the two Monaco editors
+  const setupEditorRef = useRef<any>(null);
+  const commandEditorRef = useRef<any>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // read editor values (fallback to state if editor not mounted)
+    const setupValue =
+      setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
+    const commandValue =
+      commandEditorRef?.current?.getValue?.() ?? (command || undefined);
+
     onSubmit({
       title,
       cluster_name: clusterName,
-      command,
+      command: commandValue,
       cpus: cpus || undefined,
       memory: memory || undefined,
       disk_space: diskSpace || undefined,
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
-      setup: setup || undefined,
+      setup: setupValue,
       uploaded_dir_path: uploadedDirPath || undefined,
     });
     // Reset all form fields
@@ -71,8 +93,25 @@ export default function NewTaskModal({
     setNumNodes('');
     setSetup('');
     setUploadedDirPath('');
+    // clear editor contents if mounted
+    try {
+      setupEditorRef?.current?.setValue?.('');
+      commandEditorRef?.current?.setValue?.('');
+    } catch (err) {
+      // ignore
+    }
     onClose();
   };
+
+  function handleSetupEditorDidMount(editor: any, monaco: any) {
+    setupEditorRef.current = editor;
+    setTheme(editor, monaco);
+  }
+
+  function handleCommandEditorDidMount(editor: any, monaco: any) {
+    commandEditorRef.current = editor;
+    setTheme(editor, monaco);
+  }
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -168,22 +207,58 @@ export default function NewTaskModal({
 
             <FormControl sx={{ mt: 2 }}>
               <FormLabel>Setup Command</FormLabel>
-              <Textarea
+              {/* <Textarea
                 minRows={2}
                 value={setup}
                 onChange={(e) => setSetup(e.target.value)}
                 placeholder="Setup commands (optional) that runs before task is run. e.g. pip install -r requirements.txt"
+              /> */}
+
+              <Editor
+                defaultLanguage="shell"
+                theme="my-theme"
+                height="6rem"
+                options={{
+                  minimap: {
+                    enabled: false,
+                  },
+                  fontSize: 18,
+                  cursorStyle: 'block',
+                  wordWrap: 'on',
+                }}
+                onMount={handleSetupEditorDidMount}
               />
+              <FormHelperText>
+                e.g. <code>pip install -r requirements.txt</code>
+              </FormHelperText>
             </FormControl>
 
-            <FormControl required sx={{ mt: 2 }}>
+            <FormControl required sx={{ mt: 2, mb: 2 }}>
               <FormLabel>Command</FormLabel>
-              <Textarea
+              {/* <Textarea
                 minRows={4}
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
                 placeholder="e.g. python train.py --epochs 10"
+              /> */}
+
+              <Editor
+                defaultLanguage="shell"
+                theme="my-theme"
+                height="8rem"
+                options={{
+                  minimap: {
+                    enabled: false,
+                  },
+                  fontSize: 18,
+                  cursorStyle: 'block',
+                  wordWrap: 'on',
+                }}
+                onMount={handleCommandEditorDidMount}
               />
+              <FormHelperText>
+                e.g. <code>python train.py --epochs 10</code>
+              </FormHelperText>
             </FormControl>
 
             <DirectoryUpload
