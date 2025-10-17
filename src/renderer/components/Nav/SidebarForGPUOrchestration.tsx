@@ -5,18 +5,16 @@ import {
   CodeIcon,
   BoxesIcon,
   FileTextIcon,
-  MonitorIcon,
   FlaskConicalIcon,
   SettingsIcon,
   GithubIcon,
-  PlugIcon,
-  TextIcon,
   FileIcon,
   UserIcon,
   LogOutIcon,
   LogInIcon,
   StretchHorizontalIcon,
   LibraryBigIcon,
+  ComputerIcon,
 } from 'lucide-react';
 
 import {
@@ -50,11 +48,11 @@ import {
   usePluginStatus,
   useAPI,
   logout,
-  getAPIFullPath,
   getAccessToken,
   setAccessToken,
   setRefreshToken,
   API_URL,
+  apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
@@ -100,6 +98,49 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
 }
 
 function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
+  // Get GPU orchestration server URL from healthz endpoint
+  const [healthzData, setHealthzData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchHealthz = async () => {
+      try {
+        const data = await apiHealthz();
+        setHealthzData(data);
+      } catch (error) {
+        console.error('Failed to fetch healthz data:', error);
+      }
+    };
+
+    fetchHealthz();
+  }, []);
+
+  const handleComputerIconClick = () => {
+    if (healthzData?.gpu_orchestration_server) {
+      const gpuServerUrl = healthzData.gpu_orchestration_server;
+      const port = healthzData.gpu_orchestration_server_port || '8338';
+
+      // Construct the full URL
+      let fullUrl = gpuServerUrl;
+      if (!fullUrl.includes('://')) {
+        fullUrl = `http://${fullUrl}`;
+      }
+
+      // Check if port is already included in the URL
+      const urlObj = new URL(fullUrl);
+      if (!urlObj.port && port && port !== '80' && port !== '443') {
+        fullUrl = `${urlObj.protocol}//${urlObj.hostname}:${port}`;
+      }
+
+      // Ensure trailing slash
+      if (!fullUrl.endsWith('/')) {
+        fullUrl = `${fullUrl}/`;
+      }
+
+      // Open in new tab
+      window.open(fullUrl, '_blank');
+    }
+  };
+
   return (
     <List
       sx={{
@@ -124,6 +165,28 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
         icon={<CodeIcon />}
         disabled={!experimentInfo?.name}
       />
+
+      {/* Computer icon for GPU Orchestration */}
+      {healthzData?.gpu_orchestration_server && (
+        <ListItem className="FirstSidebar_Content">
+          <ListItemButton
+            variant="plain"
+            onClick={handleComputerIconClick}
+            sx={{
+              '&:hover': {
+                backgroundColor: 'var(--joy-palette-primary-100)',
+              },
+            }}
+          >
+            <ListItemDecorator sx={{ minInlineSize: '30px' }}>
+              <ComputerIcon strokeWidth={1} />
+            </ListItemDecorator>
+            <ListItemContent>
+              <Typography level="body-sm">GPU Orchestration</Typography>
+            </ListItemContent>
+          </ListItemButton>
+        </ListItem>
+      )}
     </List>
   );
 }
