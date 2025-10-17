@@ -29,43 +29,7 @@ type Props = {
 };
 
 export default function TaskGallery({ open, onClose, onSelect }: Props) {
-  const examples: ExampleTask[] = [
-    {
-      id: 'finetune-llama-3',
-      title: 'Fine-tune LLaMA 3 (Domain Adaptation)',
-      description:
-        'Example pipeline and config to adapt LLaMA 3 to specialized domain data with low-rate learning & validation.',
-      yaml: '# example: finetune-llama-3\nmodel: llama-3\ntrain: ...',
-    },
-    {
-      id: 'nanochat',
-      title: 'NanoChat Quickstart',
-      description:
-        'Small-footprint conversational agent example optimized for edge/low-latency inference.',
-      yaml: '# example: nanochat\nmodel: nanochat\nparams: ...',
-    },
-    {
-      id: 'unsloth-finetune',
-      title: 'Fine-tune with UnSloth (Efficient)',
-      description:
-        'Configuration demonstrating UnSloth optimizations and resource-aware schedules for fast iterations.',
-      yaml: '# example: unsloth\nframework: unsloth\n...',
-    },
-    {
-      id: 'gpt-oss-train',
-      title: 'Train GPT-OSS-compatible Model',
-      description:
-        'Minimal training recipe for an open GPT-style model useful for experimentation and reproducibility.',
-      yaml: '# example: gpt-oss\ntrain:\n  epochs: 3\n',
-    },
-    {
-      id: 'yolo-train',
-      title: 'YOLO Object Detection Demo',
-      description:
-        'Dataset, augmentation and training config to train a YOLO-based object detector for real-time use.',
-      yaml: '# example: yolo\nmodel: yolov5\n',
-    },
-  ];
+  const examples: ExampleTask[] = [];
 
   const handleSelect = (task: ExampleTask) => {
     if (onSelect) onSelect(task);
@@ -83,7 +47,7 @@ export default function TaskGallery({ open, onClose, onSelect }: Props) {
         sx={{ maxHeight: '90vh', width: '60vw', overflow: 'hidden' }}
       >
         <ModalClose />
-        <DialogTitle>Example Tasks Gallery</DialogTitle>
+        <DialogTitle>Gallery</DialogTitle>
 
         <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto', p: 0 }}>
           <List sx={{ p: 1, gap: 1 }}>

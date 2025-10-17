@@ -35,6 +35,14 @@
     "queue": {
       "method": "POST",
       "path": "tasks/{id}/queue"
+    },
+    "gallery": {
+      "method": "GET",
+      "path": "tasks/gallery"
+    },
+    "importFromGallery": {
+      "method": "POST",
+      "path": "tasks/import_from_gallery"
     }
   },
   "server": {

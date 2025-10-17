@@ -8,7 +8,7 @@ import Typography from '@mui/joy/Typography';
 import Box from '@mui/joy/Box';
 import IconButton from '@mui/joy/IconButton';
 import Button from '@mui/joy/Button';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   RectangleVerticalIcon,
   Edit2,
@@ -19,71 +19,58 @@ import {
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import TaskModal from './TaskModal';
-import TaskGallery from './TaskGallery';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import useSWR from 'swr';
+import Chip from '@mui/joy/Chip';
 
 export default function TaskLibrary({}) {
   const { experimentInfo } = useExperimentInfo();
 
-  const initialTasks = [
-    {
-      id: 'finetune-llama-3',
-      title: 'Fine-tune LLaMA 3',
-      description:
-        'Adapt LLaMA 3 to your domain by training on curated, domain-specific data to improve accuracy, tone, and task performance.',
-    },
-    {
-      id: 'nanochat',
-      title: "Train Karpathy's NanoChat",
-      description:
-        'Build a compact conversational agent optimized for low-latency and on-device usage, suitable for simple chat, FAQ, and assistant workflows.',
-    },
-    {
-      id: 'finetune-unsloth',
-      title: 'Fine-tune with UnSloth',
-      description:
-        'Use the UnSloth toolkit to fine-tune models efficiently with smart optimization and resource-aware schedules for faster iterations.',
-    },
-    {
-      id: 'finetune-gpt-oss',
-      title: 'Finetune OpenAI GPT-OSS',
-      description: 'Finetune OpenAIs GPT-OSS model.',
-    },
-    {
-      id: 'yolo-object-detection',
-      title: 'YOLO Object Detection Training',
-      description:
-        'Train a YOLO-based detector to localize and classify objects in images, tuned for real-time performance and practical deployment.',
-    },
-  ];
+  const { data: localTasksResp } = useSWR(
+    chatAPI.getAPIFullPath('tasks.getAll'),
+    chatAPI.fetcher
+  );
+  const { data: galleryResp } = useSWR(
+    chatAPI.getAPIFullPath('tasks.gallery'),
+    chatAPI.fetcher
+  );
 
-  const [tasks, setTasks] = useState(initialTasks);
+  const tasks = useMemo(() => {
+    const local = Array.isArray(localTasksResp) ? localTasksResp : [];
+    const gallery = galleryResp?.data ?? [];
+    const galleryMapped = gallery.map((g) => ({
+      id: `gallery:${g.subdir || g.id || g.name}`,
+      title: g.name || g.title || g.task_name || 'Task',
+      description: g.description || '',
+      _isGallery: true,
+      _subdir: g.subdir,
+    }));
+    return [...galleryMapped, ...local];
+  }, [localTasksResp, galleryResp]);
 
   // modal state to show TaskModal when creating/viewing a task
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTask, setModalTask] = useState<any | null>(null);
-  // gallery state for importing examples
-  const [galleryOpen, setGalleryOpen] = useState(false);
 
   const handleCloseModal = () => {
     setModalOpen(false);
     setModalTask(null);
   };
 
-  const handleImportExample = () => {
-    // open the example gallery
-    setGalleryOpen(true);
-  };
-
-  const handleSelectExample = (example: any) => {
-    // add selected example to tasks and close gallery
-    const newTask = {
-      id: example.id || `imported-${Date.now()}`,
-      title: example.title,
-      description: example.description,
-      yaml: example.yaml,
-    };
-    setTasks((prev) => [newTask, ...prev]);
-    setGalleryOpen(false);
+  const handleImportFromGallery = async (subdir: string) => {
+    const url = chatAPI.getAPIFullPath('tasks.importFromGallery');
+    const form = new URLSearchParams();
+    form.set('subdir', subdir);
+    // experimentId optional; if available in context add it
+    if (experimentInfo?.id) form.set('experiment_id', experimentInfo.id);
+    await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: form.toString(),
+      credentials: 'include',
+    });
   };
 
   const handleCreate = () => {
@@ -131,15 +118,7 @@ export default function TaskLibrary({}) {
       >
         <h2 style={{ margin: 0 }}>Task Library</h2>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            size="sm"
-            variant="outlined"
-            onClick={handleImportExample}
-            aria-label="Import example"
-            startDecorator={<FilePlus size={14} />}
-          >
-            Import Example
-          </Button>
+          {/* Removed Import Example button; gallery shows inline */}
 
           <Button
             size="sm"
@@ -159,7 +138,7 @@ export default function TaskLibrary({}) {
           pt: 2,
         }}
       >
-        {tasks.map((task) => (
+        {tasks.map((task: any) => (
           <ListItem
             key={task.id}
             sx={{
@@ -175,10 +154,17 @@ export default function TaskLibrary({}) {
             </ListItemDecorator>
 
             <ListItemContent sx={{ minWidth: 0 }}>
-              <Typography fontWeight="lg">{task.title}</Typography>
+              <Typography fontWeight="lg">{task.title || task.name}</Typography>
               <Typography level="body2" textColor="text.tertiary">
                 {task.description}
               </Typography>
+              {task._isGallery && (
+                <Box sx={{ mt: 0.5 }}>
+                  <Chip size="sm" color="primary" variant="soft">
+                    Gallery
+                  </Chip>
+                </Box>
+              )}
             </ListItemContent>
 
             <Box
@@ -190,6 +176,7 @@ export default function TaskLibrary({}) {
                 alignSelf: 'start',
               }}
             >
+              {!task._isGallery && (
               <IconButton
                 size="sm"
                 variant="plain"
@@ -199,7 +186,9 @@ export default function TaskLibrary({}) {
               >
                 <Edit2 size={16} />
               </IconButton>
+              )}
 
+              {!task._isGallery && (
               <IconButton
                 size="sm"
                 variant="plain"
@@ -209,6 +198,18 @@ export default function TaskLibrary({}) {
               >
                 <Trash2 size={16} />
               </IconButton>
+              )}
+
+              {task._isGallery && (
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  onClick={() => handleImportFromGallery(task._subdir || task.id.split(':')[1])}
+                  startDecorator={<FilePlus size={12} />}
+                >
+                  Import
+                </Button>
+              )}
             </Box>
           </ListItem>
         ))}
@@ -221,12 +222,7 @@ export default function TaskLibrary({}) {
         task={modalTask}
         onSave={handleSave}
       />
-      {/* Example gallery modal */}
-      <TaskGallery
-        open={galleryOpen}
-        onClose={() => setGalleryOpen(false)}
-        onSelect={handleSelectExample}
-      />
+      {/* Gallery modal removed; items shown inline in list */}
     </Sheet>
   );
 }
