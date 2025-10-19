@@ -8,13 +8,22 @@ import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import Textarea from '@mui/joy/Textarea';
-import { FormHelperText, ModalClose, ModalDialog } from '@mui/joy';
+import {
+  FormHelperText,
+  ModalClose,
+  ModalDialog,
+  Sheet,
+  Stack,
+  Typography,
+} from '@mui/joy';
+import { FolderIcon } from 'lucide-react';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 
-import DirectoryUpload from './DirectoryUpload';
-import { useRef } from 'react';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
+import { SafeJSONParse } from 'renderer/components/Shared/SafeJSONParse';
+import { useRef } from 'react';
 
 const { parseTmTheme } = require('monaco-themes');
 
@@ -25,61 +34,82 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.setTheme('my-theme');
 }
 
-type NewTaskModalProps = {
+type EditTaskModalProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: {
-    title: string;
-    cluster_name: string;
-    command: string;
-    cpus?: string;
-    memory?: string;
-    disk_space?: string;
-    accelerators?: string;
-    num_nodes?: number;
-    setup?: string;
-    uploaded_dir_path?: string;
-  }) => void;
-  isSubmitting?: boolean;
+  task: any | null;
+  onSaved?: () => void;
 };
 
-export default function NewTaskModal({
+export default function EditTaskModal({
   open,
   onClose,
-  onSubmit,
-  isSubmitting = false,
-}: NewTaskModalProps) {
+  task,
+  onSaved = () => {},
+}: EditTaskModalProps) {
   const { addNotification } = useNotification();
-
   const [title, setTitle] = React.useState('');
-  const [clusterName, setClusterName] = React.useState('');
   const [command, setCommand] = React.useState('');
+  const [clusterName, setClusterName] = React.useState('');
   const [cpus, setCpus] = React.useState('');
   const [memory, setMemory] = React.useState('');
   const [diskSpace, setDiskSpace] = React.useState('');
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
-  const [uploadedDirPath, setUploadedDirPath] = React.useState('');
-  // keep separate refs for the two Monaco editors
+  const [saving, setSaving] = React.useState(false);
+
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (!task) return;
+    setTitle(task.name || '');
+    const cfg = SafeJSONParse(task.config, {});
+    setClusterName(cfg.cluster_name || '');
+    setCommand(cfg.command || '');
+    setCpus(cfg.cpus != null ? String(cfg.cpus) : '');
+    setMemory(cfg.memory != null ? String(cfg.memory) : '');
+    setDiskSpace(cfg.disk_space != null ? String(cfg.disk_space) : '');
+    setAccelerators(cfg.accelerators != null ? String(cfg.accelerators) : '');
+    setNumNodes(cfg.num_nodes != null ? String(cfg.num_nodes) : '');
+    setSetup(cfg.setup != null ? String(cfg.setup) : '');
+  }, [task]);
+
+  // Keep Monaco editors in sync if the state changes after mount
+  React.useEffect(() => {
+    if (
+      setupEditorRef.current &&
+      typeof setupEditorRef.current.setValue === 'function'
+    ) {
+      setupEditorRef.current.setValue(setup ?? '');
+    }
+  }, [setup]);
+
+  React.useEffect(() => {
+    if (
+      commandEditorRef.current &&
+      typeof commandEditorRef.current.setValue === 'function'
+    ) {
+      commandEditorRef.current.setValue(command ?? '');
+    }
+  }, [command]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // read editor values (fallback to state if editor not mounted)
+
     const setupValue =
       setupEditorRef?.current?.getValue?.() ?? (setup || undefined);
     const commandValue =
       commandEditorRef?.current?.getValue?.() ?? (command || undefined);
 
+    if (!task) return;
     if (!commandValue) {
       addNotification({ type: 'warning', message: 'Command is required' });
       return;
     }
-
-    onSubmit({
-      title,
+    setSaving(true);
+    const config = {
       cluster_name: clusterName,
       command: commandValue,
       cpus: cpus || undefined,
@@ -87,38 +117,71 @@ export default function NewTaskModal({
       disk_space: diskSpace || undefined,
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
-      setup: setupValue,
-      uploaded_dir_path: uploadedDirPath || undefined,
-    });
-    // Reset all form fields
-    setTitle('');
-    setClusterName('');
-    setCommand('');
-    setCpus('');
-    setMemory('');
-    setDiskSpace('');
-    setAccelerators('');
-    setNumNodes('');
-    setSetup('');
-    setUploadedDirPath('');
-    // clear editor contents if mounted
+      setup: setupValue || undefined,
+    } as any;
+
+    const body = {
+      name: title,
+      inputs: '{}',
+      config: JSON.stringify(config),
+      outputs: '{}',
+    } as any;
+
     try {
-      setupEditorRef?.current?.setValue?.('');
-      commandEditorRef?.current?.setValue?.('');
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.UpdateTask(task.id),
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            accept: 'application/json',
+          },
+          body: JSON.stringify(body),
+        },
+      );
+
+      if (!response.ok) {
+        const txt = await response.text();
+        addNotification({
+          type: 'danger',
+          message: `Failed to save task: ${txt}`,
+        });
+        setSaving(false);
+        return;
+      }
+
+      if (onSaved) {
+        await onSaved();
+      }
+      onClose();
     } catch (err) {
-      // ignore
+      console.error(err);
+      addNotification({ type: 'danger', message: 'Failed to save task.' });
+    } finally {
+      setSaving(false);
     }
-    onClose();
   };
 
   function handleSetupEditorDidMount(editor: any, monaco: any) {
     setupEditorRef.current = editor;
     setTheme(editor, monaco);
+    // initialize editor with current setup state
+    try {
+      editor.setValue(setup ?? '');
+    } catch (e) {
+      // ignore if setValue not available
+    }
   }
 
   function handleCommandEditorDidMount(editor: any, monaco: any) {
     commandEditorRef.current = editor;
     setTheme(editor, monaco);
+    // initialize editor with current command state
+    try {
+      editor.setValue(command ?? '');
+    } catch (e) {
+      // ignore if setValue not available
+    }
   }
 
   return (
@@ -127,7 +190,7 @@ export default function NewTaskModal({
         sx={{ maxHeight: '90vh', width: '70vw', overflow: 'hidden' }}
       >
         <ModalClose />
-        <DialogTitle>New Task</DialogTitle>
+        <DialogTitle>Edit Task</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent sx={{ maxHeight: '70vh', overflow: 'auto' }}>
             <FormControl required>
@@ -135,22 +198,14 @@ export default function NewTaskModal({
               <Input
                 value={title}
                 onChange={(e) => {
-                  setTitle(e.target.value);
-                  setClusterName(`${e.target.value}-instance`);
+                  const newTitle = e.target.value;
+                  setTitle(newTitle);
+                  // keep cluster name behavior consistent with NewTaskModal
+                  setClusterName(`${newTitle}-instance`);
                 }}
                 placeholder="Task title"
-                autoFocus
               />
             </FormControl>
-
-            {/* <FormControl required sx={{ mt: 2 }}>
-              <FormLabel>Cluster Name</FormLabel>
-              <Input
-                value={clusterName}
-                onChange={(e) => setClusterName(e.target.value)}
-                placeholder="Cluster name"
-              />
-            </FormControl> */}
 
             <div
               style={{
@@ -221,10 +276,10 @@ export default function NewTaskModal({
                 onChange={(e) => setSetup(e.target.value)}
                 placeholder="Setup commands (optional) that runs before task is run. e.g. pip install -r requirements.txt"
               /> */}
-
               <Editor
                 defaultLanguage="shell"
                 theme="my-theme"
+                defaultValue={setup}
                 height="6rem"
                 options={{
                   minimap: {
@@ -241,7 +296,7 @@ export default function NewTaskModal({
               </FormHelperText>
             </FormControl>
 
-            <FormControl required sx={{ mt: 2, mb: 2 }}>
+            <FormControl required sx={{ mt: 2 }}>
               <FormLabel>Command</FormLabel>
               {/* <Textarea
                 minRows={4}
@@ -253,6 +308,7 @@ export default function NewTaskModal({
               <Editor
                 defaultLanguage="shell"
                 theme="my-theme"
+                defaultValue={command}
                 height="8rem"
                 options={{
                   minimap: {
@@ -269,23 +325,36 @@ export default function NewTaskModal({
               </FormHelperText>
             </FormControl>
 
-            <DirectoryUpload
-              onUploadComplete={(path) => setUploadedDirPath(path)}
-              onUploadError={(error) => console.error('Upload error:', error)}
-              disabled={isSubmitting}
-            />
+            {/* Show uploaded directory indicator if present */}
+            {task &&
+              (() => {
+                const cfg = SafeJSONParse(task.config, {});
+                return cfg.uploaded_dir_path ? (
+                  <Sheet
+                    variant="soft"
+                    sx={{ p: 2, borderRadius: 'md', mt: 2 }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <FolderIcon size={16} />
+                      <Typography level="body-sm">
+                        This task includes an uploaded directory
+                      </Typography>
+                    </Stack>
+                  </Sheet>
+                ) : null;
+              })()}
           </DialogContent>
           <DialogActions>
             <Button
               variant="plain"
               color="neutral"
               onClick={onClose}
-              disabled={isSubmitting}
+              disabled={saving}
             >
               Cancel
             </Button>
-            <Button type="submit" variant="solid" loading={isSubmitting}>
-              Create Task
+            <Button type="submit" variant="solid" loading={saving}>
+              Save Changes
             </Button>
           </DialogActions>
         </form>
