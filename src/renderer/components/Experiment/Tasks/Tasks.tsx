@@ -16,6 +16,8 @@ import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
 import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
+import ViewArtifactsModal from '../Train/ViewArtifactsModal';
+import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 const duration = require('dayjs/plugin/duration');
@@ -32,6 +34,7 @@ export default function Tasks() {
   const [currentTensorboardForModal, setCurrentTensorboardForModal] =
     useState(-1);
   const [viewCheckpointsFromJob, setViewCheckpointsFromJob] = useState(-1);
+  const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const { experimentInfo } = useExperimentInfo();
@@ -350,6 +353,9 @@ export default function Tasks() {
             onViewCheckpoints={(jobId) =>
               setViewCheckpointsFromJob(parseInt(jobId))
             }
+            onViewArtifacts={(jobId) =>
+              setViewArtifactsFromJob(parseInt(jobId))
+            }
             onViewEvalImages={(jobId) =>
               setViewEvalImagesFromJob(parseInt(jobId))
             }
@@ -363,6 +369,16 @@ export default function Tasks() {
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}
         setJobId={(jobId: number) => setViewOutputFromJob(jobId)}
+      />
+      <ViewArtifactsModal
+        open={viewArtifactsFromJob !== -1}
+        onClose={() => setViewArtifactsFromJob(-1)}
+        jobId={viewArtifactsFromJob}
+      />
+      <ViewCheckpointsModal
+        open={viewCheckpointsFromJob !== -1}
+        onClose={() => setViewCheckpointsFromJob(-1)}
+        jobId={viewCheckpointsFromJob}
       />
     </Sheet>
   );

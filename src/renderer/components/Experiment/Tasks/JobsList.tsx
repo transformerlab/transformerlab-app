@@ -8,7 +8,7 @@ import {
   InfoIcon,
   LineChartIcon,
   WaypointsIcon,
-  LineChartIcon,
+  ArchiveIcon,
 } from 'lucide-react';
 import JobProgress from './JobProgress';
 
@@ -18,6 +18,7 @@ interface JobsListProps {
   onViewOutput?: (jobId: string) => void;
   onViewTensorboard?: (jobId: string) => void;
   onViewCheckpoints?: (jobId: string) => void;
+  onViewArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
 }
@@ -28,6 +29,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewOutput,
   onViewTensorboard,
   onViewCheckpoints,
+  onViewArtifacts,
   onViewEvalImages,
   onViewSweepOutput,
 }) => {
@@ -140,6 +142,17 @@ const JobsList: React.FC<JobsListProps> = ({
                       startDecorator={<WaypointsIcon />}
                     >
                       Checkpoints
+                    </Button>
+                  )}
+                  {(job?.job_data?.artifacts ||
+                    job?.job_data?.artifacts_dir) && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onViewArtifacts?.(job?.id)}
+                      startDecorator={<ArchiveIcon />}
+                    >
+                      Artifacts
                     </Button>
                   )}
                   <IconButton variant="plain">
