@@ -117,7 +117,7 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
   const handleGPUOrchestraionClick = () => {
     if (healthzData?.gpu_orchestration_server) {
       const gpuServerUrl = healthzData.gpu_orchestration_server;
-      const port = healthzData.gpu_orchestration_server_port || '8338';
+      const port = healthzData.gpu_orchestration_server_port || '8000';
 
       // Construct the full URL
       let fullUrl = gpuServerUrl;
