@@ -11,7 +11,7 @@ interface UseStreamingJobsResult {
 export const useStreamingJobs = (
   experimentId: string | undefined,
   type: string = '',
-  status: string = ''
+  status: string = '',
 ): UseStreamingJobsResult => {
   const [jobs, setJobs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,12 +28,16 @@ export const useStreamingJobs = (
     setJobs([]);
 
     try {
-      const url = chatAPI.Endpoints.Jobs.StreamJobsOfType(experimentId, type, status);
+      const url = chatAPI.Endpoints.Jobs.StreamJobsOfType(
+        experimentId,
+        type,
+        status,
+      );
 
       const response = await chatAPI.authenticatedFetch(url, {
         method: 'GET',
         headers: {
-          'Accept': 'text/event-stream',
+          Accept: 'text/event-stream',
           'Cache-Control': 'no-cache',
         },
       });
@@ -70,9 +74,11 @@ export const useStreamingJobs = (
 
             try {
               const job = JSON.parse(data);
-              setJobs(prevJobs => {
+              setJobs((prevJobs) => {
                 // Check if job already exists to avoid duplicates
-                const exists = prevJobs.some(existingJob => existingJob.id === job.id);
+                const exists = prevJobs.some(
+                  (existingJob) => existingJob.id === job.id,
+                );
                 if (!exists) {
                   return [...prevJobs, job];
                 }

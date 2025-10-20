@@ -340,9 +340,7 @@ export default function Tasks() {
           onViewCheckpoints={(jobId) =>
             setViewCheckpointsFromJob(parseInt(jobId))
           }
-          onViewArtifacts={(jobId) =>
-            setViewArtifactsFromJob(parseInt(jobId))
-          }
+          onViewArtifacts={(jobId) => setViewArtifactsFromJob(parseInt(jobId))}
           onViewEvalImages={(jobId) =>
             setViewEvalImagesFromJob(parseInt(jobId))
           }
