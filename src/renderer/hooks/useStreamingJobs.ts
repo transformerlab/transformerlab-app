@@ -28,13 +28,33 @@ export const useStreamingJobs = (
     setJobs([]);
 
     try {
-      const url = chatAPI.Endpoints.Jobs.StreamJobsOfType(
-        experimentId,
-        type,
-        status,
-      );
+      // First, get job IDs quickly
+      const idsUrl = chatAPI.Endpoints.Jobs.GetJobIds(experimentId, type, status);
+      const idsResponse = await chatAPI.authenticatedFetch(idsUrl, {
+        method: 'GET',
+      });
 
-      const response = await chatAPI.authenticatedFetch(url, {
+      if (!idsResponse.ok) {
+        throw new Error(`HTTP error! status: ${idsResponse.status}`);
+      }
+
+      const idsData = await idsResponse.json();
+      const jobIds = idsData.job_ids || [];
+
+      // Create placeholder jobs immediately
+      const placeholderJobs = jobIds.map((id: string) => ({
+        id: String(id), // Ensure consistent string IDs
+        type: 'PLACEHOLDER',
+        status: 'LOADING',
+        job_data: {},
+        is_placeholder: true
+      }));
+      console.log('🏗️ Created placeholder jobs:', placeholderJobs.map(j => j.id));
+      setJobs(placeholderJobs);
+
+      // Now stream the actual job data
+      const streamUrl = chatAPI.Endpoints.Jobs.StreamJobsOfType(experimentId, type, status);
+      const response = await chatAPI.authenticatedFetch(streamUrl, {
         method: 'GET',
         headers: {
           Accept: 'text/event-stream',
@@ -74,15 +94,26 @@ export const useStreamingJobs = (
 
             try {
               const job = JSON.parse(data);
-              setJobs((prevJobs) => {
-                // Check if job already exists to avoid duplicates
-                const exists = prevJobs.some(
-                  (existingJob) => existingJob.id === job.id,
-                );
-                if (!exists) {
+              // Ensure job ID is a string for consistent comparison
+              job.id = String(job.id);
+              console.log('📦 Received job data:', job.id, 'Type:', job.type);
+              setJobs(prevJobs => {
+                console.log('🔍 Looking for job ID:', job.id, 'in', prevJobs.length, 'existing jobs');
+                console.log('🔍 Existing job IDs:', prevJobs.map(j => j.id));
+
+                // Replace placeholder with real job data
+                const jobIndex = prevJobs.findIndex(existingJob => existingJob.id === job.id);
+                if (jobIndex !== -1) {
+                  console.log('✅ Found placeholder at index', jobIndex, '- replacing with real data');
+                  // Replace existing placeholder
+                  const newJobs = [...prevJobs];
+                  newJobs[jobIndex] = job;
+                  return newJobs;
+                } else {
+                  console.log('⚠️ No placeholder found for job', job.id, '- adding as new job');
+                  // Add new job if no placeholder exists
                   return [...prevJobs, job];
                 }
-                return prevJobs;
               });
             } catch (parseError) {
               console.warn('Failed to parse job data:', data);

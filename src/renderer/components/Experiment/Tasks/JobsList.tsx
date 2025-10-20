@@ -37,6 +37,11 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewSweepOutput,
 }) => {
   const formatJobConfig = (job: any) => {
+    // Handle placeholder jobs
+    if (job.is_placeholder) {
+      return <Skeleton variant="text" width="120px" height="20px" />;
+    }
+
     // For jobs with template name, show template info
     if (job.job_data?.template_name) {
       return (
@@ -83,129 +88,136 @@ const JobsList: React.FC<JobsListProps> = ({
         </tr>
       </thead>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
-        {isLoading && jobs.length === 0 ? (
-          // Show skeleton rows while loading and no jobs yet
-          <>
-            <SkeletonRow />
-            <SkeletonRow />
-            <SkeletonRow />
-          </>
-        ) : jobs?.length > 0 ? (
+        {jobs?.length > 0 ? (
           <>
             {jobs?.map((job) => (
               <tr key={job.id}>
                 <td>
                   <b>{job.id}</b>
-                  <br />
-                  <InfoIcon
-                    onClick={() => {
-                      const jobDataConfig = job?.job_data;
-                      if (typeof jobDataConfig === 'object') {
-                        alert(JSON.stringify(jobDataConfig, null, 2));
-                      } else {
-                        alert(jobDataConfig);
-                      }
-                    }}
-                    size="16px"
-                    color="var(--joy-palette-neutral-500)"
-                    style={{ cursor: 'pointer' }}
-                  />
+                  {!job.is_placeholder && (
+                    <>
+                      <br />
+                      <InfoIcon
+                        onClick={() => {
+                          const jobDataConfig = job?.job_data;
+                          if (typeof jobDataConfig === 'object') {
+                            alert(JSON.stringify(jobDataConfig, null, 2));
+                          } else {
+                            alert(jobDataConfig);
+                          }
+                        }}
+                        size="16px"
+                        color="var(--joy-palette-neutral-500)"
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </>
+                  )}
+                  {job.is_placeholder && (
+                    <>
+                      <br />
+                      <Skeleton variant="circular" width="16px" height="16px" />
+                    </>
+                  )}
                 </td>
                 <td>{formatJobConfig(job)}</td>
                 <td>
-                  <JobProgress job={job} />
+                  {job.is_placeholder ? (
+                    <Skeleton variant="rectangular" width="100px" height="24px" />
+                  ) : (
+                    <JobProgress job={job} />
+                  )}
                 </td>
                 <td style={{}}>
-                  <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
-                    {job?.job_data?.tensorboard_output_dir && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewTensorboard?.(job?.id)}
-                        startDecorator={<LineChartIcon />}
-                      >
-                        Tensorboard
-                      </Button>
-                    )}
+                  {job.is_placeholder ? (
+                    <Skeleton variant="rectangular" width="200px" height="32px" />
+                  ) : (
+                    <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
+                      {job?.job_data?.tensorboard_output_dir && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewTensorboard?.(job?.id)}
+                          startDecorator={<LineChartIcon />}
+                        >
+                          Tensorboard
+                        </Button>
+                      )}
 
-                    {job?.job_data?.wandb_run_url && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => {
-                          window.open(job.job_data.wandb_run_url, '_blank');
-                        }}
-                        startDecorator={<LineChartIcon />}
-                      >
-                        W&B Tracking
-                      </Button>
-                    )}
+                      {job?.job_data?.wandb_run_url && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => {
+                            window.open(job.job_data.wandb_run_url, '_blank');
+                          }}
+                          startDecorator={<LineChartIcon />}
+                        >
+                          W&B Tracking
+                        </Button>
+                      )}
 
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewOutput?.(job?.id)}
-                    >
-                      Output
-                    </Button>
-                    {job?.job_data?.eval_images_dir && (
                       <Button
                         size="sm"
                         variant="plain"
-                        onClick={() => onViewEvalImages?.(job?.id)}
+                        onClick={() => onViewOutput?.(job?.id)}
                       >
-                        View Eval Images
+                        Output
                       </Button>
-                    )}
-                    {job?.job_data?.sweep_output_file && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewSweepOutput?.(job?.id)}
-                      >
-                        Sweep Output
-                      </Button>
-                    )}
-                    {job?.job_data?.checkpoints && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewCheckpoints?.(job?.id)}
-                        startDecorator={<WaypointsIcon />}
-                      >
-                        Checkpoints
-                      </Button>
-                    )}
-                    {(job?.job_data?.artifacts ||
-                      job?.job_data?.artifacts_dir) && (
-                      <Button
-                        size="sm"
-                        variant="plain"
-                        onClick={() => onViewArtifacts?.(job?.id)}
-                        startDecorator={<ArchiveIcon />}
-                      >
-                        Artifacts
-                      </Button>
-                    )}
-                    <IconButton variant="plain">
-                      <Trash2Icon
-                        onClick={() => onDeleteJob?.(job.id)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    </IconButton>
-                  </ButtonGroup>
+                      {job?.job_data?.eval_images_dir && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewEvalImages?.(job?.id)}
+                        >
+                          View Eval Images
+                        </Button>
+                      )}
+                      {job?.job_data?.sweep_output_file && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewSweepOutput?.(job?.id)}
+                        >
+                          Sweep Output
+                        </Button>
+                      )}
+                      {job?.job_data?.checkpoints && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewCheckpoints?.(job?.id)}
+                          startDecorator={<WaypointsIcon />}
+                        >
+                          Checkpoints
+                        </Button>
+                      )}
+                      {(job?.job_data?.artifacts ||
+                        job?.job_data?.artifacts_dir) && (
+                        <Button
+                          size="sm"
+                          variant="plain"
+                          onClick={() => onViewArtifacts?.(job?.id)}
+                          startDecorator={<ArchiveIcon />}
+                        >
+                          Artifacts
+                        </Button>
+                      )}
+                      <IconButton variant="plain">
+                        <Trash2Icon
+                          onClick={() => onDeleteJob?.(job.id)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </IconButton>
+                    </ButtonGroup>
+                  )}
                 </td>
               </tr>
             ))}
-            {isLoading && (
-              // Show one skeleton row at the bottom while more jobs are loading
-              <SkeletonRow />
-            )}
           </>
         ) : (
           <tr>
             <td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>
-              No jobs found
+              {isLoading ? 'Loading jobs...' : 'No jobs found'}
             </td>
           </tr>
         )}
