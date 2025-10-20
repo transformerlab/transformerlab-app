@@ -114,7 +114,7 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
     fetchHealthz();
   }, []);
 
-  const handleComputerIconClick = () => {
+  const handleGPUOrchestraionClick = () => {
     if (healthzData?.gpu_orchestration_server) {
       const gpuServerUrl = healthzData.gpu_orchestration_server;
       const port = healthzData.gpu_orchestration_server_port || '8338';
@@ -171,7 +171,7 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
         <ListItem className="FirstSidebar_Content">
           <ListItemButton
             variant="plain"
-            onClick={handleComputerIconClick}
+            onClick={handleGPUOrchestraionClick}
             sx={{
               '&:hover': {
                 backgroundColor: 'var(--joy-palette-primary-100)',
