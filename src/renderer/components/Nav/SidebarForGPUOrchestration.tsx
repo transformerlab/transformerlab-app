@@ -754,11 +754,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
             </IconButton>
           </Tooltip>
         </a>
-        <Tooltip title="Settings">
-          <IconButton variant="plain" onClick={() => navigate('/settings')}>
-            <SettingsIcon strokeWidth={1} />
-          </IconButton>
-        </Tooltip>
       </ButtonGroup>
       <UserLoginModal
         open={userLoginModalOpen}

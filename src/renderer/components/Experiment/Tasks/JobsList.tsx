@@ -8,6 +8,7 @@ import {
   InfoIcon,
   LineChartIcon,
   WaypointsIcon,
+  LineChartIcon,
 } from 'lucide-react';
 import JobProgress from './JobProgress';
 
@@ -92,6 +93,19 @@ const JobsList: React.FC<JobsListProps> = ({
                       startDecorator={<LineChartIcon />}
                     >
                       Tensorboard
+                    </Button>
+                  )}
+
+                  {job?.job_data?.wandb_run_url && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => {
+                        window.open(job.job_data.wandb_run_url, '_blank');
+                      }}
+                      startDecorator={<LineChartIcon />}
+                    >
+                      W&B Tracking
                     </Button>
                   )}
 
