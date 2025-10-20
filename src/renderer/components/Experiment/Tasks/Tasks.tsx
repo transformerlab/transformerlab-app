@@ -11,6 +11,7 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useStreamingJobs } from 'renderer/hooks/useStreamingJobs';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
@@ -65,23 +66,13 @@ export default function Tasks() {
         task.remote_task === true && task.experiment_id === experimentInfo?.id,
     ) || [];
 
-  // Fetch jobs with automatic polling
+  // Fetch jobs with streaming for faster loading
   const {
-    data: jobs,
-    error: jobsError,
+    jobs,
     isLoading: jobsIsLoading,
-    mutate: jobsMutate,
-  } = useSWR(
-    experimentInfo?.id
-      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
-      : null,
-    fetcher,
-    {
-      refreshInterval: 3000, // Poll every 3 seconds for job status updates
-      revalidateOnFocus: false, // Don't refetch when window regains focus
-      revalidateOnReconnect: true, // Refetch when network reconnects
-    },
-  );
+    error: jobsError,
+    refetch: jobsMutate,
+  } = useStreamingJobs(experimentInfo?.id, 'REMOTE', '');
 
   const handleDeleteTask = async (taskId: string) => {
     if (!experimentInfo?.id) return;
@@ -338,31 +329,28 @@ export default function Tasks() {
       </Sheet>
       <Typography level="title-md">Runs</Typography>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        {jobsIsLoading ? (
-          <LinearProgress />
-        ) : (
-          <JobsList
-            jobs={jobs}
-            onDeleteJob={handleDeleteJob}
-            onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
-            onViewTensorboard={(jobId) =>
-              setCurrentTensorboardForModal(parseInt(jobId))
-            }
-            onViewCheckpoints={(jobId) =>
-              setViewCheckpointsFromJob(parseInt(jobId))
-            }
-            onViewArtifacts={(jobId) =>
-              setViewArtifactsFromJob(parseInt(jobId))
-            }
-            onViewEvalImages={(jobId) =>
-              setViewEvalImagesFromJob(parseInt(jobId))
-            }
-            onViewSweepOutput={(jobId) => {
-              setViewOutputFromSweepJob(true);
-              setViewOutputFromJob(parseInt(jobId));
-            }}
-          />
-        )}
+        <JobsList
+          jobs={jobs}
+          isLoading={jobsIsLoading}
+          onDeleteJob={handleDeleteJob}
+          onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
+          onViewTensorboard={(jobId) =>
+            setCurrentTensorboardForModal(parseInt(jobId))
+          }
+          onViewCheckpoints={(jobId) =>
+            setViewCheckpointsFromJob(parseInt(jobId))
+          }
+          onViewArtifacts={(jobId) =>
+            setViewArtifactsFromJob(parseInt(jobId))
+          }
+          onViewEvalImages={(jobId) =>
+            setViewEvalImagesFromJob(parseInt(jobId))
+          }
+          onViewSweepOutput={(jobId) => {
+            setViewOutputFromSweepJob(true);
+            setViewOutputFromJob(parseInt(jobId));
+          }}
+        />
       </Sheet>
       <ViewOutputModalStreaming
         jobId={viewOutputFromJob}

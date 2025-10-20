@@ -439,6 +439,12 @@ Endpoints.Jobs = {
     status: string = '',
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/list?type=${type}&status=${status}`,
+  StreamJobsOfType: (
+    experimentId: string,
+    type: string = '',
+    status: string = '',
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/stream?type=${type}&status=${status}`,
   Delete: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/delete/${jobId}`,
   Stop: (experimentId: string, jobId: string) =>
