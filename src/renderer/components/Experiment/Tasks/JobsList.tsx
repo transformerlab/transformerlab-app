@@ -3,12 +3,17 @@ import Table from '@mui/joy/Table';
 import ButtonGroup from '@mui/joy/ButtonGroup';
 import IconButton from '@mui/joy/IconButton';
 import Button from '@mui/joy/Button';
+import Menu from '@mui/joy/Menu';
+import MenuItem from '@mui/joy/MenuItem';
+import MenuButton from '@mui/joy/MenuButton';
+import Dropdown from '@mui/joy/Dropdown';
 import {
   Trash2Icon,
   InfoIcon,
   LineChartIcon,
   WaypointsIcon,
   ArchiveIcon,
+  MoreHorizontalIcon,
 } from 'lucide-react';
 import JobProgress from './JobProgress';
 
@@ -55,7 +60,7 @@ const JobsList: React.FC<JobsListProps> = ({
           <th style={{ width: '60px' }}>ID</th>
           <th>Details</th>
           <th>Status</th>
-          <th style={{ width: '400px' }}></th>
+          <th style={{ minWidth: '400px', width: 'auto' }}>Actions</th>
         </tr>
       </thead>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
@@ -83,32 +88,9 @@ const JobsList: React.FC<JobsListProps> = ({
               <td>
                 <JobProgress job={job} />
               </td>
-              <td style={{}}>
+              <td style={{ minWidth: '400px' }}>
                 <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
-                  {job?.job_data?.tensorboard_output_dir && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewTensorboard?.(job?.id)}
-                      startDecorator={<LineChartIcon />}
-                    >
-                      Tensorboard
-                    </Button>
-                  )}
-
-                  {job?.job_data?.wandb_run_url && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => {
-                        window.open(job.job_data.wandb_run_url, '_blank');
-                      }}
-                      startDecorator={<LineChartIcon />}
-                    >
-                      W&B Tracking
-                    </Button>
-                  )}
-
+                  {/* Always show Output button */}
                   <Button
                     size="sm"
                     variant="plain"
@@ -116,51 +98,107 @@ const JobsList: React.FC<JobsListProps> = ({
                   >
                     Output
                   </Button>
-                  {job?.job_data?.eval_images_dir && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewEvalImages?.(job?.id)}
-                    >
-                      View Eval Images
-                    </Button>
-                  )}
-                  {job?.job_data?.sweep_output_file && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewSweepOutput?.(job?.id)}
-                    >
-                      Sweep Output
-                    </Button>
-                  )}
-                  {job?.job_data?.checkpoints && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewCheckpoints?.(job?.id)}
-                      startDecorator={<WaypointsIcon />}
-                    >
-                      Checkpoints
-                    </Button>
-                  )}
-                  {(job?.job_data?.artifacts ||
-                    job?.job_data?.artifacts_dir) && (
-                    <Button
-                      size="sm"
-                      variant="plain"
-                      onClick={() => onViewArtifacts?.(job?.id)}
-                      startDecorator={<ArchiveIcon />}
-                    >
-                      Artifacts
-                    </Button>
-                  )}
-                  <IconButton variant="plain">
-                    <Trash2Icon
-                      onClick={() => onDeleteJob?.(job.id)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </IconButton>
+
+                  {/* Collect all other available actions */}
+                  {(() => {
+                    const otherActions = [];
+
+                    if (job?.job_data?.tensorboard_output_dir) {
+                      otherActions.push({
+                        label: 'Tensorboard',
+                        icon: <LineChartIcon />,
+                        onClick: () => onViewTensorboard?.(job?.id),
+                      });
+                    }
+
+                    if (job?.job_data?.wandb_run_url) {
+                      otherActions.push({
+                        label: 'W&B Tracking',
+                        icon: <LineChartIcon />,
+                        onClick: () =>
+                          window.open(job.job_data.wandb_run_url, '_blank'),
+                      });
+                    }
+
+                    if (job?.job_data?.eval_images_dir) {
+                      otherActions.push({
+                        label: 'View Eval Images',
+                        icon: null,
+                        onClick: () => onViewEvalImages?.(job?.id),
+                      });
+                    }
+
+                    if (job?.job_data?.sweep_output_file) {
+                      otherActions.push({
+                        label: 'Sweep Output',
+                        icon: null,
+                        onClick: () => onViewSweepOutput?.(job?.id),
+                      });
+                    }
+
+                    if (job?.job_data?.checkpoints) {
+                      otherActions.push({
+                        label: 'Checkpoints',
+                        icon: <WaypointsIcon />,
+                        onClick: () => onViewCheckpoints?.(job?.id),
+                      });
+                    }
+
+                    if (job?.job_data?.artifacts || job?.job_data?.artifacts_dir) {
+                      otherActions.push({
+                        label: 'Artifacts',
+                        icon: <ArchiveIcon />,
+                        onClick: () => onViewArtifacts?.(job?.id),
+                      });
+                    }
+
+                    // Show ellipsis menu if there are any other actions
+                    if (otherActions.length > 0) {
+                      return (
+                        <>
+                          <Dropdown>
+                            <MenuButton
+                              slots={{ root: IconButton }}
+                              slotProps={{ root: { variant: 'plain', size: 'sm' } }}
+                            >
+                              <MoreHorizontalIcon />
+                            </MenuButton>
+                            <Menu placement="bottom-end">
+                              {otherActions.map((action, index) => (
+                                <MenuItem
+                                  key={`action-${index}`}
+                                  onClick={action.onClick}
+                                >
+                                  {action.icon && (
+                                    <span style={{ marginRight: '8px' }}>
+                                      {action.icon}
+                                    </span>
+                                  )}
+                                  {action.label}
+                                </MenuItem>
+                              ))}
+                            </Menu>
+                          </Dropdown>
+                          <IconButton variant="plain">
+                            <Trash2Icon
+                              onClick={() => onDeleteJob?.(job.id)}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          </IconButton>
+                        </>
+                      );
+                    }
+
+                    // Show only delete button if no other actions
+                    return (
+                      <IconButton variant="plain">
+                        <Trash2Icon
+                          onClick={() => onDeleteJob?.(job.id)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </IconButton>
+                    );
+                  })()}
                 </ButtonGroup>
               </td>
             </tr>
