@@ -3,12 +3,14 @@ import Table from '@mui/joy/Table';
 import ButtonGroup from '@mui/joy/ButtonGroup';
 import IconButton from '@mui/joy/IconButton';
 import Button from '@mui/joy/Button';
+import Box from '@mui/joy/Box';
 import {
   Trash2Icon,
   InfoIcon,
   LineChartIcon,
   WaypointsIcon,
   ArchiveIcon,
+  LogsIcon,
 } from 'lucide-react';
 import JobProgress from './JobProgress';
 
@@ -49,13 +51,13 @@ const JobsList: React.FC<JobsListProps> = ({
   };
 
   return (
-    <Table>
+    <Table style={{ tableLayout: 'auto' }}>
       <thead>
         <tr>
           <th style={{ width: '60px' }}>ID</th>
           <th>Details</th>
           <th>Status</th>
-          <th style={{ width: '400px' }}></th>
+          <th style={{ textAlign: 'right', width: '320px' }}>Actions</th>
         </tr>
       </thead>
       <tbody style={{ overflow: 'auto', height: '100%' }}>
@@ -83,8 +85,10 @@ const JobsList: React.FC<JobsListProps> = ({
               <td>
                 <JobProgress job={job} />
               </td>
-              <td style={{}}>
-                <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
+              <td style={{ width: 'fit-content' }}>
+                <ButtonGroup
+                  sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
+                >
                   {job?.job_data?.tensorboard_output_dir && (
                     <Button
                       size="sm"
@@ -105,7 +109,17 @@ const JobsList: React.FC<JobsListProps> = ({
                       }}
                       startDecorator={<LineChartIcon />}
                     >
-                      W&B Tracking
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        W&B Tracking
+                      </Box>
                     </Button>
                   )}
 
@@ -113,8 +127,19 @@ const JobsList: React.FC<JobsListProps> = ({
                     size="sm"
                     variant="plain"
                     onClick={() => onViewOutput?.(job?.id)}
+                    startDecorator={<LogsIcon />}
                   >
-                    Output
+                    <Box
+                      sx={{
+                        display: {
+                          xs: 'none',
+                          sm: 'none',
+                          md: 'inline-flex',
+                        },
+                      }}
+                    >
+                      Output
+                    </Box>
                   </Button>
                   {job?.job_data?.eval_images_dir && (
                     <Button
@@ -140,8 +165,21 @@ const JobsList: React.FC<JobsListProps> = ({
                       variant="plain"
                       onClick={() => onViewCheckpoints?.(job?.id)}
                       startDecorator={<WaypointsIcon />}
+                      sx={{
+                        justifyContent: 'center',
+                      }}
                     >
-                      Checkpoints
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        Checkpoints
+                      </Box>
                     </Button>
                   )}
                   {(job?.job_data?.artifacts ||
@@ -152,7 +190,17 @@ const JobsList: React.FC<JobsListProps> = ({
                       onClick={() => onViewArtifacts?.(job?.id)}
                       startDecorator={<ArchiveIcon />}
                     >
-                      Artifacts
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        Artifacts
+                      </Box>
                     </Button>
                   )}
                   <IconButton variant="plain">
