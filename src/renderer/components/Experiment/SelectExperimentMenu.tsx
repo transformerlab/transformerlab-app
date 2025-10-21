@@ -330,6 +330,7 @@ export default function SelectExperimentMenu({ models }) {
                   'var(--joy-palette-background-level3) transparent',
               }}
             >
+              {isLoading && <MenuItem>Loading...</MenuItem>}
               {data &&
                 data.map((experiment: any) => {
                   return (
