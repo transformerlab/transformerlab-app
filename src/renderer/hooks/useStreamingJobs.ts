@@ -49,7 +49,6 @@ export const useStreamingJobs = (
         job_data: {},
         is_placeholder: true
       }));
-      console.log('🏗️ Created placeholder jobs:', placeholderJobs.map(j => j.id));
       setJobs(placeholderJobs);
 
       // Now stream the actual job data
@@ -96,21 +95,15 @@ export const useStreamingJobs = (
               const job = JSON.parse(data);
               // Ensure job ID is a string for consistent comparison
               job.id = String(job.id);
-              console.log('📦 Received job data:', job.id, 'Type:', job.type);
               setJobs(prevJobs => {
-                console.log('🔍 Looking for job ID:', job.id, 'in', prevJobs.length, 'existing jobs');
-                console.log('🔍 Existing job IDs:', prevJobs.map(j => j.id));
-
                 // Replace placeholder with real job data
                 const jobIndex = prevJobs.findIndex(existingJob => existingJob.id === job.id);
                 if (jobIndex !== -1) {
-                  console.log('✅ Found placeholder at index', jobIndex, '- replacing with real data');
                   // Replace existing placeholder
                   const newJobs = [...prevJobs];
                   newJobs[jobIndex] = job;
                   return newJobs;
                 } else {
-                  console.log('⚠️ No placeholder found for job', job.id, '- adding as new job');
                   // Add new job if no placeholder exists
                   return [...prevJobs, job];
                 }
