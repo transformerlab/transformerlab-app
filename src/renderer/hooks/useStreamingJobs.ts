@@ -29,7 +29,11 @@ export const useStreamingJobs = (
 
     try {
       // First, get job IDs quickly
-      const idsUrl = chatAPI.Endpoints.Jobs.GetJobIds(experimentId, type, status);
+      const idsUrl = chatAPI.Endpoints.Jobs.GetJobIds(
+        experimentId,
+        type,
+        status,
+      );
       const idsResponse = await chatAPI.authenticatedFetch(idsUrl, {
         method: 'GET',
       });
@@ -47,12 +51,16 @@ export const useStreamingJobs = (
         type: 'PLACEHOLDER',
         status: 'LOADING',
         job_data: {},
-        is_placeholder: true
+        is_placeholder: true,
       }));
       setJobs(placeholderJobs);
 
       // Now stream the actual job data
-      const streamUrl = chatAPI.Endpoints.Jobs.StreamJobsOfType(experimentId, type, status);
+      const streamUrl = chatAPI.Endpoints.Jobs.StreamJobsOfType(
+        experimentId,
+        type,
+        status,
+      );
       const response = await chatAPI.authenticatedFetch(streamUrl, {
         method: 'GET',
         headers: {
@@ -95,9 +103,11 @@ export const useStreamingJobs = (
               const job = JSON.parse(data);
               // Ensure job ID is a string for consistent comparison
               job.id = String(job.id);
-              setJobs(prevJobs => {
+              setJobs((prevJobs) => {
                 // Replace placeholder with real job data
-                const jobIndex = prevJobs.findIndex(existingJob => existingJob.id === job.id);
+                const jobIndex = prevJobs.findIndex(
+                  (existingJob) => existingJob.id === job.id,
+                );
                 if (jobIndex !== -1) {
                   // Replace existing placeholder
                   const newJobs = [...prevJobs];

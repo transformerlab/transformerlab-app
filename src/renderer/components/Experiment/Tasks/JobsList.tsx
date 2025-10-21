@@ -122,14 +122,22 @@ const JobsList: React.FC<JobsListProps> = ({
                 <td>{formatJobConfig(job)}</td>
                 <td>
                   {job.is_placeholder ? (
-                    <Skeleton variant="rectangular" width="100px" height="24px" />
+                    <Skeleton
+                      variant="rectangular"
+                      width="100px"
+                      height="24px"
+                    />
                   ) : (
                     <JobProgress job={job} />
                   )}
                 </td>
                 <td style={{}}>
                   {job.is_placeholder ? (
-                    <Skeleton variant="rectangular" width="200px" height="32px" />
+                    <Skeleton
+                      variant="rectangular"
+                      width="200px"
+                      height="32px"
+                    />
                   ) : (
                     <ButtonGroup sx={{ justifyContent: 'flex-end' }}>
                       {job?.job_data?.tensorboard_output_dir && (
