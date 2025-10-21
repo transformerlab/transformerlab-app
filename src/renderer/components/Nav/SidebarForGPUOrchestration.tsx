@@ -15,6 +15,10 @@ import {
   StretchHorizontalIcon,
   LibraryBigIcon,
   ComputerIcon,
+  GraduationCapIcon,
+  SquareStackIcon,
+  ChartColumnIncreasingIcon,
+  LayersIcon,
 } from 'lucide-react';
 
 import {
@@ -75,6 +79,30 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         flex: 1,
       }}
     >
+      <SubNavItem
+        title="Inference"
+        path="/experiment/model"
+        icon={<LayersIcon strokeWidth={1} />}
+        disabled
+      />
+      <SubNavItem
+        title="Train"
+        path="/experiment/training"
+        icon={<GraduationCapIcon />}
+        disabled
+      />
+      <SubNavItem
+        title="Generate"
+        path="/experiment/generate"
+        icon={<SquareStackIcon />}
+        disabled
+      />
+      <SubNavItem
+        title="Evaluate"
+        path="/experiment/eval"
+        icon={<ChartColumnIncreasingIcon />}
+        disabled
+      />
       <SubNavItem
         title="Tasks"
         path="/experiment/tasks"
