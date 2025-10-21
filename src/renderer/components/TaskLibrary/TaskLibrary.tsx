@@ -10,6 +10,7 @@ import IconButton from '@mui/joy/IconButton';
 import Button from '@mui/joy/Button';
 import Select from '@mui/joy/Select';
 import Option from '@mui/joy/Option';
+import Skeleton from '@mui/joy/Skeleton';
 import { useMemo, useState } from 'react';
 import {
   RectangleVerticalIcon,
@@ -23,6 +24,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskModal from './TaskModal';
 import NewTaskModal from './NewTaskModal';
+import TaskLibrarySkeleton from './TaskLibrarySkeleton';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useAPI } from 'renderer/lib/api-client/hooks';
 import Chip from '@mui/joy/Chip';
@@ -31,8 +33,16 @@ export default function TaskLibrary() {
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
 
-  const { data: localGalleryResp } = useAPI('tasks', ['localGallery'], {});
-  const { data: remoteGalleryResp } = useAPI('tasks', ['gallery'], {});
+  const { data: localGalleryResp, isLoading: isLoadingLocal } = useAPI(
+    'tasks',
+    ['localGallery'],
+    {},
+  );
+  const { data: remoteGalleryResp, isLoading: isLoadingRemote } = useAPI(
+    'tasks',
+    ['gallery'],
+    {},
+  );
 
   // local overlay for create/edit/delete without waiting for refetch
   const [overlayTasks, setOverlayTasks] = useState<any[]>([]);
@@ -81,6 +91,19 @@ export default function TaskLibrary() {
       return true;
     });
   }, [tasks, sourceFilter, tagFilter]);
+
+  // Separate local and remote tasks for rendering
+  const localTasks = useMemo(() => {
+    return filteredTasks.filter((task) => task._isLocal);
+  }, [filteredTasks]);
+
+  const remoteTasks = useMemo(() => {
+    return filteredTasks.filter((task) => task._isGallery);
+  }, [filteredTasks]);
+
+  const otherTasks = useMemo(() => {
+    return filteredTasks.filter((task) => !task._isLocal && !task._isGallery);
+  }, [filteredTasks]);
 
   // modal state to show TaskModal when creating/viewing a task
   const [modalOpen, setModalOpen] = useState(false);
@@ -280,7 +303,135 @@ export default function TaskLibrary() {
           pt: 2,
         }}
       >
-        {filteredTasks.map((task: any) => (
+        {/* Show local tasks or loading skeleton */}
+        {isLoadingLocal && <TaskLibrarySkeleton count={2} />}
+        {!isLoadingLocal &&
+          localTasks.map((task: any) => (
+            <ListItem
+              key={task.id}
+              sx={{
+                alignItems: 'flex-start',
+                display: 'flex',
+                gap: 1,
+                padding: 2,
+              }}
+              variant="outlined"
+            >
+              <ListItemDecorator sx={{ mt: '4px' }}>
+                <RectangleVerticalIcon />
+              </ListItemDecorator>
+
+              <ListItemContent sx={{ minWidth: 0 }}>
+                <Typography fontWeight="lg">
+                  {task.title || task.name}
+                </Typography>
+                <Typography level="body-sm" textColor="text.tertiary">
+                  {task.description}
+                </Typography>
+                <Box
+                  sx={{
+                    mt: 0.5,
+                    display: 'flex',
+                    gap: 0.5,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  {task._isLocal && (
+                    <Chip size="sm" color="success" variant="soft">
+                      Local
+                    </Chip>
+                  )}
+                  {task._isGallery && (
+                    <Chip size="sm" color="primary" variant="soft">
+                      Gallery
+                    </Chip>
+                  )}
+                  {task._tag && (
+                    <Chip
+                      size="sm"
+                      color={
+                        task._tag === 'TRAIN'
+                          ? 'warning'
+                          : task._tag === 'EVAL'
+                            ? 'info'
+                            : 'neutral'
+                      }
+                      variant="soft"
+                    >
+                      {task._tag}
+                    </Chip>
+                  )}
+                </Box>
+              </ListItemContent>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 0.5,
+                  alignItems: 'center',
+                  ml: 'auto',
+                  alignSelf: 'start',
+                }}
+              >
+                {!task._isGallery && !task._isLocal && (
+                  <IconButton
+                    size="sm"
+                    variant="plain"
+                    color="neutral"
+                    aria-label={`Edit ${task.title}`}
+                    onClick={() => handleEdit(task.id)}
+                  >
+                    <Edit2 size={16} />
+                  </IconButton>
+                )}
+
+                {!task._isGallery && !task._isLocal && (
+                  <IconButton
+                    size="sm"
+                    variant="plain"
+                    color="danger"
+                    aria-label={`Delete ${task.title}`}
+                    onClick={() => handleDelete(task.id)}
+                  >
+                    <Trash2 size={16} />
+                  </IconButton>
+                )}
+
+                {task._isGallery && (
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    onClick={() =>
+                      handleImportFromGallery(
+                        task._subdir || task.id.split(':')[1],
+                      )
+                    }
+                    startDecorator={<FilePlus size={12} />}
+                  >
+                    Import
+                  </Button>
+                )}
+
+                {task._isLocal && (
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    onClick={() =>
+                      handleImportFromLocal(
+                        task._subdir || task.id.split(':')[1],
+                      )
+                    }
+                    startDecorator={<FilePlus size={12} />}
+                  >
+                    Import
+                  </Button>
+                )}
+              </Box>
+            </ListItem>
+          ))}
+
+        {/* Show other tasks (non-gallery, non-local) */}
+        {otherTasks.map((task: any) => (
           <ListItem
             key={task.id}
             sx={{
@@ -301,7 +452,12 @@ export default function TaskLibrary() {
                 {task.description}
               </Typography>
               <Box
-                sx={{ mt: 0.5, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}
+                sx={{
+                  mt: 0.5,
+                  display: 'flex',
+                  gap: 0.5,
+                  flexWrap: 'wrap',
+                }}
               >
                 {task._isLocal && (
                   <Chip size="sm" color="success" variant="soft">
@@ -394,6 +550,133 @@ export default function TaskLibrary() {
             </Box>
           </ListItem>
         ))}
+
+        {/* Show remote gallery tasks or loading skeleton */}
+        {isLoadingRemote && <TaskLibrarySkeleton count={2} />}
+        {!isLoadingRemote &&
+          remoteTasks.map((task: any) => (
+            <ListItem
+              key={task.id}
+              sx={{
+                alignItems: 'flex-start',
+                display: 'flex',
+                gap: 1,
+                padding: 2,
+              }}
+              variant="outlined"
+            >
+              <ListItemDecorator sx={{ mt: '4px' }}>
+                <RectangleVerticalIcon />
+              </ListItemDecorator>
+
+              <ListItemContent sx={{ minWidth: 0 }}>
+                <Typography fontWeight="lg">
+                  {task.title || task.name}
+                </Typography>
+                <Typography level="body-sm" textColor="text.tertiary">
+                  {task.description}
+                </Typography>
+                <Box
+                  sx={{
+                    mt: 0.5,
+                    display: 'flex',
+                    gap: 0.5,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  {task._isLocal && (
+                    <Chip size="sm" color="success" variant="soft">
+                      Local
+                    </Chip>
+                  )}
+                  {task._isGallery && (
+                    <Chip size="sm" color="primary" variant="soft">
+                      Gallery
+                    </Chip>
+                  )}
+                  {task._tag && (
+                    <Chip
+                      size="sm"
+                      color={
+                        task._tag === 'TRAIN'
+                          ? 'warning'
+                          : task._tag === 'EVAL'
+                            ? 'info'
+                            : 'neutral'
+                      }
+                      variant="soft"
+                    >
+                      {task._tag}
+                    </Chip>
+                  )}
+                </Box>
+              </ListItemContent>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 0.5,
+                  alignItems: 'center',
+                  ml: 'auto',
+                  alignSelf: 'start',
+                }}
+              >
+                {!task._isGallery && !task._isLocal && (
+                  <IconButton
+                    size="sm"
+                    variant="plain"
+                    color="neutral"
+                    aria-label={`Edit ${task.title}`}
+                    onClick={() => handleEdit(task.id)}
+                  >
+                    <Edit2 size={16} />
+                  </IconButton>
+                )}
+
+                {!task._isGallery && !task._isLocal && (
+                  <IconButton
+                    size="sm"
+                    variant="plain"
+                    color="danger"
+                    aria-label={`Delete ${task.title}`}
+                    onClick={() => handleDelete(task.id)}
+                  >
+                    <Trash2 size={16} />
+                  </IconButton>
+                )}
+
+                {task._isGallery && (
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    onClick={() =>
+                      handleImportFromGallery(
+                        task._subdir || task.id.split(':')[1],
+                      )
+                    }
+                    startDecorator={<FilePlus size={12} />}
+                  >
+                    Import
+                  </Button>
+                )}
+
+                {task._isLocal && (
+                  <Button
+                    size="sm"
+                    variant="outlined"
+                    onClick={() =>
+                      handleImportFromLocal(
+                        task._subdir || task.id.split(':')[1],
+                      )
+                    }
+                    startDecorator={<FilePlus size={12} />}
+                  >
+                    Import
+                  </Button>
+                )}
+              </Box>
+            </ListItem>
+          ))}
       </List>
 
       {/* Task modal for create/view */}
