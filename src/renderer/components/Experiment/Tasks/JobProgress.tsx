@@ -75,7 +75,7 @@ export default function JobProgress({ job }: JobProps) {
                       formData.append('cluster_name', cluster_name);
                       await chatAPI.authenticatedFetch(
                         chatAPI.Endpoints.Jobs.StopRemote(),
-                        { method: 'POST', body: formData }
+                        { method: 'POST', body: formData },
                       );
                     } else {
                       console.error('No cluster_name found in REMOTE job data');
