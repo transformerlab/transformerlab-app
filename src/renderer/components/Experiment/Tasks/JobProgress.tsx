@@ -54,7 +54,6 @@ export default function JobProgress({ job }: JobProps) {
   const logParserRef = useRef<OrchestratorLogParser | null>(null);
   const pollingIntervalRef = useRef<number | null>(null);
 
-
   const startLogPolling = useCallback(async () => {
     if (!job?.job_data?.orchestrator_request_id) return;
 
@@ -67,7 +66,9 @@ export default function JobProgress({ job }: JobProps) {
         if (response.ok) {
           const responseData = await response.json();
           if (logParserRef.current && responseData.data) {
-            const progressState = logParserRef.current.parseLogData(responseData.data);
+            const progressState = logParserRef.current.parseLogData(
+              responseData.data,
+            );
             setOrchestratorProgress(progressState);
           }
         }
@@ -148,14 +149,14 @@ export default function JobProgress({ job }: JobProps) {
           {/* Show orchestrator progress for REMOTE jobs in LAUNCHING state */}
           {job?.type === 'REMOTE' && orchestratorProgress && (
             <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 0.5,
-                  mt: 1,
-                  maxWidth: '100%',
-                }}
-              >
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 0.5,
+                mt: 1,
+                maxWidth: '100%',
+              }}
+            >
               {[
                 {
                   key: 'machineFound',
@@ -186,7 +187,9 @@ export default function JobProgress({ job }: JobProps) {
                   text: 'Lab SDK Initialized',
                 },
               ]
-                .filter(({ key }) => orchestratorProgress[key as keyof ProgressState])
+                .filter(
+                  ({ key }) => orchestratorProgress[key as keyof ProgressState],
+                )
                 .map(({ key, text }) => (
                   <Typography
                     key={text}
@@ -199,10 +202,7 @@ export default function JobProgress({ job }: JobProps) {
                       transition: 'opacity 0.3s ease',
                     }}
                     startDecorator={
-                      <CircleCheckIcon
-                        size="14px"
-                        color="green"
-                      />
+                      <CircleCheckIcon size="14px" color="green" />
                     }
                     color="success"
                   >

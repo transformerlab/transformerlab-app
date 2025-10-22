@@ -79,7 +79,11 @@ export class OrchestratorLogParser {
     const line = cleanLine.toLowerCase();
 
     // Check for machine provisioning steps based on actual orchestrator logs
-    if (line.includes('instance is up') || line.includes('✓') || line.includes('chosen')) {
+    if (
+      line.includes('instance is up') ||
+      line.includes('✓') ||
+      line.includes('chosen')
+    ) {
       this.progressState.machineFound = true;
     }
 
