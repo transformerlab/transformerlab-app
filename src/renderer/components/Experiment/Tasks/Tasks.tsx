@@ -83,10 +83,6 @@ export default function Tasks() {
     },
   );
 
-  // Show loading states independently for tasks and jobs
-  const tasksLoading = tasksIsLoading;
-  const jobsLoading = jobsIsLoading;
-
   const handleDeleteTask = async (taskId: string) => {
     if (!experimentInfo?.id) return;
 
@@ -329,7 +325,7 @@ export default function Tasks() {
           overflow: 'auto',
         }}
       >
-        {tasksLoading ? (
+        {tasksIsLoading ? (
           <LinearProgress />
         ) : (
           <TaskTemplateList
@@ -342,7 +338,7 @@ export default function Tasks() {
       </Sheet>
       <Typography level="title-md">Runs</Typography>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        {jobsLoading ? (
+        {jobsIsLoading ? (
           <LinearProgress />
         ) : (
           <JobsList
