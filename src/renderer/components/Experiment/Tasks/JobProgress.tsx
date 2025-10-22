@@ -11,11 +11,16 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
 import { jobChipColor } from 'renderer/lib/utils';
-import { useEffect } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import {
+  OrchestratorLogParser,
+  ProgressState,
+} from 'renderer/lib/orchestrator-log-parser';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
-import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 interface JobData {
   start_time?: string;
@@ -28,6 +33,7 @@ interface JobData {
 interface JobProps {
   job: {
     id: string;
+    type?: string;
     status: string;
     progress: string | number;
     job_data?: JobData;
@@ -36,22 +42,94 @@ interface JobProps {
 
 export default function JobProgress({ job }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
+  const [orchestratorProgress, setOrchestratorProgress] =
+    useState<ProgressState | null>(null);
+
+  // Debug: Log when orchestratorProgress changes
+  useEffect(() => {
+    if (orchestratorProgress) {
+      console.log('Orchestrator progress updated:', orchestratorProgress);
+    }
+  }, [orchestratorProgress]);
+  const logParserRef = useRef<OrchestratorLogParser | null>(null);
+  const pollingIntervalRef = useRef<number | null>(null);
+
+
+  const startLogPolling = useCallback(async () => {
+    if (!job?.job_data?.orchestrator_request_id) return;
+
+    const pollLogs = async () => {
+      try {
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Jobs.GetLogs(job.job_data?.orchestrator_request_id),
+        );
+
+        if (response.ok) {
+          const responseData = await response.json();
+          if (logParserRef.current && responseData.data) {
+            const progressState = logParserRef.current.parseLogData(responseData.data);
+            setOrchestratorProgress(progressState);
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error fetching orchestrator logs:', error);
+      }
+    };
+
+    // Poll immediately and then every 2 seconds
+    await pollLogs();
+    pollingIntervalRef.current = setInterval(
+      pollLogs,
+      2000,
+    ) as unknown as number;
+  }, [job?.job_data?.orchestrator_request_id]);
+
+  // Initialize log parser for remote jobs
+  useEffect(() => {
+    if (job?.type === 'REMOTE' && job?.job_data?.orchestrator_request_id) {
+      if (!logParserRef.current) {
+        logParserRef.current = new OrchestratorLogParser();
+      }
+
+      // Start polling for logs if job is in LAUNCHING or RUNNING state
+      if (job.status === 'LAUNCHING' || job.status === 'RUNNING') {
+        startLogPolling();
+      }
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [
+    job?.id,
+    job?.status,
+    job?.type,
+    job?.job_data?.orchestrator_request_id,
+    startLogPolling,
+  ]);
+
   // Debug job data
   useEffect(() => {}, [job]);
 
   // Ensure progress is a number
-  const progress =
-    typeof job?.progress === 'string'
-      ? parseFloat(job.progress)
-      : typeof job?.progress === 'number'
-        ? job.progress
-        : 0;
+  const progress = (() => {
+    if (typeof job?.progress === 'string') {
+      return parseFloat(job.progress);
+    }
+    if (typeof job?.progress === 'number') {
+      return job.progress;
+    }
+    return 0;
+  })();
 
   return (
     <Stack>
-      {job?.status === 'RUNNING' ? (
+      {job?.status === 'LAUNCHING' ? (
         <>
-          <Stack direction={'row'} alignItems="center" gap={1}>
+          <Stack direction="row" alignItems="center" gap={1}>
             <Chip
               sx={{
                 backgroundColor: jobChipColor(job.status),
@@ -60,24 +138,111 @@ export default function JobProgress({ job }: JobProps) {
             >
               {job.status}
             </Chip>
-            {progress === -1 ? '' : progress.toFixed(1) + '%'}
+          </Stack>
+          {job?.job_data?.start_time && (
+            <>
+              Started:{' '}
+              {dayjs(job.job_data.start_time).format('MMM D, YYYY HH:mm:ss')}
+            </>
+          )}
+          {/* Show orchestrator progress for REMOTE jobs in LAUNCHING state */}
+          {job?.type === 'REMOTE' && orchestratorProgress && (
+            <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 0.5,
+                  mt: 1,
+                  maxWidth: '100%',
+                }}
+              >
+              {[
+                {
+                  key: 'machineFound',
+                  text: 'Machine with Appropriate Resources Found',
+                },
+                {
+                  key: 'ipAllocated',
+                  text: 'IP Address Allocated',
+                },
+                {
+                  key: 'provisioningComplete',
+                  text: 'Machine Provisioning Complete',
+                },
+                {
+                  key: 'environmentSetup',
+                  text: 'Environment Setup Complete',
+                },
+                {
+                  key: 'jobDeployed',
+                  text: 'Job Deployed Using Ray',
+                },
+                {
+                  key: 'diskMounted',
+                  text: 'Shared Disk Mounted',
+                },
+                {
+                  key: 'sdkInitialized',
+                  text: 'Lab SDK Initialized',
+                },
+              ]
+                .filter(({ key }) => orchestratorProgress[key as keyof ProgressState])
+                .map(({ key, text }) => (
+                  <Typography
+                    key={text}
+                    level="body-sm"
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      opacity: 1,
+                      transition: 'opacity 0.3s ease',
+                    }}
+                    startDecorator={
+                      <CircleCheckIcon
+                        size="14px"
+                        color="green"
+                      />
+                    }
+                    color="success"
+                  >
+                    {text}
+                  </Typography>
+                ))}
+            </Box>
+          )}
+        </>
+      ) : job?.status === 'RUNNING' ? (
+        <>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Chip
+              sx={{
+                backgroundColor: jobChipColor(job.status),
+                color: 'var(--joy-palette-neutral-800)',
+              }}
+            >
+              {job.status}
+            </Chip>
+            {progress === -1 ? '' : `${progress.toFixed(1)}%`}
             <LinearProgress determinate value={progress} sx={{ my: 1 }} />
             <IconButton
               color="danger"
               onClick={async () => {
+                // eslint-disable-next-line no-alert
                 if (confirm('Are you sure you want to stop this job?')) {
                   if (job.type === 'REMOTE') {
                     // For REMOTE jobs, use the remote stop endpoint
-                    const cluster_name = job.job_data?.cluster_name;
-                    if (cluster_name) {
+                    const clusterName = job.job_data?.cluster_name;
+                    if (clusterName) {
                       const formData = new FormData();
                       formData.append('job_id', job.id);
-                      formData.append('cluster_name', cluster_name);
+                      formData.append('cluster_name', clusterName);
                       await chatAPI.authenticatedFetch(
                         chatAPI.Endpoints.Jobs.StopRemote(),
                         { method: 'POST', body: formData },
                       );
                     } else {
+                      // eslint-disable-next-line no-console
                       console.error('No cluster_name found in REMOTE job data');
                     }
                   } else {
@@ -94,17 +259,16 @@ export default function JobProgress({ job }: JobProps) {
           </Stack>
           {/* Add smaller sweep subprogress bar when job.progress is -1 */}
           {job.progress === '-1' &&
-            job?.job_data?.hasOwnProperty('sweep_subprogress') && (
+            Object.prototype.hasOwnProperty.call(
+              job?.job_data,
+              'sweep_subprogress',
+            ) && (
               <Stack
                 direction="row"
                 alignItems="center"
                 gap={1}
                 sx={{ mt: 0.5 }}
               >
-                {/* <Typography level="body-sm">
-                  Sweep progress {job.job_data.sweep_current}/
-                  {job.job_data.sweep_total}:
-                </Typography> */}
                 <Chip
                   size="sm"
                   variant="soft"
@@ -131,39 +295,42 @@ export default function JobProgress({ job }: JobProps) {
           {job?.job_data?.start_time && (
             <>
               Started:{' '}
-              {dayjs(job?.job_data?.start_time).format('MMM D, YYYY HH:mm:ss')}
+              {dayjs(job.job_data.start_time).format('MMM D, YYYY HH:mm:ss')}
             </>
           )}
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              columnGap: 1,
-              mt: 1,
-            }}
-          >
-            {[
-              'Machine with Appropriate Resources Found',
-              'IP Address Allocated',
-              'Machine Provisioning Complete',
-              'Environment Setup Complete',
-              'Job Deployed Using Ray',
-              'Shared Disk Mounted',
-              'Lab SDK Initialized',
-            ].map((text) => (
-              <Typography
-                key={text}
-                level="body-sm"
-                alignItems="center"
-                display="flex"
-                startDecorator={<CircleCheckIcon size="16px" />}
-                color="primary"
-              >
-                {text}
-              </Typography>
-            ))}
-          </Box>
+          {/* Show default progress for non-REMOTE jobs */}
+          {job?.type !== 'REMOTE' && (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                flexWrap: 'wrap',
+                columnGap: 1,
+                mt: 1,
+              }}
+            >
+              {[
+                'Machine with Appropriate Resources Found',
+                'IP Address Allocated',
+                'Machine Provisioning Complete',
+                'Environment Setup Complete',
+                'Job Deployed Using Ray',
+                'Shared Disk Mounted',
+                'Lab SDK Initialized',
+              ].map((text) => (
+                <Typography
+                  key={text}
+                  level="body-sm"
+                  alignItems="center"
+                  display="flex"
+                  startDecorator={<CircleCheckIcon size="16px" />}
+                  color="primary"
+                >
+                  {text}
+                </Typography>
+              ))}
+            </Box>
+          )}
         </>
       ) : (
         <Stack direction="column" justifyContent="space-between">
@@ -203,7 +370,7 @@ export default function JobProgress({ job }: JobProps) {
               (job?.job_data?.completion_status ? (
                 <>
                   {/* Final Status:{' '} */}
-                  {job?.job_data?.completion_status == 'success' ? (
+                  {job?.job_data?.completion_status === 'success' ? (
                     <Typography level="body-sm" color="success">
                       Success: {job?.job_data?.completion_details}
                     </Typography>

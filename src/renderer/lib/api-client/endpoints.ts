@@ -450,6 +450,7 @@ Endpoints.Jobs = {
   UploadRemote: () => `${API_URL()}remote/upload`,
   StopRemote: () => `${API_URL()}remote/stop`,
   CheckStatus: () => `${API_URL()}remote/check-status`,
+  GetLogs: (requestId: string) => `${API_URL()}remote/logs/${requestId}`,
 };
 
 Endpoints.Global = {
