@@ -83,8 +83,21 @@ export default function EditTaskModal({
       typeof setupEditorRef.current.setValue === 'function'
     ) {
       setupEditorRef.current.setValue(setup ?? '');
+    } else {
+      const timeout = setTimeout(() => {
+        if (
+          setupEditorRef.current &&
+          typeof setupEditorRef.current.setValue === 'function'
+        ) {
+          setupEditorRef.current.setValue(setup ?? '');
+        } else {
+          alert('Error: Failed to load the setup editor.');
+        }
+      }, 300);
+      return () => clearTimeout(timeout);
     }
-  }, [setup]);
+    return () => {};
+  }, [setup, setupEditorRef]);
 
   React.useEffect(() => {
     if (
@@ -92,8 +105,21 @@ export default function EditTaskModal({
       typeof commandEditorRef.current.setValue === 'function'
     ) {
       commandEditorRef.current.setValue(command ?? '');
+    } else {
+      const timeout = setTimeout(() => {
+        if (
+          commandEditorRef.current &&
+          typeof commandEditorRef.current.setValue === 'function'
+        ) {
+          commandEditorRef.current.setValue(command ?? '');
+        } else {
+          alert('Error: Failed to load the command editor.');
+        }
+      }, 300);
+      return () => clearTimeout(timeout);
     }
-  }, [command]);
+    return () => {};
+  }, [command, commandEditorRef]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
