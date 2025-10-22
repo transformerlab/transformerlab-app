@@ -85,10 +85,10 @@ export default function Tasks() {
 
   // Check remote job status periodically to update LAUNCHING jobs
   const { data: remoteJobStatus } = useSWR(
-    '/remote/check-status-simple',
+    '/remote/check-status',
     async (url) => {
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.CheckStatusSimple(),
+        chatAPI.Endpoints.Jobs.CheckStatus(),
         {
           method: 'GET',
         },
