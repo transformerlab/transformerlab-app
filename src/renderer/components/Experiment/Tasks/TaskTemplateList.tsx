@@ -71,7 +71,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   };
 
   return (
-    <Table>
+    <Table stickyHeader>
       <thead>
         <tr>
           <th style={{ width: '150px' }}>Name</th>
