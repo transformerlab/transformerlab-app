@@ -77,49 +77,61 @@ export default function EditTaskModal({
   }, [task]);
 
   // Keep Monaco editors in sync if the state changes after mount
-  React.useEffect(() => {
-    if (
-      setupEditorRef.current &&
-      typeof setupEditorRef.current.setValue === 'function'
-    ) {
-      setupEditorRef.current.setValue(setup ?? '');
-    } else {
-      const timeout = setTimeout(() => {
-        if (
-          setupEditorRef.current &&
-          typeof setupEditorRef.current.setValue === 'function'
-        ) {
-          setupEditorRef.current.setValue(setup ?? '');
-        } else {
-          alert('Error: Failed to load the setup editor.');
-        }
-      }, 300);
-      return () => clearTimeout(timeout);
-    }
-    return () => {};
-  }, [setup, setupEditorRef]);
+  React.useEffect(
+    function () {
+      if (!open) return function () {};
+      if (
+        setupEditorRef.current &&
+        typeof setupEditorRef.current.setValue === 'function'
+      ) {
+        setupEditorRef.current.setValue(setup ?? '');
+      } else {
+        const timeout = setTimeout(function () {
+          if (
+            setupEditorRef.current &&
+            typeof setupEditorRef.current.setValue === 'function'
+          ) {
+            setupEditorRef.current.setValue(setup ?? '');
+          } else {
+            alert('Error: Failed to load the setup editor.');
+          }
+        }, 300);
+        return function () {
+          clearTimeout(timeout);
+        };
+      }
+      return function () {};
+    },
+    [open, setup, setupEditorRef],
+  );
 
-  React.useEffect(() => {
-    if (
-      commandEditorRef.current &&
-      typeof commandEditorRef.current.setValue === 'function'
-    ) {
-      commandEditorRef.current.setValue(command ?? '');
-    } else {
-      const timeout = setTimeout(() => {
-        if (
-          commandEditorRef.current &&
-          typeof commandEditorRef.current.setValue === 'function'
-        ) {
-          commandEditorRef.current.setValue(command ?? '');
-        } else {
-          alert('Error: Failed to load the command editor.');
-        }
-      }, 300);
-      return () => clearTimeout(timeout);
-    }
-    return () => {};
-  }, [command, commandEditorRef]);
+  React.useEffect(
+    function () {
+      if (!open) return function () {};
+      if (
+        commandEditorRef.current &&
+        typeof commandEditorRef.current.setValue === 'function'
+      ) {
+        commandEditorRef.current.setValue(command ?? '');
+      } else {
+        const timeout = setTimeout(function () {
+          if (
+            commandEditorRef.current &&
+            typeof commandEditorRef.current.setValue === 'function'
+          ) {
+            commandEditorRef.current.setValue(command ?? '');
+          } else {
+            alert('Error: Failed to load the command editor.');
+          }
+        }, 300);
+        return function () {
+          clearTimeout(timeout);
+        };
+      }
+      return function () {};
+    },
+    [open, command, commandEditorRef],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
