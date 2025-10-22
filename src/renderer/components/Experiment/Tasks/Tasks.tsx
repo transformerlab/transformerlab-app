@@ -83,6 +83,25 @@ export default function Tasks() {
     },
   );
 
+  // Check remote job status periodically to update LAUNCHING jobs
+  const { data: remoteJobStatus } = useSWR(
+    '/remote/check-status-simple',
+    async (url) => {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.CheckStatusSimple(),
+        {
+          method: 'GET',
+        },
+      );
+      return response;
+    },
+    {
+      refreshInterval: 10000, // Check every 10 seconds
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
+  );
+
   const loading = tasksIsLoading || jobsIsLoading;
 
   const handleDeleteTask = async (taskId: string) => {
