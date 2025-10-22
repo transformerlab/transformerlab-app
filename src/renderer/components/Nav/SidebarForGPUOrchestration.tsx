@@ -180,7 +180,7 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
     >
       <Divider sx={{ marginBottom: 1 }} />
 
-      <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
+      <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
       <SubNavItem
         title="Task Library"
