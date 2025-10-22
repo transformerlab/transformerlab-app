@@ -77,23 +77,61 @@ export default function EditTaskModal({
   }, [task]);
 
   // Keep Monaco editors in sync if the state changes after mount
-  React.useEffect(() => {
-    if (
-      setupEditorRef.current &&
-      typeof setupEditorRef.current.setValue === 'function'
-    ) {
-      setupEditorRef.current.setValue(setup ?? '');
-    }
-  }, [setup]);
+  React.useEffect(
+    function () {
+      if (!task) return function () {};
+      if (
+        setupEditorRef.current &&
+        typeof setupEditorRef.current.setValue === 'function'
+      ) {
+        setupEditorRef.current.setValue(setup ?? '');
+      } else {
+        const timeout = setTimeout(function () {
+          if (
+            setupEditorRef.current &&
+            typeof setupEditorRef.current.setValue === 'function'
+          ) {
+            setupEditorRef.current.setValue(setup ?? '');
+          } else {
+            alert('Error: Failed to load the setup editor.');
+          }
+        }, 300);
+        return function () {
+          clearTimeout(timeout);
+        };
+      }
+      return function () {};
+    },
+    [task, setup, setupEditorRef],
+  );
 
-  React.useEffect(() => {
-    if (
-      commandEditorRef.current &&
-      typeof commandEditorRef.current.setValue === 'function'
-    ) {
-      commandEditorRef.current.setValue(command ?? '');
-    }
-  }, [command]);
+  React.useEffect(
+    function () {
+      if (!task) return function () {};
+      if (
+        commandEditorRef.current &&
+        typeof commandEditorRef.current.setValue === 'function'
+      ) {
+        commandEditorRef.current.setValue(command ?? '');
+      } else {
+        const timeout = setTimeout(function () {
+          if (
+            commandEditorRef.current &&
+            typeof commandEditorRef.current.setValue === 'function'
+          ) {
+            commandEditorRef.current.setValue(command ?? '');
+          } else {
+            alert('Error: Failed to load the command editor.');
+          }
+        }, 300);
+        return function () {
+          clearTimeout(timeout);
+        };
+      }
+      return function () {};
+    },
+    [task, command, commandEditorRef],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

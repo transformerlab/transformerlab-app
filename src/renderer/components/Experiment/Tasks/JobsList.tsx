@@ -51,7 +51,7 @@ const JobsList: React.FC<JobsListProps> = ({
   };
 
   return (
-    <Table style={{ tableLayout: 'auto' }}>
+    <Table style={{ tableLayout: 'auto' }} stickyHeader>
       <thead>
         <tr>
           <th style={{ width: '60px' }}>ID</th>
