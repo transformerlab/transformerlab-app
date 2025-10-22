@@ -1,5 +1,12 @@
-import { Chip, IconButton, LinearProgress, Stack, Typography } from '@mui/joy';
-import { StopCircleIcon } from 'lucide-react';
+import {
+  Box,
+  Chip,
+  IconButton,
+  LinearProgress,
+  Stack,
+  Typography,
+} from '@mui/joy';
+import { CircleCheckIcon, StopCircleIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
@@ -42,7 +49,7 @@ export default function JobProgress({ job }: JobProps) {
 
   return (
     <Stack>
-      {job?.status == 'RUNNING' ? (
+      {job?.status === 'RUNNING' ? (
         <>
           <Stack direction={'row'} alignItems="center" gap={1}>
             <Chip
@@ -53,12 +60,8 @@ export default function JobProgress({ job }: JobProps) {
             >
               {job.status}
             </Chip>
-            {progress == -1 ? '' : progress.toFixed(1) + '%'}
-            <LinearProgress
-              determinate
-              value={progress}
-              sx={{ my: 1 }}
-            ></LinearProgress>
+            {progress === -1 ? '' : progress.toFixed(1) + '%'}
+            <LinearProgress determinate value={progress} sx={{ my: 1 }} />
             <IconButton
               color="danger"
               onClick={async () => {
@@ -90,10 +93,10 @@ export default function JobProgress({ job }: JobProps) {
             </IconButton>
           </Stack>
           {/* Add smaller sweep subprogress bar when job.progress is -1 */}
-          {job.progress == '-1' &&
+          {job.progress === '-1' &&
             job?.job_data?.hasOwnProperty('sweep_subprogress') && (
               <Stack
-                direction={'row'}
+                direction="row"
                 alignItems="center"
                 gap={1}
                 sx={{ mt: 0.5 }}
@@ -122,8 +125,7 @@ export default function JobProgress({ job }: JobProps) {
                     height: '4px', // Make it smaller than the main progress bar
                   }}
                 />
-                {Number.parseFloat(job.job_data.sweep_subprogress).toFixed(1) +
-                  '%'}
+                {`${Number.parseFloat(job.job_data.sweep_subprogress).toFixed(1)}%`}
               </Stack>
             )}
           {job?.job_data?.start_time && (
@@ -132,9 +134,39 @@ export default function JobProgress({ job }: JobProps) {
               {dayjs(job?.job_data?.start_time).format('MMM D, YYYY HH:mm:ss')}
             </>
           )}
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              columnGap: 1,
+              mt: 1,
+            }}
+          >
+            {[
+              'Machine with Appropriate Resources Found',
+              'IP Address Allocated',
+              'Machine Provisioning Complete',
+              'Environment Setup Complete',
+              'Job Deployed Using Ray',
+              'Shared Disk Mounted',
+              'Lab SDK Initialized',
+            ].map((text) => (
+              <Typography
+                key={text}
+                level="body-sm"
+                alignItems="center"
+                display="flex"
+                startDecorator={<CircleCheckIcon size="16px" />}
+                color="primary"
+              >
+                {text}
+              </Typography>
+            ))}
+          </Box>
         </>
       ) : (
-        <Stack direction={'column'} justifyContent={'space-between'}>
+        <Stack direction="column" justifyContent="space-between">
           <>
             <Chip
               sx={{
@@ -143,7 +175,7 @@ export default function JobProgress({ job }: JobProps) {
               }}
             >
               {job.status}
-              {progress == -1 ? '' : ' - ' + progress.toFixed(1) + '%'}
+              {progress === -1 ? '' : ` - ${progress.toFixed(1)}%`}
             </Chip>
             {job?.job_data?.start_time && (
               <>
@@ -167,7 +199,7 @@ export default function JobProgress({ job }: JobProps) {
                 <br />
               </>
             )}
-            {job?.status == 'COMPLETE' &&
+            {job?.status === 'COMPLETE' &&
               (job?.job_data?.completion_status ? (
                 <>
                   {/* Final Status:{' '} */}

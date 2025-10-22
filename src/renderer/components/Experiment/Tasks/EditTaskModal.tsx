@@ -79,7 +79,7 @@ export default function EditTaskModal({
   // Keep Monaco editors in sync if the state changes after mount
   React.useEffect(
     function () {
-      if (!open) return function () {};
+      if (!task) return function () {};
       if (
         setupEditorRef.current &&
         typeof setupEditorRef.current.setValue === 'function'
@@ -102,12 +102,12 @@ export default function EditTaskModal({
       }
       return function () {};
     },
-    [open, setup, setupEditorRef],
+    [task, setup, setupEditorRef],
   );
 
   React.useEffect(
     function () {
-      if (!open) return function () {};
+      if (!task) return function () {};
       if (
         commandEditorRef.current &&
         typeof commandEditorRef.current.setValue === 'function'
@@ -130,7 +130,7 @@ export default function EditTaskModal({
       }
       return function () {};
     },
-    [open, command, commandEditorRef],
+    [task, command, commandEditorRef],
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
