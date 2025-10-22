@@ -62,10 +62,28 @@ export default function JobProgress({ job }: JobProps) {
             <IconButton
               color="danger"
               onClick={async () => {
-                confirm('Are you sure you want to stop this job?') &&
-                  (await fetch(
-                    chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
-                  ));
+                if (confirm('Are you sure you want to stop this job?')) {
+                  if (job.type === 'REMOTE') {
+                    // For REMOTE jobs, use the remote stop endpoint
+                    const cluster_name = job.job_data?.cluster_name;
+                    if (cluster_name) {
+                      const formData = new FormData();
+                      formData.append('job_id', job.id);
+                      formData.append('cluster_name', cluster_name);
+                      await chatAPI.authenticatedFetch(
+                        chatAPI.Endpoints.Jobs.StopRemote(),
+                        { method: 'POST', body: formData }
+                      );
+                    } else {
+                      console.error('No cluster_name found in REMOTE job data');
+                    }
+                  } else {
+                    // For other job types, use the regular stop endpoint
+                    await chatAPI.authenticatedFetch(
+                      chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
+                    );
+                  }
+                }
               }}
             >
               <StopCircleIcon size="20px" />
