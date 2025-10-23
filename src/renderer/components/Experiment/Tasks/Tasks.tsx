@@ -11,6 +11,7 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
@@ -18,7 +19,6 @@ import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
-import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -47,8 +47,8 @@ export default function Tasks() {
     setTaskBeingEdited(null);
   };
 
-   // Fetch jobs with automatic polling
-   const {
+  // Fetch jobs with automatic polling
+  const {
     data: jobs,
     error: jobsError,
     isLoading: jobsIsLoading,
@@ -64,7 +64,6 @@ export default function Tasks() {
       revalidateOnReconnect: true, // Refetch when network reconnects
     },
   );
-
 
   // Fetch tasks with useSWR
   const {
