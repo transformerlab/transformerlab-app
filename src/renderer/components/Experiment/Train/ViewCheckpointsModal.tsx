@@ -35,7 +35,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
           body: JSON.stringify({
             checkpoint_name: checkpoint.filename,
           }),
-        }
+        },
       );
 
       if (response.ok) {
