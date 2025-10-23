@@ -9,20 +9,55 @@ import {
 } from '@mui/joy';
 import { PlayIcon } from 'lucide-react';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   const { experimentInfo } = useExperimentInfo();
+  const { addNotification } = useNotification();
   const { data, isLoading: checkpointsLoading } = useAPI(
     'jobs',
     ['getCheckpoints'],
     { jobId, experimentId: experimentInfo?.id },
   );
 
-  const handleRestartFromCheckpoint = (checkpoint) => {
-    // TODO: Implement restart functionality
-    alert('Not yet implemented');
+  const handleRestartFromCheckpoint = async (checkpoint) => {
+    try {
+      const response = await fetch(
+        chatAPI.Endpoints.Jobs.ResumeFromCheckpoint(experimentInfo?.id, jobId),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            checkpoint_name: checkpoint.filename,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        addNotification({
+          type: 'success',
+          message: `Training resumed successfully! New job ID: ${result.job_id}`,
+        });
+        onClose(); // Close the modal
+      } else {
+        const error = await response.json();
+        addNotification({
+          type: 'danger',
+          message: `Failed to resume training: ${error.message}`,
+        });
+      }
+    } catch (error) {
+      addNotification({
+        type: 'danger',
+        message: `Error resuming training: ${(error as Error).message}`,
+      });
+    }
   };
 
   let noCheckpoints = false;
