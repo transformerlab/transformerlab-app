@@ -346,7 +346,7 @@ export default function Tasks() {
           overflow: 'auto',
         }}
       >
-        {loading ? (
+        {tasksIsLoading ? (
           <LinearProgress />
         ) : (
           <TaskTemplateList
@@ -359,7 +359,7 @@ export default function Tasks() {
       </Sheet>
       <Typography level="title-md">Runs</Typography>
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
-        {loading ? (
+        {jobsIsLoading ? (
           <LinearProgress />
         ) : (
           <JobsList
