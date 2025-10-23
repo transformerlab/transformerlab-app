@@ -45,12 +45,6 @@ export default function JobProgress({ job }: JobProps) {
   const [orchestratorProgress, setOrchestratorProgress] =
     useState<ProgressState | null>(null);
 
-  // Debug: Log when orchestratorProgress changes
-  useEffect(() => {
-    if (orchestratorProgress) {
-      console.log('Orchestrator progress updated:', orchestratorProgress);
-    }
-  }, [orchestratorProgress]);
   const logParserRef = useRef<OrchestratorLogParser | null>(null);
   const pollingIntervalRef = useRef<number | null>(null);
 
