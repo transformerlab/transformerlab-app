@@ -109,9 +109,11 @@ export default function LocalModels({
       </Modal>
       <LocalModelsTable
         models={data}
+        isLoading={isLoading}
         mutateModels={mutate}
         setFoundation={setFoundation}
         setAdaptor={setAdaptor}
+        setEmbedding={null}
         showOnlyGeneratedModels={showOnlyGeneratedModels}
       />
     </Sheet>
