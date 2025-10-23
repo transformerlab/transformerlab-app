@@ -10,6 +10,7 @@ import {
   Typography,
   Option,
   Button,
+  Skeleton, // added Skeleton
 } from '@mui/joy';
 import {
   ArrowRightToLineIcon,
@@ -35,6 +36,7 @@ type Order = 'asc' | 'desc';
 
 const LocalModelsTable = ({
   models,
+  isLoading,
   mutateModels,
   setFoundation,
   setAdaptor,
@@ -89,6 +91,66 @@ const LocalModelsTable = ({
       </FormControl>
     </>
   );
+
+  // render loading skeleton when loading
+  if (isLoading) {
+    return (
+      <>
+        <Box
+          className="SearchAndFilters-tabletUp"
+          sx={{
+            borderRadius: 'sm',
+            mt: 1,
+            pb: 2,
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 1.5,
+            '& > *': {
+              minWidth: {
+                xs: '120px',
+                md: '160px',
+              },
+            },
+          }}
+        >
+          <Skeleton
+            variant="rectangular"
+            sx={{ flex: 1, height: 32, borderRadius: 'sm' }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 160, height: 32, borderRadius: 'sm' }}
+          />
+          <Skeleton
+            variant="rectangular"
+            sx={{ width: 160, height: 32, borderRadius: 'sm' }}
+          />
+        </Box>
+
+        <Sheet
+          variant="outlined"
+          sx={{
+            width: '100%',
+            borderRadius: 'md',
+            minHeight: 0,
+            display: 'flex',
+            overflow: 'auto',
+            p: 2,
+          }}
+        >
+          <Box sx={{ width: '100%' }}>
+            {[...Array(6)].map((_, idx) => (
+              <Skeleton
+                key={idx}
+                variant="rectangular"
+                sx={{ height: 48, borderRadius: 'sm', mb: 1 }}
+              />
+            ))}
+          </Box>
+        </Sheet>
+      </>
+    );
+  }
 
   return (
     <>

@@ -5,6 +5,7 @@ import {
   ModalClose,
   Table,
   Box,
+  CircularProgress,
 } from '@mui/joy';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
@@ -58,7 +59,17 @@ export default function ViewArtifactsModal({
         ) : (
           <>
             <Typography level="body-md" sx={{ mt: 1, mb: 2 }}>
-              This job has {data?.artifacts?.length || 0} artifact(s):
+              This job has{' '}
+              {data?.artifacts?.length || (
+                <CircularProgress
+                  sx={{
+                    '--CircularProgress-size': '18px',
+                    '--CircularProgress-trackThickness': '4px',
+                    '--CircularProgress-progressThickness': '2px',
+                  }}
+                />
+              )}{' '}
+              artifact(s):
             </Typography>
 
             {artifactsLoading ? (

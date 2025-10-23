@@ -22,7 +22,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
 
   const handleRestartFromCheckpoint = (checkpoint) => {
     // TODO: Implement restart functionality
-    console.log('Restarting from checkpoint:', checkpoint);
+    alert('Not yet implemented');
   };
 
   let noCheckpoints = false;
@@ -93,7 +93,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                         <td>{new Date(checkpoint.date).toLocaleString()}</td>
                         <td>{formatBytes(checkpoint.size)}</td>
                         <td style={{ textAlign: 'right' }}>
-                          {/* <Button
+                          <Button
                             size="sm"
                             variant="outlined"
                             onClick={() =>
@@ -102,7 +102,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                             startDecorator={<PlayIcon />}
                           >
                             Restart training from here
-                          </Button> */}
+                          </Button>
                         </td>
                       </tr>
                     ))}
