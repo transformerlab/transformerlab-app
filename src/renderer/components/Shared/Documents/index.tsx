@@ -27,6 +27,7 @@ import {
   CircularProgress,
   ListItemDecorator,
   Stack,
+  Skeleton, // added Skeleton import
 } from '@mui/joy';
 
 import {
@@ -826,6 +827,18 @@ export default function Documents({
                   </tr>
                 </thead>
                 <tbody>
+                  {isLoading && (
+                    <tr>
+                      <td
+                        colSpan={fullPage ? 5 : 2}
+                        style={{ padding: '1rem', height: '100px' }}
+                      >
+                        <Skeleton variant="text" />
+                        <Skeleton variant="text" />
+                        <Skeleton variant="text" />
+                      </td>
+                    </tr>
+                  )}
                   {rows?.status == 'error' && (
                     <tr>
                       <td colSpan={2}>{/*rows?.message*/}</td>
@@ -833,9 +846,7 @@ export default function Documents({
                   )}
                   {rows?.length == 0 && (
                     <tr>
-                      <td colSpan={2} style={{ padding: '2rem' }}>
-                        Drag and drop documents here to query their contents.
-                      </td>
+                      <td colSpan={2} style={{ padding: '2rem' }}></td>
                     </tr>
                   )}
                   {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
