@@ -47,6 +47,25 @@ export default function Tasks() {
     setTaskBeingEdited(null);
   };
 
+   // Fetch jobs with automatic polling
+   const {
+    data: jobs,
+    error: jobsError,
+    isLoading: jobsIsLoading,
+    mutate: jobsMutate,
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 3000, // Poll every 3 seconds for job status updates
+      revalidateOnFocus: false, // Don't refetch when window regains focus
+      revalidateOnReconnect: true, // Refetch when network reconnects
+    },
+  );
+
+
   // Fetch tasks with useSWR
   const {
     data: allTasks,
@@ -64,24 +83,6 @@ export default function Tasks() {
       (task: any) =>
         task.remote_task === true && task.experiment_id === experimentInfo?.id,
     ) || [];
-
-  // Fetch jobs with automatic polling
-  const {
-    data: jobs,
-    error: jobsError,
-    isLoading: jobsIsLoading,
-    mutate: jobsMutate,
-  } = useSWR(
-    experimentInfo?.id
-      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
-      : null,
-    fetcher,
-    {
-      refreshInterval: 3000, // Poll every 3 seconds for job status updates
-      revalidateOnFocus: false, // Don't refetch when window regains focus
-      revalidateOnReconnect: true, // Refetch when network reconnects
-    },
-  );
 
   // Check remote job status periodically to update LAUNCHING jobs
   const { data: remoteJobStatus } = useSWR(
