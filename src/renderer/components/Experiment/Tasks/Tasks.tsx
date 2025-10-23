@@ -11,6 +11,7 @@ import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
 import NewTaskModal from './NewTaskModal';
@@ -18,7 +19,6 @@ import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
-import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -47,6 +47,24 @@ export default function Tasks() {
     setTaskBeingEdited(null);
   };
 
+  // Fetch jobs with automatic polling
+  const {
+    data: jobs,
+    error: jobsError,
+    isLoading: jobsIsLoading,
+    mutate: jobsMutate,
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 3000, // Poll every 3 seconds for job status updates
+      revalidateOnFocus: false, // Don't refetch when window regains focus
+      revalidateOnReconnect: true, // Refetch when network reconnects
+    },
+  );
+
   // Fetch tasks with useSWR
   const {
     data: allTasks,
@@ -65,23 +83,26 @@ export default function Tasks() {
         task.remote_task === true && task.experiment_id === experimentInfo?.id,
     ) || [];
 
-  // Fetch jobs with automatic polling
-  const {
-    data: jobs,
-    error: jobsError,
-    isLoading: jobsIsLoading,
-    mutate: jobsMutate,
-  } = useSWR(
-    experimentInfo?.id
-      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
-      : null,
-    fetcher,
+  // Check remote job status periodically to update LAUNCHING jobs
+  const { data: remoteJobStatus } = useSWR(
+    '/remote/check-status',
+    async (url) => {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.CheckStatus(),
+        {
+          method: 'GET',
+        },
+      );
+      return response;
+    },
     {
-      refreshInterval: 3000, // Poll every 3 seconds for job status updates
-      revalidateOnFocus: false, // Don't refetch when window regains focus
-      revalidateOnReconnect: true, // Refetch when network reconnects
+      refreshInterval: 10000, // Check every 10 seconds
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
     },
   );
+
+  const loading = tasksIsLoading || jobsIsLoading;
 
   const handleDeleteTask = async (taskId: string) => {
     if (!experimentInfo?.id) return;

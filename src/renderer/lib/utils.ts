@@ -205,6 +205,7 @@ export function useTraceUpdate(props) {
 export function jobChipColor(status: string): string {
   if (status === 'COMPLETE') return 'var(--joy-palette-success-200)';
   if (status === 'QUEUED') return 'var(--joy-palette-warning-200)';
+  if (status === 'LAUNCHING') return 'var(--joy-palette-primary-200)';
   if (status === 'FAILED') return 'var(--joy-palette-danger-200)';
   if (status == 'STOPPED') return 'var(--joy-palette-warning-200)';
   if (status == 'RUNNING') return 'rgb(225,237,233)';
