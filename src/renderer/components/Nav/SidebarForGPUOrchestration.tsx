@@ -86,6 +86,12 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         disabled
       />
       <SubNavItem
+        title="Tasks"
+        path="/experiment/tasks"
+        icon={<StretchHorizontalIcon />}
+        disabled={!experimentInfo?.name}
+      />
+      <SubNavItem
         title="Train"
         path="/experiment/training"
         icon={<GraduationCapIcon />}
@@ -102,12 +108,6 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         path="/experiment/eval"
         icon={<ChartColumnIncreasingIcon />}
         disabled
-      />
-      <SubNavItem
-        title="Tasks"
-        path="/experiment/tasks"
-        icon={<StretchHorizontalIcon />}
-        disabled={!experimentInfo?.name}
       />
       <SubNavItem
         title="Documents"
