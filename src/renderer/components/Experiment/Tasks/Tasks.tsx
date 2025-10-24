@@ -203,6 +203,7 @@ export default function Tasks() {
           num_nodes: data.num_nodes || undefined,
           setup: data.setup || undefined,
           uploaded_dir_path: data.uploaded_dir_path || undefined,
+          local_upload_copy: data.local_upload_copy || undefined,
         },
         plugin: 'remote_orchestrator',
         outputs: {},
