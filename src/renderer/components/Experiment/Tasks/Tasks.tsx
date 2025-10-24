@@ -249,42 +249,84 @@ export default function Tasks() {
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
 
+    addNotification({
+      type: 'success',
+      message: 'Creating job...',
+    });
+
     try {
       const cfg =
         typeof task.config === 'string'
           ? JSON.parse(task.config)
           : task.config || {};
-      const formData = new FormData();
-      formData.append('experimentId', experimentInfo.id);
-      if (cfg.cluster_name) formData.append('cluster_name', cfg.cluster_name);
-      if (cfg.command) formData.append('command', cfg.command);
-      // Prefer the task name as job/task name
-      if (task.name) formData.append('task_name', task.name);
-      if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
-      if (cfg.memory) formData.append('memory', String(cfg.memory));
-      if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
-      if (cfg.accelerators)
-        formData.append('accelerators', String(cfg.accelerators));
-      if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
-      if (cfg.setup) formData.append('setup', String(cfg.setup));
-      if (cfg.uploaded_dir_path)
-        formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
 
-      const resp = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
-        { method: 'POST', body: formData },
+      // Create the actual remote job
+      const createJobFormData = new FormData();
+      createJobFormData.append('experimentId', experimentInfo.id);
+      if (cfg.cluster_name) createJobFormData.append('cluster_name', cfg.cluster_name);
+      if (cfg.command) createJobFormData.append('command', cfg.command);
+      if (task.name) createJobFormData.append('task_name', task.name);
+      if (cfg.cpus) createJobFormData.append('cpus', String(cfg.cpus));
+      if (cfg.memory) createJobFormData.append('memory', String(cfg.memory));
+      if (cfg.disk_space) createJobFormData.append('disk_space', String(cfg.disk_space));
+      if (cfg.accelerators) createJobFormData.append('accelerators', String(cfg.accelerators));
+      if (cfg.num_nodes) createJobFormData.append('num_nodes', String(cfg.num_nodes));
+      if (cfg.setup) createJobFormData.append('setup', String(cfg.setup));
+      if (cfg.uploaded_dir_path) createJobFormData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+
+      const createJobResp = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.CreateRemoteJob(experimentInfo.id),
+        { method: 'POST', body: createJobFormData },
       );
-      const result = await resp.json();
-      if (result.status === 'success') {
+      const createJobResult = await createJobResp.json();
+
+      if (createJobResult.status === 'success') {
+        // Keep placeholder visible and refresh jobs list
+        // The placeholder will be replaced when the real job appears
+        await jobsMutate();
+
         addNotification({
           type: 'success',
-          message: 'Task queued for remote launch.',
+          message: 'Job created. Launching remotely...',
         });
-        await Promise.all([jobsMutate(), tasksMutate()]);
+
+        // Then launch the remote job
+        const launchFormData = new FormData();
+        launchFormData.append('experimentId', experimentInfo.id);
+        launchFormData.append('job_id', createJobResult.job_id);
+        if (cfg.cluster_name) launchFormData.append('cluster_name', cfg.cluster_name);
+        if (cfg.command) launchFormData.append('command', cfg.command);
+        if (task.name) launchFormData.append('task_name', task.name);
+        if (cfg.cpus) launchFormData.append('cpus', String(cfg.cpus));
+        if (cfg.memory) launchFormData.append('memory', String(cfg.memory));
+        if (cfg.disk_space) launchFormData.append('disk_space', String(cfg.disk_space));
+        if (cfg.accelerators) launchFormData.append('accelerators', String(cfg.accelerators));
+        if (cfg.num_nodes) launchFormData.append('num_nodes', String(cfg.num_nodes));
+        if (cfg.setup) launchFormData.append('setup', String(cfg.setup));
+        if (cfg.uploaded_dir_path) launchFormData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+
+        const launchResp = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
+          { method: 'POST', body: launchFormData },
+        );
+        const launchResult = await launchResp.json();
+
+        if (launchResult.status === 'success') {
+          addNotification({
+            type: 'success',
+            message: 'Task launched remotely.',
+          });
+          await Promise.all([jobsMutate(), tasksMutate()]);
+        } else {
+          addNotification({
+            type: 'danger',
+            message: `Remote launch failed: ${launchResult.message}`,
+          });
+        }
       } else {
         addNotification({
           type: 'danger',
-          message: `Remote launch failed: ${result.message}`,
+          message: `Failed to create job: ${createJobResult.message}`,
         });
       }
     } catch (e) {
