@@ -29,6 +29,7 @@ export default function TasksGallery() {
   const [deletingTasks, setDeletingTasks] = useState<Set<string>>(new Set());
   const [filesModalOpen, setFilesModalOpen] = useState(false);
   const [selectedTaskName, setSelectedTaskName] = useState('');
+  const [selectedTaskDir, setSelectedTaskDir] = useState('');
   const [taskFiles, setTaskFiles] = useState<string[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [newTaskModalOpen, setNewTaskModalOpen] = useState(false);
@@ -179,6 +180,7 @@ export default function TasksGallery() {
     setFilesLoading(true);
     setFilesModalOpen(true);
     setSelectedTaskName(taskDir);
+    setSelectedTaskDir(taskDir);
 
     try {
       const response = await chatAPI.authenticatedFetch(
@@ -213,6 +215,7 @@ export default function TasksGallery() {
   const handleCloseFilesModal = () => {
     setFilesModalOpen(false);
     setSelectedTaskName('');
+    setSelectedTaskDir('');
     setTaskFiles([]);
   };
 
@@ -291,9 +294,9 @@ export default function TasksGallery() {
         open={filesModalOpen}
         onClose={handleCloseFilesModal}
         taskName={selectedTaskName}
+        taskDir={selectedTaskDir}
         files={taskFiles}
         isLoading={filesLoading}
-        fileCount={taskFiles.length}
       />
 
       <NewTaskModal

@@ -30,6 +30,8 @@ Endpoints.Tasks = {
     `${API_URL()}tasks/local_gallery/${taskDir}`,
   GetTaskFiles: (taskDir: string) =>
     `${API_URL()}tasks/local_gallery/${taskDir}/files`,
+  GetTaskFileContent: (taskDir: string, filePath: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}/files/${filePath}`,
 };
 
 Endpoints.Workflows = {

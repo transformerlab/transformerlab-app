@@ -1,12 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
   ModalClose,
   ModalDialog,
   Typography,
-  Stack,
   Box,
-  Chip,
   LinearProgress,
   Sheet,
   List,
@@ -15,8 +13,11 @@ import {
   ListItemContent,
   ListItemDecorator,
 } from '@mui/joy';
-import { FileIcon, FolderIcon } from 'lucide-react';
+import { FileIcon } from 'lucide-react';
 import { Editor } from '@monaco-editor/react';
+import useSWR from 'swr';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
@@ -33,36 +34,84 @@ interface TaskFilesModalProps {
   open: boolean;
   onClose: () => void;
   taskName: string;
+  taskDir: string;
   files: string[];
   isLoading: boolean;
-  fileCount: number;
 }
 
 export default function TaskFilesModal({
   open,
   onClose,
   taskName,
+  taskDir,
   files,
   isLoading,
-  fileCount,
 }: TaskFilesModalProps) {
-  const editorRef = useRef(null);
+  const editorRef = useRef<any>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
-  // useEffect(() => {
-  //   if (data) {
-  //     if (editorRef?.current && typeof data === 'string') {
-  //       editorRef?.current?.setValue(data);
-  //     }
-  //   }
-  // }, [data]);
+  // Fetch the file contents when a file is selected
+  const {
+    data: fileContent,
+    error: fileError,
+  } = useSWR(
+    selectedFile && taskDir
+      ? chatAPI.Endpoints.Tasks.GetTaskFileContent(taskDir, selectedFile)
+      : null,
+    fetcher,
+  );
 
-  // function handleEditorDidMount(editor, monaco) {
-  //   editorRef.current = editor;
-  //   if (editorRef?.current && typeof data === 'string') {
-  //     editorRef?.current?.setValue(data);
-  //   }
-  //   setTheme(editor, monaco);
-  // }
+  useEffect(() => {
+    if (fileContent?.status === 'success' && fileContent?.data?.content) {
+      if (editorRef?.current) {
+        if (fileContent.data.encoding === 'base64') {
+          // Handle binary files - decode base64 content
+          try {
+            const decodedContent = atob(fileContent.data.content);
+            editorRef.current.setValue(decodedContent);
+          } catch (e) {
+            editorRef.current.setValue('Binary file - cannot display content');
+          }
+        } else {
+          // Handle text files
+          editorRef.current.setValue(fileContent.data.content);
+        }
+        editorRef.current.updateOptions({
+          readOnly: true,
+        });
+        editorRef.current.layout();
+      }
+    } else if (fileError || fileContent?.status === 'error') {
+      if (editorRef?.current) {
+        editorRef.current.setValue('Error loading file content');
+        editorRef.current.updateOptions({
+          readOnly: true,
+        });
+        editorRef.current.layout();
+      }
+    }
+  }, [fileContent, fileError]);
+
+  function handleEditorDidMount(editor: any, monaco: any) {
+    editorRef.current = editor;
+    if (selectedFile) {
+      editor.setValue('Loading file content...');
+    } else {
+      editor.setValue('Select a file to view its content');
+    }
+    editor.updateOptions({
+      readOnly: true,
+    });
+    setTheme(editor, monaco);
+  }
+
+  const handleFileSelect = (filePath: string) => {
+    setSelectedFile(filePath);
+  };
+
+  const handleEditorMount = (editor: any, monaco: any) => {
+    handleEditorDidMount(editor, monaco);
+  };
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -120,9 +169,12 @@ export default function TaskFilesModal({
                   id="task-gallery-files-list"
                 >
                   <List size="sm">
-                    {files.map((file, index) => (
-                      <ListItem key={index}>
-                        <ListItemButton>
+                    {files.map((file) => (
+                      <ListItem key={file}>
+                        <ListItemButton
+                          onClick={() => handleFileSelect(file)}
+                          selected={selectedFile === file}
+                        >
                           <ListItemDecorator>
                             <FileIcon size={16} />
                           </ListItemDecorator>
@@ -155,7 +207,7 @@ export default function TaskFilesModal({
                       cursorStyle: 'block',
                       wordWrap: 'on',
                     }}
-                    // onMount={handleEditorDidMount}
+                    onMount={handleEditorMount}
                   />
                 </Box>
               </Box>
