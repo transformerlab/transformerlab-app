@@ -10,12 +10,12 @@ import {
   Chip,
   Box,
 } from '@mui/joy';
-import { UploadIcon, TrashIcon, FileIcon } from 'lucide-react';
+import { UploadIcon, TrashIcon, FileIcon, FolderIcon } from 'lucide-react';
 
 interface LocalTask {
   name: string;
   description: string;
-  subdir: string;
+  task_dir: string;
   source: string;
   tag: string;
 }
@@ -23,8 +23,9 @@ interface LocalTask {
 interface LocalTasksListProps {
   tasks: LocalTask[];
   isLoading: boolean;
-  onImport: (subdir: string) => void;
-  onDelete: (subdir: string) => void;
+  onImport: (taskDir: string) => void;
+  onDelete: (taskDir: string) => void;
+  onShowFiles: (taskDir: string) => void;
 }
 
 export default function LocalTasksList({
@@ -32,6 +33,7 @@ export default function LocalTasksList({
   isLoading,
   onImport,
   onDelete,
+  onShowFiles,
 }: LocalTasksListProps) {
   if (isLoading) {
     return <LinearProgress />;
@@ -58,7 +60,7 @@ export default function LocalTasksList({
   return (
     <Stack spacing={2}>
       {tasks.map((task) => (
-        <Card key={task.subdir} variant="outlined">
+        <Card key={task.task_dir} variant="outlined">
           <CardContent>
             <Stack
               direction="row"
@@ -91,16 +93,24 @@ export default function LocalTasksList({
                 <Button
                   size="sm"
                   startDecorator={<UploadIcon size={16} />}
-                  onClick={() => onImport(task.subdir)}
+                  onClick={() => onImport(task.task_dir)}
                 >
                   Import
                 </Button>
                 <Button
                   size="sm"
                   variant="outlined"
+                  startDecorator={<FolderIcon size={16} />}
+                  onClick={() => onShowFiles(task.task_dir)}
+                >
+                  Files
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outlined"
                   color="danger"
                   startDecorator={<TrashIcon size={16} />}
-                  onClick={() => onDelete(task.subdir)}
+                  onClick={() => onDelete(task.task_dir)}
                 >
                   Delete
                 </Button>

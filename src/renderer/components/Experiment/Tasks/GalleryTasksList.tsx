@@ -13,9 +13,9 @@ import {
 import { DownloadIcon, ExternalLinkIcon } from 'lucide-react';
 
 interface GalleryTask {
+  id: string;
   name: string;
   description: string;
-  subdir: string;
   tag: string;
   source: string;
 }
@@ -23,13 +23,17 @@ interface GalleryTask {
 interface GalleryTasksListProps {
   tasks: GalleryTask[];
   isLoading: boolean;
-  onInstall: (subdir: string) => void;
+  onInstall: (id: string) => void;
+  installingTasks: Set<string>;
+  localTasks: Array<{ task_dir: string; name: string }>;
 }
 
 export default function GalleryTasksList({
   tasks,
   isLoading,
   onInstall,
+  installingTasks,
+  localTasks,
 }: GalleryTasksListProps) {
   if (isLoading) {
     return <LinearProgress />;
@@ -85,13 +89,47 @@ export default function GalleryTasksList({
                   </Chip>
                 </Stack>
               </Box>
-              <Button
-                size="sm"
-                startDecorator={<DownloadIcon size={16} />}
-                onClick={() => onInstall(task.id)}
-              >
-                Install
-              </Button>
+              {(() => {
+                const isInstalling = installingTasks.has(task.id);
+                const isInstalled = localTasks.some(localTask =>
+                  localTask.task_dir === task.id
+                );
+
+                if (isInstalling) {
+                  return (
+                    <Button
+                      size="sm"
+                      loading
+                      disabled
+                    >
+                      Installing...
+                    </Button>
+                  );
+                }
+
+                if (isInstalled) {
+                  return (
+                    <Button
+                      size="sm"
+                      variant="outlined"
+                      color="success"
+                      disabled
+                    >
+                      Installed
+                    </Button>
+                  );
+                }
+
+                return (
+                  <Button
+                    size="sm"
+                    startDecorator={<DownloadIcon size={16} />}
+                    onClick={() => onInstall(task.id)}
+                  >
+                    Install
+                  </Button>
+                );
+              })()}
             </Stack>
           </CardContent>
         </Card>

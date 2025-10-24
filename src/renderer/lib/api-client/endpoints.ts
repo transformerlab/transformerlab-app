@@ -26,6 +26,10 @@ Endpoints.Tasks = {
   ImportFromGallery: () => `${API_URL()}tasks/import_from_gallery`,
   ImportFromLocalGallery: () => `${API_URL()}tasks/import_from_local_gallery`,
   ExportToLocalGallery: () => `${API_URL()}tasks/export_to_local_gallery`,
+  DeleteFromLocalGallery: (taskDir: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}`,
+  GetTaskFiles: (taskDir: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}/files`,
 };
 
 Endpoints.Workflows = {

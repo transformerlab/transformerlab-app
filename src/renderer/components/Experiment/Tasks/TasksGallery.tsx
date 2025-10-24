@@ -18,9 +18,16 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import LocalTasksList from 'renderer/components/Experiment/Tasks/LocalTasksList';
 import GalleryTasksList from 'renderer/components/Experiment/Tasks/GalleryTasksList';
+import TaskFilesModal from 'renderer/components/Experiment/Tasks/TaskFilesModal';
 
 export default function TasksGallery() {
   const [activeTab, setActiveTab] = useState(0);
+  const [installingTasks, setInstallingTasks] = useState<Set<string>>(new Set());
+  const [deletingTasks, setDeletingTasks] = useState<Set<string>>(new Set());
+  const [filesModalOpen, setFilesModalOpen] = useState(false);
+  const [selectedTaskName, setSelectedTaskName] = useState('');
+  const [taskFiles, setTaskFiles] = useState<string[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
 
@@ -41,6 +48,7 @@ export default function TasksGallery() {
   } = useSWR(chatAPI.Endpoints.Tasks.Gallery(), fetcher);
 
   const handleInstallFromGallery = async (id: string) => {
+    setInstallingTasks(prev => new Set(prev).add(id));
     try {
       const formData = new FormData();
       formData.append('id', id);
@@ -72,15 +80,21 @@ export default function TasksGallery() {
         type: 'danger',
         message: 'Failed to install task. Please try again.',
       });
+    } finally {
+      setInstallingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
     }
   };
 
-  const handleImportToExperiment = async (subdir: string) => {
+  const handleImportToExperiment = async (taskDir: string) => {
     if (!experimentInfo?.id) return;
 
     try {
       const formData = new FormData();
-      formData.append('subdir', subdir);
+      formData.append('task_dir', taskDir);
       formData.append('experiment_id', experimentInfo.id);
 
       const response = await chatAPI.authenticatedFetch(
@@ -114,26 +128,88 @@ export default function TasksGallery() {
     }
   };
 
-  const handleDeleteLocalTask = async (subdir: string) => {
+  const handleDeleteLocalTask = async (taskDir: string) => {
     // eslint-disable-next-line no-alert
     if (!confirm('Are you sure you want to delete this local task?')) {
       return;
     }
 
+    setDeletingTasks(prev => new Set(prev).add(taskDir));
     try {
-      // For now, we'll need to implement a delete endpoint
-      // This would delete the task from workspace/tasks-gallery/
-      addNotification({
-        type: 'info',
-        message: 'Delete functionality not yet implemented',
-      });
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.DeleteFromLocalGallery(taskDir),
+        {
+          method: 'DELETE',
+        },
+      );
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        addNotification({
+          type: 'success',
+          message: `Task deleted successfully!`,
+        });
+        await localTasksMutate();
+      } else {
+        addNotification({
+          type: 'danger',
+          message: `Failed to delete task: ${result.message}`,
+        });
+      }
     } catch (error) {
       console.error('Error deleting task:', error);
       addNotification({
         type: 'danger',
         message: 'Failed to delete task. Please try again.',
       });
+    } finally {
+      setDeletingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskDir);
+        return newSet;
+      });
     }
+  };
+
+  const handleShowFiles = async (taskDir: string) => {
+    setFilesLoading(true);
+    setFilesModalOpen(true);
+    setSelectedTaskName(taskDir);
+
+    try {
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Tasks.GetTaskFiles(taskDir),
+        {
+          method: 'GET',
+        },
+      );
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        setTaskFiles(result.data.files || []);
+      } else {
+        addNotification({
+          type: 'danger',
+          message: `Failed to load files: ${result.message}`,
+        });
+        setTaskFiles([]);
+      }
+    } catch (error) {
+      console.error('Error loading task files:', error);
+      addNotification({
+        type: 'danger',
+        message: 'Failed to load task files. Please try again.',
+      });
+      setTaskFiles([]);
+    } finally {
+      setFilesLoading(false);
+    }
+  };
+
+  const handleCloseFilesModal = () => {
+    setFilesModalOpen(false);
+    setSelectedTaskName('');
+    setTaskFiles([]);
   };
 
   return (
@@ -189,6 +265,7 @@ export default function TasksGallery() {
             isLoading={localTasksIsLoading}
             onImport={handleImportToExperiment}
             onDelete={handleDeleteLocalTask}
+            onShowFiles={handleShowFiles}
           />
         </TabPanel>
 
@@ -197,9 +274,20 @@ export default function TasksGallery() {
             tasks={galleryTasks?.data || []}
             isLoading={galleryTasksIsLoading}
             onInstall={handleInstallFromGallery}
+            installingTasks={installingTasks}
+            localTasks={localTasks?.data || []}
           />
         </TabPanel>
       </Tabs>
+
+      <TaskFilesModal
+        open={filesModalOpen}
+        onClose={handleCloseFilesModal}
+        taskName={selectedTaskName}
+        files={taskFiles}
+        isLoading={filesLoading}
+        fileCount={taskFiles.length}
+      />
     </Sheet>
   );
 }
