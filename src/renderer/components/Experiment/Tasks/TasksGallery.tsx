@@ -19,6 +19,7 @@ import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import LocalTasksList from 'renderer/components/Experiment/Tasks/LocalTasksList';
 import GalleryTasksList from 'renderer/components/Experiment/Tasks/GalleryTasksList';
 import TaskFilesModal from 'renderer/components/Experiment/Tasks/TaskFilesModal';
+import NewTaskModal from 'renderer/components/TaskLibrary/NewTaskModal';
 
 export default function TasksGallery() {
   const [activeTab, setActiveTab] = useState(0);
@@ -28,6 +29,7 @@ export default function TasksGallery() {
   const [selectedTaskName, setSelectedTaskName] = useState('');
   const [taskFiles, setTaskFiles] = useState<string[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
+  const [newTaskModalOpen, setNewTaskModalOpen] = useState(false);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
 
@@ -212,6 +214,20 @@ export default function TasksGallery() {
     setTaskFiles([]);
   };
 
+  const handleExportTask = () => {
+    setNewTaskModalOpen(true);
+  };
+
+  const handleCloseExportModal = () => {
+    setNewTaskModalOpen(false);
+  };
+
+  const handleTaskExported = async () => {
+    // Refresh local tasks when a task is exported
+    await localTasksMutate();
+    setNewTaskModalOpen(false);
+  };
+
   return (
     <Sheet
       sx={{
@@ -229,24 +245,13 @@ export default function TasksGallery() {
         sx={{ mb: 2 }}
       >
         <Typography level="title-md">Tasks Gallery</Typography>
-        <Stack direction="row" gap={1}>
-          <Button
-            startDecorator={<PlusIcon />}
-            onClick={() => setActiveTab(0)}
-            variant={activeTab === 0 ? 'solid' : 'outlined'}
-            size="sm"
-          >
-            Local Tasks
-          </Button>
-          <Button
-            startDecorator={<DownloadIcon />}
-            onClick={() => setActiveTab(1)}
-            variant={activeTab === 1 ? 'solid' : 'outlined'}
-            size="sm"
-          >
-            Gallery
-          </Button>
-        </Stack>
+        <Button
+          startDecorator={<PlusIcon />}
+          onClick={handleExportTask}
+          size="sm"
+        >
+          New Task
+        </Button>
       </Stack>
 
       <Tabs
@@ -287,6 +292,12 @@ export default function TasksGallery() {
         files={taskFiles}
         isLoading={filesLoading}
         fileCount={taskFiles.length}
+      />
+
+      <NewTaskModal
+        open={newTaskModalOpen}
+        onClose={handleCloseExportModal}
+        onSuccess={handleTaskExported}
       />
     </Sheet>
   );
