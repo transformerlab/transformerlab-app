@@ -8,8 +8,10 @@ import {
   Box,
   Chip,
   LinearProgress,
+  Sheet,
 } from '@mui/joy';
 import { FileIcon, FolderIcon } from 'lucide-react';
+import { Editor } from '@monaco-editor/react';
 
 interface TaskFilesModalProps {
   open: boolean;
@@ -32,9 +34,8 @@ export default function TaskFilesModal({
     <Modal open={open} onClose={onClose}>
       <ModalDialog
         sx={{
-          maxWidth: 500,
-          width: '100%',
-          maxHeight: '80vh',
+          width: '80vw',
+          height: '80vh',
           overflow: 'hidden',
         }}
       >
@@ -54,11 +55,8 @@ export default function TaskFilesModal({
         ) : (
           <Box
             sx={{
-              maxHeight: '60vh',
+              height: '100%',
               overflow: 'auto',
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 'sm',
               p: 2,
             }}
           >
@@ -71,31 +69,52 @@ export default function TaskFilesModal({
                 No files found in src/ directory
               </Typography>
             ) : (
-              <Stack spacing={1}>
-                {files.map((file, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1,
-                      p: 1,
-                      borderRadius: 'sm',
-                      '&:hover': {
-                        backgroundColor: 'background.level1',
-                      },
-                    }}
-                  >
-                    <FileIcon size={16} />
-                    <Typography
-                      level="body-sm"
-                      sx={{ fontFamily: 'monospace' }}
+              <Box display="flex" gap={4} sx={{ height: '100%' }}>
+                <Sheet
+                  sx={{ width: 300, gap: 2, overflow: 'hidden' }}
+                  variant="outlined"
+                >
+                  {files.map((file, index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        p: 1,
+                        borderRadius: 'sm',
+                        '&:hover': {
+                          backgroundColor: 'background.level1',
+                        },
+                      }}
                     >
-                      {file}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
+                      <FileIcon size={16} />
+                      <Typography
+                        level="body-sm"
+                        sx={{ fontFamily: 'monospace' }}
+                      >
+                        {file}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Sheet>
+                <Box sx={{ flex: 1, height: '100%' }}>
+                  <Editor
+                    defaultLanguage="shell"
+                    theme="my-theme"
+                    height="100%"
+                    options={{
+                      minimap: {
+                        enabled: false,
+                      },
+                      fontSize: 18,
+                      cursorStyle: 'block',
+                      wordWrap: 'on',
+                    }}
+                    onMount={() => {}}
+                  />
+                </Box>
+              </Box>
             )}
           </Box>
         )}
