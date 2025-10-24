@@ -263,16 +263,24 @@ export default function Tasks() {
       // Create the actual remote job
       const createJobFormData = new FormData();
       createJobFormData.append('experimentId', experimentInfo.id);
-      if (cfg.cluster_name) createJobFormData.append('cluster_name', cfg.cluster_name);
+      if (cfg.cluster_name)
+        createJobFormData.append('cluster_name', cfg.cluster_name);
       if (cfg.command) createJobFormData.append('command', cfg.command);
       if (task.name) createJobFormData.append('task_name', task.name);
       if (cfg.cpus) createJobFormData.append('cpus', String(cfg.cpus));
       if (cfg.memory) createJobFormData.append('memory', String(cfg.memory));
-      if (cfg.disk_space) createJobFormData.append('disk_space', String(cfg.disk_space));
-      if (cfg.accelerators) createJobFormData.append('accelerators', String(cfg.accelerators));
-      if (cfg.num_nodes) createJobFormData.append('num_nodes', String(cfg.num_nodes));
+      if (cfg.disk_space)
+        createJobFormData.append('disk_space', String(cfg.disk_space));
+      if (cfg.accelerators)
+        createJobFormData.append('accelerators', String(cfg.accelerators));
+      if (cfg.num_nodes)
+        createJobFormData.append('num_nodes', String(cfg.num_nodes));
       if (cfg.setup) createJobFormData.append('setup', String(cfg.setup));
-      if (cfg.uploaded_dir_path) createJobFormData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+      if (cfg.uploaded_dir_path)
+        createJobFormData.append(
+          'uploaded_dir_path',
+          String(cfg.uploaded_dir_path),
+        );
 
       const createJobResp = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Jobs.CreateRemoteJob(experimentInfo.id),
@@ -294,16 +302,24 @@ export default function Tasks() {
         const launchFormData = new FormData();
         launchFormData.append('experimentId', experimentInfo.id);
         launchFormData.append('job_id', createJobResult.job_id);
-        if (cfg.cluster_name) launchFormData.append('cluster_name', cfg.cluster_name);
+        if (cfg.cluster_name)
+          launchFormData.append('cluster_name', cfg.cluster_name);
         if (cfg.command) launchFormData.append('command', cfg.command);
         if (task.name) launchFormData.append('task_name', task.name);
         if (cfg.cpus) launchFormData.append('cpus', String(cfg.cpus));
         if (cfg.memory) launchFormData.append('memory', String(cfg.memory));
-        if (cfg.disk_space) launchFormData.append('disk_space', String(cfg.disk_space));
-        if (cfg.accelerators) launchFormData.append('accelerators', String(cfg.accelerators));
-        if (cfg.num_nodes) launchFormData.append('num_nodes', String(cfg.num_nodes));
+        if (cfg.disk_space)
+          launchFormData.append('disk_space', String(cfg.disk_space));
+        if (cfg.accelerators)
+          launchFormData.append('accelerators', String(cfg.accelerators));
+        if (cfg.num_nodes)
+          launchFormData.append('num_nodes', String(cfg.num_nodes));
         if (cfg.setup) launchFormData.append('setup', String(cfg.setup));
-        if (cfg.uploaded_dir_path) launchFormData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+        if (cfg.uploaded_dir_path)
+          launchFormData.append(
+            'uploaded_dir_path',
+            String(cfg.uploaded_dir_path),
+          );
 
         const launchResp = await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
