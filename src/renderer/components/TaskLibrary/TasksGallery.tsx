@@ -16,9 +16,9 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
-import LocalTasksList from 'renderer/components/Experiment/Tasks/LocalTasksList';
-import GalleryTasksList from 'renderer/components/Experiment/Tasks/GalleryTasksList';
-import TaskFilesModal from 'renderer/components/Experiment/Tasks/TaskFilesModal';
+import LocalTasksList from 'renderer/components/TaskLibrary/LocalTasksList';
+import GalleryTasksList from 'renderer/components/TaskLibrary/GalleryTasksList';
+import TaskFilesModal from 'renderer/components/TaskLibrary/TaskFilesModal';
 import NewTaskModal from 'renderer/components/TaskLibrary/NewTaskModal';
 
 export default function TasksGallery() {

@@ -21,7 +21,7 @@ import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
-import TasksGallery from './Experiment/Tasks/TasksGallery';
+import TasksGallery from './TaskLibrary/TasksGallery';
 
 import Computer from './Computer';
 import Eval from './Experiment/Eval/Eval';
