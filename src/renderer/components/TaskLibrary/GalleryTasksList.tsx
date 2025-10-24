@@ -91,17 +91,13 @@ export default function GalleryTasksList({
               </Box>
               {(() => {
                 const isInstalling = installingTasks.has(task.id);
-                const isInstalled = localTasks.some(localTask =>
-                  localTask.task_dir === task.id
+                const isInstalled = localTasks.some(
+                  (localTask) => localTask.task_dir === task.id,
                 );
 
                 if (isInstalling) {
                   return (
-                    <Button
-                      size="sm"
-                      loading
-                      disabled
-                    >
+                    <Button size="sm" loading disabled>
                       Installing...
                     </Button>
                   );

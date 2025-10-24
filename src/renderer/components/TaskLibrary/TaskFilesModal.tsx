@@ -63,7 +63,11 @@ export default function TaskFilesModal({
             }}
           >
             {files.length === 0 ? (
-              <Typography level="body-sm" color="neutral" sx={{ textAlign: 'center', py: 4 }}>
+              <Typography
+                level="body-sm"
+                color="neutral"
+                sx={{ textAlign: 'center', py: 4 }}
+              >
                 No files found in src/ directory
               </Typography>
             ) : (
@@ -83,7 +87,10 @@ export default function TaskFilesModal({
                     }}
                   >
                     <FileIcon size={16} />
-                    <Typography level="body-sm" sx={{ fontFamily: 'monospace' }}>
+                    <Typography
+                      level="body-sm"
+                      sx={{ fontFamily: 'monospace' }}
+                    >
                       {file}
                     </Typography>
                   </Box>

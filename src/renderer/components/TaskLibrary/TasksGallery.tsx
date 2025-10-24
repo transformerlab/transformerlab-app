@@ -23,7 +23,9 @@ import NewTaskModal from 'renderer/components/TaskLibrary/NewTaskModal';
 
 export default function TasksGallery() {
   const [activeTab, setActiveTab] = useState(0);
-  const [installingTasks, setInstallingTasks] = useState<Set<string>>(new Set());
+  const [installingTasks, setInstallingTasks] = useState<Set<string>>(
+    new Set(),
+  );
   const [deletingTasks, setDeletingTasks] = useState<Set<string>>(new Set());
   const [filesModalOpen, setFilesModalOpen] = useState(false);
   const [selectedTaskName, setSelectedTaskName] = useState('');
@@ -50,7 +52,7 @@ export default function TasksGallery() {
   } = useSWR(chatAPI.Endpoints.Tasks.Gallery(), fetcher);
 
   const handleInstallFromGallery = async (id: string) => {
-    setInstallingTasks(prev => new Set(prev).add(id));
+    setInstallingTasks((prev) => new Set(prev).add(id));
     try {
       const formData = new FormData();
       formData.append('id', id);
@@ -83,7 +85,7 @@ export default function TasksGallery() {
         message: 'Failed to install task. Please try again.',
       });
     } finally {
-      setInstallingTasks(prev => {
+      setInstallingTasks((prev) => {
         const newSet = new Set(prev);
         newSet.delete(id);
         return newSet;
@@ -136,7 +138,7 @@ export default function TasksGallery() {
       return;
     }
 
-    setDeletingTasks(prev => new Set(prev).add(taskDir));
+    setDeletingTasks((prev) => new Set(prev).add(taskDir));
     try {
       const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Tasks.DeleteFromLocalGallery(taskDir),
@@ -165,7 +167,7 @@ export default function TasksGallery() {
         message: 'Failed to delete task. Please try again.',
       });
     } finally {
-      setDeletingTasks(prev => {
+      setDeletingTasks((prev) => {
         const newSet = new Set(prev);
         newSet.delete(taskDir);
         return newSet;

@@ -13,7 +13,10 @@ import { UploadIcon, FileIcon, XIcon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 interface DirectoryUploadProps {
-  onUploadComplete?: (uploadedDirPath: string, localStoragePath?: string) => void;
+  onUploadComplete?: (
+    uploadedDirPath: string,
+    localStoragePath?: string,
+  ) => void;
   onUploadError?: (error: string) => void;
   disabled?: boolean;
 }
