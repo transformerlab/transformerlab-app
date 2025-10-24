@@ -48,7 +48,8 @@ export default function LocalTasksList({
         }}
       >
         <Typography level="body-md" color="neutral">
-          No local tasks available. Install tasks from the Gallery tab to get started.
+          No local tasks available. Install tasks from the Gallery tab to get
+          started.
         </Typography>
       </Sheet>
     );
@@ -59,9 +60,18 @@ export default function LocalTasksList({
       {tasks.map((task) => (
         <Card key={task.subdir} variant="outlined">
           <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="flex-start"
+            >
               <Box sx={{ flex: 1 }}>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{ mb: 1 }}
+                >
                   <FileIcon size={16} />
                   <Typography level="title-sm">{task.name}</Typography>
                   <Chip size="sm" variant="soft" color="primary">

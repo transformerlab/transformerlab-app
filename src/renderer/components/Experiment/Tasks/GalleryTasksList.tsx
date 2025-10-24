@@ -46,7 +46,8 @@ export default function GalleryTasksList({
         }}
       >
         <Typography level="body-md" color="neutral">
-          No gallery tasks available. Check your internet connection and try again.
+          No gallery tasks available. Check your internet connection and try
+          again.
         </Typography>
       </Sheet>
     );
@@ -57,9 +58,18 @@ export default function GalleryTasksList({
       {tasks.map((task) => (
         <Card key={task.subdir} variant="outlined">
           <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="flex-start"
+            >
               <Box sx={{ flex: 1 }}>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1}
+                  sx={{ mb: 1 }}
+                >
                   <ExternalLinkIcon size={16} />
                   <Typography level="title-sm">{task.name}</Typography>
                   <Chip size="sm" variant="soft" color="primary">

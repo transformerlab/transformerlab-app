@@ -1,5 +1,14 @@
 import React, { useState } from 'react';
-import { Button, Sheet, Stack, Typography, Tabs, TabList, Tab, TabPanel } from '@mui/joy';
+import {
+  Button,
+  Sheet,
+  Stack,
+  Typography,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
+} from '@mui/joy';
 import { PlusIcon, DownloadIcon, UploadIcon } from 'lucide-react';
 import useSWR from 'swr';
 
@@ -7,8 +16,8 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
-import LocalTasksList from './LocalTasksList';
-import GalleryTasksList from './GalleryTasksList';
+import LocalTasksList from 'renderer/components/Experiment/Tasks/LocalTasksList';
+import GalleryTasksList from 'renderer/components/Experiment/Tasks/GalleryTasksList';
 
 export default function TasksGallery() {
   const [activeTab, setActiveTab] = useState(0);
@@ -21,10 +30,7 @@ export default function TasksGallery() {
     error: localTasksError,
     isLoading: localTasksIsLoading,
     mutate: localTasksMutate,
-  } = useSWR(
-    chatAPI.Endpoints.Tasks.LocalGallery(),
-    fetcher,
-  );
+  } = useSWR(chatAPI.Endpoints.Tasks.LocalGallery(), fetcher);
 
   // Fetch remote gallery tasks
   const {
@@ -32,10 +38,7 @@ export default function TasksGallery() {
     error: galleryTasksError,
     isLoading: galleryTasksIsLoading,
     mutate: galleryTasksMutate,
-  } = useSWR(
-    chatAPI.Endpoints.Tasks.Gallery(),
-    fetcher,
-  );
+  } = useSWR(chatAPI.Endpoints.Tasks.Gallery(), fetcher);
 
   const handleInstallFromGallery = async (id: string) => {
     try {
