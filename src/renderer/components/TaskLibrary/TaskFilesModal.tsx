@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Modal,
   ModalClose,
@@ -9,9 +9,25 @@ import {
   Chip,
   LinearProgress,
   Sheet,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemContent,
+  ListItemDecorator,
 } from '@mui/joy';
 import { FileIcon, FolderIcon } from 'lucide-react';
 import { Editor } from '@monaco-editor/react';
+
+import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
+
+const { parseTmTheme } = require('monaco-themes');
+
+function setTheme(editor: any, monaco: any) {
+  const themeData = parseTmTheme(fairyflossTheme);
+
+  monaco.editor.defineTheme('my-theme', themeData);
+  monaco.editor.setTheme('my-theme');
+}
 
 interface TaskFilesModalProps {
   open: boolean;
@@ -30,6 +46,24 @@ export default function TaskFilesModal({
   isLoading,
   fileCount,
 }: TaskFilesModalProps) {
+  const editorRef = useRef(null);
+
+  // useEffect(() => {
+  //   if (data) {
+  //     if (editorRef?.current && typeof data === 'string') {
+  //       editorRef?.current?.setValue(data);
+  //     }
+  //   }
+  // }, [data]);
+
+  // function handleEditorDidMount(editor, monaco) {
+  //   editorRef.current = editor;
+  //   if (editorRef?.current && typeof data === 'string') {
+  //     editorRef?.current?.setValue(data);
+  //   }
+  //   setTheme(editor, monaco);
+  // }
+
   return (
     <Modal open={open} onClose={onClose}>
       <ModalDialog
@@ -40,15 +74,15 @@ export default function TaskFilesModal({
         }}
       >
         <ModalClose />
-        <Typography level="title-md" sx={{ mb: 2 }}>
+        <Typography level="title-md" sx={{}}>
           Files in {taskName}
         </Typography>
 
-        <Box sx={{ mb: 2 }}>
+        {/* <Box sx={{}}>
           <Chip size="sm" variant="soft" color="primary">
             {fileCount} {fileCount === 1 ? 'file' : 'files'}
           </Chip>
-        </Box>
+        </Box> */}
 
         {isLoading ? (
           <LinearProgress />
@@ -69,36 +103,46 @@ export default function TaskFilesModal({
                 No files found in src/ directory
               </Typography>
             ) : (
-              <Box display="flex" gap={4} sx={{ height: '100%' }}>
+              <Box
+                display="flex"
+                gap={4}
+                sx={{ height: '100%' }}
+                id="task-gallery-files-container"
+              >
                 <Sheet
-                  sx={{ width: 300, gap: 2, overflow: 'hidden' }}
+                  sx={{
+                    gap: 2,
+                    overflow: 'hidden',
+                    flex: 1,
+                    minWidth: '300px',
+                  }}
                   variant="outlined"
+                  id="task-gallery-files-list"
                 >
-                  {files.map((file, index) => (
-                    <Box
-                      key={index}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1,
-                        p: 1,
-                        borderRadius: 'sm',
-                        '&:hover': {
-                          backgroundColor: 'background.level1',
-                        },
-                      }}
-                    >
-                      <FileIcon size={16} />
-                      <Typography
-                        level="body-sm"
-                        sx={{ fontFamily: 'monospace' }}
-                      >
-                        {file}
-                      </Typography>
-                    </Box>
-                  ))}
+                  <List size="sm">
+                    {files.map((file, index) => (
+                      <ListItem key={index}>
+                        <ListItemButton>
+                          <ListItemDecorator>
+                            <FileIcon size={16} />
+                          </ListItemDecorator>
+                          <ListItemContent>
+                            <Typography
+                              level="body-sm"
+                              sx={{ fontFamily: 'monospace' }}
+                            >
+                              {file}
+                            </Typography>
+                          </ListItemContent>
+                        </ListItemButton>
+                      </ListItem>
+                    ))}
+                  </List>
                 </Sheet>
-                <Box sx={{ flex: 1, height: '100%' }}>
+                <Box
+                  sx={{ flex: 3, height: '100%' }}
+                  id="task-gallery-file-viewer"
+                >
                   <Editor
                     defaultLanguage="shell"
                     theme="my-theme"
@@ -111,7 +155,7 @@ export default function TaskFilesModal({
                       cursorStyle: 'block',
                       wordWrap: 'on',
                     }}
-                    onMount={() => {}}
+                    // onMount={handleEditorDidMount}
                   />
                 </Box>
               </Box>
