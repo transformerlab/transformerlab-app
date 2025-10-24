@@ -13,7 +13,10 @@ import { UploadIcon, FileIcon, XIcon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 interface DirectoryUploadProps {
-  onUploadComplete?: (uploadedDirPath: string) => void;
+  onUploadComplete?: (
+    uploadedDirPath: string,
+    localStoragePath?: string,
+  ) => void;
   onUploadError?: (error: string) => void;
   disabled?: boolean;
 }
@@ -79,6 +82,7 @@ export default function DirectoryUpload({
       if (result.status === 'success') {
         const uploadedDirPathResult =
           result.data.uploaded_files.dir_files.uploaded_dir;
+        const localStoragePath = result.local_storage_path;
         setUploadedDirPath(uploadedDirPathResult);
 
         // Update uploaded files list
@@ -89,7 +93,7 @@ export default function DirectoryUpload({
         }));
         setUploadedFiles(filesList);
 
-        onUploadComplete(uploadedDirPathResult);
+        onUploadComplete(uploadedDirPathResult, localStoragePath);
       } else {
         const errorMessage = result.message || 'Upload failed';
         setUploadError(errorMessage);

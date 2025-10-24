@@ -39,6 +39,7 @@ type NewTaskModalProps = {
     num_nodes?: number;
     setup?: string;
     uploaded_dir_path?: string;
+    local_upload_copy?: string;
   }) => void;
   isSubmitting?: boolean;
 };
@@ -61,6 +62,7 @@ export default function NewTaskModal({
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
   const [uploadedDirPath, setUploadedDirPath] = React.useState('');
+  const [localUploadCopy, setLocalUploadCopy] = React.useState('');
   // keep separate refs for the two Monaco editors
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -89,6 +91,7 @@ export default function NewTaskModal({
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue,
       uploaded_dir_path: uploadedDirPath || undefined,
+      local_upload_copy: localUploadCopy || undefined,
     });
     // Reset all form fields
     setTitle('');
@@ -270,7 +273,12 @@ export default function NewTaskModal({
             </FormControl>
 
             <DirectoryUpload
-              onUploadComplete={(path) => setUploadedDirPath(path)}
+              onUploadComplete={(path, localPath) => {
+                setUploadedDirPath(path);
+                if (localPath) {
+                  setLocalUploadCopy(localPath);
+                }
+              }}
               onUploadError={(error) => console.error('Upload error:', error)}
               disabled={isSubmitting}
             />
