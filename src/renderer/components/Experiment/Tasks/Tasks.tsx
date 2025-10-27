@@ -247,45 +247,93 @@ export default function Tasks() {
     }
   };
 
+  // Helper function to build FormData for remote job operations
+  const buildRemoteJobFormData = (task: any, cfg: any, jobId?: string) => {
+    const formData = new FormData();
+    formData.append('experimentId', experimentInfo.id);
+
+    if (jobId) {
+      formData.append('job_id', jobId);
+    }
+
+    if (cfg.cluster_name) formData.append('cluster_name', cfg.cluster_name);
+    if (cfg.command) formData.append('command', cfg.command);
+    if (task.name) formData.append('task_name', task.name);
+    if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
+    if (cfg.memory) formData.append('memory', String(cfg.memory));
+    if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
+    if (cfg.accelerators)
+      formData.append('accelerators', String(cfg.accelerators));
+    if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
+    if (cfg.setup) formData.append('setup', String(cfg.setup));
+    if (cfg.uploaded_dir_path)
+      formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+
+    return formData;
+  };
+
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
+
+    addNotification({
+      type: 'success',
+      message: 'Creating job...',
+    });
 
     try {
       const cfg =
         typeof task.config === 'string'
           ? JSON.parse(task.config)
           : task.config || {};
-      const formData = new FormData();
-      formData.append('experimentId', experimentInfo.id);
-      if (cfg.cluster_name) formData.append('cluster_name', cfg.cluster_name);
-      if (cfg.command) formData.append('command', cfg.command);
-      // Prefer the task name as job/task name
-      if (task.name) formData.append('task_name', task.name);
-      if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
-      if (cfg.memory) formData.append('memory', String(cfg.memory));
-      if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
-      if (cfg.accelerators)
-        formData.append('accelerators', String(cfg.accelerators));
-      if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
-      if (cfg.setup) formData.append('setup', String(cfg.setup));
-      if (cfg.uploaded_dir_path)
-        formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
 
-      const resp = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
-        { method: 'POST', body: formData },
+      // Create the actual remote job
+      const createJobFormData = buildRemoteJobFormData(task, cfg);
+
+      const createJobResp = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.CreateRemoteJob(experimentInfo.id),
+        { method: 'POST', body: createJobFormData },
       );
-      const result = await resp.json();
-      if (result.status === 'success') {
+      const createJobResult = await createJobResp.json();
+
+      if (createJobResult.status === 'success') {
+        // Keep placeholder visible and refresh jobs list
+        // The placeholder will be replaced when the real job appears
+        await jobsMutate();
+
         addNotification({
           type: 'success',
-          message: 'Task queued for remote launch.',
+          message: 'Job created. Launching remotely...',
         });
-        await Promise.all([jobsMutate(), tasksMutate()]);
+
+        // Then launch the remote job
+        const launchFormData = buildRemoteJobFormData(
+          task,
+          cfg,
+          createJobResult.job_id,
+        );
+
+        const launchResp = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
+          { method: 'POST', body: launchFormData },
+        );
+        const launchResult = await launchResp.json();
+
+        if (launchResult.status === 'success') {
+          addNotification({
+            type: 'success',
+            message: 'Task launched remotely.',
+          });
+          await Promise.all([jobsMutate(), tasksMutate()]);
+        } else {
+          addNotification({
+            type: 'danger',
+            message: `Remote launch failed: ${launchResult.message}`,
+          });
+        }
       } else {
         addNotification({
           type: 'danger',
-          message: `Remote launch failed: ${result.message}`,
+          message: `Failed to create job: ${createJobResult.message}`,
         });
       }
     } catch (e) {
