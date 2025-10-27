@@ -51,10 +51,7 @@ export default function TaskFilesModal({
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
   // Fetch the file contents when a file is selected
-  const {
-    data: fileContent,
-    error: fileError,
-  } = useSWR(
+  const { data: fileContent, error: fileError } = useSWR(
     selectedFile && taskDir
       ? chatAPI.Endpoints.Tasks.GetTaskFileContent(taskDir, selectedFile)
       : null,
