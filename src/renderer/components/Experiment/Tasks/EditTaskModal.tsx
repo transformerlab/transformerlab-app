@@ -58,7 +58,8 @@ export default function EditTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
-  const [shutdownAfterCompletion, setShutdownAfterCompletion] = React.useState(false);
+  const [shutdownAfterCompletion, setShutdownAfterCompletion] =
+    React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   const setupEditorRef = useRef<any>(null);

@@ -8,7 +8,13 @@ import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import Textarea from '@mui/joy/Textarea';
-import { FormHelperText, ModalClose, ModalDialog, Checkbox, Alert } from '@mui/joy';
+import {
+  FormHelperText,
+  ModalClose,
+  ModalDialog,
+  Checkbox,
+  Alert,
+} from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 
@@ -64,7 +70,8 @@ export default function NewTaskModal({
   const [setup, setSetup] = React.useState('');
   const [uploadedDirPath, setUploadedDirPath] = React.useState('');
   const [localUploadCopy, setLocalUploadCopy] = React.useState('');
-  const [shutdownAfterCompletion, setShutdownAfterCompletion] = React.useState(false);
+  const [shutdownAfterCompletion, setShutdownAfterCompletion] =
+    React.useState(false);
   // keep separate refs for the two Monaco editors
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
