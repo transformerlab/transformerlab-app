@@ -261,10 +261,12 @@ export default function Tasks() {
     if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
     if (cfg.memory) formData.append('memory', String(cfg.memory));
     if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
-    if (cfg.accelerators) formData.append('accelerators', String(cfg.accelerators));
+    if (cfg.accelerators)
+      formData.append('accelerators', String(cfg.accelerators));
     if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
     if (cfg.setup) formData.append('setup', String(cfg.setup));
-    if (cfg.uploaded_dir_path) formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+    if (cfg.uploaded_dir_path)
+      formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
 
     return formData;
   };
