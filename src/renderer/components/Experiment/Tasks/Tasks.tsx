@@ -270,7 +270,10 @@ export default function Tasks() {
     if (cfg.uploaded_dir_path)
       formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
     if (cfg.shutdown_after_completion !== undefined)
-      formData.append('shutdown_after_completion', String(cfg.shutdown_after_completion));
+      formData.append(
+        'shutdown_after_completion',
+        String(cfg.shutdown_after_completion),
+      );
 
     return formData;
   };
