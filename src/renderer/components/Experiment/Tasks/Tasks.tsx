@@ -204,6 +204,7 @@ export default function Tasks() {
           setup: data.setup || undefined,
           uploaded_dir_path: data.uploaded_dir_path || undefined,
           local_upload_copy: data.local_upload_copy || undefined,
+          shutdown_after_completion: data.shutdown_after_completion || false,
         },
         plugin: 'remote_orchestrator',
         outputs: {},
@@ -268,6 +269,8 @@ export default function Tasks() {
     if (cfg.setup) formData.append('setup', String(cfg.setup));
     if (cfg.uploaded_dir_path)
       formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+    if (cfg.shutdown_after_completion !== undefined)
+      formData.append('shutdown_after_completion', String(cfg.shutdown_after_completion));
 
     return formData;
   };
