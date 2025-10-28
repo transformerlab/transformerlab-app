@@ -21,7 +21,7 @@ import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
-import TaskLibrary from './TaskLibrary/TaskLibrary';
+import TasksGallery from './TaskLibrary/TasksGallery';
 
 import Computer from './Computer';
 import Eval from './Experiment/Eval/Eval';
@@ -45,7 +45,6 @@ import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
-import TaskLibrary from './TaskLibrary/TaskLibrary';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -399,7 +398,7 @@ export default function MainAppPanel({
           element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
         />
         <Route path="/plugins/:pluginName" element={<PluginDetails />} />
-        <Route path="/task_library" element={<TaskLibrary />} />
+        <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
         <Route
@@ -451,7 +450,7 @@ export default function MainAppPanel({
           path="/data"
           element={<Data gpuOrchestrationServer={gpuOrchestrationServer} />}
         />
-        <Route path="/task_library" element={<TaskLibrary />} />
+        <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />

@@ -20,6 +20,18 @@ Endpoints.Tasks = {
   UpdateTask: (id: string) => `${API_URL()}tasks/${id}/update`,
   NewTask: () => `${API_URL()}tasks/new_task`,
   DeleteTask: (id: string) => `${API_URL()}tasks/${id}/delete`,
+  Gallery: () => `${API_URL()}tasks/gallery`,
+  LocalGallery: () => `${API_URL()}tasks/local_gallery`,
+  InstallFromGallery: () => `${API_URL()}tasks/install_from_gallery`,
+  ImportFromGallery: () => `${API_URL()}tasks/import_from_gallery`,
+  ImportFromLocalGallery: () => `${API_URL()}tasks/import_from_local_gallery`,
+  ExportToLocalGallery: () => `${API_URL()}tasks/export_to_local_gallery`,
+  DeleteFromLocalGallery: (taskDir: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}`,
+  GetTaskFiles: (taskDir: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}/files`,
+  GetTaskFileContent: (taskDir: string, filePath: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}/files/${filePath}`,
 };
 
 Endpoints.Workflows = {
@@ -445,6 +457,8 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
+  CreateRemoteJob: (experimentId: string) =>
+    `${API_URL()}remote/create-job?experimentId=${experimentId}`,
   LaunchRemote: (experimentId: string) =>
     `${API_URL()}remote/launch?experimentId=${experimentId}`,
   UploadRemote: () => `${API_URL()}remote/upload`,
