@@ -50,6 +50,21 @@ export default function TaskFilesModal({
   const editorRef = useRef<any>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
 
+  // Reset selectedFile when modal closes
+  useEffect(() => {
+    if (!open) {
+      setSelectedFile(null);
+      // Reset editor content when modal closes
+      if (editorRef?.current) {
+        editorRef.current.setValue('Select a file to view its content');
+        editorRef.current.updateOptions({
+          readOnly: true,
+        });
+        editorRef.current.layout();
+      }
+    }
+  }, [open]);
+
   // Fetch the file contents when a file is selected
   const { data: fileContent, error: fileError } = useSWR(
     selectedFile && taskDir
