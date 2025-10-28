@@ -26,7 +26,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   const handleRestartFromCheckpoint = async (checkpoint) => {
     try {
       const response = await fetch(
-        chatAPI.Endpoints.Jobs.ResumeFromCheckpoint(experimentInfo?.id, jobId),
+        chatAPI.Endpoints.Jobs.ResumeFromCheckpoint(jobId),
         {
           method: 'POST',
           headers: {
@@ -34,6 +34,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
           },
           body: JSON.stringify({
             checkpoint_name: checkpoint.filename,
+            experimentId: experimentInfo?.id,
           }),
         },
       );

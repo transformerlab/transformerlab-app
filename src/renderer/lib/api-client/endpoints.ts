@@ -445,6 +445,8 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
+  ResumeFromCheckpoint: (jobId: string) =>
+    `${API_URL()}remote/${jobId}/resume_from_checkpoint`,
   LaunchRemote: (experimentId: string) =>
     `${API_URL()}remote/launch?experimentId=${experimentId}`,
   UploadRemote: () => `${API_URL()}remote/upload`,
