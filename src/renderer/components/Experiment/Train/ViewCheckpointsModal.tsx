@@ -133,7 +133,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                             size="sm"
                             variant="outlined"
                             onClick={() =>
-                              handleRestartFromCheckpoint(checkpoint.filename)
+                              handleRestartFromCheckpoint(checkpoint)
                             }
                             startDecorator={<PlayIcon />}
                           >
