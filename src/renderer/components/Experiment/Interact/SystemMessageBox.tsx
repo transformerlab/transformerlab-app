@@ -125,10 +125,12 @@ export default function SystemMessageBox({
         defaultPromptConfigForModel?.system_message ||
         '';
     } else {
+      // Disable override - remove flag and system_message field
       delete newPrompt.system_message_override;
       delete newPrompt.system_message;
     }
 
+    // Update state only after server call to avoid timing issues
     experimentInfoMutate(
       {
         ...experimentInfo,
@@ -141,6 +143,7 @@ export default function SystemMessageBox({
     );
 
     savePromptToServer(newPrompt);
+    // Note: setIsOverrideEnabled will be updated via useEffect when experimentInfoMutate triggers
   };
 
   const handleSystemMessageChange = (e: any) => {
