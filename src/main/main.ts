@@ -61,8 +61,13 @@ ipcMain.handle('getStoreValue', (event, key) => {
 });
 
 ipcMain.handle('setStoreValue', (event, key, value) => {
-  console.log('setting', key, value);
-  return store.set(key, value);
+  if (value === null || value === undefined) {
+    console.log('deleting', key);
+    return store.delete(key);
+  } else {
+    console.log('setting', key, value);
+    return store.set(key, value);
+  }
 });
 
 ipcMain.handle('deleteStoreValue', (event, key) => {
