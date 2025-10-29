@@ -332,43 +332,48 @@ export default function SelectExperimentMenu({ models }) {
             >
               {isLoading && <MenuItem>Loading...</MenuItem>}
               {data &&
-                data.map((experiment: any) => {
-                  return (
-                    <MenuItem
-                      selected={experimentInfo?.name === experiment.name}
-                      variant={
-                        experimentInfo?.name === experiment.name
-                          ? 'soft'
-                          : undefined
-                      }
-                      onClick={createHandleClose(experiment.name)}
-                      key={experiment.id}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      <span
-                        style={{
-                          overflow: 'hidden',
+                data
+                  .filter(
+                    (experiment) =>
+                      experiment.name && experiment.name.trim() !== '',
+                  )
+                  .map((experiment: any) => {
+                    return (
+                      <MenuItem
+                        selected={experimentInfo?.name === experiment.name}
+                        variant={
+                          experimentInfo?.name === experiment.name
+                            ? 'soft'
+                            : undefined
+                        }
+                        onClick={createHandleClose(experiment.name)}
+                        key={experiment.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
                           textOverflow: 'ellipsis',
+                          overflow: 'hidden',
                           whiteSpace: 'nowrap',
-                          flex: 1,
-                          minWidth: 0,
                         }}
-                        title={experiment.name}
                       >
-                        {experiment.name}
-                      </span>
-                      {experimentInfo?.name === experiment.name && (
-                        <CheckIcon style={{ marginLeft: 'auto' }} />
-                      )}
-                    </MenuItem>
-                  );
-                })}
+                        <span
+                          style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                          title={experiment.name}
+                        >
+                          {experiment.name}
+                        </span>
+                        {experimentInfo?.name === experiment.name && (
+                          <CheckIcon style={{ marginLeft: 'auto' }} />
+                        )}
+                      </MenuItem>
+                    );
+                  })}
             </Box>
             <Divider />
             <MenuItem onClick={() => setModalOpen(true)}>
