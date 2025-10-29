@@ -105,10 +105,7 @@ export default function SystemMessageBox({
         return true;
       })
       .catch(() => {
-        setIsSaving(false);
-        setHasEdited(false);
-        setSavingMessage('');
-        return false;
+        // Error saving prompt
       });
   };
 
