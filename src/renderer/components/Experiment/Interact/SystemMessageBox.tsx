@@ -105,22 +105,20 @@ export default function SystemMessageBox({
         return true;
       })
       .catch(() => {
-        // Error saving prompt
+        setIsSaving(false);
+        setHasEdited(false);
+        setSavingMessage('');
+        return false;
       });
   };
 
   const handleOverrideToggle = (checked: boolean) => {
-    let newPrompt = experimentInfo?.config?.prompt_template;
+    let currentPrompt = SafeJSONParse(
+      experimentInfo?.config?.prompt_template,
+      {},
+    );
 
-    // If undefined, initialize it as an empty object
-    if (newPrompt === undefined || newPrompt === null) {
-      newPrompt = {};
-    }
-
-    // Make new prompt as json
-    if (typeof newPrompt === 'string') {
-      newPrompt = JSON.parse(newPrompt);
-    }
+    let newPrompt = JSON.parse(JSON.stringify(currentPrompt));
 
     if (checked) {
       // Enable override - set flag and current custom message
@@ -130,14 +128,22 @@ export default function SystemMessageBox({
         defaultPromptConfigForModel?.system_message ||
         '';
     } else {
-      // Disable override - remove flag and system_message field
       delete newPrompt.system_message_override;
       delete newPrompt.system_message;
     }
 
-    // Update state only after server call to avoid timing issues
+    experimentInfoMutate(
+      {
+        ...experimentInfo,
+        config: {
+          ...experimentInfo.config,
+          prompt_template: newPrompt,
+        },
+      },
+      false,
+    );
+
     savePromptToServer(newPrompt);
-    // Note: setIsOverrideEnabled will be updated via useEffect when experimentInfoMutate triggers
   };
 
   const handleSystemMessageChange = (e: any) => {
@@ -152,23 +158,28 @@ export default function SystemMessageBox({
     // Store the message we're trying to save
     setSavingMessage(customSystemMessage);
 
-    let newPrompt = experimentInfo?.config?.prompt_template;
+    let currentPrompt = SafeJSONParse(
+      experimentInfo?.config?.prompt_template,
+      {},
+    );
 
-    // If undefined, initialize it as an empty object
-    if (newPrompt === undefined || newPrompt === null) {
-      newPrompt = {};
-    }
-
-    // Make new prompt as json
-    if (typeof newPrompt === 'string') {
-      newPrompt = JSON.parse(newPrompt);
-    }
+    let newPrompt = JSON.parse(JSON.stringify(currentPrompt));
 
     // Preprocess system message to replace date placeholders
     const processedMessage = preprocessSystemMessage(customSystemMessage);
 
     newPrompt.system_message_override = true;
     newPrompt.system_message = processedMessage;
+    experimentInfoMutate(
+      {
+        ...experimentInfo,
+        config: {
+          ...experimentInfo.config,
+          prompt_template: newPrompt,
+        },
+      },
+      false,
+    );
 
     savePromptToServer(newPrompt);
 
