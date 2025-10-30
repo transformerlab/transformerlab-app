@@ -150,7 +150,11 @@ export default function Tasks() {
     const existingIds = new Set((jobs as any[]).map((j: any) => String(j.id)));
     const stillPending = pending.filter((id) => !existingIds.has(String(id)));
     // eslint-disable-next-line no-console
-    console.log('[Tasks] prune pending vs jobs', { jobsCount: jobs?.length, pending, stillPending });
+    console.log('[Tasks] prune pending vs jobs', {
+      jobsCount: jobs?.length,
+      pending,
+      stillPending,
+    });
     if (stillPending.length !== pending.length) {
       setPendingJobIds(stillPending);
     }

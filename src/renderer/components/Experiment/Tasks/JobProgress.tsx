@@ -129,7 +129,12 @@ export default function JobProgress({ job }: JobProps) {
             </Chip>
           </Stack>
           <Skeleton variant="text" level="body-sm" width={180} />
-          <Skeleton variant="rectangular" width={220} height={10} sx={{ my: 0.5 }} />
+          <Skeleton
+            variant="rectangular"
+            width={220}
+            height={10}
+            sx={{ my: 0.5 }}
+          />
         </>
       ) : job?.status === 'LAUNCHING' ? (
         <>
