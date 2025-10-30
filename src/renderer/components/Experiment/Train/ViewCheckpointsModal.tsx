@@ -72,8 +72,12 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                     <tr>
                       <th width="50px">#</th>
                       <th>Checkpoint</th>
-                      <th>Date</th>
-                      <th width="100px">Size</th>
+                      {data?.checkpoints?.some((cp) => cp.date) && (
+                        <th>Date</th>
+                      )}
+                      {data?.checkpoints?.some((cp) => cp.size) && (
+                        <th width="100px">Size</th>
+                      )}
                       <th style={{ textAlign: 'right' }}>&nbsp;</th>
                     </tr>
                   </thead>
@@ -90,8 +94,20 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                             {checkpoint.filename}
                           </Typography>
                         </td>
-                        <td>{new Date(checkpoint.date).toLocaleString()}</td>
-                        <td>{formatBytes(checkpoint.size)}</td>
+                        {data?.checkpoints?.some((cp) => cp.date) && (
+                          <td>
+                            {checkpoint.date
+                              ? new Date(checkpoint.date).toLocaleString()
+                              : '-'}
+                          </td>
+                        )}
+                        {data?.checkpoints?.some((cp) => cp.size) && (
+                          <td>
+                            {checkpoint.size
+                              ? formatBytes(checkpoint.size)
+                              : '-'}
+                          </td>
+                        )}
                         <td style={{ textAlign: 'right' }}>
                           <Button
                             size="sm"
