@@ -8,7 +8,13 @@ import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import Textarea from '@mui/joy/Textarea';
-import { FormHelperText, ModalClose, ModalDialog } from '@mui/joy';
+import {
+  FormHelperText,
+  ModalClose,
+  ModalDialog,
+  Checkbox,
+  Alert,
+} from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 
@@ -40,6 +46,7 @@ type NewTaskModalProps = {
     setup?: string;
     uploaded_dir_path?: string;
     local_upload_copy?: string;
+    shutdown_after_completion?: boolean;
   }) => void;
   isSubmitting?: boolean;
 };
@@ -63,6 +70,8 @@ export default function NewTaskModal({
   const [setup, setSetup] = React.useState('');
   const [uploadedDirPath, setUploadedDirPath] = React.useState('');
   const [localUploadCopy, setLocalUploadCopy] = React.useState('');
+  const [shutdownAfterCompletion, setShutdownAfterCompletion] =
+    React.useState(false);
   // keep separate refs for the two Monaco editors
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -92,6 +101,7 @@ export default function NewTaskModal({
       setup: setupValue,
       uploaded_dir_path: uploadedDirPath || undefined,
       local_upload_copy: localUploadCopy || undefined,
+      shutdown_after_completion: shutdownAfterCompletion,
     });
     // Reset all form fields
     setTitle('');
@@ -104,6 +114,7 @@ export default function NewTaskModal({
     setNumNodes('');
     setSetup('');
     setUploadedDirPath('');
+    setShutdownAfterCompletion(false);
     // clear editor contents if mounted
     try {
       setupEditorRef?.current?.setValue?.('');
@@ -282,6 +293,27 @@ export default function NewTaskModal({
               onUploadError={(error) => console.error('Upload error:', error)}
               disabled={isSubmitting}
             />
+
+            <FormControl sx={{ mt: 2 }}>
+              <Checkbox
+                checked={shutdownAfterCompletion}
+                onChange={(e) => setShutdownAfterCompletion(e.target.checked)}
+                label="Shutdown machine after execution"
+              />
+              <FormHelperText>
+                When enabled, the remote instance will be automatically shut
+                down after the task completes.
+              </FormHelperText>
+            </FormControl>
+
+            {shutdownAfterCompletion && (
+              <Alert color="warning" sx={{ mt: 1 }}>
+                <strong>Warning:</strong> This will destroy all data on the
+                remote machine that is not logged or saved elsewhere. Make sure
+                Make sure to save any important results before the task
+                completes.
+              </Alert>
+            )}
           </DialogContent>
           <DialogActions>
             <Button
