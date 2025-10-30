@@ -24,6 +24,12 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
   );
 
   const handleRestartFromCheckpoint = async (checkpoint) => {
+    // Show immediate feedback
+    addNotification({
+      type: 'warning',
+      message: 'Starting training resume from checkpoint...',
+    });
+
     try {
       const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Jobs.ResumeFromCheckpoint(jobId),
@@ -41,6 +47,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
 
       if (response.ok) {
         const result = await response.json();
+        console.log('Resume from checkpoint response:', result);
         addNotification({
           type: 'success',
           message: `Training resumed successfully! New job ID: ${result.job_id}`,
