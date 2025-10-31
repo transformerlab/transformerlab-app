@@ -96,7 +96,7 @@ function SkeletonRows({ isLoading }) {
 }
 
 export default function Logs({}) {
-  const { data, isLoading, mutate } = useSWR(
+  const { data, isLoading, mutate, error } = useSWR(
     chatAPI.Endpoints.Global.PromptLog,
     fetcher,
   );
@@ -106,6 +106,26 @@ export default function Logs({}) {
     const ae = document.getElementById('logs_accordion');
     ae.scrollTop = ae.scrollHeight;
   });
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <SkeletonRows isLoading={isLoading} />;
+    }
+
+    if (error) {
+      return <Typography>Error loading logs: {error.message}</Typography>;
+    }
+
+    if (!data || typeof data !== 'string' || data.trim() === '') {
+      return (
+        <Typography level="body-md" color="neutral">
+          No logs available
+        </Typography>
+      );
+    }
+
+    return <AccordionGroup>{renderJSONLinesLog(data)}</AccordionGroup>;
+  };
 
   return (
     <Sheet
@@ -126,7 +146,6 @@ export default function Logs({}) {
           <RotateCcwIcon style={{ width: '18px', height: '18px' }} />
         </IconButton>
       </Stack>
-      <SkeletonRows isLoading={isLoading} />
       <Box
         id="logs_accordion"
         style={{
@@ -136,7 +155,7 @@ export default function Logs({}) {
           flexDirection: 'column',
         }}
       >
-        <AccordionGroup>{renderJSONLinesLog(data)}</AccordionGroup>
+        {renderContent()}
       </Box>
     </Sheet>
   );
