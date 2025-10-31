@@ -1,12 +1,13 @@
 import {
   Box,
+  Button,
   Chip,
   IconButton,
   LinearProgress,
   Stack,
   Typography,
 } from '@mui/joy';
-import { CircleCheckIcon, StopCircleIcon } from 'lucide-react';
+import { CircleCheckIcon, StopCircleIcon, FileTextIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
@@ -18,6 +19,7 @@ import {
   ProgressState,
 } from 'renderer/lib/orchestrator-log-parser';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import OrchestratorLogsModal from './OrchestratorLogsModal';
 
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
@@ -44,6 +46,7 @@ export default function JobProgress({ job }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const [orchestratorProgress, setOrchestratorProgress] =
     useState<ProgressState | null>(null);
+  const [showLogsModal, setShowLogsModal] = useState(false);
 
   const logParserRef = useRef<OrchestratorLogParser | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -191,6 +194,18 @@ export default function JobProgress({ job }: JobProps) {
             >
               {job.status}
             </Chip>
+            {job?.type === 'REMOTE' &&
+              job?.job_data?.orchestrator_request_id && (
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  color="neutral"
+                  startDecorator={<FileTextIcon size={16} />}
+                  onClick={() => setShowLogsModal(true)}
+                >
+                  View Logs
+                </Button>
+              )}
           </Stack>
           {job?.job_data?.start_time && (
             <>
@@ -442,6 +457,13 @@ export default function JobProgress({ job }: JobProps) {
           </>
         </Stack>
       )}
+
+      {/* Orchestrator Logs Modal */}
+      <OrchestratorLogsModal
+        requestId={job?.job_data?.orchestrator_request_id || null}
+        open={showLogsModal}
+        onClose={() => setShowLogsModal(false)}
+      />
     </Stack>
   );
 }
