@@ -125,13 +125,13 @@ export default function JobProgress({ job }: JobProps) {
                   cleanLogLine.includes(
                     'error: failed to provision all possible launchable resources',
                   ) ||
-                  (cleanLogLine.includes("error: current 'sky.launch' request") &&
+                  (cleanLogLine.includes(
+                    "error: current 'sky.launch' request",
+                  ) &&
                     cleanLogLine.includes('is cancelled by another process'))
                 ) {
-
                   // Update job status to FAILED
                   if (experimentInfo?.id && job?.id) {
-
                     try {
                       const response = await chatAPI.authenticatedFetch(
                         chatAPI.Endpoints.Jobs.Update(
@@ -141,7 +141,10 @@ export default function JobProgress({ job }: JobProps) {
                         ),
                       );
                     } catch (error) {
-                      console.error('[API CALL] Failed to update job status:', error);
+                      console.error(
+                        '[API CALL] Failed to update job status:',
+                        error,
+                      );
                     }
                   } else {
                     console.error(
