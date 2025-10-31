@@ -46,38 +46,94 @@ export default function JobProgress({ job }: JobProps) {
     useState<ProgressState | null>(null);
 
   const logParserRef = useRef<OrchestratorLogParser | null>(null);
-  const pollingIntervalRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const startLogPolling = useCallback(async () => {
+  const startLogStreaming = useCallback(async () => {
     if (!job?.job_data?.orchestrator_request_id) return;
 
-    const pollLogs = async () => {
-      try {
-        const response = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Jobs.GetLogs(job.job_data?.orchestrator_request_id),
-        );
+    try {
+      // Cancel any existing stream
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
 
-        if (response.ok) {
-          const responseData = await response.json();
-          if (logParserRef.current && responseData.data) {
-            const progressState = logParserRef.current.parseLogData(
-              responseData.data,
-            );
-            setOrchestratorProgress(progressState);
+      // Create new abort controller for this stream
+      abortControllerRef.current = new AbortController();
+
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.GetLogs(job.job_data?.orchestrator_request_id),
+        {
+          signal: abortControllerRef.current.signal,
+        },
+      );
+
+      if (!response.ok) {
+        console.error('Failed to start log stream:', response.status);
+        return;
+      }
+
+      // Read the stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) return;
+
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        // Decode the chunk and add to buffer
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+
+        // Process complete SSE messages (lines ending with \n\n)
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep incomplete message in buffer
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          // Parse SSE format: "data: {...}"
+          const dataMatch = line.match(/^data: (.+)$/m);
+          if (dataMatch) {
+            try {
+              const data = JSON.parse(dataMatch[1]);
+
+              if (data.log_line && logParserRef.current) {
+                // Process the individual log line in real-time
+                const progressState = logParserRef.current.processLogLine(
+                  data.log_line,
+                );
+                setOrchestratorProgress(progressState);
+              }
+
+              if (data.status === 'completed') {
+                console.log('Log streaming completed');
+                break;
+              }
+
+              if (data.error) {
+                console.error('Stream error:', data.error);
+                break;
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
           }
         }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('Error fetching orchestrator logs:', error);
       }
-    };
-
-    // Poll immediately and then every 2 seconds
-    await pollLogs();
-    pollingIntervalRef.current = setInterval(
-      pollLogs,
-      2000,
-    ) as unknown as number;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Log streaming aborted');
+      } else {
+        console.error('Error streaming orchestrator logs:', error);
+      }
+    }
   }, [job?.job_data?.orchestrator_request_id]);
 
   // Initialize log parser for remote jobs
@@ -87,15 +143,17 @@ export default function JobProgress({ job }: JobProps) {
         logParserRef.current = new OrchestratorLogParser();
       }
 
-      // Start polling for logs if job is in LAUNCHING or RUNNING state
-      if (job.status === 'LAUNCHING' || job.status === 'RUNNING') {
-        startLogPolling();
+      // Start streaming logs only during LAUNCHING state
+      // When status changes to RUNNING, the cleanup will abort the stream
+      if (job.status === 'LAUNCHING') {
+        startLogStreaming();
       }
     }
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+      // Abort the stream when component unmounts or status changes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, [
@@ -103,7 +161,7 @@ export default function JobProgress({ job }: JobProps) {
     job?.status,
     job?.type,
     job?.job_data?.orchestrator_request_id,
-    startLogPolling,
+    startLogStreaming,
   ]);
 
   // Debug job data
