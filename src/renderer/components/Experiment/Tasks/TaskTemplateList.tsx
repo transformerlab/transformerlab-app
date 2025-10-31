@@ -34,6 +34,7 @@ type TaskTemplateListProps = {
   onDeleteTask: (taskId: string) => void;
   onQueueTask: (task: TaskRow) => void;
   onEditTask: (task: TaskRow) => void;
+  onSelectInstance?: (task: TaskRow, instance: any) => void;
 };
 
 const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
@@ -41,6 +42,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onDeleteTask,
   onQueueTask,
   onEditTask,
+  onSelectInstance,
 }) => {
   const [instances, setInstances] = useState<any[]>([]);
   const [loadingInstances, setLoadingInstances] = useState(false);
@@ -136,9 +138,10 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     }
   };
 
-  const handleInstanceSelect = (instance: any) => {
-    // For now, do nothing when an instance is selected
-    console.log('Selected instance:', instance);
+  const handleInstanceSelect = (task: TaskRow, instance: any) => {
+    if (onSelectInstance) {
+      onSelectInstance(task, instance);
+    }
   };
 
   return (
@@ -201,7 +204,7 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                         return (
                           <MenuItem
                             key={instance.cluster_name}
-                            onClick={() => handleInstanceSelect(instance)}
+                            onClick={() => handleInstanceSelect(row, instance)}
                             sx={{
                               display: 'flex',
                               flexDirection: 'column',
