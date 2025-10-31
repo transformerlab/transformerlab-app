@@ -31,17 +31,16 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
     });
 
     try {
+      const formData = new FormData();
+      formData.append('experimentId', experimentInfo?.id);
+      formData.append('checkpoint', checkpoint.filename);
+      formData.append('parent_job_id', jobId);
+
       const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.ResumeFromCheckpoint(jobId),
+        chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo?.id),
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            checkpoint_name: checkpoint.filename,
-            experimentId: experimentInfo?.id,
-          }),
+          body: formData,
         },
       );
 
