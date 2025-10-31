@@ -147,7 +147,7 @@ export default function EditTaskModal({
       return;
     }
     setSaving(true);
-    
+
     // Preserve existing config and only update editable fields
     const existingConfig = SafeJSONParse(task.config, {});
     const config = {
