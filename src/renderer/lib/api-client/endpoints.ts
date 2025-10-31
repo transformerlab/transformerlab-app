@@ -455,6 +455,8 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/delete/${jobId}`,
   Stop: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
+  Update: (experimentId: string, jobId: string, status: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/update/${jobId}?status=${status}`,
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
   CreateRemoteJob: (experimentId: string) =>
