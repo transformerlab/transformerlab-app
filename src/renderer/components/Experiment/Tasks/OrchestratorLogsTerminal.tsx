@@ -17,7 +17,9 @@ interface OrchestratorLogsTerminalProps {
   requestId: string;
 }
 
-const OrchestratorLogsTerminal = ({ requestId }: OrchestratorLogsTerminalProps) => {
+const OrchestratorLogsTerminal = ({
+  requestId,
+}: OrchestratorLogsTerminalProps) => {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddon = useRef(new FitAddon());
@@ -184,4 +186,3 @@ const OrchestratorLogsTerminal = ({ requestId }: OrchestratorLogsTerminalProps) 
 };
 
 export default OrchestratorLogsTerminal;
-

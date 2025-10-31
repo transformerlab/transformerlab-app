@@ -82,11 +82,12 @@ export default function JobProgress({ job }: JobProps) {
       if (!reader) return;
 
       let buffer = '';
+      let shouldStopStream = false;
 
       while (true) {
         const { done, value } = await reader.read();
 
-        if (done) {
+        if (done || shouldStopStream) {
           break;
         }
 
@@ -113,15 +114,60 @@ export default function JobProgress({ job }: JobProps) {
                   data.log_line,
                 );
                 setOrchestratorProgress(progressState);
+
+                // Check for critical errors that should fail the job
+                // Strip ANSI codes first (e.g., \u001b[31m for colors)
+                const stripAnsi = (str: string) =>
+                  str.replace(/\u001b\[[0-9;]*m/g, '');
+                const cleanLogLine = stripAnsi(data.log_line).toLowerCase();
+
+                if (
+                  cleanLogLine.includes(
+                    'error: failed to provision all possible launchable resources',
+                  ) ||
+                  (cleanLogLine.includes("error: current 'sky.launch' request") &&
+                    cleanLogLine.includes('is cancelled by another process'))
+                ) {
+
+                  // Update job status to FAILED
+                  if (experimentInfo?.id && job?.id) {
+
+                    try {
+                      const response = await chatAPI.authenticatedFetch(
+                        chatAPI.Endpoints.Jobs.Update(
+                          experimentInfo.id,
+                          job.id,
+                          'FAILED',
+                        ),
+                      );
+                    } catch (error) {
+                      console.error('[API CALL] Failed to update job status:', error);
+                    }
+                  } else {
+                    console.error(
+                      '[API CALL] Missing required data:',
+                      'experimentInfo.id:',
+                      experimentInfo?.id,
+                      'job.id:',
+                      job?.id,
+                    );
+                  }
+
+                  // Stop streaming
+                  shouldStopStream = true;
+                  break;
+                }
               }
 
               if (data.status === 'completed') {
                 console.log('Log streaming completed');
+                shouldStopStream = true;
                 break;
               }
 
               if (data.error) {
                 console.error('Stream error:', data.error);
+                shouldStopStream = true;
                 break;
               }
             } catch (e) {
