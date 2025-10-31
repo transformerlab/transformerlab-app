@@ -37,6 +37,7 @@ import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import { formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { downloadModelFromGallery } from '../../lib/transformerlab-api-sdk';
+import { useDebounce } from 'use-debounce';
 
 function getModelHuggingFaceURL(model) {
   const repo_id = model.huggingface_repo ? model.huggingface_repo : model.id;
@@ -178,6 +179,7 @@ export default function ModelGroups({ experimentInfo }) {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const [groupSearchText, setGroupSearchText] = useState('');
+  const [debouncedGroupSearchText] = useDebounce(groupSearchText, 300);
   const [showFilters, setShowFilters] = useState(false);
 
   const {
@@ -361,7 +363,7 @@ export default function ModelGroups({ experimentInfo }) {
             <Input
               placeholder="Search"
               value={groupSearchText}
-              onChange={(e) => setGroupSearchText(e.target.value)}
+              onChange={(e) => setGroupSearchText(e.target.value)} // Update state directly
               startDecorator={<SearchIcon />}
               size="sm"
             />
@@ -377,9 +379,9 @@ export default function ModelGroups({ experimentInfo }) {
           >
             {[...groupData]
               .filter((group) => {
-                if (!groupSearchText) return true;
+                if (!debouncedGroupSearchText) return true;
 
-                const searchLower = groupSearchText.toLowerCase();
+                const searchLower = debouncedGroupSearchText.toLowerCase();
 
                 // Search in group properties
                 const groupFields = [
@@ -411,11 +413,6 @@ export default function ModelGroups({ experimentInfo }) {
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((group) => {
                 const isSelected = selectedGroup?.name === group.name;
-                let isImageModel = false;
-                // isImageModel is true if "Image Generation" is in the tags array:
-                if (group.tags?.includes('Image Generation')) {
-                  isImageModel = true;
-                }
                 return (
                   <Button
                     key={group.name}
