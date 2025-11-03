@@ -5,6 +5,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
 import { jobChipColor } from 'renderer/lib/utils';
 import { useEffect } from 'react';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
@@ -27,6 +28,7 @@ interface JobProps {
 }
 
 export default function JobProgress({ job }: JobProps) {
+  const { experimentInfo } = useExperimentInfo();
   // Debug job data
   useEffect(() => {}, [job]);
 
@@ -61,7 +63,9 @@ export default function JobProgress({ job }: JobProps) {
               color="danger"
               onClick={async () => {
                 confirm('Are you sure you want to stop this job?') &&
-                  (await fetch(chatAPI.Endpoints.Jobs.Stop(job.id)));
+                  (await fetch(
+                    chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
+                  ));
               }}
             >
               <StopCircleIcon size="20px" />

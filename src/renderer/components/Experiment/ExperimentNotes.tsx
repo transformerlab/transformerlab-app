@@ -12,6 +12,8 @@ import remarkGfm from 'remark-gfm';
 // import monakai from 'monaco-themes/themes/Monokai Bright.json';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { authenticatedFetch } from 'renderer/lib/api-client/functions';
 import { PencilIcon, TypeOutline } from 'lucide-react';
 import { Box, Button, Typography } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
@@ -25,8 +27,6 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.defineTheme('my-theme', themeData);
   monaco.editor.setTheme('my-theme');
 }
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 export default function ExperimentNotes({}) {
   const editorRef = useRef(null);
@@ -63,15 +63,22 @@ export default function ExperimentNotes({}) {
       value = ' ';
     }
 
-    // Use fetch to post the value to the server
-    fetch(
+    // Use authenticatedFetch to post the value to the server with proper authentication
+    authenticatedFetch(
       chatAPI.Endpoints.Experiment.SaveFile(experimentInfo.id, 'readme.md'),
       {
         method: 'POST',
         body: value,
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        credentials: 'include',
       },
     )
-      .then(() => {
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
         mutate();
         setIsEditing(false);
         return true;

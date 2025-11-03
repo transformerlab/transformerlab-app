@@ -27,6 +27,7 @@ import {
   CircularProgress,
   ListItemDecorator,
   Stack,
+  Skeleton, // added Skeleton import
 } from '@mui/joy';
 
 import {
@@ -53,6 +54,7 @@ import { FaRegFilePdf } from 'react-icons/fa6';
 import { LuFileJson } from 'react-icons/lu';
 import TinyButton from 'renderer/components/Shared/TinyButton';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
@@ -71,13 +73,14 @@ function RowMenu({ experimentInfo, filename, foldername, mutate, row }) {
         <MenuItem
           color="danger"
           onClick={() => {
-            fetch(
-              chatAPI.Endpoints.Documents.Delete(
-                experimentInfo?.id,
-                filename,
-                foldername,
-              ),
-            )
+            chatAPI
+              .authenticatedFetch(
+                chatAPI.Endpoints.Documents.Delete(
+                  experimentInfo?.id,
+                  filename,
+                  foldername,
+                ),
+              )
               .then((response) => {
                 if (response.ok) {
                   console.log(response);
@@ -311,7 +314,6 @@ function stableSort<T>(
   return stabilizedThis?.map((el) => el[0]);
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
 type Order = 'asc' | 'desc';
 
 export default function Documents({
@@ -360,13 +362,14 @@ export default function Documents({
   );
 
   const uploadFiles = async (currentFolder, formData) => {
-    fetch(
-      chatAPI.Endpoints.Documents.Upload(experimentInfo?.id, currentFolder),
-      {
-        method: 'POST',
-        body: formData,
-      },
-    )
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Documents.Upload(experimentInfo?.id, currentFolder),
+        {
+          method: 'POST',
+          body: formData,
+        },
+      )
       .then((response) => {
         if (response.ok) {
           return response.json();
@@ -385,7 +388,7 @@ export default function Documents({
 
   const createFolder = async (name: string) => {
     try {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Documents.CreateFolder(experimentInfo?.id, name),
         {
           method: 'POST',
@@ -534,21 +537,22 @@ export default function Documents({
                   .map((url) => url.trim())
                   .filter((url) => url && url.includes('://'));
                 if (validUrls.length > 0) {
-                  fetch(
-                    chatAPI.Endpoints.Documents.UploadLinks(
-                      experimentInfo?.id,
-                      currentFolder,
-                    ),
-                    {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
+                  chatAPI
+                    .authenticatedFetch(
+                      chatAPI.Endpoints.Documents.UploadLinks(
+                        experimentInfo?.id,
+                        currentFolder,
+                      ),
+                      {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          urls: validUrls,
+                        }),
                       },
-                      body: JSON.stringify({
-                        urls: validUrls,
-                      }),
-                    },
-                  )
+                    )
                     .then((response) => {
                       if (!response.ok)
                         throw new Error('Failed to add webpages');
@@ -823,6 +827,18 @@ export default function Documents({
                   </tr>
                 </thead>
                 <tbody>
+                  {isLoading && (
+                    <tr>
+                      <td
+                        colSpan={fullPage ? 5 : 2}
+                        style={{ padding: '1rem', height: '100px' }}
+                      >
+                        <Skeleton variant="text" />
+                        <Skeleton variant="text" />
+                        <Skeleton variant="text" />
+                      </td>
+                    </tr>
+                  )}
                   {rows?.status == 'error' && (
                     <tr>
                       <td colSpan={2}>{/*rows?.message*/}</td>
@@ -830,9 +846,7 @@ export default function Documents({
                   )}
                   {rows?.length == 0 && (
                     <tr>
-                      <td colSpan={2} style={{ padding: '2rem' }}>
-                        Drag and drop documents here to query their contents.
-                      </td>
+                      <td colSpan={2} style={{ padding: '2rem' }}></td>
                     </tr>
                   )}
                   {stableSort(rows, getComparator(order, 'name'))?.map((row) =>
@@ -871,7 +885,9 @@ export default function Documents({
           color="neutral"
           variant="outlined"
           onClick={() => {
-            fetch(chatAPI.Endpoints.Rag.ReIndex(experimentInfo?.id));
+            chatAPI.authenticatedFetch(
+              chatAPI.Endpoints.Rag.ReIndex(experimentInfo?.id),
+            );
           }}
         >
           Reindex

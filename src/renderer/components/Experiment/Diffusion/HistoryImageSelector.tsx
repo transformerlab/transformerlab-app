@@ -16,6 +16,7 @@ import {
   CardOverflow,
   AspectRatio,
 } from '@mui/joy';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { ChevronLeftIcon, ChevronRightIcon, CheckIcon } from 'lucide-react';
 import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { HistoryImage } from './types';
@@ -36,11 +37,12 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const pageSize = 12;
   const offset = (currentPage - 1) * pageSize;
+  const { experimentId } = useExperimentInfo();
 
   const { data: historyData, isLoading: historyLoading } = useAPI(
     'diffusion',
     ['getHistory'],
-    { limit: pageSize, offset },
+    { experimentId, limit: pageSize, offset },
   );
 
   // Reset selection when changing pages
@@ -63,6 +65,7 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
         getAPIFullPath('diffusion', ['getImage'], {
           imageId: selectedImageId,
           index: selectedImageIndex,
+          experimentId,
         }),
       );
 
@@ -112,6 +115,7 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
               src={getAPIFullPath('diffusion', ['getImage'], {
                 imageId: item.id,
                 index: displayIndex,
+                experimentId,
               })}
               alt={item.prompt}
               style={{ objectFit: 'cover' }}

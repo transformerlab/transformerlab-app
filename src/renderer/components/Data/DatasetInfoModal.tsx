@@ -19,7 +19,7 @@ import {
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../lib/transformerlab-api-sdk';
 
 export default function DatasetInfoModal({ dataset_id, open, setOpen }) {
   const { data, error, isLoading, mutate } = useSWR(

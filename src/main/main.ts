@@ -459,7 +459,7 @@ const appAboutOptions = {
   applicationVersion: app.getVersion(),
   credits: 'Made by @aliasaria and @dadmobile',
   authors: ['Ali Asaria', 'Tony Salomone'],
-  website: 'https://transformerlab.ai',
+  website: 'https://lab.cloud/',
   // iconPath: path.join(__dirname, 'assets/icon.png'),
 };
 app.setAboutPanelOptions(appAboutOptions);

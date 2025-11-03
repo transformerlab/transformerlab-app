@@ -7,7 +7,7 @@ import DataStore from './DataStore';
 import LocalDatasets from './LocalDatasets';
 import GeneratedDatasets from './GeneratedDatasets';
 
-export default function Data() {
+export default function Data({ gpuOrchestrationServer = '' }) {
   return (
     <Sheet sx={{ display: 'flex', height: '100%' }}>
       <Tabs
@@ -24,10 +24,12 @@ export default function Data() {
         <TabList>
           <Tab>Local Datasets</Tab>
           <Tab>Generated Datasets</Tab>
-          <Tab>
-            <StoreIcon color="grey" />
-            &nbsp; Dataset Store
-          </Tab>
+          {gpuOrchestrationServer === '' && (
+            <Tab>
+              <StoreIcon color="grey" />
+              &nbsp; Dataset Store
+            </Tab>
+          )}
         </TabList>
         <TabPanel value={0} sx={{ overflow: 'hidden' }}>
           <LocalDatasets />

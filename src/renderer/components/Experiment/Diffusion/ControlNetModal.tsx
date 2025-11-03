@@ -14,6 +14,7 @@ import {
 import { DownloadIcon, TrashIcon, X } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 export default function ControlNetModal({
   open,
@@ -22,11 +23,12 @@ export default function ControlNetModal({
   onSelect,
 }) {
   const [controlNets, setControlNets] = useState<string[]>([]);
+  const { experimentId } = useExperimentInfo();
 
   const refresh = async () => {
     try {
-      const response = await fetch(
-        getAPIFullPath('diffusion', ['listControlnets'], {}),
+      const response = await chatAPI.authenticatedFetch(
+        getAPIFullPath('diffusion', ['listControlnets'], { experimentId }),
       );
       const models = await response.json();
       const names = (models.controlnets || []).map(
@@ -44,7 +46,7 @@ export default function ControlNetModal({
   }, [open]);
 
   const handleDelete = async (id: string) => {
-    await fetch(chatAPI.Endpoints.Models.Delete(id, true));
+    await chatAPI.authenticatedFetch(chatAPI.Endpoints.Models.Delete(id, true));
     if (selectedControlnet === id) onSelect('off');
     refresh();
   };

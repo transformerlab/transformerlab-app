@@ -11,8 +11,7 @@ import {
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OutputTerminal from 'renderer/components/OutputTerminal';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 interface ViewOutputModalStreamingProps {
   jobId: number;
@@ -27,19 +26,30 @@ export default function ViewOutputModalStreaming({
   fileName,
   setFileName,
 }: ViewOutputModalStreamingProps) {
+  const { experimentInfo } = useExperimentInfo();
+  if (!experimentInfo) return null;
   const logEndpoint =
     fileName !== ''
       ? chatAPI.Endpoints.Experiment.StreamDetailedJSONReportFromJob(
+          experimentInfo.id,
           jobId,
           fileName,
         )
-      : chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
-  const title_sentence =
+      : chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+          experimentInfo.id,
+          jobId,
+        );
+  const titleSentence =
     fileName !== '' ? 'Detailed Report for Job' : 'Output from Job';
 
   const handleDownload = async () => {
-    const response = await fetch(
-      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId, 'download'),
+    if (!experimentInfo) return;
+    const response = await chatAPI.authenticatedFetch(
+      chatAPI.Endpoints.Experiment.GetAdditionalDetails(
+        experimentInfo.id,
+        jobId,
+        'download',
+      ),
     );
     const blob = await response.blob();
     const url = URL.createObjectURL(blob);
@@ -71,7 +81,7 @@ export default function ViewOutputModalStreaming({
           }}
         >
           <Typography level="h4" mb={2}>
-            {title_sentence} {jobId}
+            {titleSentence} {jobId}
           </Typography>
           {fileName !== '' && (
             <Button

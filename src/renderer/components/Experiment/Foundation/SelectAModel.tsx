@@ -18,7 +18,7 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { modelTypes, licenseTypes } from '../../../lib/utils';
 import LocalModelsTable from 'renderer/components/ModelZoo/LocalModelsTable';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 export default function SelectAModel({
   experimentInfo,

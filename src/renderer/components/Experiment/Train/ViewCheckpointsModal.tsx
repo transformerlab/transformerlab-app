@@ -10,12 +10,14 @@ import {
 import { PlayIcon } from 'lucide-react';
 import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
+  const { experimentInfo } = useExperimentInfo();
   const { data, isLoading: checkpointsLoading } = useAPI(
     'jobs',
     ['getCheckpoints'],
-    { jobId },
+    { jobId, experimentId: experimentInfo?.id },
   );
 
   const { data: jobData } = useAPI('jobs', ['get'], { id: jobId });
@@ -57,22 +59,26 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
               Checkpoints for Job {jobId}
             </Typography>
 
-            {/* <pre>{JSON.stringify(jobData, null, 2)}</pre> */}
-
-            {!checkpointsLoading && data && (
-              <Box sx={{ mb: 2 }}>
-                <Typography level="body-md">
-                  <strong>Model:</strong> {data.model_name}
-                </Typography>
-                <Typography level="body-md">
-                  <strong>Adaptor:</strong> {data.adaptor_name}
-                </Typography>
-                <Typography level="body-md">
-                  <strong>Template:</strong>{' '}
-                  {jobData?.job_data?.template_name || ''} ({templateId || ''})
-                </Typography>
-              </Box>
-            )}
+            {!checkpointsLoading &&
+              data &&
+              (data.model_name || data.adaptor_name) && (
+                <Box sx={{ mb: 2 }}>
+                  {data.model_name && (
+                    <Typography level="body-md">
+                      <strong>Model:</strong> {data.model_name}
+                    </Typography>
+                  )}
+                  {data.adaptor_name && (
+                    <Typography level="body-md">
+                      <strong>Adaptor:</strong> {data.adaptor_name}
+                    </Typography>
+                  )}
+                  <Typography level="body-md">
+                    <strong>Template:</strong>{' '}
+                    {jobData?.job_data?.template_name || ''} ({templateId || ''})
+                  </Typography>
+                </Box>
+              )}
 
             {checkpointsLoading ? (
               <Typography level="body-md">Loading checkpoints...</Typography>

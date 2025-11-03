@@ -6,8 +6,8 @@ import { Box, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from 'renderer/lib/api-client/urls';
 import OutputTerminal from 'renderer/components/OutputTerminal';
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 interface ViewOutputModalStreamingProps {
   jobId: string | number;
@@ -30,15 +30,23 @@ export default function ViewOutputModalStreaming({
   jobId,
   setJobId,
 }: ViewOutputModalStreamingProps) {
-  const { data: jobDetails } = useSWR<JobDetails>(
-    jobId && jobId !== -1 ? chatAPI.Endpoints.Jobs.Get(jobId) : null,
-    fetcher,
-    { refreshInterval: 2000 },
-  );
+  const { experimentInfo } = useExperimentInfo();
+
+  const jobDetailsUrl =
+    experimentInfo && jobId && jobId !== -1
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
+      : null;
+
+  const { data: jobDetails } = useSWR<JobDetails>(jobDetailsUrl, fetcher, {
+    refreshInterval: 2000,
+  });
 
   // // Create a custom endpoint for export job output
-  const outputEndpoint =
-    chatAPI.Endpoints.Experiment.StreamOutputFromJob(jobId);
+  const outputEndpoint = experimentInfo
+    ? chatAPI.Endpoints.Experiment.StreamOutputFromJob(experimentInfo.id, jobId)
+    : null;
+
+  if (!experimentInfo) return null;
 
   return (
     <Modal open={jobId !== -1} onClose={() => setJobId(-1)}>

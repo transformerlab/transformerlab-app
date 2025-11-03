@@ -23,8 +23,7 @@ import { generateFriendlyName } from 'renderer/lib/utils';
 import DynamicPluginForm from '../DynamicPluginForm';
 import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
   const { data, error, isLoading } = useSWR(
@@ -40,7 +39,7 @@ function PluginIntroduction({ experimentInfo, pluginId }) {
     <Markdown remarkPlugins={[remarkGfm]} className="editableSheetContent">
       {data && data !== 'FILE NOT FOUND'
         ? data
-        : 'No description for this plugin is availabe.'}
+        : 'No description for this plugin is available.'}
     </Markdown>
   );
 }
@@ -58,14 +57,17 @@ async function updateTask(
     config,
     outputs,
   };
-  const response = await fetch(chatAPI.Endpoints.Tasks.UpdateTask(task_id), {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
+  const response = await chatAPI.authenticatedFetch(
+    chatAPI.Endpoints.Tasks.UpdateTask(task_id),
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(configBody),
     },
-    body: JSON.stringify(configBody),
-  });
+  );
   const result = await response.json();
   return result;
 }
@@ -87,14 +89,17 @@ async function createNewTask(
     outputs,
     type: 'EVAL',
   };
-  const response = await fetch(chatAPI.Endpoints.Tasks.NewTask(), {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
+  const response = await chatAPI.authenticatedFetch(
+    chatAPI.Endpoints.Tasks.NewTask(),
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        accept: 'application/json',
+      },
+      body: JSON.stringify(configBody),
     },
-    body: JSON.stringify(configBody),
-  });
+  );
   const result = await response.json();
   return result;
 }

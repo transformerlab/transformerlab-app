@@ -11,6 +11,7 @@ import {
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { HistoryImage } from './types';
 
 interface HistoryCardProps {
@@ -34,6 +35,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
 }) => {
   const numImages = item.num_images || item.metadata?.num_images || 1;
   const hasMultipleImages = numImages > 1;
+  const { experimentId } = useExperimentInfo();
 
   // Function to render multiple images in a grid
   const renderImages = () => {
@@ -58,6 +60,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
               src={getAPIFullPath('diffusion', ['getImage'], {
                 imageId: item.id,
                 index,
+                experimentId,
               })}
               alt={`Generated image ${index + 1}`}
               style={{
@@ -96,6 +99,7 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
           src={getAPIFullPath('diffusion', ['getImage'], {
             imageId: item.id,
             index: 0,
+            experimentId,
           })}
           alt="generated"
           style={{

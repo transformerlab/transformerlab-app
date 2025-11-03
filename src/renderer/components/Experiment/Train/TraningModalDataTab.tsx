@@ -19,8 +19,7 @@ import DatasetTable from 'renderer/components/Data/DatasetTable';
 import OneTimePopup from 'renderer/components/Shared/OneTimePopup';
 
 import AvailableFieldsImage from 'renderer/img/show-available-fields.png';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function TrainingModalDataTab({
   datasetsIsLoading,

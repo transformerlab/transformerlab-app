@@ -24,8 +24,7 @@ import useSWR from 'swr';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import GenerateModal from './GenerateModal';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function listGenerations(generationString) {
   return SafeJSONParse(generationString, []);
@@ -81,7 +80,7 @@ function formatTemplateConfig(scriptParameters): ReactElement {
 }
 
 async function generationRun(taskId: string) {
-  await fetch(chatAPI.Endpoints.Tasks.Queue(taskId));
+  await chatAPI.authenticatedFetch(chatAPI.Endpoints.Tasks.Queue(taskId));
 }
 
 export default function GenerateTasksTable({
@@ -240,7 +239,7 @@ export default function GenerateTasksTable({
                       </Button>
                       <IconButton
                         onClick={async () => {
-                          await fetch(
+                          await chatAPI.authenticatedFetch(
                             chatAPI.Endpoints.Tasks.DeleteTask(generations.id),
                           );
                           mutate();

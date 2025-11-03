@@ -19,6 +19,11 @@ import {
   Alert,
   Select,
   Option,
+  Dropdown,
+  Menu,
+  MenuButton,
+  MenuItem,
+  ListItemDecorator,
 } from '@mui/joy';
 import {
   ChevronDown,
@@ -30,10 +35,13 @@ import {
   ImageIcon,
   HistoryIcon,
   AlertTriangleIcon,
+  PlugIcon,
+  Plug2Icon,
 } from 'lucide-react';
 import {
   getAPIFullPath,
   useServerStats,
+  useAPI,
 } from 'renderer/lib/transformerlab-api-sdk';
 import SimpleTextArea from 'renderer/components/Shared/SimpleTextArea';
 import { useAnalytics } from '../../Shared/analytics/AnalyticsContext';
@@ -41,7 +49,14 @@ import History from './History';
 import Inpainting from './Inpainting';
 import HistoryImageSelector from './HistoryImageSelector';
 import ControlNetModal from './ControlNetModal';
+import JobProgress from '../Train/JobProgress';
+import ViewOutputModalStreaming from '../Eval/ViewOutputModalStreaming'; // adjust path if needed
+
+type DiffusionProps = {
+  experimentInfo: any;
+};
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 // Helper component for labels with tooltips
 const LabelWithTooltip = ({
@@ -97,7 +112,20 @@ const samplePrompts = [
 
 export default function Diffusion() {
   const { experimentInfo } = useExperimentInfo();
+  const { addNotification } = useNotification();
   const analytics = useAnalytics();
+  const { data: diffusionJobs } = useAPI(
+    'jobs',
+    ['getJobsOfType'],
+    {
+      type: 'DIFFUSION',
+      status: '',
+      experimentId: experimentInfo?.id,
+    },
+    {
+      refreshInterval: 1000,
+    },
+  );
 
   const initialModel = experimentInfo?.config?.foundation || '';
   const adaptor = experimentInfo?.config?.adaptor || '';
@@ -144,7 +172,7 @@ export default function Diffusion() {
   const [inpaintingGuidanceScale, setInpaintingGuidanceScale] = useState(7.5);
   const [inpaintingSeed, setInpaintingSeed] = useState('');
   const [inpaintingNegativePrompt, setInpaintingNegativePrompt] = useState('');
-  const [inpaintingStrength, setInpaintingStrength] = useState(0.8);
+  const [inpaintingStrength, setInpaintingStrength] = useState(1.0);
   const [inpaintingInputImageBase64, setInpaintingInputImageBase64] =
     useState('');
   const [inpaintingMaskImageBase64, setInpaintingMaskImageBase64] =
@@ -182,6 +210,7 @@ export default function Diffusion() {
   >(null);
   // const [currentStep, setCurrentStep] = useState(0);
   const [isPolling, setIsPolling] = useState(false);
+  const experimentId = experimentInfo?.id;
 
   // Helper functions to get the appropriate images based on active tab
   const getCurrentImages = () => {
@@ -200,6 +229,100 @@ export default function Diffusion() {
   const isAppleSilicon = () => {
     return server?.device_type === 'apple_silicon';
   };
+
+  const { data: diffusionPlugins, isLoading: diffusionPluginsLoading } = useAPI(
+    'experiment',
+    ['getScriptsOfTypeWithoutFilter'],
+    {
+      experimentId: experimentInfo?.id,
+      type: 'diffusion',
+    },
+    {
+      skip: !experimentInfo?.id,
+    },
+  );
+
+  const [selectedPlugin, setSelectedPlugin] = useState<string | null>(null);
+  const [isPluginValid, setIsPluginValid] = useState<boolean | null>(null);
+  const [viewOutputJobId, setViewOutputJobId] = useState(-1);
+  const [viewOutputFileName, setViewOutputFileName] = useState('');
+  const [latestJobId, setLatestJobId] = useState<number | null>(null);
+  const [pendingJob, setPendingJob] = useState<number | null>(null);
+
+  const availableDiffusionPlugins =
+    diffusionPlugins?.filter((p) => p.type === 'diffusion') || [];
+
+  // Auto-select the first available plugin if none is selected
+  useEffect(() => {
+    if (!selectedPlugin && availableDiffusionPlugins.length > 0) {
+      setSelectedPlugin(availableDiffusionPlugins[0].uniqueId);
+    }
+    // Only run when plugins or selection changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableDiffusionPlugins, selectedPlugin]);
+
+  let runningDiffusionJob = diffusionJobs?.find(
+    (job) => job.id === latestJobId,
+  );
+
+  if (
+    !runningDiffusionJob &&
+    pendingJob === latestJobId &&
+    latestJobId !== null
+  ) {
+    // Show placeholder immediately before polling picks up the real job
+    runningDiffusionJob = {
+      id: latestJobId,
+      status: 'QUEUED',
+    };
+  }
+
+  // When the real job arrives and is not in initial QUEUED placeholder state, clear pending
+  useEffect(() => {
+    const realJobExists = diffusionJobs?.some(
+      (job) => job.id === latestJobId && job.status !== 'QUEUED',
+    );
+    if (realJobExists) {
+      setPendingJob(null);
+    }
+  }, [diffusionJobs, latestJobId]);
+
+  useEffect(() => {
+    const checkPluginEligibility = async () => {
+      if (!selectedPlugin || !experimentInfo?.id) return;
+
+      try {
+        const res = await fetch(
+          getAPIFullPath('diffusion', ['checkValidDiffusion'], {
+            experimentId: experimentInfo.id,
+          }),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model }),
+          },
+        );
+        const data = await res.json();
+        if (data.is_valid_diffusion_model) {
+          setIsPluginValid(true);
+        } else {
+          setIsPluginValid(false);
+          addNotification({
+            type: 'warning',
+            message: `The plugin "${selectedPlugin}" is not compatible with the selected model.`,
+          });
+        }
+      } catch {
+        setIsPluginValid(false);
+        addNotification({
+          type: 'danger',
+          message: `Failed to validate plugin "${selectedPlugin}".`,
+        });
+      }
+    };
+
+    checkPluginEligibility();
+  }, [selectedPlugin, model]);
 
   // Update model when experimentInfo changes
   useEffect(() => {
@@ -229,7 +352,9 @@ export default function Diffusion() {
     setIsImg2ImgEligible(null);
     try {
       const response = await fetch(
-        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -248,7 +373,9 @@ export default function Diffusion() {
     setIsInpaintingEligible(null);
     try {
       const response = await fetch(
-        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -324,7 +451,9 @@ export default function Diffusion() {
   const getGenerationId = async (): Promise<string | null> => {
     try {
       const response = await fetch(
-        getAPIFullPath('diffusion', ['generateId'], {}),
+        getAPIFullPath('diffusion', ['generateId'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -345,66 +474,109 @@ export default function Diffusion() {
   const startPollingForIntermediateImages = (
     genId: string,
     totalSteps: number,
+    onFinalResult: (data: any) => void,
+    onError: (message: string) => void,
   ) => {
     setIsPolling(true);
     setCurrentIntermediateImage(null);
-    // setCurrentStep(0);
 
-    let isActive = true; // flag to control active polling
+    let isActive = true;
     let lastImageUrl: string | null = null;
-    const pollInterval = 1000; // Poll every second
     let pollTimeoutId: number;
+    const pollInterval = 1000;
+
+    let hasReceivedJson = false;
 
     const poll = async () => {
-      if (!isActive) return; // stop if no longer active
-      // Poll for the latest step image (backend overwrites the same step.png file)
+      if (!isActive) return;
+
       try {
-        const baseUrl = getAPIFullPath('diffusion', ['getImage'], {
+        // STEP IMAGE polling
+        const stepUrl = getAPIFullPath('diffusion', ['getImage'], {
+          experimentId: experimentId,
           imageId: genId,
           index: 0,
         });
-        const response = await fetch(`${baseUrl}&step=true`); // Add timestamp to prevent caching
-
-        if (response.ok) {
-          const blob = await response.blob();
+        const stepResponse = await fetch(`${stepUrl}&step=true`);
+        if (stepResponse.ok) {
+          const blob = await stepResponse.blob();
           const imageUrl = URL.createObjectURL(blob);
-
           if (imageUrl !== lastImageUrl) {
-            if (lastImageUrl) {
-              URL.revokeObjectURL(lastImageUrl);
-            }
-
+            if (lastImageUrl) URL.revokeObjectURL(lastImageUrl);
             setCurrentIntermediateImage(imageUrl);
             lastImageUrl = imageUrl;
-            // setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
           }
-        } else if (response.status === 404) {
-          // Don't update anything, just continue polling - image might not be ready yet
+        }
+
+        // FINAL JSON polling
+        if (!hasReceivedJson) {
+          const resultUrl = getAPIFullPath('diffusion', ['getFile'], {
+            experimentId,
+            generationId: genId,
+          });
+          const resultResponse = await fetch(resultUrl);
+          if (resultResponse.ok) {
+            const json = await resultResponse.json();
+            hasReceivedJson = true;
+            onFinalResult(json);
+            cleanup(); // Stop all polling after result
+            return;
+          }
         }
       } catch (e) {
-        // Continue polling even if there's an error
+        console.warn('Polling error:', e);
       }
 
-      // Schedule next poll only if still active
+      // Continue polling if still active
       if (isActive) {
         pollTimeoutId = window.setTimeout(poll, pollInterval);
       }
     };
 
-    // Start polling
-    pollTimeoutId = window.setTimeout(poll, pollInterval);
-
-    // Return cleanup function to stop further polls
-    return () => {
+    const cleanup = () => {
       isActive = false;
-      if (pollTimeoutId) {
-        clearTimeout(pollTimeoutId);
-      }
       setIsPolling(false);
-      if (lastImageUrl) {
-        URL.revokeObjectURL(lastImageUrl);
-      }
+      if (pollTimeoutId) clearTimeout(pollTimeoutId);
+      if (lastImageUrl) URL.revokeObjectURL(lastImageUrl);
     };
+
+    pollTimeoutId = window.setTimeout(poll, pollInterval);
+    return cleanup;
+  };
+
+  const waitForJobCompletion = async (
+    jobId: string,
+  ): Promise<'COMPLETE' | 'FAILED' | 'STOPPED'> => {
+    const pollInterval = 2000;
+
+    return new Promise((resolve) => {
+      const poll = async () => {
+        try {
+          const res = await fetch(
+            getAPIFullPath('jobs', ['get'], {
+              id: jobId,
+              experimentId: experimentInfo?.id,
+            }),
+            { method: 'GET' },
+          );
+          const job = await res.json();
+
+          if (job?.status === 'COMPLETE') {
+            resolve('COMPLETE');
+          } else if (job?.status === 'FAILED') {
+            resolve('FAILED');
+          } else if (job?.status === 'STOPPED') {
+            resolve('STOPPED');
+          } else {
+            setTimeout(poll, pollInterval);
+          }
+        } catch {
+          console.warn('Job Status uknown');
+        }
+      };
+
+      poll();
+    });
   };
 
   // Stop polling when loading becomes false
@@ -494,39 +666,59 @@ export default function Diffusion() {
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
         Number(numSteps),
+        (data) => {
+          if (data.error_code !== 0) {
+            setError(data.detail || 'Error in generation result.');
+          } else {
+            const imageUrls: string[] = [];
+            for (let i = 0; i < data.num_images; i++) {
+              const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
+                experimentId: experimentId,
+                imageId: data.id,
+                index: i,
+              });
+              imageUrls.push(imageUrl);
+            }
+
+            setCurrentImages(imageUrls);
+            setCurrentGenerationData(data);
+          }
+
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+          setLoading(false);
+        },
+        (message) => {
+          setError(message);
+          setLoading(false);
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+        },
       );
 
       const response = await fetch(
-        getAPIFullPath('diffusion', ['generate'], {}),
+        getAPIFullPath('diffusion', ['generate'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         },
       );
-      const data = await response.json();
+      const initData = await response.json();
+      const jobId = initData.job_id;
+      setLatestJobId(jobId);
+      setPendingJob(jobId);
 
-      if (data.error_code !== 0) {
-        setError(data.detail);
-        // Stop polling on error
+      const jobStatus = await waitForJobCompletion(jobId);
+      if (jobStatus !== 'COMPLETE') {
+        setError(`Job ${jobStatus.toLowerCase()}`);
+        setLoading(false);
+        setIsPolling(false);
         if (pollingCleanupRef.current) pollingCleanupRef.current();
         pollingCleanupRef.current = null;
-      } else {
-        // Fetch all generated images
-        const imageUrls: string[] = [];
-        for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
-            imageId: data.id,
-            index: i,
-          });
-          imageUrls.push(imageUrl);
-        }
-        setCurrentImages(imageUrls);
-        setCurrentGenerationData(data);
-
-        // Stop polling when generation is complete
-        if (pollingCleanupRef.current) pollingCleanupRef.current();
-        pollingCleanupRef.current = null;
+        return;
       }
     } catch (e) {
       setError('Failed to generate image');
@@ -534,8 +726,6 @@ export default function Diffusion() {
       // Stop polling on error
       if (pollingCleanupRef.current) pollingCleanupRef.current();
       pollingCleanupRef.current = null;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -546,6 +736,11 @@ export default function Diffusion() {
     setCurrentGenerationData(null);
     setCurrentImageIndex(0); // Reset to first image
     try {
+      const genId = await getGenerationId();
+      if (!genId) {
+        setError('Failed to initialize generation');
+        return;
+      }
       analytics.track('Inpainting Generated', {
         model,
       });
@@ -560,6 +755,7 @@ export default function Diffusion() {
         upscale,
         upscale_factor: Number(upscaleFactor),
         num_images: Number(inpaintingNumImages) || 1, // Default to 1 if not specified
+        generation_id: genId, // Include the generation ID
       };
 
       // Add inpainting parameters
@@ -591,33 +787,63 @@ export default function Diffusion() {
       }
 
       const response = await fetch(
-        getAPIFullPath('diffusion', ['generate'], {}),
+        getAPIFullPath('diffusion', ['generate'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         },
       );
-      const data = await response.json();
-      if (data.error_code !== 0) {
-        setError(data.detail || 'Error generating inpainting image');
-      } else {
-        // Fetch all generated images
-        const imageUrls: string[] = [];
-        for (let i = 0; i < data.num_images; i++) {
-          const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
-            imageId: data.id,
-            index: i,
-          });
-          imageUrls.push(imageUrl);
-        }
-        setInpaintingImages(imageUrls);
-        setCurrentGenerationData(data);
+      const initData = await response.json();
+      const jobId = initData.job_id;
+      setLatestJobId(jobId);
+      setPendingJob(jobId);
+
+      const jobStatus = await waitForJobCompletion(jobId);
+      if (jobStatus !== 'COMPLETE') {
+        setError(`Job ${jobStatus.toLowerCase()}`);
+        setLoading(false);
+        setIsPolling(false);
+        if (pollingCleanupRef.current) pollingCleanupRef.current();
+        pollingCleanupRef.current = null;
+        return;
       }
+      pollingCleanupRef.current = startPollingForIntermediateImages(
+        genId,
+        Number(numSteps),
+        (data) => {
+          if (data.error_code !== 0) {
+            setError(data.detail || 'Error in generation result.');
+          } else {
+            const imageUrls: string[] = [];
+            for (let i = 0; i < data.num_images; i++) {
+              const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
+                experimentId: experimentId,
+                imageId: data.id,
+                index: i,
+              });
+              imageUrls.push(imageUrl);
+            }
+
+            setInpaintingImages(imageUrls);
+            setCurrentGenerationData(data);
+          }
+
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+          setLoading(false);
+        },
+        (message) => {
+          setError(message);
+          setLoading(false);
+          if (pollingCleanupRef.current) pollingCleanupRef.current();
+          pollingCleanupRef.current = null;
+        },
+      );
     } catch (e) {
       setError('Failed to generate image');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -631,6 +857,7 @@ export default function Diffusion() {
       // Create a link to the new endpoint that returns a zip file
       const link = document.createElement('a');
       link.href = getAPIFullPath('diffusion', ['getAllImages'], {
+        experimentId: experimentId,
         imageId: currentGenerationData.id,
       });
 
@@ -670,7 +897,9 @@ export default function Diffusion() {
     setIsStableDiffusion(null);
     try {
       const response = await fetch(
-        getAPIFullPath('diffusion', ['checkValidDiffusion'], {}),
+        getAPIFullPath('diffusion', ['checkValidDiffusion'], {
+          experimentId: experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -710,9 +939,55 @@ export default function Diffusion() {
         width: '100%',
       }}
     >
+      <Stack
+        direction="row"
+        justifyContent="flex-end"
+        alignItems="center"
+        gap={1}
+        sx={{ mr: 2, mb: 1 }}
+      >
+        <FormControl sx={{ minWidth: 220 }}>
+          <LabelWithTooltip tooltip="Select a diffusion plugin to use for image generation.">
+            Diffusion Plugin
+          </LabelWithTooltip>
+          <Select
+            value={selectedPlugin || ''}
+            onChange={(_, value) => setSelectedPlugin(value)}
+            startDecorator={<Plug2Icon size={16} />}
+            style={{
+              width: '100%',
+              height: 36,
+              borderRadius: 6,
+              border: '1px solid #ccc',
+              padding: '4px 8px',
+              fontSize: '15px',
+              background: '#fff',
+            }}
+            placeholder="Select a plugin"
+            disabled={availableDiffusionPlugins.length === 0}
+          >
+            {availableDiffusionPlugins.length === 0 && (
+              <Option value="" disabled>
+                No plugins available
+              </Option>
+            )}
+            {availableDiffusionPlugins.map((plugin) => (
+              <Option key={plugin.uniqueId} value={plugin.uniqueId}>
+                {plugin.name || plugin.displayName || plugin.uniqueId}
+              </Option>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
+
       <Tabs
         value={activeTab}
         onChange={(event, newValue) => {
+          // Prevent switching to inpainting tab if no plugin is selected
+          if (newValue === 'inpainting' && !selectedPlugin) {
+            return;
+          }
+
           setActiveTab(newValue as string);
           setCurrentImageIndex(0); // Reset image index when switching tabs
 
@@ -726,7 +1001,9 @@ export default function Diffusion() {
       >
         <TabList>
           <Tab value="generate">Generate Image</Tab>
-          <Tab value="inpainting">Inpainting</Tab>
+          <Tab value="inpainting" disabled={!selectedPlugin}>
+            Inpainting
+          </Tab>
           <Tab value="history">Image History</Tab>
         </TabList>
 
@@ -1240,7 +1517,7 @@ export default function Diffusion() {
 
               <Button
                 onClick={handleGenerate}
-                disabled={loading || isStableDiffusion === false}
+                disabled={loading || isPluginValid !== true || !selectedPlugin}
                 color="primary"
                 size="lg"
                 startDecorator={loading && <CircularProgress />}
@@ -1260,11 +1537,44 @@ export default function Diffusion() {
                 paddingRight: 1,
               }}
             >
-              {error && <Typography color="danger">{error}</Typography>}
+              {error && (
+                <Stack direction="row" spacing={2} alignItems="center" mt={2}>
+                  <Typography color="danger">{error}</Typography>
+                  {latestJobId && (
+                    <Button
+                      onClick={() => setViewOutputJobId(latestJobId)}
+                      color="primary"
+                      variant="soft"
+                      size="sm"
+                    >
+                      View Output
+                    </Button>
+                  )}
+                </Stack>
+              )}
               {isStableDiffusion === false && (
                 <Typography color="danger">
                   This model is not eligible for diffusion.
                 </Typography>
+              )}
+              {!selectedPlugin && (
+                <Alert
+                  color="warning"
+                  variant="soft"
+                  startDecorator={<PlugIcon />}
+                  sx={{
+                    mt: 1,
+                    maxWidth: '100%',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <Typography level="body-sm">
+                    <strong>No diffusion plugin selected.</strong> Please select
+                    a diffusion plugin from the top-right tab or install one
+                    from the plugins tab, if not done already, before generating
+                    images.
+                  </Typography>
+                </Alert>
               )}
               {isAppleSilicon() && (
                 <Alert
@@ -1434,19 +1744,30 @@ export default function Diffusion() {
                       )}
                     </Stack>
                   )}
-
-                  {/* Single Save All Images button */}
-                  <Button
-                    onClick={handleSaveAllImages}
-                    color="primary"
-                    variant="solid"
-                    size="md"
-                    sx={{ mt: 2 }}
-                  >
-                    {getCurrentImages().length > 1
-                      ? 'Save All Images'
-                      : 'Save Image'}
-                  </Button>
+                  {latestJobId && (
+                    <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                      <Button
+                        onClick={() => setViewOutputJobId(latestJobId)}
+                        color="primary"
+                        variant="soft"
+                        size="md"
+                        fullWidth
+                      >
+                        View Output
+                      </Button>
+                      <Button
+                        onClick={handleSaveAllImages}
+                        color="primary"
+                        variant="solid"
+                        size="md"
+                        fullWidth
+                      >
+                        {getCurrentImages().length > 1
+                          ? 'Save All Images'
+                          : 'Save Image'}
+                      </Button>
+                    </Stack>
+                  )}
                 </Box>
               )}
 
@@ -1465,7 +1786,20 @@ export default function Diffusion() {
                   <Typography level="body-sm" sx={{ color: 'text.tertiary' }}>
                     Generating...
                   </Typography>
-
+                  {runningDiffusionJob && (
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <JobProgress job={runningDiffusionJob} />
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        onClick={() =>
+                          setViewOutputJobId(runningDiffusionJob.id)
+                        }
+                      >
+                        View Output
+                      </Button>
+                    </Box>
+                  )}
                   {/* Show current intermediate image if available */}
                   {currentIntermediateImage && (
                     <Box
@@ -1550,6 +1884,11 @@ export default function Diffusion() {
               setImageHeight={setInpaintingImageHeight}
               numImages={inpaintingNumImages}
               setNumImages={setInpaintingNumImages}
+              latestJobId={latestJobId}
+              setViewOutputJobId={setViewOutputJobId}
+              setViewOutputFileName={setViewOutputFileName}
+              pendingJob={pendingJob}
+              setPendingJob={setPendingJob}
             />
           </Sheet>
         </TabPanel>
@@ -1569,6 +1908,12 @@ export default function Diffusion() {
           setControlNetType(selected);
           if (selected === 'off') setProcessType(null);
         }}
+      />
+      <ViewOutputModalStreaming
+        jobId={viewOutputJobId}
+        setJobId={setViewOutputJobId}
+        fileName={viewOutputFileName}
+        setFileName={setViewOutputFileName}
       />
     </Sheet>
   );

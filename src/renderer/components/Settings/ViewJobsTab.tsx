@@ -11,8 +11,8 @@ import {
 import { RotateCcwIcon } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 const jobTypes = [
   { value: 'NONE', label: 'None' },
@@ -25,6 +25,7 @@ const jobTypes = [
 ];
 
 export default function ViewJobsTab() {
+  const { experimentInfo } = useExperimentInfo();
   const [type, setType] = React.useState('');
 
   const {
@@ -32,7 +33,12 @@ export default function ViewJobsTab() {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType(type, ''), fetcher);
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, type, '')
+      : null,
+    fetcher,
+  );
 
   return (
     <>

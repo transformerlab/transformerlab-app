@@ -4,10 +4,12 @@ import { Box, Modal, ModalClose, ModalDialog, Typography } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OutputTerminal from 'renderer/components/OutputTerminal';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function ViewOutputModalStreaming({ jobId, setJobId }) {
+  const { experimentInfo } = useExperimentInfo();
+  if (!experimentInfo) return null;
   return (
     <Modal open={jobId != -1} onClose={() => setJobId(-1)}>
       <ModalDialog sx={{ width: '80vw', height: '80vh' }}>
@@ -25,6 +27,7 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
         >
           <OutputTerminal
             logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+              experimentInfo.id,
               jobId,
             )}
             lineAnimationDelay={5}

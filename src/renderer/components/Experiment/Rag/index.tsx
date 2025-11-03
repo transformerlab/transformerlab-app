@@ -21,8 +21,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import Documents from '../../Shared/Documents';
 import Query from './Query';
 import ConfigurePlugin from './ConfigurePlugin';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 export default function DocumentSearch({ setRagEngine }) {
   const { experimentInfo } = useExperimentInfo();

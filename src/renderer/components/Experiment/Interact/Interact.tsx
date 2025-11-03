@@ -29,18 +29,13 @@ import Tokenize from './Tokenize';
 import Embeddings from '../Embeddings';
 import { ChevronDownIcon } from 'lucide-react';
 
-import {
-  scrollChatToBottom,
-  focusChatInput,
-  getAgentSystemMessage,
-} from './interactUtils';
+import { scrollChatToBottom, focusChatInput } from './interactUtils';
 import Batched from './Batched/Batched';
 import VisualizeLogProbs from './VisualizeLogProbs';
 import VisualizeGeneration from './VisualizeGeneration';
 import ModelLayerVisualization from './ModelLayerVisualization';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 // const supports = [
 //   'chat',
 //   'completion',
@@ -208,15 +203,17 @@ export default function Chat({
         });
       }
     } else {
-      fetch(
-        chatAPI.Endpoints.Experiment.UpdateConfig(
-          experimentInfo?.id,
-          'generationParams',
-          JSON.stringify(generationParameters),
-        ),
-      ).then(() => {
-        experimentInfoMutate();
-      });
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.Endpoints.Experiment.UpdateConfig(
+            experimentInfo?.id,
+            'generationParams',
+            JSON.stringify(generationParameters),
+          ),
+        )
+        .then(() => {
+          experimentInfoMutate();
+        });
     }
   }, [generationParameters]);
 
@@ -393,18 +390,23 @@ export default function Chat({
     }
 
     //save the conversation to the server
-    fetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversation_id: cid,
-        conversation: JSON.stringify(newChats),
-      }),
-    }).then((response) => {
-      conversationsMutate();
-    });
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Experiment.SaveConversation(experimentId),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_id: cid,
+            conversation: JSON.stringify(newChats),
+          }),
+        },
+      )
+      .then((response) => {
+        conversationsMutate();
+      });
 
     scrollChatToBottom();
     focusChatInput();
@@ -465,7 +467,11 @@ export default function Chat({
       setIsThinking(true);
     }, 100);
 
-    const systemMessage = await getAgentSystemMessage();
+    const systemMessage =
+      document.getElementsByName('system-message')[0]?.value || '';
+
+    // Get tools for tool calling
+    const tools = await chatAPI.getToolsForCompletions();
 
     // Get a list of all the existing chats so we can send them to the LLM
     let texts = getChatsInLLMFormat();
@@ -496,7 +502,7 @@ export default function Chat({
       console.log('Error parsing stop strings as JSON');
     }
 
-    // Send them over
+    // Send them over with tools
     let result = await chatAPI.sendAndReceiveStreaming(
       currentModel,
       adaptor,
@@ -509,6 +515,7 @@ export default function Chat({
       generationParameters?.stop_str,
       image,
       generationParameters?.minP,
+      tools,
     );
 
     // The model may make repeated tool calls but don't let it get stuck in a loop
@@ -589,6 +596,7 @@ export default function Chat({
             generationParameters?.stop_str,
             image,
             generationParameters?.minP,
+            tools,
           );
         }
       }
@@ -641,18 +649,23 @@ export default function Chat({
     }
 
     //save the conversation to the server
-    fetch(chatAPI.Endpoints.Experiment.SaveConversation(experimentId), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversation_id: cid,
-        conversation: JSON.stringify(newChats),
-      }),
-    }).then((response) => {
-      conversationsMutate();
-    });
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Experiment.SaveConversation(experimentId),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_id: cid,
+            conversation: JSON.stringify(newChats),
+          }),
+        },
+      )
+      .then((response) => {
+        conversationsMutate();
+      });
 
     scrollChatToBottom();
 

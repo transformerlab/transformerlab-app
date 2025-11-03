@@ -31,6 +31,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { jobChipColor } from 'renderer/lib/utils';
 import JobProgress from '../Train/JobProgress';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 dayjs.extend(relativeTime);
 var duration = require('dayjs/plugin/duration');
 dayjs.extend(duration);
@@ -40,7 +41,7 @@ var timezone = require('dayjs/plugin/timezone'); // dependent on utc plugin
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function getLocalTimeSinceEvent(utcTimestamp) {
   // Parse the UTC timestamp
@@ -199,6 +200,7 @@ function transformMetrics(
 }
 
 const EvalJobsTable = () => {
+  const { experimentInfo } = useExperimentInfo();
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [viewOutputFromJob, setViewOutputFromJob] = useState(-1);
   const [openCSVModal, setOpenCSVModal] = useState(false);
@@ -213,8 +215,11 @@ const EvalJobsTable = () => {
     useState('');
 
   const fetchCSV = async (jobId) => {
-    const response = await fetch(
-      chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId),
+    const response = await chatAPI.authenticatedFetch(
+      chatAPI.Endpoints.Experiment.GetAdditionalDetails(
+        experimentInfo.id,
+        jobId,
+      ),
     );
     const text = await response.text();
     return text;
@@ -225,10 +230,16 @@ const EvalJobsTable = () => {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('EVAL', ''), fetcher, {
-    refreshInterval: 2000,
-    fallbackData: [],
-  });
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'EVAL', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 2000,
+      fallbackData: [],
+    },
+  );
 
   const handleCombinedReports = async (
     comparisonType: 'summary' | 'detailed' = 'summary',
@@ -237,7 +248,9 @@ const EvalJobsTable = () => {
       const jobIdsParam = selected.join(',');
       const compareEvalsUrl =
         chatAPI.Endpoints.Charts.CompareEvals(jobIdsParam);
-      const response = await fetch(compareEvalsUrl, { method: 'GET' });
+      const response = await chatAPI.authenticatedFetch(compareEvalsUrl, {
+        method: 'GET',
+      });
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -467,7 +480,12 @@ const EvalJobsTable = () => {
                     <IconButton variant="plain">
                       <Trash2Icon
                         onClick={async () => {
-                          await fetch(chatAPI.Endpoints.Jobs.Delete(job?.id));
+                          await chatAPI.authenticatedFetch(
+                            chatAPI.Endpoints.Jobs.Delete(
+                              experimentInfo.id,
+                              job?.id,
+                            ),
+                          );
                           jobsMutate();
                         }}
                       />

@@ -362,7 +362,11 @@ function StatsBar({ connection, setConnection }) {
   );
 }
 
-export default function Header({ connection, setConnection }) {
+export default function Header({
+  connection,
+  setConnection,
+  gpuOrchestrationServer,
+}) {
   const { experimentInfo } = useExperimentInfo();
 
   return (
@@ -391,22 +395,25 @@ export default function Header({ connection, setConnection }) {
           '-webkit-app-region': 'drag',
         }}
       />
-      <div
-        id="currently-playing"
-        style={{
-          backgroundColor: 'var(--joy-palette-background-level1)',
-          // border: '1px solid red',
-          height: '100%',
-          padding: 0,
-          margin: 0,
-          flex: '1',
-          justifyContent: 'center',
-          alignItems: 'center',
-          display: 'flex',
-        }}
-      >
-        <ModelCurrentlyPlayingBar experimentInfo={experimentInfo} />
-      </div>
+      {!gpuOrchestrationServer && (
+        <div
+          id="currently-playing"
+          style={{
+            backgroundColor: 'var(--joy-palette-background-level1)',
+            // border: '1px solid red',
+            height: '100%',
+            padding: 0,
+            margin: 0,
+            flex: '1',
+            justifyContent: 'center',
+            alignItems: 'center',
+            display: 'flex',
+          }}
+        >
+          <ModelCurrentlyPlayingBar experimentInfo={experimentInfo} />
+        </div>
+      )}
+
       <div
         style={{
           height: '100%',
@@ -415,7 +422,13 @@ export default function Header({ connection, setConnection }) {
           '-webkit-app-region': 'drag',
         }}
       />
-      <StatsBar connection={connection} setConnection={setConnection} />
+      {gpuOrchestrationServer ? (
+        <Box sx={{ mr: 2 }}>
+          GPU Orchestration Server: {gpuOrchestrationServer}
+        </Box>
+      ) : (
+        <StatsBar connection={connection} setConnection={setConnection} />
+      )}
     </Sheet>
   );
 }

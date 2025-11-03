@@ -2,7 +2,7 @@ import { Option, Select } from '@mui/joy';
 import { useState, useEffect } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import useSWR from 'swr';
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 export default function PickADocumentMenu({
   name,

@@ -29,7 +29,11 @@ import {
 } from 'lucide-react';
 import useSWR from 'swr';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
-import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getAPIFullPath,
+  fetcher,
+  authenticatedFetch,
+} from 'renderer/lib/transformerlab-api-sdk';
 import ModelDetails from './ModelDetails';
 import DownloadProgressBox from '../../Shared/DownloadProgressBox';
 import ModelProvenanceTimeline from './ModelProvenanceTimeline';
@@ -44,8 +48,6 @@ const fetchWithPost = ({ url, post }) =>
     method: 'POST',
     body: post,
   }).then((res) => res.json());
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function modelNameIsInHuggingfaceFormat(modelName: string) {
   return modelName.includes('/');
@@ -113,7 +115,9 @@ export default function CurrentFoundationInfo({
   const [currentlyInstalling, setCurrentlyInstalling] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const { data: baseProvenance, error: baseProvenanceError } = useSWR(
-    chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId),
+    huggingfaceId
+      ? chatAPI.Endpoints.Models.ModelProvenance(huggingfaceId)
+      : null,
     fetcher,
   );
 
@@ -148,7 +152,9 @@ export default function CurrentFoundationInfo({
   const pollJobStatus = (jobId) => {
     const intervalId = setInterval(async () => {
       try {
-        const response = await fetch(chatAPI.Endpoints.Jobs.Get(jobId));
+        const response = await fetch(
+          chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId),
+        );
         const result = await response.json();
 
         if (
@@ -258,7 +264,12 @@ export default function CurrentFoundationInfo({
   const handleCancelDownload = async () => {
     if (jobId) {
       setCanceling(true);
-      const response = await fetch(getAPIFullPath('jobs', ['stop'], { jobId }));
+      const response = await fetch(
+        getAPIFullPath('jobs', ['stop'], {
+          id: jobId,
+          experimentId: experimentInfo?.id,
+        }),
+      );
       if (response.ok) {
         setJobId(null);
         setCurrentlyInstalling(null);
@@ -294,12 +305,16 @@ export default function CurrentFoundationInfo({
 
   useMemo(() => {
     if (experimentInfo?.config?.foundation_filename) {
-      fetch(chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(huggingfaceId))
+      authenticatedFetch(
+        chatAPI.Endpoints.Models.ModelDetailsFromFilesystem(huggingfaceId),
+      )
         .then((res) => res.json())
         .catch((error) => console.log(error));
       setHugggingfaceData({});
     } else if (huggingfaceId && modelNameIsInHuggingfaceFormat(huggingfaceId)) {
-      fetch(chatAPI.Endpoints.Models.GetLocalHFConfig(huggingfaceId))
+      authenticatedFetch(
+        chatAPI.Endpoints.Models.GetLocalHFConfig(huggingfaceId),
+      )
         .then((res) => res.json())
         .then((data) => setHugggingfaceData(data))
         .catch((error) => console.log(error));
@@ -494,6 +509,7 @@ export default function CurrentFoundationInfo({
                 <DownloadProgressBox
                   jobId={jobId}
                   assetName={currentlyInstalling}
+                  experimentId={experimentInfo.id}
                 />
 
                 {jobId && (

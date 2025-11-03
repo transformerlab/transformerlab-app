@@ -15,8 +15,7 @@ import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk'; // Adjust the import path as necessary
 import RecipeCard from './RecipeCard';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../lib/transformerlab-api-sdk';
 
 export default function ListRecipes({
   setSelectedRecipe,

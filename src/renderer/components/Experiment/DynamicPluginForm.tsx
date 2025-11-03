@@ -15,6 +15,7 @@ import validator from '@rjsf/validator-ajv8';
 import Form from '@rjsf/core';
 import useSWR from 'swr';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import {
   FormControl,
   FormLabel,
@@ -554,8 +555,6 @@ const widgets: RegistryWidgetsType = {
   ModelProviderWidget,
   GEvalTasksWidget,
 };
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function DynamicPluginForm({
   experimentInfo,
