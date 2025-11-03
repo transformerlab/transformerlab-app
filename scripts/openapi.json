@@ -970,7 +970,7 @@
         }
       }
     },
-    "/train/job/{job_id}": {
+    "/experiment/{experimentId}/jobs/job/{job_id}": {
       "get": {
         "tags": ["train"],
         "summary": "Get Training Job",
@@ -999,7 +999,7 @@
         }
       }
     },
-    "/train/job/{job_id}/output": {
+    "/experiment/{experimentId}/jobs/job/{job_id}/output": {
       "get": {
         "tags": ["train"],
         "summary": "Get Training Job Output",
