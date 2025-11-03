@@ -258,7 +258,8 @@ export function killLocalServer() {
 
 export async function checkIfCurlInstalled() {
   try {
-    const { stdout, stderr } = await awaitExec('curl --version');
+    const cmd = isPlatformWindows() ? 'wsl curl --version' : 'curl --version';
+    const { stdout, stderr } = await awaitExec(cmd);
     if (stderr) {
       console.error(`stderr: ${stderr}`);
       return false;
@@ -289,8 +290,12 @@ export async function installLocalServer() {
   // First check if curl is installed on the client machine:
   const curlInstalled = await checkIfCurlInstalled();
   if (!curlInstalled) {
+    const message = isPlatformWindows()
+      ? 'Curl was not found inside WSL. On Windows the installer runs inside WSL — please install curl inside your WSL distro and try again.\n\nExample (Ubuntu WSL):\n  sudo apt update && sudo apt install -y curl'
+      : 'Curl is not installed. Please install curl and try again.\n\nExamples:\n  macOS (Homebrew): brew install curl\n  Ubuntu/Debian: sudo apt update && sudo apt install -y curl';
     dialog.showMessageBox({
-      message: 'Curl is not installed. Please install curl and try again.',
+      type: 'error',
+      message: message,
     });
     return;
   }
