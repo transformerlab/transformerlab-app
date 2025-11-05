@@ -59,6 +59,15 @@ export default function JobProgress({ job }: JobProps) {
           chatAPI.Endpoints.Jobs.GetLogs(job.job_data?.orchestrator_request_id),
         );
 
+        // If job no longer exists (404) or other error, stop polling
+        if (response.status === 404 || !response.ok) {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          return;
+        }
+
         if (response.ok) {
           const responseData = await response.json();
           if (logParserRef.current && responseData.data) {
@@ -71,6 +80,11 @@ export default function JobProgress({ job }: JobProps) {
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('Error fetching orchestrator logs:', error);
+        // On network or other errors, stop polling to prevent infinite failed requests
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
       }
     };
 
