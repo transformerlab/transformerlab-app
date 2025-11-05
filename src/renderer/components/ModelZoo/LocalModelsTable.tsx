@@ -407,6 +407,14 @@ const LocalModelsTable = ({
                                         deletedMatchesFoundation &&
                                         experimentInfo?.id
                                       ) {
+                                        // optimistic clear in UI
+                                        if (
+                                          typeof setFoundation === 'function'
+                                        ) {
+                                          setFoundation(null);
+                                        }
+
+                                        // batch-update backend to clear all foundation-related fields
                                         await chatAPI.authenticatedFetch(
                                           chatAPI.Endpoints.Experiment.UpdateConfigs(
                                             experimentInfo.id,
@@ -425,12 +433,6 @@ const LocalModelsTable = ({
                                             }),
                                           },
                                         );
-
-                                        if (
-                                          typeof setFoundation === 'function'
-                                        ) {
-                                          setFoundation(null);
-                                        }
                                       }
                                     } catch (err) {
                                       console.error(

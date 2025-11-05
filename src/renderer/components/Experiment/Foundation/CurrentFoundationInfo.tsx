@@ -635,25 +635,54 @@ export default function CurrentFoundationInfo({
                         color="primary"
                         onClick={() => {
                           if (adaptor === peft) {
-                            fetch(
-                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-                                experimentInfo?.id,
-                                'adaptor',
-                                '',
-                              ),
-                            ).then(() => {
-                              setAdaptor('');
-                            });
+                            (async () => {
+                              try {
+                                await chatAPI.authenticatedFetch(
+                                  chatAPI.Endpoints.Experiment.UpdateConfigs(
+                                    experimentInfo?.id,
+                                  ),
+                                  {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                      adaptor: '',
+                                    }),
+                                  },
+                                );
+                                setAdaptor('');
+                                if (typeof experimentInfoMutate === 'function')
+                                  experimentInfoMutate();
+                              } catch (err) {
+                                console.error('Failed to clear adaptor', err);
+                              }
+                            })();
                           } else {
-                            fetch(
-                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-                                experimentInfo?.id,
-                                'adaptor',
-                                peft,
-                              ),
-                            ).then(() => {
-                              setAdaptor(peft);
-                            });
+                            // Batch-update: set adaptor in a single request
+                            (async () => {
+                              try {
+                                await chatAPI.authenticatedFetch(
+                                  chatAPI.Endpoints.Experiment.UpdateConfigs(
+                                    experimentInfo?.id,
+                                  ),
+                                  {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                      adaptor: peft,
+                                    }),
+                                  },
+                                );
+                                setAdaptor(peft);
+                                if (typeof experimentInfoMutate === 'function')
+                                  experimentInfoMutate();
+                              } catch (err) {
+                                console.error('Failed to set adaptor', err);
+                              }
+                            })();
                           }
                         }}
                       >
