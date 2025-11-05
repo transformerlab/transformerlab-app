@@ -99,64 +99,6 @@ export default function CurrentFoundationInfo({
     fetcher,
   );
 
-  const { data: localModels } = useSWR(
-    chatAPI.Endpoints.Models.LocalList(),
-    fetcher,
-  );
-
-  useEffect(() => {
-    if (!localModels || !experimentInfo?.config) return;
-
-    const foundation = experimentInfo?.config?.foundation || '';
-    const foundationFilename =
-      experimentInfo?.config?.foundation_filename || '';
-
-    const foundationId = String(foundation).split('/').slice(-1)[0] || '';
-
-    const exists = localModels.some((m: any) => {
-      return (
-        String(m.model_id) === foundationId ||
-        String(m.model_id) === foundation ||
-        String(m.uniqueID || '') === foundation ||
-        String(m.local_path || '') === foundationFilename ||
-        String(m.local_path || '') === foundation
-      );
-    });
-
-    if (!exists) {
-      (async () => {
-        try {
-          await chatAPI.authenticatedFetch(
-            chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                foundation: '',
-                foundation_filename: '',
-                foundation_model_architecture: '',
-                inferenceParams: '{}',
-              }),
-            },
-          );
-
-          if (typeof setFoundation === 'function') setFoundation(null);
-          if (typeof experimentInfoMutate === 'function')
-            await experimentInfoMutate();
-        } catch (err) {
-          console.error('Failed to clear foundation after model deletion', err);
-        }
-      })();
-    }
-  }, [
-    localModels,
-    experimentInfo?.config?.foundation,
-    experimentInfo?.config?.foundation_filename,
-    experimentInfo?.id,
-    setFoundation,
-    experimentInfoMutate,
-  ]);
-
   const [huggingfaceData, setHugggingfaceData] = useState({});
   const [showProvenance, setShowProvenance] = useState(false);
   const [selectedProvenanceModel, setSelectedProvenanceModel] = useState(null);
@@ -635,54 +577,25 @@ export default function CurrentFoundationInfo({
                         color="primary"
                         onClick={() => {
                           if (adaptor === peft) {
-                            (async () => {
-                              try {
-                                await chatAPI.authenticatedFetch(
-                                  chatAPI.Endpoints.Experiment.UpdateConfigs(
-                                    experimentInfo?.id,
-                                  ),
-                                  {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                    },
-                                    body: JSON.stringify({
-                                      adaptor: '',
-                                    }),
-                                  },
-                                );
-                                setAdaptor('');
-                                if (typeof experimentInfoMutate === 'function')
-                                  experimentInfoMutate();
-                              } catch (err) {
-                                console.error('Failed to clear adaptor', err);
-                              }
-                            })();
+                            fetch(
+                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+                                experimentInfo?.id,
+                                'adaptor',
+                                '',
+                              ),
+                            ).then(() => {
+                              setAdaptor('');
+                            });
                           } else {
-                            // Batch-update: set adaptor in a single request
-                            (async () => {
-                              try {
-                                await chatAPI.authenticatedFetch(
-                                  chatAPI.Endpoints.Experiment.UpdateConfigs(
-                                    experimentInfo?.id,
-                                  ),
-                                  {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                    },
-                                    body: JSON.stringify({
-                                      adaptor: peft,
-                                    }),
-                                  },
-                                );
-                                setAdaptor(peft);
-                                if (typeof experimentInfoMutate === 'function')
-                                  experimentInfoMutate();
-                              } catch (err) {
-                                console.error('Failed to set adaptor', err);
-                              }
-                            })();
+                            fetch(
+                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+                                experimentInfo?.id,
+                                'adaptor',
+                                peft,
+                              ),
+                            ).then(() => {
+                              setAdaptor(peft);
+                            });
                           }
                         }}
                       >
