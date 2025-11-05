@@ -102,7 +102,8 @@ function SkeletonRows({ isLoading }) {
 export default function Logs({}) {
   const { data, isLoading, mutate, error } = useSWR(
     chatAPI.Endpoints.Global.PromptLog,
-    fetcher,
+    // ensure the fetcher treats the response as text
+    (url) => fetcher(url, undefined, false),
   );
 
   React.useEffect(() => {
