@@ -75,12 +75,8 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                     <tr>
                       <th width="50px">#</th>
                       <th>Checkpoint</th>
-                      {hasDate && (
-                        <th>Date</th>
-                      )}
-                      {hasSize && (
-                        <th width="100px">Size</th>
-                      )}
+                      {hasDate && <th>Date</th>}
+                      {hasSize && <th width="100px">Size</th>}
                       <th style={{ textAlign: 'right' }}>&nbsp;</th>
                     </tr>
                   </thead>
