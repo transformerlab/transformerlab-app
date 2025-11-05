@@ -31,6 +31,9 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
     noCheckpoints = true;
   }
 
+  const hasDate = !!data?.checkpoints?.some((cp) => cp.date);
+  const hasSize = !!data?.checkpoints?.some((cp) => cp.size);
+
   return (
     <Modal open={open} onClose={() => onClose()}>
       <ModalDialog sx={{ minWidth: '80%' }}>
@@ -72,10 +75,10 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                     <tr>
                       <th width="50px">#</th>
                       <th>Checkpoint</th>
-                      {data?.checkpoints?.some((cp) => cp.date) && (
+                      {hasDate && (
                         <th>Date</th>
                       )}
-                      {data?.checkpoints?.some((cp) => cp.size) && (
+                      {hasSize && (
                         <th width="100px">Size</th>
                       )}
                       <th style={{ textAlign: 'right' }}>&nbsp;</th>
@@ -94,14 +97,14 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                             {checkpoint.filename}
                           </Typography>
                         </td>
-                        {data?.checkpoints?.some((cp) => cp.date) && (
+                        {hasDate && (
                           <td>
                             {checkpoint.date
                               ? new Date(checkpoint.date).toLocaleString()
                               : '-'}
                           </td>
                         )}
-                        {data?.checkpoints?.some((cp) => cp.size) && (
+                        {hasSize && (
                           <td>
                             {checkpoint.size
                               ? formatBytes(checkpoint.size)
