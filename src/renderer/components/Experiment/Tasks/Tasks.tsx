@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
 import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
@@ -39,6 +39,44 @@ export default function Tasks() {
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
+
+  // Pending job IDs persisted per experiment to show immediate placeholders
+  const pendingJobsStorageKey = useMemo(
+    () =>
+      experimentInfo?.id
+        ? `pendingJobIds:${String(experimentInfo.id)}`
+        : 'pendingJobIds:unknown',
+    [experimentInfo?.id],
+  );
+  useEffect(() => {
+    // Debug storage key per experiment
+    // eslint-disable-next-line no-console
+  }, [pendingJobsStorageKey]);
+
+  const getPendingJobIds = useCallback((): string[] => {
+    try {
+      const raw = window.localStorage.getItem(pendingJobsStorageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      const result = Array.isArray(parsed) ? parsed : [];
+      // eslint-disable-next-line no-console
+      return result;
+    } catch {
+      return [];
+    }
+  }, [pendingJobsStorageKey]);
+
+  const setPendingJobIds = useCallback(
+    (ids: string[]) => {
+      try {
+        window.localStorage.setItem(pendingJobsStorageKey, JSON.stringify(ids));
+        // eslint-disable-next-line no-console
+      } catch {
+        // ignore storage failures
+      }
+    },
+    [pendingJobsStorageKey],
+  );
 
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
@@ -103,6 +141,45 @@ export default function Tasks() {
   );
 
   const loading = tasksIsLoading || jobsIsLoading;
+
+  // Remove any pending placeholders that are now present in jobs
+  useEffect(() => {
+    if (!jobs || !Array.isArray(jobs)) return;
+    const pending = getPendingJobIds();
+    if (pending.length === 0) return;
+    const existingIds = new Set((jobs as any[]).map((j: any) => String(j.id)));
+    const stillPending = pending.filter((id) => !existingIds.has(String(id)));
+    // eslint-disable-next-line no-console
+    console.log('[Tasks] prune pending vs jobs', {
+      jobsCount: jobs?.length,
+      pending,
+      stillPending,
+    });
+    if (stillPending.length !== pending.length) {
+      setPendingJobIds(stillPending);
+    }
+  }, [jobs, getPendingJobIds, setPendingJobIds]);
+
+  // Build list with placeholders for pending job IDs not yet in jobs
+  const jobsWithPlaceholders = useMemo(() => {
+    const baseJobs = Array.isArray(jobs) ? jobs : [];
+    const pending = getPendingJobIds();
+    if (!pending.length) return baseJobs;
+    const existingIds = new Set(baseJobs.map((j: any) => String(j.id)));
+    const placeholders = pending
+      .filter((id) => !existingIds.has(String(id)))
+      .map((id) => ({
+        id: String(id),
+        type: 'REMOTE',
+        status: 'CREATED',
+        progress: 0,
+        job_data: {},
+        placeholder: true,
+      }));
+    // Show newest first consistent with existing ordering if any
+    const combined = [...placeholders, ...baseJobs];
+    return combined;
+  }, [jobs, getPendingJobIds]);
 
   const handleDeleteTask = async (taskId: string) => {
     if (!experimentInfo?.id) return;
@@ -296,9 +373,14 @@ export default function Tasks() {
       const createJobResult = await createJobResp.json();
 
       if (createJobResult.status === 'success') {
-        // Keep placeholder visible and refresh jobs list
-        // The placeholder will be replaced when the real job appears
-        await jobsMutate();
+        // Persist pending placeholder immediately so it shows up in the UI
+        const newId = String(createJobResult.job_id);
+        const pending = getPendingJobIds();
+        if (!pending.includes(newId)) {
+          setPendingJobIds([newId, ...pending]);
+        }
+        // IMPORTANT: Don't await jobsMutate, let UI update before real jobs arrive
+        setTimeout(() => jobsMutate(), 0);
 
         addNotification({
           type: 'success',
@@ -416,7 +498,7 @@ export default function Tasks() {
           <LinearProgress />
         ) : (
           <JobsList
-            jobs={jobs}
+            jobs={jobsWithPlaceholders as any}
             onDeleteJob={handleDeleteJob}
             onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
             onViewTensorboard={(jobId) =>
