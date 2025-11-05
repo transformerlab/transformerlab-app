@@ -657,7 +657,7 @@ export default function DynamicPluginForm({
           key={key}
           type="hidden"
           name={key}
-          value={hiddenValue || ''}
+          value={hiddenValue ?? ''}
           readOnly
         />
       );
