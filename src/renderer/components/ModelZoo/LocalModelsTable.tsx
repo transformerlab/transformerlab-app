@@ -358,91 +358,28 @@ const LocalModelsTable = ({
                                       "'?",
                                   )
                                 ) {
-                                  try {
-                                    if (
-                                      confirm(
-                                        "Do you want to delete model '" +
-                                          row.model_id +
-                                          "' from your local Huggingface cache as well (if present) ?",
-                                      )
-                                    ) {
-                                      await fetch(
-                                        chatAPI.Endpoints.Models.Delete(
-                                          row.model_id,
-                                          true,
-                                        ),
-                                      );
-                                    } else {
-                                      await fetch(
-                                        chatAPI.Endpoints.Models.Delete(
-                                          row.model_id,
-                                          false,
-                                        ),
-                                      );
-                                    }
-
-                                    await mutateModels();
-
-                                    try {
-                                      const currentFoundation =
-                                        experimentInfo?.config?.foundation ||
-                                        '';
-                                      const currentFilename =
-                                        experimentInfo?.config
-                                          ?.foundation_filename || '';
-                                      const foundationId = currentFoundation
-                                        ? String(currentFoundation)
-                                            .split('/')
-                                            .slice(-1)[0]
-                                        : '';
-
-                                      const deletedMatchesFoundation =
-                                        foundationId === row.model_id ||
-                                        currentFoundation === row.model_id ||
-                                        currentFilename === row.model_id ||
-                                        currentFilename === row.local_path ||
-                                        currentFoundation === row.local_path;
-
-                                      if (
-                                        deletedMatchesFoundation &&
-                                        experimentInfo?.id
-                                      ) {
-                                        // optimistic clear in UI
-                                        if (
-                                          typeof setFoundation === 'function'
-                                        ) {
-                                          setFoundation(null);
-                                        }
-
-                                        // batch-update backend to clear all foundation-related fields
-                                        await chatAPI.authenticatedFetch(
-                                          chatAPI.Endpoints.Experiment.UpdateConfigs(
-                                            experimentInfo.id,
-                                          ),
-                                          {
-                                            method: 'POST',
-                                            headers: {
-                                              'Content-Type':
-                                                'application/json',
-                                            },
-                                            body: JSON.stringify({
-                                              foundation: '',
-                                              foundation_filename: '',
-                                              foundation_model_architecture: '',
-                                              inferenceParams: '{}',
-                                            }),
-                                          },
-                                        );
-                                      }
-                                    } catch (err) {
-                                      console.error(
-                                        'Error clearing foundation after model deletion',
-                                        err,
-                                      );
-                                    }
-                                  } catch (e) {
-                                    console.error('Failed to delete model', e);
-                                    alert('Failed to delete model');
+                                  if (
+                                    confirm(
+                                      "Do you want to delete model '" +
+                                        row.model_id +
+                                        "' from your local Huggingface cache as well (if present) ?",
+                                    )
+                                  ) {
+                                    await fetch(
+                                      chatAPI.Endpoints.Models.Delete(
+                                        row.model_id,
+                                        true,
+                                      ),
+                                    );
+                                    mutateModels();
+                                  } else {
+                                    await fetch(
+                                      chatAPI.Endpoints.Models.Delete(
+                                        row.model_id,
+                                        false,
+                                      ),
+                                    );
+                                    mutateModels();
                                   }
                                 }
                               }}
