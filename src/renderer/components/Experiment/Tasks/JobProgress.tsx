@@ -6,6 +6,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
+import Skeleton from '@mui/joy/Skeleton';
 import { CircleCheckIcon, StopCircleIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -37,6 +38,7 @@ interface JobProps {
     status: string;
     progress: string | number;
     job_data?: JobData;
+    placeholder?: boolean;
   };
 }
 
@@ -106,9 +108,6 @@ export default function JobProgress({ job }: JobProps) {
     startLogPolling,
   ]);
 
-  // Debug job data
-  useEffect(() => {}, [job]);
-
   // Ensure progress is a number
   const progress = (() => {
     if (typeof job?.progress === 'string') {
@@ -122,7 +121,22 @@ export default function JobProgress({ job }: JobProps) {
 
   return (
     <Stack>
-      {job?.status === 'LAUNCHING' ? (
+      {job?.placeholder ? (
+        <>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Chip>
+              <Skeleton variant="text" level="body-xs" width={60} />
+            </Chip>
+          </Stack>
+          <Skeleton variant="text" level="body-sm" width={180} />
+          <Skeleton
+            variant="rectangular"
+            width={220}
+            height={10}
+            sx={{ my: 0.5 }}
+          />
+        </>
+      ) : job?.status === 'LAUNCHING' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
