@@ -199,7 +199,7 @@ export default function EvalModal({
             evalConfig = evalData.config;
           }
         }
-        
+
         if (evalConfig && Object.keys(evalConfig).length > 0) {
           setConfig(evalConfig);
           const datasetKeyExists = Object.keys(evalConfig).some(
@@ -227,10 +227,18 @@ export default function EvalModal({
               setConfig(evalConfig);
             }
           }
-          if (datasetKeyExists && evalConfig.dataset_name && evalConfig.dataset_name.length > 0) {
+          if (
+            datasetKeyExists &&
+            evalConfig.dataset_name &&
+            evalConfig.dataset_name.length > 0
+          ) {
             setSelectedDataset(evalConfig.dataset_name);
           }
-          if (!nameInput && evalConfig?.run_name && evalConfig.run_name.length > 0) {
+          if (
+            !nameInput &&
+            evalConfig?.run_name &&
+            evalConfig.run_name.length > 0
+          ) {
             setNameInput(evalConfig.run_name);
           } else if (!nameInput && evalData?.name) {
             setNameInput(evalData.name);

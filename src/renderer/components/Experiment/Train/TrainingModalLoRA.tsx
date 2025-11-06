@@ -256,7 +256,7 @@ export default function TrainingModalLoRA({
 
     // Parse inputs to get dataset_name
     const parsedInputs = SafeJSONParse(templateData.inputs, {});
-    
+
     // Parse config
     let parsedConfig = null;
     if (templateData.config) {
@@ -266,10 +266,11 @@ export default function TrainingModalLoRA({
         parsedConfig = templateData.config;
       }
     }
-    
+
     if (parsedConfig) {
       // Dataset name can be in either config or inputs
-      const datasetName = parsedConfig.dataset_name || parsedInputs.dataset_name;
+      const datasetName =
+        parsedConfig.dataset_name || parsedInputs.dataset_name;
       setSelectedDataset(datasetName || null);
       setConfig(parsedConfig);
       setNameInput(templateData.name || generateFriendlyName());

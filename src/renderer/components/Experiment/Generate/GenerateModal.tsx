@@ -266,12 +266,16 @@ export default function GenerateModal({
           }
 
           if (datasetKeyExists) {
-            const datasetName = generationConfig.script_parameters?.dataset_name || generationConfig.dataset_name;
+            const datasetName =
+              generationConfig.script_parameters?.dataset_name ||
+              generationConfig.dataset_name;
             if (datasetName) {
               setSelectedDataset(datasetName);
             }
           }
-          const displayMessage = generationConfig.script_parameters?._dataset_display_message || generationConfig._dataset_display_message;
+          const displayMessage =
+            generationConfig.script_parameters?._dataset_display_message ||
+            generationConfig._dataset_display_message;
           if (displayMessage && displayMessage.length > 0) {
             setDatasetDisplayMessage(displayMessage);
           }
