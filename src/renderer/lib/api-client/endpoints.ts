@@ -15,6 +15,14 @@ Endpoints.Tasks = {
     `${API_URL()}tasks/list_by_type_in_experiment?type=${type}&experiment_id=${
       experiment_id
     }`,
+  ListBySubtypeInExperiment: (
+    experiment_id: string,
+    subtype: string,
+    remote_task?: boolean,
+  ) =>
+    `${API_URL()}tasks/list_by_subtype_in_experiment?experiment_id=${experiment_id}&subtype=${encodeURIComponent(
+      subtype,
+    )}${remote_task !== undefined ? `&remote_task=${remote_task}` : ''}`,
   Queue: (id: string) => `${API_URL()}tasks/${id}/queue`,
   GetByID: (id: string) => `${API_URL()}tasks/${id}/get`,
   UpdateTask: (id: string) => `${API_URL()}tasks/${id}/update`,
@@ -434,6 +442,16 @@ Endpoints.Experiment = {
 Endpoints.Jobs = {
   List: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/list`,
+  ListWithFilters: (
+    experimentId: string,
+    type?: string,
+    status?: string,
+    subtype?: string,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/list` +
+    `${type ? `?type=${type}` : ''}` +
+    `${status ? `${type ? '&' : '?'}status=${status}` : ''}` +
+    `${subtype ? `${type || status ? '&' : '?'}subtype=${encodeURIComponent(subtype)}` : ''}`,
   Get: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}`,
   Create: (
