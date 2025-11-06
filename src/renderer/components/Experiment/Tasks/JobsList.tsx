@@ -218,7 +218,7 @@ const JobsList: React.FC<JobsListProps> = ({
                             },
                           }}
                         >
-                          Preview Generated Dataset
+                          Preview Dataset
                         </Box>
                       </Button>
                     )}
