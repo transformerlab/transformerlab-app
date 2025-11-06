@@ -31,10 +31,11 @@ import { filterByFilters, licenseTypes, modelTypes } from '../../lib/utils';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import SelectButton from '../Experiment/SelectButton';
 import { RiChatAiLine, RiImageAiLine } from 'react-icons/ri';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 type Order = 'asc' | 'desc';
 
-const LocalModelsTable = ({
+export default function LocalModelsTable({
   models,
   isLoading,
   mutateModels,
@@ -44,13 +45,14 @@ const LocalModelsTable = ({
   pickAModelMode = false,
   showOnlyGeneratedModels = false,
   isEmbeddingMode = false,
-  experimentInfo = null,
-}) => {
+  experimentInfo: experimentInfoProp = null,
+}) {
   const [order, setOrder] = useState<Order>('desc');
   const [searchText, setSearchText] = useState('');
   const [filters, setFilters] = useState({});
 
   const navigate = useNavigate();
+  const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
 
   const renderFilters = () => (
     <>
@@ -433,6 +435,13 @@ const LocalModelsTable = ({
                                             }),
                                           },
                                         );
+
+                                        if (
+                                          typeof experimentInfoMutate ===
+                                          'function'
+                                        ) {
+                                          experimentInfoMutate();
+                                        }
                                       }
                                     } catch (err) {
                                       console.error(
@@ -481,6 +490,4 @@ const LocalModelsTable = ({
       </Typography>
     </>
   );
-};
-
-export default LocalModelsTable;
+}
