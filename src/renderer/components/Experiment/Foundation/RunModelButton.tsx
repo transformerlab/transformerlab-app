@@ -42,11 +42,172 @@ export default function RunModelButton({
   setLogsDrawerOpen = null,
 }) {
   const [jobId, setJobId] = useState(null);
+  const storageKey = experimentInfo?.id
+    ? `RUN_MODEL_JOB.${experimentInfo.id}`
+    : null;
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
     inferenceEngineFriendlyName: '',
   });
+
+  useEffect(() => {
+    if (!storageKey || !window.storage) return;
+    (async () => {
+      try {
+        const stored = await window.storage.get(storageKey);
+        if (stored !== undefined && stored !== null) {
+          setJobId(stored);
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    })();
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!storageKey || !window.storage) return;
+    if (!experimentInfo?.id) return;
+
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    const pollJob = async () => {
+      if (jobId === null) return;
+
+      let currentJobId = jobId;
+      if (jobId === -1) {
+        try {
+          if (storageKey && window.storage) {
+            const stored = await window.storage.get(storageKey);
+            if (stored === null || stored === undefined) {
+              if (!cancelled) setJobId(null);
+              return;
+            }
+            if (stored !== -1) {
+              currentJobId = stored;
+              if (!cancelled) setJobId(stored);
+            } else {
+              try {
+                const listRes = await fetch(
+                  getAPIFullPath('jobs', ['list'], {
+                    experimentId: experimentInfo.id,
+                  }),
+                  { method: 'GET' },
+                );
+                if (listRes.ok) {
+                  const jobsList = await listRes.json();
+                  const recentFailure = Array.isArray(jobsList)
+                    ? jobsList.find((j) =>
+                        ['FAILED', 'ERROR', 'STOPPED', 'UNAUTHORIZED'].includes(
+                          (j?.status || '').toString().toUpperCase(),
+                        ),
+                      )
+                    : null;
+                  if (recentFailure) {
+                    try {
+                      if (storageKey && window.storage)
+                        await window.storage.set(storageKey, null);
+                    } catch {}
+                    if (!cancelled) {
+                      setJobId(null);
+                      if (setLogsDrawerOpen) setLogsDrawerOpen(true);
+                      alert(
+                        `Model start failed: ${recentFailure?.message || recentFailure?.job_data?.error_msg || recentFailure?.status}`,
+                      );
+                    }
+                    return;
+                  }
+                }
+              } catch (err) {
+                // ignore list errors
+              }
+              return;
+            }
+          }
+        } catch (e) {
+          // ignore storage errors and fall back to regular polling
+        }
+      }
+
+      try {
+        const res = await fetch(
+          getAPIFullPath('jobs', ['get'], {
+            id: currentJobId,
+            experimentId: experimentInfo.id,
+          }),
+          { method: 'GET' },
+        );
+        if (!res.ok) {
+          try {
+            if (storageKey && window.storage)
+              await window.storage.set(storageKey, null);
+          } catch {}
+          if (!cancelled) setJobId(null);
+          return;
+        }
+        const job = await res.json();
+        const status = (job?.status || '').toString().toUpperCase();
+
+        // If model is running or completed, clear pending marker and stop buffering
+        if (
+          status === 'RUNNING' ||
+          status === 'COMPLETE' ||
+          status === 'SUCCESS'
+        ) {
+          try {
+            await window.storage.set(storageKey, null);
+          } catch {}
+          if (!cancelled) setJobId(null);
+          return;
+        }
+
+        if (
+          status === 'FAILED' ||
+          status === 'STOPPED' ||
+          status === 'ERROR' ||
+          status === 'UNAUTHORIZED'
+        ) {
+          try {
+            await window.storage.set(storageKey, null);
+          } catch {}
+          if (!cancelled) {
+            setJobId(null);
+            if (setLogsDrawerOpen) setLogsDrawerOpen(true);
+            alert(
+              `Model start failed: ${job?.message || job?.job_data?.error_msg || status}`,
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        // ignore transient poll errors
+      }
+    };
+
+    // Start polling every 2s and poll immediately
+    intervalId = window.setInterval(pollJob, 2000) as unknown as number;
+    pollJob();
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [jobId, storageKey, experimentInfo?.id, setLogsDrawerOpen]);
+
+  useEffect(() => {
+    if (!storageKey || !window.storage) return;
+    (async () => {
+      try {
+        if (Array.isArray(models) && models.length > 0) {
+          await window.storage.set(storageKey, null);
+          setJobId(null);
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    })();
+  }, [models, storageKey]);
 
   const { data, error, isLoading } = useAPI(
     'experiment',
@@ -296,6 +457,14 @@ export default function RunModelButton({
                   return;
                 }
 
+                if (storageKey && window.storage) {
+                  try {
+                    await window.storage.set(storageKey, -1);
+                  } catch (e) {
+                    // ignore storage errors
+                  }
+                }
+
                 setJobId(-1);
 
                 const inferenceEngine = inferenceSettings?.inferenceEngine;
@@ -310,6 +479,11 @@ export default function RunModelButton({
                   experimentInfo?.id,
                 );
                 if (response?.status == 'error') {
+                  if (storageKey && window.storage) {
+                    try {
+                      await window.storage.set(storageKey, null);
+                    } catch (e) {}
+                  }
                   if (setLogsDrawerOpen) {
                     setLogsDrawerOpen(true);
                   }
@@ -328,6 +502,13 @@ export default function RunModelButton({
                   return;
                 }
                 const job_id = response?.job_id;
+                if (storageKey && window.storage) {
+                  try {
+                    await window.storage.set(storageKey, job_id);
+                  } catch (e) {
+                    // ignore storage errors
+                  }
+                }
                 setJobId(job_id);
                 mutate();
               }}
