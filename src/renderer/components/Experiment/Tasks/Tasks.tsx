@@ -19,6 +19,7 @@ import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
+import ViewEvalResultsModal from './ViewEvalResultsModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -37,6 +38,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
+  const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
 
@@ -550,6 +552,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             onViewEvalImages={(jobId) =>
               setViewEvalImagesFromJob(parseInt(jobId))
             }
+            onViewEvalResults={(jobId) =>
+              setViewEvalResultsFromJob(parseInt(jobId))
+            }
             onViewSweepOutput={(jobId) => {
               setViewOutputFromSweepJob(true);
               setViewOutputFromJob(parseInt(jobId));
@@ -570,6 +575,11 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewCheckpointsFromJob !== -1}
         onClose={() => setViewCheckpointsFromJob(-1)}
         jobId={viewCheckpointsFromJob}
+      />
+      <ViewEvalResultsModal
+        open={viewEvalResultsFromJob !== -1}
+        onClose={() => setViewEvalResultsFromJob(-1)}
+        jobId={viewEvalResultsFromJob}
       />
     </Sheet>
   );

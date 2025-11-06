@@ -12,6 +12,7 @@ import {
   WaypointsIcon,
   ArchiveIcon,
   LogsIcon,
+  FileTextIcon,
 } from 'lucide-react';
 import JobProgress from './JobProgress';
 
@@ -24,6 +25,7 @@ interface JobsListProps {
   onViewArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
+  onViewEvalResults?: (jobId: string) => void;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -35,6 +37,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewArtifacts,
   onViewEvalImages,
   onViewSweepOutput,
+  onViewEvalResults,
 }) => {
   const formatJobConfig = (job: any) => {
     if (job?.placeholder) {
@@ -168,6 +171,28 @@ const JobsList: React.FC<JobsListProps> = ({
                       View Eval Images
                     </Button>
                   )}
+                  {job?.job_data?.eval_results &&
+                    Array.isArray(job.job_data.eval_results) &&
+                    job.job_data.eval_results.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewEvalResults?.(job?.id)}
+                        startDecorator={<FileTextIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Eval Results
+                        </Box>
+                      </Button>
+                    )}
                   {job?.job_data?.sweep_output_file && (
                     <Button
                       size="sm"

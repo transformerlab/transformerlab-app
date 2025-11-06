@@ -433,6 +433,13 @@ Endpoints.Experiment = {
     task: string = 'view',
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_additional_details?task=${task}`,
+  GetEvalResults: (
+    experimentId: string,
+    jobId: string,
+    task: string = 'view',
+    fileIndex: number = 0,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_results?task=${task}&file_index=${fileIndex}`,
   GetGeneratedDataset: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_generated_dataset`,
   GetPlotJSON: (experimentId: string, jobId: string) =>
