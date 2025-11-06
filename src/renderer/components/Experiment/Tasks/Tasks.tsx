@@ -20,6 +20,7 @@ import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
 import ViewEvalResultsModal from './ViewEvalResultsModal';
+import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 
 const duration = require('dayjs/plugin/duration');
 
@@ -39,6 +40,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
+  const [previewDatasetModal, setPreviewDatasetModal] = useState<{
+    open: boolean;
+    datasetId: string | null;
+  }>({ open: false, datasetId: null });
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
 
@@ -555,6 +560,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             onViewEvalResults={(jobId) =>
               setViewEvalResultsFromJob(parseInt(jobId))
             }
+            onViewGeneratedDataset={(jobId, datasetId) => {
+              setPreviewDatasetModal({ open: true, datasetId });
+            }}
             onViewSweepOutput={(jobId) => {
               setViewOutputFromSweepJob(true);
               setViewOutputFromJob(parseInt(jobId));
@@ -580,6 +588,13 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         open={viewEvalResultsFromJob !== -1}
         onClose={() => setViewEvalResultsFromJob(-1)}
         jobId={viewEvalResultsFromJob}
+      />
+      <PreviewDatasetModal
+        open={previewDatasetModal.open}
+        setOpen={(open: boolean) =>
+          setPreviewDatasetModal({ ...previewDatasetModal, open })
+        }
+        dataset_id={previewDatasetModal.datasetId}
       />
     </Sheet>
   );
