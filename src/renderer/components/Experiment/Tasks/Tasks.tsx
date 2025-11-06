@@ -132,13 +132,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   // Filter tasks for remote tasks in this experiment only
   // If subtype is provided, filter by subtype in task config
   const tasks =
-    (Array.isArray(allTasks)
-      ? allTasks
-      : allTasks?.data || [] // in case API returns {data: []}
-    )?.filter(
-      (task: any) =>
-        task.remote_task === true && task.experiment_id === experimentInfo?.id,
-    ) || [];
+    (Array.isArray(allTasks) ? allTasks : allTasks?.data || []) // in case API returns {data: []}
+      ?.filter(
+        (task: any) =>
+          task.remote_task === true &&
+          task.experiment_id === experimentInfo?.id,
+      ) || [];
 
   // Check remote job status periodically to update LAUNCHING jobs
   const { data: remoteJobStatus } = useSWR(
