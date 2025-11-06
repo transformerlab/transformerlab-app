@@ -134,9 +134,10 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const tasks =
     (Array.isArray(allTasks)
       ? allTasks
-      : allTasks?.data || // in case API returns {data: []}
-        [])?.filter((task: any) =>
-      task.remote_task === true && task.experiment_id === experimentInfo?.id,
+      : allTasks?.data || [] // in case API returns {data: []}
+    )?.filter(
+      (task: any) =>
+        task.remote_task === true && task.experiment_id === experimentInfo?.id,
     ) || [];
 
   // Check remote job status periodically to update LAUNCHING jobs
@@ -183,7 +184,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const jobsWithPlaceholders = useMemo(() => {
     const baseJobs = Array.isArray(jobs) ? jobs : [];
     let filteredJobs = baseJobs;
-    
+
     // Filter by subtype if provided
     if (subtype) {
       filteredJobs = baseJobs.filter((job: any) => {
@@ -191,7 +192,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         return jobData.subtype === subtype;
       });
     }
-    
+
     const pending = getPendingJobIds();
     if (!pending.length) return filteredJobs;
     const existingIds = new Set(filteredJobs.map((j: any) => String(j.id)));
@@ -307,12 +308,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         uploaded_dir_path: data.uploaded_dir_path || undefined,
         local_upload_copy: data.local_upload_copy || undefined,
       };
-      
+
       // Add subtype to config if provided
       if (subtype) {
         config.subtype = subtype;
       }
-      
+
       const payload = {
         name: data.title,
         type: 'REMOTE',
@@ -381,7 +382,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     if (cfg.setup) formData.append('setup', String(cfg.setup));
     if (cfg.uploaded_dir_path)
       formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
-    
+
     // Add subtype to job data if present in task config
     if (cfg.subtype) {
       formData.append('subtype', String(cfg.subtype));
