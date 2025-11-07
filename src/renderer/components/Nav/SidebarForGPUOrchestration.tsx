@@ -868,7 +868,10 @@ function BottomMenuItems({ navigate, themeSetter }) {
                   // Persist login state in sessionStorage so it survives page reloads
                   // Also store timestamp for timeout detection
                   sessionStorage.setItem('isLoggingIn', 'true');
-                  sessionStorage.setItem('isLoggingInStartTime', Date.now().toString());
+                  sessionStorage.setItem(
+                    'isLoggingInStartTime',
+                    Date.now().toString(),
+                  );
                   try {
                     // Check if we're in cloud mode
                     if (window.platform?.appmode === 'cloud') {
