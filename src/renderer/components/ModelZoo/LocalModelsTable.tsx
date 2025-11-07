@@ -54,6 +54,8 @@ export default function LocalModelsTable({
   const navigate = useNavigate();
   const { experimentInfo, experimentInfoMutate } = useExperimentInfo();
 
+  const { models: runningModels } = chatAPI.useModelStatus();
+
   const renderFilters = () => (
     <>
       <FormControl size="sm">
@@ -250,6 +252,71 @@ export default function LocalModelsTable({
                   if (showOnlyGeneratedModels && !row?.local_model == true) {
                     return null;
                   }
+                  const isRunningForRow = (() => {
+                    try {
+                      if (!runningModels || runningModels.length === 0) {
+                        return false;
+                      }
+
+                      const normalize = (v: any) =>
+                        String(v || '')
+                          .trim()
+                          .toLowerCase();
+
+                      const rowCandidates = [
+                        row?.model_id,
+                        row?.local_path,
+                        row?.name,
+                        row?.rowid,
+                        row?.json_data?.model_name,
+                      ]
+                        .filter(Boolean)
+                        .map(normalize);
+
+                      return runningModels.some((m) => {
+                        const runningCandidates = [
+                          m?.id,
+                          m?.model_id,
+                          m?.uniqueID,
+                          m?.name,
+                          m?.local_path,
+                          m?.model,
+                          m?.modelName,
+                        ]
+                          .filter(Boolean)
+                          .map(normalize);
+
+                        // direct equality
+                        if (
+                          runningCandidates.some((rc) =>
+                            rowCandidates.includes(rc),
+                          )
+                        ) {
+                          return true;
+                        }
+
+                        // suffix / substring matches (handles hf ids vs local filenames)
+                        for (const rc of runningCandidates) {
+                          for (const r of rowCandidates) {
+                            if (!rc || !r) continue;
+                            if (
+                              rc.endsWith(r) ||
+                              r.endsWith(rc) ||
+                              rc.includes(r) ||
+                              r.includes(rc)
+                            ) {
+                              return true;
+                            }
+                          }
+                        }
+
+                        return false;
+                      });
+                    } catch (error) {
+                      console.error('Error checking running models:', error);
+                      return false;
+                    }
+                  })();
                   return (
                     <tr key={row.rowid}>
                       <td>
@@ -341,6 +408,7 @@ export default function LocalModelsTable({
                             setEmbedding={setEmbedding}
                             model={row}
                             experimentInfo={experimentInfo}
+                            disabled={isRunningForRow}
                           />
                         ) : (
                           <>
@@ -351,8 +419,38 @@ export default function LocalModelsTable({
                             />
                             &nbsp;
                             <Trash2Icon
-                              color="var(--joy-palette-danger-600)"
+                              color={
+                                isRunningForRow
+                                  ? 'var(--joy-palette-neutral-500)'
+                                  : 'var(--joy-palette-danger-600)'
+                              }
+                              title={
+                                isRunningForRow
+                                  ? 'Model is currently running — cannot delete'
+                                  : `Delete model ${row.model_id}`
+                              }
+                              role="button"
+                              aria-disabled={isRunningForRow}
+                              tabIndex={isRunningForRow ? -1 : 0}
+                              style={{
+                                cursor: isRunningForRow
+                                  ? 'not-allowed'
+                                  : 'pointer',
+                                opacity: isRunningForRow ? 0.6 : 1,
+                                // ensure clicks are ignored when disabled
+                                pointerEvents: isRunningForRow
+                                  ? 'none'
+                                  : 'auto',
+                              }}
+                              onKeyDown={(e) => {
+                                // prevent accidental keyboard activation when disabled
+                                if (isRunningForRow) {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                }
+                              }}
                               onClick={async () => {
+                                if (isRunningForRow) return;
                                 if (
                                   confirm(
                                     "Are you sure you want to delete model '" +

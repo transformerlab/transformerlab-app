@@ -9,6 +9,7 @@ interface SelectButtonProps {
   setAdaptor: (name: string) => void;
   setEmbedding?: (model: any) => void;
   experimentInfo?: any;
+  disabled?: boolean;
 }
 
 export default function SelectButton({
@@ -17,6 +18,7 @@ export default function SelectButton({
   setAdaptor,
   setEmbedding,
   experimentInfo,
+  disabled = false,
 }: SelectButtonProps) {
   const [selected, setSelected] = React.useState(false);
   const [isProcessing, setIsProcessing] = React.useState(false);
@@ -97,7 +99,13 @@ export default function SelectButton({
       Loading Model
     </Button>
   ) : (
-    <Button size="sm" variant="soft" color="success" onClick={handleSelect}>
+    <Button
+      size="sm"
+      variant="soft"
+      color="success"
+      onClick={handleSelect}
+      disabled={disabled || isProcessing}
+    >
       Select
     </Button>
   );
@@ -106,4 +114,5 @@ export default function SelectButton({
 SelectButton.defaultProps = {
   setEmbedding: undefined,
   experimentInfo: undefined,
+  disabled: false,
 };

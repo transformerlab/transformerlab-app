@@ -3,6 +3,9 @@ import {
   killWorker,
   useModelStatus,
 } from 'renderer/lib/transformerlab-api-sdk';
+import useSWR from 'swr';
+import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { Box, Button, CircularProgress, Typography } from '@mui/joy';
 import TinyCircle from './Shared/TinyCircle';
 import HelpVideoModal from './HelpVideoModal';
@@ -10,6 +13,10 @@ import { useState } from 'react';
 
 export default function ModelCurrentlyPlaying({ experimentInfo }) {
   const { models, isError, isLoading } = useModelStatus();
+  const { data: localModels } = useSWR(
+    chatAPI.Endpoints.Models.LocalList(),
+    fetcher,
+  );
   const [helpDialogOpen, setHelpDialogOpen] = useState<boolean>(false);
 
   const inferenceParams = experimentInfo?.config?.inferenceParams
@@ -18,6 +25,30 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
   const eightBit = inferenceParams?.['8-bit'];
   const cpuOffload = inferenceParams?.['cpu-offload'];
   const engine = inferenceParams?.inferenceEngine;
+
+  const displayModelName = (() => {
+    if (!experimentInfo?.config) return 'Select an Experiment';
+    if (models?.[0]?.id) return models[0].id;
+
+    const foundation = experimentInfo?.config?.foundation || '';
+    if (!foundation) return 'Select Foundation';
+
+    const existsInLocal = Array.isArray(localModels)
+      ? localModels.some((m: any) => {
+          const ids = [
+            m?.model_id,
+            m?.local_path,
+            m?.json_data?.model_filename,
+            String(m?.model_id || '')
+              .split('/')
+              .slice(-1)[0],
+          ].filter(Boolean);
+          return ids.includes(foundation);
+        })
+      : false;
+
+    return existsInLocal ? foundation : 'Select Foundation';
+  })();
 
   return (
     <Box
@@ -105,13 +136,7 @@ export default function ModelCurrentlyPlaying({ experimentInfo }) {
             margin: 'auto',
           }}
         >
-          {experimentInfo?.config == null
-            ? 'Select an Experiment'
-            : models?.[0]?.id
-              ? models?.[0]?.id
-              : experimentInfo?.config?.foundation
-                ? experimentInfo?.config?.foundation
-                : 'Select Foundation'}
+          {displayModelName}
         </span>
         {models?.[0]?.id && experimentInfo?.config?.inferenceParams ? (
           <span
