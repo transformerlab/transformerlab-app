@@ -84,7 +84,9 @@ export default function RootAuthCallbackHandler() {
 
         while (attempts < maxAttempts && !authSuccess) {
           try {
-            const accessToken = await (window as any).storage?.get('accessToken');
+            const accessToken = await (window as any).storage?.get(
+              'accessToken',
+            );
             const headers: Record<string, string> = {
               'Content-Type': 'application/json',
             };
