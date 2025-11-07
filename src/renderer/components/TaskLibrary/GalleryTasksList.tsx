@@ -14,13 +14,7 @@ import {
 import { DownloadIcon } from 'lucide-react';
 
 // Component for task icon/logo with error handling
-function TaskIcon({
-  logo,
-  name,
-}: {
-  logo?: string;
-  name: string;
-}) {
+function TaskIcon({ logo, name }: { logo?: string; name: string }) {
   const [imageError, setImageError] = useState(false);
   const hasLogo = logo && logo.trim() !== '' && !imageError;
 
@@ -106,7 +100,9 @@ export default function GalleryTasksList({
   };
 
   // Helper function to get chip color based on tag
-  const getTagColor = (tag: string): 'primary' | 'success' | 'warning' | 'neutral' | 'danger' | 'info' => {
+  const getTagColor = (
+    tag: string,
+  ): 'primary' | 'success' | 'warning' | 'neutral' | 'danger' | 'info' => {
     const upperTag = tag.toUpperCase();
     if (upperTag === 'TRAIN') {
       return 'warning';
@@ -116,7 +112,6 @@ export default function GalleryTasksList({
     }
     return 'neutral';
   };
-
 
   return (
     <Stack spacing={2}>
@@ -170,7 +165,11 @@ export default function GalleryTasksList({
                       <Typography level="title-lg" sx={{ fontWeight: 600 }}>
                         {task.name}
                       </Typography>
-                      <Chip size="sm" variant="soft" color={getTagColor(task.tag)}>
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        color={getTagColor(task.tag)}
+                      >
                         {task.tag}
                       </Chip>
                       <Chip size="sm" variant="outlined" color="success">

@@ -14,13 +14,7 @@ import {
 import { UploadIcon, TrashIcon, FolderIcon } from 'lucide-react';
 
 // Component for task icon/logo with error handling
-function TaskIcon({
-  logo,
-  name,
-}: {
-  logo?: string;
-  name: string;
-}) {
+function TaskIcon({ logo, name }: { logo?: string; name: string }) {
   const [imageError, setImageError] = useState(false);
   const hasLogo = logo && logo.trim() !== '' && !imageError;
 
@@ -100,7 +94,9 @@ export default function LocalTasksList({
   }
 
   // Helper function to get chip color based on tag
-  const getTagColor = (tag: string): 'primary' | 'success' | 'warning' | 'neutral' | 'danger' | 'info' => {
+  const getTagColor = (
+    tag: string,
+  ): 'primary' | 'success' | 'warning' | 'neutral' | 'danger' | 'info' => {
     const upperTag = tag.toUpperCase();
     if (upperTag === 'TRAIN') {
       return 'warning';
@@ -153,74 +149,85 @@ export default function LocalTasksList({
                   </Box>
                 )}
 
-              {/* Content Section */}
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Stack spacing={1}>
-                  {/* Name and Tag */}
-                  <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-                    <Typography level="title-lg" sx={{ fontWeight: 600 }}>
-                      {task.name}
+                {/* Content Section */}
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Stack spacing={1}>
+                    {/* Name and Tag */}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1}
+                      flexWrap="wrap"
+                    >
+                      <Typography level="title-lg" sx={{ fontWeight: 600 }}>
+                        {task.name}
+                      </Typography>
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        color={getTagColor(task.tag)}
+                      >
+                        {task.tag}
+                      </Chip>
+                      <Chip size="sm" variant="outlined">
+                        {task.source === 'local_gallery'
+                          ? 'Exported'
+                          : 'Installed'}
+                      </Chip>
+                    </Stack>
+
+                    {/* Description */}
+                    <Typography
+                      level="body-sm"
+                      sx={{
+                        color: 'text.tertiary',
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      {task.description || 'No description available'}
                     </Typography>
-                    <Chip size="sm" variant="soft" color={getTagColor(task.tag)}>
-                      {task.tag}
-                    </Chip>
-                    <Chip size="sm" variant="outlined">
-                      {task.source === 'local_gallery' ? 'Exported' : 'Installed'}
-                    </Chip>
                   </Stack>
+                </Box>
 
-                  {/* Description */}
-                  <Typography
-                    level="body-sm"
-                    sx={{
-                      color: 'text.tertiary',
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {task.description || 'No description available'}
-                  </Typography>
-                </Stack>
-              </Box>
-
-              {/* Action Buttons */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1,
-                  flexShrink: 0,
-                }}
-              >
-                <Button
-                  size="sm"
-                  startDecorator={<UploadIcon size={16} />}
-                  onClick={() => onImport(task.task_dir)}
+                {/* Action Buttons */}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
+                    flexShrink: 0,
+                  }}
                 >
-                  Import
-                </Button>
-                <Stack direction="row" spacing={1}>
                   <Button
                     size="sm"
-                    variant="outlined"
-                    startDecorator={<FolderIcon size={16} />}
-                    onClick={() => onShowFiles(task.task_dir)}
+                    startDecorator={<UploadIcon size={16} />}
+                    onClick={() => onImport(task.task_dir)}
                   >
-                    Files
+                    Import
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outlined"
-                    color="danger"
-                    startDecorator={<TrashIcon size={16} />}
-                    onClick={() => onDelete(task.task_dir)}
-                  >
-                    Delete
-                  </Button>
-                </Stack>
-              </Box>
-            </Stack>
-          </CardContent>
-        </Card>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="sm"
+                      variant="outlined"
+                      startDecorator={<FolderIcon size={16} />}
+                      onClick={() => onShowFiles(task.task_dir)}
+                    >
+                      Files
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outlined"
+                      color="danger"
+                      startDecorator={<TrashIcon size={16} />}
+                      onClick={() => onDelete(task.task_dir)}
+                    >
+                      Delete
+                    </Button>
+                  </Stack>
+                </Box>
+              </Stack>
+            </CardContent>
+          </Card>
         );
       })}
     </Stack>
