@@ -454,14 +454,16 @@ export default function Tasks() {
       formData.append('cluster_name', clusterName);
       formData.append('task_name', task.name || '');
       formData.append('command', cfg.command || '');
-      
+
       if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
       if (cfg.memory) formData.append('memory', String(cfg.memory));
       if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
-      if (cfg.accelerators) formData.append('accelerators', String(cfg.accelerators));
+      if (cfg.accelerators)
+        formData.append('accelerators', String(cfg.accelerators));
       if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
       if (cfg.setup) formData.append('setup', String(cfg.setup));
-      if (cfg.uploaded_dir_path) formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+      if (cfg.uploaded_dir_path)
+        formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
 
       // Create the actual remote job with the existing cluster name
       const createJobResp = await chatAPI.authenticatedFetch(
@@ -488,11 +490,18 @@ export default function Tasks() {
 
         if (cfg.cpus) launchFormData.append('cpus', String(cfg.cpus));
         if (cfg.memory) launchFormData.append('memory', String(cfg.memory));
-        if (cfg.disk_space) launchFormData.append('disk_space', String(cfg.disk_space));
-        if (cfg.accelerators) launchFormData.append('accelerators', String(cfg.accelerators));
-        if (cfg.num_nodes) launchFormData.append('num_nodes', String(cfg.num_nodes));
+        if (cfg.disk_space)
+          launchFormData.append('disk_space', String(cfg.disk_space));
+        if (cfg.accelerators)
+          launchFormData.append('accelerators', String(cfg.accelerators));
+        if (cfg.num_nodes)
+          launchFormData.append('num_nodes', String(cfg.num_nodes));
         if (cfg.setup) launchFormData.append('setup', String(cfg.setup));
-        if (cfg.uploaded_dir_path) launchFormData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
+        if (cfg.uploaded_dir_path)
+          launchFormData.append(
+            'uploaded_dir_path',
+            String(cfg.uploaded_dir_path),
+          );
 
         const launchResp = await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),

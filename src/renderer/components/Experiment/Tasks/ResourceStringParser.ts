@@ -14,8 +14,8 @@ export interface ParsedResources {
  * @returns Parsed resources object with formatted display string
  */
 export function parseResourcesString(resourcesStr: string): ParsedResources {
-  if (!resourcesStr || typeof resourcesStr !== "string") {
-    return { formatted: "-" };
+  if (!resourcesStr || typeof resourcesStr !== 'string') {
+    return { formatted: '-' };
   }
 
   try {
@@ -29,21 +29,21 @@ export function parseResourcesString(resourcesStr: string): ParsedResources {
     const resourceSpecs = match[2];
 
     // Parse individual resource specifications
-    const specs = resourceSpecs.split(",").map((s) => s.trim());
-    const parsed: ParsedResources = { count, formatted: "" };
+    const specs = resourceSpecs.split(',').map((s) => s.trim());
+    const parsed: ParsedResources = { count, formatted: '' };
 
     for (const spec of specs) {
-      if (spec.startsWith("cpus=")) {
-        parsed.cpus = parseInt(spec.replace("cpus=", ""), 10);
-      } else if (spec.startsWith("mem=")) {
-        parsed.memory = parseInt(spec.replace("mem=", ""), 10);
-      } else if (spec.startsWith("gpu=")) {
-        parsed.gpu = spec.replace("gpu=", "");
-      } else if (spec.startsWith("gpus=")) {
-        parsed.gpu = spec.replace("gpus=", "");
-      } else if (spec.startsWith("disk=")) {
-        parsed.disk = parseInt(spec.replace("disk=", ""), 10);
-      } else if (!spec.includes("=")) {
+      if (spec.startsWith('cpus=')) {
+        parsed.cpus = parseInt(spec.replace('cpus=', ''), 10);
+      } else if (spec.startsWith('mem=')) {
+        parsed.memory = parseInt(spec.replace('mem=', ''), 10);
+      } else if (spec.startsWith('gpu=')) {
+        parsed.gpu = spec.replace('gpu=', '');
+      } else if (spec.startsWith('gpus=')) {
+        parsed.gpu = spec.replace('gpus=', '');
+      } else if (spec.startsWith('disk=')) {
+        parsed.disk = parseInt(spec.replace('disk=', ''), 10);
+      } else if (!spec.includes('=')) {
         // This is likely the instance name (e.g., "cpu3c-2-4")
         parsed.instanceName = spec;
       }
@@ -57,7 +57,7 @@ export function parseResourcesString(resourcesStr: string): ParsedResources {
     }
 
     if (parsed.cpus) {
-      parts.push(`${parsed.cpus} CPU${parsed.cpus > 1 ? "s" : ""}`);
+      parts.push(`${parsed.cpus} CPU${parsed.cpus > 1 ? 's' : ''}`);
     }
 
     if (parsed.memory) {
@@ -72,11 +72,11 @@ export function parseResourcesString(resourcesStr: string): ParsedResources {
       parts.push(`${parsed.disk}GB disk`);
     }
 
-    parsed.formatted = parts.join(", ");
+    parsed.formatted = parts.join(', ');
 
     return parsed;
   } catch (error) {
-    console.error("Error parsing resources string:", error);
+    console.error('Error parsing resources string:', error);
     return { formatted: resourcesStr };
   }
 }
@@ -89,8 +89,8 @@ export function parseResourcesString(resourcesStr: string): ParsedResources {
 export function formatResourcesCompact(resourcesStr: string): string {
   const parsed = parseResourcesString(resourcesStr);
 
-  if (parsed.formatted === "-") {
-    return "-";
+  if (parsed.formatted === '-') {
+    return '-';
   }
 
   // Create a more compact version for table display
@@ -116,5 +116,5 @@ export function formatResourcesCompact(resourcesStr: string): string {
     parts.push(`${parsed.disk}gb`);
   }
 
-  return parts.join("/");
+  return parts.join('/');
 }

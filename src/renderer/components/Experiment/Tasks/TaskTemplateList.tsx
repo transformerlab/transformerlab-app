@@ -191,7 +191,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                   >
                     Use Existing
                   </MenuButton>
-                  <Menu sx={{ maxHeight: 400, overflow: 'auto', minWidth: 300 }}>
+                  <Menu
+                    sx={{ maxHeight: 400, overflow: 'auto', minWidth: 300 }}
+                  >
                     {instances.length === 0 ? (
                       <MenuItem disabled>
                         <Typography level="body-sm">
@@ -200,7 +202,9 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
                       </MenuItem>
                     ) : (
                       instances.map((instance) => {
-                        const parsed = parseResourcesString(instance.resources_str || '');
+                        const parsed = parseResourcesString(
+                          instance.resources_str || '',
+                        );
                         return (
                           <MenuItem
                             key={instance.cluster_name}
