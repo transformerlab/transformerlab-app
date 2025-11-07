@@ -68,9 +68,7 @@ const ViewEvalResultsModal = ({
   // Fetch job data to get list of eval results files
   useEffect(() => {
     if (open && jobId && experimentInfo?.id) {
-      fetcher(
-        chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobId)),
-      )
+      fetcher(chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobId)))
         .then((job) => {
           const jobData = job?.job_data || {};
           const evalResults = jobData.eval_results || [];
@@ -129,7 +127,13 @@ const ViewEvalResultsModal = ({
           setIsLoading(false);
         });
     }
-  }, [open, jobId, experimentInfo?.id, selectedFileIndex, evalResultsFiles.length]);
+  }, [
+    open,
+    jobId,
+    experimentInfo?.id,
+    selectedFileIndex,
+    evalResultsFiles.length,
+  ]);
 
   const handleDownload = async () => {
     if (!experimentInfo?.id || !jobId) return;
@@ -234,8 +238,7 @@ const ViewEvalResultsModal = ({
                   <tr key={i}>
                     {row.map((col, j) => (
                       <td key={j}>
-                        {scoreColumnIndex !== -1 &&
-                        j === scoreColumnIndex ? (
+                        {scoreColumnIndex !== -1 && j === scoreColumnIndex ? (
                           <div
                             style={{
                               backgroundColor: heatedColor(
@@ -276,4 +279,3 @@ const ViewEvalResultsModal = ({
 };
 
 export default ViewEvalResultsModal;
-

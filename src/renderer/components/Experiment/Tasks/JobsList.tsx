@@ -204,7 +204,8 @@ const JobsList: React.FC<JobsListProps> = ({
                         variant="plain"
                         onClick={() => {
                           // Show the first dataset, or could show a selector if multiple
-                          const firstDataset = job.job_data.generated_datasets[0];
+                          const firstDataset =
+                            job.job_data.generated_datasets[0];
                           onViewGeneratedDataset?.(job?.id, firstDataset);
                         }}
                         startDecorator={<DatabaseIcon />}
