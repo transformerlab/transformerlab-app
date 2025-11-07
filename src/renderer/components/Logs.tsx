@@ -40,40 +40,44 @@ function isToday(someDateString) {
 }
 
 function renderJSONLinesLog(logs) {
-  return logs?.split('\n').map((line, i) => {
-    try {
-      const line_object = JSON.parse(line);
-      return (
-        <>
-          {/* {i}:{' '} */}
-          <Accordion key={i} color="primary" variant="soft">
-            <AccordionSummary>
-              <Typography
-                color={isToday(line_object.date) ? 'black' : 'neutral'}
-              >
-                {line_object.date} - {line_object?.log?.model}
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <pre style={{ whiteSpace: 'pre-wrap' }}>
-                {line_object?.log?.prompt}
-              </pre>
-              <pre style={{ whiteSpace: 'pre-wrap' }}>
-                {JSON.stringify(objectMinusPrompt(line_object?.log))}
-              </pre>
-            </AccordionDetails>
-          </Accordion>
-        </>
-      );
-    } catch (e) {
-      return (
-        <>
-          {/* {i}: {e.message} - {line}
-          <br /> */}
-        </>
-      );
-    }
-  });
+  if (!logs || typeof logs !== 'string' || logs.trim() === '') {
+    return null;
+  }
+
+  return (
+    logs
+      ?.split('\n')
+      // trim and filter out empty lines so JSON.parse won't get blank input
+      .map((l) => l.trim())
+      .filter((l) => l !== '')
+      .map((line, i) => {
+        try {
+          const line_object = JSON.parse(line);
+          return (
+            <Accordion key={i} color="primary" variant="soft">
+              <AccordionSummary>
+                <Typography
+                  color={isToday(line_object.date) ? 'black' : 'neutral'}
+                >
+                  {line_object.date} - {line_object?.log?.model}
+                </Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <pre style={{ whiteSpace: 'pre-wrap' }}>
+                  {line_object?.log?.prompt}
+                </pre>
+                <pre style={{ whiteSpace: 'pre-wrap' }}>
+                  {JSON.stringify(objectMinusPrompt(line_object?.log))}
+                </pre>
+              </AccordionDetails>
+            </Accordion>
+          );
+        } catch (e) {
+          // skip unparsable lines
+          return null;
+        }
+      })
+  );
 }
 
 function SkeletonRows({ isLoading }) {
@@ -96,16 +100,37 @@ function SkeletonRows({ isLoading }) {
 }
 
 export default function Logs({}) {
-  const { data, isLoading, mutate } = useSWR(
+  const { data, isLoading, mutate, error } = useSWR(
     chatAPI.Endpoints.Global.PromptLog,
-    fetcher,
+    // ensure the fetcher treats the response as text
+    (url) => fetcher(url, undefined, false),
   );
 
   React.useEffect(() => {
-    // Scroll to bottom
+    // Scroll to bottom when data changes (guard for missing element)
     const ae = document.getElementById('logs_accordion');
-    ae.scrollTop = ae.scrollHeight;
-  });
+    if (ae) ae.scrollTop = ae.scrollHeight;
+  }, [data]);
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <SkeletonRows isLoading={isLoading} />;
+    }
+
+    if (error) {
+      return <Typography>Error loading logs: {error?.message}</Typography>;
+    }
+
+    if (!data || typeof data !== 'string' || data.trim() === '') {
+      return (
+        <Typography level="body-md" color="neutral">
+          No logs available
+        </Typography>
+      );
+    }
+
+    return <AccordionGroup>{renderJSONLinesLog(data)}</AccordionGroup>;
+  };
 
   return (
     <Sheet
@@ -126,7 +151,6 @@ export default function Logs({}) {
           <RotateCcwIcon style={{ width: '18px', height: '18px' }} />
         </IconButton>
       </Stack>
-      <SkeletonRows isLoading={isLoading} />
       <Box
         id="logs_accordion"
         style={{
@@ -136,7 +160,7 @@ export default function Logs({}) {
           flexDirection: 'column',
         }}
       >
-        <AccordionGroup>{renderJSONLinesLog(data)}</AccordionGroup>
+        {renderContent()}
       </Box>
     </Sheet>
   );

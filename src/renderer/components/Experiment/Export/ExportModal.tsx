@@ -224,7 +224,16 @@ export default function ExportModal({
         currentExportId &&
         currentExportId !== ''
       ) {
-        const exportConfig = JSON.parse(exportData.config);
+        // Parse config - handle both string and object formats
+        let exportConfig = null;
+        if (exportData.config) {
+          if (typeof exportData.config === 'string') {
+            exportConfig = SafeJSONParse(exportData.config, {});
+          } else if (typeof exportData.config === 'object') {
+            exportConfig = exportData.config;
+          }
+        }
+
         if (exportConfig) {
           setConfig(exportConfig);
           if (!nameInput && exportData?.name) {
