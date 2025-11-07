@@ -6,6 +6,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
+import Skeleton from '@mui/joy/Skeleton';
 import { CircleCheckIcon, StopCircleIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -37,6 +38,7 @@ interface JobProps {
     status: string;
     progress: string | number;
     job_data?: JobData;
+    placeholder?: boolean;
   };
 }
 
@@ -57,6 +59,15 @@ export default function JobProgress({ job }: JobProps) {
           chatAPI.Endpoints.Jobs.GetLogs(job.job_data?.orchestrator_request_id),
         );
 
+        // If job no longer exists (404) or other error, stop polling
+        if (response.status === 404 || !response.ok) {
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          return;
+        }
+
         if (response.ok) {
           const responseData = await response.json();
           if (logParserRef.current && responseData.data) {
@@ -69,6 +80,11 @@ export default function JobProgress({ job }: JobProps) {
       } catch (error) {
         // eslint-disable-next-line no-console
         console.error('Error fetching orchestrator logs:', error);
+        // On network or other errors, stop polling to prevent infinite failed requests
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
       }
     };
 
@@ -106,9 +122,6 @@ export default function JobProgress({ job }: JobProps) {
     startLogPolling,
   ]);
 
-  // Debug job data
-  useEffect(() => {}, [job]);
-
   // Ensure progress is a number
   const progress = (() => {
     if (typeof job?.progress === 'string') {
@@ -122,7 +135,22 @@ export default function JobProgress({ job }: JobProps) {
 
   return (
     <Stack>
-      {job?.status === 'LAUNCHING' ? (
+      {job?.placeholder ? (
+        <>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Chip>
+              <Skeleton variant="text" level="body-xs" width={60} />
+            </Chip>
+          </Stack>
+          <Skeleton variant="text" level="body-sm" width={180} />
+          <Skeleton
+            variant="rectangular"
+            width={220}
+            height={10}
+            sx={{ my: 0.5 }}
+          />
+        </>
+      ) : job?.status === 'LAUNCHING' ? (
         <>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip

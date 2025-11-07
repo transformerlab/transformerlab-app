@@ -241,48 +241,69 @@ export default function TrainingModalLoRA({
 
   // Whenever template data updates, we need to update state variables used in the form.
   useEffect(() => {
-    if (
-      templateData &&
-      (typeof templateData.config === 'string' ||
-        typeof templateData.config === 'object')
-    ) {
-      // Should only parse data once after initial load
-      templateData.config = SafeJSONParse(templateData.config, null);
+    if (!templateData) {
+      setSelectedDataset(null);
+      setConfig({});
+      setNameInput(generateFriendlyName());
+      setFormattingTemplate('');
+      setFormattingChatTemplate('');
+      setApplyChatTemplate(false);
+      setChatColumn('');
+      setSweepConfig({});
+      setIsRunSweeps(false);
+      return;
     }
-    if (templateData && templateData.config) {
-      setSelectedDataset(templateData.config.dataset_name);
-      setConfig(templateData.config);
-      setNameInput(templateData.name);
+
+    // Parse inputs to get dataset_name
+    const parsedInputs = SafeJSONParse(templateData.inputs, {});
+
+    // Parse config
+    let parsedConfig = null;
+    if (templateData.config) {
+      if (typeof templateData.config === 'string') {
+        parsedConfig = SafeJSONParse(templateData.config, {});
+      } else if (typeof templateData.config === 'object') {
+        parsedConfig = templateData.config;
+      }
+    }
+
+    if (parsedConfig) {
+      // Dataset name can be in either config or inputs
+      const datasetName =
+        parsedConfig.dataset_name || parsedInputs.dataset_name;
+      setSelectedDataset(datasetName || null);
+      setConfig(parsedConfig);
+      setNameInput(templateData.name || generateFriendlyName());
 
       // Set template fields
-      if (templateData.config.formatting_template) {
-        setFormattingTemplate(templateData.config.formatting_template);
+      if (parsedConfig.formatting_template) {
+        setFormattingTemplate(parsedConfig.formatting_template);
       }
-      if (templateData.config.formatting_chat_template) {
-        setFormattingChatTemplate(templateData.config.formatting_chat_template);
+      if (parsedConfig.formatting_chat_template) {
+        setFormattingChatTemplate(parsedConfig.formatting_chat_template);
       }
-      if (templateData.config.apply_chat_template !== undefined) {
-        setApplyChatTemplate(templateData.config.apply_chat_template);
+      if (parsedConfig.apply_chat_template !== undefined) {
+        setApplyChatTemplate(parsedConfig.apply_chat_template);
       }
-      if (templateData.config.chat_column) {
-        setChatColumn(templateData.config.chat_column);
+      if (parsedConfig.chat_column) {
+        setChatColumn(parsedConfig.chat_column);
       }
 
-      if (templateData.config.sweep_config) {
-        setSweepConfig(SafeJSONParse(templateData.config.sweep_config, {}));
+      if (parsedConfig.sweep_config) {
+        setSweepConfig(SafeJSONParse(parsedConfig.sweep_config, {}));
       } else {
         setSweepConfig({});
       }
-      if (templateData.config.run_sweeps) {
-        setIsRunSweeps(templateData.config.run_sweeps);
+      if (parsedConfig.run_sweeps) {
+        setIsRunSweeps(parsedConfig.run_sweeps);
       } else {
         setIsRunSweeps(false);
       }
     } else {
-      // This case is for when we are creating a new template
+      // This case is for when we are creating a new template or config is missing
       setSelectedDataset(null);
       setConfig({});
-      setNameInput(generateFriendlyName());
+      setNameInput(templateData?.name || generateFriendlyName());
       setFormattingTemplate('');
       setFormattingChatTemplate('');
       setApplyChatTemplate(false);
