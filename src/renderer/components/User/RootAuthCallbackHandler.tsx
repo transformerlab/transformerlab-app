@@ -56,6 +56,8 @@ export default function RootAuthCallbackHandler() {
     async function exchange() {
       try {
         setStatus('loading');
+        // Set sessionStorage flag to persist login state across reload
+        sessionStorage.setItem('isLoggingIn', 'true');
 
         const basePath = getBasePath(window.location);
         const fallbackBase = DEFAULT_API_FALLBACK;
@@ -63,8 +65,57 @@ export default function RootAuthCallbackHandler() {
         if (!result.ok) {
           setStatus('error');
           setMessage(result.message || 'Login failed.');
+          sessionStorage.removeItem('isLoggingIn');
           return;
         }
+
+        // Wait for auth/me to complete before showing success/reloading
+        // This ensures the login state persists until user info is loaded
+        const apiBase =
+          ((window as any).TransformerLab &&
+            (window as any).TransformerLab.API_URL) ||
+          fallbackBase;
+
+        // Poll for auth/me to succeed (with timeout)
+        // This handles both token-based and session-based auth
+        let attempts = 0;
+        const maxAttempts = 20; // 10 seconds max wait
+        let authSuccess = false;
+
+        while (attempts < maxAttempts && !authSuccess) {
+          try {
+            const accessToken = await (window as any).storage?.get('accessToken');
+            const headers: Record<string, string> = {
+              'Content-Type': 'application/json',
+            };
+            // Include token if available (for token-based auth)
+            if (accessToken) {
+              headers.Authorization = `Bearer ${accessToken}`;
+            }
+
+            // Use credentials: 'include' to send session cookies (for session-based auth)
+            const response = await fetch(`${apiBase}auth/me`, {
+              method: 'GET',
+              headers,
+              credentials: 'include',
+            });
+
+            if (response.ok) {
+              const userData = await response.json();
+              if (userData?.authenticated) {
+                authSuccess = true;
+                break;
+              }
+            }
+          } catch (e) {
+            // Continue polling on error
+          }
+
+          attempts++;
+          // Wait 500ms between attempts
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+
         setStatus('success');
         setMessage(result.message || 'Login successful. Redirecting...');
 
@@ -80,10 +131,12 @@ export default function RootAuthCallbackHandler() {
         // Navigate hash root so components mount with token available
         navigate('/', { replace: true });
         // Short microtask delay before reload to allow react-router to settle
+        // Note: sessionStorage flag will persist across reload and be cleared by Sidebar component
         setTimeout(() => window.location.reload(), 30);
       } catch (e) {
         setStatus('error');
         setMessage(`Exception processing callback: ${e}`);
+        sessionStorage.removeItem('isLoggingIn');
       }
     }
 

@@ -147,6 +147,9 @@ export default function UserLoginModal({ open, onClose }) {
                     variant="soft"
                     onClick={async () => {
                       try {
+                        // Set sessionStorage flag to persist login state across redirects
+                        sessionStorage.setItem('isLoggingIn', 'true');
+                        
                         const w: any = window as any;
                         const fallbackBase = DEFAULT_API_FALLBACK;
                         const apiBase =
@@ -171,6 +174,7 @@ export default function UserLoginModal({ open, onClose }) {
                         if (resp.status === 304) {
                           // Treat 304 as an error for this JSON-init endpoint; force retry logic by clearing state
                           await w.storage.delete('authWorkosState');
+                          sessionStorage.removeItem('isLoggingIn');
                           setLoginErrorMessage(
                             'Failed to initiate SSO (stale cached response). Please try again.',
                           );
@@ -179,6 +183,7 @@ export default function UserLoginModal({ open, onClose }) {
 
                         if (!resp.ok) {
                           await w.storage.delete('authWorkosState');
+                          sessionStorage.removeItem('isLoggingIn');
                           setLoginErrorMessage(
                             `Failed to initiate SSO (HTTP ${resp.status}).`,
                           );
@@ -211,6 +216,7 @@ export default function UserLoginModal({ open, onClose }) {
                           }
                         } catch (parseErr) {
                           await w.storage.delete('authWorkosState');
+                          sessionStorage.removeItem('isLoggingIn');
                           setLoginErrorMessage('SSO start failed: ' + parseErr);
                           return;
                         }
@@ -246,6 +252,7 @@ export default function UserLoginModal({ open, onClose }) {
                           window.location.href = redirectTo;
                         } else {
                           await w.storage.delete('authWorkosState');
+                          sessionStorage.removeItem('isLoggingIn');
                           setLoginErrorMessage(
                             data?.detail || 'Failed to initiate SSO.',
                           );
@@ -253,6 +260,7 @@ export default function UserLoginModal({ open, onClose }) {
                       } catch (e) {
                         const w: any = window as any;
                         await w.storage.delete('authWorkosState');
+                        sessionStorage.removeItem('isLoggingIn');
                         setLoginErrorMessage('SSO start failed: ' + e);
                       }
                     }}
