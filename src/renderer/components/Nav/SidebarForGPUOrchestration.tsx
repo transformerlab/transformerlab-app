@@ -633,6 +633,11 @@ function BottomMenuItems({ navigate, themeSetter }) {
   useEffect(() => {
     // Check if we have a login flag in sessionStorage (from a previous page load)
     const hasLoginFlag = sessionStorage.getItem('isLoggingIn') === 'true';
+    const loginStartTime = sessionStorage.getItem('isLoggingInStartTime');
+    const isOnCallbackPage =
+      window.location.pathname.includes('/auth/callback') ||
+      window.location.hash.includes('/auth/callback');
+
     if (hasLoginFlag && !isLoggingIn) {
       setIsLoggingIn(true);
     }
@@ -642,21 +647,81 @@ function BottomMenuItems({ navigate, themeSetter }) {
       if (userInfo && userInfo.authenticated && !isLoadingUserInfo) {
         setIsLoggingIn(false);
         sessionStorage.removeItem('isLoggingIn');
+        sessionStorage.removeItem('isLoggingInStartTime');
+        return;
       }
-      // If there's an error and it's not a loading state, also clear
-      else if (userError && !isLoadingUserInfo) {
-        // Only clear if it's a real error, not just "not logged in yet"
-        // 401 might be expected during login flow, so check if we're past callback
-        const isOnCallbackPage =
-          window.location.pathname.includes('/auth/callback') ||
-          window.location.hash.includes('/auth/callback');
-        if (!isOnCallbackPage) {
+
+      // Check for timeout (15 seconds max wait)
+      if (loginStartTime) {
+        const elapsed = Date.now() - parseInt(loginStartTime, 10);
+        const maxWaitTime = 15000; // 15 seconds
+        if (elapsed > maxWaitTime) {
+          // Timeout - clear the login state
           setIsLoggingIn(false);
           sessionStorage.removeItem('isLoggingIn');
+          sessionStorage.removeItem('isLoggingInStartTime');
+          return;
+        }
+      }
+
+      // If we're not on callback page and auth/me has completed (not loading),
+      // and we're not authenticated, clear the state (user likely canceled or navigated back)
+      if (!isOnCallbackPage && !isLoadingUserInfo) {
+        if (userError || !userInfo?.authenticated) {
+          // Give it a moment in case auth/me is still in flight after callback
+          // But if we've been waiting and not authenticated, clear
+          if (loginStartTime) {
+            const elapsed = Date.now() - parseInt(loginStartTime, 10);
+            // Wait at least 2 seconds after callback before clearing (in case of delays)
+            if (elapsed > 2000) {
+              setIsLoggingIn(false);
+              sessionStorage.removeItem('isLoggingIn');
+              sessionStorage.removeItem('isLoggingInStartTime');
+            }
+          } else {
+            // No start time means this is stale, clear immediately
+            setIsLoggingIn(false);
+            sessionStorage.removeItem('isLoggingIn');
+            sessionStorage.removeItem('isLoggingInStartTime');
+          }
         }
       }
     }
   }, [userInfo, userError, isLoadingUserInfo, isLoggingIn]);
+
+  // Periodic cleanup check for stale login states (runs every 2 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const hasLoginFlag = sessionStorage.getItem('isLoggingIn') === 'true';
+      const loginStartTime = sessionStorage.getItem('isLoggingInStartTime');
+      const isOnCallbackPage =
+        window.location.pathname.includes('/auth/callback') ||
+        window.location.hash.includes('/auth/callback');
+
+      if (hasLoginFlag && loginStartTime) {
+        const elapsed = Date.now() - parseInt(loginStartTime, 10);
+        const maxWaitTime = 15000; // 15 seconds
+
+        // If timeout exceeded, clear the state
+        if (elapsed > maxWaitTime) {
+          setIsLoggingIn(false);
+          sessionStorage.removeItem('isLoggingIn');
+          sessionStorage.removeItem('isLoggingInStartTime');
+        }
+        // If not on callback page and enough time has passed (user likely navigated back)
+        else if (!isOnCallbackPage && elapsed > 3000) {
+          // Only clear if we're definitely not authenticated (not just still loading)
+          if (!isLoadingUserInfo && (!userInfo?.authenticated || userError)) {
+            setIsLoggingIn(false);
+            sessionStorage.removeItem('isLoggingIn');
+            sessionStorage.removeItem('isLoggingInStartTime');
+          }
+        }
+      }
+    }, 2000); // Check every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [isLoadingUserInfo, userInfo, userError]);
 
   useEffect(() => {
     if (workosScopeModalOpen) {
@@ -801,7 +866,9 @@ function BottomMenuItems({ navigate, themeSetter }) {
 
                   setIsLoggingIn(true);
                   // Persist login state in sessionStorage so it survives page reloads
+                  // Also store timestamp for timeout detection
                   sessionStorage.setItem('isLoggingIn', 'true');
+                  sessionStorage.setItem('isLoggingInStartTime', Date.now().toString());
                   try {
                     // Check if we're in cloud mode
                     if (window.platform?.appmode === 'cloud') {
@@ -813,16 +880,19 @@ function BottomMenuItems({ navigate, themeSetter }) {
                         console.error('Login failed:', error);
                         setIsLoggingIn(false);
                         sessionStorage.removeItem('isLoggingIn');
+                        sessionStorage.removeItem('isLoggingInStartTime');
                         // You could add a toast notification here if needed
                       }
                     } else {
                       // Non-cloud mode - login handled elsewhere
                       setIsLoggingIn(false);
                       sessionStorage.removeItem('isLoggingIn');
+                      sessionStorage.removeItem('isLoggingInStartTime');
                     }
                   } catch (error) {
                     setIsLoggingIn(false);
                     sessionStorage.removeItem('isLoggingIn');
+                    sessionStorage.removeItem('isLoggingInStartTime');
                   }
                 }}
               >

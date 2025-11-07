@@ -57,7 +57,9 @@ export default function RootAuthCallbackHandler() {
       try {
         setStatus('loading');
         // Set sessionStorage flag to persist login state across reload
+        // Also store timestamp for timeout detection
         sessionStorage.setItem('isLoggingIn', 'true');
+        sessionStorage.setItem('isLoggingInStartTime', Date.now().toString());
 
         const basePath = getBasePath(window.location);
         const fallbackBase = DEFAULT_API_FALLBACK;
@@ -66,6 +68,7 @@ export default function RootAuthCallbackHandler() {
           setStatus('error');
           setMessage(result.message || 'Login failed.');
           sessionStorage.removeItem('isLoggingIn');
+          sessionStorage.removeItem('isLoggingInStartTime');
           return;
         }
 
@@ -139,6 +142,7 @@ export default function RootAuthCallbackHandler() {
         setStatus('error');
         setMessage(`Exception processing callback: ${e}`);
         sessionStorage.removeItem('isLoggingIn');
+        sessionStorage.removeItem('isLoggingInStartTime');
       }
     }
 
