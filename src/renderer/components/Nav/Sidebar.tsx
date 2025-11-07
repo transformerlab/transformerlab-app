@@ -20,7 +20,6 @@ import {
   ChartColumnIncreasingIcon,
   UserIcon,
   LogOutIcon,
-  LogInIcon,
   AudioLinesIcon,
   StretchHorizontalIcon,
 } from 'lucide-react';
@@ -38,10 +37,6 @@ import {
   IconButton,
   Input,
   List,
-  ListItem,
-  ListItemButton,
-  ListItemContent,
-  ListItemDecorator,
   Modal,
   ModalClose,
   ModalDialog,
@@ -66,8 +61,6 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
-import UserLoginModal from '../User/UserLoginModal';
-import { DEFAULT_API_FALLBACK } from '../User/authCallbackUtils';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
@@ -576,100 +569,7 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
   );
 }
 
-// WorkOS login function extracted from UserLoginModal
-async function loginWithWorkOS() {
-  try {
-    const w: any = window as any;
-    const fallbackBase = DEFAULT_API_FALLBACK;
-    const apiBase =
-      (API_URL && API_URL()) || w.TransformerLab?.API_URL || fallbackBase;
-    // Add a cache-buster to avoid browsers (or proxies) returning 304 with HTML body
-    const cacheBuster = Date.now().toString();
-    const authorizeEndpoint = `${apiBase}auth/login-url?cb=${cacheBuster}`;
-
-    const resp = await fetch(authorizeEndpoint, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        Pragma: 'no-cache',
-        'X-Requested-With': 'XMLHttpRequest',
-        Accept: 'application/json, */*;q=0.8',
-      },
-    });
-
-    if (resp.status === 304) {
-      // Treat 304 as an error for this JSON-init endpoint; force retry logic by clearing state
-      await w.storage.delete('authWorkosState');
-      throw new Error(
-        'Failed to initiate SSO (stale cached response). Please try again.',
-      );
-    }
-
-    if (!resp.ok) {
-      await w.storage.delete('authWorkosState');
-      throw new Error(`Failed to initiate SSO (HTTP ${resp.status}).`);
-    }
-
-    let data: any = null;
-    const contentType = resp.headers.get('content-type') || '';
-    try {
-      if (contentType.includes('application/json')) {
-        data = await resp.json();
-      } else {
-        const text = await resp.text();
-        // If HTML came back, this is unexpected
-        if (
-          text.trim().startsWith('<!DOCTYPE') ||
-          text.trim().startsWith('<html')
-        ) {
-          throw new Error('Server returned HTML instead of JSON.');
-        }
-        // Attempt a lenient parse
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = { detail: 'Unexpected response format.' };
-        }
-      }
-    } catch (parseErr) {
-      await w.storage.delete('authWorkosState');
-      throw new Error('SSO start failed: ' + parseErr);
-    }
-    const redirectTo = data?.login_url || data?.authorization_url;
-    if (redirectTo) {
-      try {
-        const redirectUrl = new URL(redirectTo);
-        const stateFromQuery = redirectUrl.searchParams.get('state');
-        const hash = redirectUrl.hash || '';
-        const stateFromHash = hash
-          ? new URLSearchParams(
-              hash.startsWith('#') ? hash.slice(1) : hash,
-            ).get('state')
-          : null;
-        const stateValue =
-          stateFromQuery || stateFromHash || data?.state || null;
-        if (stateValue) {
-          await w.storage.set('authWorkosState', stateValue);
-        } else {
-          await w.storage.delete('authWorkosState');
-        }
-      } catch {
-        await w.storage.delete('authWorkosState');
-      }
-      window.location.href = redirectTo;
-    } else {
-      await w.storage.delete('authWorkosState');
-      throw new Error(data?.detail || 'Failed to initiate SSO.');
-    }
-  } catch (e) {
-    const w: any = window as any;
-    await w.storage.delete('authWorkosState');
-    throw new Error('SSO start failed: ' + e);
-  }
-}
-
 function BottomMenuItems({ navigate, themeSetter }) {
-  const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
   const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(
     null,
@@ -678,17 +578,9 @@ function BottomMenuItems({ navigate, themeSetter }) {
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [scopeSuccess, setScopeSuccess] = useState<string | null>(null);
   const [isScoping, setIsScoping] = useState(false);
-  // Check sessionStorage on mount to persist login state across reloads
-  const [isLoggingIn, setIsLoggingIn] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('isLoggingIn') === 'true';
-    }
-    return false;
-  });
   const {
     data: userInfo,
     error: userError,
-    isLoading: isLoadingUserInfo,
     mutate: userMutate,
   } = useAPI('auth', ['me'], {});
 
@@ -700,35 +592,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
     workosDetails?.organizationId ||
     'Not scoped';
   const hasWorkOSAccount = Boolean(workosDetails?.account);
-
-  // Keep login state active until auth/me completes successfully
-  useEffect(() => {
-    // Check if we have a login flag in sessionStorage (from a previous page load)
-    const hasLoginFlag = sessionStorage.getItem('isLoggingIn') === 'true';
-    if (hasLoginFlag && !isLoggingIn) {
-      setIsLoggingIn(true);
-    }
-
-    if (isLoggingIn || hasLoginFlag) {
-      // If we have user info and it's authenticated, clear the login state
-      if (userInfo && userInfo.authenticated && !isLoadingUserInfo) {
-        setIsLoggingIn(false);
-        sessionStorage.removeItem('isLoggingIn');
-      }
-      // If there's an error and it's not a loading state, also clear
-      else if (userError && !isLoadingUserInfo) {
-        // Only clear if it's a real error, not just "not logged in yet"
-        // 401 might be expected during login flow, so check if we're past callback
-        const isOnCallbackPage =
-          window.location.pathname.includes('/auth/callback') ||
-          window.location.hash.includes('/auth/callback');
-        if (!isOnCallbackPage) {
-          setIsLoggingIn(false);
-          sessionStorage.removeItem('isLoggingIn');
-        }
-      }
-    }
-  }, [userInfo, userError, isLoadingUserInfo, isLoggingIn]);
 
   useEffect(() => {
     if (workosScopeModalOpen) {
@@ -832,11 +695,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
     console.log(userError);
   }
 
-  // Show login state if we're actively logging in OR if we're waiting for auth/me after a callback
-  const showLoginState =
-    isLoggingIn ||
-    (sessionStorage.getItem('isLoggingIn') === 'true' && isLoadingUserInfo);
-
   return (
     <>
       <Divider sx={{ my: 1 }} />
@@ -849,91 +707,12 @@ function BottomMenuItems({ navigate, themeSetter }) {
           maxWidth: '180px',
         }}
       >
-        {userInfo && userInfo.id ? (
+        {userInfo && userInfo.id && (
           <UserDetailsPanel
             userDetails={userInfo}
             mutate={userMutate}
             onManageWorkOS={() => setWorkosScopeModalOpen(true)}
           />
-        ) : (
-          <List
-            sx={{
-              '--ListItem-radius': '6px',
-              '--ListItem-minHeight': '32px',
-              overflowY: 'auto',
-              flex: 1,
-            }}
-          >
-            <ListItem className="FirstSidebar_Content">
-              <ListItemButton
-                variant="plain"
-                disabled={showLoginState}
-                onClick={async () => {
-                  if (showLoginState) return; // Prevent multiple clicks
-
-                  setIsLoggingIn(true);
-                  // Persist login state in sessionStorage so it survives page reloads
-                  sessionStorage.setItem('isLoggingIn', 'true');
-                  try {
-                    // Check if we're in cloud mode
-                    if (window.platform?.appmode === 'cloud') {
-                      try {
-                        await loginWithWorkOS();
-                        // Don't clear isLoggingIn here - it will be cleared after auth/me completes
-                        // The redirect will happen, and after callback/reload, the useEffect will handle it
-                      } catch (error) {
-                        console.error('Login failed:', error);
-                        setIsLoggingIn(false);
-                        sessionStorage.removeItem('isLoggingIn');
-                        // You could add a toast notification here if needed
-                      }
-                    } else {
-                      // Open the modal for non-cloud modes
-                      setUserLoginModalOpen(true);
-                      // For non-cloud login, we can clear immediately since it's synchronous
-                      setIsLoggingIn(false);
-                      sessionStorage.removeItem('isLoggingIn');
-                    }
-                  } catch (error) {
-                    setIsLoggingIn(false);
-                    sessionStorage.removeItem('isLoggingIn');
-                  }
-                }}
-              >
-                <ListItemDecorator sx={{ minInlineSize: '30px' }}>
-                  {showLoginState ? (
-                    <Box
-                      sx={{
-                        width: '18px',
-                        height: '18px',
-                        border: '2px solid transparent',
-                        borderTop: '2px solid currentColor',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        '@keyframes spin': {
-                          '0%': { transform: 'rotate(0deg)' },
-                          '100%': { transform: 'rotate(360deg)' },
-                        },
-                      }}
-                    />
-                  ) : (
-                    <LogInIcon />
-                  )}
-                </ListItemDecorator>
-                <ListItemContent
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'flex-start',
-                    alignContent: 'center',
-                  }}
-                >
-                  <Typography level="body-sm">
-                    {showLoginState ? 'Logging in...' : 'Login'}
-                  </Typography>
-                </ListItemContent>
-              </ListItemButton>
-            </ListItem>
-          </List>
         )}
       </Box>
       <ButtonGroup
@@ -972,13 +751,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
           </IconButton>
         </Tooltip>
       </ButtonGroup>
-      <UserLoginModal
-        open={userLoginModalOpen}
-        onClose={() => {
-          setUserLoginModalOpen(false);
-          userMutate();
-        }}
-      />
       <Modal
         open={workosScopeModalOpen && hasWorkOSAccount}
         onClose={() => setWorkosScopeModalOpen(false)}

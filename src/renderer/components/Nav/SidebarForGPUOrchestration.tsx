@@ -60,7 +60,6 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
-import UserLoginModal from '../User/UserLoginModal';
 import { DEFAULT_API_FALLBACK } from '../User/authCallbackUtils';
 
 import SubNavItem from './SubNavItem';
@@ -506,7 +505,7 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
   );
 }
 
-// WorkOS login function extracted from UserLoginModal
+// WorkOS login function
 async function loginWithWorkOS() {
   try {
     const w: any = window as any;
@@ -599,7 +598,6 @@ async function loginWithWorkOS() {
 }
 
 function BottomMenuItems({ navigate, themeSetter }) {
-  const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
   const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(
     null,
@@ -818,9 +816,7 @@ function BottomMenuItems({ navigate, themeSetter }) {
                         // You could add a toast notification here if needed
                       }
                     } else {
-                      // Open the modal for non-cloud modes
-                      setUserLoginModalOpen(true);
-                      // For non-cloud login, we can clear immediately since it's synchronous
+                      // Non-cloud mode - login handled elsewhere
                       setIsLoggingIn(false);
                       sessionStorage.removeItem('isLoggingIn');
                     }
@@ -897,13 +893,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
           </Tooltip>
         </a>
       </ButtonGroup>
-      <UserLoginModal
-        open={userLoginModalOpen}
-        onClose={() => {
-          setUserLoginModalOpen(false);
-          userMutate();
-        }}
-      />
       <Modal
         open={workosScopeModalOpen && hasWorkOSAccount}
         onClose={() => setWorkosScopeModalOpen(false)}
