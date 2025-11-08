@@ -263,12 +263,19 @@ export default function LocalModelsTable({
                           .trim()
                           .toLowerCase();
 
+                      const basename = (v: any) => {
+                        const s = String(v || '');
+                        const parts = s.split('/');
+                        return parts[parts.length - 1];
+                      };
+
                       const rowCandidates = [
                         row?.model_id,
                         row?.local_path,
                         row?.name,
                         row?.rowid,
                         row?.json_data?.model_name,
+                        row?.uniqueID,
                       ]
                         .filter(Boolean)
                         .map(normalize);
@@ -286,25 +293,19 @@ export default function LocalModelsTable({
                           .filter(Boolean)
                           .map(normalize);
 
-                        // direct equality
-                        if (
-                          runningCandidates.some((rc) =>
-                            rowCandidates.includes(rc),
-                          )
-                        ) {
-                          return true;
+                        for (const rc of runningCandidates) {
+                          if (rowCandidates.includes(rc)) return true;
+                          if (rowCandidates.includes(normalize(basename(rc))))
+                            return true;
                         }
 
-                        // suffix / substring matches (handles hf ids vs local filenames)
                         for (const rc of runningCandidates) {
                           for (const r of rowCandidates) {
                             if (!rc || !r) continue;
-                            if (
-                              rc.endsWith(r) ||
-                              r.endsWith(rc) ||
-                              rc.includes(r) ||
-                              r.includes(rc)
-                            ) {
+                            if (rc.includes('/') && rc.endsWith('/' + r)) {
+                              return true;
+                            }
+                            if (r.includes('/') && r.endsWith('/' + rc)) {
                               return true;
                             }
                           }
