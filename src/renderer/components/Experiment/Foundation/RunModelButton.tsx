@@ -122,11 +122,16 @@ export default function RunModelButton({
     boolean | null
   >(null);
 
+  // Prevent transient UI while we determine/commit inference engine defaults
+  const [inferenceLoading, setInferenceLoading] = useState(true);
+
   function isPossibleToRunAModel() {
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
-      inferenceSettings?.inferenceEngine != null
+      inferenceSettings?.inferenceEngine != null &&
+      !inferenceLoading &&
+      !pipelineTagLoading
     );
   }
 
@@ -169,61 +174,71 @@ export default function RunModelButton({
     // Add this single line to wait for pipeline tag loading
     if (!data || pipelineTagLoading) return;
 
-    let objExperimentInfo = null;
-    if (experimentInfo?.config?.inferenceParams) {
-      objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
-    }
+    setInferenceLoading(true);
 
-    // Check if current engine is still supported after filtering
-    const currentEngine = objExperimentInfo?.inferenceEngine;
-    const currentEngineIsSupported = supportedEngines.some(
-      (engine) => engine.uniqueId === currentEngine,
-    );
+    (async () => {
+      let objExperimentInfo = null;
+      if (experimentInfo?.config?.inferenceParams) {
+        try {
+          objExperimentInfo = JSON.parse(
+            experimentInfo?.config?.inferenceParams,
+          );
+        } catch {
+          objExperimentInfo = null;
+        }
+      }
 
-    if (
-      objExperimentInfo == null ||
-      objExperimentInfo?.inferenceEngine == null ||
-      !currentEngineIsSupported
-    ) {
-      // If there are supportedEngines, set the first one from supported engines as default
-      if (supportedEngines.length > 0) {
-        const firstEngine = supportedEngines[0];
-        const newInferenceSettings = {
-          inferenceEngine: firstEngine.uniqueId || null,
-          inferenceEngineFriendlyName: firstEngine.name || '',
-        };
-        setInferenceSettings(newInferenceSettings);
+      // Check if current engine is still supported after filtering
+      const currentEngine = objExperimentInfo?.inferenceEngine;
+      const currentEngineIsSupported = supportedEngines.some(
+        (engine) => engine.uniqueId === currentEngine,
+      );
 
-        // Update the experiment config with the first supported engine
-        if (experimentInfo?.id) {
-          chatAPI
-            .authenticatedFetch(
-              chatAPI.Endpoints.Experiment.UpdateConfig(
-                experimentInfo.id,
-                'inferenceParams',
-                JSON.stringify(newInferenceSettings),
-              ),
-            )
-            .catch(() => {
+      if (
+        objExperimentInfo == null ||
+        objExperimentInfo?.inferenceEngine == null ||
+        !currentEngineIsSupported
+      ) {
+        // If there are supportedEngines, set the first one from supported engines as default
+        if (supportedEngines.length > 0) {
+          const firstEngine = supportedEngines[0];
+          const newInferenceSettings = {
+            inferenceEngine: firstEngine.uniqueId || null,
+            inferenceEngineFriendlyName: firstEngine.name || '',
+          };
+          setInferenceSettings(newInferenceSettings);
+
+          // await update so UI doesn't re-render with stale/partial state
+          if (experimentInfo?.id) {
+            try {
+              await chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Experiment.UpdateConfig(
+                  experimentInfo.id,
+                  'inferenceParams',
+                  JSON.stringify(newInferenceSettings),
+                ),
+              );
+            } catch (err) {
               console.error(
                 'Failed to update inferenceParams in experiment config',
+                err,
               );
-            });
-        }
-      } else {
-        // This preserves the older logic where we try to get the default inference engine for a blank experiment
-        (async () => {
+            }
+          }
+        } else {
           const { inferenceEngine, inferenceEngineFriendlyName } =
             await getDefaultinferenceEngines();
           setInferenceSettings({
             inferenceEngine: inferenceEngine || null,
             inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
           });
-        })();
+        }
+      } else {
+        setInferenceSettings(objExperimentInfo);
       }
-    } else {
-      setInferenceSettings(objExperimentInfo);
-    }
+
+      setInferenceLoading(false);
+    })();
   }, [
     data,
     pipelineTagLoading,
@@ -344,7 +359,7 @@ export default function RunModelButton({
         <Button
           variant="plain"
           onClick={() => setShowRunSettings(!showRunSettings)}
-          disabled={models?.length > 0 || jobId == -1}
+          disabled={models?.length > 0 || jobId == -1 || inferenceLoading}
         >
           using{' '}
           {removeServerFromEndOfString(

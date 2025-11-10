@@ -25,6 +25,7 @@ import TrainingModalDataTab from '../Train/TraningModalDataTab';
 import PickADocumentMenu from '../Rag/PickADocumentMenu';
 
 import { generateFriendlyName } from 'renderer/lib/utils';
+import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function PluginIntroduction({ experimentInfo, pluginId }) {
@@ -222,9 +223,18 @@ export default function GenerateModal({
         currentGenerationId &&
         currentGenerationId != ''
       ) {
-        const generationConfig = JSON.parse(generationData.config);
+        // Parse config - handle both string and object formats
+        let generationConfig = null;
+        if (generationData.config) {
+          if (typeof generationData.config === 'string') {
+            generationConfig = SafeJSONParse(generationData.config, {});
+          } else if (typeof generationData.config === 'object') {
+            generationConfig = generationData.config;
+          }
+        }
+
         if (generationConfig) {
-          setConfig(generationConfig.script_parameters);
+          setConfig(generationConfig.script_parameters || generationConfig);
 
           const datasetKeyExists = Object.keys(generationConfig).some(
             (key) => key === 'dataset_name',
@@ -255,22 +265,21 @@ export default function GenerateModal({
             setConfig(generationConfig);
           }
 
-          if (
-            datasetKeyExists &&
-            generationConfig.script_parameters.dataset_name
-          ) {
-            setSelectedDataset(generationConfig.script_parameters.dataset_name);
+          if (datasetKeyExists) {
+            const datasetName =
+              generationConfig.script_parameters?.dataset_name ||
+              generationConfig.dataset_name;
+            if (datasetName) {
+              setSelectedDataset(datasetName);
+            }
           }
-          if (
-            generationConfig.script_parameters._dataset_display_message &&
-            generationConfig.script_parameters._dataset_display_message.length >
-              0
-          ) {
-            setDatasetDisplayMessage(
-              generationConfig.script_parameters._dataset_display_message,
-            );
+          const displayMessage =
+            generationConfig.script_parameters?._dataset_display_message ||
+            generationConfig._dataset_display_message;
+          if (displayMessage && displayMessage.length > 0) {
+            setDatasetDisplayMessage(displayMessage);
           }
-          if (!nameInput && generationData?.name.length > 0) {
+          if (!nameInput && generationData?.name) {
             setNameInput(generationData.name);
           }
         }
