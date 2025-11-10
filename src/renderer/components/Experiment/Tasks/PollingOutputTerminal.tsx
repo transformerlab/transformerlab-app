@@ -170,14 +170,14 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       // Handle array responses
       if (Array.isArray(outputData)) {
         // Check if output is empty or indicates no output found
-        const isEmptyOutput = 
-          outputData.length === 0 || 
+        const isEmptyOutput =
+          outputData.length === 0 ||
           (outputData.length === 1 && outputData[0] === 'Output file not found');
 
         if (isEmptyOutput && !hasReceivedData) {
           // First response indicates no output - clear loading message and show user-friendly message immediately
           if (termRef.current) {
-            const noOutputMessage = 'No output found, make sure your script ran correctly and made use of transformerlab package for the output to be visible.';
+            const noOutputMessage = 'No output found, make sure your script ran correctly and made use of the transformerlab package for the output to be visible.';
             // Use ANSI escape sequences to completely clear the screen and move cursor to top
             // This must happen synchronously to prevent the loading message from showing
             termRef.current.write('\x1b[2J\x1b[H' + noOutputMessage + '\r\n');
@@ -190,7 +190,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
         const currentLines = outputData.join('\n');
         if (currentLines !== lastContent) {
           // If we previously showed "No output found" and now have actual output, clear and show it
-          const noOutputMessage = 'No output found, make sure your script ran correctly and made use of transformerlab package for the output to be visible.';
+          const noOutputMessage = 'No output found, make sure your script ran correctly and made use of the transformerlab package for the output to be visible.';
           if (lastContent === noOutputMessage && !isEmptyOutput) {
             // Transitioning from "No output found" to actual output - clear and show new content
             if (termRef.current) {
