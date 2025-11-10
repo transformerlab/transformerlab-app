@@ -35,6 +35,7 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
   const isProcessing = useRef(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [lastContent, setLastContent] = useState<string>('');
+  const [hasReceivedData, setHasReceivedData] = useState(false);
 
   const handleResize = useCallback(
     debounce(() => {
@@ -95,6 +96,12 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     },
   );
 
+  // Reset state when jobId changes
+  useEffect(() => {
+    setLastContent('');
+    setHasReceivedData(false);
+  }, [jobId]);
+
   // Terminal initialization (only once)
   useEffect(() => {
     termRef.current = new Terminal({
@@ -143,37 +150,98 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
     };
 
     // Process new content when data changes
-    if (outputData && Array.isArray(outputData)) {
-      const currentLines = outputData.join('\n');
-      if (currentLines !== lastContent) {
-        // Only process new lines (content that wasn't there before)
-        if (lastContent) {
-          const newContent = currentLines.slice(lastContent.length);
-          if (newContent.trim()) {
-            // Split new content by newlines
-            const newLines = newContent
-              .split('\n')
-              .filter((line) => line.trim());
-            addLinesOneByOne(newLines);
-          }
-        } else {
-          // First time - clear the loading message and add all content
+    if (outputData) {
+      // Handle case where API returns a string instead of array
+      if (typeof outputData === 'string') {
+        if (!hasReceivedData && termRef.current) {
+          // Use ANSI escape sequences to completely clear the screen and move cursor to top
+          termRef.current.write('\x1b[2J\x1b[H');
+          setHasReceivedData(true);
+          addLinesOneByOne([outputData]);
+        }
+        return;
+      }
+
+      // Handle array responses
+      if (Array.isArray(outputData)) {
+        // Check if output is empty or indicates no output found
+        const isEmptyOutput = 
+          outputData.length === 0 || 
+          (outputData.length === 1 && outputData[0] === 'Output file not found');
+
+        if (isEmptyOutput && !hasReceivedData) {
+          // First response indicates no output - clear loading message and show user-friendly message immediately
           if (termRef.current) {
-            termRef.current.clear();
+            setHasReceivedData(true);
+            const noOutputMessage = 'No output found, make sure your script ran correctly and made use of transformerlab package for the output to be visible.';
+            // Use requestAnimationFrame to ensure clear happens before write (prevents flash of loading message)
+            requestAnimationFrame(() => {
+              if (termRef.current) {
+                // Use ANSI escape sequences to completely clear the screen and move cursor to top
+                termRef.current.write('\x1b[2J\x1b[H');
+                // Write directly to terminal (not via queue) to show immediately after clearing
+                termRef.current.write(noOutputMessage + '\r\n');
+                setLastContent(noOutputMessage);
+              }
+            });
           }
-          addLinesOneByOne(outputData);
+          return;
         }
 
-        setLastContent(currentLines);
+        const currentLines = outputData.join('\n');
+        if (currentLines !== lastContent) {
+          // If we previously showed "No output found" and now have actual output, clear and show it
+          const noOutputMessage = 'No output found, make sure your script ran correctly and made use of transformerlab package for the output to be visible.';
+          if (lastContent === noOutputMessage && !isEmptyOutput) {
+            // Transitioning from "No output found" to actual output - clear and show new content
+            if (termRef.current) {
+              // Use ANSI escape sequences to completely clear the screen and move cursor to top
+              termRef.current.write('\x1b[2J\x1b[H');
+            }
+            addLinesOneByOne(outputData);
+            setLastContent(currentLines);
+            return;
+          }
+
+          // Only process new lines (content that wasn't there before)
+          if (lastContent) {
+            const newContent = currentLines.slice(lastContent.length);
+            if (newContent.trim()) {
+              // Split new content by newlines
+              const newLines = newContent
+                .split('\n')
+                .filter((line) => line.trim());
+              addLinesOneByOne(newLines);
+            }
+          } else {
+            // First time - clear the loading message and add all content
+            if (termRef.current) {
+              // Use ANSI escape sequences to completely clear the screen and move cursor to top
+              termRef.current.write('\x1b[2J\x1b[H');
+              setHasReceivedData(true);
+            }
+            // Only add lines if there's actual content (not empty or error message)
+            if (!isEmptyOutput) {
+              addLinesOneByOne(outputData);
+            }
+          }
+
+          setLastContent(currentLines);
+        }
       }
     }
 
     // Handle errors
     if (error) {
+      if (termRef.current && !hasReceivedData) {
+        // Use ANSI escape sequences to completely clear the screen and move cursor to top
+        termRef.current.write('\x1b[2J\x1b[H');
+        setHasReceivedData(true);
+      }
       const errorMessage = `Error fetching output: ${error.message}`;
       addLinesOneByOne([errorMessage]);
     }
-  }, [outputData, lastContent, error]);
+  }, [outputData, lastContent, error, hasReceivedData]);
 
   return (
     <Sheet
