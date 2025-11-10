@@ -57,6 +57,8 @@ export default function EditTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
+  const [region, setRegion] = React.useState('');
+  const [zone, setZone] = React.useState('');
   const [saving, setSaving] = React.useState(false);
 
   const setupEditorRef = useRef<any>(null);
@@ -74,6 +76,8 @@ export default function EditTaskModal({
     setAccelerators(cfg.accelerators != null ? String(cfg.accelerators) : '');
     setNumNodes(cfg.num_nodes != null ? String(cfg.num_nodes) : '');
     setSetup(cfg.setup != null ? String(cfg.setup) : '');
+    setRegion(cfg.region != null ? String(cfg.region) : '');
+    setZone(cfg.zone != null ? String(cfg.zone) : '');
   }, [task]);
 
   // Keep Monaco editors in sync if the state changes after mount
@@ -160,6 +164,8 @@ export default function EditTaskModal({
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue || undefined,
+      region: region || undefined,
+      zone: zone || undefined,
     } as any;
 
     const body = {
@@ -300,7 +306,7 @@ export default function EditTaskModal({
               />
             </FormControl>
 
-            <FormControl sx={{ mt: 2 }}>
+                <FormControl sx={{ mt: 2 }}>
               <FormLabel>Number of Nodes</FormLabel>
               <Input
                 type="number"
@@ -309,6 +315,37 @@ export default function EditTaskModal({
                 placeholder="e.g. 1"
               />
             </FormControl>
+
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '16px',
+                marginTop: '16px',
+              }}
+            >
+              <FormControl
+                sx={{ flex: '1 1 calc(50% - 16px)', minWidth: '150px' }}
+              >
+                <FormLabel>Region</FormLabel>
+                <Input
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  placeholder="e.g. us-west-2"
+                />
+              </FormControl>
+
+              <FormControl
+                sx={{ flex: '1 1 calc(50% - 16px)', minWidth: '150px' }}
+              >
+                <FormLabel>Zone</FormLabel>
+                <Input
+                  value={zone}
+                  onChange={(e) => setZone(e.target.value)}
+                  placeholder="e.g. us-west-2a"
+                />
+              </FormControl>
+            </div>
 
             <FormControl sx={{ mt: 2 }}>
               <FormLabel>Setup Command</FormLabel>
