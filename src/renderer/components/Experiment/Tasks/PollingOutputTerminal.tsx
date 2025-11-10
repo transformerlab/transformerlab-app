@@ -123,9 +123,8 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
       resizeObserver.observe(terminalRef.current);
     }
 
-    if (initialMessage) {
-      termRef.current.writeln(initialMessage);
-    }
+    // Don't write initial message here - let the data processing effect handle it
+    // This prevents showing "Loading..." when data is already available (cached)
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -148,6 +147,12 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
         processQueue();
       }
     };
+
+    // Show loading message only if we don't have data yet and haven't shown anything
+    if (!outputData && !error && !hasReceivedData && initialMessage) {
+      termRef.current.write(initialMessage + '\r\n');
+      return;
+    }
 
     // Process new content when data changes
     if (outputData) {
@@ -172,18 +177,12 @@ const PollingOutputTerminal: React.FC<PollingOutputTerminalProps> = ({
         if (isEmptyOutput && !hasReceivedData) {
           // First response indicates no output - clear loading message and show user-friendly message immediately
           if (termRef.current) {
-            setHasReceivedData(true);
             const noOutputMessage = 'No output found, make sure your script ran correctly and made use of transformerlab package for the output to be visible.';
-            // Use requestAnimationFrame to ensure clear happens before write (prevents flash of loading message)
-            requestAnimationFrame(() => {
-              if (termRef.current) {
-                // Use ANSI escape sequences to completely clear the screen and move cursor to top
-                termRef.current.write('\x1b[2J\x1b[H');
-                // Write directly to terminal (not via queue) to show immediately after clearing
-                termRef.current.write(noOutputMessage + '\r\n');
-                setLastContent(noOutputMessage);
-              }
-            });
+            // Use ANSI escape sequences to completely clear the screen and move cursor to top
+            // This must happen synchronously to prevent the loading message from showing
+            termRef.current.write('\x1b[2J\x1b[H' + noOutputMessage + '\r\n');
+            setHasReceivedData(true);
+            setLastContent(noOutputMessage);
           }
           return;
         }
