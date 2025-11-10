@@ -306,7 +306,7 @@ export default function EditTaskModal({
               />
             </FormControl>
 
-                <FormControl sx={{ mt: 2 }}>
+            <FormControl sx={{ mt: 2 }}>
               <FormLabel>Number of Nodes</FormLabel>
               <Input
                 type="number"

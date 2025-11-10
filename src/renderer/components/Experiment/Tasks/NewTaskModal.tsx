@@ -10,12 +10,7 @@ import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
 import Select from '@mui/joy/Select';
 import Option from '@mui/joy/Option';
-import {
-  FormHelperText,
-  ModalClose,
-  ModalDialog,
-  Divider,
-} from '@mui/joy';
+import { FormHelperText, ModalClose, ModalDialog, Divider } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
@@ -88,7 +83,8 @@ export default function NewTaskModal({
   const [region, setRegion] = React.useState('');
   const [zone, setZone] = React.useState('');
   const [templates, setTemplates] = React.useState<Template[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = React.useState<string>('');
+  const [selectedTemplateId, setSelectedTemplateId] =
+    React.useState<string>('');
   const [showAdvanced, setShowAdvanced] = React.useState(false);
   const [loadingTemplates, setLoadingTemplates] = React.useState(false);
 
@@ -296,8 +292,8 @@ export default function NewTaskModal({
                   ))}
                 </Select>
                 <FormHelperText>
-                  Select a template to automatically fill resource fields, or use Advanced
-                  settings below
+                  Select a template to automatically fill resource fields, or
+                  use Advanced settings below
                 </FormHelperText>
               </FormControl>
             )}
