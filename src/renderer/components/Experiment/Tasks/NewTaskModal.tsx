@@ -287,7 +287,6 @@ export default function NewTaskModal({
                   {templates.map((template) => (
                     <Option key={template.id} value={template.id}>
                       {template.name}
-                      {template.description && ` - ${template.description}`}
                     </Option>
                   ))}
                 </Select>
