@@ -150,7 +150,7 @@ export default function NewTaskModal({
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value);
-                  setClusterName(`${e.target.value}-instance`);
+                  setClusterName(`${e.target.value}`);
                 }}
                 placeholder="Task title"
                 autoFocus

@@ -393,10 +393,14 @@ export default function Tasks() {
           message: 'Job created. Launching remotely...',
         });
 
-        // Then launch the remote job
+        // Then launch the remote job using the formatted cluster_name from create-job (if provided)
+        const formattedClusterName =
+          createJobResult.cluster_name || cfg.cluster_name;
+        const launchCfg = { ...cfg, cluster_name: formattedClusterName };
+
         const launchFormData = buildRemoteJobFormData(
           task,
-          cfg,
+          launchCfg,
           createJobResult.job_id,
         );
 
