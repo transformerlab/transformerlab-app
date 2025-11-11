@@ -72,7 +72,11 @@ export function useAPI(
   };
 }
 
-export const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+export const fetcher = async (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  parseJson: boolean = true,
+): Promise<any> => {
   const accessToken = await getAccessToken();
 
   const headers: Record<string, string> = {
@@ -94,14 +98,21 @@ export const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
     // attach details for callers
     err.status = response.status;
     try {
-      err.response = await response.json();
+      err.response = parseJson ? await response.json() : await response.text();
     } catch {
       err.response = null;
     }
     console.log(response);
     throw err;
   }
-  return response.json();
+
+  if (parseJson) {
+    const parsed = await response.json();
+    return parsed;
+  } else {
+    const text = await response.text();
+    return text;
+  }
 };
 
 export function useModelStatus() {
