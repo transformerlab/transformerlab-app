@@ -39,6 +39,12 @@ export default function SystemMessageBox({
   const [isSaving, setIsSaving] = useState(false);
   const [savingMessage, setSavingMessage] = useState('');
 
+  // Cross-environment deep clone helper. Prefer structuredClone when available.
+  const deepClone = (obj: any) =>
+    typeof (globalThis as any).structuredClone === 'function'
+      ? (globalThis as any).structuredClone(obj)
+      : JSON.parse(JSON.stringify(obj));
+
   // Get the current system message to display
   const getDisplayedSystemMessage = () => {
     if (isOverrideEnabled) {
@@ -115,7 +121,7 @@ export default function SystemMessageBox({
       {},
     );
 
-    let newPrompt = JSON.parse(JSON.stringify(currentPrompt));
+    let newPrompt = deepClone(currentPrompt);
 
     if (checked) {
       // Enable override - set flag and current custom message
@@ -163,7 +169,7 @@ export default function SystemMessageBox({
       {},
     );
 
-    let newPrompt = JSON.parse(JSON.stringify(currentPrompt));
+    let newPrompt = deepClone(currentPrompt);
 
     // Preprocess system message to replace date placeholders
     const processedMessage = preprocessSystemMessage(customSystemMessage);
