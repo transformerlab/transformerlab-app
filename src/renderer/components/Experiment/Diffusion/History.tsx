@@ -30,7 +30,11 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from 'lucide-react';
-import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  getAPIFullPath,
+  useAPI,
+  authenticatedFetch,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import HistoryCard from './HistoryCard';
 import HistoryImageViewModal from './HistoryImageViewModal';
@@ -96,7 +100,7 @@ const History: React.FC<HistoryProps> = () => {
   // View image in modal
   const viewImage = async (imageId: string) => {
     try {
-      const response = await chatAPI.authenticatedFetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['getImageInfo'], {
           imageId,
           experimentId,
@@ -113,7 +117,7 @@ const History: React.FC<HistoryProps> = () => {
   // Delete single image
   const deleteImage = async (imageId: string) => {
     try {
-      await chatAPI.authenticatedFetch(
+      await authenticatedFetch(
         getAPIFullPath('diffusion', ['deleteImage'], {
           imageId,
           experimentId,
@@ -143,7 +147,7 @@ const History: React.FC<HistoryProps> = () => {
       // Delete all selected images
       await Promise.all(
         Array.from(selectedImages).map((imageId) =>
-          chatAPI.authenticatedFetch(
+          authenticatedFetch(
             getAPIFullPath('diffusion', ['deleteImage'], {
               imageId,
               experimentId,
@@ -173,7 +177,7 @@ const History: React.FC<HistoryProps> = () => {
   // Clear all history
   const clearAllHistory = async () => {
     try {
-      await chatAPI.authenticatedFetch(
+      await authenticatedFetch(
         getAPIFullPath('diffusion', ['clearHistory'], {
           experimentId,
         }),
