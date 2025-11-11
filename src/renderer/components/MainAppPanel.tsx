@@ -390,7 +390,7 @@ export default function MainAppPanel({
           path="/experiment/eval"
           element={
             gpuOrchestrationServer !== '' ? (
-              <Tasks subtype="Evals" />
+              <Tasks subtype="Eval" />
             ) : (
               <Eval addEvaluation={experimentAddEvaluation} />
             )
