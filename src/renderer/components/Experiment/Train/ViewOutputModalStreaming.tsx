@@ -35,9 +35,9 @@ export default function ViewOutputModalStreaming({
   const [stopPolling, setStopPolling] = useState(false);
 
   const { data, error, isLoading } = useAPI(
-    'train',
+    'jobs',
     ['getSweepResults'],
-    { job_id: jobId, experiment_id: experimentInfo?.id },
+    { jobId: jobId, experimentId: experimentInfo?.id },
     {
       refreshInterval: stopPolling ? 0 : 15000,
       enabled: jobId !== -1 && !!experimentInfo?.id,
