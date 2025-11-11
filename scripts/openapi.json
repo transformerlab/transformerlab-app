@@ -970,7 +970,7 @@
         }
       }
     },
-    "/train/job/{job_id}": {
+    "/experiment/{experimentId}/jobs/{job_id}": {
       "get": {
         "tags": ["train"],
         "summary": "Get Training Job",
@@ -999,40 +999,11 @@
         }
       }
     },
-    "/train/job/{job_id}/output": {
+    "/experiment/{experimentId}/jobs/{job_id}/output": {
       "get": {
         "tags": ["train"],
         "summary": "Get Training Job Output",
         "operationId": "get_training_job_output_train_job__job_id__output_get",
-        "parameters": [
-          {
-            "name": "job_id",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string", "title": "Job Id" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": { "application/json": { "schema": {} } }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/train/job/{job_id}/stream_output": {
-      "get": {
-        "tags": ["train"],
-        "summary": "Watch Log",
-        "operationId": "watch_log_train_job__job_id__stream_output_get",
         "parameters": [
           {
             "name": "job_id",
