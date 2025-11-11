@@ -43,6 +43,14 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewGeneratedDataset,
 }) => {
   const formatJobConfig = (job: any) => {
+    const jobData = job?.job_data || {};
+
+    // Prefer showing Cluster Name (if present) and the user identifier (name/email)
+    const clusterName = jobData?.cluster_name;
+
+    const userInfo = jobData.user_info || {};
+    const userDisplay = userInfo.name || userInfo.email || '';
+
     if (job?.placeholder) {
       return (
         <>
@@ -51,11 +59,30 @@ const JobsList: React.FC<JobsListProps> = ({
         </>
       );
     }
-    // For jobs with template name, show template info
-    if (job.job_data?.template_name) {
+    // Build preferred details
+    if (clusterName || userDisplay) {
       return (
         <>
-          <b>Template:</b> {job.job_data.template_name}
+          {clusterName && (
+            <>
+              <b>Instance:</b> {clusterName}
+              <br />
+            </>
+          )}
+          {userDisplay && (
+            <>
+              <b>Launched by:</b> {userDisplay}
+            </>
+          )}
+        </>
+      );
+    }
+
+    // Fallbacks to existing info when no cluster/user available
+    if (jobData?.template_name) {
+      return (
+        <>
+          <b>Template:</b> {jobData.template_name}
           <br />
           <b>Type:</b> {job.type || 'Unknown'}
         </>

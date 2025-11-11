@@ -10,7 +10,7 @@
     <br />
     <a href="https://transformerlab.ai/docs/download/"><strong>Download</strong></a>
     ·
-    <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
+    <a href="https://transformerlab.ai/docs/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://youtu.be/tY5TAvKviLo">View Demo</a>
