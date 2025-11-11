@@ -42,6 +42,7 @@ export default function RunModelButton({
   setLogsDrawerOpen = null,
 }) {
   const [jobId, setJobId] = useState(null);
+  const [stopping, setStopping] = useState(false);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
@@ -339,11 +340,27 @@ export default function RunModelButton({
         ) : (
           <Button
             onClick={async () => {
-              await killWorker();
-              setJobId(null);
+              if (stopping) return;
+              setStopping(true);
+              try {
+                await killWorker();
+              } catch (err) {
+                console.error('Error stopping the worker:', err);
+              } finally {
+                setStopping(false);
+                setJobId(null);
+                try {
+                  await mutate();
+                } catch (err) {
+                  console.error(
+                    'Error mutating after stopping the worker:',
+                    err,
+                  );
+                }
+              }
             }}
             startDecorator={
-              models?.length == 0 ? (
+              stopping || models?.length == 0 ? (
                 <CircularProgress size="sm" thickness={2} />
               ) : (
                 <StopCircleIcon />
@@ -353,7 +370,7 @@ export default function RunModelButton({
             size="lg"
             sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
           >
-            Stop
+            {stopping ? 'Stopping...' : 'Stop'}
           </Button>
         )}
         <Button
