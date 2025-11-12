@@ -94,19 +94,19 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         title="Train"
         path="/experiment/training"
         icon={<GraduationCapIcon />}
-        disabled
+        disabled={!experimentInfo?.name}
       />
       <SubNavItem
         title="Generate"
         path="/experiment/generate"
         icon={<SquareStackIcon />}
-        disabled
+        disabled={!experimentInfo?.name}
       />
       <SubNavItem
         title="Evaluate"
         path="/experiment/eval"
         icon={<ChartColumnIncreasingIcon />}
-        disabled
+        disabled={!experimentInfo?.name}
       />
       <SubNavItem
         title="Documents"
