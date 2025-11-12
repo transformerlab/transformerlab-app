@@ -313,7 +313,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: data.setup || undefined,
         uploaded_dir_path: data.uploaded_dir_path || undefined,
         local_upload_copy: data.local_upload_copy || undefined,
-        shutdown_after_completion: data.shutdown_after_completion || false
+        shutdown_after_completion: data.shutdown_after_completion || false,
       };
 
       // Add subtype to config if provided
