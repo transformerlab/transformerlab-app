@@ -3,6 +3,7 @@ import Table from '@mui/joy/Table';
 import ButtonGroup from '@mui/joy/ButtonGroup';
 import IconButton from '@mui/joy/IconButton';
 import Button from '@mui/joy/Button';
+import Skeleton from '@mui/joy/Skeleton';
 import Box from '@mui/joy/Box';
 import {
   Trash2Icon,
@@ -36,11 +37,46 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewSweepOutput,
 }) => {
   const formatJobConfig = (job: any) => {
-    // For jobs with template name, show template info
-    if (job.job_data?.template_name) {
+    const jobData = job?.job_data || {};
+
+    // Prefer showing Cluster Name (if present) and the user identifier (name/email)
+    const clusterName = jobData?.cluster_name;
+
+    const userInfo = jobData.user_info || {};
+    const userDisplay = userInfo.name || userInfo.email || '';
+
+    if (job?.placeholder) {
       return (
         <>
-          <b>Template:</b> {job.job_data.template_name}
+          <Skeleton variant="text" level="body-md" width={160} />
+          <Skeleton variant="text" level="body-sm" width={100} />
+        </>
+      );
+    }
+    // Build preferred details
+    if (clusterName || userDisplay) {
+      return (
+        <>
+          {clusterName && (
+            <>
+              <b>Instance:</b> {clusterName}
+              <br />
+            </>
+          )}
+          {userDisplay && (
+            <>
+              <b>Launched by:</b> {userDisplay}
+            </>
+          )}
+        </>
+      );
+    }
+
+    // Fallbacks to existing info when no cluster/user available
+    if (jobData?.template_name) {
+      return (
+        <>
+          <b>Template:</b> {jobData.template_name}
           <br />
           <b>Type:</b> {job.type || 'Unknown'}
         </>
@@ -67,19 +103,23 @@ const JobsList: React.FC<JobsListProps> = ({
               <td>
                 <b>{job.id}</b>
                 <br />
-                <InfoIcon
-                  onClick={() => {
-                    const jobDataConfig = job?.job_data;
-                    if (typeof jobDataConfig === 'object') {
-                      alert(JSON.stringify(jobDataConfig, null, 2));
-                    } else {
-                      alert(jobDataConfig);
-                    }
-                  }}
-                  size="16px"
-                  color="var(--joy-palette-neutral-500)"
-                  style={{ cursor: 'pointer' }}
-                />
+                {job?.placeholder ? (
+                  <Skeleton variant="text" level="body-xs" width={60} />
+                ) : (
+                  <InfoIcon
+                    onClick={() => {
+                      const jobDataConfig = job?.job_data;
+                      if (typeof jobDataConfig === 'object') {
+                        alert(JSON.stringify(jobDataConfig, null, 2));
+                      } else {
+                        alert(jobDataConfig);
+                      }
+                    }}
+                    size="16px"
+                    color="var(--joy-palette-neutral-500)"
+                    style={{ cursor: 'pointer' }}
+                  />
+                )}
               </td>
               <td>{formatJobConfig(job)}</td>
               <td>
@@ -89,6 +129,11 @@ const JobsList: React.FC<JobsListProps> = ({
                 <ButtonGroup
                   sx={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}
                 >
+                  {job?.placeholder && (
+                    <>
+                      <Skeleton variant="rectangular" width={100} height={28} />
+                    </>
+                  )}
                   {job?.job_data?.tensorboard_output_dir && (
                     <Button
                       size="sm"
@@ -203,12 +248,14 @@ const JobsList: React.FC<JobsListProps> = ({
                       </Box>
                     </Button>
                   )}
-                  <IconButton variant="plain">
-                    <Trash2Icon
-                      onClick={() => onDeleteJob?.(job.id)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                  </IconButton>
+                  {!job?.placeholder && (
+                    <IconButton variant="plain">
+                      <Trash2Icon
+                        onClick={() => onDeleteJob?.(job.id)}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </IconButton>
+                  )}
                 </ButtonGroup>
               </td>
             </tr>

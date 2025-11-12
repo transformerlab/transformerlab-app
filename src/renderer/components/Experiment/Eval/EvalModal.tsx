@@ -190,8 +190,17 @@ export default function EvalModal({
         currentEvalId &&
         currentEvalId !== ''
       ) {
-        const evalConfig = SafeJSONParse(evalData.config, null);
-        if (evalConfig) {
+        // Parse config - handle both string and object formats
+        let evalConfig = null;
+        if (evalData.config) {
+          if (typeof evalData.config === 'string') {
+            evalConfig = SafeJSONParse(evalData.config, {});
+          } else if (typeof evalData.config === 'object') {
+            evalConfig = evalData.config;
+          }
+        }
+
+        if (evalConfig && Object.keys(evalConfig).length > 0) {
           setConfig(evalConfig);
           const datasetKeyExists = Object.keys(evalConfig).some(
             (key) => key === 'dataset_name',
@@ -218,11 +227,21 @@ export default function EvalModal({
               setConfig(evalConfig);
             }
           }
-          if (datasetKeyExists && evalConfig.dataset_name.length > 0) {
+          if (
+            datasetKeyExists &&
+            evalConfig.dataset_name &&
+            evalConfig.dataset_name.length > 0
+          ) {
             setSelectedDataset(evalConfig.dataset_name);
           }
-          if (!nameInput && evalConfig?.run_name.length > 0) {
+          if (
+            !nameInput &&
+            evalConfig?.run_name &&
+            evalConfig.run_name.length > 0
+          ) {
             setNameInput(evalConfig.run_name);
+          } else if (!nameInput && evalData?.name) {
+            setNameInput(evalData.name);
           }
         }
         // if (!nameInput && evalConfig?.script_parameters.run_name) {
