@@ -67,7 +67,12 @@ import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
-function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, isAuthenticated }) {
+function ExperimentMenuItems({
+  DEV_MODE,
+  experimentInfo,
+  models,
+  isAuthenticated,
+}) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
 
   return (
@@ -125,7 +130,12 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, isAuthenticated
   );
 }
 
-function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount, isAuthenticated }) {
+function GlobalMenuItems({
+  DEV_MODE,
+  experimentInfo,
+  outdatedPluginsCount,
+  isAuthenticated,
+}) {
   // Get GPU orchestration server URL from healthz endpoint
   const { healthzData } = useGPUOrchestrationAuth();
 
@@ -167,8 +177,18 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount, isAut
     >
       <Divider sx={{ marginBottom: 1 }} />
 
-      <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} disabled={!isAuthenticated} />
-      <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} disabled={!isAuthenticated} />
+      <SubNavItem
+        title="Model Registry"
+        path="/zoo"
+        icon={<BoxesIcon />}
+        disabled={!isAuthenticated}
+      />
+      <SubNavItem
+        title="Datasets"
+        path="/data"
+        icon={<FileTextIcon />}
+        disabled={!isAuthenticated}
+      />
       <SubNavItem
         title="Task Library"
         path="/task_library"

@@ -224,18 +224,22 @@ export function useCheckLocalConnection() {
  * Returns whether actions should be blocked in GPU orchestration mode
  */
 export function useGPUOrchestrationAuth() {
-  const { data: userInfo, error: userError, isLoading: isLoadingUserInfo } = useAPI('auth', ['me'], {});
-  
+  const {
+    data: userInfo,
+    error: userError,
+    isLoading: isLoadingUserInfo,
+  } = useAPI('auth', ['me'], {});
+
   const api_url = API_URL();
   const healthzUrl: string | null = api_url ? api_url + 'healthz' : null;
-  const { data: healthzData, error: healthzError, isLoading: isLoadingHealthz } = useSWR(
-    healthzUrl,
-    fetcher,
-    {
-      refreshInterval: 30000, // Refresh every 30 seconds
-      revalidateOnFocus: false,
-    }
-  );
+  const {
+    data: healthzData,
+    error: healthzError,
+    isLoading: isLoadingHealthz,
+  } = useSWR(healthzUrl, fetcher, {
+    refreshInterval: 30000, // Refresh every 30 seconds
+    revalidateOnFocus: false,
+  });
 
   const isAuthenticated = userInfo?.authenticated === true;
   const isInGPUOrchestrationMode = !!healthzData?.gpu_orchestration_server;

@@ -178,7 +178,9 @@ export default function LocalDatasets({ shouldBlockActions = false }) {
               <Button
                 onClick={async (e) => {
                   if (shouldBlockActions) {
-                    alert('You must be logged in to download datasets in GPU orchestration mode.');
+                    alert(
+                      'You must be logged in to download datasets in GPU orchestration mode.',
+                    );
                     return;
                   }
 

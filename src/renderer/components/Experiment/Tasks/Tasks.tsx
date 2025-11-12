@@ -10,7 +10,10 @@ import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { fetcher, useGPUOrchestrationAuth } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  fetcher,
+  useGPUOrchestrationAuth,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
@@ -113,7 +116,9 @@ export default function Tasks() {
     isLoading: tasksIsLoading,
     mutate: tasksMutate,
   } = useSWR(
-    experimentInfo?.id && !shouldBlockActions ? chatAPI.Endpoints.Tasks.List() : null,
+    experimentInfo?.id && !shouldBlockActions
+      ? chatAPI.Endpoints.Tasks.List()
+      : null,
     fetcher,
   );
 
@@ -186,7 +191,11 @@ export default function Tasks() {
 
   const handleDeleteTask = async (taskId: string) => {
     if (shouldBlockActions) {
-      addNotification({ type: 'warning', message: 'You must be logged in to perform this action in GPU orchestration mode.' });
+      addNotification({
+        type: 'warning',
+        message:
+          'You must be logged in to perform this action in GPU orchestration mode.',
+      });
       return;
     }
 
@@ -229,7 +238,11 @@ export default function Tasks() {
 
   const handleDeleteJob = async (jobId: string) => {
     if (shouldBlockActions) {
-      addNotification({ type: 'warning', message: 'You must be logged in to perform this action in GPU orchestration mode.' });
+      addNotification({
+        type: 'warning',
+        message:
+          'You must be logged in to perform this action in GPU orchestration mode.',
+      });
       return;
     }
 
@@ -272,7 +285,11 @@ export default function Tasks() {
 
   const handleSubmit = async (data: any) => {
     if (shouldBlockActions) {
-      addNotification({ type: 'warning', message: 'You must be logged in to perform this action in GPU orchestration mode.' });
+      addNotification({
+        type: 'warning',
+        message:
+          'You must be logged in to perform this action in GPU orchestration mode.',
+      });
       return;
     }
 
@@ -369,7 +386,11 @@ export default function Tasks() {
 
   const handleQueue = async (task: any) => {
     if (shouldBlockActions) {
-      addNotification({ type: 'warning', message: 'You must be logged in to perform this action in GPU orchestration mode.' });
+      addNotification({
+        type: 'warning',
+        message:
+          'You must be logged in to perform this action in GPU orchestration mode.',
+      });
       return;
     }
 
@@ -494,7 +515,11 @@ export default function Tasks() {
         gap={2}
       >
         <Typography level="title-md">Task Templates</Typography>
-        <Button startDecorator={<PlusIcon />} onClick={handleOpen} disabled={shouldBlockActions}>
+        <Button
+          startDecorator={<PlusIcon />}
+          onClick={handleOpen}
+          disabled={shouldBlockActions}
+        >
           New
         </Button>
       </Stack>

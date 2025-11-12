@@ -12,7 +12,11 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 // Needs to share jobId with ModelsStore
 // If you start a download on one it should stop you from starting on the other
 // Also this is how the import bar tells teh model store to show a download progress bar
-export default function ImportModelsBar({ jobId, setJobId, shouldBlockActions = false }) {
+export default function ImportModelsBar({
+  jobId,
+  setJobId,
+  shouldBlockActions = false,
+}) {
   const { experimentInfo } = useExperimentInfo();
   const [importModelsModalOpen, setImportModelsModalOpen] = useState(false);
   const [ggufModalOpen, setGgufModalOpen] = useState(false);
@@ -20,7 +24,9 @@ export default function ImportModelsBar({ jobId, setJobId, shouldBlockActions = 
 
   const downloadFile = async (modelId, filename) => {
     if (shouldBlockActions) {
-      alert('You must be logged in to download models in GPU orchestration mode.');
+      alert(
+        'You must be logged in to download models in GPU orchestration mode.',
+      );
       return;
     }
 
@@ -92,7 +98,9 @@ export default function ImportModelsBar({ jobId, setJobId, shouldBlockActions = 
                 <Button
                   onClick={async (e) => {
                     if (shouldBlockActions) {
-                      alert('You must be logged in to download models in GPU orchestration mode.');
+                      alert(
+                        'You must be logged in to download models in GPU orchestration mode.',
+                      );
                       return;
                     }
 

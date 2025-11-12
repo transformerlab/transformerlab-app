@@ -34,7 +34,8 @@ export default function ModelZoo({
     >
       {shouldBlockActions && (
         <Alert color="warning" sx={{ mb: 2 }}>
-          You must be logged in to use the Model Registry in GPU orchestration mode.
+          You must be logged in to use the Model Registry in GPU orchestration
+          mode.
         </Alert>
       )}
       <Tabs
@@ -66,8 +67,8 @@ export default function ModelZoo({
           value="local"
           sx={{ p: 0, py: 1, height: '100%', overflow: 'hidden' }}
         >
-          <LocalModels 
-            pickAModelMode={false} 
+          <LocalModels
+            pickAModelMode={false}
             experimentInfo={experimentInfo}
             shouldBlockActions={shouldBlockActions}
           />
