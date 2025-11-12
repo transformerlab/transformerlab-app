@@ -1,4 +1,11 @@
-import { Alert, Button, CircularProgress, Typography } from '@mui/joy';
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  Typography,
+  Skeleton,
+  Box,
+} from '@mui/joy';
 import {
   CheckCheckIcon,
   CheckCircle2Icon,
@@ -389,6 +396,10 @@ export default function RunModelButton({
     );
   }
 
+  // Show loading skeleton while determining engines
+  const isDeterminingEngines =
+    isLoading || pipelineTagLoading || inferenceLoading;
+
   return (
     <div
       style={{
@@ -407,7 +418,29 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {supportedEngines.length > 0 ? (
+      {isDeterminingEngines ? (
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: 1,
+            alignItems: 'center',
+          }}
+        >
+          <Skeleton
+            variant="rectangular"
+            width={200}
+            height={40}
+            sx={{ borderRadius: 'sm' }}
+          />
+          <Skeleton
+            variant="rectangular"
+            width={120}
+            height={40}
+            sx={{ borderRadius: 'sm' }}
+          />
+        </Box>
+      ) : supportedEngines.length > 0 ? (
         <Engine />
       ) : isValidDiffusionModel === true ? (
         <Alert startDecorator={<CheckCircle2Icon />} color="success">
