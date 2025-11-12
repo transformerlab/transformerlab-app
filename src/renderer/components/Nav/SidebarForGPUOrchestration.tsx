@@ -60,7 +60,6 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
-import UserLoginModal from '../User/UserLoginModal';
 import { DEFAULT_API_FALLBACK } from '../User/authCallbackUtils';
 
 import SubNavItem from './SubNavItem';
@@ -506,7 +505,7 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
   );
 }
 
-// WorkOS login function extracted from UserLoginModal
+// WorkOS login function
 async function loginWithWorkOS() {
   try {
     const w: any = window as any;
@@ -599,7 +598,6 @@ async function loginWithWorkOS() {
 }
 
 function BottomMenuItems({ navigate, themeSetter }) {
-  const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
   const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(
     null,
@@ -608,10 +606,17 @@ function BottomMenuItems({ navigate, themeSetter }) {
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [scopeSuccess, setScopeSuccess] = useState<string | null>(null);
   const [isScoping, setIsScoping] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  // Check sessionStorage on mount to persist login state across reloads
+  const [isLoggingIn, setIsLoggingIn] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('isLoggingIn') === 'true';
+    }
+    return false;
+  });
   const {
     data: userInfo,
     error: userError,
+    isLoading: isLoadingUserInfo,
     mutate: userMutate,
   } = useAPI('auth', ['me'], {});
 
@@ -623,6 +628,100 @@ function BottomMenuItems({ navigate, themeSetter }) {
     workosDetails?.organizationId ||
     'Not scoped';
   const hasWorkOSAccount = Boolean(workosDetails?.account);
+
+  // Keep login state active until auth/me completes successfully
+  useEffect(() => {
+    // Check if we have a login flag in sessionStorage (from a previous page load)
+    const hasLoginFlag = sessionStorage.getItem('isLoggingIn') === 'true';
+    const loginStartTime = sessionStorage.getItem('isLoggingInStartTime');
+    const isOnCallbackPage =
+      window.location.pathname.includes('/auth/callback') ||
+      window.location.hash.includes('/auth/callback');
+
+    if (hasLoginFlag && !isLoggingIn) {
+      setIsLoggingIn(true);
+    }
+
+    if (isLoggingIn || hasLoginFlag) {
+      // If we have user info and it's authenticated, clear the login state
+      if (userInfo && userInfo.authenticated && !isLoadingUserInfo) {
+        setIsLoggingIn(false);
+        sessionStorage.removeItem('isLoggingIn');
+        sessionStorage.removeItem('isLoggingInStartTime');
+        return;
+      }
+
+      // Check for timeout (15 seconds max wait)
+      if (loginStartTime) {
+        const elapsed = Date.now() - parseInt(loginStartTime, 10);
+        const maxWaitTime = 15000; // 15 seconds
+        if (elapsed > maxWaitTime) {
+          // Timeout - clear the login state
+          setIsLoggingIn(false);
+          sessionStorage.removeItem('isLoggingIn');
+          sessionStorage.removeItem('isLoggingInStartTime');
+          return;
+        }
+      }
+
+      // If we're not on callback page and auth/me has completed (not loading),
+      // and we're not authenticated, clear the state (user likely canceled or navigated back)
+      if (!isOnCallbackPage && !isLoadingUserInfo) {
+        if (userError || !userInfo?.authenticated) {
+          // Give it a moment in case auth/me is still in flight after callback
+          // But if we've been waiting and not authenticated, clear
+          if (loginStartTime) {
+            const elapsed = Date.now() - parseInt(loginStartTime, 10);
+            // Wait at least 2 seconds after callback before clearing (in case of delays)
+            if (elapsed > 2000) {
+              setIsLoggingIn(false);
+              sessionStorage.removeItem('isLoggingIn');
+              sessionStorage.removeItem('isLoggingInStartTime');
+            }
+          } else {
+            // No start time means this is stale, clear immediately
+            setIsLoggingIn(false);
+            sessionStorage.removeItem('isLoggingIn');
+            sessionStorage.removeItem('isLoggingInStartTime');
+          }
+        }
+      }
+    }
+  }, [userInfo, userError, isLoadingUserInfo, isLoggingIn]);
+
+  // Periodic cleanup check for stale login states (runs every 2 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const hasLoginFlag = sessionStorage.getItem('isLoggingIn') === 'true';
+      const loginStartTime = sessionStorage.getItem('isLoggingInStartTime');
+      const isOnCallbackPage =
+        window.location.pathname.includes('/auth/callback') ||
+        window.location.hash.includes('/auth/callback');
+
+      if (hasLoginFlag && loginStartTime) {
+        const elapsed = Date.now() - parseInt(loginStartTime, 10);
+        const maxWaitTime = 15000; // 15 seconds
+
+        // If timeout exceeded, clear the state
+        if (elapsed > maxWaitTime) {
+          setIsLoggingIn(false);
+          sessionStorage.removeItem('isLoggingIn');
+          sessionStorage.removeItem('isLoggingInStartTime');
+        }
+        // If not on callback page and enough time has passed (user likely navigated back)
+        else if (!isOnCallbackPage && elapsed > 3000) {
+          // Only clear if we're definitely not authenticated (not just still loading)
+          if (!isLoadingUserInfo && (!userInfo?.authenticated || userError)) {
+            setIsLoggingIn(false);
+            sessionStorage.removeItem('isLoggingIn');
+            sessionStorage.removeItem('isLoggingInStartTime');
+          }
+        }
+      }
+    }, 2000); // Check every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [isLoadingUserInfo, userInfo, userError]);
 
   useEffect(() => {
     if (workosScopeModalOpen) {
@@ -726,6 +825,11 @@ function BottomMenuItems({ navigate, themeSetter }) {
     console.log(userError);
   }
 
+  // Show login state if we're actively logging in OR if we're waiting for auth/me after a callback
+  const showLoginState =
+    isLoggingIn ||
+    (sessionStorage.getItem('isLoggingIn') === 'true' && isLoadingUserInfo);
+
   return (
     <>
       <Divider sx={{ my: 1 }} />
@@ -756,31 +860,47 @@ function BottomMenuItems({ navigate, themeSetter }) {
             <ListItem className="FirstSidebar_Content">
               <ListItemButton
                 variant="plain"
-                disabled={isLoggingIn}
+                disabled={showLoginState}
                 onClick={async () => {
-                  if (isLoggingIn) return; // Prevent multiple clicks
+                  if (showLoginState) return; // Prevent multiple clicks
 
                   setIsLoggingIn(true);
+                  // Persist login state in sessionStorage so it survives page reloads
+                  // Also store timestamp for timeout detection
+                  sessionStorage.setItem('isLoggingIn', 'true');
+                  sessionStorage.setItem(
+                    'isLoggingInStartTime',
+                    Date.now().toString(),
+                  );
                   try {
                     // Check if we're in cloud mode
                     if (window.platform?.appmode === 'cloud') {
                       try {
                         await loginWithWorkOS();
+                        // Don't clear isLoggingIn here - it will be cleared after auth/me completes
+                        // The redirect will happen, and after callback/reload, the useEffect will handle it
                       } catch (error) {
                         console.error('Login failed:', error);
+                        setIsLoggingIn(false);
+                        sessionStorage.removeItem('isLoggingIn');
+                        sessionStorage.removeItem('isLoggingInStartTime');
                         // You could add a toast notification here if needed
                       }
                     } else {
-                      // Open the modal for non-cloud modes
-                      setUserLoginModalOpen(true);
+                      // Non-cloud mode - login handled elsewhere
+                      setIsLoggingIn(false);
+                      sessionStorage.removeItem('isLoggingIn');
+                      sessionStorage.removeItem('isLoggingInStartTime');
                     }
-                  } finally {
+                  } catch (error) {
                     setIsLoggingIn(false);
+                    sessionStorage.removeItem('isLoggingIn');
+                    sessionStorage.removeItem('isLoggingInStartTime');
                   }
                 }}
               >
                 <ListItemDecorator sx={{ minInlineSize: '30px' }}>
-                  {isLoggingIn ? (
+                  {showLoginState ? (
                     <Box
                       sx={{
                         width: '18px',
@@ -807,7 +927,7 @@ function BottomMenuItems({ navigate, themeSetter }) {
                   }}
                 >
                   <Typography level="body-sm">
-                    {isLoggingIn ? 'Logging in...' : 'Login'}
+                    {showLoginState ? 'Logging in...' : 'Login'}
                   </Typography>
                 </ListItemContent>
               </ListItemButton>
@@ -846,13 +966,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
           </Tooltip>
         </a>
       </ButtonGroup>
-      <UserLoginModal
-        open={userLoginModalOpen}
-        onClose={() => {
-          setUserLoginModalOpen(false);
-          userMutate();
-        }}
-      />
       <Modal
         open={workosScopeModalOpen && hasWorkOSAccount}
         onClose={() => setWorkosScopeModalOpen(false)}
