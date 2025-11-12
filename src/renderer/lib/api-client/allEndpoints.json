@@ -131,6 +131,7 @@
     "resumeFromCheckpoint": {
       "method": "POST",
       "path": "experiment/{experimentId}/jobs/{jobId}/resume_from_checkpoint"
+    },
     "getSweepResults": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/{jobId}/sweep_results"
