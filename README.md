@@ -118,7 +118,7 @@ And you can do the above, all through a simple cross-platform GUI.
 
 <a href="https://transformerlab.ai/docs/download">Click here</a> to download Transformer Lab.
 
-<a href="https://transformerlab.ai/docs/intro">Read this page</a> to learn how to install and use.
+<a href="https://transformerlab.ai/docs/install">Read this page</a> to learn how to install and use.
 
 ### Built With
 
