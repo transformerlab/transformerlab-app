@@ -39,14 +39,14 @@ export function filterByFiltersDatasetID(data, searchText = '', filters = {}) {
     return false;
   });
 }
-export default function LocalDatasets() {
+export default function LocalDatasets({ shouldBlockActions = false }) {
   const [searchText, setSearchText] = useState('');
   const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
   const [downloadingDataset, setDownloadingDataset] = useState(null);
   const [showConfigNameField, setShowConfigNameField] = useState(false);
 
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.LocalList(false),
+    !shouldBlockActions ? chatAPI.Endpoints.Dataset.LocalList(false) : null,
     fetcher,
   );
 
@@ -131,6 +131,7 @@ export default function LocalDatasets() {
                   downloaded={true}
                   local={true}
                   parentMutate={mutate}
+                  shouldBlockActions={shouldBlockActions}
                 />
               </Grid>
             ))}
@@ -164,6 +165,7 @@ export default function LocalDatasets() {
                 name="download-dataset-name"
                 // Setting model_id text field to 70% of the width, as they are longer
                 sx={{ flex: 7 }}
+                disabled={shouldBlockActions}
               />
               {showConfigNameField && (
                 <Input
@@ -175,6 +177,11 @@ export default function LocalDatasets() {
               )}
               <Button
                 onClick={async (e) => {
+                  if (shouldBlockActions) {
+                    alert('You must be logged in to download datasets in GPU orchestration mode.');
+                    return;
+                  }
+
                   const dataset = document.getElementsByName(
                     'download-dataset-name',
                   )[0].value;
@@ -215,6 +222,7 @@ export default function LocalDatasets() {
                       });
                   }
                 }}
+                disabled={shouldBlockActions}
                 startDecorator={
                   downloadingDataset ? (
                     <CircularProgress size="sm" thickness={2} />

@@ -39,13 +39,13 @@ export function filterByFiltersDatasetID(data, searchText = '', filters = {}) {
     return false;
   });
 }
-export default function GeneratedDatasets() {
+export default function GeneratedDatasets({ shouldBlockActions = false }) {
   const [searchText, setSearchText] = useState('');
   // const [newDatasetModalOpen, setNewDatasetModalOpen] = useState(false);
   // const [downloadingDataset, setDownloadingDataset] = useState(null);
 
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Dataset.GeneratedList(),
+    !shouldBlockActions ? chatAPI.Endpoints.Dataset.GeneratedList() : null,
     fetcher,
   );
 

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
-import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
+import { Button, LinearProgress, Stack, Typography, Alert } from '@mui/joy';
 
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -10,7 +10,7 @@ import useSWR from 'swr';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher, useGPUOrchestrationAuth } from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
@@ -39,6 +39,9 @@ export default function Tasks() {
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
+
+  // Check authentication and GPU orchestration mode using centralized hook
+  const { shouldBlockActions } = useGPUOrchestrationAuth();
 
   // Pending job IDs persisted per experiment to show immediate placeholders
   const pendingJobsStorageKey = useMemo(
@@ -85,14 +88,14 @@ export default function Tasks() {
     setTaskBeingEdited(null);
   };
 
-  // Fetch jobs with automatic polling
+  // Fetch jobs with automatic polling - only if authenticated in GPU orchestration mode
   const {
     data: jobs,
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
   } = useSWR(
-    experimentInfo?.id
+    experimentInfo?.id && !shouldBlockActions
       ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
       : null,
     fetcher,
@@ -103,14 +106,14 @@ export default function Tasks() {
     },
   );
 
-  // Fetch tasks with useSWR
+  // Fetch tasks with useSWR - only if authenticated in GPU orchestration mode
   const {
     data: allTasks,
     error: tasksError,
     isLoading: tasksIsLoading,
     mutate: tasksMutate,
   } = useSWR(
-    experimentInfo?.id ? chatAPI.Endpoints.Tasks.List() : null,
+    experimentInfo?.id && !shouldBlockActions ? chatAPI.Endpoints.Tasks.List() : null,
     fetcher,
   );
 
@@ -182,6 +185,11 @@ export default function Tasks() {
   }, [jobs, getPendingJobIds]);
 
   const handleDeleteTask = async (taskId: string) => {
+    if (shouldBlockActions) {
+      addNotification({ type: 'warning', message: 'You must be logged in to perform this action in GPU orchestration mode.' });
+      return;
+    }
+
     if (!experimentInfo?.id) return;
 
     // eslint-disable-next-line no-alert
@@ -220,6 +228,11 @@ export default function Tasks() {
   };
 
   const handleDeleteJob = async (jobId: string) => {
+    if (shouldBlockActions) {
+      addNotification({ type: 'warning', message: 'You must be logged in to perform this action in GPU orchestration mode.' });
+      return;
+    }
+
     if (!experimentInfo?.id) return;
 
     // eslint-disable-next-line no-alert
@@ -258,6 +271,11 @@ export default function Tasks() {
   };
 
   const handleSubmit = async (data: any) => {
+    if (shouldBlockActions) {
+      addNotification({ type: 'warning', message: 'You must be logged in to perform this action in GPU orchestration mode.' });
+      return;
+    }
+
     if (!experimentInfo?.id) {
       addNotification({ type: 'warning', message: 'No experiment selected' });
       return;
@@ -350,6 +368,11 @@ export default function Tasks() {
   };
 
   const handleQueue = async (task: any) => {
+    if (shouldBlockActions) {
+      addNotification({ type: 'warning', message: 'You must be logged in to perform this action in GPU orchestration mode.' });
+      return;
+    }
+
     if (!experimentInfo?.id) return;
 
     addNotification({
@@ -445,6 +468,11 @@ export default function Tasks() {
         overflow: 'hidden',
       }}
     >
+      {shouldBlockActions && (
+        <Alert color="warning" sx={{ mb: 2 }}>
+          You must be logged in to use the Tasks page in GPU orchestration mode.
+        </Alert>
+      )}
       <NewTaskModal
         open={modalOpen}
         onClose={handleClose}
@@ -466,7 +494,7 @@ export default function Tasks() {
         gap={2}
       >
         <Typography level="title-md">Task Templates</Typography>
-        <Button startDecorator={<PlusIcon />} onClick={handleOpen}>
+        <Button startDecorator={<PlusIcon />} onClick={handleOpen} disabled={shouldBlockActions}>
           New
         </Button>
       </Stack>
@@ -483,6 +511,10 @@ export default function Tasks() {
       >
         {tasksIsLoading ? (
           <LinearProgress />
+        ) : shouldBlockActions ? (
+          <Typography level="body-md" sx={{ p: 2, textAlign: 'center' }}>
+            Please log in to view and manage tasks.
+          </Typography>
         ) : (
           <TaskTemplateList
             tasksList={tasks}
@@ -496,6 +528,10 @@ export default function Tasks() {
       <Sheet sx={{ px: 1, mt: 1, mb: 2, flex: 2, overflow: 'auto' }}>
         {jobsIsLoading ? (
           <LinearProgress />
+        ) : shouldBlockActions ? (
+          <Typography level="body-md" sx={{ p: 2, textAlign: 'center' }}>
+            Please log in to view and manage jobs.
+          </Typography>
         ) : (
           <JobsList
             jobs={jobsWithPlaceholders as any}

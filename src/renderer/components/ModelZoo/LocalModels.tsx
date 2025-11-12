@@ -21,13 +21,14 @@ export default function LocalModels({
   showOnlyGeneratedModels = false,
   setFoundation = (name: string) => {},
   setAdaptor = (name: string) => {},
+  shouldBlockActions = false,
 }) {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [open, setOpen] = useState(false);
   const [downloadingModel, setDownloadingModel] = useState(null);
 
   const { data, error, isLoading, mutate } = useSWR(
-    chatAPI.Endpoints.Models.LocalList(),
+    !shouldBlockActions ? chatAPI.Endpoints.Models.LocalList() : null,
     fetcher,
   );
 

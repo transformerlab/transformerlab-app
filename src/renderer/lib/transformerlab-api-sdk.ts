@@ -56,6 +56,7 @@ export {
   usePluginStatus,
   useServerStats,
   useCheckLocalConnection,
+  useGPUOrchestrationAuth,
   fetcher,
 } from './api-client/hooks';
 

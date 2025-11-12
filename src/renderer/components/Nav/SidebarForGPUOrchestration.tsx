@@ -57,6 +57,7 @@ import {
   setRefreshToken,
   API_URL,
   apiHealthz,
+  useGPUOrchestrationAuth,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
@@ -66,7 +67,7 @@ import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
-function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
+function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, isAuthenticated }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
 
   return (
@@ -88,7 +89,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         title="Tasks"
         path="/experiment/tasks"
         icon={<StretchHorizontalIcon />}
-        disabled={!experimentInfo?.name}
+        disabled={!experimentInfo?.name || !isAuthenticated}
       />
       <SubNavItem
         title="Train"
@@ -112,34 +113,21 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         title="Documents"
         path="/experiment/documents"
         icon={<FileIcon />}
-        disabled={!experimentInfo?.name}
+        disabled={!experimentInfo?.name || !isAuthenticated}
       />
       <SubNavItem
         title="Notes"
         path="/experiment/notes"
         icon={<FlaskConicalIcon />}
-        disabled={!experimentInfo?.name}
+        disabled={!experimentInfo?.name || !isAuthenticated}
       />
     </List>
   );
 }
 
-function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
+function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount, isAuthenticated }) {
   // Get GPU orchestration server URL from healthz endpoint
-  const [healthzData, setHealthzData] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchHealthz = async () => {
-      try {
-        const data = await apiHealthz();
-        setHealthzData(data);
-      } catch (error) {
-        console.error('Failed to fetch healthz data:', error);
-      }
-    };
-
-    fetchHealthz();
-  }, []);
+  const { healthzData } = useGPUOrchestrationAuth();
 
   const handleGPUOrchestraionClick = () => {
     if (healthzData?.gpu_orchestration_server) {
@@ -179,18 +167,19 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
     >
       <Divider sx={{ marginBottom: 1 }} />
 
-      <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} />
-      <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
+      <SubNavItem title="Model Registry" path="/zoo" icon={<BoxesIcon />} disabled={!isAuthenticated} />
+      <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} disabled={!isAuthenticated} />
       <SubNavItem
         title="Task Library"
         path="/task_library"
         icon={<LibraryBigIcon />}
+        disabled={!isAuthenticated}
       />
       <SubNavItem
         title="API"
         path="/api"
         icon={<CodeIcon />}
-        disabled={!experimentInfo?.name}
+        disabled={!experimentInfo?.name || !isAuthenticated}
       />
 
       {/* Computer icon for GPU Orchestration */}
@@ -1068,6 +1057,9 @@ export default function SidebarForGPUOrchestration({
 
   const DEV_MODE = experimentInfo?.name === 'dev';
 
+  // Check authentication status using the centralized hook
+  const { isAuthenticated } = useGPUOrchestrationAuth();
+
   return (
     <Sheet
       className="Sidebar"
@@ -1117,11 +1109,13 @@ export default function SidebarForGPUOrchestration({
         DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
         models={models}
+        isAuthenticated={isAuthenticated}
       />
       <GlobalMenuItems
         DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
+        isAuthenticated={isAuthenticated}
       />
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>

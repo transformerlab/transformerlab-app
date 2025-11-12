@@ -12,13 +12,18 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 // Needs to share jobId with ModelsStore
 // If you start a download on one it should stop you from starting on the other
 // Also this is how the import bar tells teh model store to show a download progress bar
-export default function ImportModelsBar({ jobId, setJobId }) {
+export default function ImportModelsBar({ jobId, setJobId, shouldBlockActions = false }) {
   const { experimentInfo } = useExperimentInfo();
   const [importModelsModalOpen, setImportModelsModalOpen] = useState(false);
   const [ggufModalOpen, setGgufModalOpen] = useState(false);
   const [ggufModelData, setGgufModelData] = useState(null);
 
   const downloadFile = async (modelId, filename) => {
+    if (shouldBlockActions) {
+      alert('You must be logged in to download models in GPU orchestration mode.');
+      return;
+    }
+
     setJobId(-1);
     try {
       const jobResponse = await chatAPI.authenticatedFetch(
@@ -86,6 +91,11 @@ export default function ImportModelsBar({ jobId, setJobId }) {
               endDecorator={
                 <Button
                   onClick={async (e) => {
+                    if (shouldBlockActions) {
+                      alert('You must be logged in to download models in GPU orchestration mode.');
+                      return;
+                    }
+
                     const model = document.getElementsByName(
                       'download-model-name',
                     )[0].value;
@@ -129,6 +139,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                       }
                     }
                   }}
+                  disabled={shouldBlockActions}
                   startDecorator={
                     jobId ? <CircularProgress size="sm" thickness={2} /> : ''
                   }
@@ -137,7 +148,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
                 </Button>
               }
               sx={{ width: '500px' }}
-              disabled={jobId != null}
+              disabled={jobId != null || shouldBlockActions}
             />
           </FormControl>
           <Button
@@ -147,6 +158,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
             onClick={() => {
               setImportModelsModalOpen(true);
             }}
+            disabled={shouldBlockActions}
           >
             Import Local Models
           </Button>

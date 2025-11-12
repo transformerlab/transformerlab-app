@@ -33,6 +33,7 @@ export default function DatasetCard({
   parentMutate,
   local,
   friendlyName = null,
+  shouldBlockActions = false,
 }) {
   const [installing, setInstalling] = useState(null);
   const [previewModalState, setPreviewModalState] = useState({
@@ -191,7 +192,7 @@ export default function DatasetCard({
               color="primary"
               aria-label="Download"
               sx={{ flex: '1 1 auto', minWidth: 120 }}
-              disabled={downloaded || installing}
+              disabled={downloaded || installing || shouldBlockActions}
               endDecorator={
                 downloaded ? (
                   <CheckIcon />
@@ -202,6 +203,11 @@ export default function DatasetCard({
                 )
               }
               onClick={() => {
+                if (shouldBlockActions) {
+                  alert('You must be logged in to download datasets in GPU orchestration mode.');
+                  return;
+                }
+
                 setInstalling(true);
                 chatAPI
                   .authenticatedFetch(chatAPI.Endpoints.Dataset.Download(repo))
