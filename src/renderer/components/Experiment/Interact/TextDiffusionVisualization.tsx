@@ -363,54 +363,57 @@ export default function TextDiffusionVisualization({
 
         {/* Progress and stats - matching terminal visualizer */}
         {(isGenerating || totalSteps > 0) && (
-          <Card variant="outlined">
-            <Stack spacing={2}>
-              <Box>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    mb: 1,
-                  }}
+          <Card variant="outlined" sx={{ width: '100%' }}>
+            <Box sx={{ p: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  mb: 1.5,
+                }}
+              >
+                <Typography
+                  level="body-sm"
+                  fontWeight="lg"
+                  sx={{ color: 'primary.600' }}
                 >
-                  <Typography
-                    level="body-sm"
-                    fontWeight="lg"
-                    sx={{ color: 'primary.600' }}
-                  >
-                    Diffusion
+                  Diffusion
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Typography level="body-sm">
+                    {currentStep} / {totalSteps}
                   </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                    <Typography level="body-sm">
-                      {currentStep} / {totalSteps}
-                    </Typography>
-                    {masksRemaining !== undefined && (
-                      <Typography level="body-sm" sx={{ color: 'primary.600' }}>
-                        • Masks: {masksRemaining}
-                      </Typography>
-                    )}
+                  {masksRemaining !== undefined && (
                     <Typography level="body-sm" sx={{ color: 'primary.600' }}>
-                      • {Math.round(progressPercentage)}%
+                      • Masks: {masksRemaining}
                     </Typography>
-                    {timeRemaining !== null && timeRemaining > 0 && (
-                      <Typography level="body-sm" sx={{ color: 'neutral.500' }}>
-                        • {Math.round(timeRemaining)}s remaining
-                      </Typography>
-                    )}
-                  </Box>
+                  )}
+                  <Typography level="body-sm" sx={{ color: 'primary.600' }}>
+                    • {Math.round(progressPercentage)}%
+                  </Typography>
+                  {timeRemaining !== null && timeRemaining > 0 && (
+                    <Typography level="body-sm" sx={{ color: 'neutral.500' }}>
+                      • {Math.round(timeRemaining)}s remaining
+                    </Typography>
+                  )}
                 </Box>
-                <LinearProgress
-                  determinate
-                  value={progressPercentage}
-                  sx={{
-                    width: '100%',
-                    height: 8,
-                    borderRadius: 'sm',
-                  }}
-                />
               </Box>
-            </Stack>
+              <LinearProgress
+                determinate
+                value={progressPercentage}
+                color="success"
+                sx={(theme) => ({
+                  width: '100%',
+                  height: 12,
+                  borderRadius: 'sm',
+                  '--LinearProgress-radius': '4px',
+                  '--LinearProgress-thickness': '12px',
+                  '--LinearProgress-progressColor': theme.vars.palette.success[500],
+                  '--LinearProgress-trackColor': theme.vars.palette.neutral.plainDisabledColor,
+                })}
+              />
+            </Box>
           </Card>
         )}
 
@@ -418,7 +421,7 @@ export default function TextDiffusionVisualization({
         <Card
           variant="outlined"
           sx={{
-            flex: 1,
+            height: '400px',
             display: 'flex',
             flexDirection: 'column',
             borderColor: 'primary.300',
