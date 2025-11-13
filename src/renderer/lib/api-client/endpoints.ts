@@ -15,6 +15,14 @@ Endpoints.Tasks = {
     `${API_URL()}tasks/list_by_type_in_experiment?type=${type}&experiment_id=${
       experiment_id
     }`,
+  ListBySubtypeInExperiment: (
+    experiment_id: string,
+    subtype: string,
+    remote_task?: boolean,
+  ) =>
+    `${API_URL()}tasks/list_by_subtype_in_experiment?experiment_id=${experiment_id}&subtype=${encodeURIComponent(
+      subtype,
+    )}${remote_task !== undefined ? `&remote_task=${remote_task}` : ''}`,
   Queue: (id: string) => `${API_URL()}tasks/${id}/queue`,
   GetByID: (id: string) => `${API_URL()}tasks/${id}/get`,
   UpdateTask: (id: string) => `${API_URL()}tasks/${id}/update`,
@@ -425,6 +433,13 @@ Endpoints.Experiment = {
     task: string = 'view',
   ) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_additional_details?task=${task}`,
+  GetEvalResults: (
+    experimentId: string,
+    jobId: string,
+    task: string = 'view',
+    fileIndex: number = 0,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_results?task=${task}&file_index=${fileIndex}`,
   GetGeneratedDataset: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_generated_dataset`,
   GetPlotJSON: (experimentId: string, jobId: string) =>
@@ -434,6 +449,16 @@ Endpoints.Experiment = {
 Endpoints.Jobs = {
   List: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/list`,
+  ListWithFilters: (
+    experimentId: string,
+    type?: string,
+    status?: string,
+    subtype?: string,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/list` +
+    `${type ? `?type=${type}` : ''}` +
+    `${status ? `${type ? '&' : '?'}status=${status}` : ''}` +
+    `${subtype ? `${type || status ? '&' : '?'}subtype=${encodeURIComponent(subtype)}` : ''}`,
   Get: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}`,
   Create: (
@@ -455,6 +480,8 @@ Endpoints.Jobs = {
     `${API_URL()}experiment/${experimentId}/jobs/delete/${jobId}`,
   Stop: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
+  Update: (experimentId: string, jobId: string, status: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/update/${jobId}?status=${status}`,
   GetEvalImages: (experimentId: string, jobId: string) =>
     `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
   CreateRemoteJob: (experimentId: string) =>
@@ -465,6 +492,7 @@ Endpoints.Jobs = {
   StopRemote: () => `${API_URL()}remote/stop`,
   CheckStatus: () => `${API_URL()}remote/check-status`,
   GetLogs: (requestId: string) => `${API_URL()}remote/logs/${requestId}`,
+  GetInstancesStatus: () => `${API_URL()}remote/instances-status`,
 };
 
 Endpoints.Global = {

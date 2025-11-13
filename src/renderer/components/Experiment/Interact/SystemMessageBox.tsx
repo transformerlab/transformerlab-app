@@ -39,6 +39,12 @@ export default function SystemMessageBox({
   const [isSaving, setIsSaving] = useState(false);
   const [savingMessage, setSavingMessage] = useState('');
 
+  // Cross-environment deep clone helper. Prefer structuredClone when available.
+  const deepClone = (obj: any) =>
+    typeof (globalThis as any).structuredClone === 'function'
+      ? (globalThis as any).structuredClone(obj)
+      : JSON.parse(JSON.stringify(obj));
+
   // Get the current system message to display
   const getDisplayedSystemMessage = () => {
     if (isOverrideEnabled) {
@@ -110,17 +116,12 @@ export default function SystemMessageBox({
   };
 
   const handleOverrideToggle = (checked: boolean) => {
-    let newPrompt = experimentInfo?.config?.prompt_template;
+    let currentPrompt = SafeJSONParse(
+      experimentInfo?.config?.prompt_template,
+      {},
+    );
 
-    // If undefined, initialize it as an empty object
-    if (newPrompt === undefined || newPrompt === null) {
-      newPrompt = {};
-    }
-
-    // Make new prompt as json
-    if (typeof newPrompt === 'string') {
-      newPrompt = JSON.parse(newPrompt);
-    }
+    let newPrompt = deepClone(currentPrompt);
 
     if (checked) {
       // Enable override - set flag and current custom message
@@ -136,6 +137,17 @@ export default function SystemMessageBox({
     }
 
     // Update state only after server call to avoid timing issues
+    experimentInfoMutate(
+      {
+        ...experimentInfo,
+        config: {
+          ...experimentInfo.config,
+          prompt_template: newPrompt,
+        },
+      },
+      false,
+    );
+
     savePromptToServer(newPrompt);
     // Note: setIsOverrideEnabled will be updated via useEffect when experimentInfoMutate triggers
   };
@@ -152,23 +164,28 @@ export default function SystemMessageBox({
     // Store the message we're trying to save
     setSavingMessage(customSystemMessage);
 
-    let newPrompt = experimentInfo?.config?.prompt_template;
+    let currentPrompt = SafeJSONParse(
+      experimentInfo?.config?.prompt_template,
+      {},
+    );
 
-    // If undefined, initialize it as an empty object
-    if (newPrompt === undefined || newPrompt === null) {
-      newPrompt = {};
-    }
-
-    // Make new prompt as json
-    if (typeof newPrompt === 'string') {
-      newPrompt = JSON.parse(newPrompt);
-    }
+    let newPrompt = deepClone(currentPrompt);
 
     // Preprocess system message to replace date placeholders
     const processedMessage = preprocessSystemMessage(customSystemMessage);
 
     newPrompt.system_message_override = true;
     newPrompt.system_message = processedMessage;
+    experimentInfoMutate(
+      {
+        ...experimentInfo,
+        config: {
+          ...experimentInfo.config,
+          prompt_template: newPrompt,
+        },
+      },
+      false,
+    );
 
     savePromptToServer(newPrompt);
 

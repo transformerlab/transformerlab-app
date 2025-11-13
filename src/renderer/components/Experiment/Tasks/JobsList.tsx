@@ -12,6 +12,8 @@ import {
   WaypointsIcon,
   ArchiveIcon,
   LogsIcon,
+  FileTextIcon,
+  DatabaseIcon,
 } from 'lucide-react';
 import JobProgress from './JobProgress';
 
@@ -24,6 +26,8 @@ interface JobsListProps {
   onViewArtifacts?: (jobId: string) => void;
   onViewEvalImages?: (jobId: string) => void;
   onViewSweepOutput?: (jobId: string) => void;
+  onViewEvalResults?: (jobId: string) => void;
+  onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -35,8 +39,18 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewArtifacts,
   onViewEvalImages,
   onViewSweepOutput,
+  onViewEvalResults,
+  onViewGeneratedDataset,
 }) => {
   const formatJobConfig = (job: any) => {
+    const jobData = job?.job_data || {};
+
+    // Prefer showing Cluster Name (if present) and the user identifier (name/email)
+    const clusterName = jobData?.cluster_name;
+
+    const userInfo = jobData.user_info || {};
+    const userDisplay = userInfo.name || userInfo.email || '';
+
     if (job?.placeholder) {
       return (
         <>
@@ -45,11 +59,30 @@ const JobsList: React.FC<JobsListProps> = ({
         </>
       );
     }
-    // For jobs with template name, show template info
-    if (job.job_data?.template_name) {
+    // Build preferred details
+    if (clusterName || userDisplay) {
       return (
         <>
-          <b>Template:</b> {job.job_data.template_name}
+          {clusterName && (
+            <>
+              <b>Instance:</b> {clusterName}
+              <br />
+            </>
+          )}
+          {userDisplay && (
+            <>
+              <b>Launched by:</b> {userDisplay}
+            </>
+          )}
+        </>
+      );
+    }
+
+    // Fallbacks to existing info when no cluster/user available
+    if (jobData?.template_name) {
+      return (
+        <>
+          <b>Template:</b> {jobData.template_name}
           <br />
           <b>Type:</b> {job.type || 'Unknown'}
         </>
@@ -168,6 +201,55 @@ const JobsList: React.FC<JobsListProps> = ({
                       View Eval Images
                     </Button>
                   )}
+                  {job?.job_data?.eval_results &&
+                    Array.isArray(job.job_data.eval_results) &&
+                    job.job_data.eval_results.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => onViewEvalResults?.(job?.id)}
+                        startDecorator={<FileTextIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Eval Results
+                        </Box>
+                      </Button>
+                    )}
+                  {job?.job_data?.generated_datasets &&
+                    Array.isArray(job.job_data.generated_datasets) &&
+                    job.job_data.generated_datasets.length > 0 && (
+                      <Button
+                        size="sm"
+                        variant="plain"
+                        onClick={() => {
+                          // Show the first dataset, or could show a selector if multiple
+                          const firstDataset =
+                            job.job_data.generated_datasets[0];
+                          onViewGeneratedDataset?.(job?.id, firstDataset);
+                        }}
+                        startDecorator={<DatabaseIcon />}
+                      >
+                        <Box
+                          sx={{
+                            display: {
+                              xs: 'none',
+                              sm: 'none',
+                              md: 'inline-flex',
+                            },
+                          }}
+                        >
+                          Preview Dataset
+                        </Box>
+                      </Button>
+                    )}
                   {job?.job_data?.sweep_output_file && (
                     <Button
                       size="sm"

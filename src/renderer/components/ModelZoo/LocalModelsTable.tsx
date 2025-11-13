@@ -9,7 +9,7 @@ import {
   Table,
   Typography,
   Option,
-  Button,
+  IconButton,
   Skeleton, // added Skeleton
 } from '@mui/joy';
 import {
@@ -21,6 +21,7 @@ import {
   StoreIcon,
   Trash2Icon,
   ImageIcon,
+  RotateCcwIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -185,6 +186,20 @@ export default function LocalModelsTable({
         </FormControl>
 
         {renderFilters()}
+
+        <FormControl size="sm">
+          <FormLabel>&nbsp;</FormLabel>
+          <IconButton
+            variant="outlined"
+            color="neutral"
+            size="sm"
+            onClick={() => mutateModels()}
+            aria-label="Reload models"
+          >
+            <RotateCcwIcon size="18px" />
+            &nbsp; Refresh Models
+          </IconButton>
+        </FormControl>
       </Box>
       <Sheet
         className=""

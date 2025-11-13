@@ -374,16 +374,37 @@ export default function MainAppPanel({
         />
         <Route path="/experiment/embeddings" element={<Embeddings />} />
         <Route path="/experiment/tokenize" element={<Tokenize />} />
-        <Route path="/experiment/training" element={<TrainLoRA />} />
+        <Route
+          path="/experiment/training"
+          element={
+            gpuOrchestrationServer !== '' ? (
+              <Tasks subtype="Train" />
+            ) : (
+              <TrainLoRA />
+            )
+          }
+        />
         <Route path="/experiment/tasks" element={<Tasks />} />
 
         <Route
           path="/experiment/eval"
-          element={<Eval addEvaluation={experimentAddEvaluation} />}
+          element={
+            gpuOrchestrationServer !== '' ? (
+              <Tasks subtype="Eval" />
+            ) : (
+              <Eval addEvaluation={experimentAddEvaluation} />
+            )
+          }
         />
         <Route
           path="/experiment/generate"
-          element={<Generate addGeneration={experimentAddGeneration} />}
+          element={
+            gpuOrchestrationServer !== '' ? (
+              <Tasks subtype="Generate" />
+            ) : (
+              <Generate addGeneration={experimentAddGeneration} />
+            )
+          }
         />
         <Route path="/experiment/documents" element={<Documents />} />
         <Route
