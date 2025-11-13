@@ -101,6 +101,7 @@ export default function TasksGallery() {
       const formData = new FormData();
       formData.append('task_dir', taskDir);
       formData.append('experiment_id', experimentInfo.id);
+      formData.append('upload', 'true');
 
       const response = await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Tasks.ImportFromLocalGallery(),

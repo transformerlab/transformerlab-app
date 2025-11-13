@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import Sheet from '@mui/joy/Sheet';
 
 import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
@@ -19,13 +19,15 @@ import EditTaskModal from './EditTaskModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import ViewArtifactsModal from '../Train/ViewArtifactsModal';
 import ViewCheckpointsModal from '../Train/ViewCheckpointsModal';
+import ViewEvalResultsModal from './ViewEvalResultsModal';
+import PreviewDatasetModal from '../../Data/PreviewDatasetModal';
 
 const duration = require('dayjs/plugin/duration');
 
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 
-export default function Tasks() {
+export default function Tasks({ subtype }: { subtype?: string }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [taskBeingEdited, setTaskBeingEdited] = useState<any | null>(null);
@@ -37,8 +39,51 @@ export default function Tasks() {
   const [viewArtifactsFromJob, setViewArtifactsFromJob] = useState(-1);
   const [viewEvalImagesFromJob, setViewEvalImagesFromJob] = useState(-1);
   const [viewOutputFromSweepJob, setViewOutputFromSweepJob] = useState(false);
+  const [viewEvalResultsFromJob, setViewEvalResultsFromJob] = useState(-1);
+  const [previewDatasetModal, setPreviewDatasetModal] = useState<{
+    open: boolean;
+    datasetId: string | null;
+  }>({ open: false, datasetId: null });
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
+
+  // Pending job IDs persisted per experiment to show immediate placeholders
+  const pendingJobsStorageKey = useMemo(
+    () =>
+      experimentInfo?.id
+        ? `pendingJobIds:${String(experimentInfo.id)}`
+        : 'pendingJobIds:unknown',
+    [experimentInfo?.id],
+  );
+  useEffect(() => {
+    // Debug storage key per experiment
+    // eslint-disable-next-line no-console
+  }, [pendingJobsStorageKey]);
+
+  const getPendingJobIds = useCallback((): string[] => {
+    try {
+      const raw = window.localStorage.getItem(pendingJobsStorageKey);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      const result = Array.isArray(parsed) ? parsed : [];
+      // eslint-disable-next-line no-console
+      return result;
+    } catch {
+      return [];
+    }
+  }, [pendingJobsStorageKey]);
+
+  const setPendingJobIds = useCallback(
+    (ids: string[]) => {
+      try {
+        window.localStorage.setItem(pendingJobsStorageKey, JSON.stringify(ids));
+        // eslint-disable-next-line no-console
+      } catch {
+        // ignore storage failures
+      }
+    },
+    [pendingJobsStorageKey],
+  );
 
   const handleOpen = () => setModalOpen(true);
   const handleClose = () => setModalOpen(false);
@@ -55,7 +100,14 @@ export default function Tasks() {
     mutate: jobsMutate,
   } = useSWR(
     experimentInfo?.id
-      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
+      ? subtype
+        ? chatAPI.Endpoints.Jobs.ListWithFilters(
+            experimentInfo.id,
+            'REMOTE',
+            '',
+            subtype,
+          )
+        : chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'REMOTE', '')
       : null,
     fetcher,
     {
@@ -72,16 +124,27 @@ export default function Tasks() {
     isLoading: tasksIsLoading,
     mutate: tasksMutate,
   } = useSWR(
-    experimentInfo?.id ? chatAPI.Endpoints.Tasks.List() : null,
+    experimentInfo?.id
+      ? subtype
+        ? chatAPI.Endpoints.Tasks.ListBySubtypeInExperiment(
+            experimentInfo.id,
+            subtype,
+            true,
+          )
+        : chatAPI.Endpoints.Tasks.List()
+      : null,
     fetcher,
   );
 
   // Filter tasks for remote tasks in this experiment only
+  // If subtype is provided, filter by subtype in task config
   const tasks =
-    allTasks?.filter(
-      (task: any) =>
-        task.remote_task === true && task.experiment_id === experimentInfo?.id,
-    ) || [];
+    (Array.isArray(allTasks) ? allTasks : allTasks?.data || []) // in case API returns {data: []}
+      ?.filter(
+        (task: any) =>
+          task.remote_task === true &&
+          task.experiment_id === experimentInfo?.id,
+      ) || [];
 
   // Check remote job status periodically to update LAUNCHING jobs
   const { data: remoteJobStatus } = useSWR(
@@ -103,6 +166,56 @@ export default function Tasks() {
   );
 
   const loading = tasksIsLoading || jobsIsLoading;
+
+  // Remove any pending placeholders that are now present in jobs
+  useEffect(() => {
+    if (!jobs || !Array.isArray(jobs)) return;
+    const pending = getPendingJobIds();
+    if (pending.length === 0) return;
+    const existingIds = new Set((jobs as any[]).map((j: any) => String(j.id)));
+    const stillPending = pending.filter((id) => !existingIds.has(String(id)));
+    // eslint-disable-next-line no-console
+    console.log('[Tasks] prune pending vs jobs', {
+      jobsCount: jobs?.length,
+      pending,
+      stillPending,
+    });
+    if (stillPending.length !== pending.length) {
+      setPendingJobIds(stillPending);
+    }
+  }, [jobs, getPendingJobIds, setPendingJobIds]);
+
+  // Build list with placeholders for pending job IDs not yet in jobs
+  // If subtype is provided, filter jobs by subtype in job_data
+  const jobsWithPlaceholders = useMemo(() => {
+    const baseJobs = Array.isArray(jobs) ? jobs : [];
+    let filteredJobs = baseJobs;
+
+    // Filter by subtype if provided
+    if (subtype) {
+      filteredJobs = baseJobs.filter((job: any) => {
+        const jobData = job.job_data || {};
+        return jobData.subtype === subtype;
+      });
+    }
+
+    const pending = getPendingJobIds();
+    if (!pending.length) return filteredJobs;
+    const existingIds = new Set(filteredJobs.map((j: any) => String(j.id)));
+    const placeholders = pending
+      .filter((id) => !existingIds.has(String(id)))
+      .map((id) => ({
+        id: String(id),
+        type: 'REMOTE',
+        status: 'CREATED',
+        progress: 0,
+        job_data: subtype ? { subtype } : {},
+        placeholder: true,
+      }));
+    // Show newest first consistent with existing ordering if any
+    const combined = [...placeholders, ...filteredJobs];
+    return combined;
+  }, [jobs, getPendingJobIds, subtype]);
 
   const handleDeleteTask = async (taskId: string) => {
     if (!experimentInfo?.id) return;
@@ -189,22 +302,29 @@ export default function Tasks() {
     setIsSubmitting(true);
     try {
       // Create a remote task template first
+      const config: any = {
+        cluster_name: data.cluster_name,
+        command: data.command,
+        cpus: data.cpus || undefined,
+        memory: data.memory || undefined,
+        disk_space: data.disk_space || undefined,
+        accelerators: data.accelerators || undefined,
+        num_nodes: data.num_nodes || undefined,
+        setup: data.setup || undefined,
+        uploaded_dir_path: data.uploaded_dir_path || undefined,
+        local_upload_copy: data.local_upload_copy || undefined,
+      };
+
+      // Add subtype to config if provided
+      if (subtype) {
+        config.subtype = subtype;
+      }
+
       const payload = {
         name: data.title,
         type: 'REMOTE',
         inputs: {},
-        config: {
-          cluster_name: data.cluster_name,
-          command: data.command,
-          cpus: data.cpus || undefined,
-          memory: data.memory || undefined,
-          disk_space: data.disk_space || undefined,
-          accelerators: data.accelerators || undefined,
-          num_nodes: data.num_nodes || undefined,
-          setup: data.setup || undefined,
-          uploaded_dir_path: data.uploaded_dir_path || undefined,
-          local_upload_copy: data.local_upload_copy || undefined,
-        },
+        config: config,
         plugin: 'remote_orchestrator',
         outputs: {},
         experiment_id: experimentInfo.id,
@@ -269,6 +389,11 @@ export default function Tasks() {
     if (cfg.uploaded_dir_path)
       formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
 
+    // Add subtype to job data if present in task config
+    if (cfg.subtype) {
+      formData.append('subtype', String(cfg.subtype));
+    }
+
     return formData;
   };
 
@@ -296,19 +421,28 @@ export default function Tasks() {
       const createJobResult = await createJobResp.json();
 
       if (createJobResult.status === 'success') {
-        // Keep placeholder visible and refresh jobs list
-        // The placeholder will be replaced when the real job appears
-        await jobsMutate();
+        // Persist pending placeholder immediately so it shows up in the UI
+        const newId = String(createJobResult.job_id);
+        const pending = getPendingJobIds();
+        if (!pending.includes(newId)) {
+          setPendingJobIds([newId, ...pending]);
+        }
+        // IMPORTANT: Don't await jobsMutate, let UI update before real jobs arrive
+        setTimeout(() => jobsMutate(), 0);
 
         addNotification({
           type: 'success',
           message: 'Job created. Launching remotely...',
         });
 
-        // Then launch the remote job
+        // Then launch the remote job using the formatted cluster_name from create-job (if provided)
+        const formattedClusterName =
+          createJobResult.cluster_name || cfg.cluster_name;
+        const launchCfg = { ...cfg, cluster_name: formattedClusterName };
+
         const launchFormData = buildRemoteJobFormData(
           task,
-          cfg,
+          launchCfg,
           createJobResult.job_id,
         );
 
@@ -412,7 +546,7 @@ export default function Tasks() {
           <LinearProgress />
         ) : (
           <JobsList
-            jobs={jobs}
+            jobs={jobsWithPlaceholders as any}
             onDeleteJob={handleDeleteJob}
             onViewOutput={(jobId) => setViewOutputFromJob(parseInt(jobId))}
             onViewTensorboard={(jobId) =>
@@ -427,6 +561,12 @@ export default function Tasks() {
             onViewEvalImages={(jobId) =>
               setViewEvalImagesFromJob(parseInt(jobId))
             }
+            onViewEvalResults={(jobId) =>
+              setViewEvalResultsFromJob(parseInt(jobId))
+            }
+            onViewGeneratedDataset={(jobId, datasetId) => {
+              setPreviewDatasetModal({ open: true, datasetId });
+            }}
             onViewSweepOutput={(jobId) => {
               setViewOutputFromSweepJob(true);
               setViewOutputFromJob(parseInt(jobId));
@@ -447,6 +587,19 @@ export default function Tasks() {
         open={viewCheckpointsFromJob !== -1}
         onClose={() => setViewCheckpointsFromJob(-1)}
         jobId={viewCheckpointsFromJob}
+      />
+      <ViewEvalResultsModal
+        open={viewEvalResultsFromJob !== -1}
+        onClose={() => setViewEvalResultsFromJob(-1)}
+        jobId={viewEvalResultsFromJob}
+      />
+      <PreviewDatasetModal
+        open={previewDatasetModal.open}
+        setOpen={(open: boolean) =>
+          setPreviewDatasetModal({ ...previewDatasetModal, open })
+        }
+        dataset_id={previewDatasetModal.datasetId}
+        viewType="preview"
       />
     </Sheet>
   );

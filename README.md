@@ -10,7 +10,7 @@
     <br />
     <a href="https://transformerlab.ai/docs/download/"><strong>Download</strong></a>
     ·
-    <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
+    <a href="https://transformerlab.ai/docs/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://youtu.be/tY5TAvKviLo">View Demo</a>
@@ -118,7 +118,7 @@ And you can do the above, all through a simple cross-platform GUI.
 
 <a href="https://transformerlab.ai/docs/download">Click here</a> to download Transformer Lab.
 
-<a href="https://transformerlab.ai/docs/intro">Read this page</a> to learn how to install and use.
+<a href="https://transformerlab.ai/docs/install">Read this page</a> to learn how to install and use.
 
 ### Built With
 
@@ -179,7 +179,6 @@ If you found Transformer Lab useful in your research or applications, please cit
 
 <!-- MARKDOWN LINKS & IMAGES -->
 
-[product-screenshot]: https://transformerlab.ai/assets/images/screenshot01-53ecb8c52338db3c9246cf2ebbbdc40d.png
 [React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
 [React-url]: https://reactjs.org/
 [Electron]: https://img.shields.io/badge/Electron-20232A?style=for-the-badge&logo=electron&logoColor=61DAFB
