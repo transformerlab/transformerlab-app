@@ -127,6 +127,14 @@
     "getJobsOfType": {
       "method": "GET",
       "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
+    },
+    "resumeFromCheckpoint": {
+      "method": "POST",
+      "path": "experiment/{experimentId}/jobs/{jobId}/resume_from_checkpoint"
+    },
+    "getSweepResults": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/sweep_results"
     }
   },
   "datasets": {
@@ -275,12 +283,6 @@
     "listControlnets": {
       "method": "GET",
       "path": "experiment/{experimentId}/diffusion/controlnets"
-    }
-  },
-  "train": {
-    "getSweepResults": {
-      "method": "GET",
-      "path": "train/job/{job_id}/sweep_results"
     }
   },
   "conversations": {

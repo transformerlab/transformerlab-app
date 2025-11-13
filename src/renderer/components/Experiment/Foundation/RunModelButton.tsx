@@ -1,4 +1,11 @@
-import { Alert, Button, CircularProgress, Typography } from '@mui/joy';
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  Typography,
+  Skeleton,
+  Box,
+} from '@mui/joy';
 import {
   CheckCheckIcon,
   CheckCircle2Icon,
@@ -42,6 +49,7 @@ export default function RunModelButton({
   setLogsDrawerOpen = null,
 }) {
   const [jobId, setJobId] = useState(null);
+  const [stopping, setStopping] = useState(false);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
     inferenceEngine: null,
@@ -122,11 +130,16 @@ export default function RunModelButton({
     boolean | null
   >(null);
 
+  // Prevent transient UI while we determine/commit inference engine defaults
+  const [inferenceLoading, setInferenceLoading] = useState(true);
+
   function isPossibleToRunAModel() {
     return (
       experimentInfo != null &&
       experimentInfo?.config?.foundation !== '' &&
-      inferenceSettings?.inferenceEngine != null
+      inferenceSettings?.inferenceEngine != null &&
+      !inferenceLoading &&
+      !pipelineTagLoading
     );
   }
 
@@ -169,61 +182,71 @@ export default function RunModelButton({
     // Add this single line to wait for pipeline tag loading
     if (!data || pipelineTagLoading) return;
 
-    let objExperimentInfo = null;
-    if (experimentInfo?.config?.inferenceParams) {
-      objExperimentInfo = JSON.parse(experimentInfo?.config?.inferenceParams);
-    }
+    setInferenceLoading(true);
 
-    // Check if current engine is still supported after filtering
-    const currentEngine = objExperimentInfo?.inferenceEngine;
-    const currentEngineIsSupported = supportedEngines.some(
-      (engine) => engine.uniqueId === currentEngine,
-    );
+    (async () => {
+      let objExperimentInfo = null;
+      if (experimentInfo?.config?.inferenceParams) {
+        try {
+          objExperimentInfo = JSON.parse(
+            experimentInfo?.config?.inferenceParams,
+          );
+        } catch {
+          objExperimentInfo = null;
+        }
+      }
 
-    if (
-      objExperimentInfo == null ||
-      objExperimentInfo?.inferenceEngine == null ||
-      !currentEngineIsSupported
-    ) {
-      // If there are supportedEngines, set the first one from supported engines as default
-      if (supportedEngines.length > 0) {
-        const firstEngine = supportedEngines[0];
-        const newInferenceSettings = {
-          inferenceEngine: firstEngine.uniqueId || null,
-          inferenceEngineFriendlyName: firstEngine.name || '',
-        };
-        setInferenceSettings(newInferenceSettings);
+      // Check if current engine is still supported after filtering
+      const currentEngine = objExperimentInfo?.inferenceEngine;
+      const currentEngineIsSupported = supportedEngines.some(
+        (engine) => engine.uniqueId === currentEngine,
+      );
 
-        // Update the experiment config with the first supported engine
-        if (experimentInfo?.id) {
-          chatAPI
-            .authenticatedFetch(
-              chatAPI.Endpoints.Experiment.UpdateConfig(
-                experimentInfo.id,
-                'inferenceParams',
-                JSON.stringify(newInferenceSettings),
-              ),
-            )
-            .catch(() => {
+      if (
+        objExperimentInfo == null ||
+        objExperimentInfo?.inferenceEngine == null ||
+        !currentEngineIsSupported
+      ) {
+        // If there are supportedEngines, set the first one from supported engines as default
+        if (supportedEngines.length > 0) {
+          const firstEngine = supportedEngines[0];
+          const newInferenceSettings = {
+            inferenceEngine: firstEngine.uniqueId || null,
+            inferenceEngineFriendlyName: firstEngine.name || '',
+          };
+          setInferenceSettings(newInferenceSettings);
+
+          // await update so UI doesn't re-render with stale/partial state
+          if (experimentInfo?.id) {
+            try {
+              await chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Experiment.UpdateConfig(
+                  experimentInfo.id,
+                  'inferenceParams',
+                  JSON.stringify(newInferenceSettings),
+                ),
+              );
+            } catch (err) {
               console.error(
                 'Failed to update inferenceParams in experiment config',
+                err,
               );
-            });
-        }
-      } else {
-        // This preserves the older logic where we try to get the default inference engine for a blank experiment
-        (async () => {
+            }
+          }
+        } else {
           const { inferenceEngine, inferenceEngineFriendlyName } =
             await getDefaultinferenceEngines();
           setInferenceSettings({
             inferenceEngine: inferenceEngine || null,
             inferenceEngineFriendlyName: inferenceEngineFriendlyName || null,
           });
-        })();
+        }
+      } else {
+        setInferenceSettings(objExperimentInfo);
       }
-    } else {
-      setInferenceSettings(objExperimentInfo);
-    }
+
+      setInferenceLoading(false);
+    })();
   }, [
     data,
     pipelineTagLoading,
@@ -324,11 +347,27 @@ export default function RunModelButton({
         ) : (
           <Button
             onClick={async () => {
-              await killWorker();
-              setJobId(null);
+              if (stopping) return;
+              setStopping(true);
+              try {
+                await killWorker();
+              } catch (err) {
+                console.error('Error stopping the worker:', err);
+              } finally {
+                setStopping(false);
+                setJobId(null);
+                try {
+                  await mutate();
+                } catch (err) {
+                  console.error(
+                    'Error mutating after stopping the worker:',
+                    err,
+                  );
+                }
+              }
             }}
             startDecorator={
-              models?.length == 0 ? (
+              stopping || models?.length == 0 ? (
                 <CircularProgress size="sm" thickness={2} />
               ) : (
                 <StopCircleIcon />
@@ -338,13 +377,13 @@ export default function RunModelButton({
             size="lg"
             sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
           >
-            Stop
+            {stopping ? 'Stopping...' : 'Stop'}
           </Button>
         )}
         <Button
           variant="plain"
           onClick={() => setShowRunSettings(!showRunSettings)}
-          disabled={models?.length > 0 || jobId == -1}
+          disabled={models?.length > 0 || jobId == -1 || inferenceLoading}
         >
           using{' '}
           {removeServerFromEndOfString(
@@ -356,6 +395,10 @@ export default function RunModelButton({
       </>
     );
   }
+
+  // Show loading skeleton while determining engines
+  const isDeterminingEngines =
+    isLoading || pipelineTagLoading || inferenceLoading;
 
   return (
     <div
@@ -375,7 +418,29 @@ export default function RunModelButton({
       {/* {jobId} */}
       {/* {JSON.stringify(experimentInfo)} */}
       {/* {JSON.stringify(inferenceSettings)} */}
-      {supportedEngines.length > 0 ? (
+      {isDeterminingEngines ? (
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: 1,
+            alignItems: 'center',
+          }}
+        >
+          <Skeleton
+            variant="rectangular"
+            width={200}
+            height={40}
+            sx={{ borderRadius: 'sm' }}
+          />
+          <Skeleton
+            variant="rectangular"
+            width={120}
+            height={40}
+            sx={{ borderRadius: 'sm' }}
+          />
+        </Box>
+      ) : supportedEngines.length > 0 ? (
         <Engine />
       ) : isValidDiffusionModel === true ? (
         <Alert startDecorator={<CheckCircle2Icon />} color="success">

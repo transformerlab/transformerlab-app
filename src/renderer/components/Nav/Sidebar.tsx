@@ -20,7 +20,6 @@ import {
   ChartColumnIncreasingIcon,
   UserIcon,
   LogOutIcon,
-  LogInIcon,
   AudioLinesIcon,
   StretchHorizontalIcon,
 } from 'lucide-react';
@@ -38,10 +37,6 @@ import {
   IconButton,
   Input,
   List,
-  ListItem,
-  ListItemButton,
-  ListItemContent,
-  ListItemDecorator,
   Modal,
   ModalClose,
   ModalDialog,
@@ -66,8 +61,6 @@ import {
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
-import UserLoginModal from '../User/UserLoginModal';
-import { DEFAULT_API_FALLBACK } from '../User/authCallbackUtils';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
@@ -584,100 +577,7 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
   );
 }
 
-// WorkOS login function extracted from UserLoginModal
-async function loginWithWorkOS() {
-  try {
-    const w: any = window as any;
-    const fallbackBase = DEFAULT_API_FALLBACK;
-    const apiBase =
-      (API_URL && API_URL()) || w.TransformerLab?.API_URL || fallbackBase;
-    // Add a cache-buster to avoid browsers (or proxies) returning 304 with HTML body
-    const cacheBuster = Date.now().toString();
-    const authorizeEndpoint = `${apiBase}auth/login-url?cb=${cacheBuster}`;
-
-    const resp = await fetch(authorizeEndpoint, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        Pragma: 'no-cache',
-        'X-Requested-With': 'XMLHttpRequest',
-        Accept: 'application/json, */*;q=0.8',
-      },
-    });
-
-    if (resp.status === 304) {
-      // Treat 304 as an error for this JSON-init endpoint; force retry logic by clearing state
-      await w.storage.delete('authWorkosState');
-      throw new Error(
-        'Failed to initiate SSO (stale cached response). Please try again.',
-      );
-    }
-
-    if (!resp.ok) {
-      await w.storage.delete('authWorkosState');
-      throw new Error(`Failed to initiate SSO (HTTP ${resp.status}).`);
-    }
-
-    let data: any = null;
-    const contentType = resp.headers.get('content-type') || '';
-    try {
-      if (contentType.includes('application/json')) {
-        data = await resp.json();
-      } else {
-        const text = await resp.text();
-        // If HTML came back, this is unexpected
-        if (
-          text.trim().startsWith('<!DOCTYPE') ||
-          text.trim().startsWith('<html')
-        ) {
-          throw new Error('Server returned HTML instead of JSON.');
-        }
-        // Attempt a lenient parse
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = { detail: 'Unexpected response format.' };
-        }
-      }
-    } catch (parseErr) {
-      await w.storage.delete('authWorkosState');
-      throw new Error('SSO start failed: ' + parseErr);
-    }
-    const redirectTo = data?.login_url || data?.authorization_url;
-    if (redirectTo) {
-      try {
-        const redirectUrl = new URL(redirectTo);
-        const stateFromQuery = redirectUrl.searchParams.get('state');
-        const hash = redirectUrl.hash || '';
-        const stateFromHash = hash
-          ? new URLSearchParams(
-              hash.startsWith('#') ? hash.slice(1) : hash,
-            ).get('state')
-          : null;
-        const stateValue =
-          stateFromQuery || stateFromHash || data?.state || null;
-        if (stateValue) {
-          await w.storage.set('authWorkosState', stateValue);
-        } else {
-          await w.storage.delete('authWorkosState');
-        }
-      } catch {
-        await w.storage.delete('authWorkosState');
-      }
-      window.location.href = redirectTo;
-    } else {
-      await w.storage.delete('authWorkosState');
-      throw new Error(data?.detail || 'Failed to initiate SSO.');
-    }
-  } catch (e) {
-    const w: any = window as any;
-    await w.storage.delete('authWorkosState');
-    throw new Error('SSO start failed: ' + e);
-  }
-}
-
 function BottomMenuItems({ navigate, themeSetter }) {
-  const [userLoginModalOpen, setUserLoginModalOpen] = useState(false);
   const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
   const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(
     null,
@@ -686,7 +586,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [scopeSuccess, setScopeSuccess] = useState<string | null>(null);
   const [isScoping, setIsScoping] = useState(false);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const {
     data: userInfo,
     error: userError,
@@ -816,81 +715,12 @@ function BottomMenuItems({ navigate, themeSetter }) {
           maxWidth: '180px',
         }}
       >
-        {userInfo && userInfo.id ? (
+        {userInfo && userInfo.id && (
           <UserDetailsPanel
             userDetails={userInfo}
             mutate={userMutate}
             onManageWorkOS={() => setWorkosScopeModalOpen(true)}
           />
-        ) : (
-          <List
-            sx={{
-              '--ListItem-radius': '6px',
-              '--ListItem-minHeight': '32px',
-              overflowY: 'auto',
-              flex: 1,
-            }}
-          >
-            <ListItem className="FirstSidebar_Content">
-              <ListItemButton
-                variant="plain"
-                disabled={isLoggingIn}
-                onClick={async () => {
-                  if (isLoggingIn) return; // Prevent multiple clicks
-
-                  setIsLoggingIn(true);
-                  try {
-                    // Check if we're in cloud mode
-                    if (window.platform?.appmode === 'cloud') {
-                      try {
-                        await loginWithWorkOS();
-                      } catch (error) {
-                        console.error('Login failed:', error);
-                        // You could add a toast notification here if needed
-                      }
-                    } else {
-                      // Open the modal for non-cloud modes
-                      setUserLoginModalOpen(true);
-                    }
-                  } finally {
-                    setIsLoggingIn(false);
-                  }
-                }}
-              >
-                <ListItemDecorator sx={{ minInlineSize: '30px' }}>
-                  {isLoggingIn ? (
-                    <Box
-                      sx={{
-                        width: '18px',
-                        height: '18px',
-                        border: '2px solid transparent',
-                        borderTop: '2px solid currentColor',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        '@keyframes spin': {
-                          '0%': { transform: 'rotate(0deg)' },
-                          '100%': { transform: 'rotate(360deg)' },
-                        },
-                      }}
-                    />
-                  ) : (
-                    <LogInIcon />
-                  )}
-                </ListItemDecorator>
-                <ListItemContent
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'flex-start',
-                    alignContent: 'center',
-                  }}
-                >
-                  <Typography level="body-sm">
-                    {isLoggingIn ? 'Logging in...' : 'Login'}
-                  </Typography>
-                </ListItemContent>
-              </ListItemButton>
-            </ListItem>
-          </List>
         )}
       </Box>
       <ButtonGroup
@@ -929,13 +759,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
           </IconButton>
         </Tooltip>
       </ButtonGroup>
-      <UserLoginModal
-        open={userLoginModalOpen}
-        onClose={() => {
-          setUserLoginModalOpen(false);
-          userMutate();
-        }}
-      />
       <Modal
         open={workosScopeModalOpen && hasWorkOSAccount}
         onClose={() => setWorkosScopeModalOpen(false)}

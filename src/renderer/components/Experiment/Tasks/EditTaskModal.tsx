@@ -147,7 +147,11 @@ export default function EditTaskModal({
       return;
     }
     setSaving(true);
+
+    // Preserve existing config and only update editable fields
+    const existingConfig = SafeJSONParse(task.config, {});
     const config = {
+      ...existingConfig, // Keep all existing fields
       cluster_name: clusterName,
       command: commandValue,
       cpus: cpus || undefined,
@@ -239,7 +243,7 @@ export default function EditTaskModal({
                   const newTitle = e.target.value;
                   setTitle(newTitle);
                   // keep cluster name behavior consistent with NewTaskModal
-                  setClusterName(`${newTitle}-instance`);
+                  setClusterName(`${newTitle}`);
                 }}
                 placeholder="Task title"
               />
