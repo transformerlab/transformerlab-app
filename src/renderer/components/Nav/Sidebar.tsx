@@ -171,7 +171,8 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           disabled={!experimentInfo?.name}
         />
         {(isValidDiffusionModel === false || isValidDiffusionModel === null) &&
-          pipelineTag !== 'text-to-speech' && (
+          pipelineTag !== 'text-to-speech' &&
+          pipelineTag !== 'speech-to-text' && (
             <SubNavItem
               title="Interact"
               path="/experiment/chat"
@@ -195,6 +196,16 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           <SubNavItem
             title="Audio"
             path="/experiment/audio"
+            icon={<AudioLinesIcon />}
+            disabled={
+              !experimentInfo?.name || activeModelIsNotSameAsFoundation()
+            }
+          />
+        )}
+        {pipelineTag === 'speech-to-text' && (
+          <SubNavItem
+            title="Audio"
+            path="/experiment/audio-stt"
             icon={<AudioLinesIcon />}
             disabled={
               !experimentInfo?.name || activeModelIsNotSameAsFoundation()

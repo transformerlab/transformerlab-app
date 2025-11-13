@@ -36,6 +36,7 @@ import Rag from './Experiment/Rag';
 import Tokenize from './Experiment/Interact/Tokenize';
 import Diffusion from './Experiment/Diffusion/Diffusion';
 import Audio from './Experiment/Audio/Audio';
+import AudioSTT from './Experiment/Audio/AudioSTT';
 import ExperimentNotes from './Experiment/ExperimentNotes';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Logs from './Logs';
@@ -414,6 +415,7 @@ export default function MainAppPanel({
         <Route path="/experiment/export" element={<Export />} />
         <Route path="/experiment/diffusion" element={<Diffusion />} />
         <Route path="/experiment/audio" element={<Audio />} />
+        <Route path="/experiment/audio-stt" element={<AudioSTT />} />
         <Route
           path="/plugins"
           element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
