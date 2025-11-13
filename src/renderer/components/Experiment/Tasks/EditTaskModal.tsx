@@ -243,7 +243,7 @@ export default function EditTaskModal({
                   const newTitle = e.target.value;
                   setTitle(newTitle);
                   // keep cluster name behavior consistent with NewTaskModal
-                  setClusterName(`${newTitle}-instance`);
+                  setClusterName(`${newTitle}`);
                 }}
                 placeholder="Task title"
               />
