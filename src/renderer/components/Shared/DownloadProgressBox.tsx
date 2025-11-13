@@ -9,10 +9,12 @@ import {
   Divider,
 } from '@mui/joy';
 import { ArrowDownIcon, CheckCircle2Icon, XCircleIcon } from 'lucide-react';
+import { useRef } from 'react';
 import useSWR from 'swr';
 import { clamp, formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
+import { useNotification } from './NotificationSystem';
 
 const getStatusIcon = (status) => {
   switch (status) {
@@ -38,6 +40,29 @@ export default function DownloadProgressBox({
     fetcher,
     { refreshInterval: 2000 },
   );
+
+  const { addNotification } = useNotification();
+  const hasNotifiedRef = useRef<string | null>(null);
+
+  // Show notification when download completes
+  const currentStatus = downloadProgress?.status;
+  const jobIdString = String(jobId);
+
+  if (currentStatus === 'COMPLETE' && hasNotifiedRef.current !== jobIdString) {
+    const modelName =
+      downloadProgress?.job_data?.model || assetName || 'Model';
+    addNotification({
+      type: 'success',
+      message: `Model "${modelName}" downloaded successfully`,
+    });
+    hasNotifiedRef.current = jobIdString;
+  } else if (
+    currentStatus === 'RUNNING' &&
+    hasNotifiedRef.current === jobIdString
+  ) {
+    // Reset if a new download starts for the same job
+    hasNotifiedRef.current = null;
+  }
 
   if (!jobId) return null;
 
