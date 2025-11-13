@@ -49,7 +49,6 @@ export default function DownloadProgressBox({
     100,
   );
 
-  const progressPercent = Number.isFinite(progress) ? Math.round(progress) : 0;
   const downloaded = Number.isFinite(
     Number(downloadProgress?.job_data?.downloaded),
   )
@@ -62,7 +61,7 @@ export default function DownloadProgressBox({
     : 0;
   const downloadedBytes = downloaded * 1024 * 1024;
   const totalBytes = total * 1024 * 1024;
-  
+
   // Get file counts if available
   const filesDownloaded = Number.isFinite(
     Number(downloadProgress?.job_data?.files_downloaded),
@@ -74,6 +73,13 @@ export default function DownloadProgressBox({
   )
     ? Number(downloadProgress?.job_data?.files_total)
     : null;
+
+  // Calculate progress based on files if available, otherwise use bytes-based progress
+  const calculatedProgress = filesDownloaded !== null && filesTotal !== null && filesTotal > 0
+    ? (filesDownloaded / filesTotal) * 100
+    : progress;
+
+  const progressPercent = Number.isFinite(calculatedProgress) ? Math.round(calculatedProgress) : 0;
 
   return (
     <Box>
@@ -104,7 +110,7 @@ export default function DownloadProgressBox({
               <Box sx={{ position: 'relative' }}>
                 <LinearProgress
                   determinate
-                  value={progress}
+                  value={calculatedProgress}
                   color="success"
                   sx={(theme) => ({
                     height: 24,
@@ -130,7 +136,7 @@ export default function DownloadProgressBox({
                     transform: 'translate(-50%, -50%)',
                     fontWeight: 'bold',
                     color:
-                      progressPercent > 50
+                      calculatedProgress > 50
                         ? theme.vars.palette.common.white
                         : theme.vars.palette.text.primary,
                   })}

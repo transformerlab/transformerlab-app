@@ -607,15 +607,15 @@ export default function ModelStore() {
                                       : null;
                                     
                                     if (filesDownloaded !== null && filesTotal !== null) {
+                                      // Calculate progress based on files
+                                      const fileProgress = filesTotal > 0
+                                        ? (filesDownloaded / filesTotal) * 100
+                                        : 0;
                                       return (
                                         <>
                                           <LinearProgress
                                             determinate
-                                            value={clamp(
-                                              modelDownloadProgress?.progress,
-                                              0,
-                                              100,
-                                            )}
+                                            value={clamp(fileProgress, 0, 100)}
                                             sx={{ width: '100px' }}
                                             variant="solid"
                                           />
