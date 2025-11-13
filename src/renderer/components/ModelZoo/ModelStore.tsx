@@ -596,21 +596,37 @@ export default function ModelStore() {
                                 <>
                                   {(() => {
                                     const filesDownloaded = Number.isFinite(
-                                      Number(modelDownloadProgress?.job_data?.files_downloaded),
+                                      Number(
+                                        modelDownloadProgress?.job_data
+                                          ?.files_downloaded,
+                                      ),
                                     )
-                                      ? Number(modelDownloadProgress?.job_data?.files_downloaded)
+                                      ? Number(
+                                          modelDownloadProgress?.job_data
+                                            ?.files_downloaded,
+                                        )
                                       : null;
                                     const filesTotal = Number.isFinite(
-                                      Number(modelDownloadProgress?.job_data?.files_total),
+                                      Number(
+                                        modelDownloadProgress?.job_data
+                                          ?.files_total,
+                                      ),
                                     )
-                                      ? Number(modelDownloadProgress?.job_data?.files_total)
+                                      ? Number(
+                                          modelDownloadProgress?.job_data
+                                            ?.files_total,
+                                        )
                                       : null;
-                                    
-                                    if (filesDownloaded !== null && filesTotal !== null) {
+
+                                    if (
+                                      filesDownloaded !== null &&
+                                      filesTotal !== null
+                                    ) {
                                       // Calculate progress based on files
-                                      const fileProgress = filesTotal > 0
-                                        ? (filesDownloaded / filesTotal) * 100
-                                        : 0;
+                                      const fileProgress =
+                                        filesTotal > 0
+                                          ? (filesDownloaded / filesTotal) * 100
+                                          : 0;
                                       return (
                                         <>
                                           <LinearProgress

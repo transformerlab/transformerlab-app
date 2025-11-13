@@ -75,11 +75,14 @@ export default function DownloadProgressBox({
     : null;
 
   // Calculate progress based on files if available, otherwise use bytes-based progress
-  const calculatedProgress = filesDownloaded !== null && filesTotal !== null && filesTotal > 0
-    ? (filesDownloaded / filesTotal) * 100
-    : progress;
+  const calculatedProgress =
+    filesDownloaded !== null && filesTotal !== null && filesTotal > 0
+      ? (filesDownloaded / filesTotal) * 100
+      : progress;
 
-  const progressPercent = Number.isFinite(calculatedProgress) ? Math.round(calculatedProgress) : 0;
+  const progressPercent = Number.isFinite(calculatedProgress)
+    ? Math.round(calculatedProgress)
+    : 0;
 
   return (
     <Box>
@@ -101,8 +104,8 @@ export default function DownloadProgressBox({
               {filesDownloaded !== null && filesTotal !== null
                 ? `${filesDownloaded}/${filesTotal} files downloaded`
                 : downloaded > 0
-                ? `${formatBytes(downloadedBytes)}${total > 0 ? ` / ${formatBytes(totalBytes)}` : ''}`
-                : 'Downloading...'}
+                  ? `${formatBytes(downloadedBytes)}${total > 0 ? ` / ${formatBytes(totalBytes)}` : ''}`
+                  : 'Downloading...'}
               <ArrowDownIcon size="16px" style={{ verticalAlign: 'middle' }} />
             </Typography>
             <Divider sx={{ mb: 1 }} />
@@ -144,8 +147,8 @@ export default function DownloadProgressBox({
                   {filesDownloaded !== null && filesTotal !== null
                     ? `${filesDownloaded}/${filesTotal} files`
                     : Number.isFinite(progressPercent)
-                    ? `${progressPercent}%`
-                    : 'Loading...'}
+                      ? `${progressPercent}%`
+                      : 'Loading...'}
                 </Typography>
               </Box>
             )}
