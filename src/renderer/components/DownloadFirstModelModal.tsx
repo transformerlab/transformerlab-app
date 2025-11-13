@@ -16,6 +16,7 @@ import { BoxesIcon } from 'lucide-react';
 import { formatBytes } from '../lib/utils';
 import DownloadProgressBox from './Shared/DownloadProgressBox';
 import * as chatAPI from '../lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function recommendedStartingModel(cpu: string, os: string, device: string) {
   if (cpu == 'arm64' && os == 'Darwin') {
@@ -53,6 +54,7 @@ function typeOfComputer(cpu: string, os: string, device: string) {
 }
 
 export default function DownloadFirstModelModal({ open, setOpen, server }) {
+  const { experimentInfo } = useExperimentInfo();
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [jobId, setJobId] = useState(null);
 
@@ -146,10 +148,11 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
             </tr>
           </Table>
 
-          {currentlyDownloading && (
+          {currentlyDownloading && experimentInfo && (
             <DownloadProgressBox
               jobId={jobId}
               assetName={currentlyDownloading}
+              experimentId={experimentInfo.id}
             />
           )}
 
@@ -162,7 +165,9 @@ export default function DownloadFirstModelModal({ open, setOpen, server }) {
               setJobId(-1);
 
               // Create a new job and record the ID of the job so we can track download progress
-              const job_response = await fetch(chatAPI.Endpoints.Jobs.Create());
+              const job_response = await chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Jobs.Create(experimentInfo?.id),
+              );
               const newJobId = await job_response.json();
               setJobId(newJobId);
 

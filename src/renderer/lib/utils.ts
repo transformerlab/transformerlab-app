@@ -9,7 +9,8 @@ import { useEffect, useRef } from 'react';
  * @returns string with human readable bytes
  */
 export function formatBytes(bytes: number, decimals = 2): string {
-  if (!+bytes) return '0 Bytes';
+  // Handle invalid inputs (NaN, undefined, null, negative values)
+  if (!Number.isFinite(bytes) || bytes < 0) return '0 Bytes';
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
@@ -204,6 +205,7 @@ export function useTraceUpdate(props) {
 export function jobChipColor(status: string): string {
   if (status === 'COMPLETE') return 'var(--joy-palette-success-200)';
   if (status === 'QUEUED') return 'var(--joy-palette-warning-200)';
+  if (status === 'LAUNCHING') return 'var(--joy-palette-primary-200)';
   if (status === 'FAILED') return 'var(--joy-palette-danger-200)';
   if (status == 'STOPPED') return 'var(--joy-palette-warning-200)';
   if (status == 'RUNNING') return 'rgb(225,237,233)';
@@ -218,6 +220,7 @@ export const colorArray = [
   '#e8a838',
   '#61c0bf',
   '#97e3d5',
+  '#d6b3e2',
 ];
 
 export function mixColorWithBackground(color: string, percent = '50'): string {

@@ -10,17 +10,19 @@ import {
 import { PlayIcon } from 'lucide-react';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { formatBytes } from 'renderer/lib/utils';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 export default function ViewCheckpointsModal({ open, onClose, jobId }) {
+  const { experimentInfo } = useExperimentInfo();
   const { data, isLoading: checkpointsLoading } = useAPI(
     'jobs',
     ['getCheckpoints'],
-    { jobId },
+    { jobId, experimentId: experimentInfo?.id },
   );
 
   const handleRestartFromCheckpoint = (checkpoint) => {
     // TODO: Implement restart functionality
-    console.log('Restarting from checkpoint:', checkpoint);
+    alert('Not yet implemented');
   };
 
   let noCheckpoints = false;
@@ -44,16 +46,22 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
               Checkpoints for Job {jobId}
             </Typography>
 
-            {!checkpointsLoading && data && (
-              <Box sx={{ mb: 2 }}>
-                <Typography level="body-md">
-                  <strong>Model:</strong> {data.model_name}
-                </Typography>
-                <Typography level="body-md">
-                  <strong>Adaptor:</strong> {data.adaptor_name}
-                </Typography>
-              </Box>
-            )}
+            {!checkpointsLoading &&
+              data &&
+              (data.model_name || data.adaptor_name) && (
+                <Box sx={{ mb: 2 }}>
+                  {data.model_name && (
+                    <Typography level="body-md">
+                      <strong>Model:</strong> {data.model_name}
+                    </Typography>
+                  )}
+                  {data.adaptor_name && (
+                    <Typography level="body-md">
+                      <strong>Adaptor:</strong> {data.adaptor_name}
+                    </Typography>
+                  )}
+                </Box>
+              )}
 
             {checkpointsLoading ? (
               <Typography level="body-md">Loading checkpoints...</Typography>
@@ -85,7 +93,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                         <td>{new Date(checkpoint.date).toLocaleString()}</td>
                         <td>{formatBytes(checkpoint.size)}</td>
                         <td style={{ textAlign: 'right' }}>
-                          {/* <Button
+                          <Button
                             size="sm"
                             variant="outlined"
                             onClick={() =>
@@ -94,7 +102,7 @@ export default function ViewCheckpointsModal({ open, onClose, jobId }) {
                             startDecorator={<PlayIcon />}
                           >
                             Restart training from here
-                          </Button> */}
+                          </Button>
                         </td>
                       </tr>
                     ))}

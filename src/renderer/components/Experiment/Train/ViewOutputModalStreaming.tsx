@@ -17,8 +17,8 @@ import { useEffect, useState } from 'react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import OutputTerminal from 'renderer/components/OutputTerminal';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 export default function ViewOutputModalStreaming({
   jobId,
@@ -26,7 +26,8 @@ export default function ViewOutputModalStreaming({
   sweeps,
   setsweepJob,
 }) {
-  if (jobId === -1) {
+  const { experimentInfo } = useExperimentInfo();
+  if (jobId === -1 || !experimentInfo) {
     return null;
   }
   const [tab, setTab] = useState(0);
@@ -137,6 +138,7 @@ export default function ViewOutputModalStreaming({
             >
               <OutputTerminal
                 logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
+                  experimentInfo.id,
                   jobId,
                   sweeps,
                 )}

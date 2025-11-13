@@ -13,15 +13,18 @@ import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import AudioPlayer from '../../Data/AudioPlayer';
 
 interface AudioHistoryItem {
-  id: string; // Added id property
+  id: string;
   type: string;
   text: string;
   filename: string;
   model: string;
+  adaptor?: string; // Add adaptor property
   speed: number;
   audio_format: string;
   sample_rate: number;
   temperature: number;
+  top_p?: number;
+  voice?: string;
   audio_data_url?: string; // Add audio data URL for the AudioPlayer
 }
 
@@ -37,7 +40,7 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
       <Sheet
         ref={ref}
         variant="plain"
-        sx={{ borderRadius: 'md', overflowY: 'scroll', pr: 1 }}
+        sx={{ borderRadius: 'md', overflowY: 'auto', pr: 1 }}
       >
         <List sx={{ p: 0 }}>
           {Array.isArray(audioHistory) && audioHistory.length > 0 ? (
@@ -98,7 +101,15 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   <Chip size="sm" variant="soft" color="primary">
                     {item.model.split('/').pop()}
+                    {item.adaptor && item.adaptor.trim() !== '' && (
+                      <> + {item.adaptor.split('/').pop()}</>
+                    )}
                   </Chip>
+                  {item.voice && (
+                    <Chip size="sm" variant="soft" color="neutral">
+                      Voice: {item.voice}
+                    </Chip>
+                  )}
                   <Chip size="sm" variant="soft" color="neutral">
                     {item.audio_format.toUpperCase()}
                   </Chip>
@@ -110,6 +121,9 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                   </Chip>
                   <Chip size="sm" variant="soft" color="neutral">
                     Temp: {item.temperature}
+                  </Chip>
+                  <Chip size="sm" variant="soft" color="neutral">
+                    Top P: {item.top_p ? item.top_p : 'N/A'}
                   </Chip>
                   <Box sx={{ flex: 1 }} />
                   <IconButton

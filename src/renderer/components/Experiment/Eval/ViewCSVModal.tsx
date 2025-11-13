@@ -11,6 +11,7 @@ import {
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function formatColumnNames(name) {
   return name
@@ -215,6 +216,7 @@ const ViewCSVModal = ({
   fetchCSV,
   compareData = null,
 }) => {
+  const { experimentInfo } = useExperimentInfo();
   const [report, setReport] = useState({});
 
   useEffect(() => {
@@ -239,8 +241,12 @@ const ViewCSVModal = ({
 
   const handleDownload = async () => {
     if (!compareData) {
-      const response = await fetch(
-        chatAPI.Endpoints.Experiment.GetAdditionalDetails(jobId, 'download'),
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Experiment.GetAdditionalDetails(
+          experimentInfo.id,
+          jobId,
+          'download',
+        ),
       );
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);

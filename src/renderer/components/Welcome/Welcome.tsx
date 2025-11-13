@@ -25,8 +25,7 @@ import DownloadFirstModelModal from '../DownloadFirstModelModal';
 import HexLogo from '../Shared/HexLogo';
 import RecipesModal from '../Experiment/Recipes';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 function recommendedModel(cpu, os, device) {
   if (!cpu || !os || !device) return '';
@@ -127,16 +126,19 @@ export default function Welcome() {
     let newId = 0;
 
     if (fromRecipeId === null) {
-      const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Experiment.Create(name),
+      );
       newId = await response.json();
     } else {
-      const response = await fetch(
+      const response = await chatAPI.authenticatedFetch(
         getAPIFullPath('recipes', ['createExperiment'], {
           id: fromRecipeId,
           experiment_name: name,
         }),
         {
           method: 'POST',
+          headers: {},
         },
       );
       const responseJson = await response.json();
@@ -255,12 +257,12 @@ export default function Welcome() {
             </Button> */}
             </Stack>
             <Typography level="body-lg" mt={2} sx={{ fontSize: '24px' }}>
-              Watch our{' '}
-              <a href="https://transformerlab.ai/docs/intro" target="_blank">
-                Getting Started Video
-              </a>
-              , or access our{' '}
-              <a href="https://transformerlab.ai/docs/intro" target="_blank">
+              Access our{' '}
+              <a
+                href="https://lab.cloud/docs/"
+                target="_blank"
+                rel="noreferrer"
+              >
                 full documentation
               </a>{' '}
               for more ideas!

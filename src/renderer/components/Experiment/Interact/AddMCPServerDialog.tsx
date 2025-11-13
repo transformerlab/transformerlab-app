@@ -13,6 +13,7 @@ import {
 } from '@mui/joy';
 import { Endpoints } from '../../../lib/api-client/endpoints';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { authenticatedFetch } from '../../../lib/transformerlab-api-sdk';
 
 export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
   const [mode, setMode] = useState<'package' | 'file'>('package');
@@ -40,7 +41,9 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
     if (mode === 'package') {
       serverName = serverName.replace(/-/g, '_');
     }
-    const resp = await fetch(Endpoints.Tools.InstallMcpPlugin(serverName));
+    const resp = await authenticatedFetch(
+      Endpoints.Tools.InstallMcpPlugin(serverName),
+    );
     const result = await resp.json();
     setLoading(false);
     if (result.status === 'success') {

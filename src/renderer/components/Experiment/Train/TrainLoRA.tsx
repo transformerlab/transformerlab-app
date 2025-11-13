@@ -1,5 +1,6 @@
 import { ReactElement, useEffect, useState } from 'react';
 import useSWR from 'swr';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import Sheet from '@mui/joy/Sheet';
 
@@ -18,6 +19,7 @@ import {
   Table,
   Typography,
   Box,
+  Alert,
 } from '@mui/joy';
 
 import {
@@ -96,8 +98,6 @@ function formatJobConfig(c): ReactElement {
   return r;
 }
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
 export default function TrainLoRA({}) {
   const { experimentInfo } = useExperimentInfo();
   const [open, setOpen] = useState(false);
@@ -123,9 +123,15 @@ export default function TrainLoRA({}) {
     error: jobsError,
     isLoading: jobsIsLoading,
     mutate: jobsMutate,
-  } = useSWR(chatAPI.Endpoints.Jobs.GetJobsOfType('TRAIN', ''), fetcher, {
-    refreshInterval: 2000,
-  });
+  } = useSWR(
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'TRAIN', '')
+      : null,
+    fetcher,
+    {
+      refreshInterval: 2000,
+    },
+  );
 
   const {
     data: downloadJobs,
@@ -133,7 +139,13 @@ export default function TrainLoRA({}) {
     isLoading: downloadJobsIsLoading,
     mutate: downloadJobsMutate,
   } = useSWR(
-    chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'),
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo.id,
+          'DOWNLOAD_MODEL',
+          'RUNNING',
+        )
+      : null,
     fetcher,
     {
       refreshInterval: 2000,
@@ -215,6 +227,7 @@ export default function TrainLoRA({}) {
           <DownloadProgressBox
             jobId={downloadJobs[0]?.id}
             assetName={downloadJobs[0]?.job_data.model}
+            experimentId={experimentInfo.id}
           />
         )}
         {/* <Typography level="h1">Train</Typography> */}
@@ -223,66 +236,73 @@ export default function TrainLoRA({}) {
             Training Templates
           </Typography>
 
-          <Dropdown>
-            <MenuButton
-              color="primary"
-              size="sm"
-              startDecorator={<PlusIcon />}
-              variant="solid"
-            >
-              New
-            </MenuButton>
-            <Menu sx={{ maxWidth: '300px' }}>
-              <MenuItem disabled variant="soft" color="primary">
-                <Typography level="title-sm">
-                  Select a training plugin from the following list:
-                </Typography>
-              </MenuItem>
-              <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
-                {pluginsList.map((plugin) => (
-                  <MenuItem
-                    onClick={() => {
-                      setTemplateID('-1');
-                      setCurrentPlugin(plugin.uniqueId);
-                      setOpen(true);
-                    }}
-                    key={plugin.uniqueId}
-                    disabled={
-                      plugin.model_architectures
-                        ? !plugin.model_architectures.includes(
+          {pluginsList.length === 0 ? (
+            <Alert color="danger">
+              No Training Plugins available, please install a plugin from the
+              Plugins tab.
+            </Alert>
+          ) : (
+            <Dropdown>
+              <MenuButton
+                color="primary"
+                size="sm"
+                startDecorator={<PlusIcon />}
+                variant="solid"
+              >
+                New
+              </MenuButton>
+              <Menu sx={{ maxWidth: '300px' }}>
+                <MenuItem disabled variant="soft" color="primary">
+                  <Typography level="title-sm">
+                    Select a training plugin from the following list:
+                  </Typography>
+                </MenuItem>
+                <Box sx={{ maxHeight: 300, overflowY: 'auto', width: '100%' }}>
+                  {pluginsList.map((plugin) => (
+                    <MenuItem
+                      onClick={() => {
+                        setTemplateID('-1');
+                        setCurrentPlugin(plugin.uniqueId);
+                        setOpen(true);
+                      }}
+                      key={plugin.uniqueId}
+                      disabled={
+                        plugin.model_architectures
+                          ? !plugin.model_architectures.includes(
+                              modelArchitecture,
+                            ) &&
+                            !plugin.model_architectures.includes(
+                              embeddingModelArchitecture,
+                            )
+                          : false
+                      }
+                    >
+                      <ListItemDecorator>
+                        <Plug2Icon />
+                      </ListItemDecorator>
+                      <div>
+                        {plugin.name}
+                        <Typography
+                          level="body-xs"
+                          sx={{ color: 'var(--joy-palette-neutral-400)' }}
+                        >
+                          {plugin.model_architectures &&
+                          !plugin.model_architectures.includes(
                             modelArchitecture,
                           ) &&
                           !plugin.model_architectures.includes(
                             embeddingModelArchitecture,
                           )
-                        : false
-                    }
-                  >
-                    <ListItemDecorator>
-                      <Plug2Icon />
-                    </ListItemDecorator>
-                    <div>
-                      {plugin.name}
-                      <Typography
-                        level="body-xs"
-                        sx={{ color: 'var(--joy-palette-neutral-400)' }}
-                      >
-                        {plugin.model_architectures &&
-                        !plugin.model_architectures.includes(
-                          modelArchitecture,
-                        ) &&
-                        !plugin.model_architectures.includes(
-                          embeddingModelArchitecture,
-                        )
-                          ? '(Does not support this model architecture)'
-                          : ''}
-                      </Typography>
-                    </div>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </Dropdown>
+                            ? '(Does not support this model architecture)'
+                            : ''}
+                        </Typography>
+                      </div>
+                    </MenuItem>
+                  ))}
+                </Box>
+              </Menu>
+            </Dropdown>
+          )}
         </Stack>
         <Sheet
           variant="soft"
@@ -402,7 +422,7 @@ export default function TrainLoRA({}) {
                               confirm(
                                 'Are you sure you want to delete this Training Template?',
                               ) &&
-                                (await fetch(
+                                (await chatAPI.authenticatedFetch(
                                   chatAPI.Endpoints.Tasks.DeleteTask(row.id),
                                 ));
                               mutate();
@@ -429,7 +449,7 @@ export default function TrainLoRA({}) {
         {/* <ButtonGroup variant="soft">
           <Button
             onClick={() => {
-              fetch(chatAPI.API_URL() + 'train/job/start_next');
+              chatAPI.authenticatedFetch(chatAPI.API_URL() + 'train/job/start_next');
             }}
             startDecorator={<PlayIcon />}
           >
@@ -440,7 +460,7 @@ export default function TrainLoRA({}) {
             color="danger"
             startDecorator={<Trash2Icon />}
             onClick={() => {
-              fetch(chatAPI.API_URL() + 'train/job/delete_all');
+              chatAPI.authenticatedFetch(chatAPI.API_URL() + 'train/job/delete_all');
             }}
           >
             Delete all Jobs
@@ -545,8 +565,11 @@ export default function TrainLoRA({}) {
                           <IconButton variant="plain">
                             <Trash2Icon
                               onClick={async () => {
-                                await fetch(
-                                  chatAPI.Endpoints.Jobs.Delete(job.id),
+                                await chatAPI.authenticatedFetch(
+                                  chatAPI.Endpoints.Jobs.Delete(
+                                    experimentInfo.id,
+                                    job.id,
+                                  ),
                                 );
                                 jobsMutate();
                               }}

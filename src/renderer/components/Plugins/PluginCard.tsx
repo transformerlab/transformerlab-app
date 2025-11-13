@@ -13,8 +13,6 @@ import { colorArray, mixColorWithBackground } from 'renderer/lib/utils';
 import ShowArchitectures from '../Shared/ListArchitectures';
 import { useNotification } from '../Shared/NotificationSystem';
 
-const fetcher = (url) => fetch(url).then((res) => res.json());
-
 function getTint(type: string) {
   var tint = '';
 
@@ -36,6 +34,9 @@ function getTint(type: string) {
       break;
     case 'generator':
       tint = colorArray[5];
+      break;
+    case 'diffusion':
+      tint = colorArray[6];
       break;
     default:
       tint = 'var(--joy-palette-background-surface)';
@@ -233,7 +234,7 @@ export default function PluginCard({
                     if (
                       confirm('Are you sure you want to delete this plugin?')
                     ) {
-                      await fetch(
+                      await chatAPI.authenticatedFetch(
                         chatAPI.Endpoints.Experiment.DeletePlugin(
                           plugin?.uniqueId,
                         ),
@@ -274,28 +275,30 @@ export default function PluginCard({
                 }
 
                 setInstalling(plugin.uniqueId);
-                await fetch(
-                  chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
-                ).then(async (response) => {
-                  if (response.ok) {
-                    const responseBody = await response.json();
-                    console.log('Response Body:', responseBody);
-                    if (responseBody?.status == 'error') {
-                      alert(
-                        `Failed to install plugin:\n${responseBody?.message}`,
-                      );
-                      if (setLogsDrawerOpen) {
-                        setLogsDrawerOpen(true);
+                await chatAPI
+                  .authenticatedFetch(
+                    chatAPI.Endpoints.Experiment.InstallPlugin(plugin.uniqueId),
+                  )
+                  .then(async (response) => {
+                    if (response.ok) {
+                      const responseBody = await response.json();
+                      console.log('Response Body:', responseBody);
+                      if (responseBody?.status == 'error') {
+                        alert(
+                          `Failed to install plugin:\n${responseBody?.message}`,
+                        );
+                        if (setLogsDrawerOpen) {
+                          setLogsDrawerOpen(true);
+                        }
                       }
+                    } else {
+                      addNotification({
+                        type: 'danger',
+                        message:
+                          'Error: The API did not return a response. Plugin installation failed.',
+                      });
                     }
-                  } else {
-                    addNotification({
-                      type: 'danger',
-                      message:
-                        'Error: The API did not return a response. Plugin installation failed.',
-                    });
-                  }
-                });
+                  });
                 setInstalling(null);
                 parentMutate();
               }}

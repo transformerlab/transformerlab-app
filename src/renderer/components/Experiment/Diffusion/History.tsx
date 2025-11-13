@@ -31,6 +31,7 @@ import {
   ChevronRightIcon,
 } from 'lucide-react';
 import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import HistoryCard from './HistoryCard';
 import HistoryImageViewModal from './HistoryImageViewModal';
 import { HistoryImage } from './types';
@@ -42,12 +43,17 @@ const History: React.FC<HistoryProps> = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12; // Number of items per page
   const offset = (currentPage - 1) * pageSize;
+  const { experimentId } = useExperimentInfo();
 
   const {
     data: historyData,
     isLoading: historyLoading,
     mutate: refreshHistory,
-  } = useAPI('diffusion', ['getHistory'], { limit: pageSize, offset });
+  } = useAPI('diffusion', ['getHistory'], {
+    experimentId,
+    limit: pageSize,
+    offset,
+  });
 
   // Calculate pagination info
   const totalPages = historyData?.total
@@ -90,8 +96,11 @@ const History: React.FC<HistoryProps> = () => {
   // View image in modal
   const viewImage = async (imageId: string) => {
     try {
-      const response = await fetch(
-        getAPIFullPath('diffusion', ['getImageInfo'], { imageId }),
+      const response = await chatAPI.authenticatedFetch(
+        getAPIFullPath('diffusion', ['getImageInfo'], {
+          imageId,
+          experimentId,
+        }),
       );
       const data = await response.json();
       setSelectedImage(data);
@@ -104,9 +113,15 @@ const History: React.FC<HistoryProps> = () => {
   // Delete single image
   const deleteImage = async (imageId: string) => {
     try {
-      await fetch(getAPIFullPath('diffusion', ['deleteImage'], { imageId }), {
-        method: 'DELETE',
-      });
+      await chatAPI.authenticatedFetch(
+        getAPIFullPath('diffusion', ['deleteImage'], {
+          imageId,
+          experimentId,
+        }),
+        {
+          method: 'DELETE',
+        },
+      );
       refreshHistory(); // Reload history
       setDeleteConfirmOpen(false);
       setImageToDelete(null);
@@ -128,9 +143,15 @@ const History: React.FC<HistoryProps> = () => {
       // Delete all selected images
       await Promise.all(
         Array.from(selectedImages).map((imageId) =>
-          fetch(getAPIFullPath('diffusion', ['deleteImage'], { imageId }), {
-            method: 'DELETE',
-          }),
+          chatAPI.authenticatedFetch(
+            getAPIFullPath('diffusion', ['deleteImage'], {
+              imageId,
+              experimentId,
+            }),
+            {
+              method: 'DELETE',
+            },
+          ),
         ),
       );
       refreshHistory(); // Reload history
@@ -152,9 +173,14 @@ const History: React.FC<HistoryProps> = () => {
   // Clear all history
   const clearAllHistory = async () => {
     try {
-      await fetch(getAPIFullPath('diffusion', ['clearHistory'], {}), {
-        method: 'DELETE',
-      });
+      await chatAPI.authenticatedFetch(
+        getAPIFullPath('diffusion', ['clearHistory'], {
+          experimentId,
+        }),
+        {
+          method: 'DELETE',
+        },
+      );
       refreshHistory(); // Reload history
     } catch (e) {
       // Error clearing history
@@ -199,7 +225,9 @@ const History: React.FC<HistoryProps> = () => {
 
     try {
       const response = await fetch(
-        getAPIFullPath('diffusion', ['createDataset'], {}),
+        getAPIFullPath('diffusion', ['createDataset'], {
+          experimentId,
+        }),
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -19,8 +19,8 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 interface Job {
   id: string;
@@ -41,6 +41,7 @@ interface Job {
 }
 
 const ExportJobsTable = () => {
+  const { experimentInfo } = useExperimentInfo();
   const [viewOutputFromJob, setViewOutputFromJob] = useState<string | number>(
     -1,
   );
@@ -51,7 +52,9 @@ const ExportJobsTable = () => {
     isLoading,
     mutate: jobsMutate,
   } = useSWR<Job[]>(
-    chatAPI.Endpoints.Jobs.GetJobsOfType('EXPORT', ''),
+    experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(experimentInfo.id, 'EXPORT', '')
+      : null,
     fetcher,
     {
       refreshInterval: 2000,
@@ -108,7 +111,12 @@ const ExportJobsTable = () => {
                       <IconButton variant="plain">
                         <Trash2Icon
                           onClick={async () => {
-                            await fetch(chatAPI.Endpoints.Jobs.Delete(job?.id));
+                            await fetch(
+                              chatAPI.Endpoints.Jobs.Delete(
+                                experimentInfo.id,
+                                job?.id,
+                              ),
+                            );
                             jobsMutate();
                           }}
                         />

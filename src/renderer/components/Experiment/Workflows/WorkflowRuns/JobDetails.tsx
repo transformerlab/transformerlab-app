@@ -11,12 +11,17 @@ import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 
 import useSWR from 'swr';
 import OutputTerminal from 'renderer/components/OutputTerminal';
-const fetcher = (url) => fetch(url).then((res) => res.json());
+import { fetcher } from '../../../../lib/transformerlab-api-sdk';
 
-export default function JobDetails({ jobId, onClose }) {
+export default function JobDetails({ experimentId, jobId, onClose }) {
   const [open, setOpen] = useState(true);
 
-  const { data } = useSWR(chatAPI.Endpoints.Jobs.Get(jobId), fetcher);
+  const { data } = useSWR(
+    experimentId && jobId
+      ? chatAPI.Endpoints.Jobs.Get(experimentId, jobId)
+      : null,
+    fetcher,
+  );
 
   return (
     <Modal
@@ -124,7 +129,8 @@ export default function JobDetails({ jobId, onClose }) {
             >
               <OutputTerminal
                 logEndpoint={chatAPI.Endpoints.Experiment.StreamOutputFromJob(
-                  data?.id,
+                  experimentId,
+                  jobId,
                 )}
                 lineAnimationDelay={1}
               />

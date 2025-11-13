@@ -4,7 +4,7 @@
 import useSWR from 'swr';
 import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
-import { getAccessToken } from './functions';
+import { getAccessToken, authenticatedFetch } from './functions';
 
 export function useAPI(
   majorEntity: string,
@@ -12,16 +12,21 @@ export function useAPI(
   params: Record<string, any> = {},
   options: any = {},
 ) {
-  let path = getAPIFullPath(majorEntity, pathArray, params);
+  let path: string | null = getAPIFullPath(
+    majorEntity,
+    pathArray,
+    params,
+  ) as any;
   const fetcher = async (url: string) => {
     // check for an access token. Will be "" if user not logged in.
     const accessToken = await getAccessToken();
 
-    return fetch(url, {
-      headers: {
-        Authorization: accessToken ? `Bearer ${accessToken}` : '',
-        'Content-Type': 'application/json',
-      },
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    return authenticatedFetch(url, {
+      headers,
     }).then((res) => {
       // Check for HTTP 401 which means user is not authorized
       if (res.status === 401) {
@@ -67,21 +72,41 @@ export function useAPI(
   };
 }
 
-const fetcher = (...args: any[]) =>
-  fetch(...args).then((res) => {
-    if (!res.ok) {
-      const error = new Error('An error occurred fetching ' + res.url);
-      error.response = res.json();
-      error.status = res.status;
-      console.log(res);
-      throw error;
-    }
-    return res.json();
+export const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const accessToken = await getAccessToken();
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string>),
+  };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const response = await authenticatedFetch(input as any, {
+    ...init,
+    headers,
   });
+
+  if (!response.ok) {
+    const err: any = new Error('An error occurred fetching ' + response.url);
+    // attach details for callers
+    err.status = response.status;
+    try {
+      err.response = await response.json();
+    } catch {
+      err.response = null;
+    }
+    console.log(response);
+    throw err;
+  }
+  return response.json();
+};
 
 export function useModelStatus() {
   const api_url = API_URL();
-  const url = api_url ? api_url + 'server/worker_healthz' : null;
+  const url: string | null = api_url ? api_url + 'server/worker_healthz' : null;
 
   // Poll every 2 seconds
   const options = { refreshInterval: 2000 };
@@ -122,7 +147,7 @@ export function usePluginStatus(experimentInfo: any) {
 
 export function useServerStats() {
   const api_url = API_URL();
-  const url = api_url ? API_URL() + 'server/info' : null;
+  const url: string | null = api_url ? API_URL() + 'server/info' : null;
 
   // Poll every 1 seconds
   const options = { refreshInterval: 2000 };
@@ -137,17 +162,17 @@ export function useServerStats() {
   };
 }
 
-const fetchAndGetErrorStatus = async (url) => {
+const fetchAndGetErrorStatus = async (url: string) => {
   console.log('🛎️fetching', url);
 
-  const res = await fetch(url);
+  const res = await authenticatedFetch(url);
 
   // console.log('🛎️fetched', res);
 
   // If the status code is not in the range 200-299,
   // we still try to parse and throw it.
   if (!res.ok) {
-    const error = new Error('An error occurred while fetching the data.');
+    const error: any = new Error('An error occurred while fetching the data.');
     // Attach extra info to the error object.
     // error.info = await res.json(); //uncommenting this line breaks the error handling -- not sure why
     error.status = res.status;

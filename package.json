@@ -4,9 +4,9 @@
     "LLM",
     "LocalLLaMA"
   ],
-  "homepage": "https://transformerlab.ai",
+  "homepage": "https://lab.cloud",
   "bugs": {
-    "url": "https://transformerlab.ai"
+    "url": "https://lab.cloud"
   },
   "repository": {
     "type": "git",
@@ -16,7 +16,7 @@
   "author": {
     "name": "Ali Asaria",
     "email": "ali",
-    "url": "https://transformerlab.ai"
+    "url": "https://lab.cloud"
   },
   "contributors": [
     {
@@ -25,7 +25,7 @@
       "url": "https://github.com/dadmobile"
     }
   ],
-  "version": "0.20.7",
+  "version": "0.23.1",
   "main": "./src/main/main.ts",
   "scripts": {
     "build": "concurrently \"npm run build:main\" \"npm run build:renderer\" \"npm run build:cloud\"",
@@ -42,7 +42,9 @@
     "start:preload-cloud": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload-cloud.dev.ts",
     "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
     "start:cloud": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.cloud.dev.ts",
-    "test": "jest"
+    "test": "jest",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\""
   },
   "browserslist": [],
   "prettier": {

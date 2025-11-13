@@ -13,7 +13,9 @@ export {
   sendCompletionReactWay,
   sendBatchedCompletion,
   sendBatchedChat,
+  sendBatchedAudio,
   callTool,
+  getToolsForCompletions,
   getEmbeddings,
   tokenize,
   generateLogProbs,
@@ -25,6 +27,8 @@ export {
   login,
   logout,
   getAccessToken,
+  setAccessToken,
+  setRefreshToken,
   registerUser,
   downloadModelFromHuggingFace,
   downloadGGUFFile,
@@ -43,6 +47,7 @@ export {
   EXPERIMENT_EDIT_GENERATION,
   TEMPLATE_FOR_MODEL_URL,
   getTemplateForModel,
+  authenticatedFetch,
 } from './api-client/functions';
 
 export {
@@ -51,6 +56,7 @@ export {
   usePluginStatus,
   useServerStats,
   useCheckLocalConnection,
+  fetcher,
 } from './api-client/hooks';
 
 export {

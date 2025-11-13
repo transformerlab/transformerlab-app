@@ -163,7 +163,7 @@ function ModelGroupsSkeleton() {
   );
 }
 
-export default function ModelGroups() {
+export default function ModelGroups({ experimentInfo }) {
   const navigate = useNavigate();
   const [order, setOrder] = useState('asc');
   const [orderBy, setOrderBy] = useState('name');
@@ -178,6 +178,7 @@ export default function ModelGroups() {
   const [currentlyDownloading, setCurrentlyDownloading] = useState(null);
   const [canceling, setCanceling] = useState(false);
   const [groupSearchText, setGroupSearchText] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const {
     data: groupData,
@@ -197,7 +198,14 @@ export default function ModelGroups() {
   const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
 
   useEffect(() => {
-    fetch(chatAPI.Endpoints.Jobs.GetJobsOfType('DOWNLOAD_MODEL', 'RUNNING'))
+    chatAPI
+      .authenticatedFetch(
+        chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo?.id,
+          'DOWNLOAD_MODEL',
+          'RUNNING',
+        ),
+      )
       .then((res) => res.json())
       .then((jobs) => {
         if (jobs.length) {
@@ -217,7 +225,7 @@ export default function ModelGroups() {
 
   useEffect(() => {
     if (selectedGroup) {
-      setFilters({ archived: false, license: 'All', architecture: 'All' });
+      setFilters({ archived: false, architecture: 'All' });
     }
   }, [selectedGroup]);
 
@@ -234,17 +242,17 @@ export default function ModelGroups() {
     }
   }, [groupData, selectedGroup]);
 
-  const getLicenseOptions = (models) => {
-    const lowercaseSet = new Set();
-    models?.forEach((m) => {
+  const getLicenseOptions = (models: any[]): string[] => {
+    const lowercaseSet = new Set<string>();
+    models?.forEach((m: any) => {
       if (m.license) lowercaseSet.add(m.license.toLowerCase());
     });
     return Array.from(lowercaseSet).sort();
   };
 
-  const getArchitectureOptions = (models) => {
-    const lowercaseSet = new Set();
-    models?.forEach((m) => {
+  const getArchitectureOptions = (models: any[]): string[] => {
+    const lowercaseSet = new Set<string>();
+    models?.forEach((m: any) => {
       if (m.architecture) lowercaseSet.add(m.architecture.toLowerCase());
     });
     return Array.from(lowercaseSet).sort();
@@ -253,7 +261,7 @@ export default function ModelGroups() {
   const licenseOptions = selectedGroup
     ? getLicenseOptions(selectedGroup.models)
     : [];
-  const archOptions = selectedGroup
+  const archOptions: string[] = selectedGroup
     ? getArchitectureOptions(selectedGroup.models)
     : [];
 
@@ -261,7 +269,7 @@ export default function ModelGroups() {
   if (error) return <Typography>Error loading model groups.</Typography>;
   if (!groupData || !selectedGroup) return null;
 
-  const handleSortClick = (column) => {
+  const handleSortClick = (column: string) => {
     const isAsc = orderBy === column && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(column);
@@ -278,8 +286,14 @@ export default function ModelGroups() {
       }}
     >
       <Box sx={{ position: 'relative', marginBottom: 2 }}>
-        <DownloadProgressBox jobId={jobId} assetName={currentlyDownloading} />
-        {jobId && (
+        {experimentInfo && (
+          <DownloadProgressBox
+            jobId={jobId}
+            assetName={currentlyDownloading}
+            experimentId={experimentInfo.id}
+          />
+        )}
+        {jobId && experimentInfo && (
           <Button
             variant="outlined"
             size="sm"
@@ -287,7 +301,9 @@ export default function ModelGroups() {
             disabled={canceling}
             onClick={async () => {
               setCanceling(true);
-              const response = await fetch(chatAPI.Endpoints.Jobs.Stop(jobId));
+              const response = await chatAPI.authenticatedFetch(
+                chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, jobId),
+              );
               if (response.ok) {
                 setJobId(null);
                 setCurrentlyDownloading(null);
@@ -343,7 +359,7 @@ export default function ModelGroups() {
             }}
           >
             <Input
-              placeholder="Search groups"
+              placeholder="Search"
               value={groupSearchText}
               onChange={(e) => setGroupSearchText(e.target.value)}
               startDecorator={<SearchIcon />}
@@ -360,11 +376,38 @@ export default function ModelGroups() {
             }}
           >
             {[...groupData]
-              .filter((group) =>
-                group.name
-                  .toLowerCase()
-                  .includes(groupSearchText.toLowerCase()),
-              )
+              .filter((group) => {
+                if (!groupSearchText) return true;
+
+                const searchLower = groupSearchText.toLowerCase();
+
+                // Search in group properties
+                const groupFields = [
+                  group.name,
+                  group.description,
+                  ...(group.tags || []),
+                ];
+
+                // Search in model properties within the group
+                const modelFields =
+                  group.models?.flatMap((model: any) => [
+                    model.name,
+                    model.architecture,
+                    model.license,
+                    model.description,
+                    model.huggingface_repo,
+                    model.id,
+                    ...(model.tags || []),
+                  ]) || [];
+
+                const allSearchableFields = [...groupFields, ...modelFields];
+
+                return allSearchableFields.some(
+                  (field) =>
+                    field &&
+                    field.toString().toLowerCase().includes(searchLower),
+                );
+              })
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((group) => {
                 const isSelected = selectedGroup?.name === group.name;
@@ -472,72 +515,86 @@ export default function ModelGroups() {
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1,
+                  justifyContent: 'space-between',
                   flexWrap: 'wrap',
                   mb: 1,
                 }}
               >
-                <Typography level="h4">
-                  {selectedGroup.name.charAt(0).toUpperCase() +
-                    selectedGroup.name.slice(1)}
-                </Typography>
-                {selectedGroup.tags?.map((tag) => (
-                  <Chip
-                    key={tag}
-                    size="sm"
-                    variant="outlined"
-                    sx={{
-                      fontSize: '0.7rem',
-                      variant: 'soft',
-                      color: 'info',
-                    }}
-                  >
-                    {tag}
-                  </Chip>
-                ))}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Typography level="h4">
+                    {selectedGroup.name.charAt(0).toUpperCase() +
+                      selectedGroup.name.slice(1)}
+                  </Typography>
+                  {selectedGroup.tags?.map((tag: string) => (
+                    <Chip
+                      key={tag}
+                      size="sm"
+                      variant="outlined"
+                      sx={{
+                        fontSize: '0.7rem',
+                        variant: 'soft',
+                        color: 'info',
+                      }}
+                    >
+                      {tag}
+                    </Chip>
+                  ))}
+                </Box>
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  Filters {showFilters ? '▲' : '▼'}
+                </Button>
               </Box>
               {/* <Typography level="body-md" sx={{ mb: 2 }}>
                 {selectedGroup.description}
               </Typography> */}
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
-                <FormControl sx={{ flex: 1 }} size="sm">
-                  <FormLabel>&nbsp;</FormLabel>
-                  <Input
-                    placeholder="Search"
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    startDecorator={<SearchIcon />}
-                  />
-                </FormControl>
-                <FormControl size="sm">
-                  <FormLabel>Status</FormLabel>
-                  <Select
-                    value={filters?.archived}
-                    onChange={(e, newValue) =>
-                      setFilters({ ...filters, archived: newValue })
-                    }
-                  >
-                    <Option value={false}>Hide Archived</Option>
-                    <Option value="All">Show Archived</Option>
-                  </Select>
-                </FormControl>
-                <FormControl size="sm">
-                  <FormLabel>Architecture</FormLabel>
-                  <Select
-                    value={filters?.architecture}
-                    onChange={(e, newValue) =>
-                      setFilters({ ...filters, architecture: newValue })
-                    }
-                  >
-                    <Option value="All">All</Option>
-                    {archOptions.map((type) => (
-                      <Option key={type} value={type}>
-                        {type}
-                      </Option>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
+              {showFilters && (
+                <Box
+                  sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 1 }}
+                >
+                  <FormControl size="sm">
+                    <FormLabel>Status</FormLabel>
+                    <Select
+                      value={filters?.archived}
+                      onChange={(e, newValue) =>
+                        setFilters({ ...filters, archived: newValue ?? false })
+                      }
+                    >
+                      <Option value={false}>Hide Archived</Option>
+                      <Option value="All">Show Archived</Option>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="sm">
+                    <FormLabel>Architecture</FormLabel>
+                    <Select
+                      value={filters?.architecture}
+                      onChange={(e, newValue) =>
+                        setFilters({
+                          ...filters,
+                          architecture: newValue ?? 'All',
+                        })
+                      }
+                    >
+                      <Option value="All">All</Option>
+                      {archOptions.map((type: string) => (
+                        <Option key={type} value={type}>
+                          {type}
+                        </Option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
             </Sheet>
 
             <Box
@@ -790,8 +847,10 @@ export default function ModelGroups() {
                               setJobId(-1);
                               setCurrentlyDownloading(row.name);
                               try {
-                                let response = await fetch(
-                                  chatAPI.Endpoints.Jobs.Create(),
+                                let response = await chatAPI.authenticatedFetch(
+                                  chatAPI.Endpoints.Jobs.Create(
+                                    experimentInfo.id,
+                                  ),
                                 );
                                 const newJobId = await response.json();
                                 setJobId(newJobId);

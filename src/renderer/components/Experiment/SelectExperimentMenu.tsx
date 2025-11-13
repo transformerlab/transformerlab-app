@@ -29,10 +29,8 @@ import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import RecipesModal from './Recipes';
-import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getAPIFullPath, fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
 
 function ExperimentSettingsMenu({
   experimentInfo,
@@ -60,13 +58,15 @@ function ExperimentSettingsMenu({
           variant="soft"
           onClick={() => {
             if (experimentInfo?.id) {
-              fetch(
-                `${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`,
-              ).then(() => {
-                alert(
-                  `Your experiment was exported as a recipe to ~/.transformerlab/workspace/${experimentInfo.name}_export.json`,
-                );
-              });
+              chatAPI
+                .authenticatedFetch(
+                  `${chatAPI.API_URL()}experiment/${experimentInfo.id}/export_to_recipe`,
+                )
+                .then(() => {
+                  alert(
+                    `Your experiment was exported as a recipe to ~/.transformerlab/workspace/${experimentInfo.name}_export.json`,
+                  );
+                });
             }
           }}
           disabled={!experimentInfo?.config?.foundation}
@@ -82,8 +82,9 @@ function ExperimentSettingsMenu({
                 'Are you sure you want to delete this project? If you click on "OK" There is no way to recover it.',
               )
             ) {
-              await fetch(
+              await chatAPI.authenticatedFetch(
                 chatAPI.Endpoints.Experiment.Delete(experimentInfo?.id),
+                {},
               );
 
               // Find the next available experiment (first one in the list that's not the deleted one)
@@ -128,7 +129,7 @@ export default function SelectExperimentMenu({ models }) {
     mutate();
   }, [experimentInfo]);
 
-  const createHandleClose = (id: number) => () => {
+  const createHandleClose = (id: string) => () => {
     setAnchorEl(null);
     setExperimentId(id);
   };
@@ -138,16 +139,19 @@ export default function SelectExperimentMenu({ models }) {
       let newId = 0;
 
       if (fromRecipeId === null) {
-        const response = await fetch(chatAPI.Endpoints.Experiment.Create(name));
+        const response = await chatAPI.authenticatedFetch(
+          chatAPI.Endpoints.Experiment.Create(name),
+        );
         newId = await response.json();
       } else {
-        const response = await fetch(
+        const response = await chatAPI.authenticatedFetch(
           getAPIFullPath('recipes', ['createExperiment'], {
             id: fromRecipeId,
             experiment_name: name,
           }),
           {
             method: 'POST',
+            headers: {},
           },
         );
         const responseJson = await response.json();
@@ -326,6 +330,7 @@ export default function SelectExperimentMenu({ models }) {
                   'var(--joy-palette-background-level3) transparent',
               }}
             >
+              {isLoading && <MenuItem>Loading...</MenuItem>}
               {data &&
                 data.map((experiment: any) => {
                   return (
@@ -336,7 +341,7 @@ export default function SelectExperimentMenu({ models }) {
                           ? 'soft'
                           : undefined
                       }
-                      onClick={createHandleClose(experiment.id)}
+                      onClick={createHandleClose(experiment.name)}
                       key={experiment.id}
                       sx={{
                         display: 'flex',

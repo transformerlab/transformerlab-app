@@ -9,9 +9,11 @@ import {
 } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 import { useCallback, useEffect, useState } from 'react';
 import useSWR from 'swr';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import Data from './Data/Data';
 import Interact from './Experiment/Interact/Interact';
 import Embeddings from './Experiment/Embeddings';
@@ -19,6 +21,7 @@ import Welcome from './Welcome/Welcome';
 import ModelZoo from './ModelZoo/ModelZoo';
 import Plugins from './Plugins/Plugins';
 import PluginDetails from './Plugins/PluginDetails';
+import TasksGallery from './TaskLibrary/TasksGallery';
 
 import Computer from './Computer';
 import Eval from './Experiment/Eval/Eval';
@@ -41,8 +44,8 @@ import FoundationHome from './Experiment/Foundation';
 import Workflows from './Experiment/Workflows';
 import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
+import Tasks from './Experiment/Tasks/Tasks';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -78,13 +81,16 @@ export const PageTracker = () => {
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
 // On the leftmost panel.
-export default function MainAppPanel({ setLogsDrawerOpen = null }) {
+export default function MainAppPanel({
+  setLogsDrawerOpen = null,
+  gpuOrchestrationServer = '',
+}) {
   const { experimentInfo, experimentInfoMutate, setExperimentId } =
     useExperimentInfo();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
     useState('chat');
 
-  const fetcher = (url) => fetch(url).then((res) => res.json());
+  // Use authenticated fetcher from SDK
 
   // Extract pluginId at the top level
   const inferenceParams = experimentInfo?.config?.inferenceParams;
@@ -159,7 +165,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
       }
 
       async function updateConfigs() {
-        await fetch(
+        await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
           {
             method: 'POST',
@@ -187,15 +193,17 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
 
   const setAdaptor = useCallback(
     (name) => {
-      fetch(
-        chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-          experimentInfo?.id,
-          'adaptor',
-          name,
-        ),
-      ).then((res) => {
-        experimentInfoMutate();
-      });
+      chatAPI
+        .authenticatedFetch(
+          chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+            experimentInfo?.id,
+            'adaptor',
+            name,
+          ),
+        )
+        .then((res) => {
+          experimentInfoMutate();
+        });
     },
     [experimentInfo, experimentInfoMutate],
   );
@@ -220,7 +228,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
       }
 
       async function updateConfigs() {
-        await fetch(
+        await chatAPI.authenticatedFetch(
           chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
           {
             method: 'POST',
@@ -278,7 +286,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
 
   const setRagEngine = useCallback(
     async (name: string, rag_settings: any = {}) => {
-      await fetch(
+      await chatAPI.authenticatedFetch(
         chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
         {
           method: 'POST',
@@ -368,6 +376,8 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/experiment/embeddings" element={<Embeddings />} />
         <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route path="/experiment/training" element={<TrainLoRA />} />
+        <Route path="/experiment/tasks" element={<Tasks />} />
+
         <Route
           path="/experiment/eval"
           element={<Eval addEvaluation={experimentAddEvaluation} />}
@@ -390,14 +400,59 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
           element={<Plugins setLogsDrawerOpen={setLogsDrawerOpen} />}
         />
         <Route path="/plugins/:pluginName" element={<PluginDetails />} />
+        <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
-        <Route path="/zoo" element={<ModelZoo tab="groups" />} />
-        <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
-        <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
-        <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
-        <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
-        <Route path="/data" element={<Data />} />
+        <Route
+          path="/zoo"
+          element={
+            <ModelZoo
+              tab="groups"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/local"
+          element={
+            <ModelZoo
+              tab="local"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/generated"
+          element={
+            <ModelZoo
+              tab="generated"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/store"
+          element={
+            <ModelZoo
+              tab="store"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/zoo/groups"
+          element={
+            <ModelZoo
+              tab="groups"
+              gpuOrchestrationServer={gpuOrchestrationServer}
+            />
+          }
+        />
+        <Route
+          path="/data"
+          element={<Data gpuOrchestrationServer={gpuOrchestrationServer} />}
+        />
+        <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />

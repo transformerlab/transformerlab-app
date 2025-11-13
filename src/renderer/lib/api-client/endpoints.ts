@@ -20,6 +20,18 @@ Endpoints.Tasks = {
   UpdateTask: (id: string) => `${API_URL()}tasks/${id}/update`,
   NewTask: () => `${API_URL()}tasks/new_task`,
   DeleteTask: (id: string) => `${API_URL()}tasks/${id}/delete`,
+  Gallery: () => `${API_URL()}tasks/gallery`,
+  LocalGallery: () => `${API_URL()}tasks/local_gallery`,
+  InstallFromGallery: () => `${API_URL()}tasks/install_from_gallery`,
+  ImportFromGallery: () => `${API_URL()}tasks/import_from_gallery`,
+  ImportFromLocalGallery: () => `${API_URL()}tasks/import_from_local_gallery`,
+  ExportToLocalGallery: () => `${API_URL()}tasks/export_to_local_gallery`,
+  DeleteFromLocalGallery: (taskDir: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}`,
+  GetTaskFiles: (taskDir: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}/files`,
+  GetTaskFileContent: (taskDir: string, filePath: string) =>
+    `${API_URL()}tasks/local_gallery/${taskDir}/files/${filePath}`,
 };
 
 Endpoints.Workflows = {
@@ -160,6 +172,7 @@ Endpoints.Models = {
   ImportFromLocalPath: (modelPath: string) =>
     `${API_URL()}model/import_from_local_path?model_path=${modelPath}`,
   HuggingFaceLogin: () => `${API_URL()}model/login_to_huggingface`,
+  HuggingFaceLogout: () => `${API_URL()}model/logout_from_huggingface`,
   Delete: (modelId: string, deleteCache: boolean = false) =>
     `${API_URL()}model/delete?model_id=${modelId}&delete_from_cache=${
       deleteCache
@@ -244,8 +257,8 @@ Endpoints.BatchedPrompts = {
 Endpoints.Tools = {
   Call: (function_name: string, function_arguments: string) =>
     `${API_URL()}tools/call/${function_name}?params=${function_arguments}`,
-  Prompt: () => `${API_URL()}tools/prompt`,
   List: () => `${API_URL()}tools/list`,
+  All: () => `${API_URL()}tools/all`,
   InstallMcpPlugin: (serverName: string) =>
     `${API_URL()}tools/install_mcp_server?server_name=${encodeURIComponent(serverName)}`,
 };
@@ -390,51 +403,68 @@ Endpoints.Experiment = {
     `${API_URL()}experiment/${experimentId}/plugins/new_plugin?pluginId=${
       pluginId
     }`,
-  GetOutputFromJob: (jobId: string) => `${API_URL()}train/job/${jobId}/output`,
-  StreamOutputFromJob: (jobId: string, sweep: boolean = false) =>
-    `${API_URL()}jobs/${jobId}/stream_output?sweeps=${sweep}`,
-  StreamDetailedJSONReportFromJob: (jobId: string, fileName: string) =>
-    `${API_URL()}jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
-  GetAdditionalDetails: (jobId: string, task: string = 'view') =>
-    `${API_URL()}jobs/${jobId}/get_additional_details?task=${task}`,
-  GetGeneratedDataset: (jobId: string) =>
-    `${API_URL()}jobs/${jobId}/get_generated_dataset`,
-  GetPlotJSON: (jobId: string) => `${API_URL()}jobs/${jobId}/get_figure_json`,
+  GetOutputFromJob: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/output`,
+  GetTasksOutputFromJob: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/tasks_output`,
+  StreamOutputFromJob: (
+    experimentId: string,
+    jobId: string,
+    sweep: boolean = false,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stream_output?sweeps=${sweep}`,
+  StreamDetailedJSONReportFromJob: (
+    experimentId: string,
+    jobId: string,
+    fileName: string,
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stream_detailed_json_report?file_name=${fileName}`,
+  GetAdditionalDetails: (
+    experimentId: string,
+    jobId: string,
+    task: string = 'view',
+  ) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_additional_details?task=${task}`,
+  GetGeneratedDataset: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_generated_dataset`,
+  GetPlotJSON: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_figure_json`,
 };
 
 Endpoints.Jobs = {
-  List: () => `${API_URL()}jobs/list`,
-  Get: (jobId: string) => `${API_URL()}train/job/${jobId}`,
+  List: (experimentId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/list`,
+  Get: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}`,
   Create: (
-    experimentId?: string,
+    experimentId: string,
     type?: string,
     status?: string,
     data?: string, // Should be JSON
   ) =>
-    `${API_URL()}jobs/create` +
-    `?status=${status || 'CREATED'}${
-      experimentId ? `&experiment_id=${experimentId}` : ''
-    }${type ? `&type=${type}` : ''}${data ? `&data=${data}` : ''}`,
-  GetJobsOfType: (type: string = '', status: string = '') =>
-    `${API_URL()}jobs/list?type=${type}&status=${status}`,
-  Delete: (jobId: string) => `${API_URL()}jobs/delete/${jobId}`,
-  GetTrainingTemplate: (template_id: string) =>
-    `${API_URL()}jobs/template/${template_id}`,
-  UpdateTrainingTemplate: (
-    template_id: string,
-    name: string,
-    description: string,
-    type: string,
-    config: Object,
+    `${API_URL()}experiment/${experimentId}/jobs/create` +
+    `?status=${status || 'CREATED'}` +
+    `${type ? `&type=${type}` : ''}${data ? `&data=${data}` : ''}`,
+  GetJobsOfType: (
+    experimentId: string,
+    type: string = '',
+    status: string = '',
   ) =>
-    `${API_URL()}jobs/template/update` +
-    `?template_id=${template_id}&name=${name}&description=${description}&type=${
-      type
-    }&config=${config}`,
-  Stop: (jobId: string) => `${API_URL()}jobs/${jobId}/stop`,
-  GetEvalImages: (jobId: string) => `${API_URL()}jobs/${jobId}/get_eval_images`,
-  GetEvalImage: (jobId: string, filename: string) =>
-    `${API_URL()}jobs/${jobId}/image/${filename}`,
+    `${API_URL()}experiment/${experimentId}/jobs/list?type=${type}&status=${status}`,
+  Delete: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/delete/${jobId}`,
+  Stop: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/stop`,
+  GetEvalImages: (experimentId: string, jobId: string) =>
+    `${API_URL()}experiment/${experimentId}/jobs/${jobId}/get_eval_images`,
+  CreateRemoteJob: (experimentId: string) =>
+    `${API_URL()}remote/create-job?experimentId=${experimentId}`,
+  LaunchRemote: (experimentId: string) =>
+    `${API_URL()}remote/launch?experimentId=${experimentId}`,
+  UploadRemote: () => `${API_URL()}remote/upload`,
+  StopRemote: () => `${API_URL()}remote/stop`,
+  CheckStatus: () => `${API_URL()}remote/check-status`,
+  GetLogs: (requestId: string) => `${API_URL()}remote/logs/${requestId}`,
 };
 
 Endpoints.Global = {

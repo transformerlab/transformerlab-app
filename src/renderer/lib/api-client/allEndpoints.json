@@ -35,6 +35,26 @@
     "queue": {
       "method": "POST",
       "path": "tasks/{id}/queue"
+    },
+    "gallery": {
+      "method": "GET",
+      "path": "tasks/gallery"
+    },
+    "importFromGallery": {
+      "method": "POST",
+      "path": "tasks/import_from_gallery"
+    },
+    "localGallery": {
+      "method": "GET",
+      "path": "tasks/local_gallery"
+    },
+    "importToLocalGallery": {
+      "method": "POST",
+      "path": "tasks/export_to_local_gallery"
+    },
+    "importFromLocalGallery": {
+      "method": "POST",
+      "path": "tasks/import_from_local_gallery"
     }
   },
   "server": {
@@ -81,20 +101,32 @@
     "pipeline_tag": {
       "method": "GET",
       "path": "model/pipeline_tag?model_name={modelName}"
+    },
+    "getModelDetailsFromGallery": {
+      "method": "GET",
+      "path": "model/gallery/{modelId}"
     }
   },
   "jobs": {
     "get": {
       "method": "GET",
-      "path": "jobs/{id}"
+      "path": "experiment/{experimentId}/jobs/{id}"
     },
     "stop": {
       "method": "GET",
-      "path": "jobs/{jobId}/stop"
+      "path": "experiment/{experimentId}/jobs/{jobId}/stop"
     },
     "getCheckpoints": {
       "method": "GET",
-      "path": "jobs/{jobId}/checkpoints"
+      "path": "experiment/{experimentId}/jobs/{jobId}/checkpoints"
+    },
+    "getArtifacts": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/{jobId}/artifacts"
+    },
+    "getJobsOfType": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/jobs/list?type={type}&status={status}"
     }
   },
   "datasets": {
@@ -148,10 +180,14 @@
   "users": {
     "me": {
       "method": "GET",
-      "path": "users/me"
+      "path": "auth/me"
     }
   },
   "auth": {
+    "me": {
+      "method": "GET",
+      "path": "auth/me"
+    },
     "login": {
       "method": "POST",
       "path": "auth/jwt/login"
@@ -178,63 +214,67 @@
   "diffusion": {
     "generateId": {
       "method": "POST",
-      "path": "diffusion/generate_id"
+      "path": "experiment/{experimentId}/diffusion/generate_id"
     },
     "generate": {
       "method": "POST",
-      "path": "diffusion/generate"
+      "path": "experiment/{experimentId}/diffusion/generate"
     },
     "checkValidDiffusion": {
       "method": "POST",
-      "path": "diffusion/is_valid_diffusion_model"
+      "path": "experiment/{experimentId}/diffusion/is_valid_diffusion_model"
     },
     "getHistory": {
       "method": "GET",
-      "path": "diffusion/history?limit={limit}&offset={offset}"
+      "path": "experiment/{experimentId}/diffusion/history?limit={limit}&offset={offset}"
     },
     "getImageInfo": {
       "method": "GET",
-      "path": "diffusion/history/{imageId}/info"
+      "path": "experiment/{experimentId}/diffusion/history/{imageId}/info"
     },
     "getImage": {
       "method": "GET",
-      "path": "diffusion/history/{imageId}?index={index}"
+      "path": "experiment/{experimentId}/diffusion/history/{imageId}?index={index}"
     },
     "getImageCount": {
       "method": "GET",
-      "path": "diffusion/history/{imageId}/count"
+      "path": "experiment/{experimentId}/diffusion/history/{imageId}/count"
     },
     "getInputImage": {
       "method": "GET",
-      "path": "diffusion/history/{imageId}?input_image=true"
+      "path": "experiment/{experimentId}/diffusion/history/{imageId}?input_image=true"
     },
     "getProcessedImage": {
       "method": "GET",
-      "path": "diffusion/history/{imageId}?preprocessed=true"
+      "path": "experiment/{experimentId}/diffusion/history/{imageId}?preprocessed=true"
     },
     "getMaskImage": {
       "method": "GET",
-      "path": "diffusion/history/{imageId}?mask_image=true"
+      "path": "experiment/{experimentId}/diffusion/history/{imageId}?mask_image=true"
     },
     "deleteImage": {
       "method": "DELETE",
-      "path": "diffusion/history/{imageId}"
+      "path": "experiment/{experimentId}/diffusion/history/{imageId}"
     },
     "clearHistory": {
       "method": "DELETE",
-      "path": "diffusion/history"
+      "path": "experiment/{experimentId}/diffusion/history"
+    },
+    "getFile": {
+      "method": "GET",
+      "path": "experiment/{experimentId}/diffusion/get_file/{generationId}"
     },
     "createDataset": {
       "method": "POST",
-      "path": "diffusion/dataset/create"
+      "path": "experiment/{experimentId}/diffusion/dataset/create"
     },
     "getAllImages": {
       "method": "GET",
-      "path": "diffusion/history/{imageId}/all"
+      "path": "experiment/{experimentId}/diffusion/history/{imageId}/all"
     },
     "listControlnets": {
       "method": "GET",
-      "path": "diffusion/controlnets"
+      "path": "experiment/{experimentId}/diffusion/controlnets"
     }
   },
   "train": {
