@@ -38,7 +38,7 @@ const TranscriptionHistory = React.forwardRef<
 
   // Fetch text for each item
   useEffect(() => {
-    if (transcriptionHistory) {
+    if (Array.isArray(transcriptionHistory)) {
       transcriptionHistory.forEach(async (item) => {
         if (!textContents[item.id]) {
           const textUrl = getAPIFullPath(

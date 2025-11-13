@@ -102,7 +102,7 @@ export default function Audio() {
 
       try {
         const response = await fetch(
-          `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload?experimentId=${experimentInfo?.id}`,
+          `${chatAPI.INFERENCE_SERVER_URL()}v1/audio/upload_reference?experimentId=${experimentInfo?.id}`,
           {
             method: 'POST',
             body: formData,
