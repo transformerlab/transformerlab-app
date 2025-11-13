@@ -7,7 +7,6 @@ import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
-import Textarea from '@mui/joy/Textarea';
 import {
   FormHelperText,
   ModalClose,
@@ -15,6 +14,8 @@ import {
   Sheet,
   Stack,
   Typography,
+  Checkbox,
+  Alert,
 } from '@mui/joy';
 import { FolderIcon } from 'lucide-react';
 import { Editor } from '@monaco-editor/react';
@@ -57,6 +58,8 @@ export default function EditTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
+  const [shutdownAfterCompletion, setShutdownAfterCompletion] =
+    React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
   const setupEditorRef = useRef<any>(null);
@@ -74,6 +77,7 @@ export default function EditTaskModal({
     setAccelerators(cfg.accelerators != null ? String(cfg.accelerators) : '');
     setNumNodes(cfg.num_nodes != null ? String(cfg.num_nodes) : '');
     setSetup(cfg.setup != null ? String(cfg.setup) : '');
+    setShutdownAfterCompletion(cfg.shutdown_after_completion || false);
   }, [task]);
 
   // Keep Monaco editors in sync if the state changes after mount
@@ -160,6 +164,7 @@ export default function EditTaskModal({
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue || undefined,
+      shutdown_after_completion: shutdownAfterCompletion,
     } as any;
 
     const body = {
@@ -366,6 +371,26 @@ export default function EditTaskModal({
                 e.g. <code>python train.py --epochs 10</code>
               </FormHelperText>
             </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <Checkbox
+                checked={shutdownAfterCompletion}
+                onChange={(e) => setShutdownAfterCompletion(e.target.checked)}
+                label="Shutdown machine after execution"
+              />
+              <FormHelperText>
+                When enabled, the remote instance will be automatically shut
+                down after the task completes.
+              </FormHelperText>
+            </FormControl>
+
+            {shutdownAfterCompletion && (
+              <Alert color="warning" sx={{ mt: 1 }}>
+                <strong>Warning:</strong> This will destroy all data on the
+                remote machine that is not logged or saved elsewhere. Make sure
+                to save any important results before the task completes.
+              </Alert>
+            )}
 
             {/* Show uploaded directory indicator if present */}
             {task &&
