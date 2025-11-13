@@ -116,6 +116,16 @@ const ModelProgressBar = ({ jobData }: { jobData: any }) => {
 
   const progress = jobData.progress || 0;
   const status = jobData.status || 'RUNNING';
+  const filesDownloaded = Number.isFinite(
+    Number(jobData?.job_data?.files_downloaded),
+  )
+    ? Number(jobData?.job_data?.files_downloaded)
+    : null;
+  const filesTotal = Number.isFinite(
+    Number(jobData?.job_data?.files_total),
+  )
+    ? Number(jobData?.job_data?.files_total)
+    : null;
 
   if (status === 'COMPLETE') {
     return (
@@ -153,7 +163,9 @@ const ModelProgressBar = ({ jobData }: { jobData: any }) => {
     <Box sx={{ ml: 'auto', minWidth: '120px' }}>
       <LinearProgress determinate value={progress} sx={{ mb: 0.5 }} size="sm" />
       <Typography level="body-xs" sx={{ textAlign: 'center' }}>
-        {Math.round(progress)}%
+        {filesDownloaded !== null && filesTotal !== null
+          ? `${filesDownloaded}/${filesTotal} files`
+          : `${Math.round(progress)}%`}
       </Typography>
     </Box>
   );

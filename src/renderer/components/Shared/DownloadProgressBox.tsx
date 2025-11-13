@@ -62,6 +62,18 @@ export default function DownloadProgressBox({
     : 0;
   const downloadedBytes = downloaded * 1024 * 1024;
   const totalBytes = total * 1024 * 1024;
+  
+  // Get file counts if available
+  const filesDownloaded = Number.isFinite(
+    Number(downloadProgress?.job_data?.files_downloaded),
+  )
+    ? Number(downloadProgress?.job_data?.files_downloaded)
+    : null;
+  const filesTotal = Number.isFinite(
+    Number(downloadProgress?.job_data?.files_total),
+  )
+    ? Number(downloadProgress?.job_data?.files_total)
+    : null;
 
   return (
     <Box>
@@ -80,7 +92,9 @@ export default function DownloadProgressBox({
 
           <Box mt={1}>
             <Typography level="body-xs" sx={{ mb: 1, color: 'text.secondary' }}>
-              {downloaded > 0
+              {filesDownloaded !== null && filesTotal !== null
+                ? `${filesDownloaded}/${filesTotal} files downloaded`
+                : downloaded > 0
                 ? `${formatBytes(downloadedBytes)}${total > 0 ? ` / ${formatBytes(totalBytes)}` : ''}`
                 : 'Downloading...'}
               <ArrowDownIcon size="16px" style={{ verticalAlign: 'middle' }} />
@@ -121,7 +135,9 @@ export default function DownloadProgressBox({
                         : theme.vars.palette.text.primary,
                   })}
                 >
-                  {Number.isFinite(progressPercent)
+                  {filesDownloaded !== null && filesTotal !== null
+                    ? `${filesDownloaded}/${filesTotal} files`
+                    : Number.isFinite(progressPercent)
                     ? `${progressPercent}%`
                     : 'Loading...'}
                 </Typography>
