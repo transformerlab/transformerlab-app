@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  IconButton,
   LinearProgress,
   Sheet,
   Stack,
@@ -10,7 +11,7 @@ import {
   Typography,
   Card,
 } from '@mui/joy';
-import { SendIcon, StopCircle } from 'lucide-react';
+import { SendIcon, StopCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
@@ -40,6 +41,7 @@ export default function TextDiffusionVisualization({
   const [stepHistory, setStepHistory] = useState([]);
   const [startTime, setStartTime] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState(null);
+  const [currentStepIndex, setCurrentStepIndex] = useState(-1);
 
   const abortControllerRef = useRef(null);
 
@@ -64,6 +66,7 @@ export default function TextDiffusionVisualization({
     setStepHistory([]);
     setStartTime(Date.now());
     setTimeRemaining(null);
+    setCurrentStepIndex(-1);
 
     // Abort any existing connection
     if (abortControllerRef.current) {
@@ -146,14 +149,15 @@ export default function TextDiffusionVisualization({
 
                 // Extract text and diffusion metadata from the response
                 // The new /v1/text_diffusion endpoint returns data directly
-                const text = parsedData.text || '';
+                const text = parsedData.text !== undefined ? parsedData.text : '';
                 const diffusionStep = parsedData.diffusion_step;
                 const totalStepsData = parsedData.total_steps;
                 const masksRemainingData = parsedData.masks_remaining;
 
-                // Always update text if present (even if empty) to show evolution
-                // This ensures we see each step of the diffusion process
-                if (text !== undefined && text !== null) {
+                // Always update text at each step to show evolution
+                // Update immediately for each diffusion step to show real-time text evolution
+                // This ensures we see the text change at each diffusion step
+                if (diffusionStep !== undefined || text !== undefined) {
                   setGeneratedText(text);
                 }
                 
@@ -194,7 +198,10 @@ export default function TextDiffusionVisualization({
                     } else {
                       newHistory.push(stepData);
                     }
-                    return newHistory.sort((a, b) => a.step - b.step);
+                    const sorted = newHistory.sort((a, b) => a.step - b.step);
+                    // Update current step index to the latest step
+                    setCurrentStepIndex(sorted.length - 1);
+                    return sorted;
                   });
                 }
 
@@ -233,6 +240,26 @@ export default function TextDiffusionVisualization({
     }
     chatAPI.stopStreamingResponse();
     setIsGenerating(false);
+  };
+
+  const navigateStep = (direction) => {
+    if (stepHistory.length === 0) return;
+    
+    if (direction === 'prev' && currentStepIndex > 0) {
+      const newIndex = currentStepIndex - 1;
+      setCurrentStepIndex(newIndex);
+      const stepData = stepHistory[newIndex];
+      setGeneratedText(stepData.text || '');
+      setCurrentStep(stepData.step);
+      setMasksRemaining(stepData.masksRemaining || 0);
+    } else if (direction === 'next' && currentStepIndex < stepHistory.length - 1) {
+      const newIndex = currentStepIndex + 1;
+      setCurrentStepIndex(newIndex);
+      const stepData = stepHistory[newIndex];
+      setGeneratedText(stepData.text || '');
+      setCurrentStep(stepData.step);
+      setMasksRemaining(stepData.masksRemaining || 0);
+    }
   };
 
   const progressPercentage =
@@ -375,17 +402,18 @@ export default function TextDiffusionVisualization({
           </Card>
         )}
 
-        {/* Generated text display - matching terminal visualizer panel style */}
+        {/* Generated text display with step navigation - matching terminal visualizer panel style */}
         <Card
           variant="outlined"
           sx={{
-            height: '300px',
+            flex: 1,
             display: 'flex',
             flexDirection: 'column',
             borderColor: 'primary.300',
             borderWidth: 2,
             width: '100%',
             minWidth: '100%',
+            overflow: 'hidden',
           }}
         >
           <Box
@@ -405,11 +433,39 @@ export default function TextDiffusionVisualization({
             <Typography level="title-md" fontWeight="bold">
               Generated Text
             </Typography>
-            {currentStep > 0 && totalSteps > 0 && (
-              <Typography level="body-sm" color="neutral">
-                Step {currentStep} / {totalSteps}
-              </Typography>
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {/* Step navigation arrows */}
+              {stepHistory.length > 0 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <IconButton
+                    color="neutral"
+                    variant="outlined"
+                    size="sm"
+                    disabled={currentStepIndex <= 0}
+                    onClick={() => navigateStep('prev')}
+                  >
+                    <ChevronLeft size={16} />
+                  </IconButton>
+                  <Typography level="body-sm" sx={{ minWidth: '60px', textAlign: 'center' }}>
+                    {currentStepIndex + 1} / {stepHistory.length}
+                  </Typography>
+                  <IconButton
+                    color="neutral"
+                    variant="outlined"
+                    size="sm"
+                    disabled={currentStepIndex >= stepHistory.length - 1}
+                    onClick={() => navigateStep('next')}
+                  >
+                    <ChevronRight size={16} />
+                  </IconButton>
+                </Box>
+              )}
+              {currentStep > 0 && totalSteps > 0 && (
+                <Typography level="body-sm" color="neutral">
+                  Step {currentStep} / {totalSteps}
+                </Typography>
+              )}
+            </Box>
           </Box>
           <Box
             sx={{
@@ -436,48 +492,6 @@ export default function TextDiffusionVisualization({
             )}
           </Box>
         </Card>
-
-        {/* Step history - bigger box */}
-        {stepHistory.length > 0 && (
-          <Card 
-            variant="outlined" 
-            sx={{ 
-              height: '400px', 
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-            }}
-          >
-            <Typography level="title-sm" sx={{ mb: 1, px: 2, pt: 2, flexShrink: 0 }}>
-              Step History
-            </Typography>
-            <Box sx={{ flex: 1, overflow: 'auto', px: 2, pb: 2 }}>
-              <Stack spacing={1}>
-                {stepHistory.map((stepData) => (
-                  <Box key={stepData.step}>
-                    <Typography level="body-xs" color="neutral">
-                      Step {stepData.step}
-                      {stepData.masksRemaining !== undefined &&
-                        ` • Masks: ${stepData.masksRemaining}`}
-                    </Typography>
-                    <Typography
-                      level="body-sm"
-                      sx={{
-                        fontFamily: 'monospace',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        maxHeight: '80px',
-                        overflow: 'auto',
-                      }}
-                    >
-                      {stepData.text}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
-            </Box>
-          </Card>
-        )}
       </Sheet>
     </Sheet>
   );
