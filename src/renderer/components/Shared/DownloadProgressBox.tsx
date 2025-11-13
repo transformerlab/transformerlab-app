@@ -49,8 +49,7 @@ export default function DownloadProgressBox({
   const jobIdString = String(jobId);
 
   if (currentStatus === 'COMPLETE' && hasNotifiedRef.current !== jobIdString) {
-    const modelName =
-      downloadProgress?.job_data?.model || assetName || 'Model';
+    const modelName = downloadProgress?.job_data?.model || assetName || 'Model';
     addNotification({
       type: 'success',
       message: `Model "${modelName}" downloaded successfully`,
