@@ -149,7 +149,8 @@ export default function TextDiffusionVisualization({
 
                 // Extract text and diffusion metadata from the response
                 // The new /v1/text_diffusion endpoint returns data directly
-                const text = parsedData.text !== undefined ? parsedData.text : '';
+                const text =
+                  parsedData.text !== undefined ? parsedData.text : '';
                 const diffusionStep = parsedData.diffusion_step;
                 const totalStepsData = parsedData.total_steps;
                 const masksRemainingData = parsedData.masks_remaining;
@@ -160,13 +161,17 @@ export default function TextDiffusionVisualization({
                 if (diffusionStep !== undefined || text !== undefined) {
                   setGeneratedText(text);
                 }
-                
+
                 // Update step information if available
                 if (diffusionStep !== undefined) {
                   setCurrentStep(diffusionStep);
-                  
+
                   // Calculate time remaining
-                  if (totalStepsData !== undefined && totalStepsData > 0 && startTime) {
+                  if (
+                    totalStepsData !== undefined &&
+                    totalStepsData > 0 &&
+                    startTime
+                  ) {
                     const elapsed = (Date.now() - startTime) / 1000; // seconds
                     const avgTimePerStep = elapsed / diffusionStep;
                     const remainingSteps = totalStepsData - diffusionStep;
@@ -186,7 +191,7 @@ export default function TextDiffusionVisualization({
                   setStepHistory((prev) => {
                     const newHistory = [...prev];
                     const existingIndex = newHistory.findIndex(
-                      (h) => h.step === diffusionStep
+                      (h) => h.step === diffusionStep,
                     );
                     const stepData = {
                       step: diffusionStep,
@@ -244,7 +249,7 @@ export default function TextDiffusionVisualization({
 
   const navigateStep = (direction) => {
     if (stepHistory.length === 0) return;
-    
+
     if (direction === 'prev' && currentStepIndex > 0) {
       const newIndex = currentStepIndex - 1;
       setCurrentStepIndex(newIndex);
@@ -252,7 +257,10 @@ export default function TextDiffusionVisualization({
       setGeneratedText(stepData.text || '');
       setCurrentStep(stepData.step);
       setMasksRemaining(stepData.masksRemaining || 0);
-    } else if (direction === 'next' && currentStepIndex < stepHistory.length - 1) {
+    } else if (
+      direction === 'next' &&
+      currentStepIndex < stepHistory.length - 1
+    ) {
       const newIndex = currentStepIndex + 1;
       setCurrentStepIndex(newIndex);
       const stepData = stepHistory[newIndex];
@@ -366,7 +374,11 @@ export default function TextDiffusionVisualization({
                     mb: 1,
                   }}
                 >
-                  <Typography level="body-sm" fontWeight="lg" sx={{ color: 'primary.600' }}>
+                  <Typography
+                    level="body-sm"
+                    fontWeight="lg"
+                    sx={{ color: 'primary.600' }}
+                  >
                     Diffusion
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -446,7 +458,10 @@ export default function TextDiffusionVisualization({
                   >
                     <ChevronLeft size={16} />
                   </IconButton>
-                  <Typography level="body-sm" sx={{ minWidth: '60px', textAlign: 'center' }}>
+                  <Typography
+                    level="body-sm"
+                    sx={{ minWidth: '60px', textAlign: 'center' }}
+                  >
                     {currentStepIndex + 1} / {stepHistory.length}
                   </Typography>
                   <IconButton
@@ -496,4 +511,3 @@ export default function TextDiffusionVisualization({
     </Sheet>
   );
 }
-
