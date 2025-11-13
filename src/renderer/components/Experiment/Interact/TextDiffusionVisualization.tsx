@@ -409,8 +409,10 @@ export default function TextDiffusionVisualization({
                   borderRadius: 'sm',
                   '--LinearProgress-radius': '4px',
                   '--LinearProgress-thickness': '12px',
-                  '--LinearProgress-progressColor': theme.vars.palette.success[500],
-                  '--LinearProgress-trackColor': theme.vars.palette.neutral.plainDisabledColor,
+                  '--LinearProgress-progressColor':
+                    theme.vars.palette.success[500],
+                  '--LinearProgress-trackColor':
+                    theme.vars.palette.neutral.plainDisabledColor,
                 })}
               />
             </Box>
