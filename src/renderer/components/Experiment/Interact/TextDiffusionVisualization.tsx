@@ -244,6 +244,7 @@ export default function TextDiffusionVisualization({
         display: 'flex',
         flexDirection: 'row',
         height: '100%',
+        width: '100%',
         gap: 2,
         overflow: 'hidden',
       }}
@@ -271,10 +272,12 @@ export default function TextDiffusionVisualization({
           flexDirection: 'column',
           gap: 2,
           overflow: 'hidden',
+          width: '100%',
+          minWidth: 0, // Allow flex item to shrink below its content size
         }}
       >
         {/* Input area */}
-        <Stack spacing={2}>
+        <Stack spacing={2} sx={{ width: '100%' }}>
           <Textarea
             placeholder="Enter your prompt here..."
             value={prompt}
@@ -282,7 +285,7 @@ export default function TextDiffusionVisualization({
             minRows={3}
             maxRows={6}
             disabled={isGenerating}
-            sx={{ width: '100%' }}
+            sx={{ width: '100%', minWidth: '100%' }}
           />
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
             <Button
@@ -321,29 +324,6 @@ export default function TextDiffusionVisualization({
           <Alert color="danger" onClose={() => setError(null)}>
             {error}
           </Alert>
-        )}
-
-        {/* Header - matching terminal visualizer style */}
-        {(isGenerating || totalSteps > 0) && (
-          <Card
-            variant="outlined"
-            sx={{
-              backgroundColor: 'primary.50',
-              borderColor: 'primary.300',
-              borderWidth: 2,
-            }}
-          >
-            <Typography
-              level="title-lg"
-              sx={{
-                textAlign: 'center',
-                fontWeight: 'bold',
-                color: 'primary.700',
-              }}
-            >
-              dLLM Diffusion
-            </Typography>
-          </Card>
         )}
 
         {/* Progress and stats - matching terminal visualizer */}
@@ -399,12 +379,13 @@ export default function TextDiffusionVisualization({
         <Card
           variant="outlined"
           sx={{
-            flex: 1,
-            overflow: 'auto',
+            height: '300px',
             display: 'flex',
             flexDirection: 'column',
             borderColor: 'primary.300',
             borderWidth: 2,
+            width: '100%',
+            minWidth: '100%',
           }}
         >
           <Box
@@ -414,8 +395,11 @@ export default function TextDiffusionVisualization({
               alignItems: 'center',
               mb: 1,
               pb: 1,
+              px: 2,
+              pt: 2,
               borderBottom: '1px solid',
               borderColor: 'divider',
+              flexShrink: 0,
             }}
           >
             <Typography level="title-md" fontWeight="bold">
@@ -438,9 +422,11 @@ export default function TextDiffusionVisualization({
               lineHeight: 1.6,
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word',
-              minHeight: '200px',
+              overflow: 'auto',
               border: '1px solid',
               borderColor: 'divider',
+              mx: 2,
+              mb: 2,
             }}
           >
             {generatedText || (
@@ -451,35 +437,45 @@ export default function TextDiffusionVisualization({
           </Box>
         </Card>
 
-        {/* Step history (optional, can be collapsed) */}
+        {/* Step history - bigger box */}
         {stepHistory.length > 0 && (
-          <Card variant="outlined" sx={{ maxHeight: '200px', overflow: 'auto' }}>
-            <Typography level="title-sm" sx={{ mb: 1 }}>
+          <Card 
+            variant="outlined" 
+            sx={{ 
+              height: '400px', 
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <Typography level="title-sm" sx={{ mb: 1, px: 2, pt: 2, flexShrink: 0 }}>
               Step History
             </Typography>
-            <Stack spacing={1}>
-              {stepHistory.map((stepData) => (
-                <Box key={stepData.step}>
-                  <Typography level="body-xs" color="neutral">
-                    Step {stepData.step}
-                    {stepData.masksRemaining !== undefined &&
-                      ` • Masks: ${stepData.masksRemaining}`}
-                  </Typography>
-                  <Typography
-                    level="body-sm"
-                    sx={{
-                      fontFamily: 'monospace',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      maxHeight: '60px',
-                      overflow: 'auto',
-                    }}
-                  >
-                    {stepData.text}
-                  </Typography>
-                </Box>
-              ))}
-            </Stack>
+            <Box sx={{ flex: 1, overflow: 'auto', px: 2, pb: 2 }}>
+              <Stack spacing={1}>
+                {stepHistory.map((stepData) => (
+                  <Box key={stepData.step}>
+                    <Typography level="body-xs" color="neutral">
+                      Step {stepData.step}
+                      {stepData.masksRemaining !== undefined &&
+                        ` • Masks: ${stepData.masksRemaining}`}
+                    </Typography>
+                    <Typography
+                      level="body-sm"
+                      sx={{
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        maxHeight: '80px',
+                        overflow: 'auto',
+                      }}
+                    >
+                      {stepData.text}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+            </Box>
           </Card>
         )}
       </Sheet>
