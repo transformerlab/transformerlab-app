@@ -1,13 +1,14 @@
 import {
   Box,
+  Button,
   Chip,
   IconButton,
   LinearProgress,
   Stack,
   Typography,
 } from '@mui/joy';
+import { CircleCheckIcon, StopCircleIcon, FileTextIcon } from 'lucide-react';
 import Skeleton from '@mui/joy/Skeleton';
-import { CircleCheckIcon, StopCircleIcon } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import duration from 'dayjs/plugin/duration';
@@ -19,6 +20,7 @@ import {
   ProgressState,
 } from 'renderer/lib/orchestrator-log-parser';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import OrchestratorLogsModal from './OrchestratorLogsModal';
 
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
@@ -46,54 +48,146 @@ export default function JobProgress({ job }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
   const [orchestratorProgress, setOrchestratorProgress] =
     useState<ProgressState | null>(null);
+  const [showLogsModal, setShowLogsModal] = useState(false);
 
   const logParserRef = useRef<OrchestratorLogParser | null>(null);
-  const pollingIntervalRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const startLogPolling = useCallback(async () => {
+  const startLogStreaming = useCallback(async () => {
     if (!job?.job_data?.orchestrator_request_id) return;
 
-    const pollLogs = async () => {
-      try {
-        const response = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Jobs.GetLogs(job.job_data?.orchestrator_request_id),
-        );
+    try {
+      // Cancel any existing stream
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
 
-        // If job no longer exists (404) or other error, stop polling
-        if (response.status === 404 || !response.ok) {
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-          return;
+      // Create new abort controller for this stream
+      abortControllerRef.current = new AbortController();
+
+      const response = await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.GetLogs(job.job_data?.orchestrator_request_id),
+        {
+          signal: abortControllerRef.current.signal,
+        },
+      );
+
+      if (!response.ok) {
+        console.error('Failed to start log stream:', response.status);
+        return;
+      }
+
+      // Read the stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) return;
+
+      let buffer = '';
+      let shouldStopStream = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done || shouldStopStream) {
+          break;
         }
 
-        if (response.ok) {
-          const responseData = await response.json();
-          if (logParserRef.current && responseData.data) {
-            const progressState = logParserRef.current.parseLogData(
-              responseData.data,
-            );
-            setOrchestratorProgress(progressState);
+        // Decode the chunk and add to buffer
+        const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
+
+        // Process complete SSE messages (lines ending with \n\n)
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep incomplete message in buffer
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          // Parse SSE format: "data: {...}"
+          const dataMatch = line.match(/^data: (.+)$/m);
+          if (dataMatch) {
+            try {
+              const data = JSON.parse(dataMatch[1]);
+
+              if (data.log_line && logParserRef.current) {
+                // Process the individual log line in real-time
+                const progressState = logParserRef.current.processLogLine(
+                  data.log_line,
+                );
+                setOrchestratorProgress(progressState);
+
+                // Check for critical errors that should fail the job
+                // Strip ANSI codes first (e.g., \u001b[31m for colors)
+                const stripAnsi = (str: string) =>
+                  str.replace(/\u001b\[[0-9;]*m/g, '');
+                const cleanLogLine = stripAnsi(data.log_line).toLowerCase();
+
+                if (
+                  cleanLogLine.includes(
+                    'error: failed to provision all possible launchable resources',
+                  ) ||
+                  (cleanLogLine.includes(
+                    "error: current 'sky.launch' request",
+                  ) &&
+                    cleanLogLine.includes('is cancelled by another process'))
+                ) {
+                  // Update job status to FAILED
+                  if (experimentInfo?.id && job?.id) {
+                    try {
+                      const response = await chatAPI.authenticatedFetch(
+                        chatAPI.Endpoints.Jobs.Update(
+                          experimentInfo.id,
+                          job.id,
+                          'FAILED',
+                        ),
+                      );
+                    } catch (error) {
+                      console.error(
+                        '[API CALL] Failed to update job status:',
+                        error,
+                      );
+                    }
+                  } else {
+                    console.error(
+                      '[API CALL] Missing required data:',
+                      'experimentInfo.id:',
+                      experimentInfo?.id,
+                      'job.id:',
+                      job?.id,
+                    );
+                  }
+
+                  // Stop streaming
+                  shouldStopStream = true;
+                  break;
+                }
+              }
+
+              if (data.status === 'completed') {
+                console.log('Log streaming completed');
+                shouldStopStream = true;
+                break;
+              }
+
+              if (data.error) {
+                console.error('Stream error:', data.error);
+                shouldStopStream = true;
+                break;
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
           }
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('Error fetching orchestrator logs:', error);
-        // On network or other errors, stop polling to prevent infinite failed requests
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          pollingIntervalRef.current = null;
         }
       }
-    };
-
-    // Poll immediately and then every 2 seconds
-    await pollLogs();
-    pollingIntervalRef.current = setInterval(
-      pollLogs,
-      2000,
-    ) as unknown as number;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Log streaming aborted');
+      } else {
+        console.error('Error streaming orchestrator logs:', error);
+      }
+    }
   }, [job?.job_data?.orchestrator_request_id]);
 
   // Initialize log parser for remote jobs
@@ -103,15 +197,17 @@ export default function JobProgress({ job }: JobProps) {
         logParserRef.current = new OrchestratorLogParser();
       }
 
-      // Start polling for logs if job is in LAUNCHING or RUNNING state
-      if (job.status === 'LAUNCHING' || job.status === 'RUNNING') {
-        startLogPolling();
+      // Start streaming logs only during LAUNCHING state
+      // When status changes to RUNNING, the cleanup will abort the stream
+      if (job.status === 'LAUNCHING') {
+        startLogStreaming();
       }
     }
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+      // Abort the stream when component unmounts or status changes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
   }, [
@@ -119,7 +215,7 @@ export default function JobProgress({ job }: JobProps) {
     job?.status,
     job?.type,
     job?.job_data?.orchestrator_request_id,
-    startLogPolling,
+    startLogStreaming,
   ]);
 
   // Ensure progress is a number
@@ -161,6 +257,18 @@ export default function JobProgress({ job }: JobProps) {
             >
               {job.status}
             </Chip>
+            {job?.type === 'REMOTE' &&
+              job?.job_data?.orchestrator_request_id && (
+                <Button
+                  size="sm"
+                  variant="outlined"
+                  color="neutral"
+                  startDecorator={<FileTextIcon size={16} />}
+                  onClick={() => setShowLogsModal(true)}
+                >
+                  View Logs
+                </Button>
+              )}
           </Stack>
           {job?.job_data?.start_time && (
             <>
@@ -412,6 +520,13 @@ export default function JobProgress({ job }: JobProps) {
           </>
         </Stack>
       )}
+
+      {/* Orchestrator Logs Modal */}
+      <OrchestratorLogsModal
+        requestId={job?.job_data?.orchestrator_request_id || null}
+        open={showLogsModal}
+        onClose={() => setShowLogsModal(false)}
+      />
     </Stack>
   );
 }
