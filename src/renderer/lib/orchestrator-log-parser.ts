@@ -64,6 +64,16 @@ export class OrchestratorLogParser {
   }
 
   /**
+   * Process a single log line and update progress state
+   * Use this when you've already parsed the SSE format
+   */
+  processLogLine(logLine: string): ProgressState {
+    this.logLines.push(logLine);
+    this.updateProgressFromLogLine(logLine);
+    return { ...this.progressState };
+  }
+
+  /**
    * Strip ANSI escape codes from log line
    */
   private stripAnsiCodes(text: string): string {
@@ -82,6 +92,7 @@ export class OrchestratorLogParser {
     if (
       line.includes('instance is up') ||
       line.includes('✓') ||
+      line.includes('✔') || // Heavy check mark (U+2714) from orchestrator logs
       line.includes('chosen')
     ) {
       this.progressState.machineFound = true;
