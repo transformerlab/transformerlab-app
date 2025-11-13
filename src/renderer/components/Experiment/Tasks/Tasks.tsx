@@ -313,7 +313,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: data.setup || undefined,
         uploaded_dir_path: data.uploaded_dir_path || undefined,
         local_upload_copy: data.local_upload_copy || undefined,
-        shutdown_after_completion: data.shutdown_after_completion || false,
       };
 
       // Add subtype to config if provided
@@ -389,11 +388,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     if (cfg.setup) formData.append('setup', String(cfg.setup));
     if (cfg.uploaded_dir_path)
       formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
-    if (cfg.shutdown_after_completion !== undefined)
-      formData.append(
-        'shutdown_after_completion',
-        String(cfg.shutdown_after_completion),
-      );
 
     // Add subtype to job data if present in task config
     if (cfg.subtype) {
