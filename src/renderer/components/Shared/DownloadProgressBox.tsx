@@ -60,7 +60,7 @@ export default function DownloadProgressBox({
     currentStatus === 'RUNNING' &&
     hasNotifiedRef.current === jobIdString
   ) {
-    // Reset if a new download starts for the same job
+    // Reset for a new download
     hasNotifiedRef.current = null;
   }
 
