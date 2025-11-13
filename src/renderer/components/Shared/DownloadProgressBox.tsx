@@ -9,10 +9,12 @@ import {
   Divider,
 } from '@mui/joy';
 import { ArrowDownIcon, CheckCircle2Icon, XCircleIcon } from 'lucide-react';
+import { useRef } from 'react';
 import useSWR from 'swr';
 import { clamp, formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
+import { useNotification } from './NotificationSystem';
 
 const getStatusIcon = (status) => {
   switch (status) {
@@ -39,6 +41,28 @@ export default function DownloadProgressBox({
     { refreshInterval: 2000 },
   );
 
+  const { addNotification } = useNotification();
+  const hasNotifiedRef = useRef<string | null>(null);
+
+  // Show notification when download completes
+  const currentStatus = downloadProgress?.status;
+  const jobIdString = String(jobId);
+
+  if (currentStatus === 'COMPLETE' && hasNotifiedRef.current !== jobIdString) {
+    const modelName = downloadProgress?.job_data?.model || assetName || 'Model';
+    addNotification({
+      type: 'success',
+      message: `Model "${modelName}" downloaded successfully`,
+    });
+    hasNotifiedRef.current = jobIdString;
+  } else if (
+    currentStatus === 'RUNNING' &&
+    hasNotifiedRef.current === jobIdString
+  ) {
+    // Reset for a new download
+    hasNotifiedRef.current = null;
+  }
+
   if (!jobId) return null;
 
   const progress = clamp(
@@ -49,7 +73,6 @@ export default function DownloadProgressBox({
     100,
   );
 
-  const progressPercent = Number.isFinite(progress) ? Math.round(progress) : 0;
   const downloaded = Number.isFinite(
     Number(downloadProgress?.job_data?.downloaded),
   )
@@ -62,6 +85,28 @@ export default function DownloadProgressBox({
     : 0;
   const downloadedBytes = downloaded * 1024 * 1024;
   const totalBytes = total * 1024 * 1024;
+
+  // Get file counts if available
+  const filesDownloaded = Number.isFinite(
+    Number(downloadProgress?.job_data?.files_downloaded),
+  )
+    ? Number(downloadProgress?.job_data?.files_downloaded)
+    : null;
+  const filesTotal = Number.isFinite(
+    Number(downloadProgress?.job_data?.files_total),
+  )
+    ? Number(downloadProgress?.job_data?.files_total)
+    : null;
+
+  // Calculate progress based on files if available, otherwise use bytes-based progress
+  const calculatedProgress =
+    filesDownloaded !== null && filesTotal !== null && filesTotal > 0
+      ? (filesDownloaded / filesTotal) * 100
+      : progress;
+
+  const progressPercent = Number.isFinite(calculatedProgress)
+    ? Math.round(calculatedProgress)
+    : 0;
 
   return (
     <Box>
@@ -80,9 +125,11 @@ export default function DownloadProgressBox({
 
           <Box mt={1}>
             <Typography level="body-xs" sx={{ mb: 1, color: 'text.secondary' }}>
-              {downloaded > 0
-                ? `${formatBytes(downloadedBytes)}${total > 0 ? ` / ${formatBytes(totalBytes)}` : ''}`
-                : 'Downloading...'}
+              {filesDownloaded !== null && filesTotal !== null
+                ? `${filesDownloaded}/${filesTotal} files downloaded`
+                : downloaded > 0
+                  ? `${formatBytes(downloadedBytes)}${total > 0 ? ` / ${formatBytes(totalBytes)}` : ''}`
+                  : 'Downloading...'}
               <ArrowDownIcon size="16px" style={{ verticalAlign: 'middle' }} />
             </Typography>
             <Divider sx={{ mb: 1 }} />
@@ -90,7 +137,7 @@ export default function DownloadProgressBox({
               <Box sx={{ position: 'relative' }}>
                 <LinearProgress
                   determinate
-                  value={progress}
+                  value={calculatedProgress}
                   color="success"
                   sx={(theme) => ({
                     height: 24,
@@ -116,14 +163,16 @@ export default function DownloadProgressBox({
                     transform: 'translate(-50%, -50%)',
                     fontWeight: 'bold',
                     color:
-                      progressPercent > 50
+                      calculatedProgress > 50
                         ? theme.vars.palette.common.white
                         : theme.vars.palette.text.primary,
                   })}
                 >
-                  {Number.isFinite(progressPercent)
-                    ? `${progressPercent}%`
-                    : 'Loading...'}
+                  {filesDownloaded !== null && filesTotal !== null
+                    ? `${filesDownloaded}/${filesTotal} files`
+                    : Number.isFinite(progressPercent)
+                      ? `${progressPercent}%`
+                      : 'Loading...'}
                 </Typography>
               </Box>
             )}

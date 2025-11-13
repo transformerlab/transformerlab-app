@@ -594,50 +594,99 @@ export default function ModelStore() {
                             startDecorator={
                               jobId && currentlyDownloading == row.name ? (
                                 <>
-                                  {row?.size_of_model_in_mb ? (
-                                    <>
-                                      <LinearProgress
-                                        determinate
-                                        value={clamp(
-                                          modelDownloadProgress?.progress,
-                                          0,
-                                          100,
-                                        )}
-                                        sx={{ width: '100px' }}
-                                        variant="solid"
-                                      />
-                                      &nbsp;&nbsp;
-                                      {modelDownloadProgress?.progress !==
-                                        -1 && (
-                                        <>
-                                          {clamp(
-                                            Number.parseFloat(
-                                              modelDownloadProgress?.progress,
-                                            ),
-                                            0,
-                                            100,
-                                          ).toFixed(0)}
-                                          %
-                                        </>
-                                      )}
-                                    </>
-                                  ) : (
-                                    <>
-                                      <LinearProgress
-                                        sx={{ width: '40px' }}
-                                        variant="solid"
-                                      />
-                                      &nbsp;&nbsp;
-                                      {formatBytes(
+                                  {(() => {
+                                    const filesDownloaded = Number.isFinite(
+                                      Number(
                                         modelDownloadProgress?.job_data
-                                          ?.downloaded *
-                                          1024 *
-                                          1024,
-                                      )}
-                                      {/* {modelDownloadProgress?.job_data} */}
-                                      <ArrowDownIcon size="18px" />
-                                    </>
-                                  )}
+                                          ?.files_downloaded,
+                                      ),
+                                    )
+                                      ? Number(
+                                          modelDownloadProgress?.job_data
+                                            ?.files_downloaded,
+                                        )
+                                      : null;
+                                    const filesTotal = Number.isFinite(
+                                      Number(
+                                        modelDownloadProgress?.job_data
+                                          ?.files_total,
+                                      ),
+                                    )
+                                      ? Number(
+                                          modelDownloadProgress?.job_data
+                                            ?.files_total,
+                                        )
+                                      : null;
+
+                                    if (
+                                      filesDownloaded !== null &&
+                                      filesTotal !== null
+                                    ) {
+                                      // Calculate progress based on files
+                                      const fileProgress =
+                                        filesTotal > 0
+                                          ? (filesDownloaded / filesTotal) * 100
+                                          : 0;
+                                      return (
+                                        <>
+                                          <LinearProgress
+                                            determinate
+                                            value={clamp(fileProgress, 0, 100)}
+                                            sx={{ width: '100px' }}
+                                            variant="solid"
+                                          />
+                                          &nbsp;&nbsp;
+                                          {filesDownloaded}/{filesTotal} files
+                                        </>
+                                      );
+                                    } else if (row?.size_of_model_in_mb) {
+                                      return (
+                                        <>
+                                          <LinearProgress
+                                            determinate
+                                            value={clamp(
+                                              modelDownloadProgress?.progress,
+                                              0,
+                                              100,
+                                            )}
+                                            sx={{ width: '100px' }}
+                                            variant="solid"
+                                          />
+                                          &nbsp;&nbsp;
+                                          {modelDownloadProgress?.progress !==
+                                            -1 && (
+                                            <>
+                                              {clamp(
+                                                Number.parseFloat(
+                                                  modelDownloadProgress?.progress,
+                                                ),
+                                                0,
+                                                100,
+                                              ).toFixed(0)}
+                                              %
+                                            </>
+                                          )}
+                                        </>
+                                      );
+                                    } else {
+                                      return (
+                                        <>
+                                          <LinearProgress
+                                            sx={{ width: '40px' }}
+                                            variant="solid"
+                                          />
+                                          &nbsp;&nbsp;
+                                          {formatBytes(
+                                            modelDownloadProgress?.job_data
+                                              ?.downloaded *
+                                              1024 *
+                                              1024,
+                                          )}
+                                          <ArrowDownIcon size="18px" />
+                                        </>
+                                      );
+                                    }
+                                  })()}
                                 </>
                               ) : (
                                 ''
