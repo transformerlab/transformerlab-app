@@ -208,7 +208,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
             }
           />
         )}
-        {/* {pipelineTag === 'speech-to-text' && ( */}
+        {pipelineTag === 'speech-to-text' && (
         <SubNavItem
           title="Audio"
           path="/experiment/audio-stt"
