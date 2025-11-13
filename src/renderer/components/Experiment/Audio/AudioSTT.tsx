@@ -193,7 +193,8 @@ export default function Audio() {
             Upload Audio
           </Typography>
           <Typography level="body-sm" sx={{ color: 'text.tertiary', mb: 2 }}>
-            Select an audio file (WAV, MP3, FLAC, etc.) for transcription. Only audio files are accepted.
+            Select an audio file (WAV, MP3, FLAC, etc.) for transcription. Only
+            audio files are accepted.
           </Typography>
           <Button
             component="label"

@@ -215,7 +215,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           icon={<AudioLinesIcon />}
           disabled={!experimentInfo?.name || activeModelIsNotSameAsFoundation()}
         />
-      {/* )} */}
+        {/* )} */}
         {/* <SubNavItem
             title="Workflows"
             path="/experiment/workflows"
