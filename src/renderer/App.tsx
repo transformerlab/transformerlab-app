@@ -28,6 +28,7 @@ import {
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
 import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
+import { AuthProvider } from './lib/authContext';
 
 type AppContentProps = {
   connection: string;
@@ -222,20 +223,22 @@ export default function App() {
         <CssBaseline />
         {/* Handle non-hash OAuth callback (/auth/callback) before rendering the app */}
         <RootAuthCallbackHandler />
-        <ExperimentInfoProvider connection={connection}>
-          <AppContent
-            connection={connection}
-            logsDrawerOpen={logsDrawerOpen}
-            setLogsDrawerOpen={setLogsDrawerOpen}
-            logsDrawerHeight={logsDrawerHeight}
-            setLogsDrawerHeight={setLogsDrawerHeight}
-            themeSetter={themeSetter}
-            setSSHConnection={() => {}}
-            setConnection={setConnection}
-            gpuOrchestrationServer={gpuOrchestrationServer}
-            setGPUOrchestrationServer={setGPUOrchestrationServer}
-          />
-        </ExperimentInfoProvider>
+        <AuthProvider connection={connection}>
+          <ExperimentInfoProvider connection={connection}>
+            <AppContent
+              connection={connection}
+              logsDrawerOpen={logsDrawerOpen}
+              setLogsDrawerOpen={setLogsDrawerOpen}
+              logsDrawerHeight={logsDrawerHeight}
+              setLogsDrawerHeight={setLogsDrawerHeight}
+              themeSetter={themeSetter}
+              setSSHConnection={() => {}}
+              setConnection={setConnection}
+              gpuOrchestrationServer={gpuOrchestrationServer}
+              setGPUOrchestrationServer={setGPUOrchestrationServer}
+            />
+          </ExperimentInfoProvider>
+        </AuthProvider>
       </CssVarsProvider>
     </NotificationProvider>
   );

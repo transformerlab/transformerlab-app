@@ -188,7 +188,7 @@
   "users": {
     "me": {
       "method": "GET",
-      "path": "auth/me"
+      "path": "users/me"
     }
   },
   "auth": {
@@ -203,6 +203,10 @@
     "register": {
       "method": "POST",
       "path": "auth/register"
+    },
+    "logout": {
+      "method": "POST",
+      "path": "auth/logout"
     }
   },
   "experiment": {
