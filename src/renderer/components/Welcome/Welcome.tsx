@@ -267,7 +267,7 @@ export default function Welcome() {
               </a>{' '}
               for more ideas!
             </Typography>
-            <Link to="/user_login_test">Test Login</Link>
+            {/* <Link to="/user_login_test">Test Login</Link> */}
           </div>
         </div>
       </Sheet>

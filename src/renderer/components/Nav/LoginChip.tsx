@@ -8,13 +8,7 @@ import { Button, Sheet } from '@mui/joy';
 import { User2Icon } from 'lucide-react';
 import { useAuth } from 'renderer/lib/authContext';
 
-type Props = {
-  email: string;
-  teamName?: string;
-  avatarSrc?: string;
-  onClick?: () => void;
-  size?: 'sm' | 'md';
-};
+type Props = {};
 
 export default function LoginChip({}: Props) {
   const authContext = useAuth();

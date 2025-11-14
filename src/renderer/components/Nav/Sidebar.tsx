@@ -920,7 +920,7 @@ export default function Sidebar({
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
       />
-      <LoginChip />
+      {/* <LoginChip /> */}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );
