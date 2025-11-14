@@ -374,11 +374,8 @@ export default function RunModelButton({
                 {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
               </Button>
 
-              {/* Feedback shown directly under Run button while job is active */}
               {jobId != null &&
                 jobId !== null &&
-                // Only show progress while the job is still in-flight (no status yet)
-                // or the status indicates it's not finished. Hide the box after completion/failure.
                 (!jobStatusData ||
                   !['SUCCESS', 'COMPLETE', 'FAILED', 'STOPPED'].includes(
                     jobStatusData?.status,
