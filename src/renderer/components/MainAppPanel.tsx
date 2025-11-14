@@ -10,7 +10,7 @@ import {
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import useSWR from 'swr';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -87,6 +87,7 @@ export default function MainAppPanel({
 }) {
   const { experimentInfo, experimentInfoMutate, setExperimentId } =
     useExperimentInfo();
+  const location = useLocation();
   const [selectedInteractSubpage, setSelectedInteractSubpage] =
     useState('chat');
 
@@ -115,24 +116,8 @@ export default function MainAppPanel({
     setChatHistory([]);
   }, [pluginId]);
 
-  let modelSupports = [
-    'chat',
-    'completion',
-    'rag',
-    'tools',
-    'template',
-    'embeddings',
-    'tokenize',
-    'batched',
-  ];
-
-  if (
-    modelData &&
-    modelData !== 'null' &&
-    modelData !== 'undefined' &&
-    modelData !== 'FILE NOT FOUND'
-  ) {
-    modelSupports = SafeJSONParse(modelData)?.supports || [
+  const modelSupports = useMemo(() => {
+    const defaultSupports = [
       'chat',
       'completion',
       'rag',
@@ -142,7 +127,32 @@ export default function MainAppPanel({
       'tokenize',
       'batched',
     ];
-  }
+
+    if (
+      modelData &&
+      modelData !== 'null' &&
+      modelData !== 'undefined' &&
+      modelData !== 'FILE NOT FOUND'
+    ) {
+      return SafeJSONParse(modelData)?.supports || defaultSupports;
+    }
+
+    return defaultSupports;
+  }, [modelData]);
+
+  // When navigating to /experiment/chat, set the mode to the first supported mode
+  // If there's no supports array or it's empty, default to 'chat'
+  useEffect(() => {
+    if (location.pathname === '/experiment/chat') {
+      if (Array.isArray(modelSupports) && modelSupports.length > 0) {
+        // Always set mode to the first supported mode when navigating to the route
+        setSelectedInteractSubpage(modelSupports[0]);
+      } else {
+        // Fallback to 'chat' if no supports array
+        setSelectedInteractSubpage('chat');
+      }
+    }
+  }, [location.pathname, modelSupports]);
   const setFoundation = useCallback(
     (model, additionalConfigs = {}) => {
       let model_name = '';
