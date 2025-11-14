@@ -1,0 +1,108 @@
+import React, { useState } from 'react';
+import {
+  Box,
+  Button,
+  FormControl,
+  FormLabel,
+  Input,
+  Modal,
+  ModalDialog,
+  Stack,
+  Typography,
+} from '@mui/joy';
+import { useAuth } from '../lib/authContext';
+import HexLogo from './Shared/HexLogo';
+
+export default function LoginPage() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const { login } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      // Call the login method from auth context
+      await login();
+      // Note: The current login implementation in authContext uses hardcoded credentials
+      // You may need to modify the authContext to accept email/password parameters
+    } catch (err) {
+      setError('Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        backgroundColor: 'background.level1',
+      }}
+    >
+      <Modal open onClose={() => {}}>
+        <ModalDialog
+          sx={{
+            maxWidth: 400,
+            borderRadius: 'md',
+            p: 3,
+            boxShadow: 'lg',
+          }}
+        >
+          {' '}
+          <HexLogo width={32} height={32} />
+          <Typography level="h2" component="div" sx={{ mb: 1 }}>
+            Transformer Lab
+          </Typography>
+          <form onSubmit={handleSubmit}>
+            <Stack spacing={2}>
+              <FormControl required>
+                <FormLabel>Email</FormLabel>
+                <Input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoFocus
+                />
+              </FormControl>
+
+              <FormControl required>
+                <FormLabel>Password</FormLabel>
+                <Input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </FormControl>
+
+              {error && (
+                <Typography level="body-sm" color="danger">
+                  {error}
+                </Typography>
+              )}
+
+              <Button
+                type="submit"
+                fullWidth
+                loading={isLoading}
+                sx={{ mt: 1 }}
+              >
+                Sign In
+              </Button>
+            </Stack>
+          </form>
+        </ModalDialog>
+      </Modal>
+    </Box>
+  );
+}

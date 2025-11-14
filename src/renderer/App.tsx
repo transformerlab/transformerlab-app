@@ -28,7 +28,8 @@ import {
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
 import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
-import { AuthProvider } from './lib/authContext';
+import { AuthProvider, useAuth } from './lib/authContext';
+import LoginPage from './components/LoginPage';
 
 type AppContentProps = {
   connection: string;
@@ -65,6 +66,12 @@ function AppContent({
     },
     [setLogsDrawerHeight],
   );
+
+  const authContext = useAuth();
+
+  if (!authContext?.isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <Box

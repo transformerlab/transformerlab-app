@@ -143,6 +143,7 @@ const configuration: webpack.Configuration = {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'development',
       npm_package_version: 'default',
+      MULTIUSER: 'false',
     }),
 
     new webpack.LoaderOptionsPlugin({
