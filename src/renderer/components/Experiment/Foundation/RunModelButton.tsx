@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { RiImageAiLine } from 'react-icons/ri';
 import { useEffect, useState } from 'react';
+import useSWR from 'swr';
+import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 
 import {
   activateWorker,
@@ -293,67 +295,118 @@ export default function RunModelButton({
     checkValidDiffusion();
   }, [experimentInfo?.config?.foundation]);
 
+  // Add a SWR poll for the job status so we can show load progress
+  const { data: jobStatusData } = useSWR(
+    jobId && jobId !== -1 && experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId)
+      : null,
+    fetcher,
+    { refreshInterval: 2000 },
+  );
+
   function Engine() {
     return (
       <>
         {models === null ? (
           <>
-            <Button
-              startDecorator={
-                jobId === -1 ? (
-                  <CircularProgress size="sm" thickness={2} />
-                ) : (
-                  <PlayCircleIcon />
-                )
-              }
-              color="success"
-              size="lg"
-              sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
-              onClick={async (e) => {
-                if (inferenceSettings?.inferenceEngine === null) {
-                  setShowRunSettings(!showRunSettings);
-                  return;
-                }
-
-                setJobId(-1);
-
-                const inferenceEngine = inferenceSettings?.inferenceEngine;
-
-                const response = await activateWorker(
-                  experimentInfo?.config?.foundation,
-                  experimentInfo?.config?.foundation_filename,
-                  experimentInfo?.config?.foundation_model_architecture,
-                  experimentInfo?.config?.adaptor,
-                  inferenceEngine,
-                  inferenceSettings,
-                  experimentInfo?.id,
-                );
-                if (response?.status == 'error') {
-                  if (setLogsDrawerOpen) {
-                    setLogsDrawerOpen(true);
-                  }
-                  if (
-                    response?.message?.includes(
-                      'Process terminated with exit code 1',
-                    )
-                  ) {
-                    alert(
-                      'Could not start model. Please check the console at the bottom of the page for detailed logs.',
-                    );
-                  } else {
-                    alert(`Failed to start model:\n${response?.message}`);
-                  }
-                  setJobId(null);
-                  return;
-                }
-                const job_id = response?.job_id;
-                setJobId(job_id);
-                mutate();
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 1,
               }}
-              disabled={!isPossibleToRunAModel()}
             >
-              {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
-            </Button>
+              <Button
+                startDecorator={
+                  jobId === -1 ? (
+                    <CircularProgress size="sm" thickness={2} />
+                  ) : (
+                    <PlayCircleIcon />
+                  )
+                }
+                color="success"
+                size="lg"
+                sx={{ fontSize: '1.1rem', marginRight: 1, minWidth: '200px' }}
+                onClick={async (e) => {
+                  if (inferenceSettings?.inferenceEngine === null) {
+                    setShowRunSettings(!showRunSettings);
+                    return;
+                  }
+
+                  setJobId(-1);
+
+                  const inferenceEngine = inferenceSettings?.inferenceEngine;
+
+                  const response = await activateWorker(
+                    experimentInfo?.config?.foundation,
+                    experimentInfo?.config?.foundation_filename,
+                    experimentInfo?.config?.foundation_model_architecture,
+                    experimentInfo?.config?.adaptor,
+                    inferenceEngine,
+                    inferenceSettings,
+                    experimentInfo?.id,
+                  );
+                  if (response?.status == 'error') {
+                    if (setLogsDrawerOpen) {
+                      setLogsDrawerOpen(true);
+                    }
+                    if (
+                      response?.message?.includes(
+                        'Process terminated with exit code 1',
+                      )
+                    ) {
+                      alert(
+                        'Could not start model. Please check the console at the bottom of the page for detailed logs.',
+                      );
+                    } else {
+                      alert(`Failed to start model:\n${response?.message}`);
+                    }
+                    setJobId(null);
+                    return;
+                  }
+                  const job_id = response?.job_id;
+                  setJobId(job_id);
+                  mutate();
+                }}
+                disabled={!isPossibleToRunAModel()}
+              >
+                {isPossibleToRunAModel() ? 'Run' : 'No Available Engine'}
+              </Button>
+
+              {/* Feedback shown directly under Run button while job is active */}
+              {jobId != null &&
+                jobId !== null &&
+                // Only show progress while the job is still in-flight (no status yet)
+                // or the status indicates it's not finished. Hide the box after completion/failure.
+                (!jobStatusData ||
+                  !['SUCCESS', 'COMPLETE', 'FAILED', 'STOPPED'].includes(
+                    jobStatusData?.status,
+                  )) && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      marginLeft: 0,
+                      marginTop: '6px',
+                    }}
+                  >
+                    <div>
+                      <Typography level="body-sm">
+                        {jobStatusData?.job_data?.message ||
+                          jobStatusData?.status ||
+                          'Starting model...'}
+                      </Typography>
+                      {jobStatusData?.job_data?.progress != null && (
+                        <Typography level="body-xs" sx={{ color: 'gray' }}>
+                          Progress: {jobStatusData.job_data.progress}%
+                        </Typography>
+                      )}
+                    </div>
+                  </Box>
+                )}
+            </Box>
           </>
         ) : (
           <Button
