@@ -58,6 +58,8 @@ export default function RunModelButton({
     inferenceEngineFriendlyName: '',
   });
 
+  const [stopping, setStopping] = useState(false);
+
   useEffect(() => {
     if (!storageKey || !window.storage) return;
     (async () => {
