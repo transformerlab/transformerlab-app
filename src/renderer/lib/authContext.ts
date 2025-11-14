@@ -17,14 +17,11 @@ interface AuthContextValue {
   userError: any;
   userIsLoading: boolean;
   userMutate: any;
-  handleTestApi: () => Promise<void>;
-  handleGetCurrentUser: () => Promise<void>;
   login: () => Promise<void>;
   logout: () => Promise<void>;
-  apiResult: string | null;
-  loading: boolean;
   isAuthenticated: boolean;
   initializing: boolean;
+  fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
 }
 
 interface AuthProviderProps {
@@ -84,7 +81,7 @@ async function handleRefresh() {
     });
 
     if (!refreshResponse.ok) {
-      throw new Error('Refresh failed');
+      throw new Error('Not Authorized');
     }
 
     const data = await refreshResponse.json();
@@ -137,9 +134,6 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 export function AuthProvider({ connection, children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
-  // New UI / API feedback states
-  const [apiResult, setApiResult] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
 
   const connectionKey = connection ? connection.replace(/\./g, '-') : '';
   // Replace previous token load effects with subscription
@@ -170,9 +164,6 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   );
   // New login handler
   const handleLogin = useCallback(async () => {
-    setApiResult(null);
-    setLoading(true);
-
     console.log('Attempting login...');
     try {
       const form = new URLSearchParams({
@@ -193,7 +184,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         }
       })();
       if (!res.ok) {
-        setApiResult(`Login failed: ${res.status} ${JSON.stringify(data)}`);
+        console.error(`Login failed: ${res.status} ${JSON.stringify(data)}`);
         return;
       }
       const newToken =
@@ -201,24 +192,19 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       if (newToken) {
         updateAccessToken(newToken);
         setToken(newToken);
-        setApiResult('Login successful');
         // Revalidate user data after login
         if (userMutate) userMutate();
       } else {
-        setApiResult(
+        console.error(
           `Login succeeded but no token returned: ${JSON.stringify(data)}`,
         );
       }
     } catch (e) {
-      setApiResult(`Login error: ${e?.message ?? String(e)}`);
-    } finally {
-      setLoading(false);
+      console.error(`Login error: ${e?.message ?? String(e)}`);
     }
   }, [userMutate]);
   // Register handler
   const handleRegister = useCallback(async () => {
-    setApiResult(null);
-    setLoading(true);
     try {
       const body = {
         email: 'test@example.com',
@@ -237,7 +223,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         }
       })();
       if (!res.ok) {
-        setApiResult(`Register failed: ${res.status} ${JSON.stringify(data)}`);
+        console.error(`Register failed: ${res.status} ${JSON.stringify(data)}`);
         return;
       }
       const newToken =
@@ -245,55 +231,15 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       if (newToken) {
         updateAccessToken(newToken);
         setToken(newToken);
-        setApiResult('Register successful and logged in');
         // Revalidate user data after register
         if (userMutate) userMutate();
       } else {
-        setApiResult(`Register succeeded: ${JSON.stringify(data)}`);
+        console.log(`Register succeeded: ${JSON.stringify(data)}`);
       }
     } catch (e) {
-      setApiResult(`Register error: ${e?.message ?? String(e)}`);
-    } finally {
-      setLoading(false);
+      console.error(`Register error: ${e?.message ?? String(e)}`);
     }
   }, [userMutate]);
-  // Test authenticated route
-  const handleTestApi = useCallback(async () => {
-    setApiResult(null);
-    setLoading(true);
-    try {
-      const res = await fetchWithAuth('test-users/authenticated-route', {
-        method: 'GET',
-      });
-      const text = await res.text();
-      setApiResult(`Status: ${res.status} — Body: ${text}`);
-    } catch (e) {
-      setApiResult(`Error: ${e?.message ?? String(e)}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  // Get current user info
-  const handleGetCurrentUser = useCallback(async () => {
-    setApiResult(null);
-    setLoading(true);
-    try {
-      const res = await fetchWithAuth('users/me', { method: 'GET' });
-      let body;
-      try {
-        body = await res.json();
-      } catch {
-        body = await res.text();
-      }
-      setApiResult(
-        `Status: ${res.status} — Body: ${JSON.stringify(body, null, 2)}`,
-      );
-    } catch (e) {
-      setApiResult(`Error: ${e?.message ?? String(e)}`);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
   // Logout handler
   const handleLogout = useCallback(async () => {
     try {
@@ -324,16 +270,13 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       handleLogin,
       handleLogout,
       handleRegister,
-      handleTestApi,
-      handleGetCurrentUser,
       // aliases
       login,
       logout,
       // ui states
-      apiResult,
-      loading,
       isAuthenticated,
       initializing,
+      fetchWithAuth,
     }),
     [
       token,
@@ -344,12 +287,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       handleLogin,
       handleLogout,
       handleRegister,
-      handleTestApi,
-      handleGetCurrentUser,
       login,
       logout,
-      apiResult,
-      loading,
       isAuthenticated,
       initializing,
     ],
