@@ -65,6 +65,7 @@ import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import LoginChip from './LoginChip';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
@@ -919,6 +920,7 @@ export default function Sidebar({
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
       />
+      {/* <LoginChip /> */}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );
