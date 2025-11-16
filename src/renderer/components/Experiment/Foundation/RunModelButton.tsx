@@ -43,6 +43,11 @@ function removeServerFromEndOfString(str) {
   }
 }
 
+function stripAnsiCodes(text) {
+  if (!text) return '';
+  return text.replace(/\u001b\[[0-9;]*m/g, '');
+}
+
 export default function RunModelButton({
   experimentInfo,
   killWorker,
@@ -51,6 +56,76 @@ export default function RunModelButton({
   setLogsDrawerOpen = null,
 }) {
   const [jobId, setJobId] = useState(null);
+  const apiUrl = chatAPI.API_URL();
+
+  const jobsListKey =
+    experimentInfo?.id && apiUrl
+      ? chatAPI.Endpoints.Jobs.GetJobsOfType(
+          experimentInfo.id,
+          'LOAD_MODEL',
+          '',
+        )
+      : null;
+  const { data: loadModelJobs } = useSWR(jobsListKey, fetcher, {
+    refreshInterval: 3000,
+    fallbackData: [],
+  });
+
+  const jobIdForLogs =
+    jobId && jobId !== -1
+      ? jobId
+      : Array.isArray(loadModelJobs) && loadModelJobs.length > 0
+        ? loadModelJobs[0]?.id
+        : null;
+
+  const jobLogsEndpoint =
+    apiUrl && jobIdForLogs
+      ? `${apiUrl}server/job_logs?job_id=${encodeURIComponent(String(jobIdForLogs))}`
+      : null;
+
+  const { data: serverJobLogs } = useSWR(jobLogsEndpoint, fetcher, {
+    refreshInterval: 2000,
+  });
+  const [jobLogFull, setJobLogFull] = useState<string | null>(null);
+  const [jobLogLine, setJobLogLine] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!serverJobLogs || !Array.isArray(serverJobLogs.logs)) {
+      setJobLogFull(null);
+      setJobLogLine(null);
+      return;
+    }
+
+    const lines = serverJobLogs.logs.slice().filter(Boolean);
+    let candidate = lines
+      .slice()
+      .reverse()
+      .find((l: string) => {
+        if (!l || !l.trim()) return false;
+        // skip very noisy argument dumps
+        if (/args:\s*Namespace\(/i.test(l)) return false;
+        return true;
+      });
+
+    // fallback to the absolute last non-empty line if all were filtered
+    if (!candidate) {
+      candidate = lines
+        .slice()
+        .reverse()
+        .find((l: string) => l && l.trim());
+    }
+
+    const full = stripAnsiCodes(candidate || '');
+    setJobLogFull(full);
+
+    const MAX_LEN = 140;
+    if (full.length > MAX_LEN) {
+      const truncated = full.slice(0, MAX_LEN - 1).trimEnd() + '…';
+      setJobLogLine(truncated);
+    } else {
+      setJobLogLine(full || null);
+    }
+  }, [serverJobLogs]);
   const [stopping, setStopping] = useState(false);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
@@ -376,7 +451,9 @@ export default function RunModelButton({
 
               {jobId != null &&
                 jobId !== null &&
-                (!jobStatusData ||
+                // Show logs if the server returns logs, OR while job is still in-flight.
+                ((serverJobLogs?.logs && serverJobLogs.logs.length > 0) ||
+                  !jobStatusData ||
                   !['SUCCESS', 'COMPLETE', 'FAILED', 'STOPPED'].includes(
                     jobStatusData?.status,
                   )) && (
@@ -389,12 +466,33 @@ export default function RunModelButton({
                       marginTop: '6px',
                     }}
                   >
-                    <div>
-                      <Typography level="body-sm">
-                        {jobStatusData?.job_data?.message ||
-                          jobStatusData?.status ||
-                          'Starting model...'}
-                      </Typography>
+                    <div style={{ flex: 1 }}>
+                      {serverJobLogs?.logs && serverJobLogs.logs.length > 0 ? (
+                        // Render only the latest server-side log line (page font).
+                        // If truncated, reveal full text in title (hover).
+                        <Typography
+                          level="body-sm"
+                          title={jobLogFull || undefined}
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            margin: 0,
+                            color: 'var(--joy-palette-neutral-700)',
+                            maxWidth: '40ch',
+                          }}
+                        >
+                          {jobLogLine || 'Starting model...'}
+                        </Typography>
+                      ) : jobStatusData?.job_data?.message ? (
+                        <Typography level="body-sm">
+                          {jobStatusData.job_data.message}
+                        </Typography>
+                      ) : (
+                        <Typography level="body-sm">
+                          {jobStatusData?.status || 'Starting model...'}
+                        </Typography>
+                      )}
                       {jobStatusData?.job_data?.progress != null && (
                         <Typography level="body-xs" sx={{ color: 'gray' }}>
                           Progress: {jobStatusData.job_data.progress}%
