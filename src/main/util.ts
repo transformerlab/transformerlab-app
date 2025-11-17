@@ -300,7 +300,7 @@ export async function installLocalServer() {
     return;
   }
 
-  const download_cmd = `curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash -s -- download_transformer_lab`;
+  const download_cmd = `curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/merge/transformerlab-api/api/install.sh | bash -s -- download_transformer_lab`;
   const installScriptCommand = isPlatformWindows()
     ? `wsl ` + download_cmd
     : download_cmd;
