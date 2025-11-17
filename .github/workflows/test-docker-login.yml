@@ -1,0 +1,21 @@
+name: Test Docker Login
+
+on:
+  push:
+    branches:
+      - merge/transformerlab-api
+
+jobs:
+  test-login:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Verify login
+        run: |
+          echo "Docker login successful!"
+          docker info
