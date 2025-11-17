@@ -169,8 +169,8 @@ export default function UserLoginTest(): JSX.Element {
             {teams.teams.map((team: any) => (
               <ListItem key={team.id}>
                 <ListItemContent>
-                  <div style={{ fontWeight: 600 }}>{team.id}</div>
-                  <div style={{}}>{team.name}</div>
+                  <Typography level="title-md">{team.name}</Typography>
+                  <Typography level="body-xs">{team.id}</Typography>
                 </ListItemContent>
               </ListItem>
             ))}
