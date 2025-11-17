@@ -7,11 +7,13 @@ import Box from '@mui/joy/Box';
 import { Button, Sheet } from '@mui/joy';
 import { User2Icon } from 'lucide-react';
 import { useAuth } from 'renderer/lib/authContext';
+import { useNavigate } from 'react-router-dom';
 
 type Props = {};
 
 export default function LoginChip({}: Props) {
   const authContext = useAuth();
+  const navigate = useNavigate();
   const user = authContext?.user;
   const teamName = user?.team?.name || (user ? 'Transformer Lab' : null);
   const avatarSrc = user?.avatar_url;
@@ -45,7 +47,14 @@ export default function LoginChip({}: Props) {
         {!avatarSrc && <User2Icon />}
       </Avatar> */}
       <Stack spacing={0} sx={{ textAlign: 'left', minWidth: 0 }}>
-        <Typography level="title-sm" textColor="text.primary" noWrap>
+        <Typography
+          level="title-sm"
+          textColor="text.primary"
+          noWrap
+          onClick={() => {
+            navigate('/user_info_test');
+          }}
+        >
           {user?.email}
         </Typography>
         {teamName ? (

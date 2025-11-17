@@ -478,7 +478,7 @@ export default function MainAppPanel({
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
-        <Route path="/user_login_test" element={<UserLoginTest />} />
+        <Route path="/user_info_test" element={<UserLoginTest />} />
       </Routes>
     </>
   );
