@@ -1,4 +1,12 @@
-import { Box, Button, Typography } from '@mui/joy';
+import {
+  Box,
+  Button,
+  List,
+  ListItem,
+  ListItemContent,
+  Typography,
+  Input,
+} from '@mui/joy';
 import { TypeOutline } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
@@ -15,7 +23,8 @@ export default function UserLoginTest(): JSX.Element {
   const authContext = useAuth();
   const [apiResult, setApiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const { data: teams } = useAPI('users', ['teams']);
+  const [newTeamName, setNewTeamName] = useState<string>('');
+  const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
   const { data: userInfo } = useAPI('users', ['me']);
 
   async function handleTestApi() {
@@ -60,6 +69,43 @@ export default function UserLoginTest(): JSX.Element {
     }
   }
 
+  async function handleNewTeam() {
+    setApiResult(null);
+    setLoading(true);
+    try {
+      const res = await authContext.fetchWithAuth('teams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newTeamName }),
+      });
+
+      if (!res.ok) {
+        // Try to read JSON or text error body
+        let bodyText: string;
+        try {
+          const json = await res.json();
+          bodyText = JSON.stringify(json);
+        } catch {
+          bodyText = await res.text();
+        }
+        setApiResult(`Error: ${res.status} — ${bodyText}`);
+        return;
+      }
+
+      const data = await res.json();
+      setApiResult(`Created team: ${JSON.stringify(data)}`);
+      setNewTeamName('');
+
+      teamsMutate();
+    } catch (e: any) {
+      setApiResult(`Error: ${e?.message ?? String(e)}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div>
       <div>
@@ -72,7 +118,7 @@ export default function UserLoginTest(): JSX.Element {
           {/* Quick test auth buttons */}
           <Button
             type="button"
-            onClick={authContext.login}
+            onClick={() => authContext.login('test@example.com', 'password123')}
             disabled={loading}
             style={{ marginRight: 8 }}
           >
@@ -118,11 +164,41 @@ export default function UserLoginTest(): JSX.Element {
         <Typography level="h4" mt={3}>
           Teams:
         </Typography>
-        {teams && (
-          <pre style={{ whiteSpace: 'pre-wrap' }}>
-            {JSON.stringify(teams, null, 2)}
-          </pre>
+        {teams?.teams && (
+          <List>
+            {teams.teams.map((team: any) => (
+              <ListItem key={team.id}>
+                <ListItemContent>
+                  <div style={{ fontWeight: 600 }}>{team.id}</div>
+                  <div style={{}}>{team.name}</div>
+                </ListItemContent>
+              </ListItem>
+            ))}
+          </List>
         )}
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            alignItems: 'center',
+            marginTop: 8,
+          }}
+        >
+          <Input
+            placeholder="New team name"
+            value={newTeamName}
+            onChange={(e: any) => setNewTeamName(e.target.value)}
+            disabled={loading}
+            aria-label="New team name"
+            size="sm"
+          />
+          <Button
+            onClick={() => handleNewTeam()}
+            disabled={loading || !newTeamName.trim()}
+          >
+            {loading ? 'Creating...' : 'Create a New Team'}
+          </Button>
+        </div>
       </Box>
     </div>
   );

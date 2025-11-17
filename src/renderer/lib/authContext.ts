@@ -22,6 +22,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   initializing: boolean;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  team: string | null;
+  setTeam: React.Dispatch<React.SetStateAction<string | null>>;
 }
 
 interface AuthProviderProps {
@@ -34,6 +36,9 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 let _accessToken: string | null =
   typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+// NEW: team in-memory cache
+let _currentTeam: string | null =
+  typeof window !== 'undefined' ? localStorage.getItem('current_team') : null;
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -49,6 +54,10 @@ function notifyListeners() {
 export function getAccessToken() {
   return _accessToken;
 }
+// NEW: team accessors
+export function getCurrentTeam() {
+  return _currentTeam;
+}
 
 export function updateAccessToken(token: string | null) {
   _accessToken = token;
@@ -57,6 +66,17 @@ export function updateAccessToken(token: string | null) {
     else localStorage.removeItem('access_token');
   } catch (e) {
     /* ignore storage errors */
+  }
+  notifyListeners();
+}
+// NEW: update team (persists + notifies)
+export function updateCurrentTeam(team: string | null) {
+  _currentTeam = team;
+  try {
+    if (team) localStorage.setItem('current_team', team);
+    else localStorage.removeItem('current_team');
+  } catch {
+    /* ignore */
   }
   notifyListeners();
 }
@@ -97,6 +117,7 @@ async function handleRefresh() {
 // --- Step 3: Wrapper Fetch Function ---
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const token = getAccessToken();
+  const currentTeam = getCurrentTeam();
   const fullUrl = `${API_URL()}${url}`;
 
   const response = await fetch(fullUrl, {
@@ -105,6 +126,8 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       ...((options && options.headers) || {}),
       Authorization: `Bearer ${token ?? ''}`,
       'Content-Type': 'application/json',
+      // Optionally include team header if needed by API
+      ...(currentTeam ? { 'X-Team': currentTeam } : {}),
     },
     credentials: 'include',
   });
@@ -134,15 +157,18 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 export function AuthProvider({ connection, children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
+  const [team, setTeamState] = useState<string | null>(null);
 
   const connectionKey = connection ? connection.replace(/\./g, '-') : '';
   // Replace previous token load effects with subscription
   useEffect(() => {
     // Initialize current token immediately
     setToken(getAccessToken());
+    setTeamState(getCurrentTeam());
     setInitializing(false);
     const unsub = subscribeAuthChange(() => {
       setToken(getAccessToken());
+      setTeamState(getCurrentTeam());
     });
     return unsub;
   }, []);
@@ -266,6 +292,17 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   const login = handleLogin;
   const logout = handleLogout;
   const isAuthenticated = !!token;
+  const handleSetTeam = useCallback(
+    (value: React.SetStateAction<string | null>) => {
+      const next =
+        typeof value === 'function'
+          ? (value as (prev: string | null) => string | null)(team)
+          : value;
+      updateCurrentTeam(next);
+      setTeamState(next);
+    },
+    [team],
+  );
   const contextValue = useMemo(
     () => ({
       token,
@@ -274,17 +311,14 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       userError,
       userIsLoading,
       userMutate,
-      // new handlers
-      handleLogin,
-      handleLogout,
       handleRegister,
-      // aliases
       login,
       logout,
-      // ui states
       isAuthenticated,
       initializing,
       fetchWithAuth,
+      team,
+      setTeam: handleSetTeam,
     }),
     [
       token,
@@ -292,13 +326,13 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       userError,
       userIsLoading,
       userMutate,
-      handleLogin,
-      handleLogout,
       handleRegister,
       login,
       logout,
       isAuthenticated,
       initializing,
+      team,
+      handleSetTeam,
     ],
   );
   // Replace JSX return (file is .ts)

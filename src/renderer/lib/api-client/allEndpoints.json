@@ -189,10 +189,20 @@
     "me": {
       "method": "GET",
       "path": "users/me"
-    },
-    "teams": {
+    }
+  },
+  "teams": {
+    "list": {
       "method": "GET",
       "path": "users/me/teams"
+    },
+    "create": {
+      "method": "POST",
+      "path": "teams"
+    },
+    "delete": {
+      "method": "DELETE",
+      "path": "teams/{teamId}/delete"
     }
   },
   "auth": {
