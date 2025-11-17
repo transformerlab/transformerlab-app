@@ -1,9 +1,10 @@
 # This workflow triggers a Netlify docs build when a new GitHub release is published
+# TEMPORARILY DISABLED
 name: Trigger Netlify Docs Build on Release
 
-on:
-  release:
-    types: [published]
+on: []
+#   release:
+#     types: [published]
 
 jobs:
   build-docs:
