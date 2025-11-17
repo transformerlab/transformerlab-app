@@ -28,9 +28,13 @@ export default function LoginPage() {
 
     try {
       // Call the login method from auth context
-      await login();
-      // Note: The current login implementation in authContext uses hardcoded credentials
-      // You may need to modify the authContext to accept email/password parameters
+      const result = await login(email, password);
+      if (result instanceof Error) {
+        setError(
+          result.info?.message ??
+            'Login failed. Please check your credentials.',
+        );
+      }
     } catch (err) {
       setError('Login failed. Please check your credentials.');
     } finally {

@@ -17,7 +17,7 @@ interface AuthContextValue {
   userError: any;
   userIsLoading: boolean;
   userMutate: any;
-  login: () => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   initializing: boolean;
@@ -163,46 +163,54 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       : null,
   );
   // New login handler
-  const handleLogin = useCallback(async () => {
-    console.log('Attempting login...');
-    try {
-      const form = new URLSearchParams({
-        username: 'test@example.com',
-        password: 'password123',
-      }).toString();
-      const res = await fetch(getAPIFullPath('auth', ['login'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: form,
-        credentials: 'include',
-      });
-      const data = await (async () => {
-        try {
-          return await res.json();
-        } catch {
-          return {};
+  const handleLogin = useCallback(
+    async (username: string, password: string) => {
+      console.log('Attempting login...');
+      try {
+        const form = new URLSearchParams({
+          username: username,
+          password: password,
+        }).toString();
+        const res = await fetch(getAPIFullPath('auth', ['login'], {}), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: form,
+          credentials: 'include',
+        });
+        const data = await (async () => {
+          try {
+            return await res.json();
+          } catch {
+            return {};
+          }
+        })();
+        if (!res.ok) {
+          console.error(`Login failed: ${res.status} ${JSON.stringify(data)}`);
+          const error = new Error(
+            `Login failed: ${res.status} ${JSON.stringify(data)}`,
+          );
+          error.info = data;
+          error.status = res.status;
+          return error;
         }
-      })();
-      if (!res.ok) {
-        console.error(`Login failed: ${res.status} ${JSON.stringify(data)}`);
-        return;
+        const newToken =
+          data.access_token ?? data.token ?? data.accessToken ?? null;
+        if (newToken) {
+          updateAccessToken(newToken);
+          setToken(newToken);
+          // Revalidate user data after login
+          if (userMutate) userMutate();
+        } else {
+          console.error(
+            `Login succeeded but no token returned: ${JSON.stringify(data)}`,
+          );
+        }
+      } catch (e) {
+        console.error(`Login error: ${e?.message ?? String(e)}`);
       }
-      const newToken =
-        data.access_token ?? data.token ?? data.accessToken ?? null;
-      if (newToken) {
-        updateAccessToken(newToken);
-        setToken(newToken);
-        // Revalidate user data after login
-        if (userMutate) userMutate();
-      } else {
-        console.error(
-          `Login succeeded but no token returned: ${JSON.stringify(data)}`,
-        );
-      }
-    } catch (e) {
-      console.error(`Login error: ${e?.message ?? String(e)}`);
-    }
-  }, [userMutate]);
+    },
+    [userMutate],
+  );
   // Register handler
   const handleRegister = useCallback(async () => {
     try {
