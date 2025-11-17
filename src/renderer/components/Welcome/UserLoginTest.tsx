@@ -1,6 +1,7 @@
-import { Button } from '@mui/joy';
+import { Box, Button, Typography } from '@mui/joy';
+import { TypeOutline } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { useAuth } from 'renderer/lib/authContext';
+import { useAPI, useAuth } from 'renderer/lib/authContext';
 
 /*
   Minimal in-file auth utilities and request helpers.
@@ -14,6 +15,8 @@ export default function UserLoginTest(): JSX.Element {
   const authContext = useAuth();
   const [apiResult, setApiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const { data: teams } = useAPI('users', ['teams']);
+  const { data: userInfo } = useAPI('users', ['me']);
 
   async function handleTestApi() {
     setApiResult(null);
@@ -27,22 +30,6 @@ export default function UserLoginTest(): JSX.Element {
       );
       const text = await res.text();
       setApiResult(`Status: ${res.status} — Body: ${text}`);
-    } catch (e: any) {
-      setApiResult(`Error: ${e?.message ?? String(e)}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleGetCurrentUser() {
-    setApiResult(null);
-    setLoading(true);
-    try {
-      const res = await authContext.fetchWithAuth('users/me', {
-        method: 'GET',
-      });
-      const data = await res.json();
-      setApiResult(`Status: ${res.status} — Body: ${JSON.stringify(data)}`);
     } catch (e: any) {
       setApiResult(`Error: ${e?.message ?? String(e)}`);
     } finally {
@@ -109,20 +96,34 @@ export default function UserLoginTest(): JSX.Element {
         >
           {loading ? 'Testing...' : 'Test protected API'}
         </Button>
-        <Button
-          type="button"
-          onClick={() => handleGetCurrentUser()}
-          disabled={loading || !authContext?.isAuthenticated}
-          style={{ marginLeft: 8 }}
-        >
-          {loading ? 'Loading...' : 'Get current user'}
-        </Button>
         {apiResult && (
           <div style={{ marginTop: 8 }}>
             <pre style={{ whiteSpace: 'pre-wrap' }}>{apiResult}</pre>
           </div>
         )}
       </div>
+
+      <Box>
+        <Typography level="h4" mt={3}>
+          User Info:
+        </Typography>
+        {userInfo && (
+          <pre style={{ whiteSpace: 'pre-wrap' }}>
+            {JSON.stringify(userInfo, null, 2)}
+          </pre>
+        )}
+      </Box>
+
+      <Box>
+        <Typography level="h4" mt={3}>
+          Teams:
+        </Typography>
+        {teams && (
+          <pre style={{ whiteSpace: 'pre-wrap' }}>
+            {JSON.stringify(teams, null, 2)}
+          </pre>
+        )}
+      </Box>
     </div>
   );
 }

@@ -189,6 +189,10 @@
     "me": {
       "method": "GET",
       "path": "users/me"
+    },
+    "teams": {
+      "method": "GET",
+      "path": "users/me/teams"
     }
   },
   "auth": {

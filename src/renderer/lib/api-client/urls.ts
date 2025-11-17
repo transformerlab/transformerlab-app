@@ -39,7 +39,7 @@ const endpoints: Endpoints = endpointsJson;
 // and a path array (e.g. ["tasks", "apple"]),
 // and returns the full path (e.g. "tasks/1/anystring/apple")
 // based on the definition of the path in the endpoints.json file.
-function getPath(
+export function getPath(
   majorEntity: string,
   pathArray: string[],
   params: Record<string, any>,
