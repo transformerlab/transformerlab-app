@@ -4,8 +4,8 @@ import Avatar from '@mui/joy/Avatar';
 import Stack from '@mui/joy/Stack';
 import Typography from '@mui/joy/Typography';
 import Box from '@mui/joy/Box';
-import { Button, Sheet } from '@mui/joy';
-import { User2Icon } from 'lucide-react';
+import { Button, IconButton, Sheet } from '@mui/joy';
+import { LogOutIcon, User2Icon } from 'lucide-react';
 import { useAuth } from 'renderer/lib/authContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,10 +15,11 @@ export default function LoginChip({}: Props) {
   const authContext = useAuth();
   const navigate = useNavigate();
   const user = authContext?.user;
-  const teamName = user?.team?.name || (user ? 'Transformer Lab' : null);
   const avatarSrc = user?.avatar_url;
   const size = 'md';
   const email = user?.email || '';
+
+  const teamName = authContext?.team?.name || '';
 
   return (
     <Sheet
@@ -60,16 +61,14 @@ export default function LoginChip({}: Props) {
             {teamName}
           </Typography>
         ) : null}
-        {authContext?.isAuthenticated ? (
-          <Button size="sm" variant="outlined" onClick={authContext?.logout}>
-            Logout
-          </Button>
-        ) : (
-          <Button size="sm" variant="outlined" onClick={authContext?.login}>
-            Login
-          </Button>
-        )}
-      </Stack>
+      </Stack>{' '}
+      {authContext?.isAuthenticated ? (
+        <IconButton size="sm" variant="outlined" onClick={authContext?.logout}>
+          <LogOutIcon />
+        </IconButton>
+      ) : (
+        'Error: not logged in'
+      )}
     </Sheet>
   );
 }

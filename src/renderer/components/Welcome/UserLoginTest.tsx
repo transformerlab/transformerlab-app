@@ -165,20 +165,21 @@ export default function UserLoginTest(): JSX.Element {
         <Typography level="h4" mt={3}>
           Teams:
         </Typography>
+        {/* {JSON.stringify(authContext, null, 2)} */}
         {teams?.teams && (
           <List>
             {teams.teams.map((team: any) => (
               <ListItem key={team.id}>
                 <ListItemButton
                   onClick={() => {
-                    authContext.setTeam(team.id);
+                    authContext.setTeam({ id: team.id, name: team.name });
                   }}
-                  selected={authContext.team === team.id}
+                  selected={authContext.team?.id === team.id}
                 >
                   <ListItemContent>
                     <Typography level="title-md">
                       {team.name}
-                      {authContext.team === team.id ? ' (selected)' : ''}
+                      {authContext.team?.id === team.id ? ' (selected)' : ''}
                     </Typography>
                     <Typography level="body-xs">{team.id}</Typography>
                   </ListItemContent>

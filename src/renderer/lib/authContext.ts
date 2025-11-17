@@ -10,7 +10,12 @@ import useSWR from 'swr';
 import { API_URL, fetcher } from './transformerlab-api-sdk';
 import { getAPIFullPath, getPath } from './api-client/urls';
 // Added types
-interface AuthContextValue {
+export type Team = {
+  id: string;
+  name: string;
+};
+// export the AuthContextValue so consumers get correct types
+export interface AuthContextValue {
   token: string | null;
   setToken: React.Dispatch<React.SetStateAction<string | null>>;
   user: any;
@@ -22,8 +27,8 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   initializing: boolean;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
-  team: string | null;
-  setTeam: React.Dispatch<React.SetStateAction<string | null>>;
+  team: Team | null;
+  setTeam: React.Dispatch<React.SetStateAction<Team | null>>;
 }
 
 interface AuthProviderProps {
@@ -31,14 +36,21 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-// Update context generic
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+// Update context generic to use null as the empty value
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 let _accessToken: string | null =
   typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
-// NEW: team in-memory cache
-let _currentTeam: string | null =
-  typeof window !== 'undefined' ? localStorage.getItem('current_team') : null;
+// NEW: team in-memory cache (stored as JSON)
+let _currentTeam: Team | null = null;
+if (typeof window !== 'undefined') {
+  try {
+    const raw = localStorage.getItem('current_team');
+    if (raw) _currentTeam = JSON.parse(raw) as Team;
+  } catch {
+    _currentTeam = null;
+  }
+}
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -55,7 +67,7 @@ export function getAccessToken() {
   return _accessToken;
 }
 // NEW: team accessors
-export function getCurrentTeam() {
+export function getCurrentTeam(): Team | null {
   return _currentTeam;
 }
 
@@ -70,10 +82,10 @@ export function updateAccessToken(token: string | null) {
   notifyListeners();
 }
 // NEW: update team (persists + notifies)
-export function updateCurrentTeam(team: string | null) {
+export function updateCurrentTeam(team: Team | null) {
   _currentTeam = team;
   try {
-    if (team) localStorage.setItem('current_team', team);
+    if (team) localStorage.setItem('current_team', JSON.stringify(team));
     else localStorage.removeItem('current_team');
   } catch {
     /* ignore */
@@ -126,8 +138,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       ...((options && options.headers) || {}),
       Authorization: `Bearer ${token ?? ''}`,
       'Content-Type': 'application/json',
-      // Include team header we have it set
-      ...(currentTeam ? { 'X-Team': currentTeam } : {}),
+      // Include team headers if set (both id and name)
+      ...(currentTeam
+        ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
+        : {}),
     },
     credentials: 'include',
   });
@@ -142,6 +156,9 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
           ...((options && options.headers) || {}),
           Authorization: `Bearer ${newAccessToken ?? ''}`,
           'Content-Type': 'application/json',
+          ...(currentTeam
+            ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
+            : {}),
         },
         credentials: 'include',
       });
@@ -157,7 +174,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 export function AuthProvider({ connection, children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
-  const [team, setTeamState] = useState<string | null>(null);
+  const [team, setTeamState] = useState<Team | null>(null);
 
   const connectionKey = connection ? connection.replace(/\./g, '-') : '';
   // Replace previous token load effects with subscription
@@ -293,16 +310,17 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   const logout = handleLogout;
   const isAuthenticated = !!token;
   const handleSetTeam = useCallback(
-    (value: React.SetStateAction<string | null>) => {
+    (value: React.SetStateAction<Team | null>) => {
       const next =
         typeof value === 'function'
-          ? (value as (prev: string | null) => string | null)(team)
+          ? (value as (prev: Team | null) => Team | null)(team)
           : value;
       updateCurrentTeam(next);
       setTeamState(next);
     },
     [team],
   );
+
   const contextValue = useMemo(
     () => ({
       token,
@@ -343,7 +361,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
