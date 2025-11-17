@@ -224,7 +224,6 @@ download_transformer_lab() {
     echo "Web app successfully installed."
 
   echo "🌕 Step 1: COMPLETE"
-}
 
 ##############################
 ## Step 2: Install Conda
