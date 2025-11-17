@@ -149,21 +149,23 @@ export async function checkForMissingSystemRequirements() {
 }
 
 export async function checkLocalServerVersion() {
-  const mainFile = path.join(
-    await getTransformerLabCodeDir(),
-    'LATEST_VERSION',
-  );
+  const codeDir = await getTransformerLabCodeDir();
+  const versionFileCandidates = [
+    path.join(codeDir, 'LATEST_VERSION'),
+    path.join(codeDir, 'api', 'LATEST_VERSION'),
+  ];
 
-  console.log('Checking if server is installed locally at', mainFile);
-  if (fs.existsSync(mainFile)) {
-    let version = fs.readFileSync(mainFile, 'utf8');
-    // remove whitespace:
-    version = version.replace(/\s/g, '');
-    console.log('Found version', version);
-    return version;
-  } else {
-    return false;
+  for (const mainFile of versionFileCandidates) {
+    console.log('Checking if server is installed locally at', mainFile);
+    if (fs.existsSync(mainFile)) {
+      let version = fs.readFileSync(mainFile, 'utf8');
+      version = version.replace(/\s/g, '');
+      console.log('Found version', version);
+      return version;
+    }
   }
+
+  return false;
 }
 
 export async function startLocalServer() {
@@ -300,7 +302,7 @@ export async function installLocalServer() {
     return;
   }
 
-  const download_cmd = `curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash -s -- download_transformer_lab`;
+  const download_cmd = `curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash -s -- download_transformer_lab`;
   const installScriptCommand = isPlatformWindows()
     ? `wsl ` + download_cmd
     : download_cmd;

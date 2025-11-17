@@ -170,13 +170,13 @@ download_transformer_lab() {
   else
     ohai "✅ curl is installed."
   fi
-  
+
   # Figure out the path to the lastest release of Transformer Lab
-  LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest)
+  LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-app/releases/latest)
   LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
   LATEST_RELEASE_VERSION_WITHOUT_V=$(echo "$LATEST_RELEASE_VERSION" | sed 's/v//g')
-  echo "Latest Release of the API on Github: $LATEST_RELEASE_VERSION"
-  TLAB_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/${LATEST_RELEASE_VERSION}.tar.gz"
+  echo "Latest Release of Transformer Lab on Github: $LATEST_RELEASE_VERSION"
+  TLAB_URL="https://github.com/transformerlab/transformerlab-app/archive/refs/tags/${LATEST_RELEASE_VERSION}.tar.gz"
   echo "Download Location: $TLAB_URL"
 
   # If the user has not installed Transformer Lab, then we should install it.
@@ -184,41 +184,46 @@ download_transformer_lab() {
   # Fetch the latest version of Transformer Lab from GitHub:
   mkdir -p "${TLAB_DIR}"
   curl -L "${TLAB_URL}" -o "${TLAB_DIR}/transformerlab.tar.gz"
-  NEW_DIRECTORY_NAME="transformerlab-api-${LATEST_RELEASE_VERSION_WITHOUT_V}"
-  rm -rf "${TLAB_DIR:?}/${NEW_DIRECTORY_NAME:?}"
+  NEW_DIRECTORY_NAME="transformerlab-app-${LATEST_RELEASE_VERSION_WITHOUT_V}"
+  NEW_DIRECTORY_PATH="${TLAB_DIR}/${NEW_DIRECTORY_NAME}"
+  rm -rf "${NEW_DIRECTORY_PATH}"
   rm -rf "${TLAB_CODE_DIR}"
   tar -xf "${TLAB_DIR}/transformerlab.tar.gz" -C "${TLAB_DIR}"
-  mv "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
+
+  if [ -d "${NEW_DIRECTORY_PATH}/api" ]; then
+    mv "${NEW_DIRECTORY_PATH}/api" "${TLAB_CODE_DIR}"
+  else
+    mv "${NEW_DIRECTORY_PATH}" "${TLAB_CODE_DIR}"
+  fi
   rm "${TLAB_DIR}/transformerlab.tar.gz"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
 
-  # Now do the same thing for the web app which is in a different repo called https://github.com/transformerlab/transformerlab-app
-  # Step 1: First get the latest release version:
-  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
-  echo "APP Download Location: $TLAB_APP_URL"
-
-  # Delete and recreate the target static files directory
-  echo "Creating clean directory at ${TLAB_STATIC_WEB_DIR}"
-  rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
-  mkdir -p "${TLAB_STATIC_WEB_DIR}"
-
-  # Download and extract, handling possible failure
-  if curl -L --fail "${TLAB_APP_URL}" -o /tmp/transformerlab_web.tar.gz; then
-    # Extraction succeeded, proceed with unpacking
-    tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
-    
-    # Move contents up one level and clean up
-    mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
-    rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
-    
-    # Remove the temporary file
-    rm /tmp/transformerlab_web.tar.gz
-    
-    echo "Web app successfully installed."
+  # Copy the bundled static cloud assets from the repo, or fall back to downloading
+  if [ -d "${NEW_DIRECTORY_PATH}/release/cloud" ]; then
+    echo "Copying static web assets from downloaded release"
+    rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
+    mkdir -p "${TLAB_STATIC_WEB_DIR}"
+    cp -R "${NEW_DIRECTORY_PATH}/release/cloud/." "${TLAB_STATIC_WEB_DIR}/"
   else
-    echo "Warning: Could not download web app from ${TLAB_APP_URL}. Continuing without web app installation."
+    echo "Bundled cloud assets not found, attempting to download transformerlab_web.tar.gz"
+    TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+    echo "APP Download Location: $TLAB_APP_URL"
+    rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
+    mkdir -p "${TLAB_STATIC_WEB_DIR}"
+    if curl -L --fail "${TLAB_APP_URL}" -o /tmp/transformerlab_web.tar.gz; then
+      tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
+      mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
+      rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+      rm /tmp/transformerlab_web.tar.gz
+      echo "Web app successfully installed from transformerlab_web.tar.gz."
+    else
+      echo "Warning: Could not download web app from ${TLAB_APP_URL}. Continuing without web app installation."
+    fi
   fi
+
+  # Clean up any extracted source tree left behind
+  rm -rf "${NEW_DIRECTORY_PATH}"
 
   echo "🌕 Step 1: COMPLETE"
 }
@@ -281,7 +286,7 @@ install_conda() {
   check_mamba
 
   conda info
-  
+
   echo "🌕 Step 2: COMPLETE"
 }
 
@@ -350,7 +355,7 @@ install_dependencies() {
   elif command -v rocminfo &> /dev/null; then
       echo "rocminfo is available"
       HAS_AMD=true
-      # AMD_INFO=$(rocm-smi --showproductname | awk '/^GPU/ {print $2}') || echo "Issue with ROCm SMI" 
+      # AMD_INFO=$(rocm-smi --showproductname | awk '/^GPU/ {print $2}') || echo "Issue with ROCm SMI"
       # if [ -n "$AMD_INFO" ]; then
       #     echo "AMD GPU detected: $AMD_INFO"
           # HAS_AMD=true
@@ -361,7 +366,7 @@ install_dependencies() {
 
   # install uv
   pip install uv
-  
+
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
   PIP_WHEEL_FLAGS="--upgrade"
 
@@ -462,7 +467,7 @@ doctor() {
   echo "Your machine is: $OS"
   echo "Your shell is: $SHELL"
 
-  
+
   if command -v "${CONDA_BIN}" &> /dev/null; then
     echo "Your conda version is: $(${CONDA_BIN} --version)" || echo "Issue with conda"
     echo "Conda is seen in path at at: $(which conda)" || echo "Conda is not in your path"
