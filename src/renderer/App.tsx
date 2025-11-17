@@ -189,13 +189,15 @@ function AppContent({
         </Box>
       </Box>
       <AutoUpdateModal />
-      <LoginModal
-        setServer={setConnection}
-        connection={connection}
-        setTerminalDrawerOpen={setLogsDrawerOpen}
-        setSSHConnection={setSSHConnection}
-        setGPUOrchestrationServer={setGPUOrchestrationServer}
-      />
+      {process.env.TL_FORCE_API_URL === 'false' && (
+        <LoginModal
+          setServer={setConnection}
+          connection={connection}
+          setTerminalDrawerOpen={setLogsDrawerOpen}
+          setSSHConnection={setSSHConnection}
+          setGPUOrchestrationServer={setGPUOrchestrationServer}
+        />
+      )}
     </Box>
   );
 }
@@ -203,7 +205,7 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  const [connection, setConnection] = useState('');
+  const [connection, setConnection] = useState(process.env.TL_API_URL || '');
   const [gpuOrchestrationServer, setGPUOrchestrationServer] = useState('');
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);

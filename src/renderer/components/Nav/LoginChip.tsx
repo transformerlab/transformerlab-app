@@ -34,7 +34,7 @@ export default function LoginChip({}: Props) {
       }}
       aria-label={`Account: ${email}${teamName ? `, team ${teamName}` : ''}`}
     >
-      <Avatar
+      {/* <Avatar
         src={avatarSrc}
         size={size === 'sm' ? 'sm' : 'md'}
         sx={{ width: 32, height: 32 }}
@@ -43,7 +43,7 @@ export default function LoginChip({}: Props) {
         }}
       >
         {!avatarSrc && <User2Icon />}
-      </Avatar>
+      </Avatar> */}
       <Stack spacing={0} sx={{ textAlign: 'left', minWidth: 0 }}>
         <Typography level="title-sm" textColor="text.primary" noWrap>
           {user?.email}
