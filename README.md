@@ -168,6 +168,25 @@ cd api
 ./run.sh
 ```
 
+### Python SDK Development
+
+This repository also includes the Transformer Lab Python SDK in the `lab-sdk/` directory. The SDK allows you to write plugins and ML scripts that integrate with Transformer Lab.
+
+To develop the SDK:
+
+```bash
+cd lab-sdk
+uv venv
+uv pip install -e .
+uv run pytest  # Run tests
+```
+
+The SDK is published to PyPI as `transformerlab` and can be installed with:
+
+```bash
+pip install transformerlab
+```
+
 #### Requirements
 
 - NVIDIA or AMD GPU on Linux (or Windows via WSL2)
