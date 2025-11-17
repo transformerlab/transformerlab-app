@@ -222,8 +222,12 @@ download_transformer_lab() {
     rm /tmp/transformerlab_web.tar.gz
 
     echo "Web app successfully installed."
+  else
+    echo "Warning: Could not download web app from ${TLAB_APP_URL}. Continuing without web app installation."
+  fi
 
   echo "🌕 Step 1: COMPLETE"
+}
 
 ##############################
 ## Step 2: Install Conda
@@ -542,5 +546,3 @@ else
     esac
   done
 fi
-
-
