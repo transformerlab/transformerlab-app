@@ -6,6 +6,7 @@ import {
   ListItemContent,
   Typography,
   Input,
+  ListItemButton,
 } from '@mui/joy';
 import { TypeOutline } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
@@ -168,10 +169,20 @@ export default function UserLoginTest(): JSX.Element {
           <List>
             {teams.teams.map((team: any) => (
               <ListItem key={team.id}>
-                <ListItemContent>
-                  <Typography level="title-md">{team.name}</Typography>
-                  <Typography level="body-xs">{team.id}</Typography>
-                </ListItemContent>
+                <ListItemButton
+                  onClick={() => {
+                    authContext.setTeam(team.id);
+                  }}
+                  selected={authContext.team === team.id}
+                >
+                  <ListItemContent>
+                    <Typography level="title-md">
+                      {team.name}
+                      {authContext.team === team.id ? ' (selected)' : ''}
+                    </Typography>
+                    <Typography level="body-xs">{team.id}</Typography>
+                  </ListItemContent>
+                </ListItemButton>
               </ListItem>
             ))}
           </List>

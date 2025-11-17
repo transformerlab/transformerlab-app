@@ -126,7 +126,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       ...((options && options.headers) || {}),
       Authorization: `Bearer ${token ?? ''}`,
       'Content-Type': 'application/json',
-      // Optionally include team header if needed by API
+      // Include team header we have it set
       ...(currentTeam ? { 'X-Team': currentTeam } : {}),
     },
     credentials: 'include',
