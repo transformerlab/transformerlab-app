@@ -1,0 +1,116 @@
+{
+  "name": "Inference Metrics Evaluations",
+  "uniqueId": "inference_evals",
+  "description": "Evaluate LLMs using inference metrics on a provided dataset",
+  "plugin-format": "python",
+  "type": "evaluator",
+  "evalsType": "model",
+  "version": "0.1.8",
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
+  "_dataset": true,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "tasks": {
+      "title": "Inference Metrics",
+      "type": "string",
+      "enum": [
+        "Time to First Token (TTFT)",
+        "Total Time",
+        "Prompt Tokens",
+        "Completion Tokens",
+        "Total Tokens",
+        "Tokens per Second"
+      ]
+    },
+    "generation_model": {
+      "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+      "type": "string",
+      "required": true
+    },
+    "system_prompt": {
+      "title": "System Prompt",
+      "type": "string"
+    },
+    "input_column": {
+      "title": "Input Column",
+      "type": "string",
+      "required": true
+    },
+    "output_column": {
+      "title": "Output Column",
+      "type": "string",
+      "required": true
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 128
+    },
+    "temperature": {
+      "title": "Temperature",
+      "type": "number",
+      "default": 0.7,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "multipleOf": 0.01
+    },
+    "top_p": {
+      "title": "Top P",
+      "type": "number",
+      "default": 1.0,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "multipleOf": 0.1
+    },
+    "max_tokens": {
+      "title": "Max Tokens",
+      "type": "integer",
+      "default": 1024,
+      "minimum": 1,
+      "multipleOf": 1
+    }
+  },
+  "parameters_ui": {
+    "tasks": {
+      "ui:help": "Select the inference metric to be evaluated for the model",
+      "ui:widget": "AutoCompleteWidget"
+    },
+    "generation_model": {
+      "ui:help": "Select the model to be used for inference from the drop-down list",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "input_column": {
+      "ui:help": "Select the column from the dataset to be used as input for generation of outputs"
+    },
+    "output_column": {
+      "ui:help": "Select the column from the dataset to be used for storing outputs"
+    },
+    "batch_size": {
+      "ui:help": "Select the batch size for sending the data to the model for inference"
+    },
+    "system_prompt": {
+      "ui:help": "Enter the system prompt to be used during inference"
+    },
+    "temperature": {
+      "ui:help": "Select the temperature for generation",
+      "ui:widget": "RangeWidget"
+    },
+    "max_tokens": {
+      "ui:help": "Select the maximum tokens for generation",
+      "ui:widget": "RangeWidget"
+    }
+  }
+}

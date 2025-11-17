@@ -1,0 +1,170 @@
+{
+  "name": "Huggingface (YourBench) Dataset Generator",
+  "uniqueId": "yourbench_data_gen",
+  "description": "Generates and uploads a dataset to Huggingface with the specified configurations.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.4",
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "_dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "tflabcustomui_docs": {
+      "title": "Reference Documents",
+      "type": "string"
+    },
+    "generation_model": {
+      "title": "Judge Model",
+      "type": "string"
+    },
+    "max_concurrent_requests": {
+      "title": "Maximum concurrent API requests",
+      "type": "integer",
+      "default": 8
+    },
+    "l_min_tokens": {
+      "title": "Minimum tokens per chunk",
+      "type": "integer",
+      "default": 64
+    },
+    "l_max_tokens": {
+      "title": "Maximum tokens per chunk",
+      "type": "integer",
+      "default": 128
+    },
+    "tau_threshold": {
+      "title": "Threshold to decide a boundary",
+      "type": "number",
+      "default": 0.8
+    },
+    "h_min": {
+      "title": "Minimum number of unique chunks to combine",
+      "type": "integer",
+      "default": 2
+    },
+    "h_max": {
+      "title": "Maximum number of unique chunks to combine",
+      "type": "integer",
+      "default": 5
+    },
+    "num_multihops_factor": {
+      "title": "Factor for multi-hop generation",
+      "type": "number",
+      "default": 2.0
+    },
+    "single_shot_instructions": {
+      "title": "Instructions for single-shot question generation",
+      "type": "string",
+      "default": "Generate questions to test a curious adult"
+    },
+    "multi_hop_instructions": {
+      "title": "Instructions for multi-hop question generation",
+      "type": "string",
+      "default": "Generate questions to test a curious adult"
+    },
+    "single_shot_sampling_mode": {
+      "title": "Sampling mode for single-shot questions",
+      "type": "string",
+      "default": "count",
+      "enum": [
+        "count",
+        "all",
+        "percentage"
+      ]
+    },
+    "single_shot_sampling_value": {
+      "title": "Value for sampling (count or percentage)",
+      "type": "number",
+      "default": 5
+    },
+    "single_shot_random_seed": {
+      "title": "Random seed for single-shot sampling",
+      "type": "integer",
+      "default": 42
+    },
+    "multi_hop_sampling_mode": {
+      "title": "Sampling mode for multi-hop questions",
+      "type": "string",
+      "default": "percentage",
+      "enum": [
+        "count",
+        "all",
+        "percentage"
+      ]
+    },
+    "multi_hop_sampling_value": {
+      "title": "Value for sampling (count or percentage)",
+      "type": "number",
+      "default": 0.3
+    },
+    "multi_hop_random_seed": {
+      "title": "Random seed for multi-hop sampling",
+      "type": "integer",
+      "default": 42
+    }
+  },
+  "parameters_ui": {
+    "generation_model": {
+      "ui:help": "Select the model to be used for dataset generation. Select a model which has vision capabilities (like gpt-4o for example so it can ingest documents)",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "max_concurrent_requests": {
+      "ui:help": "Maximum number of concurrent requests to the model. This is important to avoid overloading the model and ensure smooth operation."
+    },
+    "l_min_tokens": {
+      "ui:help": "Minimum number of tokens per chunk. This is important to ensure that the chunks are not too small and contain enough information."
+    },
+    "l_max_tokens": {
+      "ui:help": "Maximum number of tokens per chunk. This is important to ensure that the chunks are not too large and can be processed efficiently."
+    },
+    "tau_threshold": {
+      "ui:help": "Threshold to decide a boundary. This is important to ensure that the chunks are not too similar and contain enough unique information."
+    },
+    "h_min": {
+      "ui:help": "Minimum number of unique chunks to combine for multi-hop QA."
+    },
+    "h_max": {
+      "ui:help": "Maximum number of unique chunks to combine for multi-hop QA."
+    },
+    "num_multihops_factor": {
+      "ui:help": "Higher numbers generate a larger number of multi-hops"
+    },
+    "single_shot_instructions": {
+      "ui:help": "Instructions for single-shot question generation."
+    },
+    "multi_hop_instructions": {
+      "ui:help": "Instructions for multi-hop question generation."
+    },
+    "single_shot_sampling_mode": {
+      "ui:help": "Sampling mode for single-shot questions. Set to count for resource-saving, set to all for using all samples"
+    },
+    "single_shot_sampling_value": {
+      "ui:help": "Value for sampling (count) if mode is single shot count."
+    },
+    "single_shot_random_seed": {
+      "ui:help": "Random seed for single-shot sampling."
+    },
+    "multi_hop_sampling_mode": {
+      "ui:help": "Sampling mode for multi-hop questions. Set to percentage for resource-saving, set to all for using all samples"
+    },
+    "multi_hop_sampling_value": {
+      "ui:help": "Value for sampling (percentage) if mode is multi-hop percentage."
+    },
+    "multi_hop_random_seed": {
+      "ui:help": "Random seed for multi-hop sampling."
+    }
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "name": "Generate Data from Scratch",
+  "uniqueId": "synthesizer_scratch",
+  "description": "Use LLMs to create synthetic data for your usecases from scratch using just a concept of a dataset.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.16",
+  "git": "https://github.com/confident-ai/deepeval",
+  "url": "https://github.com/confident-ai/deepeval",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "generation_model": {
+      "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+      "type": "string"
+    },
+    "num_goldens": {
+      "title": "Number of Samples to generate",
+      "type": "integer",
+      "minimum": 1,
+      "default": 10,
+      "multipleOf": 10
+    },
+    "generate_expected_output": {
+      "title": "Generate Expected Output",
+      "type": "string",
+      "enum": [
+        "Yes",
+        "No"
+      ]
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_scratch"
+    },
+    "scenario": {
+      "title": "Scenario. Describe the scenario for which you want to generate data",
+      "type": "string"
+    },
+    "task": {
+      "title": "Task. Describe the task for which you want to generate data",
+      "type": "string"
+    },
+    "input_format": {
+      "title": "Input Format. Describe the format of the input data which will be sent to the model",
+      "type": "string"
+    },
+    "expected_output_format": {
+      "title": "Expected Output Format. Describe the format of the output data which will be received from the model",
+      "type": "string"
+    }
+  },
+  "parameters_ui": {
+    "num_goldens": {
+      "ui:help": "Number of samples to generate",
+      "ui:widget": "RangeWidget"
+    },
+    "scenario": {
+      "ui:widget": "textarea",
+      "ui:help": "Describe the scenario for which you want to generate data"
+    },
+    "task": {
+      "ui:widget": "textarea",
+      "ui:help": "Describe the task for which you want to generate data"
+    },
+    "input_format": {
+      "ui:widget": "textarea",
+      "ui:help": "Describe the format of the input data which will be sent to the model"
+    },
+    "expected_output_format": {
+      "ui:widget": "textarea",
+      "ui:help": "Describe the format of the output data which will be received from the model"
+    },
+    "generation_model": {
+      "ui:help": "Select the model to be used for generation",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "generate_expected_output": {
+      "ui:help": "Select Yes if you want to generate data for the expected_output as well",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    }
+  }
+}

@@ -35,3 +35,155 @@ npm-debug.log.*
 # https://docs.cursor.com/context/ignore-files#default-ignore-list
 .cursor/
 .cursorignore
+
+# Backend API (Python) ignores
+# --------------------------------
+# Byte-compiled / optimized / DLL files
+api/__pycache__/
+api/**/*.py[cod]
+api/**/*.pyc
+api/**/*.pyo
+api/**/*.pyd
+api/**/$py.class
+api/**/__pycache__/
+
+# C extensions
+api/*.so
+
+# Distribution / packaging
+api/.Python
+api/build/
+api/develop-eggs/
+api/dist/
+api/downloads/
+api/eggs/
+api/.eggs/
+api/lib/
+api/lib64/
+api/parts/
+api/sdist/
+api/var/
+api/wheels/
+api/share/python-wheels/
+api/*.egg-info/
+api/.installed.cfg
+api/*.egg
+api/MANIFEST
+
+# PyInstaller
+api/*.manifest
+api/*.spec
+
+# Installer logs
+api/pip-log.txt
+api/pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+api/htmlcov/
+api/.tox/
+api/.nox/
+api/.coverage
+api/.coverage.*
+api/.cache
+api/nosetests.xml
+api/coverage.xml
+api/*.cover
+api/*.py,cover
+api/.hypothesis/
+api/.pytest_cache/
+api/cover/
+
+# Translations
+api/*.mo
+api/*.pot
+
+# DBs / workspace state
+api/local_settings.py
+api/db.sqlite3
+api/db.sqlite3-journal
+api/workspace/
+api/temp/
+api/experiments/
+api/logs/
+api/*.log
+api/*.log.*
+api/*.sqlite3
+
+# Framework specific
+api/instance/
+api/.webassets-cache
+api/.scrapy
+api/docs/_build/
+api/.pybuilder/
+api/target/
+api/.ipynb_checkpoints
+api/profile_default/
+api/ipython_config.py
+
+# Virtual environments
+api/.env
+api/.venv
+api/env/
+api/venv/
+api/ENV/
+api/env.bak/
+api/venv.bak/
+
+# Tooling metadata
+api/.spyderproject
+api/.spyproject
+api/.ropeproject
+api/.pdm.toml
+api/__pypackages__/
+api/.mypy_cache/
+api/.dmypy.json
+api/dmypy.json
+api/.pyre/
+api/.pytype/
+api/cython_debug/
+api/.python-version
+
+# Project artifacts
+api/*.gguf
+api/*.pid
+api/scripts/aws/aws.conf
+api/scripts/xml-rpc-client-example/output
+api/temp_test_run_data.json
+api/transformerlab/*/.DS_Store
+api/wandb/
+api/.vector_db
+
+# DeepEval cache
+*/.deepeval-cache.json
+*/.temp-deepeval-cache.json
+*/.deepeval_telemetry.txt
+.deepeval-cache.json
+.temp-deepeval-cache.json
+.deepeval_telemetry.txt
+
+# Terraform & infra
+api/**/.terraform
+api/**/.terraform/*
+api/**/.terraform.lock.hcl
+api/**/.terraform.tfstate.lock.info
+api/**/terraform.tfstate
+api/**/terraform.tfstate.*
+api/**/terraform.tfvars
+api/**/terraform.tfvars.json
+api/**/override.tf
+api/**/override.tf.json
+api/**/*_override.tf
+api/**/*_override.tf.json
+api/**/*tfplan*
+api/**/out.plan
+api/**/*.plan
+api/**/.terraformrc
+api/**/terraform.rc
+api/**/crash.log
+api/**/crash.*.log
+
+# Ignore .ssh folders
+api/**/.ssh/
+
+# Unsloth cache
+api/unsloth_compiled_cache/

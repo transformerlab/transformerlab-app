@@ -1,0 +1,69 @@
+{
+  "name": "Autotrain SFT Trainer",
+  "uniqueId": "autotrain_sft_trainer",
+  "description": "SFT training using Huggingface autotrain",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.1.13",
+  "model_architectures": [
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "GemmaForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM",
+    "Phi3ForCausalLM"
+  ],
+  "supported_hardware_architectures": [],
+  "files": [
+    "main.py",
+    "info.md",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 0.0002,
+      "minimum": 1e-06
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "default": "adaptor",
+      "required": true
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": false,
+      "required": true
+    }
+  },
+  "parameters_ui": {
+    "batch_size": {
+      "ui:help": "Default batch is 4. Setting this to 1 or 2 will reduce memory consumption but may slow performance."
+    },
+    "learning_rate": {
+      "ui:help": "Learning rate default is 2e-4."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+    }
+  }
+}

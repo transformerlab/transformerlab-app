@@ -1,0 +1,20 @@
+# This workflow triggers a Netlify docs build when a new GitHub release is published
+name: Trigger Netlify Docs Build on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify Build Hook
+        env:
+          NETLIFY_BUILD_HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          if [ -z "$NETLIFY_BUILD_HOOK" ]; then
+            echo "NETLIFY_BUILD_HOOK secret is not set!"
+            exit 1
+          fi
+          curl -X POST -d '{}' "$NETLIFY_BUILD_HOOK"

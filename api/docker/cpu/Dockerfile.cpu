@@ -1,0 +1,20 @@
+FROM python:3.11-slim
+
+# Install minimal dependencies required for the install script
+RUN apt-get update && apt-get install -y \
+    curl \
+    git
+
+# Download and run the install.sh script from GitHub.
+RUN curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh | bash
+
+EXPOSE 8338
+
+VOLUME ["/root/.transformerlab/"]
+
+WORKDIR /root/.transformerlab/src/
+
+RUN chmod +x ./run.sh
+
+# The entrypoint is set to run the Transformer Lab launcher script.
+ENTRYPOINT ["/root/.transformerlab/src/run.sh"]

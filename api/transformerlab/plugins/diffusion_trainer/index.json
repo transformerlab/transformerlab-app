@@ -1,0 +1,461 @@
+{
+  "name": "Diffusion LoRA Trainer",
+  "uniqueId": "diffusion_trainer",
+  "description": "A plugin for fine-tuning Stable Diffusion using LoRA adapters.",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.1.7",
+  "git": "",
+  "url": "",
+  "model_architectures": [
+    "StableDiffusionPipeline",
+    "StableDiffusionXLPipeline",
+    "StableDiffusion3Pipeline",
+    "FluxPipeline"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cuda",
+    "amd"
+  ],
+  "training_template_format": "none",
+  "setup-script": "setup.sh",
+  "parameters": {
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "default": "adaptor",
+      "required": true
+    },
+    "trigger_word": {
+      "title": "Trigger Word",
+      "type": "string",
+      "default": ""
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 100,
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "train_batch_size": {
+      "title": "Train Batch Size",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "gradient_accumulation_steps": {
+      "title": "Gradient Accumulation Steps",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 32
+    },
+    "caption_column": {
+      "title": "Caption Column",
+      "type": "string",
+      "default": "text"
+    },
+    "image_column": {
+      "title": "Image Column",
+      "type": "string",
+      "default": "image"
+    },
+    "caption_dropout_rate": {
+      "title": "Caption Dropout Rate",
+      "type": "number",
+      "default": 0.0,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "resolution": {
+      "title": "Image Resolution",
+      "type": "integer",
+      "default": 512,
+      "minimum": 64,
+      "maximum": 1024
+    },
+    "center_crop": {
+      "title": "Center Crop",
+      "type": "boolean",
+      "default": false
+    },
+    "image_interpolation_mode": {
+      "title": "Image Interpolation Mode",
+      "type": "string",
+      "default": "lanczos",
+      "enum": [
+        "lanczos",
+        "bilinear",
+        "bicubic",
+        "nearest"
+      ]
+    },
+    "random_flip": {
+      "title": "Random Horizontal Flip",
+      "type": "boolean",
+      "default": false
+    },
+    "color_jitter": {
+      "title": "Enable Color Jitter",
+      "type": "boolean",
+      "default": false
+    },
+    "color_jitter_brightness": {
+      "title": "Color Jitter Brightness",
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "color_jitter_contrast": {
+      "title": "Color Jitter Contrast",
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "color_jitter_saturation": {
+      "title": "Color Jitter Saturation",
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "color_jitter_hue": {
+      "title": "Color Jitter Hue",
+      "type": "number",
+      "default": 0.05,
+      "minimum": 0.0,
+      "maximum": 0.5
+    },
+    "random_rotation": {
+      "title": "Enable Random Rotation",
+      "type": "boolean",
+      "default": false
+    },
+    "rotation_degrees": {
+      "title": "Random Rotation Degrees",
+      "type": "number",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 45
+    },
+    "rotation_prob": {
+      "title": "Random Rotation Probability",
+      "type": "number",
+      "default": 0.3,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "lora_r": {
+      "title": "LoRA Rank (r)",
+      "type": "integer",
+      "default": 8,
+      "minimum": 4,
+      "multipleOf": 4,
+      "maximum": 128
+    },
+    "lora_alpha": {
+      "title": "LoRA Alpha",
+      "type": "integer",
+      "default": 16,
+      "minimum": 4,
+      "maximum": 128,
+      "multipleOf": 4
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 0.0001,
+      "minimum": 1e-07
+    },
+    "lr_scheduler": {
+      "title": "LR Scheduler",
+      "type": "string",
+      "enum": [
+        "constant",
+        "linear",
+        "cosine",
+        "constant_with_warmup"
+      ],
+      "default": "constant"
+    },
+    "lr_warmup_steps": {
+      "title": "LR Warmup Steps",
+      "type": "integer",
+      "default": 50
+    },
+    "adam_beta1": {
+      "title": "Adam Beta 1",
+      "type": "number",
+      "default": 0.9
+    },
+    "adam_beta2": {
+      "title": "Adam Beta 2",
+      "type": "number",
+      "default": 0.999
+    },
+    "adam_weight_decay": {
+      "title": "Adam Weight Decay",
+      "type": "number",
+      "default": 0.01
+    },
+    "adam_epsilon": {
+      "title": "Adam Epsilon",
+      "type": "number",
+      "default": 1e-08
+    },
+    "max_grad_norm": {
+      "title": "Max Grad Norm",
+      "type": "number",
+      "default": 1.0
+    },
+    "loss_type": {
+      "title": "Loss Type",
+      "type": "string",
+      "enum": [
+        "l2",
+        "huber"
+      ],
+      "default": "l2"
+    },
+    "huber_c": {
+      "title": "Huber Loss Beta",
+      "type": "number",
+      "default": 0.1
+    },
+    "prediction_type": {
+      "title": "Prediction Type",
+      "type": "string",
+      "enum": [
+        "epsilon",
+        "v_prediction"
+      ],
+      "default": "epsilon"
+    },
+    "snr_gamma": {
+      "title": "SNR Gamma",
+      "type": "number",
+      "default": 0
+    },
+    "min_snr_gamma": {
+      "title": "Min-SNR Gamma",
+      "type": "number",
+      "default": 0
+    },
+    "noise_offset": {
+      "title": "Noise Offset",
+      "type": "number",
+      "default": 0
+    },
+    "mixed_precision": {
+      "title": "Mixed Precision",
+      "type": "string",
+      "enum": [
+        "no",
+        "fp16",
+        "bf16"
+      ],
+      "default": "no"
+    },
+    "enable_xformers_memory_efficient_attention": {
+      "title": "Enable xFormers Memory Efficient Attention",
+      "type": "boolean",
+      "default": false
+    },
+    "gradient_checkpointing": {
+      "title": "Enable Gradient Checkpointing",
+      "type": "boolean",
+      "default": false
+    },
+    "use_ema": {
+      "title": "Use EMA (Exponential Moving Average)",
+      "type": "boolean",
+      "default": false
+    },
+    "ema_decay": {
+      "title": "EMA Decay Rate",
+      "type": "number",
+      "default": 0.9999,
+      "minimum": 0.9,
+      "maximum": 0.9999
+    },
+    "eval_prompt": {
+      "title": "Evaluation Prompt",
+      "type": "string",
+      "default": ""
+    },
+    "eval_steps": {
+      "title": "Evaluation Steps",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "eval_num_inference_steps": {
+      "title": "Evaluation Inference Steps",
+      "type": "integer",
+      "default": 50,
+      "minimum": 10,
+      "maximum": 100
+    },
+    "eval_guidance_scale": {
+      "title": "Evaluation Guidance Scale",
+      "type": "number",
+      "default": 7.5,
+      "minimum": 1.0,
+      "maximum": 20.0
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "parameters_ui": {
+    "adaptor_name": {
+      "ui:help": "Name for the LoRA adaptor that will be created and saved."
+    },
+    "trigger_word": {
+      "ui:help": "Optional trigger word to prepend to all captions during training. Example: 'sks person' or 'ohwx style'"
+    },
+    "num_train_epochs": {
+      "ui:help": "Total number of training epochs to run."
+    },
+    "train_batch_size": {
+      "ui:help": "Number of images per batch."
+    },
+    "gradient_accumulation_steps": {
+      "ui:help": "Number of steps to accumulate gradients before updating weights. Effectively increases batch size."
+    },
+    "caption_column": {
+      "ui:help": "Name of the column in your dataset that contains image captions."
+    },
+    "image_column": {
+      "ui:help": "Name of the column in your dataset that contains images."
+    },
+    "caption_dropout_rate": {
+      "ui:help": "Probability of dropping captions during training to improve unconditional generation. Set to 1.0 to disable captions entirely."
+    },
+    "resolution": {
+      "ui:help": "Image size for training. Must match model requirements."
+    },
+    "center_crop": {
+      "ui:help": "Whether to center crop images instead of random cropping."
+    },
+    "image_interpolation_mode": {
+      "ui:help": "Interpolation method used when resizing images."
+    },
+    "random_flip": {
+      "ui:help": "Randomly flip images horizontally to increase data variety."
+    },
+    "color_jitter": {
+      "ui:help": "Apply random color transformations to images for data augmentation."
+    },
+    "color_jitter_brightness": {
+      "ui:help": "Amount of brightness variation for color jitter augmentation."
+    },
+    "color_jitter_contrast": {
+      "ui:help": "Amount of contrast variation for color jitter augmentation."
+    },
+    "color_jitter_saturation": {
+      "ui:help": "Amount of saturation variation for color jitter augmentation."
+    },
+    "color_jitter_hue": {
+      "ui:help": "Amount of hue variation for color jitter augmentation."
+    },
+    "random_rotation": {
+      "ui:help": "Apply random rotations to images for data augmentation."
+    },
+    "rotation_degrees": {
+      "ui:help": "Maximum degrees of rotation when random rotation is enabled."
+    },
+    "rotation_prob": {
+      "ui:help": "Probability of applying rotation to each image."
+    },
+    "lora_r": {
+      "ui:widget": "RangeWidget",
+      "ui:help": "Rank of LoRA update matrices. Higher values = more parameters but better quality."
+    },
+    "lora_alpha": {
+      "ui:widget": "RangeWidget",
+      "ui:help": "LoRA scaling factor. Controls the strength of LoRA adaptations."
+    },
+    "learning_rate": {
+      "ui:help": "Learning rate for the optimizer. Controls how fast the model learns."
+    },
+    "lr_scheduler": {
+      "ui:help": "Learning rate schedule type to use during training."
+    },
+    "lr_warmup_steps": {
+      "ui:help": "Number of steps to gradually increase learning rate from 0 to target value."
+    },
+    "adam_beta1": {
+      "ui:help": "Beta1 parameter for Adam optimizer. Controls momentum."
+    },
+    "adam_beta2": {
+      "ui:help": "Beta2 parameter for Adam optimizer. Controls second moment estimation."
+    },
+    "adam_weight_decay": {
+      "ui:help": "Weight decay (L2 regularization) for Adam optimizer."
+    },
+    "adam_epsilon": {
+      "ui:help": "Epsilon parameter for Adam optimizer numerical stability."
+    },
+    "max_grad_norm": {
+      "ui:help": "Maximum gradient norm for gradient clipping to prevent exploding gradients."
+    },
+    "loss_type": {
+      "ui:help": "Type of loss function to use. L2 is standard, Huber is more robust to outliers."
+    },
+    "huber_c": {
+      "ui:help": "Beta parameter for Huber loss when loss_type is set to 'huber'."
+    },
+    "prediction_type": {
+      "ui:help": "Type of prediction the model makes. Epsilon predicts noise, v_prediction uses velocity parameterization."
+    },
+    "snr_gamma": {
+      "ui:help": "Signal-to-noise ratio gamma for loss weighting. Set to 0 to disable."
+    },
+    "min_snr_gamma": {
+      "ui:help": "Minimum SNR gamma value for Min-SNR loss weighting. Set to 0 to disable."
+    },
+    "noise_offset": {
+      "ui:help": "Offset added to noise for training. Can help with very dark/bright images."
+    },
+    "mixed_precision": {
+      "ui:help": "Enable mixed precision training for faster speed and lower memory usage."
+    },
+    "enable_xformers_memory_efficient_attention": {
+      "ui:help": "Use xFormers for memory-efficient attention computation."
+    },
+    "gradient_checkpointing": {
+      "ui:help": "Trade compute for memory by recomputing activations during backward pass."
+    },
+    "use_ema": {
+      "ui:help": "Use Exponential Moving Average of model weights for more stable training."
+    },
+    "ema_decay": {
+      "ui:help": "Decay rate for EMA. Higher values give more weight to recent updates."
+    },
+    "eval_prompt": {
+      "ui:help": "Text prompt used to generate evaluation images during training. Leave empty to skip evaluation image generation."
+    },
+    "eval_steps": {
+      "ui:help": "Generate evaluation images every N epochs. Set to 1 to generate after each epoch."
+    },
+    "eval_num_inference_steps": {
+      "ui:help": "Number of denoising steps to use when generating evaluation images."
+    },
+    "eval_guidance_scale": {
+      "ui:help": "Guidance scale for evaluation image generation. Higher values follow prompt more closely."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training metrics to Weights and Biases. Requires W&B account and API key."
+    }
+  }
+}
