@@ -29,13 +29,17 @@ storage.makedirs(STATIC_FILES_DIR, exist_ok=True)
 if not storage.exists(storage.join(STATIC_FILES_DIR, "index.html")):
     with storage.open(storage.join(STATIC_FILES_DIR, "index.html"), "w") as f:
         f.write(
-            "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash</pre> to install.</p></body></html>"
+            "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-app/main/api/install.sh | bash</pre> to install.</p></body></html>"
         )
 
 # TFL_SOURCE_CODE_DIR
-api_py_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+api_py_dir = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 if api_py_dir != storage.join(HOME_DIR, "src"):
-    print(f"We are working from {api_py_dir} which is not {os.path.join(HOME_DIR, 'src')}")
+    print(
+        f"We are working from {api_py_dir} which is not {os.path.join(HOME_DIR, 'src')}"
+    )
     print(
         "That means you are probably developing in a different location so we will set source dir to the current directory"
     )
@@ -49,14 +53,18 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 
 
 # PLUGIN_PRELOADED_GALLERY
-PLUGIN_PRELOADED_GALLERY = storage.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugins")
+PLUGIN_PRELOADED_GALLERY = storage.join(
+    TFL_SOURCE_CODE_DIR, "transformerlab", "plugins"
+)
 
 PLUGIN_SDK_DIR = storage.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugin_sdk")
 PLUGIN_HARNESS = storage.join(PLUGIN_SDK_DIR, "plugin_harness.py")
 
 
 # Galleries cache directory
-GALLERIES_LOCAL_FALLBACK_DIR = storage.join(TFL_SOURCE_CODE_DIR, "transformerlab/galleries/")
+GALLERIES_LOCAL_FALLBACK_DIR = storage.join(
+    TFL_SOURCE_CODE_DIR, "transformerlab/galleries/"
+)
 
 
 # TEMPORARY: We want to move jobs back into the root directory instead of under experiment
