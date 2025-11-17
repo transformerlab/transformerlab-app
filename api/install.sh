@@ -173,11 +173,8 @@ download_transformer_lab() {
 
   # Figure out the path to the lastest release of Transformer Lab
   LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-app/releases/latest)
-  # LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
-  # LATEST_RELEASE_VERSION_WITHOUT_V=$(echo "$LATEST_RELEASE_VERSION" | sed 's/v//g')
-
-  LATEST_RELEASE_VERSION=merge-test
-  LATEST_RELEASE_VERSION_WITHOUT_V=merge-test
+  LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
+  LATEST_RELEASE_VERSION_WITHOUT_V=$(echo "$LATEST_RELEASE_VERSION" | sed 's/v//g')
 
   echo "Latest Release of Transformer Lab on Github: $LATEST_RELEASE_VERSION"
   TLAB_URL="https://github.com/transformerlab/transformerlab-app/archive/refs/tags/${LATEST_RELEASE_VERSION}.tar.gz"
