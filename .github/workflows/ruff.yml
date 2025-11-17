@@ -11,4 +11,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
         with:
-          args: "check ./api"
+          args: "check ./api ./lab-sdk"
