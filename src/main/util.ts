@@ -149,23 +149,21 @@ export async function checkForMissingSystemRequirements() {
 }
 
 export async function checkLocalServerVersion() {
-  const codeDir = await getTransformerLabCodeDir();
-  const versionFileCandidates = [
-    path.join(codeDir, 'LATEST_VERSION'),
-    path.join(codeDir, 'api', 'LATEST_VERSION'),
-  ];
+  const mainFile = path.join(
+    await getTransformerLabCodeDir(),
+    'LATEST_VERSION',
+  );
 
-  for (const mainFile of versionFileCandidates) {
-    console.log('Checking if server is installed locally at', mainFile);
-    if (fs.existsSync(mainFile)) {
-      let version = fs.readFileSync(mainFile, 'utf8');
-      version = version.replace(/\s/g, '');
-      console.log('Found version', version);
-      return version;
-    }
+  console.log('Checking if server is installed locally at', mainFile);
+  if (fs.existsSync(mainFile)) {
+    let version = fs.readFileSync(mainFile, 'utf8');
+    // remove whitespace:
+    version = version.replace(/\s/g, '');
+    console.log('Found version', version);
+    return version;
+  } else {
+    return false;
   }
-
-  return false;
 }
 
 export async function startLocalServer() {

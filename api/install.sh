@@ -199,31 +199,29 @@ download_transformer_lab() {
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
 
-  # Copy the bundled static cloud assets from the repo, or fall back to downloading
-  if [ -d "${NEW_DIRECTORY_PATH}/release/cloud" ]; then
-    echo "Copying static web assets from downloaded release"
-    rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
-    mkdir -p "${TLAB_STATIC_WEB_DIR}"
-    cp -R "${NEW_DIRECTORY_PATH}/release/cloud/." "${TLAB_STATIC_WEB_DIR}/"
-  else
-    echo "Bundled cloud assets not found, attempting to download transformerlab_web.tar.gz"
-    TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
-    echo "APP Download Location: $TLAB_APP_URL"
-    rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
-    mkdir -p "${TLAB_STATIC_WEB_DIR}"
-    if curl -L --fail "${TLAB_APP_URL}" -o /tmp/transformerlab_web.tar.gz; then
-      tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
-      mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
-      rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
-      rm /tmp/transformerlab_web.tar.gz
-      echo "Web app successfully installed from transformerlab_web.tar.gz."
-    else
-      echo "Warning: Could not download web app from ${TLAB_APP_URL}. Continuing without web app installation."
-    fi
-  fi
+  # Now do the same thing for the web app which is in a different repo called https://github.com/transformerlab/transformerlab-app
+  # Step 1: First get the latest release version:
+  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+  echo "APP Download Location: $TLAB_APP_URL"
 
-  # Clean up any extracted source tree left behind
-  rm -rf "${NEW_DIRECTORY_PATH}"
+  # Delete and recreate the target static files directory
+  echo "Creating clean directory at ${TLAB_STATIC_WEB_DIR}"
+  rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
+  mkdir -p "${TLAB_STATIC_WEB_DIR}"
+
+  # Download and extract, handling possible failure
+  if curl -L --fail "${TLAB_APP_URL}" -o /tmp/transformerlab_web.tar.gz; then
+    # Extraction succeeded, proceed with unpacking
+    tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
+
+    # Move contents up one level and clean up
+    mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
+    rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+
+    # Remove the temporary file
+    rm /tmp/transformerlab_web.tar.gz
+
+    echo "Web app successfully installed."
 
   echo "🌕 Step 1: COMPLETE"
 }
