@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     ninja-build
 
 # Download and run the install.sh script from GitHub.
-RUN curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh | bash -s download_transformer_lab install_conda create_conda_environment
+RUN curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/api/install.sh | bash -s download_transformer_lab install_conda create_conda_environment
 
 EXPOSE 8338
 
