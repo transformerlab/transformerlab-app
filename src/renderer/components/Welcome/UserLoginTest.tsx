@@ -79,13 +79,7 @@ export default function UserLoginTest(): JSX.Element {
         {authContext?.isAuthenticated ? 'Logged in' : 'Not logged in'}
       </div>
 
-      {authContext?.isAuthenticated ? (
-        <div>
-          <button type="button" onClick={authContext.logout}>
-            Logout
-          </button>
-        </div>
-      ) : (
+      {authContext?.isAuthenticated ? null : (
         <div>
           {/* Quick test auth buttons */}
           <button

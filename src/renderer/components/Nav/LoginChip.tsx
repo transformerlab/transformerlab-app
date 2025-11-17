@@ -22,12 +22,11 @@ export default function LoginChip({}: Props) {
 
   return (
     <Sheet
-      variant="soft"
-      color="success"
       // onClick={() => {
       //   alert('Auth Context:\n' + JSON.stringify(authContext, null, 2));
       // }}
       sx={{
+        backgroundColor: 'transparent',
         px: 1,
         py: 0.25,
         gap: 1,
@@ -49,7 +48,6 @@ export default function LoginChip({}: Props) {
       <Stack spacing={0} sx={{ textAlign: 'left', minWidth: 0 }}>
         <Typography
           level="title-sm"
-          textColor="text.primary"
           noWrap
           onClick={() => {
             navigate('/user_info_test');
