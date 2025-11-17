@@ -197,7 +197,7 @@ uv pip compile requirements.in -o requirements-no-gpu-uv.txt
 Notes:
 
 1. Remove `nvidia-ml-py` if it appears in the ROCm lockfile.
-2. The `sed` commands strip suffixes from PyTorch wheels that otherwise break installs.
+2. The `sed` commands strip suffixes from PyTorch wheels that otherwise break installs using uv pip sync.
 
 #### Windows Notes
 
