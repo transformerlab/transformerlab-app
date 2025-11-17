@@ -2,11 +2,11 @@ FROM python:3.11-slim
 
 # Install minimal dependencies required for the install script
 RUN apt-get update && apt-get install -y \
-    curl \
-    git
+  curl \
+  git
 
 # Download and run the install.sh script from GitHub.
-RUN curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh | bash
+RUN curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/api/install.sh | bash
 
 EXPOSE 8338
 
