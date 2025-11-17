@@ -1,3 +1,4 @@
+import { Button } from '@mui/joy';
 import React, { useEffect, useState } from 'react';
 import { useAuth } from 'renderer/lib/authContext';
 
@@ -82,32 +83,40 @@ export default function UserLoginTest(): JSX.Element {
       {authContext?.isAuthenticated ? null : (
         <div>
           {/* Quick test auth buttons */}
-          <button
+          <Button
             type="button"
             onClick={authContext.login}
             disabled={loading}
             style={{ marginRight: 8 }}
           >
             {loading ? 'Logging in...' : 'Login (test)'}
-          </button>
-          <button type="button" onClick={handleRegister} disabled={loading}>
+          </Button>
+          <Button
+            type="button"
+            onClick={() => handleRegister()}
+            disabled={loading}
+          >
             {loading ? 'Registering...' : 'Register (test)'}
-          </button>
+          </Button>
         </div>
       )}
 
       <div style={{ marginTop: 12 }}>
-        <button type="button" onClick={handleTestApi} disabled={loading}>
-          {loading ? 'Testing...' : 'Test protected API'}
-        </button>
-        <button
+        <Button
           type="button"
-          onClick={handleGetCurrentUser}
+          onClick={() => handleTestApi()}
+          disabled={loading}
+        >
+          {loading ? 'Testing...' : 'Test protected API'}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => handleGetCurrentUser()}
           disabled={loading || !authContext?.isAuthenticated}
           style={{ marginLeft: 8 }}
         >
           {loading ? 'Loading...' : 'Get current user'}
-        </button>
+        </Button>
         {apiResult && (
           <div style={{ marginTop: 8 }}>
             <pre style={{ whiteSpace: 'pre-wrap' }}>{apiResult}</pre>
