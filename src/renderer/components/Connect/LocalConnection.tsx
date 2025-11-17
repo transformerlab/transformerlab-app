@@ -417,7 +417,8 @@ function InstallStepper({ setServer }) {
         } catch {
           json.tag_name = 'Unable to Connect to Github Please Skip';
         }
-        const tag = json.tag_name;
+        // const tag = json.tag_name;
+        const tag = 'merge-test';
 
         setRelease(tag);
         const releaseValue = tag;
