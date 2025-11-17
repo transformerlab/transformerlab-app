@@ -193,7 +193,9 @@ download_transformer_lab() {
   if [ -d "${NEW_DIRECTORY_PATH}/api" ]; then
     mv "${NEW_DIRECTORY_PATH}/api" "${TLAB_CODE_DIR}"
   else
-    mv "${NEW_DIRECTORY_PATH}" "${TLAB_CODE_DIR}"
+    # Raise an error and exit
+    rm "${TLAB_DIR}/transformerlab.tar.gz"
+    abort "❌ Expected 'api' directory not found in downloaded release at ${NEW_DIRECTORY_PATH}/api. The release archive may be malformed or the repository structure has changed."
   fi
   rm "${TLAB_DIR}/transformerlab.tar.gz"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
