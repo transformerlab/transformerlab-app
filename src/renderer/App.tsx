@@ -211,6 +211,11 @@ export default function App() {
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
   const [theme, setTheme] = useState(customTheme);
 
+  useEffect(() => {
+    window.TransformerLab = {};
+    window.TransformerLab.API_URL = process.env.TL_API_URL || '';
+  }, []);
+
   // if the logs drawer is open, set the initial height
   useEffect(() => {
     if (logsDrawerOpen) {
