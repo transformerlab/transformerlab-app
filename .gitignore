@@ -36,67 +36,105 @@ npm-debug.log.*
 .cursor/
 .cursorignore
 
-# Backend API (Python) ignores
+# Common Python ignores (applies to both api/ and lab-sdk/)
 # --------------------------------
 # Byte-compiled / optimized / DLL files
-api/__pycache__/
-api/**/*.py[cod]
-api/**/*.pyc
-api/**/*.pyo
-api/**/*.pyd
-api/**/$py.class
-api/**/__pycache__/
+**/__pycache__/
+**/*.py[cod]
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/$py.class
 
 # C extensions
-api/*.so
+*.so
 
 # Distribution / packaging
-api/.Python
-api/build/
-api/develop-eggs/
-api/dist/
-api/downloads/
-api/eggs/
-api/.eggs/
-api/lib/
-api/lib64/
-api/parts/
-api/sdist/
-api/var/
-api/wheels/
-api/share/python-wheels/
-api/*.egg-info/
-api/.installed.cfg
-api/*.egg
-api/MANIFEST
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
 # PyInstaller
-api/*.manifest
-api/*.spec
+*.manifest
+*.spec
 
 # Installer logs
-api/pip-log.txt
-api/pip-delete-this-directory.txt
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Unit test / coverage reports
-api/htmlcov/
-api/.tox/
-api/.nox/
-api/.coverage
-api/.coverage.*
-api/.cache
-api/nosetests.xml
-api/coverage.xml
-api/*.cover
-api/*.py,cover
-api/.hypothesis/
-api/.pytest_cache/
-api/cover/
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
 
 # Translations
-api/*.mo
-api/*.pot
+*.mo
+*.pot
 
+# Virtual environments
+.env
+.envrc
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Tooling metadata
+.spyderproject
+.spyproject
+.ropeproject
+.pdm.toml
+.pdm-python
+.pdm-build/
+__pypackages__/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+cython_debug/
+.python-version
+
+# Ruff cache
+.ruff_cache/
+
+# PyPI configuration
+.pypirc
+
+# Marimo
+marimo/_static/
+marimo/_lsp/
+__marimo__/
+
+# Backend API (Python) specific ignores
+# --------------------------------
 # DBs / workspace state
 api/local_settings.py
 api/db.sqlite3
@@ -120,29 +158,6 @@ api/.ipynb_checkpoints
 api/profile_default/
 api/ipython_config.py
 
-# Virtual environments
-api/.env
-api/.venv
-api/env/
-api/venv/
-api/ENV/
-api/env.bak/
-api/venv.bak/
-
-# Tooling metadata
-api/.spyderproject
-api/.spyproject
-api/.ropeproject
-api/.pdm.toml
-api/__pypackages__/
-api/.mypy_cache/
-api/.dmypy.json
-api/dmypy.json
-api/.pyre/
-api/.pytype/
-api/cython_debug/
-api/.python-version
-
 # Project artifacts
 api/*.gguf
 api/*.pid
@@ -153,7 +168,7 @@ api/transformerlab/*/.DS_Store
 api/wandb/
 api/.vector_db
 
-# DeepEval cache
+# DeepEval cache (already covered by global patterns above, but keeping for clarity)
 */.deepeval-cache.json
 */.temp-deepeval-cache.json
 */.deepeval_telemetry.txt
@@ -188,102 +203,6 @@ api/**/.ssh/
 # Unsloth cache
 api/unsloth_compiled_cache/
 
-# Python SDK (lab-sdk) ignores
+# Python SDK (lab-sdk) specific ignores
 # --------------------------------
-# Byte-compiled / optimized / DLL files
-lab-sdk/__pycache__/
-lab-sdk/**/*.py[cod]
-lab-sdk/**/*.pyc
-lab-sdk/**/*.pyo
-lab-sdk/**/*.pyd
-lab-sdk/**/$py.class
-lab-sdk/**/__pycache__/
-
-# C extensions
-lab-sdk/*.so
-
-# Distribution / packaging
-lab-sdk/.Python
-lab-sdk/build/
-lab-sdk/develop-eggs/
-lab-sdk/dist/
-lab-sdk/downloads/
-lab-sdk/eggs/
-lab-sdk/.eggs/
-lab-sdk/lib/
-lab-sdk/lib64/
-lab-sdk/parts/
-lab-sdk/sdist/
-lab-sdk/var/
-lab-sdk/wheels/
-lab-sdk/share/python-wheels/
-lab-sdk/*.egg-info/
-lab-sdk/.installed.cfg
-lab-sdk/*.egg
-lab-sdk/MANIFEST
-
-# PyInstaller
-lab-sdk/*.manifest
-lab-sdk/*.spec
-
-# Installer logs
-lab-sdk/pip-log.txt
-lab-sdk/pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-lab-sdk/htmlcov/
-lab-sdk/.tox/
-lab-sdk/.nox/
-lab-sdk/.coverage
-lab-sdk/.coverage.*
-lab-sdk/.cache
-lab-sdk/nosetests.xml
-lab-sdk/coverage.xml
-lab-sdk/*.cover
-lab-sdk/*.py,cover
-lab-sdk/.hypothesis/
-lab-sdk/.pytest_cache/
-lab-sdk/cover/
-
-# Translations
-lab-sdk/*.mo
-lab-sdk/*.pot
-
-# Virtual environments
-lab-sdk/.env
-lab-sdk/.envrc
-lab-sdk/.venv
-lab-sdk/env/
-lab-sdk/venv/
-lab-sdk/ENV/
-lab-sdk/env.bak/
-lab-sdk/venv.bak/
-
-# Tooling metadata
-lab-sdk/.spyderproject
-lab-sdk/.spyproject
-lab-sdk/.ropeproject
-lab-sdk/.pdm.toml
-lab-sdk/.pdm-python
-lab-sdk/.pdm-build/
-lab-sdk/__pypackages__/
-lab-sdk/.mypy_cache/
-lab-sdk/.dmypy.json
-lab-sdk/dmypy.json
-lab-sdk/.pyre/
-lab-sdk/.pytype/
-lab-sdk/cython_debug/
-lab-sdk/.python-version
-
-# Ruff cache
-lab-sdk/.ruff_cache/
-
-# PyPI configuration
-lab-sdk/.pypirc
-
-# Marimo
-lab-sdk/marimo/_static/
-lab-sdk/marimo/_lsp/
-lab-sdk/__marimo__/
-
 lab-sdk/src/transformerlab.egg-info/
