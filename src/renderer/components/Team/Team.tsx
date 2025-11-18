@@ -7,7 +7,14 @@ import {
   Typography,
   Input,
   ListItemButton,
+  Option,
+  Select,
+  Modal,
+  ModalDialog,
+  ModalClose,
+  Stack,
 } from '@mui/joy';
+import { PlusIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 
@@ -21,56 +28,12 @@ import { useAPI, useAuth } from 'renderer/lib/authContext';
 // --- React component ---
 export default function UserLoginTest(): JSX.Element {
   const authContext = useAuth();
-  const [apiResult, setApiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [newTeamName, setNewTeamName] = useState<string>('');
+  const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
-  const { data: userInfo } = useAPI('users', ['me']);
-
-  async function handleTestApi() {
-    setApiResult(null);
-    setLoading(true);
-    try {
-      const res = await authContext.fetchWithAuth(
-        'test-users/authenticated-route',
-        {
-          method: 'GET',
-        },
-      );
-      const text = await res.text();
-      setApiResult(`Status: ${res.status} — Body: ${text}`);
-    } catch (e: any) {
-      setApiResult(`Error: ${e?.message ?? String(e)}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleRegister() {
-    setApiResult(null);
-    setLoading(true);
-    try {
-      const res = await authContext.fetchWithAuth('auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: 'test@example.com',
-          password: 'password123',
-        }),
-      });
-      const data = await res.json();
-      setApiResult(`Status: ${res.status} — Body: ${JSON.stringify(data)}`);
-    } catch (e: any) {
-      setApiResult(`Error: ${e?.message ?? String(e)}`);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleNewTeam() {
-    setApiResult(null);
     setLoading(true);
     try {
       const res = await authContext.fetchWithAuth('teams', {
@@ -90,17 +53,15 @@ export default function UserLoginTest(): JSX.Element {
         } catch {
           bodyText = await res.text();
         }
-        setApiResult(`Error: ${res.status} — ${bodyText}`);
         return;
       }
 
       const data = await res.json();
-      setApiResult(`Created team: ${JSON.stringify(data)}`);
       setNewTeamName('');
 
       teamsMutate();
     } catch (e: any) {
-      setApiResult(`Error: ${e?.message ?? String(e)}`);
+      console.error('Error creating team:', e);
     } finally {
       setLoading(false);
     }
@@ -108,108 +69,110 @@ export default function UserLoginTest(): JSX.Element {
 
   return (
     <div>
-      <div>
-        <strong>Login status:</strong>{' '}
-        {authContext?.isAuthenticated ? 'Logged in' : 'Not logged in'}
-      </div>
-
-      {authContext?.isAuthenticated ? null : (
-        <div>
-          {/* Quick test auth buttons */}
-          <Button
-            type="button"
-            onClick={() => authContext.login('test@example.com', 'password123')}
-            disabled={loading}
-            style={{ marginRight: 8 }}
-          >
-            {loading ? 'Logging in...' : 'Login (test)'}
-          </Button>
-          <Button
-            type="button"
-            onClick={() => handleRegister()}
-            disabled={loading}
-          >
-            {loading ? 'Registering...' : 'Register (test)'}
-          </Button>
-        </div>
-      )}
-
-      <div style={{ marginTop: 12 }}>
-        <Button
-          type="button"
-          onClick={() => handleTestApi()}
-          disabled={loading}
+      <Box>
+        <Typography level="title-lg" mb={1}>
+          Current Workspace:
+        </Typography>
+        <Stack
+          direction="row"
+          spacing={2}
+          alignItems="center"
+          sx={{ width: '100%' }}
         >
-          {loading ? 'Testing...' : 'Test protected API'}
-        </Button>
-        {apiResult && (
-          <div style={{ marginTop: 8 }}>
-            <pre style={{ whiteSpace: 'pre-wrap' }}>{apiResult}</pre>
-          </div>
-        )}
-      </div>
-
-      <Box>
-        <Typography level="h4" mt={3}>
-          User Info:
-        </Typography>
-        {userInfo && (
-          <pre style={{ whiteSpace: 'pre-wrap' }}>
-            {JSON.stringify(userInfo, null, 2)}
-          </pre>
-        )}
-      </Box>
-
-      <Box>
-        <Typography level="h4" mt={3}>
-          Teams:
-        </Typography>
-        {/* {JSON.stringify(authContext, null, 2)} */}
-        {teams?.teams && (
-          <List>
+          <Select
+            value={authContext.team?.id ?? ''}
+            onChange={(_, value) => {
+              const selectedId = value as string;
+              const selectedTeam = teams.teams.find(
+                (t: any) => t.id === selectedId,
+              );
+              if (selectedTeam) {
+                authContext.setTeam({
+                  id: selectedTeam.id,
+                  name: selectedTeam.name,
+                });
+              }
+            }}
+            disabled={loading}
+            aria-label="Select workspace"
+            sx={{ minWidth: 300 }}
+          >
             {teams.teams.map((team: any) => (
-              <ListItem key={team.id}>
-                <ListItemButton
-                  onClick={() => {
-                    authContext.setTeam({ id: team.id, name: team.name });
-                  }}
-                  selected={authContext.team?.id === team.id}
-                >
-                  <ListItemContent>
-                    <Typography level="title-md">
-                      {team.name}
-                      {authContext.team?.id === team.id ? ' (selected)' : ''}
-                    </Typography>
-                    <Typography level="body-xs">{team.id}</Typography>
-                  </ListItemContent>
-                </ListItemButton>
-              </ListItem>
+              <Option key={team.id} value={team.id}>
+                {team.name}
+                {/* — {team.id} */}
+              </Option>
             ))}
-          </List>
-        )}
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-            marginTop: 8,
-          }}
-        >
-          <Input
-            placeholder="New team name"
-            value={newTeamName}
-            onChange={(e: any) => setNewTeamName(e.target.value)}
-            disabled={loading}
-            aria-label="New team name"
-            size="sm"
-          />
-          <Button
-            onClick={() => handleNewTeam()}
-            disabled={loading || !newTeamName.trim()}
-          >
-            {loading ? 'Creating...' : 'Create a New Team'}
-          </Button>
-        </div>
+          </Select>
+
+          <Box sx={{ mt: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Button
+              onClick={() => setOpenNewTeamModal(true)}
+              disabled={loading}
+              variant="soft"
+              startDecorator={<PlusIcon />}
+            >
+              New Workspace
+            </Button>
+
+            <Modal
+              open={openNewTeamModal}
+              onClose={() => setOpenNewTeamModal(false)}
+            >
+              <ModalDialog
+                aria-labelledby="new-workspace-title"
+                sx={{ minWidth: 320 }}
+              >
+                <ModalClose />
+                <Typography id="new-workspace-title" level="h4">
+                  New Workspace Name
+                </Typography>
+
+                <Box sx={{ mt: 2 }}>
+                  <Input
+                    placeholder="Workspace name"
+                    value={newTeamName}
+                    onChange={(e: any) => setNewTeamName(e.target.value)}
+                    disabled={loading}
+                    aria-label="New workspace name"
+                    size="sm"
+                    autoFocus
+                  />
+                </Box>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    gap: 1,
+                    justifyContent: 'flex-end',
+                    mt: 2,
+                  }}
+                >
+                  <Button
+                    variant="plain"
+                    onClick={() => setOpenNewTeamModal(false)}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      // call existing handler and close the dialog
+                      handleNewTeam();
+                      setOpenNewTeamModal(false);
+                    }}
+                    disabled={loading || !newTeamName.trim()}
+                  >
+                    {loading ? 'Creating...' : 'Create'}
+                  </Button>
+                </Box>
+              </ModalDialog>
+            </Modal>
+          </Box>
+        </Stack>
+        <Box sx={{ mt: 3 }}>
+          <Typography level="title-lg">Members:</Typography>
+        </Box>
       </Box>
     </div>
   );
