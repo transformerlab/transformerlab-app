@@ -78,25 +78,27 @@ export default function RunModelButton({
         ? loadModelJobs[0]?.id
         : null;
 
-  const jobLogsEndpoint =
-    apiUrl && jobIdForLogs
-      ? `${apiUrl}server/job_logs?job_id=${encodeURIComponent(String(jobIdForLogs))}`
-      : null;
+  // Read tail from job data (prefer jobIdForLogs if available)
+  const { data: jobLogsData } = useSWR(
+    jobIdForLogs && experimentInfo?.id
+      ? chatAPI.Endpoints.Jobs.Get(experimentInfo.id, String(jobIdForLogs))
+      : null,
+    fetcher,
+    { refreshInterval: 2000 },
+  );
 
-  const { data: serverJobLogs } = useSWR(jobLogsEndpoint, fetcher, {
-    refreshInterval: 2000,
-  });
   const [jobLogFull, setJobLogFull] = useState<string | null>(null);
   const [jobLogLine, setJobLogLine] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!serverJobLogs || !Array.isArray(serverJobLogs.logs)) {
+    const tail = jobLogsData?.job_data?.tail;
+    if (!tail || !Array.isArray(tail) || tail.length === 0) {
       setJobLogFull(null);
       setJobLogLine(null);
       return;
     }
 
-    const lines = serverJobLogs.logs.slice().filter(Boolean);
+    const lines = tail.slice().filter(Boolean);
     let candidate = lines
       .slice()
       .reverse()
@@ -125,7 +127,7 @@ export default function RunModelButton({
     } else {
       setJobLogLine(full || null);
     }
-  }, [serverJobLogs]);
+  }, [jobLogsData]);
   const [stopping, setStopping] = useState(false);
   const [showRunSettings, setShowRunSettings] = useState(false);
   const [inferenceSettings, setInferenceSettings] = useState({
@@ -450,9 +452,9 @@ export default function RunModelButton({
               </Button>
 
               {jobId != null &&
-                jobId !== null &&
-                // Show logs if the server returns logs, OR while job is still in-flight.
-                ((serverJobLogs?.logs && serverJobLogs.logs.length > 0) ||
+                // Show logs if the job_data.tail has entries, OR while job is still in-flight.
+                ((jobLogsData?.job_data?.tail &&
+                  jobLogsData.job_data.tail.length > 0) ||
                   !jobStatusData ||
                   !['SUCCESS', 'COMPLETE', 'FAILED', 'STOPPED'].includes(
                     jobStatusData?.status,
@@ -467,9 +469,8 @@ export default function RunModelButton({
                     }}
                   >
                     <div style={{ flex: 1 }}>
-                      {serverJobLogs?.logs && serverJobLogs.logs.length > 0 ? (
-                        // Render only the latest server-side log line (page font).
-                        // If truncated, reveal full text in title (hover).
+                      {jobLogsData?.job_data?.tail &&
+                      jobLogsData.job_data.tail.length > 0 ? (
                         <Typography
                           level="body-sm"
                           title={jobLogFull || undefined}
@@ -480,16 +481,46 @@ export default function RunModelButton({
                             margin: 0,
                             color: 'var(--joy-palette-neutral-700)',
                             maxWidth: '40ch',
+                            fontFamily: 'inherit', // use app font (not monospace)
+                            fontWeight: 400,
                           }}
                         >
                           {jobLogLine || 'Starting model...'}
                         </Typography>
                       ) : jobStatusData?.job_data?.message ? (
-                        <Typography level="body-sm">
+                        <Typography
+                          level="body-sm"
+                          title={String(jobStatusData.job_data.message)}
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            margin: 0,
+                            color: 'var(--joy-palette-neutral-700)',
+                            maxWidth: '40ch',
+                            fontFamily: 'inherit',
+                            fontWeight: 400,
+                          }}
+                        >
                           {jobStatusData.job_data.message}
                         </Typography>
                       ) : (
-                        <Typography level="body-sm">
+                        <Typography
+                          level="body-sm"
+                          title={String(
+                            jobStatusData?.status || 'Starting model...',
+                          )}
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            margin: 0,
+                            color: 'var(--joy-palette-neutral-700)',
+                            maxWidth: '40ch',
+                            fontFamily: 'inherit',
+                            fontWeight: 400,
+                          }}
+                        >
                           {jobStatusData?.status || 'Starting model...'}
                         </Typography>
                       )}
