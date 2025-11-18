@@ -14,6 +14,7 @@ import {
   ListItemDecorator,
 } from '@mui/joy';
 import {
+  ArrowRightIcon,
   ChevronDown,
   ChevronDownIcon,
   ChevronUpIcon,
@@ -114,12 +115,12 @@ export default function LoginChip({}: Props) {
           <ListItemDecorator>
             <SettingsIcon size={16} />
           </ListItemDecorator>
-          Edit <b>{teamName}</b>
+          Team Settings
         </MenuItem>
         <Divider />
         {teams?.teams.length > 0 ? (
           // header indicator for teams (non-interactive)
-          <MenuItem disabled>Select Team</MenuItem>
+          <MenuItem disabled>Select Team:</MenuItem>
         ) : null}
         {teams?.teams.map((t: any) => (
           <MenuItem
@@ -133,6 +134,11 @@ export default function LoginChip({}: Props) {
               fontWeight: authContext.team?.id === t.id ? 'bold' : 'normal',
             }}
           >
+            <ListItemDecorator>
+              {authContext.team?.id === t.id ? (
+                <ArrowRightIcon size={16} strokeWidth={4} />
+              ) : null}
+            </ListItemDecorator>
             {t.name}
           </MenuItem>
         ))}
