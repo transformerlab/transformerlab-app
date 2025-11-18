@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "lab-sdk/**"
   pull_request:
     branches:
       - main
+    paths:
+      - "lab-sdk/**"
 
 jobs:
   pytest:
@@ -41,4 +45,3 @@ jobs:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: |
           uv run pytest
-
