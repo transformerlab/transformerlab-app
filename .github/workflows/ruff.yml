@@ -3,13 +3,7 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "api/**"
-      - "lab-sdk/**"
   pull_request:
-    paths:
-      - "api/**"
-      - "lab-sdk/**"
 jobs:
   ruff:
     runs-on: ubuntu-latest
