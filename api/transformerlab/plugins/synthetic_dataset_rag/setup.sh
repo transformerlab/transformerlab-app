@@ -1,0 +1,1 @@
+uv pip install anthropic==0.49.0 openai==1.77.0 datasets==3.5.1 PyMuPDF==1.25.5 deepeval==2.8.2 langchain-openai==0.3.16 langchain==0.3.25 langchain-community==0.3.23 langchain_text_splitters==0.3.8

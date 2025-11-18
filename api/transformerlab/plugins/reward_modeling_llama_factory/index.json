@@ -1,0 +1,55 @@
+{
+  "name": "Reward Modeling - Llama Factory",
+  "uniqueId": "reward_modeling_llama_factory",
+  "description": "An implementation of RLHF (Reward Modeling) using Llama Factory.",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.0.12",
+  "model_architectures": [
+    "GemmaForCausalLM",
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
+  ],
+  "supported_hardware_architectures": [
+    "cuda",
+    "amd"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "training_template_format": "none",
+  "training_data_instructions": "Enxure that the dataset below has the following required columns: \"conversations\", \"chosen\", \"rejected\"",
+  "parameters": {
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 0.001,
+      "minimum": 1e-06
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "max_steps": {
+      "title": "Max Steps (-1 means no limit)",
+      "type": "integer",
+      "default": -1
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "required": true,
+      "default": "adaptor"
+    }
+  }
+}

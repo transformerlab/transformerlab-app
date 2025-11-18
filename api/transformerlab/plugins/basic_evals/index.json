@@ -1,0 +1,121 @@
+{
+  "name": "Basic Evaluation Metrics",
+  "uniqueId": "basic_evals",
+  "evalsType": "dataset",
+  "description": "Evaluating outputs of LLMs using basic defined metrics",
+  "plugin-format": "python",
+  "type": "evaluator",
+  "version": "0.1.7",
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "_dataset": true,
+  "_dataset_display_message": "Please make sure the name of the input and output columns match the ones in your dataset",
+  "setup-script": "setup.sh",
+  "parameters": {
+    "predefined_tasks": {
+      "type": "string",
+      "title": "Pre-defined Evaluation Metrics",
+      "enum": [
+        "Is Valid JSON",
+        "Word Count",
+        "Contains bulleted lists",
+        "Contains headings",
+        "Contains URLs",
+        "Contains code blocks",
+        "Contains tables",
+        "Contains images",
+        "Contains numbered lists",
+        "Contains bold text",
+        "Contains italic text",
+        "Contains underline text",
+        "Contains strikethrough text",
+        "Contains blockquotes",
+        "Contains inline code",
+        "Contains emojis",
+        "Contains email addresses",
+        "Contains phone numbers",
+        "Contains dates",
+        "Contains times",
+        "Contains numbers"
+      ]
+    },
+    "tasks": {
+      "type": "array",
+      "title": "Add Custom Evaluation Metrics",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Evaluation Name"
+          },
+          "expression": {
+            "type": "string",
+            "title": "Regular Expression"
+          },
+          "return_type": {
+            "type": "string",
+            "title": "Output Type",
+            "enum": [
+              "boolean",
+              "number",
+              "contains",
+              "isequal",
+              "code"
+            ]
+          }
+        }
+      }
+    },
+    "limit": {
+      "title": "Fraction of samples to evaluate",
+      "type": [
+        "number"
+      ],
+      "minimum": 0.0,
+      "default": 1.0,
+      "maximum": 1.0,
+      "multipleOf": 0.1
+    },
+    "input_col": {
+      "type": "string",
+      "title": "Input Column",
+      "default": "input"
+    },
+    "output_col": {
+      "type": "string",
+      "title": "Output Column",
+      "default": "output"
+    }
+  },
+  "parameters_ui": {
+    "limit": {
+      "ui:help": "Enter a fraction of samples to evaluate from your data. Set as 1 to get all samples",
+      "ui:widget": "RangeWidget"
+    },
+    "predefined_tasks": {
+      "ui:help": "Select an evaluation metric from the drop-down list",
+      "ui:widget": "AutoCompleteWidget"
+    },
+    "tasks": {
+      "ui:help": "Set your own evaluation metric using regular expressions or set a specific string to match",
+      "ui:widget": "EvaluationWidget"
+    },
+    "input_col": {
+      "ui:help": "Enter the name of the input column in your dataset"
+    },
+    "output_col": {
+      "ui:help": "Enter the name of the output column in your dataset"
+    }
+  }
+}

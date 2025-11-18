@@ -1,0 +1,100 @@
+{
+  "name": "SFT Training - Llama Factory",
+  "uniqueId": "sft_llama_factory",
+  "description": "An implementation of Supervised Finetuning using Llama Factory.",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.0.15",
+  "model_architectures": [
+    "GemmaForCausalLM",
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
+  ],
+  "supported_hardware_architectures": [
+    "cuda",
+    "amd"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "training_template_format": "alpaca",
+  "parameters": {
+    "maximum_sequence_length": {
+      "title": "Maximum Sequence Length",
+      "type": "integer",
+      "default": 2048,
+      "minimum": 1
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 0.001,
+      "minimum": 1e-06
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "max_steps": {
+      "title": "Max Steps (-1 means no limit)",
+      "type": "integer",
+      "default": -1
+    },
+    "max_samples": {
+      "title": "Max Samples (-1 means no limit)",
+      "type": "integer",
+      "default": -1
+    },
+    "lora_r": {
+      "title": "Lora R",
+      "type": "number",
+      "minimum": 4,
+      "multipleOf": 4,
+      "default": 16
+    },
+    "lora_alpha": {
+      "title": "Lora Alpha",
+      "type": "number",
+      "minimum": 4,
+      "multipleOf": 4,
+      "default": 32
+    },
+    "lora_dropout": {
+      "title": "Lora Dropout",
+      "type": "number",
+      "minimum": 0.05,
+      "maximum": 0.9,
+      "default": 0.05
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "required": true,
+      "default": "adaptor"
+    }
+  },
+  "parameters_ui": {
+    "maximum_sequence_length": {
+      "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
+    },
+    "lora_r": {
+      "ui:help": "Rank of the update matrices, expressed in int. Lower rank results in smaller update matrices with fewer trainable parameters."
+    },
+    "lora_alpha": {
+      "ui:help": "LoRA scaling factor. Make it a multiple of LoRA R."
+    },
+    "max_samples": {
+      "ui:help": "Maximum number of samples to train on. Set to -1 for no limit."
+    }
+  }
+}

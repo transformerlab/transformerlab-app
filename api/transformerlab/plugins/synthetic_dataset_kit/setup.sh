@@ -1,0 +1,1 @@
+uv pip install   synthetic-data-kit   "vllm>=0.3.0"   pdfminer.six==20221105   beautifulsoup4==4.12.3   pytube==15.0.0   youtube-transcript-api==0.6.1   python-docx==1.1.0   python-pptx==0.6.21   pymupdf==1.23.9  langchain-openai==0.3.16 langchain==0.3.25 langchain-community==0.3.23 langchain_text_splitters==0.3.8  deepeval==2.8.2
