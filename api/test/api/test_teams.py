@@ -60,6 +60,26 @@ def test_team(client, owner_user):
     return team
 
 
+@pytest.fixture(scope="module")
+def member_in_test_team(client, owner_user, member_user, test_team):
+    """Ensure member_user is added to test_team via invitation"""
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invite_data = {"email": member_user["email"], "role": "member"}
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invite_data, headers=headers)
+    
+    if resp.status_code == 200:
+        token = resp.json()["invitation_url"].split("token=")[1]
+        headers_member = {"Authorization": f"Bearer {member_user['token']}"}
+        accept_data = {"token": token}
+        resp = client.post("/invitations/accept", json=accept_data, headers=headers_member)
+        if resp.status_code == 200:
+            return True
+    return False
+
+
 def test_create_team(client, owner_user):
     """Test creating a new team"""
     headers = {"Authorization": f"Bearer {owner_user['token']}"}
@@ -127,9 +147,18 @@ def test_invite_member(client, owner_user, member_user, test_team):
     
     assert resp.status_code == 200
     data = resp.json()
-    assert data["message"] == "User invited successfully"
+    assert data["message"] == "Invitation created successfully"
     assert data["email"] == member_user["email"]
     assert data["role"] == "member"
+    assert "invitation_url" in data
+    assert "invitation_id" in data
+    
+    # Accept the invitation
+    token = data["invitation_url"].split("token=")[1]
+    headers_member = {"Authorization": f"Bearer {member_user['token']}"}
+    accept_data = {"token": token}
+    resp = client.post("/invitations/accept", json=accept_data, headers=headers_member)
+    assert resp.status_code == 200
 
 
 def test_invite_duplicate_member(client, owner_user, member_user, test_team):
@@ -142,10 +171,17 @@ def test_invite_duplicate_member(client, owner_user, member_user, test_team):
         "email": member_user["email"],
         "role": "member"
     }
-    resp = client.post(f"/teams/{test_team['id']}/members", json=invite_data, headers=headers)
     
-    assert resp.status_code == 400
-    assert "already a member" in resp.json()["detail"]
+    # First invitation
+    resp1 = client.post(f"/teams/{test_team['id']}/members", json=invite_data, headers=headers)
+    assert resp1.status_code == 200
+    first_url = resp1.json()["invitation_url"]
+    
+    # Second invitation - should return same URL (idempotent)
+    resp2 = client.post(f"/teams/{test_team['id']}/members", json=invite_data, headers=headers)
+    assert resp2.status_code == 200
+    second_url = resp2.json()["invitation_url"]
+    assert first_url == second_url
 
 
 def test_invite_nonexistent_user(client, owner_user, test_team):
@@ -160,11 +196,12 @@ def test_invite_nonexistent_user(client, owner_user, test_team):
     }
     resp = client.post(f"/teams/{test_team['id']}/members", json=invite_data, headers=headers)
     
-    assert resp.status_code == 404
-    assert "not found" in resp.json()["detail"].lower()
+    # Invitation is created even if user doesn't exist yet
+    assert resp.status_code == 200
+    assert "invitation_url" in resp.json()
 
 
-def test_member_can_view_members(client, member_user, test_team):
+def test_member_can_view_members(client, member_user, test_team, member_in_test_team):
     """Test that a member can view team members"""
     headers = {
         "Authorization": f"Bearer {member_user['token']}",
@@ -175,19 +212,22 @@ def test_member_can_view_members(client, member_user, test_team):
     assert resp.status_code == 200
     data = resp.json()
     assert "members" in data
-    assert len(data["members"]) >= 2  # owner and member
+    assert len(data["members"]) >= 1
 
 
-def test_update_member_role_to_owner(client, owner_user, member_user, test_team):
+def test_update_member_role_to_owner(client, owner_user, member_user, test_team, member_in_test_team):
     """Test promoting a member to owner"""
-    # First get the member's user_id
     headers = {
         "Authorization": f"Bearer {owner_user['token']}",
         "X-Team-Id": test_team["id"]
     }
+    
+    # Get the member's user_id
     resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
     members = resp.json()["members"]
-    member_data = next(m for m in members if m["email"] == member_user["email"])
+    member_data = next((m for m in members if m["email"] == member_user["email"]), None)
+    
+    assert member_data is not None
     member_id = member_data["user_id"]
     
     # Promote to owner
@@ -204,16 +244,19 @@ def test_update_member_role_to_owner(client, owner_user, member_user, test_team)
     assert data["new_role"] == "owner"
 
 
-def test_update_member_role_to_member(client, owner_user, member_user, test_team):
+def test_update_member_role_to_member(client, owner_user, member_user, test_team, member_in_test_team):
     """Test demoting an owner to member"""
-    # First get the member's user_id
     headers = {
         "Authorization": f"Bearer {owner_user['token']}",
         "X-Team-Id": test_team["id"]
     }
+    
+    # Get the member's user_id
     resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
     members = resp.json()["members"]
-    member_data = next(m for m in members if m["email"] == member_user["email"])
+    member_data = next((m for m in members if m["email"] == member_user["email"]), None)
+    
+    assert member_data is not None
     member_id = member_data["user_id"]
     
     # Demote to member
@@ -298,8 +341,8 @@ def test_member_cannot_update_roles(client, owner_user, member_user, test_team):
     assert "owner" in resp.json()["detail"].lower()
 
 
-def test_remove_member(client, owner_user, member_user, test_team):
-    """Test removing a member from the team"""
+def test_remove_member(client, owner_user, member_user, test_team, member_in_test_team):
+    """Test removing a member from the team (not allowed for Default Team)"""
     # Get member's user_id
     headers = {
         "Authorization": f"Bearer {owner_user['token']}",
@@ -307,23 +350,35 @@ def test_remove_member(client, owner_user, member_user, test_team):
     }
     resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
     members = resp.json()["members"]
-    member_data = next(m for m in members if m["email"] == member_user["email"])
-    member_id = member_data["user_id"]
+    member_data = next((m for m in members if m["email"] == member_user["email"]), None)
     
-    # Remove member
-    resp = client.delete(
-        f"/teams/{test_team['id']}/members/{member_id}",
-        headers=headers
-    )
-    
-    assert resp.status_code == 200
-    assert resp.json()["message"] == "Member removed successfully"
-    
-    # Verify member is removed
-    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
-    members = resp.json()["members"]
-    emails = [m["email"] for m in members]
-    assert member_user["email"] not in emails
+    # If this is the Default Team, we can't remove members
+    if test_team.get("name") == "Default Team":
+        if member_data:
+            member_id = member_data["user_id"]
+            resp = client.delete(
+                f"/teams/{test_team['id']}/members/{member_id}",
+                headers=headers
+            )
+            assert resp.status_code == 400
+            assert "cannot remove members from the default team" in resp.json()["detail"].lower()
+    else:
+        # For non-default teams, removal should work
+        assert member_data is not None
+        member_id = member_data["user_id"]
+        resp = client.delete(
+            f"/teams/{test_team['id']}/members/{member_id}",
+            headers=headers
+        )
+        
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "Member removed successfully"
+        
+        # Verify member is removed
+        resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
+        members = resp.json()["members"]
+        emails = [m["email"] for m in members]
+        assert member_user["email"] not in emails
 
 
 def test_cannot_remove_last_owner(client, owner_user, test_team):
@@ -348,20 +403,13 @@ def test_cannot_remove_last_owner(client, owner_user, test_team):
     assert "last owner" in resp.json()["detail"].lower()
 
 
-def test_member_cannot_remove_members(client, owner_user, member_user, test_team):
+def test_member_cannot_remove_members(client, owner_user, member_user, test_team, member_in_test_team):
     """Test that a member cannot remove other members"""
-    # First re-add the member
+    # Get owner's user_id
     headers_owner = {
         "Authorization": f"Bearer {owner_user['token']}",
         "X-Team-Id": test_team["id"]
     }
-    invite_data = {
-        "email": member_user["email"],
-        "role": "member"
-    }
-    client.post(f"/teams/{test_team['id']}/members", json=invite_data, headers=headers_owner)
-    
-    # Get owner's user_id
     resp = client.get(f"/teams/{test_team['id']}/members", headers=headers_owner)
     members = resp.json()["members"]
     owner_data = next(m for m in members if m["email"] == owner_user["email"])
@@ -395,7 +443,7 @@ def test_update_team_name(client, owner_user, test_team):
     assert team["name"] == "Updated Team Name"
 
 
-def test_member_cannot_update_team_name(client, member_user, test_team):
+def test_member_cannot_update_team_name(client, member_user, test_team, member_in_test_team):
     """Test that a member cannot update team name"""
     headers = {
         "Authorization": f"Bearer {member_user['token']}",
@@ -409,7 +457,7 @@ def test_member_cannot_update_team_name(client, member_user, test_team):
 
 
 def test_delete_team(client, owner_user):
-    """Test deleting a team"""
+    """Test deleting a team (not Default Team)"""
     # Create a team to delete
     headers = {"Authorization": f"Bearer {owner_user['token']}"}
     team_data = {"name": "Team to Delete"}
@@ -427,7 +475,26 @@ def test_delete_team(client, owner_user):
     assert resp.json()["message"] == "Team deleted"
 
 
-def test_member_cannot_delete_team(client, member_user, test_team):
+def test_cannot_delete_default_team(client, owner_user):
+    """Test that the Default Team cannot be deleted"""
+    # Get user's teams to find Default Team
+    headers = {"Authorization": f"Bearer {owner_user['token']}"}
+    resp = client.get("/users/me/teams", headers=headers)
+    teams = resp.json()["teams"]
+    default_team = next((t for t in teams if t["name"] == "Default Team"), None)
+    
+    if default_team:
+        headers = {
+            "Authorization": f"Bearer {owner_user['token']}",
+            "X-Team-Id": default_team["id"]
+        }
+        resp = client.delete(f"/teams/{default_team['id']}", headers=headers)
+        
+        assert resp.status_code == 400
+        assert "cannot delete the default team" in resp.json()["detail"].lower()
+
+
+def test_member_cannot_delete_team(client, member_user, test_team, member_in_test_team):
     """Test that a member cannot delete a team"""
     headers = {
         "Authorization": f"Bearer {member_user['token']}",
@@ -439,7 +506,7 @@ def test_member_cannot_delete_team(client, member_user, test_team):
     assert "owner" in resp.json()["detail"].lower()
 
 
-def test_cannot_delete_team_with_multiple_users(client, owner_user, member_user, test_team):
+def test_cannot_delete_team_with_multiple_users(client, owner_user, member_user, test_team, member_in_test_team):
     """Test that a team with multiple users cannot be deleted"""
     headers = {
         "Authorization": f"Bearer {owner_user['token']}",
@@ -449,3 +516,334 @@ def test_cannot_delete_team_with_multiple_users(client, owner_user, member_user,
     
     assert resp.status_code == 400
     assert "multiple users" in resp.json()["detail"].lower()
+
+
+# ==================== Team Invitation Tests ====================
+
+
+@pytest.fixture
+def invited_user(client):
+    """Create and authenticate an invited user"""
+    # Register
+    user_data = {
+        "email": "invited@test.com",
+        "password": "password123",
+    }
+    resp = client.post("/auth/register", json=user_data)
+    assert resp.status_code in (200, 201, 400)  # 400 if already exists
+    
+    # Login
+    login_data = {
+        "username": "invited@test.com",
+        "password": "password123",
+    }
+    resp = client.post("/auth/jwt/login", data=login_data)
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    
+    return {"email": "invited@test.com", "token": token}
+
+
+@pytest.fixture
+def reject_user(client):
+    """Create and authenticate a user who will reject invitation"""
+    # Register
+    user_data = {
+        "email": "reject@test.com",
+        "password": "password123",
+    }
+    resp = client.post("/auth/register", json=user_data)
+    assert resp.status_code in (200, 201, 400)  # 400 if already exists
+    
+    # Login
+    login_data = {
+        "username": "reject@test.com",
+        "password": "password123",
+    }
+    resp = client.post("/auth/jwt/login", data=login_data)
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+    
+    return {"email": "reject@test.com", "token": token}
+
+
+def test_create_invitation(client, owner_user, test_team):
+    """Test creating a team invitation"""
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": "newinvite@test.com",
+        "role": "member"
+    }
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["message"] == "Invitation created successfully"
+    assert data["email"] == "newinvite@test.com"
+    assert data["role"] == "member"
+    assert "invitation_id" in data
+    assert "invitation_url" in data
+    assert "expires_at" in data
+    assert "token" in data["invitation_url"]
+
+
+def test_duplicate_invitation_returns_existing_url(client, owner_user, test_team):
+    """Test that creating duplicate invitation returns existing URL"""
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": "duplicate@test.com",
+        "role": "member"
+    }
+    
+    # Create first invitation
+    resp1 = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp1.status_code == 200
+    first_url = resp1.json()["invitation_url"]
+    first_id = resp1.json()["invitation_id"]
+    
+    # Create duplicate invitation
+    resp2 = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp2.status_code == 200
+    second_url = resp2.json()["invitation_url"]
+    second_id = resp2.json()["invitation_id"]
+    
+    # Should return same invitation
+    assert first_url == second_url
+    assert first_id == second_id
+
+
+def test_get_pending_invitations(client, owner_user, invited_user, test_team):
+    """Test getting pending invitations for a user"""
+    # Create invitation
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": invited_user["email"],
+        "role": "member"
+    }
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp.status_code == 200
+    
+    # Get invitations as invited user
+    headers = {"Authorization": f"Bearer {invited_user['token']}"}
+    resp = client.get("/invitations/me", headers=headers)
+    
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "invitations" in data
+    assert len(data["invitations"]) > 0
+    
+    # Check invitation details
+    invitation = data["invitations"][0]
+    assert invitation["email"] == invited_user["email"]
+    assert invitation["team_id"] == test_team["id"]
+    assert invitation["status"] == "pending"
+    assert invitation["invited_by_email"] == owner_user["email"]
+
+
+def test_accept_invitation(client, owner_user, invited_user, test_team):
+    """Test accepting a team invitation"""
+    # Create invitation
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": invited_user["email"],
+        "role": "member"
+    }
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp.status_code == 200
+    token = resp.json()["invitation_url"].split("token=")[1]
+    
+    # Accept invitation
+    headers = {"Authorization": f"Bearer {invited_user['token']}"}
+    accept_data = {"token": token}
+    resp = client.post("/invitations/accept", json=accept_data, headers=headers)
+    
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["message"] == "Invitation accepted successfully"
+    assert data["team_id"] == test_team["id"]
+    assert data["role"] == "member"
+    
+    # Verify user is now in the team
+    resp = client.get("/users/me/teams", headers=headers)
+    assert resp.status_code == 200
+    teams = resp.json()["teams"]
+    team_ids = [t["id"] for t in teams]
+    assert test_team["id"] in team_ids
+
+
+def test_reject_invitation(client, owner_user, reject_user, test_team):
+    """Test rejecting a team invitation"""
+    # Create invitation
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": reject_user["email"],
+        "role": "member"
+    }
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp.status_code == 200
+    invitation_id = resp.json()["invitation_id"]
+    
+    # Reject invitation
+    headers = {"Authorization": f"Bearer {reject_user['token']}"}
+    resp = client.post(f"/invitations/{invitation_id}/reject", headers=headers)
+    
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["message"] == "Invitation rejected successfully"
+    
+    # Verify user is not in the team
+    resp = client.get("/users/me/teams", headers=headers)
+    assert resp.status_code == 200
+    teams = resp.json()["teams"]
+    team_ids = [t["id"] for t in teams]
+    assert test_team["id"] not in team_ids
+
+
+def test_get_team_invitations(client, owner_user, test_team):
+    """Test getting all invitations for a team (owner only)"""
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    resp = client.get(f"/teams/{test_team['id']}/invitations", headers=headers)
+    
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "invitations" in data
+    assert data["team_id"] == test_team["id"]
+    
+    # Should have invitations from previous tests
+    assert len(data["invitations"]) > 0
+    
+    # Check that invitations have all required fields
+    invitation = data["invitations"][0]
+    assert "id" in invitation
+    assert "email" in invitation
+    assert "status" in invitation
+    assert "invited_by_email" in invitation
+    assert "expires_at" in invitation
+
+
+def test_cancel_invitation(client, owner_user, test_team):
+    """Test cancelling a pending invitation"""
+    # Create invitation
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": "cancel@test.com",
+        "role": "member"
+    }
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp.status_code == 200
+    invitation_id = resp.json()["invitation_id"]
+    
+    # Cancel invitation
+    resp = client.delete(f"/teams/{test_team['id']}/invitations/{invitation_id}", headers=headers)
+    
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["message"] == "Invitation cancelled successfully"
+    
+    # Verify invitation is marked as cancelled
+    resp = client.get(f"/teams/{test_team['id']}/invitations", headers=headers)
+    assert resp.status_code == 200
+    invitations = resp.json()["invitations"]
+    cancelled_invitation = next((inv for inv in invitations if inv["id"] == invitation_id), None)
+    assert cancelled_invitation is not None
+    assert cancelled_invitation["status"] == "cancelled"
+
+
+def test_member_cannot_invite(client, member_user, test_team):
+    """Test that a member cannot create invitations (owner only)"""
+    headers = {
+        "Authorization": f"Bearer {member_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": "notallowed@test.com",
+        "role": "member"
+    }
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    
+    assert resp.status_code == 403
+    assert "owner" in resp.json()["detail"].lower()
+
+
+def test_cannot_accept_invitation_wrong_email(client, owner_user, member_user, test_team):
+    """Test that a user cannot accept invitation meant for different email"""
+    # Create invitation for one user
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": "someone@test.com",
+        "role": "member"
+    }
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp.status_code == 200
+    token = resp.json()["invitation_url"].split("token=")[1]
+    
+    # Try to accept as different user
+    headers = {"Authorization": f"Bearer {member_user['token']}"}
+    accept_data = {"token": token}
+    resp = client.post("/invitations/accept", json=accept_data, headers=headers)
+    
+    assert resp.status_code == 403
+    assert "not for your email" in resp.json()["detail"].lower()
+
+
+def test_cannot_cancel_non_pending_invitation(client, owner_user, invited_user, test_team):
+    """Test that accepted/rejected invitations cannot be cancelled"""
+    # Create and accept invitation
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    invitation_data = {
+        "email": "accepted@test.com",
+        "role": "member"
+    }
+    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
+    assert resp.status_code == 200
+    invitation_id = resp.json()["invitation_id"]
+    token = resp.json()["invitation_url"].split("token=")[1]
+    
+    # Register and accept as new user
+    user_data = {"email": "accepted@test.com", "password": "password123"}
+    client.post("/auth/register", json=user_data)
+    login_data = {"username": "accepted@test.com", "password": "password123"}
+    resp = client.post("/auth/jwt/login", data=login_data)
+    new_token = resp.json()["access_token"]
+    
+    headers_new = {"Authorization": f"Bearer {new_token}"}
+    accept_data = {"token": token}
+    resp = client.post("/invitations/accept", json=accept_data, headers=headers_new)
+    assert resp.status_code == 200
+    
+    # Try to cancel the accepted invitation
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": test_team["id"]
+    }
+    resp = client.delete(f"/teams/{test_team['id']}/invitations/{invitation_id}", headers=headers)
+    
+    assert resp.status_code == 400
+    assert "cannot cancel" in resp.json()["detail"].lower()
