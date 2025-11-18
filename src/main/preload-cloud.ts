@@ -92,6 +92,7 @@ contextBridge.exposeInMainWorld('platform', {
   appmode: 'cloud',
   environment: process.env.NODE_ENV, // Webpack's EnvironmentPlugin will replace this with 'production' or 'development'
   version: process.env.VERSION,
+  multiuser: process.env.MULTIUSER === 'true',
 });
 
 contextBridge.exposeInMainWorld('storage', {
