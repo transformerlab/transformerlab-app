@@ -36,6 +36,8 @@ npm-debug.log.*
 .cursor/
 .cursorignore
 
+.env
+
 # Common Python ignores (applies to both api/ and lab-sdk/)
 # --------------------------------
 # Byte-compiled / optimized / DLL files
