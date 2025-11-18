@@ -1,0 +1,117 @@
+{
+  "name": "Generate Data from Documents",
+  "uniqueId": "synthesizer_docs",
+  "description": "Use LLMs to create synthetic data for your usecases from reference documents.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.21",
+  "git": "https://github.com/confident-ai/deepeval",
+  "url": "https://github.com/confident-ai/deepeval",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "_dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "generation_model": {
+      "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+      "type": "string"
+    },
+    "tflabcustomui_docs": {
+      "title": "Reference Documents",
+      "type": "string"
+    },
+    "embedding_model": {
+      "title": "Embedding Model. Provide the name of the embedding model from Huggingface or its local path",
+      "type": "string",
+      "default": "Snowflake/arctic-embed-m"
+    },
+    "chunk_size": {
+      "title": "Chunk Size",
+      "type": "integer",
+      "default": 256,
+      "minimum": 1
+    },
+    "max_contexts_per_document": {
+      "title": "Max Contexts Per Document",
+      "type": "integer",
+      "default": 10,
+      "minimum": 1
+    },
+    "max_context_length": {
+      "title": "Max Context Length",
+      "type": "integer",
+      "default": 3,
+      "minimum": 1
+    },
+    "max_goldens_per_context": {
+      "title": "Max Goldens Per Context",
+      "type": "integer",
+      "default": 2,
+      "minimum": 1
+    },
+    "generate_dataset_for_embedding_model": {
+      "title": "Generate Dataset for Embedding Model",
+      "type": "boolean",
+      "default": false
+    },
+    "embedding_dataset_type": {
+      "title": "Embedding Dataset Type",
+      "type": "string",
+      "default": "anchor | positive | negative",
+      "enum": [
+        "anchor | positive",
+        "anchor | positive | negative",
+        "sentence_A | sentence_B | score",
+        "anchor | positive | negative_1 | negative_2 | ... | negative_n",
+        "id | anchor | positive"
+      ]
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_docs_synth"
+    }
+  },
+  "parameters_ui": {
+    "embedding_model": {
+      "ui:help": "Provide the name of the embedding model from Huggingface or its local path"
+    },
+    "generation_model": {
+      "ui:help": "Select the model to be used for generation from the drop-down list",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "chunk_size": {
+      "ui:help": "Specify the chunk size to be used while parsing your documents."
+    },
+    "max_contexts_per_document": {
+      "ui:help": "Specify the maximum number of contexts to be generated per document. This number will be multiplied with the `Max Number of Goldens per Context` field to obtain the maximum number of data points."
+    },
+    "max_context_length": {
+      "ui:help": "Specify the max number of text chunks to be generated per context."
+    },
+    "max_goldens_per_context": {
+      "ui:help": "Specify the maximum number of data points to be generated per context."
+    },
+    "generate_dataset_for_embedding_model": {
+      "ui:help": "Select this option to generate a dataset for fine-tuning embedding models."
+    },
+    "embedding_dataset_type": {
+      "ui:help": "Select the type of dataset you want to generate for the embedding model. (Ignored if the `Generate Dataset for Embedding Model` option is not selected)",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    }
+  }
+}

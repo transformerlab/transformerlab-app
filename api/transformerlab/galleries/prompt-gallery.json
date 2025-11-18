@@ -1,0 +1,49 @@
+[
+  {
+    "id": "parse-unstructured-data",
+    "text": "You are a data scientist tasked with parsing unstructured data. \nGiven the following text, output the structured data.\n\n{text}\n\nStructured Data:\n",
+    "title": "Parse unstructured data",
+    "tags": ["conversion"],
+    "version": "0.1.0"
+  },
+  {
+    "id": "convert-to-standard-english",
+    "text": "You will be provided with a statement, and your task is to convert it to standard English.\n\nStatement:\n\n{text}\n\nStandard English:\n",
+    "title": "Convert any text to standard English",
+    "parameters": {
+      "temperature": 0.7,
+      "max_tokens": 64,
+      "top_p": 1
+    },
+    "tags": ["translation"],
+    "version": "0.1.0"
+  },
+  {
+    "id": "write-a-summary",
+    "text": "You are a journalist tasked with writing a summary of the following text.\n\n{text}\n\nSummary:\n",
+    "title": "Summarize text",
+    "tags": ["summarization"],
+    "version": "0.1.0"
+  },
+  {
+    "id": "summarize-for-second-grader",
+    "text": "Summarize content you are provided with for a second-grade student.\n\nContent:\n\n{text}\n\nSummary:\n",
+    "title": "Summarize for Second-Grade Student",
+    "tags": ["summarization"],
+    "version": "0.1.0"
+  },
+  {
+    "id": "summarize-transcript",
+    "text": "Summarize the following chat transcript by shortening and summarizing the content \nwithout losing important information:\n\n{text}\n\nSummary:\n",
+    "title": "Summarize chat history",
+    "tags": ["summarization"],
+    "version": "0.1.0"
+  },
+  {
+    "id": "convert-csv-to-markdown-table",
+    "text": "You are an expert in data formatting. For the following csv data, output it as a markdown \ntable.\nOutput the table only.\n```{text}```\n",
+    "title": "Convert CSV to Markdown Table",
+    "tags": ["conversion"],
+    "version": "0.1.0"
+  }
+]

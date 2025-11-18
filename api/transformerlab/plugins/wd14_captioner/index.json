@@ -1,0 +1,111 @@
+{
+  "name": "Auto-Caption Images with WD14 Tagger",
+  "uniqueId": "wd14_captioner",
+  "description": "Generate tags/captions for image datasets using the WD14 tagger (Danbooru-style tagging via ONNX).",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.7",
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "amd"
+  ],
+  "_dataset": true,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "image_field": {
+      "title": "Image Field",
+      "type": "string",
+      "default": "image",
+      "required": true
+    },
+    "thresh": {
+      "title": "Tag Confidence Threshold",
+      "type": "number",
+      "default": 0.35,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "required": true
+    },
+    "general_threshold": {
+      "title": "General Tag Threshold",
+      "type": "number",
+      "default": 0.35,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "character_threshold": {
+      "title": "Character Tag Threshold",
+      "type": "number",
+      "default": 0.85,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "generation_model": {
+      "title": "Hugging Face Model Repo ID",
+      "type": "string",
+      "enum": [
+        "SmilingWolf/wd-v1-4-convnext-tagger-v2",
+        "SmilingWolf/wd-v1-4-vit-tagger-v2"
+      ],
+      "default": "SmilingWolf/wd-v1-4-convnext-tagger-v2"
+    },
+    "image_size": {
+      "title": "Image Resize (shorter side)",
+      "type": "integer",
+      "default": 448,
+      "minimum": 64
+    },
+    "caption_separator": {
+      "title": "Caption Separator",
+      "type": "string",
+      "default": ", "
+    },
+    "max_data_loader_n_workers": {
+      "title": "Max DataLoader Workers",
+      "type": "integer",
+      "default": 1,
+      "minimum": 0
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_captioner"
+    }
+  },
+  "parameters_ui": {
+    "tflabcustomui_docs": {
+      "ui:help": "Upload an image dataset."
+    },
+    "image_field": {
+      "ui:help": "Specify which dataset column contains the images to caption (default: 'image')."
+    },
+    "thresh": {
+      "ui:help": "Minimum confidence score for a tag to be included in the caption."
+    },
+    "general_threshold": {
+      "ui:help": "Separate threshold for general (non-character) tags."
+    },
+    "character_threshold": {
+      "ui:help": "Separate threshold for character tags."
+    },
+    "generation_model": {
+      "ui:help": "Choose which WD14 ONNX model variant to use for tagging."
+    },
+    "image_size": {
+      "ui:help": "Resize shorter side of image to this size before tagging."
+    },
+    "caption_separator": {
+      "ui:help": "String used to join multiple tags into a single caption."
+    },
+    "max_data_loader_n_workers": {
+      "ui:help": "Max number of workers to load images during tagging (set 1–2 if tagging is slow)."
+    }
+  }
+}

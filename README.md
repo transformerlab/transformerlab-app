@@ -150,11 +150,86 @@ To package apps for the local platform:
 npm run package
 ```
 
+### Backend (API) Installation & Development
+
+If you need to run just the Transformer Lab API (for example on a remote machine) you can install it directly (or run `npm run api:install` from the repo root):
+
+```bash
+cd api
+./install.sh
+```
+
+This script installs Miniforge/Mamba if needed, sets up the Conda environment, and installs all Python dependencies via `uv`.
+
+To start the API after installation (`npm run api:start` from the repo root does the same):
+
+```bash
+cd api
+./run.sh
+```
+
+### Python SDK Development
+
+This repository also includes the Transformer Lab Python SDK in the `lab-sdk/` directory. The SDK allows you to write plugins and ML scripts that integrate with Transformer Lab.
+
+To develop the SDK:
+
+```bash
+cd lab-sdk
+uv venv
+uv pip install -e .
+uv run pytest  # Run tests
+```
+
+The SDK is published to PyPI as `transformerlab` and can be installed with:
+
+```bash
+pip install transformerlab
+```
+
+#### Requirements
+
+- NVIDIA or AMD GPU on Linux (or Windows via WSL2)
+- macOS with Apple Silicon is supported (training functionality varies by hardware)
+- CPU-only installs run inference but not GPU-heavy workflows
+
+#### Updating Python Requirements
+
+Dependencies are managed with `uv pip compile`. To refresh the lockfiles:
+
+```bash
+# CUDA (default)
+uv pip compile requirements.in -o requirements-uv.txt
+
+# AMD ROCm
+uv pip compile requirements-rocm.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match
+sed -i 's/\+rocm6\.4//g' requirements-rocm-uv.txt
+
+# CPU-only (Linux/Windows)
+uv pip compile requirements.in -o requirements-no-gpu-uv.txt --index=https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
+
+# macOS (Apple Silicon)
+uv pip compile requirements.in -o requirements-no-gpu-uv.txt
+```
+
+Notes:
+
+1. Remove `nvidia-ml-py` if it appears in the ROCm lockfile.
+2. The `sed` commands strip suffixes from PyTorch wheels that otherwise break installs using uv pip sync.
+
+#### Windows Notes
+
+See https://transformerlab.ai/docs/install/#install-on-windows for GPU driver and WSL guidance.
+
+Need a fully manual install without the helper script? Follow https://transformerlab.ai/docs/install/advanced-install for step-by-step instructions.
+
 <!-- LICENSE -->
 
 ## License
 
 Distributed under the AGPL V3 License. See `LICENSE.txt` for more information.
+
 
 ## Reference
 
