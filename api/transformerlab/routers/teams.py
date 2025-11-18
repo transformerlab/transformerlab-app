@@ -9,7 +9,6 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
-import logging
 
 
 class TeamCreate(BaseModel):
