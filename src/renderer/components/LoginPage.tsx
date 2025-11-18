@@ -13,6 +13,8 @@ import {
 import { useAuth } from '../lib/authContext';
 import HexLogo from './Shared/HexLogo';
 
+import labImage from '../components/Welcome/img/lab.jpg';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,19 +51,28 @@ export default function LoginPage() {
         justifyContent: 'center',
         alignItems: 'center',
         minHeight: '100vh',
-        backgroundColor: 'background.level1',
+        backgroundImage: `url(${labImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
       }}
     >
-      <Modal open onClose={() => {}}>
+      <Modal
+        open
+        onClose={() => {}}
+        sx={{
+          '& .MuiModal-backdrop': {
+            backdropFilter: 'blur(0px)',
+          },
+        }}
+      >
         <ModalDialog
           sx={{
-            maxWidth: 400,
+            width: 400,
             borderRadius: 'md',
             p: 3,
             boxShadow: 'lg',
           }}
         >
-          {' '}
           <HexLogo width={32} height={32} />
           <Typography level="h2" component="div" sx={{ mb: 1 }}>
             Transformer Lab
