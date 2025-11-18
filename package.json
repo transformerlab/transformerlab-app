@@ -44,7 +44,9 @@
     "start:cloud": "dotenv -e .env -- cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.cloud.dev.ts",
     "test": "jest",
     "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
-    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\""
+    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
+    "api:install": "cd api && ./install.sh",
+    "api:start": "cd api && ./run.sh"
   },
   "browserslist": [],
   "prettier": {

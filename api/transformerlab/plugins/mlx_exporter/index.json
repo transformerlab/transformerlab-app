@@ -1,0 +1,47 @@
+{
+  "name": "MLX Exporter",
+  "uniqueId": "mlx_exporter",
+  "description": "Exports the current model to MLX format so it can be run on Apple Silicon.",
+  "plugin-format": "python",
+  "type": "exporter",
+  "version": "1.0.24",
+  "model_architectures": [
+    "CohereForCausalLM",
+    "DeepseekV2ForCausalLM",
+    "Exaone4ForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "Gemma3ForCausalLM",
+    "GPTBigCodeForCausalLM",
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM",
+    "SmolLM3ForCausalLM"
+  ],
+  "export_architecture": "MLX",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "mlx"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "q_bits": {
+      "title": "Bits per weight for quantization",
+      "type": "string",
+      "default": "4",
+      "enum": [
+        "8",
+        "4",
+        "2"
+      ]
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "name": "Batched Output Generation from Datasets",
+  "uniqueId": "batched_generation_datasets",
+  "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.10",
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
+  "_dataset": true,
+  "_dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
+  "setup-script": "setup.sh",
+  "parameters": {
+    "generation_model": {
+      "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+      "type": "string",
+      "required": true
+    },
+    "system_prompt": {
+      "title": "System Prompt",
+      "type": "string"
+    },
+    "input_column": {
+      "title": "Input Column",
+      "type": "string"
+    },
+    "output_column": {
+      "title": "Output Column",
+      "type": "string"
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 128
+    },
+    "temperature": {
+      "title": "Temperature",
+      "type": "number",
+      "default": 0.7,
+      "minimum": 0.0,
+      "maximum": 2.0,
+      "multipleOf": 0.01
+    },
+    "top_p": {
+      "title": "Top P",
+      "type": "number",
+      "default": 1.0,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "multipleOf": 0.1
+    },
+    "max_tokens": {
+      "title": "Max Tokens",
+      "type": "integer",
+      "default": 1024,
+      "minimum": 16,
+      "multipleOf": 16,
+      "maximum": 8192
+    },
+    "dataset_split": {
+      "title": "Dataset Split",
+      "type": "string",
+      "default": "train"
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_batched"
+    }
+  },
+  "parameters_ui": {
+    "generation_model": {
+      "ui:help": "Select the model to be used for generation from the drop-down list",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "input_column": {
+      "ui:help": "Select the column from the dataset to be used as input for generation"
+    },
+    "output_column": {
+      "ui:help": "Select the column from the dataset to be used as output for generation"
+    },
+    "batch_size": {
+      "ui:help": "Select the batch size for sending the data to the model for generation"
+    },
+    "system_prompt": {
+      "ui:help": "Enter the system prompt to be used for generation"
+    },
+    "temperature": {
+      "ui:help": "Select the temperature for generation",
+      "ui:widget": "RangeWidget"
+    },
+    "max_tokens": {
+      "ui:help": "Select the maximum tokens for generation",
+      "ui:widget": "RangeWidget"
+    },
+    "dataset_split": {
+      "ui:help": "Select the dataset split to be used for generation"
+    }
+  }
+}

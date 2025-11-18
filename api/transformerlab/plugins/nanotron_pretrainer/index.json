@@ -1,0 +1,246 @@
+{
+  "name": "Nanotron Pre-training Framework",
+  "uniqueId": "nanotron_pretrainer",
+  "description": "A distributed pre-training framework for large language models using Nanotron",
+  "plugin-format": "python",
+  "type": "trainer",
+  "train_type": "pretraining",
+  "version": "0.1.6",
+  "git": "https://github.com/huggingface/nanotron",
+  "url": "https://github.com/huggingface/nanotron",
+  "files": [
+    "main.py",
+    "setup.sh",
+    "config.py"
+  ],
+  "supported_hardware_architectures": [],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "train_device": {
+      "title": "Training Device",
+      "type": "string",
+      "required": true,
+      "enum": [
+        "cuda"
+      ],
+      "default": "cuda"
+    },
+    "gpu_ids": {
+      "title": "GPU IDs to Train",
+      "type": "string",
+      "default": "auto"
+    },
+    "seed": {
+      "title": "Random Seed",
+      "type": "integer",
+      "default": 42
+    },
+    "model_size": {
+      "title": "Model Size",
+      "type": "string",
+      "enum": [
+        "160M",
+        "410M",
+        "1B",
+        "3B",
+        "7B",
+        "13B",
+        "30B",
+        "70B",
+        "Custom"
+      ]
+    },
+    "checkpoint_interval": {
+      "title": "Checkpoint Interval (steps)",
+      "type": "integer",
+      "default": 1000,
+      "minimum": 100
+    },
+    "dataset_split": {
+      "title": "Dataset Split",
+      "type": "string",
+      "default": "train"
+    },
+    "text_column_name": {
+      "title": "Text Column Name (in Dataset)",
+      "type": "string",
+      "default": "text"
+    },
+    "tokenizer_name": {
+      "title": "Tokenizer Name or Path",
+      "type": "string",
+      "default": "robot-test/dummy-tokenizer-wordlevel"
+    },
+    "maximum_sequence_length": {
+      "title": "Maximum Sequence Length",
+      "type": "integer",
+      "default": 256,
+      "minimum": 128
+    },
+    "model_hidden_size": {
+      "title": "Model Hidden Size",
+      "type": "integer",
+      "default": 16,
+      "minimum": 16
+    },
+    "model_num_layers": {
+      "title": "Number of Hidden Layers",
+      "type": "integer",
+      "default": 2,
+      "minimum": 2
+    },
+    "model_num_attention_heads": {
+      "title": "Number of Attention Heads",
+      "type": "integer",
+      "default": 4,
+      "minimum": 2
+    },
+    "model_num_key_value_heads": {
+      "title": "Number of KV Heads (for GQA)",
+      "type": "integer",
+      "default": 4,
+      "minimum": 2
+    },
+    "model_intermediate_size": {
+      "title": "Intermediate Size",
+      "type": "integer",
+      "default": 64,
+      "minimum": 16
+    },
+    "micro_batch_size": {
+      "title": "Micro Batch Size",
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "maximum": 32
+    },
+    "train_steps": {
+      "title": "Total Training Steps",
+      "type": "integer",
+      "default": 9500,
+      "minimum": 10
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 0.0005,
+      "minimum": 1e-06,
+      "maximum": 0.01
+    },
+    "warmup_steps": {
+      "title": "Warmup Steps",
+      "type": "integer",
+      "default": 2,
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "annealing_start_step": {
+      "title": "Annealing Phase Start Step",
+      "type": "integer",
+      "default": 10,
+      "minimum": 1
+    },
+    "weight_decay": {
+      "title": "Weight Decay",
+      "type": "number",
+      "default": 0.01,
+      "minimum": 0.0,
+      "maximum": 0.5
+    },
+    "data_parallel_size": {
+      "title": "Data Parallel Size",
+      "type": "integer",
+      "default": 2,
+      "minimum": 1,
+      "maximum": 64
+    },
+    "tensor_parallel_size": {
+      "title": "Tensor Parallel Size",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 8
+    },
+    "pipeline_parallel_size": {
+      "title": "Pipeline Parallel Size",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 8
+    },
+    "mixed_precision": {
+      "title": "Mixed Precision Type",
+      "type": "string",
+      "enum": [
+        "bfloat16",
+        "float32",
+        "float64"
+      ],
+      "default": "bfloat16"
+    }
+  },
+  "parameters_ui": {
+    "train_device": {
+      "ui:help": "The device to train the model on. Currently only CUDA is supported for distributed pre-training.",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "gpu_ids": {
+      "ui:help": "Comma separated list of GPU IDs to use for training. Set to 'auto' for all GPUs. Example: 0,1,2,3 for 4 GPUs."
+    },
+    "seed": {
+      "ui:help": "Random seed for reproducibility of results."
+    },
+    "project_name": {
+      "ui:help": "Project name for organizing runs (used in logging)."
+    },
+    "dataset_name": {
+      "ui:help": "HuggingFace dataset to use for pre-training."
+    },
+    "dataset_split": {
+      "ui:help": "Dataset split to use for pre-training."
+    },
+    "tokenizer_name": {
+      "ui:help": "HuggingFace tokenizer to use for pre-training."
+    },
+    "maximum_sequence_length": {
+      "ui:help": "Maximum sequence length for training. Affects memory usage significantly."
+    },
+    "micro_batch_size": {
+      "ui:help": "Number of sequences in each mini-batch per GPU."
+    },
+    "train_steps": {
+      "ui:help": "Total number of training steps."
+    },
+    "learning_rate": {
+      "ui:help": "Peak learning rate for training."
+    },
+    "warmup_steps": {
+      "ui:help": "Number of steps to linearly warm up the learning rate."
+    },
+    "data_parallel_size": {
+      "ui:help": "Number of data parallel replicas for distributed training."
+    },
+    "tensor_parallel_size": {
+      "ui:help": "Number of tensor parallel replicas for model sharding."
+    },
+    "pipeline_parallel_size": {
+      "ui:help": "Number of pipeline parallel stages for model sharding."
+    },
+    "mixed_precision": {
+      "ui:help": "Precision format for training to save memory and speed up training."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training progress to Weights & Biases."
+    },
+    "model_size": {
+      "ui:help": "Size of the model to train. Custom allows for specifying custom model parameters below as layers, hidden size, intermediate size and attention heads.",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    }
+  }
+}

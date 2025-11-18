@@ -1,0 +1,39 @@
+{
+  "name": "Fastchat Multimodal Server",
+  "uniqueId": "fastchat_vision_server",
+  "description": "Fastchat loads vision models for inference using Huggingface Transformers for generation.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "1.0.7",
+  "model_architectures": [
+    "LlavaForConditionalGeneration",
+    "Mistral3ForConditionalGeneration"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "num_gpus": {
+      "title": "Number of GPUs",
+      "type": "integer"
+    },
+    "eight_bit": {
+      "title": "Enable 8-bit compression",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "parameters_ui": {
+    "num_gpus": {
+      "ui:emptyValue": "",
+      "ui:help": "Used to spread models over multiple GPUs. Leave empty to use default."
+    }
+  }
+}
