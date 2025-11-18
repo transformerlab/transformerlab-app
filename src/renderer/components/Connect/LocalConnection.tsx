@@ -193,7 +193,7 @@ function InstallStepper({ setServer }) {
 
       try {
         const rel = await fetch(
-          'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest',
+          'https://api.github.com/repos/transformerlab/transformerlab-app/releases/latest',
         );
         json = await rel.json();
       } catch {
@@ -411,7 +411,7 @@ function InstallStepper({ setServer }) {
         let json = {};
         try {
           const rel = await fetch(
-            'https://api.github.com/repos/transformerlab/transformerlab-api/releases/latest',
+            'https://api.github.com/repos/transformerlab/transformerlab-app/releases/latest',
           );
           json = await rel.json();
         } catch {

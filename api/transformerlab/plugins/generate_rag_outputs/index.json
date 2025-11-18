@@ -1,0 +1,137 @@
+{
+  "name": "RAG Batched Outputs Generator",
+  "uniqueId": "generate_rag_outputs",
+  "description": "Run RAG on dataset queries and generate evaluation results.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.5",
+  "git": "https://github.com/transformerlab/transformerlab",
+  "url": "https://github.com/transformerlab/transformerlab",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "_dataset": true,
+  "_dataset_display_message": "This plugin requires a dataset to run. Please upload a dataset to continue.",
+  "setup-script": "setup.sh",
+  "parameters": {
+    "input_field": {
+      "title": "Input Field",
+      "type": "string",
+      "default": "input"
+    },
+    "response_mode": {
+      "title": "Response Mode",
+      "type": "string",
+      "enum": [
+        "compact",
+        "refine",
+        "tree_summarize",
+        "simple_summarize",
+        "no_text",
+        "accumulate",
+        "compact_accumulate"
+      ],
+      "default": "compact"
+    },
+    "number_of_search_results": {
+      "title": "Number of Search Results",
+      "type": "integer",
+      "default": 2
+    },
+    "temperature": {
+      "title": "Temperature",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "default": 0.7,
+      "description": "Temperature for response generation"
+    },
+    "context_window": {
+      "title": "Context Window",
+      "type": "integer",
+      "default": 4096
+    },
+    "num_output": {
+      "title": "Max Output Length",
+      "type": "integer",
+      "default": 256
+    },
+    "chunk_size": {
+      "title": "Chunk Size",
+      "type": "integer",
+      "default": 512
+    },
+    "chunk_overlap": {
+      "title": "Chunk Overlap",
+      "type": "integer",
+      "default": 50
+    },
+    "use_reranker": {
+      "title": "Use Reranker",
+      "type": "boolean",
+      "default": false
+    },
+    "reranker_model": {
+      "title": "Reranker Model",
+      "type": "string",
+      "default": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    },
+    "reranker_top_n": {
+      "title": "Reranker Top N",
+      "type": "integer",
+      "default": 20
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_rag_outputs"
+    }
+  },
+  "parameters_ui": {
+    "input_field": {
+      "ui:help": "Specify the field in the dataset that contains the queries (default: 'input')"
+    },
+    "response_mode": {
+      "ui:help": "Select the mode used to generate responses from retrieved contexts",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "temperature": {
+      "ui:help": "Controls randomness in output (0 = deterministic, 1 = most random)",
+      "ui:widget": "RangeWidget"
+    },
+    "use_reranker": {
+      "ui:help": "Enable to use the reranker model of retrieved passages"
+    },
+    "reranker_model": {
+      "ui:help": "Model used to rerank retrieved passages for better relevance"
+    },
+    "reranker_top_n": {
+      "ui:help": "Number of top results to consider for reranking"
+    },
+    "context_window": {
+      "ui:help": "Maximum context window size in tokens"
+    },
+    "num_output": {
+      "ui:help": "Maximum number of tokens in the generated response"
+    },
+    "chunk_size": {
+      "ui:help": "Size of text chunks for indexing documents"
+    },
+    "chunk_overlap": {
+      "ui:help": "Overlap between document chunks"
+    },
+    "number_of_search_results": {
+      "ui:help": "Number of context passages to retrieve"
+    }
+  }
+}

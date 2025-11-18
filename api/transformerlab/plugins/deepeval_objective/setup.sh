@@ -1,0 +1,1 @@
+uv pip install deepeval==2.8.2 bert-score==0.3.13 datasets==3.5.1 seaborn==0.13.2 tensorboardx==2.6.2.2 rouge_score==0.1.2

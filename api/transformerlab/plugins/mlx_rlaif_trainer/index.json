@@ -1,0 +1,119 @@
+{
+  "name": "Apple MLX RLAIF PPO Trainer",
+  "uniqueId": "mlx_rlaif_trainer",
+  "description": "MLX PPO (Proximal Policy Optimization) Reinforcement Learning from AI Feedback (RLAIF) trainer for MLX models.",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.1.8",
+  "model_architectures": [
+    "MLX",
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Qwen2ForCausalLM"
+  ],
+  "training_template_format": "none",
+  "training_data_instructions": "Enxure that the dataset below has the following required columns: \"conversations\", \"chosen\", \"rejected\"",
+  "supported_hardware_architectures": [
+    "mlx"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 8,
+      "minimum": 1
+    },
+    "mini_batch_size": {
+      "title": "Mini Batch Size",
+      "type": "integer",
+      "default": 8,
+      "minimum": 1
+    },
+    "ppo_epochs": {
+      "title": "PPO Epochs",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1
+    },
+    "num_steps": {
+      "title": "Number of Steps",
+      "type": "integer",
+      "default": 5550,
+      "minimum": 1
+    },
+    "max_completion_length": {
+      "title": "Max Completion Length",
+      "type": "integer",
+      "default": 256,
+      "minimum": 1
+    },
+    "init_kl_coef": {
+      "title": "Initial KL Coefficient",
+      "type": "number",
+      "default": 0.2,
+      "minimum": 0.0,
+      "maximum": 10.0
+    },
+    "seed": {
+      "title": "Random Seed",
+      "type": "integer",
+      "default": 42,
+      "minimum": 0
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "default": "ppo",
+      "required": true
+    },
+    "ground_truth_reward": {
+      "title": "Use Ground Truth Reward",
+      "type": "boolean",
+      "default": true
+    },
+    "adap_kl_ctrl": {
+      "title": "Adaptive KL Control",
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "parameters_ui": {
+    "batch_size": {
+      "ui:help": "Batch size for PPO training."
+    },
+    "mini_batch_size": {
+      "ui:help": "Mini batch size for PPO updates."
+    },
+    "ppo_epochs": {
+      "ui:help": "Number of PPO epochs per update."
+    },
+    "num_steps": {
+      "ui:help": "Total number of PPO steps to run."
+    },
+    "init_kl_coef": {
+      "ui:help": "Initial KL divergence coefficient for PPO."
+    },
+    "seed": {
+      "ui:help": "Random seed for reproducibility."
+    },
+    "adaptor_name": {
+      "ui:help": "Name for the PPO-trained model/adaptor."
+    },
+    "ground_truth_reward": {
+      "ui:help": "Use ground truth reward for PPO training."
+    },
+    "adap_kl_ctrl": {
+      "ui:help": "Enable adaptive KL control during PPO."
+    },
+    "max_completion_length": {
+      "ui:help": "Maximum length of the completion for each response during PPO training."
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "uniqueId": { "type": "string" },
+    "description": { "type": "string" },
+    "plugin-format": { "type": "string" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "loader",
+        "trainer",
+        "evaluator",
+        "generator",
+        "eval",
+        "exporter",
+        "rag",
+        "diffusion"
+      ]
+    },
+    "version": { "type": "string" },
+    "model_architectures": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "supported_hardware_architectures": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["cuda", "mlx", "cpu", "amd"]
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "setup-script": { "type": "string" },
+    "parameters": { "type": "object" },
+    "parameters_ui": { "type": "object" }
+  },
+  "required": [
+    "name",
+    "uniqueId",
+    "description",
+    "plugin-format",
+    "type",
+    "version",
+    "files",
+    "setup-script",
+    "supported_hardware_architectures"
+  ],
+  "additionalProperties": true
+}
