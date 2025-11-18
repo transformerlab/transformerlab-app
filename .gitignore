@@ -35,3 +35,174 @@ npm-debug.log.*
 # https://docs.cursor.com/context/ignore-files#default-ignore-list
 .cursor/
 .cursorignore
+
+# Common Python ignores (applies to both api/ and lab-sdk/)
+# --------------------------------
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Virtual environments
+.env
+.envrc
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Tooling metadata
+.spyderproject
+.spyproject
+.ropeproject
+.pdm.toml
+.pdm-python
+.pdm-build/
+__pypackages__/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+cython_debug/
+.python-version
+
+# Ruff cache
+.ruff_cache/
+
+# PyPI configuration
+.pypirc
+
+# Marimo
+marimo/_static/
+marimo/_lsp/
+__marimo__/
+
+# Backend API (Python) specific ignores
+# --------------------------------
+# DBs / workspace state
+api/local_settings.py
+api/db.sqlite3
+api/db.sqlite3-journal
+api/workspace/
+api/temp/
+api/experiments/
+api/logs/
+api/*.log
+api/*.log.*
+api/*.sqlite3
+
+# Framework specific
+api/instance/
+api/.webassets-cache
+api/.scrapy
+api/docs/_build/
+api/.pybuilder/
+api/target/
+api/.ipynb_checkpoints
+api/profile_default/
+api/ipython_config.py
+
+# Project artifacts
+api/*.gguf
+api/*.pid
+api/scripts/aws/aws.conf
+api/scripts/xml-rpc-client-example/output
+api/temp_test_run_data.json
+api/transformerlab/*/.DS_Store
+api/wandb/
+api/.vector_db
+
+# DeepEval cache (already covered by global patterns above, but keeping for clarity)
+*/.deepeval-cache.json
+*/.temp-deepeval-cache.json
+*/.deepeval_telemetry.txt
+.deepeval-cache.json
+.temp-deepeval-cache.json
+.deepeval_telemetry.txt
+
+# Terraform & infra
+api/**/.terraform
+api/**/.terraform/*
+api/**/.terraform.lock.hcl
+api/**/.terraform.tfstate.lock.info
+api/**/terraform.tfstate
+api/**/terraform.tfstate.*
+api/**/terraform.tfvars
+api/**/terraform.tfvars.json
+api/**/override.tf
+api/**/override.tf.json
+api/**/*_override.tf
+api/**/*_override.tf.json
+api/**/*tfplan*
+api/**/out.plan
+api/**/*.plan
+api/**/.terraformrc
+api/**/terraform.rc
+api/**/crash.log
+api/**/crash.*.log
+
+# Ignore .ssh folders
+api/**/.ssh/
+
+# Unsloth cache
+api/unsloth_compiled_cache/
+
+# Python SDK (lab-sdk) specific ignores
+# --------------------------------
+lab-sdk/src/transformerlab.egg-info/

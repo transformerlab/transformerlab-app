@@ -1,0 +1,86 @@
+# This workflow will upload a Python Package to PyPI when a release is created
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Upload Python Package (SDK)
+
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lab-sdk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build release distributions
+        run: |
+          # NOTE: put your own distribution build steps here.
+          python -m pip install build
+          python -m build
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dists
+          path: lab-sdk/dist/
+
+  pypi-publish:
+    runs-on: ubuntu-latest
+    needs:
+      - release-build
+
+    # Dedicated environments with protections for publishing are strongly recommended.
+    # For more information, see: https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment#deployment-protection-rules
+    environment:
+      name: pypi
+      # url: https://pypi.org/project/transformerlab/${{ github.event.release.name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Retrieve release distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+
+      - name: Check if version already exists on PyPI
+        run: |
+          cd lab-sdk
+          PKG_NAME=$(grep -E '^name\s*=\s*' pyproject.toml | head -1 | sed 's/name\s*=\s*"\(.*\)"/\1/')
+          PKG_VERSION=$(grep -E '^version\s*=\s*' pyproject.toml | head -1 | sed 's/version\s*=\s*"\(.*\)"/\1/')
+          echo "Package name: $PKG_NAME"
+          echo "Package version: $PKG_VERSION"
+          echo "Checking if version exists on PyPI..."
+          EXISTS=$(curl -s https://pypi.org/pypi/$PKG_NAME/json | grep -F "\"$PKG_VERSION\"" || true)
+          if [ -n "$EXISTS" ]; then
+            echo "Error: Version $PKG_VERSION of $PKG_NAME already exists on PyPI." >&2
+            sleep 1
+            exit 1
+          fi
+
+      - name: Publish release distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}

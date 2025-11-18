@@ -1,0 +1,109 @@
+{
+  "name": "Synthetic Dataset Generator (Meta synthetic-data-kit)",
+  "uniqueId": "synthetic_dataset_kit",
+  "description": "Generates QA pairs, chain-of-thought, or summaries using Meta's synthetic-data-kit and vLLM-based or proxy-backed models.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.5",
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cuda",
+    "mlx"
+  ],
+  "_dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "generation_model": {
+      "title": "Generation Model. Only local models can be used",
+      "type": "string",
+      "enum": [
+        "local"
+      ],
+      "default": "local",
+      "required": true
+    },
+    "task_type": {
+      "title": "Generation Type",
+      "type": "string",
+      "enum": [
+        "qa",
+        "cot",
+        "summary"
+      ],
+      "default": "qa",
+      "required": true
+    },
+    "tflabcustomui_docs": {
+      "title": "Reference Documents",
+      "type": "string"
+    },
+    "num_pairs": {
+      "title": "Number of Pairs to Generate",
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 500
+    },
+    "curation_threshold": {
+      "title": "Curation Threshold",
+      "type": "number",
+      "default": 7.0,
+      "minimum": 1.0,
+      "maximum": 10.0
+    },
+    "output_format": {
+      "title": "Output Format",
+      "type": "string",
+      "enum": [
+        "jsonl",
+        "alpaca",
+        "chatml"
+      ],
+      "default": "jsonl"
+    },
+    "prompt_template": {
+      "title": "Custom Prompt Template (optional)",
+      "type": "string"
+    },
+    "vllm_api_base": {
+      "title": "vLLM Server API Base",
+      "type": "string",
+      "default": "http://localhost:8338/v1",
+      "description": "API endpoint of the vLLM server used by synthetic-data-kit."
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_synth_data_kit"
+    }
+  },
+  "parameters_ui": {
+    "generation_model": {
+      "ui:help": "Select the model to be used for generating QA pairs"
+    },
+    "task_type": {
+      "ui:help": "Choose the type of generation: QA pairs, CoT examples, or summaries."
+    },
+    "num_pairs": {
+      "ui:help": "Number of examples to generate from each document."
+    },
+    "curation_threshold": {
+      "ui:help": "Minimum score (1-10) for keeping a generated example."
+    },
+    "output_format": {
+      "ui:help": "Select the output format compatible with your fine-tuning setup."
+    },
+    "prompt_template": {
+      "ui:help": "Custom prompt template for overriding default generation behavior."
+    },
+    "vllm_api_base": {
+      "ui:help": "Address of the running vLLM server. If left at default, the plugin will try to start one if needed.",
+      "ui:widget": "text"
+    }
+  }
+}

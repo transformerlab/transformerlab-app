@@ -1,0 +1,138 @@
+
+
+## Test Logprobs:
+POST http://localhost:8338/v1/completions
+Content-Type: application/json
+
+{
+  "model": "Llama-3.2-1B-Instruct-4bit",
+  "prompt": "Translate the ",
+  "stream": false,
+  "temperature": 0.5,
+  "n": 1,
+  "logprobs": 3,
+  "echo": true,
+  "max_tokens": 8,
+  "top_logprobs": 2
+}
+###
+
+## Test Logprobs on Pop-os:
+POST http://pop-os:8338/v1/completions
+Content-Type: application/json
+
+{
+  "model": "TinyLlama/TinyLlama_v1.1",
+  "prompt": "The meaning of life is",
+  "stream": false,
+  "temperature": 0.5,
+  "n": 1,
+  "logprobs": 4,
+  "echo": true,
+  "max_tokens": 8
+}
+
+###
+POST http://localhost:21002/worker_generate
+Content-Type: application/json
+
+{
+  "prompt": "Translate the ",
+  "logprobs": true
+}
+
+###
+## Test batched prompt creation with objects
+POST http://localhost:8338/batched_prompts/new
+Content-Type: application/json
+
+{
+  "name": "test",
+  "prompts": [
+    {"a": "b"},
+    {"c": "d", "e": "f"}
+  ]
+}
+
+###
+## test with string prompts
+POST http://localhost:8338/batched_prompts/new
+Content-Type: application/json
+
+{
+  "name": "name",
+  "prompts": [
+    "a string",
+    "another string"
+  ]
+}
+
+###
+POST http://localhost:8338/batched_prompts/new
+Content-Type: application/json
+
+{
+  "name":"test3",
+  "prompts":
+  [
+    [{"role":"system","content":"You are a helpful assistant."},{"role":"human","content":"Hello"}],
+    [{"role":"system","content":"You are a helpful assistant."},{"role":"human","content":"Hello"}],
+    [{"role":"system","content":"You are a helpful assistant."},{"role":"human","content":"Hello"}]
+  ]
+}
+###
+## Test batch request mode on completions endpoint
+POST http://localhost:8338/v1/completions
+Content-Type: application/json
+
+{
+  "model": "Llama-3.2-1B-Instruct-4bit",
+  "prompt": [
+    "Translate the following English sentence to French: 'Hello, how are you?'",
+    "How are our customers doing today?"
+  ],
+    "max_tokens": 60
+}
+
+###
+## Test sending multiple chats -- note that this doesn't work!
+POST http://localhost:8338/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "Llama-3.2-1B-Instruct-4bit",
+  "messages":   [
+    [{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"Hello"}],
+    [{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"Bye"}]
+  ],
+  "max_tokens": 60
+}
+
+###
+## Test sending a single chat
+POST http://localhost:8338/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "Llama-3.2-1B-Instruct-4bit",
+  "messages":   
+    [{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"Hello"}],
+  "max_tokens": 60
+}
+
+###
+## Data: request a preview of a dataset
+GET http://localhost:8338/data/preview?dataset_id=samsum&offset=1&limit=10
+
+###
+## Data: request a preview of a dataset with a split
+GET http://localhost:8338/data/preview?dataset_id=samsum&offset=0&limit=100&split=validation
+
+###
+## Data: request a preview of a dataset with a split using streaming
+GET http://localhost:8338/data/preview?dataset_id=samsum&offset=0&limit=100&split=validation&stream=true
+
+
+###
+# Test huggingface hub endpoint
+GET http://localhost:8338/model/login_to_huggingface
