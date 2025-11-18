@@ -39,6 +39,21 @@ from diffusers import (
     StableDiffusionXLControlNetImg2ImgPipeline,
     StableDiffusionXLControlNetUnionImg2ImgPipeline,
     StableDiffusionXLControlNetPAGImg2ImgPipeline,
+    StableDiffusionPipeline,
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionInpaintPipeline,
+    StableDiffusionXLImg2ImgPipeline,
+    StableDiffusionXLInpaintPipeline,
+    StableDiffusionXLInstructPix2PixPipeline,
+    StableDiffusionXLKDiffusionPipeline,
+    StableDiffusion3Pipeline,
+    LatentConsistencyModelPipeline,
+    LatentConsistencyModelImg2ImgPipeline,
+    StableDiffusionControlNetXSPipeline,
+    StableDiffusionXLControlNetXSPipeline,
+    LEditsPPPipelineStableDiffusion,
+    LEditsPPPipelineStableDiffusionXL,
+    PIAPipeline,
     FluxControlNetImg2ImgPipeline,
     StableDiffusionControlNetInpaintPipeline,
     StableDiffusionXLControlNetInpaintPipeline,
@@ -70,6 +85,24 @@ scheduler_map = {
     "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
 }
 
+SINGLE_FILE_MAP = {
+    "StableDiffusionPipeline": StableDiffusionPipeline,
+    "StableDiffusionImg2ImgPipeline": StableDiffusionImg2ImgPipeline,
+    "StableDiffusionInpaintPipeline": StableDiffusionInpaintPipeline,
+    "StableDiffusionXLImg2ImgPipeline": StableDiffusionXLImg2ImgPipeline,
+    "StableDiffusionXLInpaintPipeline": StableDiffusionXLInpaintPipeline,
+    "StableDiffusionXLInstructPix2PixPipeline": StableDiffusionXLInstructPix2PixPipeline,
+    "StableDiffusionXLKDiffusionPipeline": StableDiffusionXLKDiffusionPipeline,
+    "StableDiffusion3Pipeline": StableDiffusion3Pipeline,
+    "LatentConsistencyModelPipeline": LatentConsistencyModelPipeline,
+    "LatentConsistencyModelImg2ImgPipeline": LatentConsistencyModelImg2ImgPipeline,
+    "StableDiffusionControlNetXSPipeline": StableDiffusionControlNetXSPipeline,
+    "StableDiffusionXLControlNetXSPipeline": StableDiffusionXLControlNetXSPipeline,
+    "LEditsPPPipelineStableDiffusion": LEditsPPPipelineStableDiffusion,
+    "LEditsPPPipelineStableDiffusionXL": LEditsPPPipelineStableDiffusionXL,
+    "PIAPipeline": PIAPipeline,
+}
+
 
 def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
     controlnet_model = ControlNetModel.from_pretrained(
@@ -94,6 +127,13 @@ def latents_to_rgb(latents):
     image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
     return Image.fromarray(image_array)
+
+
+def is_single_file_model(model_path):
+    """Check if the model is a single-file format (.safetensors or .ckpt)"""
+    if isinstance(model_path, str):
+        return model_path.endswith((".safetensors", ".ckpt", ".pt"))
+    return False
 
 
 def create_decode_callback(output_dir):
