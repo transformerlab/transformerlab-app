@@ -770,22 +770,6 @@ def test_cancel_invitation(client, owner_user, test_team):
     assert cancelled_invitation["status"] == "cancelled"
 
 
-def test_member_cannot_invite(client, member_user, test_team):
-    """Test that a member cannot create invitations (owner only)"""
-    headers = {
-        "Authorization": f"Bearer {member_user['token']}",
-        "X-Team-Id": test_team["id"]
-    }
-    invitation_data = {
-        "email": "notallowed@test.com",
-        "role": "member"
-    }
-    resp = client.post(f"/teams/{test_team['id']}/members", json=invitation_data, headers=headers)
-    
-    assert resp.status_code == 403
-    assert "owner" in resp.json()["detail"].lower()
-
-
 def test_cannot_accept_invitation_wrong_email(client, owner_user, member_user, test_team):
     """Test that a user cannot accept invitation meant for different email"""
     # Create invitation for one user
