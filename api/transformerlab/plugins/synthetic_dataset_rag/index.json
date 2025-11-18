@@ -1,0 +1,76 @@
+{
+  "name": "Generate Dataset with QA Pairs for RAG Evaluation",
+  "uniqueId": "synthetic_dataset_rag",
+  "description": "Generate synthetic question-answer pairs from documents for RAG system evaluation.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.12",
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "_dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "generation_model": {
+      "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+      "type": "string"
+    },
+    "tflabcustomui_docs": {
+      "title": "Reference Documents",
+      "type": "string"
+    },
+    "chunk_size": {
+      "title": "Chunk Size",
+      "type": "integer",
+      "default": 256,
+      "minimum": 64,
+      "required": true
+    },
+    "chunk_overlap": {
+      "title": "Chunk Overlap",
+      "type": "integer",
+      "default": 200,
+      "minimum": 0,
+      "required": true
+    },
+    "n_generations": {
+      "title": "Number of QA Pairs",
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "required": true
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_rag"
+    }
+  },
+  "parameters_ui": {
+    "generation_model": {
+      "ui:help": "Select the model to be used for generating QA pairs",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "chunk_size": {
+      "ui:help": "Size of document chunks in characters. Larger chunks provide more context but may lead to longer generation times."
+    },
+    "chunk_overlap": {
+      "ui:help": "Number of characters to overlap between chunks to maintain context continuity."
+    },
+    "n_generations": {
+      "ui:help": "Number of question-answer pairs to generate. Limited by the number of available document chunks."
+    }
+  }
+}

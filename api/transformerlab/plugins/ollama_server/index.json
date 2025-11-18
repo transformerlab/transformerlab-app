@@ -1,0 +1,39 @@
+{
+  "name": "Ollama Server",
+  "uniqueId": "ollama_server",
+  "description": "Connects to your instance of ollama to run GGUF models that can host models across GPU and/or CPU.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "0.1.9",
+  "supports": [
+    "chat",
+    "completion",
+    "rag",
+    "tools",
+    "template",
+    "embeddings",
+    "batched",
+    "multimodal"
+  ],
+  "model_architectures": [
+    "GGUF"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "port": {
+      "title": "Server Port",
+      "type": "integer",
+      "default": 11434
+    }
+  },
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ]
+}
