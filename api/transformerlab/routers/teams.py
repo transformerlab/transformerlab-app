@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.shared.models.user_model import User, get_async_session
-from transformerlab.shared.models.models import Team, UserTeam, TeamRole
+from transformerlab.shared.models.models import Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth2 import require_team_owner, get_user_and_team
-from pydantic import BaseModel
-from sqlalchemy import select, delete, update, func
+
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import select, delete, update, func, and_
+from datetime import datetime, timedelta
+from os import getenv
+import logging
 
 
 class TeamCreate(BaseModel):
@@ -22,7 +26,7 @@ class TeamResponse(BaseModel):
 
 
 class InviteMemberRequest(BaseModel):
-    email: str
+    email: EmailStr
     role: str = TeamRole.MEMBER.value
 
 
@@ -34,6 +38,22 @@ class MemberResponse(BaseModel):
     user_id: str
     email: str
     role: str
+
+
+class InvitationResponse(BaseModel):
+    id: str
+    email: str
+    team_id: str
+    team_name: str
+    role: str
+    status: str
+    invited_by_email: str
+    expires_at: str
+    created_at: str
+
+
+class AcceptInvitationRequest(BaseModel):
+    token: str
 
 
 router = APIRouter(tags=["teams"])
@@ -165,7 +185,12 @@ async def invite_member(
     owner_info=Depends(require_team_owner),
     session: AsyncSession = Depends(get_async_session),
 ):
-    """Invite a user to the team. Only team owners can invite members."""
+    """
+    Create a team invitation. Only team owners can invite members.
+    
+    This creates a pending invitation that the user must accept.
+    Returns a shareable invitation URL.
+    """
     # Verify team_id matches the one in header
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
@@ -174,33 +199,80 @@ async def invite_member(
     if invite_data.role not in [TeamRole.OWNER.value, TeamRole.MEMBER.value]:
         raise HTTPException(status_code=400, detail="Invalid role. Must be 'owner' or 'member'")
 
-    # Find user by email
+    inviter_user = owner_info["user"]
+    
+    # Get team details
+    stmt = select(Team).where(Team.id == team_id)
+    result = await session.execute(stmt)
+    team = result.scalar_one_or_none()
+    if not team:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    # Check if user exists and is already in the team
     stmt = select(User).where(User.email == invite_data.email)
     result = await session.execute(stmt)
-    invited_user = result.scalar_one_or_none()
+    existing_user = result.scalar_one_or_none()
+    
+    if existing_user:
+        # Check if already a member
+        stmt = select(UserTeam).where(
+            UserTeam.user_id == str(existing_user.id),
+            UserTeam.team_id == team_id
+        )
+        result = await session.execute(stmt)
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="User is already a member of this team")
 
-    if not invited_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Check if user is already in the team
-    stmt = select(UserTeam).where(
-        UserTeam.user_id == str(invited_user.id),
-        UserTeam.team_id == team_id
+    # Check if there's already a pending invitation for this email and team
+    stmt = select(TeamInvitation).where(
+        and_(
+            TeamInvitation.email == invite_data.email,
+            TeamInvitation.team_id == team_id,
+            TeamInvitation.status == InvitationStatus.PENDING.value
+        )
     )
     result = await session.execute(stmt)
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="User is already a member of this team")
+    existing_invitation = result.scalar_one_or_none()
+    
+    app_url = getenv("FRONTEND_URL", "http://localhost:1212")
+    
+    if existing_invitation:
+        # Return the existing invitation URL instead of creating a new one
+        # This is useful if they lost the URL or want to resend it
+        invitation_url = f"{app_url}/invitations/accept?token={existing_invitation.token}"
+                
+        return {
+            "message": "Invitation already exists",
+            "invitation_id": existing_invitation.id,
+            "email": existing_invitation.email,
+            "role": existing_invitation.role,
+            "expires_at": existing_invitation.expires_at.isoformat(),
+            "invitation_url": invitation_url,
+            "note": "This user already has a pending invitation. Here's the existing invitation URL."
+        }
 
-    # Add user to team
-    user_team = UserTeam(user_id=str(invited_user.id), team_id=team_id, role=invite_data.role)
-    session.add(user_team)
+    # Create invitation
+    invitation = TeamInvitation(
+        email=invite_data.email,
+        team_id=team_id,
+        invited_by_user_id=str(inviter_user.id),
+        role=invite_data.role,
+        status=InvitationStatus.PENDING.value,
+        expires_at=datetime.utcnow() + timedelta(days=7)
+    )
+    session.add(invitation)
     await session.commit()
+    await session.refresh(invitation)
+
+    invitation_url = f"{app_url}/invitations/accept?token={invitation.token}"
 
     return {
-        "message": "User invited successfully",
-        "user_id": str(invited_user.id),
-        "email": invited_user.email,
-        "role": invite_data.role
+        "message": "Invitation created successfully",
+        "invitation_id": invitation.id,
+        "email": invite_data.email,
+        "role": invite_data.role,
+        "expires_at": invitation.expires_at.isoformat(),
+        "invitation_url": invitation_url  # Frontend URL to share
     }
 
 
@@ -299,3 +371,282 @@ async def update_member_role(
     await session.commit()
 
     return {"message": "Role updated successfully", "user_id": user_id, "new_role": role_data.role}
+
+
+# ==================== Team Invitation Endpoints ====================
+
+
+@router.get("/invitations/me")
+async def get_my_invitations(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get all pending invitations for the current user.
+    
+    Returns a list of pending team invitations created for the user's email address.
+    Users can accept these invitations to join teams.
+    """
+    # Get all pending invitations for this user's email
+    stmt = select(TeamInvitation).where(
+        and_(
+            TeamInvitation.email == user.email,
+            TeamInvitation.status == InvitationStatus.PENDING.value
+        )
+    ).order_by(TeamInvitation.created_at.desc())
+    
+    result = await session.execute(stmt)
+    invitations = result.scalars().all()
+    
+    # Enrich with team and inviter information
+    invitation_responses = []
+    for invitation in invitations:
+        # Check if expired
+        if invitation.expires_at < datetime.utcnow():
+            invitation.status = InvitationStatus.EXPIRED.value
+            await session.commit()
+            continue
+        
+        # Get team info
+        stmt = select(Team).where(Team.id == invitation.team_id)
+        result = await session.execute(stmt)
+        team = result.scalar_one_or_none()
+        
+        # Get inviter info
+        stmt = select(User).where(User.id == invitation.invited_by_user_id)
+        result = await session.execute(stmt)
+        inviter = result.scalar_one_or_none()
+        
+        invitation_responses.append(
+            InvitationResponse(
+                id=invitation.id,
+                email=invitation.email,
+                team_id=invitation.team_id,
+                team_name=team.name if team else "Unknown Team",
+                role=invitation.role,
+                status=invitation.status,
+                invited_by_email=inviter.email if inviter else "Unknown",
+                expires_at=invitation.expires_at.isoformat(),
+                created_at=invitation.created_at.isoformat()
+            )
+        )
+    
+    return {"invitations": invitation_responses}
+
+
+@router.post("/invitations/accept")
+async def accept_invitation(
+    accept_data: AcceptInvitationRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Accept a team invitation using the invitation token.
+    
+    The user must be authenticated and the invitation must match their email address.
+    Token is obtained from the invitation URL shared by the team owner.
+    """
+    # Find the invitation by token
+    stmt = select(TeamInvitation).where(TeamInvitation.token == accept_data.token)
+    result = await session.execute(stmt)
+    invitation = result.scalar_one_or_none()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    
+    # Verify the invitation is for this user
+    if invitation.email != user.email:
+        raise HTTPException(
+            status_code=403, 
+            detail="This invitation is not for your email address"
+        )
+    
+    # Check if invitation is still pending
+    if invitation.status != InvitationStatus.PENDING.value:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invitation is no longer pending (status: {invitation.status})"
+        )
+    
+    # Check if expired
+    if invitation.expires_at < datetime.utcnow():
+        invitation.status = InvitationStatus.EXPIRED.value
+        await session.commit()
+        raise HTTPException(status_code=400, detail="Invitation has expired")
+    
+    # Check if user is already in the team
+    stmt = select(UserTeam).where(
+        UserTeam.user_id == str(user.id),
+        UserTeam.team_id == invitation.team_id
+    )
+    result = await session.execute(stmt)
+    if result.scalar_one_or_none():
+        # Mark invitation as accepted anyway
+        invitation.status = InvitationStatus.ACCEPTED.value
+        await session.commit()
+        raise HTTPException(status_code=400, detail="You are already a member of this team")
+    
+    # Add user to team
+    user_team = UserTeam(
+        user_id=str(user.id), 
+        team_id=invitation.team_id, 
+        role=invitation.role
+    )
+    session.add(user_team)
+    
+    # Update invitation status
+    invitation.status = InvitationStatus.ACCEPTED.value
+    
+    await session.commit()
+    
+    # Get team info
+    stmt = select(Team).where(Team.id == invitation.team_id)
+    result = await session.execute(stmt)
+    team = result.scalar_one_or_none()
+        
+    return {
+        "message": "Invitation accepted successfully",
+        "team_id": invitation.team_id,
+        "team_name": team.name if team else None,
+        "role": invitation.role
+    }
+
+
+@router.post("/invitations/{invitation_id}/reject")
+async def reject_invitation(
+    invitation_id: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Reject a team invitation.
+    
+    The user must be authenticated and the invitation must match their email address.
+    """
+    # Find the invitation
+    stmt = select(TeamInvitation).where(TeamInvitation.id == invitation_id)
+    result = await session.execute(stmt)
+    invitation = result.scalar_one_or_none()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    
+    # Verify the invitation is for this user
+    if invitation.email != user.email:
+        raise HTTPException(
+            status_code=403, 
+            detail="This invitation is not for your email address"
+        )
+    
+    # Check if invitation is still pending
+    if invitation.status != InvitationStatus.PENDING.value:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invitation is no longer pending (status: {invitation.status})"
+        )
+    
+    # Update invitation status
+    invitation.status = InvitationStatus.REJECTED.value
+    await session.commit()
+    
+    return {"message": "Invitation rejected successfully"}
+
+
+@router.get("/teams/{team_id}/invitations")
+async def get_team_invitations(
+    team_id: str,
+    owner_info=Depends(require_team_owner),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get all invitations for a team (pending, accepted, rejected, expired).
+    
+    Only team owners can view this. Useful for tracking who has been invited
+    and the status of each invitation.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+    
+    # Get all invitations for this team
+    stmt = select(TeamInvitation).where(
+        TeamInvitation.team_id == team_id
+    ).order_by(TeamInvitation.created_at.desc())
+    
+    result = await session.execute(stmt)
+    invitations = result.scalars().all()
+    
+    # Get team info
+    stmt = select(Team).where(Team.id == team_id)
+    result = await session.execute(stmt)
+    team = result.scalar_one_or_none()
+    
+    invitation_responses = []
+    for invitation in invitations:
+        # Auto-expire if needed
+        if invitation.status == InvitationStatus.PENDING.value and invitation.expires_at < datetime.utcnow():
+            invitation.status = InvitationStatus.EXPIRED.value
+        
+        # Get inviter info
+        stmt = select(User).where(User.id == invitation.invited_by_user_id)
+        result = await session.execute(stmt)
+        inviter = result.scalar_one_or_none()
+        
+        invitation_responses.append(
+            InvitationResponse(
+                id=invitation.id,
+                email=invitation.email,
+                team_id=invitation.team_id,
+                team_name=team.name if team else "Unknown Team",
+                role=invitation.role,
+                status=invitation.status,
+                invited_by_email=inviter.email if inviter else "Unknown",
+                expires_at=invitation.expires_at.isoformat(),
+                created_at=invitation.created_at.isoformat()
+            )
+        )
+    
+    await session.commit()  # Commit any status updates
+    
+    return {"team_id": team_id, "invitations": invitation_responses}
+
+
+@router.delete("/teams/{team_id}/invitations/{invitation_id}")
+async def cancel_invitation(
+    team_id: str,
+    invitation_id: str,
+    owner_info=Depends(require_team_owner),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Cancel a pending invitation. Only team owners can cancel invitations.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+    
+    # Find the invitation
+    stmt = select(TeamInvitation).where(
+        and_(
+            TeamInvitation.id == invitation_id,
+            TeamInvitation.team_id == team_id
+        )
+    )
+    result = await session.execute(stmt)
+    invitation = result.scalar_one_or_none()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    
+    # Check if invitation is still pending
+    if invitation.status != InvitationStatus.PENDING.value:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot cancel invitation with status: {invitation.status}"
+        )
+    
+    # Update the invitation status to cancelled
+    invitation.status = InvitationStatus.CANCELLED.value
+    await session.commit()
+    
+    return {"message": "Invitation cancelled successfully"}
