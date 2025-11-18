@@ -14,6 +14,7 @@ import {
   ModalClose,
   Stack,
   ListItemDecorator,
+  Table,
 } from '@mui/joy';
 import { PlusIcon, User2Icon } from 'lucide-react';
 import { useState } from 'react';
@@ -176,35 +177,42 @@ export default function UserLoginTest(): JSX.Element {
         </Stack>
         <Box sx={{ mt: 3 }}>
           <Typography level="title-lg" mb={1}>
-            Members:
+            Members: ({members?.members?.length})
           </Typography>
 
-          <List>
-            {members?.members?.map((m: any, idx: number) => (
-              <ListItem key={m.id ?? m.email ?? idx}>
-                <ListItemButton>
-                  <ListItemDecorator>
-                    <User2Icon />
-                  </ListItemDecorator>
-                  <ListItemContent>
-                    <Typography fontWeight="md">{m?.email}</Typography>
-                    {m.email && (
-                      <Typography level="body2" textColor="neutral.500">
-                        Role: {m?.role}
-                      </Typography>
-                    )}
-                  </ListItemContent>
-                </ListItemButton>
-              </ListItem>
-            ))}
-            <ListItem>
-              <Typography level="body2" textColor="neutral.500">
-                Total Members: {members?.members?.length ?? 0}
-              </Typography>
-            </ListItem>
-          </List>
+          <Table variant="soft" sx={{ mb: 2 }}>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th>&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.members.map((m: any, idx: number) => (
+                <tr key={m.id ?? m.email ?? idx}>
+                  <td>
+                    <Stack direction="row" alignItems="center" gap={1}>
+                      <User2Icon />
+                      <Box>
+                        <Typography fontWeight="md">
+                          {m?.email ?? '—'}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </td>
+                  <td>{m?.role}</td>
+                  <td>
+                    <Button variant="outlined">
+                      {m?.role === 'owner' ? 'Make member' : 'Make owner'}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
           <Button startDecorator={<PlusIcon />} variant="soft">
-            Invite Member (Coming Soon)
+            Invite Member
           </Button>
         </Box>
       </Box>
