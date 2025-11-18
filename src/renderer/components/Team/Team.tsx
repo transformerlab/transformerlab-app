@@ -282,7 +282,9 @@ export default function UserLoginTest(): JSX.Element {
                         variant="outlined"
                         onClick={() => handleUpdateRole(m.user_id, m.role)}
                       >
-                        {m?.role === 'owner' ? 'Make member' : 'Make owner'}
+                        {m?.role === 'owner'
+                          ? 'Change role to member'
+                          : 'Change role to owner'}
                       </Button>
 
                       {/* Per-member error display removed — all errors shown under the Members title */}
