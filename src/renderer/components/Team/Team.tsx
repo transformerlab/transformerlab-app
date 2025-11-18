@@ -16,7 +16,7 @@ import {
   ListItemDecorator,
   Table,
 } from '@mui/joy';
-import { PlusIcon, User2Icon } from 'lucide-react';
+import { PlusIcon, TypeOutline, User2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 
@@ -208,7 +208,6 @@ export default function UserLoginTest(): JSX.Element {
                     autoFocus
                   />
                 </Box>
-
                 <Box
                   sx={{
                     display: 'flex',
@@ -239,6 +238,13 @@ export default function UserLoginTest(): JSX.Element {
             </Modal>
           </Box>
         </Stack>
+
+        <Stack mt={3} gap={1}>
+          <Typography level="title-lg">Team</Typography>
+          <Button variant="outlined">Rename Workspace</Button>
+          <Button variant="outlined">Set Logo</Button>
+        </Stack>
+
         <Box sx={{ mt: 3 }}>
           <Typography level="title-lg" mb={1}>
             Members: ({members?.members?.length ?? 0})

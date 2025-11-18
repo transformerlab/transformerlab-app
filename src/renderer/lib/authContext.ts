@@ -96,6 +96,7 @@ export function updateCurrentTeam(team: Team | null) {
 export function logoutUser() {
   // Optionally call server logout endpoint here.
   updateAccessToken(null);
+  updateCurrentTeam(null);
 }
 
 // allow components to re-render when auth changes
@@ -205,6 +206,25 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           })
       : null,
   );
+
+  // Get a list of teams this user belongs to
+  const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
+
+  useEffect(() => {
+    // If user has teams and no current team is set, set to first team
+    if (teams?.teams && teams.teams.length > 0) {
+      if (!getCurrentTeam()) {
+        updateCurrentTeam(teams.teams[0]);
+        setTeamState(teams.teams[0]);
+      }
+    } else {
+      // No teams available, clear current team
+      console.log('No teams available, clearing current team');
+      updateCurrentTeam(null);
+      setTeamState(null);
+    }
+  }, [teams, token]);
+
   // New login handler
   const handleLogin = useCallback(
     async (username: string, password: string) => {
@@ -243,6 +263,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           setToken(newToken);
           // Revalidate user data after login
           if (userMutate) userMutate();
+          if (teamsMutate) teamsMutate();
         } else {
           console.error(
             `Login succeeded but no token returned: ${JSON.stringify(data)}`,
@@ -303,6 +324,7 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     }
     logoutUser();
     setToken(null);
+    setTeamState(null);
     if (userMutate) userMutate(null, false);
   }, [userMutate]);
   // Backward-compatible aliases
