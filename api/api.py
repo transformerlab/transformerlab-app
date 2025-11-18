@@ -5,6 +5,7 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
+import time
 
 import json
 import signal
@@ -421,6 +422,26 @@ async def server_worker_start(
 
     with storage.open(get_global_log_path(), "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
+
+    try:
+        job = job_get(job_id)
+        experiment_id = job.get("experiment_id")
+        await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+    except Exception:
+        # best effort only
+        pass
+    try:
+        from lab import Job  # noqa: used for manipulating job_data directly
+
+        j = Job.get(job_id)
+        jd = j.get_job_data() or {}
+        tail = jd.get("tail", [])
+        tail.append(f"{time.strftime('%Y-%m-%d %H:%M:%S')} | INFO | launcher | Process started, waiting for readiness")
+        jd["tail"] = tail
+        j.set_job_data(jd)
+    except Exception:
+        pass
+
     return {"status": "success", "job_id": job_id}
 
 
