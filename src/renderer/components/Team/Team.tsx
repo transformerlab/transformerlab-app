@@ -13,8 +13,9 @@ import {
   ModalDialog,
   ModalClose,
   Stack,
+  ListItemDecorator,
 } from '@mui/joy';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, User2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 
@@ -32,6 +33,9 @@ export default function UserLoginTest(): JSX.Element {
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
+  const { data: members } = useAPI('teams', ['getMembers'], {
+    teamId: authContext?.team?.id,
+  });
 
   async function handleNewTeam() {
     setLoading(true);
@@ -83,7 +87,7 @@ export default function UserLoginTest(): JSX.Element {
             value={authContext.team?.id ?? ''}
             onChange={(_, value) => {
               const selectedId = value as string;
-              const selectedTeam = teams.teams.find(
+              const selectedTeam = teams?.teams.find(
                 (t: any) => t.id === selectedId,
               );
               if (selectedTeam) {
@@ -97,7 +101,7 @@ export default function UserLoginTest(): JSX.Element {
             aria-label="Select workspace"
             sx={{ minWidth: 300 }}
           >
-            {teams.teams.map((team: any) => (
+            {teams?.teams.map((team: any) => (
               <Option key={team.id} value={team.id}>
                 {team.name}
                 {/* — {team.id} */}
@@ -171,7 +175,37 @@ export default function UserLoginTest(): JSX.Element {
           </Box>
         </Stack>
         <Box sx={{ mt: 3 }}>
-          <Typography level="title-lg">Members:</Typography>
+          <Typography level="title-lg" mb={1}>
+            Members:
+          </Typography>
+
+          <List>
+            {members?.members?.map((m: any, idx: number) => (
+              <ListItem key={m.id ?? m.email ?? idx}>
+                <ListItemButton>
+                  <ListItemDecorator>
+                    <User2Icon />
+                  </ListItemDecorator>
+                  <ListItemContent>
+                    <Typography fontWeight="md">{m?.email}</Typography>
+                    {m.email && (
+                      <Typography level="body2" textColor="neutral.500">
+                        Role: {m?.role}
+                      </Typography>
+                    )}
+                  </ListItemContent>
+                </ListItemButton>
+              </ListItem>
+            ))}
+            <ListItem>
+              <Typography level="body2" textColor="neutral.500">
+                Total Members: {members?.members?.length ?? 0}
+              </Typography>
+            </ListItem>
+          </List>
+          <Button startDecorator={<PlusIcon />} variant="soft">
+            Invite Member (Coming Soon)
+          </Button>
         </Box>
       </Box>
     </div>

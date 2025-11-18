@@ -203,6 +203,10 @@
     "delete": {
       "method": "DELETE",
       "path": "teams/{teamId}/delete"
+    },
+    "getMembers": {
+      "method": "GET",
+      "path": "teams/{teamId}/members"
     }
   },
   "auth": {
