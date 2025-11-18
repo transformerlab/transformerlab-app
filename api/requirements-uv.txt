@@ -562,6 +562,7 @@ setuptools==70.2.0
     # via
     #   tensorboard
     #   torch
+    #   triton
     #   wandb
 shellingham==1.5.4
     # via typer
@@ -664,6 +665,8 @@ transformers==4.57.1
     #   -r requirements.in
     #   peft
     #   sentence-transformers
+triton==3.4.0
+    # via torch
 typer==0.15.4
     # via mcp
 typing-extensions==4.12.2
