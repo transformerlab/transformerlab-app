@@ -12,3 +12,4 @@ This repo uses pytest. After installing the package (editable is fine), run:
 ```bash
 pytest
 ```
+
