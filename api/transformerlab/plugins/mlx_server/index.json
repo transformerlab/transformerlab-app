@@ -1,0 +1,63 @@
+{
+  "name": "Apple MLX Server",
+  "uniqueId": "mlx_server",
+  "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "0.1.45",
+  "supports": [
+    "chat",
+    "completion",
+    "visualize_model",
+    "model_layers",
+    "rag",
+    "tools",
+    "template",
+    "embeddings",
+    "tokenize",
+    "logprobs",
+    "batched"
+  ],
+  "model_architectures": [
+    "MLX",
+    "CohereForCausalLM",
+    "DeepseekV2ForCausalLM",
+    "Exaone4ForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "Gemma3ForCausalLM",
+    "Gemma3ForConditionalGeneration",
+    "GPTBigCodeForCausalLM",
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM",
+    "SmolLM3ForCausalLM",
+    "Ernie4_5_ForCausalLM",
+    "GptOssForCausalLM"
+  ],
+  "supported_hardware_architectures": [
+    "mlx"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "context_length": {
+      "type": "integer",
+      "default": 4096,
+      "title": "Model Context Length (Fallback)"
+    }
+  },
+  "parameters_ui": {
+    "context_length": {
+      "ui:help": "This context length will be used when the context length is not specified in the model config."
+    }
+  }
+}

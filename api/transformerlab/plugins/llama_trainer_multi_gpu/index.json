@@ -1,0 +1,163 @@
+{
+  "name": "LLM LoRA Trainer (Multi GPU)",
+  "uniqueId": "llama_trainer_multi_gpu",
+  "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.1.21",
+  "model_architectures": [
+    "LlamaForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "Gemma3ForCausalLM",
+    "Gemma3ForConditionalGeneration",
+    "AprielForCausalLM",
+    "ExaoneForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "SmolLM3ForCausalLM",
+    "Lfm2ForCausalLM"
+  ],
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supports": [
+    "sweeps",
+    "chat_template_formatting"
+  ],
+  "supported_hardware_architectures": [
+    "cuda"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "train_device": {
+      "title": "Training Device",
+      "type": "string",
+      "required": true,
+      "enum": [
+        "cuda",
+        "cpu",
+        "tpu"
+      ],
+      "default": "cuda"
+    },
+    "gpu_ids": {
+      "title": "GPU IDs to Train",
+      "type": "string",
+      "default": "auto"
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1
+    },
+    "learning_rate_schedule": {
+      "title": "Learning Rate Schedule",
+      "type": "string",
+      "enum": [
+        "constant",
+        "linear",
+        "cosine",
+        "constant_with_warmup"
+      ],
+      "default": "constant"
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 5e-05,
+      "minimum": 1e-06
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "max_steps": {
+      "title": "Max Steps (-1 means no limit)",
+      "type": "integer",
+      "default": -1
+    },
+    "lora_r": {
+      "title": "Lora R",
+      "type": "number",
+      "minimum": 4,
+      "maximum": 64,
+      "multipleOf": 4,
+      "default": 16
+    },
+    "lora_alpha": {
+      "title": "Lora Alpha",
+      "type": "number",
+      "minimum": 4,
+      "maximum": 128,
+      "multipleOf": 4,
+      "default": 32
+    },
+    "lora_dropout": {
+      "title": "Lora Dropout",
+      "type": "number",
+      "minimum": 0.05,
+      "maximum": 0.9,
+      "default": 0.05
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "required": true
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "fuse_model": {
+      "title": "Fuse Model",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "parameters_ui": {
+    "maximum_sequence_length": {
+      "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
+    },
+    "train_device": {
+      "ui:help": "The device to train the model on. Use 'cuda' for Multi GPU Training, 'cpu' for CPU, and 'tpu' for TPU.",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "gpu_ids": {
+      "ui:help": "Comma separated list of GPU IDs to use for training. Set to 'auto' for all GPUs. Example: 0,1,2,3 for 4 GPUs."
+    },
+    "batch_size": {
+      "ui:help": "The number of sequences processed simultaneously during training. Higher values lower number of iterations but require more memory."
+    },
+    "lora_r": {
+      "ui:widget": "range",
+      "ui:help": "Rank of the update matrices, expressed in int. Lower rank results in smaller update matrices with fewer trainable parameters."
+    },
+    "lora_alpha": {
+      "ui:widget": "range",
+      "ui:help": "LoRA scaling factor. Make it a multiple of LoRA R."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+    },
+    "fuse_model": {
+      "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the model zoo for the fused model."
+    }
+  }
+}

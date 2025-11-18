@@ -1,0 +1,117 @@
+{
+  "name": "Generate Images from Prompts",
+  "uniqueId": "dataset_imagegen",
+  "description": "Generate images using a text-to-image model from a set of user-provided prompts.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.5",
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [],
+  "_dataset": true,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "image_width": {
+      "title": "Image Width",
+      "type": "integer",
+      "default": 512,
+      "minimum": 64,
+      "required": true
+    },
+    "image_height": {
+      "title": "Image Height",
+      "type": "integer",
+      "default": 512,
+      "minimum": 64,
+      "required": true
+    },
+    "images_per_prompt": {
+      "title": "Images per Prompt",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "required": true
+    },
+    "seed": {
+      "title": "Random Seed",
+      "type": "integer",
+      "default": -1,
+      "required": true
+    },
+    "guidance_scale": {
+      "title": "Guidance Scale",
+      "type": "number",
+      "default": 7.5,
+      "minimum": 1.0,
+      "maximum": 20.0,
+      "required": true
+    },
+    "num_inference_steps": {
+      "title": "Number of Inference Steps",
+      "type": "integer",
+      "default": 30,
+      "minimum": 1,
+      "required": true
+    },
+    "prompt_column": {
+      "title": "Prompt Column Name",
+      "type": "string",
+      "default": "prompt",
+      "required": true
+    },
+    "negative_prompt_column": {
+      "title": "Negative Prompt Column Name (Optional)",
+      "type": "string",
+      "default": ""
+    },
+    "prompt_postfix": {
+      "title": "Prompt Postfix",
+      "type": "string",
+      "default": ""
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_imagen"
+    }
+  },
+  "parameters_ui": {
+    "input_field": {
+      "ui:help": "Specify the field in the dataset that contains the queries (default: 'input')"
+    },
+    "tflabcustomui_docs": {
+      "ui:help": "Upload a .txt, .pdf, .json, or .jsonl file with one prompt per line or field."
+    },
+    "image_width": {
+      "ui:help": "Width of each generated image in pixels."
+    },
+    "image_height": {
+      "ui:help": "Height of each generated image in pixels."
+    },
+    "images_per_prompt": {
+      "ui:help": "Number of images to generate for each prompt (1 to 8)."
+    },
+    "seed": {
+      "ui:help": "Random seed for reproducibility. Use -1 for a different result each time."
+    },
+    "guidance_scale": {
+      "ui:help": "How strongly the model follows the prompt. Higher values enforce tighter adherence."
+    },
+    "num_inference_steps": {
+      "ui:help": "Number of diffusion steps. More steps can improve quality but increase generation time."
+    },
+    "prompt_column": {
+      "ui:help": "Specify which column contains the main prompts for generation."
+    },
+    "negative_prompt_column": {
+      "ui:help": "Specify the column name for negative prompts. Leave empty if not using negative prompts."
+    },
+    "prompt_postfix": {
+      "ui:help": "Optional postfix to append to every prompt before generation."
+    }
+  }
+}

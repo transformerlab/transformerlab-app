@@ -1,0 +1,250 @@
+{
+  "name": "Embedding Model Trainer",
+  "uniqueId": "embedding_model_trainer",
+  "description": "A plugin for training or fine-tuning embedding models using Sentence Transformers v3",
+  "plugin-format": "python",
+  "type": "trainer",
+  "train_type": "embedding",
+  "version": "0.0.9",
+  "model_architectures": [
+    "BertModel",
+    "SentenceTransformer",
+    "DistilBertModel",
+    "RobertaModel",
+    "NomicBertModel",
+    "AlbertModel",
+    "XLMRobertaModel",
+    "XLMModel",
+    "XLNetModel",
+    "LongformerModel",
+    "MobileBertModel",
+    "GteModel",
+    "DebertaModel",
+    "DebertaV2Model",
+    "ElectraModel",
+    "CamembertModel",
+    "T5EncoderModel",
+    "MPNetModel",
+    "FlaubertModel",
+    "TransformerXLModel",
+    "GPT2Model",
+    "OpenAIGPTModel",
+    "CTRLModel",
+    "ReformerModel",
+    "BigBirdModel",
+    "FunnelModel",
+    "LayoutLMModel",
+    "SqueezeBertModel",
+    "BartEncoder",
+    "MarianEncoder",
+    "PegasusEncoder",
+    "E5Model",
+    "BGEModel",
+    "SGPT",
+    "FastText",
+    "Word2Vec",
+    "GloVe",
+    "USE",
+    "SimCSE",
+    "CoCondenser",
+    "ConvBERT",
+    "DPR",
+    "CLIP",
+    "ESimCSE",
+    "GTR",
+    "Gecko",
+    "JinaModel",
+    "LaBSE",
+    "LASER",
+    "LexicalModel",
+    "MiniLM",
+    "MiniLMv2",
+    "MuRIL",
+    "REALM",
+    "SBERT",
+    "SPECTER",
+    "TinyBERT",
+    "UniCoil",
+    "ColBERT",
+    "ANCE",
+    "INSTRUCTOR",
+    "Ada",
+    "Curie",
+    "Davinci",
+    "AsymmetricSemanticSearchModel"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "training_template_format": "none",
+  "parameters": {
+    "dataset_type": {
+      "title": "Dataset Type",
+      "type": "string",
+      "enum": [
+        "anchor | positive",
+        "anchor | positive | negative",
+        "sentence_A | sentence_B | score",
+        "single sentences",
+        "single sentences | class",
+        "anchor | anchor",
+        "damaged_sentence | original_sentence",
+        "sentence_A | sentence_B | class",
+        "anchor | positve/negative | class",
+        "anchor | positive | negative_1 | negative_2 | ... | negative_n",
+        "id | anchor | positive"
+      ],
+      "default": "anchor | positive"
+    },
+    "loss_function": {
+      "title": "Loss Function",
+      "type": "string",
+      "enum": [
+        "MultipleNegativesRankingLoss",
+        "CosineSimilarityLoss",
+        "BatchAllTripletLoss",
+        "BatchHardSoftMarginTripletLoss",
+        "BatchHardTripletLoss",
+        "BatchSemiHardTripletLoss",
+        "ContrastiveTensionLoss",
+        "DenoisingAutoEncoderLoss",
+        "ContrastiveTensionLossInBatchnegatives",
+        "SoftmaxLoss",
+        "CachedMultipleNegativesRankingLoss",
+        "MultiplenegativesSymmetricRankingLoss",
+        "CachedMultipleNegativesSymmetricRankingLoss",
+        "MegaBatchMarginLoss",
+        "GISTEmbedLoss",
+        "CachedGISTEmbedLoss",
+        "ContrastiveLoss",
+        "OnlineContrastiveLoss",
+        "CoSENTLoss",
+        "AnglELoss",
+        "TripletLoss"
+      ],
+      "default": "MultipleNegativesRankingLoss"
+    },
+    "loss_modifier_name": {
+      "title": "Loss Modifier Name",
+      "type": "string",
+      "enum": [
+        "MatryoshkaLoss",
+        "Matryoshka2dLoss",
+        "AdaptiveLayerLoss",
+        "None"
+      ],
+      "default": "None"
+    },
+    "text_column_name": {
+      "title": "Text Column Name",
+      "type": "string",
+      "default": "context"
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 3,
+      "minimum": 1
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 16,
+      "minimum": 1
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 2e-05,
+      "minimum": 1e-06
+    },
+    "warmup_ratio": {
+      "title": "Warmup Ratio",
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "fp16": {
+      "title": "Use FP16",
+      "type": "boolean",
+      "default": false
+    },
+    "bf16": {
+      "title": "Use BF16",
+      "type": "boolean",
+      "default": false
+    },
+    "max_samples": {
+      "title": "Max Samples",
+      "type": "integer",
+      "default": -1,
+      "minimum": -1
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "parameters_ui": {
+    "dataset_type": {
+      "ui:help": "The type of dataset you are using for fine tuning the embedding model",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "loss_function": {
+      "ui:help": "The loss function to use for training. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "loss_modifier_name": {
+      "ui:help": "Instil useful properties into the trained embedding model using Loss Modifiers. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "num_train_epochs": {
+      "ui:help": "Number of epochs for fine-tuning the embedding model."
+    },
+    "batch_size": {
+      "ui:help": "Batch size per device (GPU/CPU). Larger values require more memory."
+    },
+    "learning_rate": {
+      "ui:help": "Learning rate for the optimizer."
+    },
+    "warmup_ratio": {
+      "ui:help": "Fraction of total steps to warm up the learning rate."
+    },
+    "fp16": {
+      "ui:help": "Enable FP16 training for faster throughput if supported by your GPU."
+    },
+    "bf16": {
+      "ui:help": "Enable BF16 training if your GPU supports it. Usually used on newer devices."
+    },
+    "max_samples": {
+      "ui:help": "If set to > -1, only use that many samples from the training dataset."
+    },
+    "log_to_wandb": {
+      "ui:help": "Whether to log training progress to Weights and Biases."
+    },
+    "text_column_name": {
+      "ui:help": "The name of the column in the dataset that contains the text data. Use this only when training using the single sentences format."
+    }
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "name": "LlamaIndex Simple Document Search (RAG)",
+  "uniqueId": "llamaindex_simple_document_search",
+  "description": "",
+  "plugin-format": "python",
+  "type": "rag",
+  "version": "0.0.15",
+  "model_architectures": [],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "response_mode": {
+      "title": "Response Mode",
+      "default": "compact",
+      "type": "string",
+      "enum": [
+        "compact",
+        "refine",
+        "tree_summarize",
+        "simple_summarize",
+        "no_text",
+        "accumulate",
+        "compact_accumulate"
+      ]
+    },
+    "number_of_search_results": {
+      "title": "Number of Retrieval Results",
+      "type": "integer",
+      "default": 2
+    },
+    "temperature": {
+      "title": "Temperature",
+      "type": "number",
+      "default": 0.7,
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "multipleOf": 0.02
+    },
+    "context_window": {
+      "title": "Maximum Input Length (in Tokens)",
+      "type": "integer",
+      "default": 4096
+    },
+    "num_output": {
+      "title": "Size of Output (in Tokens)",
+      "type": "integer",
+      "default": 256
+    },
+    "chunk_size": {
+      "title": "Chunk Size",
+      "type": "integer",
+      "default": 512
+    },
+    "chunk_overlap": {
+      "title": "Chunk Overlap",
+      "type": "integer",
+      "default": 50
+    },
+    "use_reranker": {
+      "title": "Use Reranker",
+      "type": "boolean",
+      "default": false
+    },
+    "reranker_model": {
+      "title": "Reranker Model",
+      "type": "string",
+      "default": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    },
+    "reranker_top_n": {
+      "title": "Reranker Top N",
+      "type": "integer",
+      "default": 20
+    }
+  },
+  "parameters_ui": {
+    "response_mode": {
+      "ui:help": "LLama Index Response Mode. More info here https://tinyurl.com/3nurvee5"
+    },
+    "context_window": {
+      "ui:help": "Number of tokens to include in the input context, which includes the combination of all the search results. Default is 4096."
+    },
+    "num_output": {
+      "ui:help": "Number of tokens to include in the output. Input + Output Size should be less than model's Context Length. Default is 256."
+    },
+    "number_of_search_results": {
+      "ui:help": "Number of search results to return. Too large and the context will become too big, too small and the LLM will not have enough candidate results to look at. Default is 2."
+    },
+    "temperature": {
+      "ui:widget": "range",
+      "ui:help": "Temperature for sampling in LLM. Lower values will result in more deterministic results, higher values will result in more random results. Default is 0.7."
+    },
+    "use_reranker": {
+      "ui:help": "Use a reranker to re-rank the search results. Default is True."
+    },
+    "reranker_model": {
+      "ui:help": "Reranker model to use. Default is cross-encoder/ms-marco-MiniLM-L-6-v2. Enter any reranker model from huggingface model hub"
+    },
+    "reranker_top_n": {
+      "ui:help": "Top N search results to rerank. Default is 20."
+    }
+  }
+}

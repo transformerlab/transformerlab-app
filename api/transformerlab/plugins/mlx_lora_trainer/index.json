@@ -1,0 +1,158 @@
+{
+  "name": "Apple MLX LoRA Trainer",
+  "uniqueId": "mlx_lora_trainer",
+  "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.4.23",
+  "model_architectures": [
+    "MLX",
+    "CohereForCausalLM",
+    "DeepseekV2ForCausalLM",
+    "Exaone4ForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "Gemma3ForCausalLM",
+    "GPTBigCodeForCausalLM",
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM",
+    "SmolLM3ForCausalLM"
+  ],
+  "supported_hardware_architectures": [
+    "mlx"
+  ],
+  "supports": [
+    "sweeps",
+    "chat_template_formatting",
+    "checkpoints"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "lora_layers": {
+      "title": "LoRA Layers",
+      "type": "integer",
+      "default": 16,
+      "minimum": 4,
+      "maximum": 64
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 5e-05,
+      "minimum": 1e-06
+    },
+    "lora_rank": {
+      "title": "LoRA Rank",
+      "type": "integer",
+      "default": 8,
+      "minimum": 1,
+      "maximum": 256
+    },
+    "lora_alpha": {
+      "title": "LoRA Alpha",
+      "type": "integer",
+      "default": 16,
+      "minimum": 1,
+      "maximum": 256
+    },
+    "iters": {
+      "title": "Iterations",
+      "type": "integer",
+      "default": 1000,
+      "minimum": 1
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": -1,
+      "minimum": -1
+    },
+    "steps_per_report": {
+      "title": "Steps per Report",
+      "type": "integer",
+      "default": 100,
+      "minimum": 1
+    },
+    "steps_per_eval": {
+      "title": "Steps per Evaluation",
+      "type": "integer",
+      "default": 200,
+      "minimum": 1
+    },
+    "save_every": {
+      "title": "Save Every",
+      "type": "integer",
+      "default": 100,
+      "minimum": 1
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "default": "adaptor",
+      "required": true
+    },
+    "fuse_model": {
+      "title": "Fuse Model after Training",
+      "type": "boolean",
+      "default": true,
+      "required": true
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": true,
+      "required": true
+    }
+  },
+  "parameters_ui": {
+    "lora_layers": {
+      "ui:help": "Default fine-tune layers is 16. Setting to 8 or 4 reduces memory needed for back propagation, but may reduce the quality if you are tuning with a lot of data."
+    },
+    "batch_size": {
+      "ui:help": "Default batch is 4. Setting this to 2 or 1 will reduce memory consumption but may slow performance."
+    },
+    "learning_rate": {
+      "ui:help": "Adam Learning rate."
+    },
+    "lora_rank": {
+      "ui:help": "Number of trainable parameters to use during training. Default is 8. Increasing can improve learning new concepts but will use more RAM."
+    },
+    "lora_alpha": {
+      "ui:help": "Scaling factor for learned weights. Default is 16. Increasing the ratio of alpha/rank will cause new weights to carry more influence."
+    },
+    "iters": {
+      "ui:help": "Number of iterations (not epochs) to train -- 1000 could be a starting point."
+    },
+    "num_train_epochs": {
+      "ui:help": "Number of epochs to train. Default is -1 (which disables epoch based training). Setting this to 1 or greater value will override any value set for iterations but it may improve the quality of training."
+    },
+    "steps_per_report": {
+      "ui:help": "Number of training steps between loss reporting."
+    },
+    "steps_per_eval": {
+      "ui:help": "Number of training steps between validations."
+    },
+    "fuse_model": {
+      "ui:help": "Fuse adapter and model together. If unchecked, this will create a separate adapter which can be loaded from within the model in Foundation tab."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+    }
+  }
+}

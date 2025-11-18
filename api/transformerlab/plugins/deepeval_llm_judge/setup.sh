@@ -1,0 +1,1 @@
+uv pip install deepeval==2.8.2 langchain-openai==0.3.28 instructor==1.9.2 anthropic==0.49.0 seaborn==0.13.2 langchain==0.3.25 langchain-community==0.3.23
