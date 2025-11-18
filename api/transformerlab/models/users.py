@@ -39,10 +39,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     # Optional: Define custom logic after registration
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         print(f"User {user.id} has registered.")
-        # Add to default team
+        # Add to default team as owner
         async with self.user_db.session as session:
             team = await create_default_team(session)
-            user_team = UserTeam(user_id=str(user.id), team_id=team.id)
+            user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
             session.add(user_team)
             await session.commit()
 
