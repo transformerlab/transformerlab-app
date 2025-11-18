@@ -109,7 +109,7 @@ export default function LoginChip({}: Props) {
           onClick={() => {
             closeMenu();
             // navigate to an edit page for the current team; adjust path as needed
-            navigate('/user_info_test');
+            navigate('/team');
           }}
         >
           <ListItemDecorator>

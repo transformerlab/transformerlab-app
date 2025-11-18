@@ -47,6 +47,7 @@ import SelectEmbeddingModel from './Experiment/Foundation/SelectEmbeddingModel';
 import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
+import Team from './Team/Team';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -479,6 +480,7 @@ export default function MainAppPanel({
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
         <Route path="/user_info_test" element={<UserLoginTest />} />
+        <Route path="/team" element={<Team />} />
       </Routes>
     </>
   );

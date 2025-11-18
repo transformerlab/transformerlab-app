@@ -65,7 +65,7 @@ import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
-import LoginChip from './LoginChip';
+import LoginChip from './UserWidget';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
