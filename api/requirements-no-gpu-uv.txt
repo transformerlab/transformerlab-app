@@ -10,7 +10,7 @@ aiofiles==24.1.0
     # via -r requirements.in
 aiohappyeyeballs==2.4.4
     # via aiohttp
-aiohttp==3.11.11
+aiohttp==3.12.14
     # via
     #   fsspec
     #   transformerlab-inference
@@ -43,7 +43,7 @@ beautifulsoup4==4.13.3
     # via
     #   markdownify
     #   markitdown
-certifi==2022.12.7
+certifi==2024.7.4
     # via
     #   httpcore
     #   httpx
@@ -135,7 +135,7 @@ greenlet==3.1.1
     # via sqlalchemy
 grpcio==1.70.0
     # via tensorboard
-h11==0.14.0
+h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
@@ -166,7 +166,7 @@ huggingface-hub==0.34.3
     #   transformers
 humanfriendly==10.0
     # via coloredlogs
-idna==3.4
+idna==3.7
     # via
     #   anyio
     #   httpx
@@ -182,7 +182,7 @@ iniconfig==2.1.0
     # via pytest
 isodate==0.7.2
     # via azure-ai-documentintelligence
-jinja2==3.1.4
+jinja2==3.1.6
     # via torch
 joblib==1.4.2
     # via
@@ -205,7 +205,7 @@ macmon-python==0.1.2
     # via -r requirements.in
 magika==0.6.1
     # via markitdown
-mammoth==1.9.0
+mammoth==1.11.0
     # via markitdown
 markdown==3.7
     # via tensorboard
@@ -221,7 +221,7 @@ markupsafe==2.1.5
     # via
     #   jinja2
     #   werkzeug
-mcp==1.8.1
+mcp==1.10.0
     # via -r requirements.in
 mdurl==0.1.2
     # via markdown-it-py
@@ -339,7 +339,7 @@ propcache==0.2.1
     # via
     #   aiohttp
     #   yarl
-protobuf==5.29.3
+protobuf==5.29.5
     # via
     #   onnxruntime
     #   tensorboard
@@ -465,7 +465,7 @@ sentry-sdk==2.22.0
     # via wandb
 setproctitle==1.3.5
     # via wandb
-setuptools==70.2.0
+setuptools==78.1.1
     # via
     #   tensorboard
     #   wandb
@@ -499,7 +499,7 @@ sqlalchemy==2.0.38
     # via -r requirements.in
 sse-starlette==2.3.5
     # via mcp
-starlette==0.45.3
+starlette==0.49.1
     # via
     #   fastapi
     #   mcp
@@ -593,7 +593,7 @@ typing-inspection==0.4.1
     # via pydantic
 tzdata==2025.1
     # via pandas
-urllib3==1.26.13
+urllib3==2.5.0
     # via
     #   requests
     #   sentry-sdk
