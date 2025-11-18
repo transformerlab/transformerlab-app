@@ -1,0 +1,57 @@
+{
+  "name": "Generate Data from Raw Text",
+  "uniqueId": "synthesizer_raw_text",
+  "description": "Use LLMs to create synthetic data for your usecases from reference context. Paste all your reference context to generate a dataset.",
+  "plugin-format": "python",
+  "type": "generator",
+  "version": "0.1.15",
+  "git": "https://github.com/confident-ai/deepeval",
+  "url": "https://github.com/confident-ai/deepeval",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "_dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "generation_model": {
+      "title": "Generation Model",
+      "type": "string"
+    },
+    "num_goldens": {
+      "title": "Number of Samples to generate",
+      "type": "integer",
+      "minimum": 1,
+      "default": 10,
+      "multipleOf": 10
+    },
+    "tflabcustomui_context": {
+      "title": "Reference Text. Paste all your reference context here",
+      "type": "string"
+    }
+  },
+  "parameters_ui": {
+    "num_goldens": {
+      "ui:help": "Number of samples to generate",
+      "ui:widget": "RangeWidget"
+    },
+    "generation_model": {
+      "ui:help": "Select the model to be used for generation from the drop-down list. (Select `local` to use the local model running)",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_raw_text"
+    }
+  }
+}

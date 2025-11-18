@@ -1,0 +1,49 @@
+name: Build and Push Docker Images
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          # Remove the 'v' prefix if it exists, e.g., v1.2.3 -> 1.2.3
+          VERSION="${GITHUB_REF#refs/tags/}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}"
+      - name: Build General image
+        run: docker build -f docker/common/Dockerfile -t transformerlab/api:${VERSION} -t transformerlab/api:latest .
+
+      - name: Build ROCm image
+        run: docker build -f docker/gpu/amd/Dockerfile -t transformerlab/api:${VERSION}-rocm -t transformerlab/api:latest-rocm docker/gpu/amd
+
+      - name: Push versioned images
+        run: |
+          docker push transformerlab/api:${VERSION}
+          docker push transformerlab/api:${VERSION}-rocm
+
+      - name: Push latest images
+        run: |
+          docker push transformerlab/api:latest
+          docker push transformerlab/api:latest-rocm

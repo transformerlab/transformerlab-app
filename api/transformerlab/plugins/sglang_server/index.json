@@ -1,0 +1,76 @@
+{
+  "name": "SGLang Server",
+  "uniqueId": "sglang_server",
+  "description": "SGLang Server loads models for multimodal inference using Huggingface Transformers for generation.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "0.0.7",
+  "supports": [
+    "chat",
+    "completion",
+    "rag",
+    "tools",
+    "template",
+    "embeddings",
+    "batched",
+    "multimodal"
+  ],
+  "model_architectures": [
+    "MllamaForConditionalGeneration",
+    "Qwen2_5_VLForConditionalGeneration",
+    "Qwen2VLForConditionalGeneration",
+    "Gemma3ForConditionalGeneration",
+    "PaliGemmaForConditionalGeneration",
+    "DeepseekV2ForCausalLM",
+    "MiniCPMV",
+    "LlavaLlamaForCausalLM",
+    "LlavaQwenForCausalLM",
+    "KimiVLForConditionalGeneration",
+    "Mistral3ForConditionalGeneration",
+    "Phi4MMForCausalLM"
+  ],
+  "supported_hardware_architectures": [
+    "cuda",
+    "amd"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "gpu_ids": {
+      "title": "GPU IDs to use for Inference. Leaving blank will use all available GPUs",
+      "type": "string",
+      "default": ""
+    },
+    "load_compressed": {
+      "title": "Load compressed model",
+      "type": "string",
+      "default": "None",
+      "enum": [
+        "None",
+        "8-bit",
+        "4-bit"
+      ]
+    },
+    "model_dtype": {
+      "title": "Select a specific data type for the model",
+      "type": "string",
+      "enum": [
+        "auto",
+        "float16",
+        "bfloat16",
+        "float32"
+      ]
+    }
+  },
+  "parameters_ui": {
+    "gpu_ids": {
+      "ui:help": "Specify a comma-separated list of GPU IDs to use for inference. The IDs for each GPU can be found in the Computer tab. For example: 0,1,2,3"
+    },
+    "model_dtype": {
+      "ui:help": "Select a specific data type for the model. This might help with older GPUs that do not support bfloat16"
+    }
+  }
+}

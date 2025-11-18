@@ -1,0 +1,750 @@
+[
+  {
+    "id": 1,
+    "title": "Train a Model From Scratch",
+    "description": "Build a new machine learning model from the ground up using MLX, optimized for Apple Silicon. Ideal for custom use cases and datasets.",
+    "notes": "# Training a Model From Scratch\n\n## Overview\nThis recipe demonstrates how to train a new machine learning model from scratch using MLX framework, optimized for Apple Silicon.\n\n## Important Considerations\n- Optimized for Apple Silicon (M1/M2/M3)\n- Uses MLX for efficient training\n- Dataset is formatted for instruction following\n\n## Training Tips\n- Monitor loss curves carefully\n- Adjust batch size based on available memory\n- Use appropriate learning rate schedule\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Follow basic instructions\n- Generate coherent responses\n- Demonstrate basic language understanding",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
+      },
+      {
+        "type": "plugin",
+        "name": "mlx_lora_trainer"
+      },
+      {
+        "type": "dataset",
+        "name": "spencer/samsum_reformat"
+      },
+      {
+        "type": "plugin",
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "train_from_scratch",
+        "task_type": "TRAIN",
+        "type": "Training",
+        "plugin": "mlx_lora_trainer",
+        "config_json": "{\"template_name\":\"TrainFromScratch\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{text}}\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"32\",\"lora_alpha\":\"128\",\"iters\":\"120\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"20\",\"save_every\":\"10\",\"adaptor\":\"from_scratch\"}"
+      },
+      {
+        "name": "evaluate_model",
+        "task_type": "EVAL",
+        "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
+        "config_json": "{\"template_name\":\"EvalFromScratch\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalFromScratch\"}"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "Train_and_Evaluate",
+        "config": {
+          "nodes": [
+            {
+              "id": "node_train",
+              "type": "TRAIN",
+              "task": "train_from_scratch",
+              "name": "Training Task",
+              "out": ["node_eval"]
+            },
+            {
+              "id": "node_eval",
+              "type": "EVAL",
+              "task": "evaluate_model",
+              "name": "Evaluation Task",
+              "out": []
+            }
+          ]
+        }
+      }
+    ],
+    "cardImage": "https://plus.unsplash.com/premium_photo-1682142051662-eda5ad640633?q=80&w=2071&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 2,
+    "title": "Fine-tune an Existing Model",
+    "description": "Adapt a pre-trained model to your specific needs using LoRA. Save time and resources by leveraging existing knowledge.",
+    "notes": "# Fine-tuning with LoRA\n\n## Overview\nThis recipe demonstrates how to fine-tune a pre-trained model using Low-Rank Adaptation (LoRA) for efficient training.\n\n## Important Considerations\n- LoRA reduces memory requirements compared to full fine-tuning\n- Suitable for domain adaptation and task-specific training\n- Preserves base model knowledge while learning new tasks\n\n## Training Tips\n- Choose appropriate LoRA rank (typically 8-64)\n- Monitor training loss and validation metrics\n- Adjust learning rate and batch size based on task\n\n## Expected Outcomes\nAfter training, the model should:\n- Show improved performance on target domain\n- Maintain general language capabilities\n- Have smaller parameter footprint than full fine-tuning",
+    "requiredMachineArchitecture": ["cuda"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "Qwen/Qwen2.5-1.5B-Instruct"
+      },
+      {
+        "type": "plugin",
+        "name": "llama_trainer"
+      },
+      {
+        "type": "dataset",
+        "name": "knkarthick/samsum"
+      },
+      {
+        "type": "plugin",
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "finetune_model",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "llama_trainer",
+        "formatting_template": "Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}",
+        "config_json": "{\"template_name\":\"DialogueSummarizing\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\",\"dataset_name\":\"knkarthick/samsum\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Summarizer\"}"
+      },
+      {
+        "name": "evaluate_finetuned",
+        "task_type": "EVAL",
+        "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
+        "config_json": "{\"template_name\":\"EvalFineTuned\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalFineTuned\"}"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "Finetune_and_Evaluate",
+        "config": {
+          "nodes": [
+            {
+              "id": "node_finetune",
+              "type": "TRAIN",
+              "task": "finetune_model",
+              "name": "Fine-tuning Task",
+              "out": ["node_eval"]
+            },
+            {
+              "id": "node_eval",
+              "type": "EVAL",
+              "task": "evaluate_finetuned",
+              "name": "Evaluation Task",
+              "out": []
+            }
+          ]
+        }
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1561375996-8bbec3f2a481?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 3,
+    "title": "Evaluate a Model",
+    "description": "Assess the performance of your model using Eleuther Labs AI Evaluation Harness. Gain insights into accuracy and reliability.",
+    "notes": "# Model Evaluation\n\n## Overview\nThis recipe demonstrates how to evaluate a model's performance using the Eleuther AI Evaluation Harness.\n\n## Important Considerations\n- Uses standardized benchmarks for comparison\n- Evaluates multiple aspects of model performance\n- Provides detailed metrics and analysis\n\n## Evaluation Tips\n- Choose appropriate evaluation tasks\n- Consider using multiple benchmarks\n- Compare results with baseline models\n\n## Expected Outcomes\nThe evaluation will provide:\n- Detailed performance metrics\n- Task-specific scores\n- Comparative analysis with other models",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
+      },
+      {
+        "type": "dataset",
+        "name": "spencer/samsum_reformat"
+      },
+      {
+        "type": "plugin",
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "evaluate_model_mmlu",
+        "task_type": "EVAL",
+        "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
+        "config_json": "{\"template_name\":\"EvalMMLU\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"1.0\",\"run_name\":\"EvalMMLU\"}"
+      },
+      {
+        "name": "evaluate_model_truthfulqa",
+        "task_type": "EVAL",
+        "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
+        "config_json": "{\"template_name\":\"EvalTruthfulQA\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"truthfulqa\",\"limit\":\"1.0\",\"run_name\":\"EvalTruthfulQA\"}"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "Comprehensive_Evaluation",
+        "config": {
+          "nodes": [
+            {
+              "id": "node_eval_mmlu",
+              "type": "EVAL",
+              "task": "evaluate_model_mmlu",
+              "name": "MMLU Evaluation",
+              "out": ["node_eval_truthfulqa"]
+            },
+            {
+              "id": "node_eval_truthfulqa",
+              "type": "EVAL",
+              "task": "evaluate_model_truthfulqa",
+              "name": "TruthfulQA Evaluation",
+              "out": []
+            }
+          ]
+        }
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 4,
+    "title": "Convert a Model to the MLX Format",
+    "description": "Transform your model into the MLX format for compatibility with various deployment environments.",
+    "notes": "# MLX Model Conversion\n\n## Overview\nThis recipe demonstrates how to convert a model to the MLX format for optimized performance on Apple Silicon.\n\n## Important Considerations\n- MLX format is optimized for Apple Silicon\n- Conversion preserves model architecture and weights\n- Enables efficient inference on Mac devices\n\n## Conversion Tips\n- Verify model compatibility\n- Check memory requirements\n- Test inference after conversion\n\n## Expected Outcomes\nAfter conversion, you will have:\n- MLX-compatible model\n- Optimized performance on Apple Silicon\n- Reduced memory footprint",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "Qwen/Qwen2.5-1.5B-Instruct"
+      },
+      {
+        "type": "plugin",
+        "name": "airllm_mlx_server"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "convert_to_mlx",
+        "task_type": "EXPORT",
+        "plugin": "airllm_mlx_server",
+        "config_json": "{\"template_name\":\"MLXConversion\",\"plugin_name\":\"airllm_mlx_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"output_format\":\"mlx\"}"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "MLX_Conversion",
+        "config": {
+          "nodes": [
+            {
+              "id": "node_convert",
+              "type": "EXPORT",
+              "task": "convert_to_mlx",
+              "name": "MLX Conversion Task",
+              "out": []
+            }
+          ]
+        }
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1563203369-26f2e4a5ccf7?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 5,
+    "title": "Quantize a Model",
+    "description": "Optimize your model for faster inference and reduced size using quantization tools.",
+    "notes": "# Model Quantization\n\n## Overview\nThis recipe demonstrates how to quantize a model to reduce its size and improve inference speed while maintaining performance.\n\n## Important Considerations\n- Quantization reduces model precision\n- Trade-off between size/speed and accuracy\n- Different quantization methods available\n\n## Quantization Tips\n- Test different quantization levels\n- Validate performance after quantization\n- Consider hardware compatibility\n\n## Expected Outcomes\nAfter quantization, you will have:\n- Reduced model size\n- Faster inference speed\n- Minimal accuracy loss",
+    "requiredMachineArchitecture": ["mlx", "cuda"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "Qwen/Qwen2.5-1.5B-Instruct"
+      },
+      {
+        "type": "plugin",
+        "name": "llama_cpp_server"
+      },
+      {
+        "type": "plugin",
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "quantize_model",
+        "task_type": "EXPORT",
+        "plugin": "llama_cpp_server",
+        "config_json": "{\"template_name\":\"Quantization\",\"plugin_name\":\"llama_cpp_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"quantization_type\":\"q4_k_m\",\"n_gpu_layers\":\"auto\"}"
+      },
+      {
+        "name": "evaluate_quantized",
+        "task_type": "EVAL",
+        "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
+        "config_json": "{\"template_name\":\"EvalQuantized\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalQuantized\"}"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "Quantize_and_Evaluate",
+        "config": {
+          "nodes": [
+            {
+              "id": "node_quantize",
+              "type": "EXPORT",
+              "task": "quantize_model",
+              "name": "Quantization Task",
+              "out": ["node_eval"]
+            },
+            {
+              "id": "node_eval",
+              "type": "EVAL",
+              "task": "evaluate_quantized",
+              "name": "Evaluation Task",
+              "out": []
+            }
+          ]
+        }
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 6,
+    "title": "Deploy a Model to the Edge",
+    "description": "Seamlessly deploy your model to edge devices using deployment tools. Ensure low-latency and efficient performance.",
+    "notes": "# Edge Deployment\n\n## Overview\nThis recipe demonstrates how to deploy a model to edge devices for efficient inference.\n\n## Important Considerations\n- Edge devices have limited resources\n- Optimization for target hardware\n- Balance between performance and size\n\n## Deployment Tips\n- Test on target hardware\n- Monitor resource usage\n- Optimize for specific use case\n\n## Expected Outcomes\nAfter deployment, you will have:\n- Edge-optimized model\n- Low-latency inference\n- Efficient resource usage",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
+      },
+      {
+        "type": "plugin",
+        "name": "airllm_mlx_server"
+      },
+      {
+        "type": "plugin",
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "optimize_for_edge",
+        "task_type": "EXPORT",
+        "plugin": "airllm_mlx_server",
+        "config_json": "{\"template_name\":\"EdgeOptimization\",\"plugin_name\":\"airllm_mlx_server\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"output_format\":\"mlx\",\"optimize_for_edge\":true}"
+      },
+      {
+        "name": "evaluate_edge_model",
+        "task_type": "EVAL",
+        "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
+        "config_json": "{\"template_name\":\"EvalEdge\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalEdge\"}"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "Edge_Deployment",
+        "config": {
+          "nodes": [
+            {
+              "id": "node_optimize",
+              "type": "EXPORT",
+              "task": "optimize_for_edge",
+              "name": "Edge Optimization Task",
+              "out": ["node_eval"]
+            },
+            {
+              "id": "node_eval",
+              "type": "EVAL",
+              "task": "evaluate_edge_model",
+              "name": "Evaluation Task",
+              "out": []
+            }
+          ]
+        }
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1667984390538-3dea7a3fe33d?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 7,
+    "title": "Run a Model on the Edge",
+    "description": "Execute your model on edge devices using runtime environment. Achieve real-time performance and low power consumption.",
+    "notes": "# Edge Inference\n\n## Overview\nThis recipe demonstrates how to run a model efficiently on edge devices.\n\n## Important Considerations\n- Resource constraints on edge devices\n- Real-time performance requirements\n- Power consumption optimization\n\n## Runtime Tips\n- Monitor inference latency\n- Optimize batch size for throughput\n- Balance CPU and GPU usage\n\n## Expected Outcomes\nAfter setup, you will have:\n- Efficient model inference\n- Real-time performance\n- Optimized resource usage",
+    "requiredMachineArchitecture": ["cuda"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "Qwen/Qwen2.5-1.5B-Instruct"
+      },
+      {
+        "type": "plugin",
+        "name": "fastchat_server"
+      },
+      {
+        "type": "plugin",
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "setup_edge_inference",
+        "task_type": "LOADER",
+        "plugin": "fastchat_server",
+        "config_json": "{\"template_name\":\"EdgeInference\",\"plugin_name\":\"fastchat_server\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"load_compressed\":\"4-bit\",\"model_dtype\":\"float16\"}"
+      },
+      {
+        "name": "evaluate_inference",
+        "task_type": "EVAL",
+        "plugin": "eleuther-ai-lm-evaluation-harness-mlx",
+        "config_json": "{\"template_name\":\"EvalInference\",\"plugin_name\":\"eleuther-ai-lm-evaluation-harness-mlx\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"EvalInference\"}"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "Edge_Inference",
+        "config": {
+          "nodes": [
+            {
+              "id": "node_setup",
+              "type": "LOADER",
+              "task": "setup_edge_inference",
+              "name": "Edge Setup Task",
+              "out": ["node_eval"]
+            },
+            {
+              "id": "node_eval",
+              "type": "EVAL",
+              "task": "evaluate_inference",
+              "name": "Evaluation Task",
+              "out": []
+            }
+          ]
+        }
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1667984550708-a6beba23cb4c?q=80&w=1932&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 8,
+    "title": "Fine Tune a Small Language Model using MLX",
+    "description": "Train a Llama 3.2 1B model to understand and answer questions about Touch Rugby rules using the MLX framework. Perfect for rule-based question answering.",
+    "notes": "# MLX Fine-Tuning Notes\n\n## Overview\nThis recipe fine-tunes a Llama 3.2 1B model specifically for Touch Rugby rules using the MLX framework.\n\n## Important Considerations\n- MLX is optimized for Apple Silicon (M1/M2/M3 chips)\n- The dataset contains Touch Rugby rules in Q&A format\n- Model size is kept small (1B parameters) for efficient inference\n\n## Training Tips\n- Monitor loss curves carefully\n- Use appropriate LoRA rank (typically 8-64)\n- Validate on unseen rugby scenarios\n\n## Expected Outcomes\nAfter training, the model should be able to answer questions about:\n- Touch Rugby rules and regulations\n- Game procedures and scoring\n- Player positions and responsibilities",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
+      },
+      {
+        "type": "plugin",
+        "name": "mlx_lora_trainer"
+      },
+      {
+        "type": "dataset",
+        "name": "Trelis/touch-rugby-rules"
+      },
+      {
+        "type": "plugin",
+        "name": "common-eleuther-ai-lm-eval-harness-mlx"
+      },
+      {
+        "type": "plugin",
+        "name": "synthesizer_scratch"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "fine_tune_touch_rugby",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "mlx_lora_trainer",
+        "formatting_template": "{{prompt}}\n{{completion}}",
+        "config_json": "{\"template_name\":\"TouchRugby\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{prompt}}\\n{{completion}}\",\"dataset_name\":\"Trelis/touch-rugby-rules\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"32\",\"lora_alpha\":\"128\",\"iters\":\"120\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"20\",\"save_every\":\"10\",\"adaptor\":\"touch-rugby\"}"
+      },
+      {
+        "name": "evaluate_touch_rugby",
+        "task_type": "EVAL",
+        "plugin": "common-eleuther-ai-lm-eval-harness-mlx",
+        "config_json": "{\"template_name\":\"HandsomeBadger\",\"plugin_name\":\"common-eleuther-ai-lm-eval-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"HandsomeBadger\",\"predefined_tasks\":\"\",\"script_parameters\":{\"template_name\":\"HandsomeBadger\",\"plugin_name\":\"common-eleuther-ai-lm-eval-harness-mlx\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"HandsomeBadger\",\"predefined_tasks\":\"\"}}"
+      },
+      {
+        "name": "generate_touch_rugby_examples",
+        "task_type": "GENERATE",
+        "plugin": "synthesizer_scratch",
+        "config_json": "{\"template_name\":\"SparklingNarwhal\",\"plugin_name\":\"synthesizer_scratch\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"generation_model\":\"local\",\"num_goldens\":\"51\",\"generate_expected_output\":\"Yes\",\"scenario\":\"You are an expert in Touch Rugby rules and regulations. Generate diverse training examples that cover various aspects of the game.\",\"task\":\"Create question-answer pairs about Touch Rugby rules, focusing on game procedures, scoring rules, player positions, and common scenarios.\",\"input_format\":\"A specific question about Touch Rugby rules, formatted as: Question: [question text].\",\"expected_output_format\":\"A clear, accurate answer explaining the relevant Touch Rugby rule, formatted as: Answer: [detailed explanation]\",\"run_name\":\"SparklingNarwhal\",\"generation_type\":\"scratch\",\"script_parameters\":{\"template_name\":\"SparklingNarwhal\",\"plugin_name\":\"synthesizer_scratch\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"MLX\",\"generation_model\":\"local\",\"num_goldens\":\"51\",\"generate_expected_output\":\"Yes\",\"scenario\":\"You are an expert in Touch Rugby rules and regulations. Generate diverse training examples that cover various aspects of the game.\",\"task\":\"Create question-answer pairs about Touch Rugby rules, focusing on game procedures, scoring rules, player positions, and common scenarios.\",\"input_format\":\"A specific question about Touch Rugby rules, formatted as: Question: [question text].\",\"expected_output_format\":\"A clear, accurate answer explaining the relevant Touch Rugby rule, formatted as: Answer: [detailed explanation]\",\"run_name\":\"SparklingNarwhal\",\"generation_type\":\"scratch\"}}"
+      }
+    ],
+    "workflows": [
+      {
+        "name": "Workflow_1",
+        "config": {
+          "nodes": [
+            {
+              "id": "node_train",
+              "type": "TRAIN",
+              "task": "fine_tune_touch_rugby",
+              "name": "Training Task",
+              "out": ["node_eval"]
+            },
+            {
+              "id": "node_eval", 
+              "type": "EVAL",
+              "task": "evaluate_touch_rugby",
+              "name": "Evaluation Task",
+              "out": ["node_generate"]
+            },
+            {
+              "id": "node_generate",
+              "type": "GENERATE", 
+              "task": "generate_touch_rugby_examples",
+              "name": "Generation Task",
+              "out": []
+            }
+          ]
+        }
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1558151507-c1aa3d917dbb?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 9,
+    "title": "Dialogue Summarizing",
+    "description": "Fine-tune a TinyLlama model to create concise, accurate summaries of conversations and dialogues. Perfect for chat logs, meeting transcripts, and customer service interactions.",
+    "notes": "# Dialogue Summarization with TinyLlama\n\n## Overview\nThis recipe demonstrates how to fine-tune a TinyLlama model specifically for dialogue summarization using the SAMSum dataset.\n\n## Important Considerations\n- TinyLlama is optimized for efficiency while maintaining good performance\n- Uses LoRA for memory-efficient fine-tuning\n- Dataset contains diverse conversation styles and formats\n\n## Training Tips\n- Monitor the quality of generated summaries\n- Balance between brevity and information retention\n- Pay attention to maintaining conversation context\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Generate concise summaries of conversations\n- Maintain key points and context\n- Handle various dialogue formats and styles",
+    "requiredMachineArchitecture": ["cuda", "amd"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+      },
+      {
+        "type": "dataset",
+        "name": "knkarthick/samsum"
+      },
+      {
+        "type": "plugin",
+        "name": "llama_trainer"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "train_tinyllama_summarizer",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "llama_trainer",
+        "formatting_template": "Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}",
+        "config_json": "{\"template_name\":\"DialogueSummarizing\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\",\"dataset_name\":\"knkarthick/samsum\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Summarizer\",\"_tlab_recipe_datasets\":{\"name\":\"knkarthick/samsum\",\"path\":\"knkarthick/samsum\"},\"_tlab_recipe_models\":{\"name\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\",\"path\":\"TinyLlama/TinyLlama-1.1B-Chat-v1.0\"}}"
+      }
+    ],
+    "workflows": [],
+    "cardImage": "https://images.unsplash.com/photo-1590650046871-92c887180603?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 10,
+    "title": "Python Code Completion",
+    "description": "Train a SmolLM Base model to provide intelligent Python code completions, suggestions, and assistance. Ideal for developers looking for an efficient coding assistant.",
+    "notes": "# Python Code Completion Training\n\n## Overview\nThis recipe fine-tunes a SmolLM Base model to become a specialized Python code completion assistant.\n\n## Important Considerations\n- SmolLM is designed for efficient inference\n- Dataset contains diverse Python coding examples\n- Model learns common Python patterns and best practices\n\n## Training Tips\n- Focus on code context understanding\n- Balance between common and specialized completions\n- Monitor completion accuracy and relevance\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Provide context-aware code completions\n- Suggest appropriate Python syntax\n- Complete common programming patterns",
+    "requiredMachineArchitecture": ["cuda", "amd"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "HuggingFaceTB/SmolLM2-135M"
+      },
+      {
+        "type": "dataset",
+        "name": "flytech/python-codes-25k"
+      },
+      {
+        "type": "plugin",
+        "name": "llama_trainer"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "train_smollm_python_completion",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "llama_trainer",
+        "formatting_template": "{{output}}",
+        "config_json": "{\"template_name\":\"PythonCompletion\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM2-135M\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{output}}\\n\",\"dataset_name\":\"flytech/python-codes-25k\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.0005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"64\",\"lora_alpha\":\"128\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"python\",\"_tlab_recipe_datasets\":{\"name\":\"flytech/python-codes-25k\",\"path\":\"flytech/python-codes-25k\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM2-135M\",\"path\":\"HuggingFaceTB/SmolLM2-135M\"}}"
+      }
+    ],
+    "workflows": [],
+    "cardImage": "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 11,
+    "title": "Machine Learning Q&A (for MLX)",
+    "description": "Fine-tune a Gemma 2 model to become an expert in answering machine learning questions, optimized for Apple Silicon using MLX framework.",
+    "notes": "# Machine Learning Q&A with Gemma 2\n\n## Overview\nThis recipe adapts a Gemma 2 model to specialize in machine learning concepts and explanations, optimized for MLX.\n\n## Important Considerations\n- MLX optimization for Apple Silicon\n- Comprehensive ML Q&A dataset coverage\n- Efficient inference on Mac devices\n\n## Training Tips\n- Balance technical accuracy with clarity\n- Monitor explanation quality\n- Test across different ML topics\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Explain ML concepts clearly\n- Provide technical insights\n- Answer both basic and advanced ML questions",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "google/gemma-2-2b-it"
+      },
+      {
+        "type": "dataset",
+        "name": "win-wang/Machine_Learning_QA_Collection"
+      },
+      {
+        "type": "plugin",
+        "name": "mlx_lora_trainer"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "train_gemma_2_ml_qa",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "mlx_lora_trainer",
+        "config_json": "{\"template_name\":\"MachineLearningQnA-MLX\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"google/gemma-2-2b-it\",\"model_architecture\":\"Gemma2ForCausalLM\",\"formatting_template\":\"{{text}}\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\",\"_tlab_recipe_datasets\":{\"name\":\"Machine Learning QA Collection\",\"path\":\"win-wang/Machine_Learning_QA_Collection\"},\"_tlab_recipe_models\":{\"name\":\"google/gemma-2-2b-it\",\"path\":\"google/gemma-2-2b-it\"}}"
+      }
+    ],
+    "workflows": [],
+    "cardImage": "https://images.unsplash.com/photo-1557562645-4eee56b29bc1?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 12,
+    "title": "Machine Learning Q&A",
+    "description": "Train a Qwen 2.5 model to provide expert-level answers to machine learning questions, suitable for both beginners and advanced practitioners.",
+    "notes": "# Machine Learning Q&A with Qwen 2.5\n\n## Overview\nThis recipe fine-tunes a Qwen 2.5 model to become a specialized machine learning assistant.\n\n## Important Considerations\n- Comprehensive ML knowledge coverage\n- Balanced between theoretical and practical knowledge\n- Suitable for various ML expertise levels\n\n## Training Tips\n- Focus on explanation clarity\n- Balance technical depth with accessibility\n- Validate answers across ML domains\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Provide detailed ML explanations\n- Answer implementation questions\n- Guide through ML concepts progressively",
+    "requiredMachineArchitecture": ["cuda", "amd"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "Qwen/Qwen2.5-1.5B-Instruct"
+      },
+      {
+        "type": "dataset",
+        "name": "win-wang/Machine_Learning_QA_Collection"
+      },
+      {
+        "type": "plugin",
+        "name": "llama_trainer"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "MachineLearningQnA",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "llama_trainer",
+        "config_json": "{\"template_name\":\"MachineLearningQnA\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}}\\n\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"ML-QA\",\"_tlab_recipe_datasets\":{\"name\":\"win-wang/Machine_Learning_QA_Collection\",\"path\":\"win-wang/Machine_Learning_QA_Collection\"},\"_tlab_recipe_models\":{\"name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"path\":\"Qwen/Qwen2.5-1.5B-Instruct\"}}"
+      }
+    ],
+    "workflows": [],
+    "cardImage": "https://images.unsplash.com/photo-1557562645-4eee56b29bc1?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 13,
+    "title": "Answer SQL Queries (for MLX)",
+    "description": "Fine-tune a Llama 3.2 1B model to understand and generate SQL queries, optimized for Apple Silicon using MLX framework.",
+    "notes": "# SQL Query Assistant with MLX\n\n## Overview\nThis recipe adapts a Llama 3.2 1B model for SQL query generation and explanation, optimized for MLX.\n\n## Important Considerations\n- MLX optimization for Apple Silicon\n- Uses WikiSQL dataset for diverse query types\n- Focus on practical SQL scenarios\n\n## Training Tips\n- Monitor query correctness\n- Test across different SQL complexities\n- Validate query execution results\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Generate correct SQL queries\n- Explain query logic\n- Handle various database scenarios",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "meta-llama/Llama-3.2-1B"
+      },
+      {
+        "type": "dataset",
+        "name": "mlx-community/wikisql"
+      },
+      {
+        "type": "plugin",
+        "name": "mlx_lora_trainer"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "WikiSQL-MLX",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "mlx_lora_trainer",
+        "config_json": "{\"template_name\":\"WikiSQL-MLX\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"mlx-community/wikisql\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\",\"_tlab_recipe_datasets\":{\"name\":\"mlx-community/wikisql\",\"path\":\"mlx-community/wikisql\"},\"_tlab_recipe_models\":{\"name\":\"meta-llama/Llama-3.2-1B\",\"path\":\"meta-llama/Llama-3.2-1B\"}}"
+      }
+    ],
+    "workflows": [],
+    "cardImage": "https://images.unsplash.com/photo-1683322499436-f4383dd59f5a?q=80&w=2071&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 14,
+    "title": "Answer SQL Queries",
+    "description": "Train a Qwen 2.5 model to excel at SQL query generation, understanding, and optimization across various database scenarios.",
+    "notes": "# SQL Query Assistant with Qwen 2.5\n\n## Overview\nThis recipe fine-tunes a Qwen 2.5 model to become a specialized SQL query assistant.\n\n## Important Considerations\n- Comprehensive SQL knowledge base\n- Focus on query optimization\n- Covers various SQL dialects\n\n## Training Tips\n- Balance between simple and complex queries\n- Test query correctness\n- Validate across different database types\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Write efficient SQL queries\n- Explain query optimization\n- Handle complex database operations",
+    "requiredMachineArchitecture": ["cuda", "amd"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "Qwen/Qwen2.5-1.5B-Instruct"
+      },
+      {
+        "type": "dataset",
+        "name": "mlx-community/wikisql"
+      },
+      {
+        "type": "plugin",
+        "name": "llama_trainer"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "WikiSQL",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "llama_trainer",
+        "config_json": "{\"template_name\":\"Wiki SQL\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}} ;\",\"dataset_name\":\"mlx-community/wikisql\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.005\",\"num_train_epochs\":\"2\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"WikiSQL\",\"_tlab_recipe_datasets\":{\"name\":\"mlx-community/wikisql\",\"path\":\"mlx-community/wikisql\"},\"_tlab_recipe_models\":{\"name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"path\":\"Qwen/Qwen2.5-1.5B-Instruct\"}}"
+      }
+    ],
+    "workflows": [],
+    "cardImage": "https://images.unsplash.com/photo-1683322499436-f4383dd59f5a?q=80&w=2071&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 15,
+    "title": "Train a Model to Speak like a Pirate",
+    "description": "Transform a SmolLM model into a charismatic pirate conversationalist, perfect for creating engaging and entertaining interactions with a nautical twist.",
+    "notes": "# Pirate Speech Transformation\n\n## Overview\nThis recipe transforms a SmolLM model into an engaging pirate-speaking assistant using specialized dialogue data.\n\n## Important Considerations\n- Maintains coherent pirate-style speech\n- Balances authenticity with understandability\n- Preserves helpful responses in pirate style\n\n## Training Tips\n- Monitor consistency of pirate speech\n- Balance entertainment with usefulness\n- Maintain appropriate language level\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Respond in consistent pirate dialect\n- Maintain helpful information delivery\n- Create engaging pirate-themed interactions",
+    "requiredMachineArchitecture": ["cuda", "amd"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "HuggingFaceTB/SmolLM-135M-Instruct"
+      },
+      {
+        "type": "dataset",
+        "name": "Peyton3995/dolly-15k-mistral-pirate"
+      },
+      {
+        "type": "plugin",
+        "name": "llama_trainer"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "PirateSpeech",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "llama_trainer",
+        "config_json": "{\"template_name\":\"PirateSpeech\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM-135M-Instruct\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<instruction>\\n{{instruction}}\\n</instruction>\\n<response>\\n{{response}}\\n</response>\",\"dataset_name\":\"Peyton3995/dolly-15k-mistral-pirate\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate_schedule\":\"cosine\",\"learning_rate\":\"0.01\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"64\",\"lora_alpha\":\"128\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Pirate_Speech\",\"_tlab_recipe_datasets\":{\"name\":\"Peyton3995/dolly-15k-mistral-pirate\",\"path\":\"Peyton3995/dolly-15k-mistral-pirate\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM-135M-Instruct\",\"path\":\"HuggingFaceTB/SmolLM-135M-Instruct\"}}"
+      }
+    ],
+    "workflows": [],
+    "cardImage": "https://images.unsplash.com/photo-1652447275071-4bf852aebdc5?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  },
+  {
+    "id": 16,
+    "title": "Train a Model to be Conversationally Intelligent",
+    "description": "Enhance a SmolLM model with advanced conversational abilities and structured response formatting using XML tags, ideal for creating a sophisticated dialogue agent.",
+    "notes": "# Conversational Intelligence Training\n\n## Overview\nThis recipe develops a SmolLM model into a sophisticated conversational agent using structured dialogue formats.\n\n## Important Considerations\n- XML-based response structuring\n- Focus on natural dialogue flow\n- Balanced conversation handling\n\n## Training Tips\n- Monitor response coherence\n- Validate XML format consistency\n- Test conversation flow\n\n## Expected Outcomes\nAfter training, the model should be able to:\n- Maintain structured conversations\n- Generate well-formatted responses\n- Handle diverse dialogue scenarios",
+    "requiredMachineArchitecture": ["cuda", "amd"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "HuggingFaceTB/SmolLM2-135M"
+      },
+      {
+        "type": "dataset",
+        "name": "nickrosh/Evol-Instruct-Code-80k-v1"
+      },
+      {
+        "type": "plugin",
+        "name": "llama_trainer"
+      }
+    ],
+    "tasks": [
+      {
+        "name": "InstructTuning",
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "llama_trainer",
+        "config_json": "{\"template_name\":\"InstructTuning\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM2-135M\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<User>\\n{{instruction}}\\n</User>\\n<Assistant>\\n{{output}}\\n</Assistant>\\n\",\"dataset_name\":\"nickrosh/Evol-Instruct-Code-80k-v1\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00003\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"4\",\"lora_alpha\":\"16\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"instruct\",\"_tlab_recipe_datasets\":{\"name\":\"nickrosh/Evol-Instruct-Code-80k-v1\",\"path\":\"nickrosh/Evol-Instruct-Code-80k-v1\"},\"_tlab_recipe_models\":{\"name\":\"HuggingFaceTB/SmolLM2-135M\",\"path\":\"HuggingFaceTB/SmolLM2-135M\"}}"
+      }
+    ],
+    "workflows": [],
+    "cardImage": "https://images.unsplash.com/photo-1573497620053-ea5300f94f21?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  }
+]
+

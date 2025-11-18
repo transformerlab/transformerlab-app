@@ -1,0 +1,134 @@
+{
+  "name": "Red Teaming",
+  "uniqueId": "red_teaming",
+  "description": "Evaluating outputs of LLMs using objective metrics",
+  "plugin-format": "python",
+  "type": "evaluator",
+  "version": "0.1.9",
+  "git": "https://github.com/confident-ai/deepeval",
+  "url": "https://github.com/confident-ai/deepeval",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "evalsType": "model",
+  "_dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "generation_model": {
+      "title": "Judge Model",
+      "type": "string"
+    },
+    "tasks": {
+      "title": "Vulnerability Types",
+      "type": "string",
+      "enum": [
+        "Bias - Gender",
+        "Bias - Race",
+        "Bias - Religion",
+        "Bias - Politics",
+        "Misinformation - Factual Errors",
+        "Misinformation - Unsupported Claims",
+        "Misinformation - Expertise Misrepresentation",
+        "PII Leakage - API and Database Access",
+        "PII Leakage - Direct Disclosure",
+        "PII Leakage - Session Leak",
+        "PII Leakage - Social Manipulation",
+        "Personal Safety - Bullying",
+        "Personal Safety - Self Harm",
+        "Personal Safety - Unsafe Practices",
+        "Personal Safety - Dangerous Challenges",
+        "Personal Safety - Stalking",
+        "Toxicity - Profanity",
+        "Toxicity - Insults",
+        "Toxicity - Threats",
+        "Toxicity - Mockery",
+        "Robustness - Hijacking",
+        "Robustness - Input Overreliance",
+        "Unauthorized Access - SQL Injection",
+        "Unauthorized Access - Shell Injection",
+        "Unauthorized Access - Debug Access",
+        "Unauthorized Access - SSRF",
+        "Unauthorized Access - RBAC",
+        "Unauthorized Access - BOLA",
+        "Unauthorized Access - BFLA",
+        "Illegal Activity - Weapons",
+        "Illegal Activity - Illegal Drugs",
+        "Illegal Activity - Violent Crimes",
+        "Illegal Activity - Non Violent Crimes",
+        "Illegal Activity - Sex Crimes",
+        "Illegal Activity - Cyber Crimes",
+        "Illegal Activity - Child Exploitation",
+        "Graphic Content - Sexual Content",
+        "Graphic Content - Graphic Content",
+        "Graphic Content - Pornographic Content",
+        "Intellectual Property - Copyright Violations",
+        "Intellectual Property - Trademark Infringement",
+        "Intellectual Property - Patent Disclosure",
+        "Intellectual Property - Imitation"
+      ]
+    },
+    "attack_enhancements": {
+      "title": "Attack Enhancements",
+      "type": "string",
+      "default": "All",
+      "enum": [
+        "All",
+        "Base64",
+        "Gray Box",
+        "Leetspeak",
+        "Prompt Injection",
+        "ROT13"
+      ]
+    },
+    "attacks_per_vulnerability_type": {
+      "title": "Number of Attacks",
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "maximum": 100
+    },
+    "api_url": {
+      "title": "API URL for the model to scan",
+      "type": "string",
+      "default": "http://localhost:8338/v1"
+    },
+    "api_key": {
+      "title": "API Key for the model to scan",
+      "type": "string",
+      "default": "dummy"
+    }
+  },
+  "parameters_ui": {
+    "tasks": {
+      "ui:help": "Select an evaluation metric from the drop-down list",
+      "ui:widget": "AutoCompleteWidget"
+    },
+    "generation_model": {
+      "ui:help": "Select the LLM model to use for scanning your local model for vulnerabilities",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "attack_enhancements": {
+      "ui:help": "Select an attack enhancement from the drop-down list",
+      "ui:widget": "AutoCompleteWidget"
+    },
+    "attacks_per_vulnerability_type": {
+      "ui:help": "Enter the number of attacks per vulnerability type to test on"
+    },
+    "api_url": {
+      "ui:help": "Enter the API URL for the model to scan. You can use the default value if scanning a model running within Transformer Lab"
+    },
+    "api_key": {
+      "ui:help": "Enter the API Key for the model to scan. You can use the default value if scanning a model running within Transformer Lab"
+    }
+  }
+}

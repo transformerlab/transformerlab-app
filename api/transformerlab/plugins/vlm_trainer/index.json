@@ -1,0 +1,130 @@
+{
+  "name": "VLM LoRA Trainer",
+  "uniqueId": "vlm_trainer",
+  "description": "A training script for vision-language models (VLMs) using Huggingface TRL and PeFT. Supports models like Qwen2-VL.",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.1.6",
+  "model_architectures": [
+    "Qwen2ForVision2Seq",
+    "Qwen2VLForVision2Seq",
+    "Qwen2VLForConditionalGeneration",
+    "Qwen2VLForCausalLM",
+    "Qwen2_5_VLForConditionalGeneration",
+    "MllamaForConditionalGeneration",
+    "LlavaNextForConditionalGeneration",
+    "LlavaForConditionalGeneration",
+    "VipLlavaForConditionalGeneration",
+    "LlavaOnevisionForConditionalGeneration",
+    "Qwen3VLForConditionalGeneration"
+  ],
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cuda"
+  ],
+  "training_template_format": "alpaca",
+  "setup-script": "setup.sh",
+  "parameters": {
+    "image_col_name": {
+      "title": "Image Column Name",
+      "type": "string",
+      "default": "image",
+      "required": true
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1
+    },
+    "learning_rate_schedule": {
+      "title": "Learning Rate Schedule",
+      "type": "string",
+      "enum": [
+        "constant",
+        "linear",
+        "cosine",
+        "constant_with_warmup"
+      ],
+      "default": "constant"
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 0.0002
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 3,
+      "minimum": 1
+    },
+    "lora_r": {
+      "title": "LoRA Rank",
+      "type": "number",
+      "minimum": 4,
+      "default": 8
+    },
+    "lora_alpha": {
+      "title": "LoRA Alpha",
+      "type": "number",
+      "minimum": 4,
+      "default": 16
+    },
+    "lora_dropout": {
+      "title": "LoRA Dropout",
+      "type": "number",
+      "minimum": 0,
+      "default": 0.05
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "required": true
+    },
+    "fuse_model": {
+      "title": "Fuse Model",
+      "type": "boolean",
+      "default": false
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": true,
+      "required": true
+    }
+  },
+  "parameters_ui": {
+    "system_message": {
+      "ui:help": "System prompt for the assistant, e.g., 'You are a helpful assistant.'"
+    },
+    "image_col_name": {
+      "ui:help": "Name of the column in your dataset that contains the image data. This image column will be automatically added along with your input template. DO NOT include the image column in your input template. You can leave this blank if you don't want to add an image during training."
+    },
+    "batch_size": {
+      "ui:help": "The number of samples processed simultaneously during training. Higher values require more memory."
+    },
+    "lora_r": {
+      "ui:widget": "range",
+      "ui:help": "Rank of the LoRA update matrices. Lower rank means fewer trainable parameters."
+    },
+    "lora_alpha": {
+      "ui:widget": "range",
+      "ui:help": "LoRA scaling factor. Should be a multiple of LoRA R."
+    },
+    "fuse_model": {
+      "ui:help": "If enabled, merges the LoRA adaptor with the base model and saves a fused model."
+    },
+    "output_dir": {
+      "ui:help": "Directory where the trained model and checkpoints will be saved."
+    },
+    "adaptor_output_dir": {
+      "ui:help": "Directory where the LoRA adaptor will be saved."
+    }
+  }
+}

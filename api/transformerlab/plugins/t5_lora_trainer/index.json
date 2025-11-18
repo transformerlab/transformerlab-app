@@ -1,0 +1,81 @@
+{
+  "name": "T5 LoRA Model Trainer",
+  "uniqueId": "t5_lora_trainer",
+  "description": "A training script adapted from https://www.philschmid.de/fine-tune-flan-t5-peft . Works with T5 models using transformers.Se2SecTrainer.",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "1.0.9",
+  "model_architectures": [
+    "T5ForConditionalGeneration"
+  ],
+  "supported_hardware_architectures": [
+    "cuda",
+    "amd"
+  ],
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "required": true
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 5e-05,
+      "minimum": 1e-06
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "max_steps": {
+      "title": "Max Steps (-1 means no limit)",
+      "type": "integer",
+      "default": -1
+    },
+    "maximum_sequence_length": {
+      "title": "Maximum Sequence Length",
+      "type": "integer",
+      "default": 2048,
+      "minimum": 1
+    },
+    "lora_r": {
+      "title": "Lora R",
+      "type": "number",
+      "minimum": 4,
+      "maximum": 64,
+      "multipleOf": 4,
+      "default": 16
+    },
+    "lora_alpha": {
+      "title": "Lora Alpha",
+      "type": "number",
+      "minimum": 4,
+      "maximum": 128,
+      "multipleOf": 4,
+      "default": 32
+    },
+    "lora_dropout": {
+      "title": "Lora Dropout",
+      "type": "number",
+      "minimum": 0.05,
+      "maximum": 0.9,
+      "default": 0.05
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": false,
+      "required": true
+    }
+  }
+}
