@@ -10,6 +10,8 @@ from transformerlab.shared.models.models import UserTeam, TeamRole
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt as _jose_jwt
 from datetime import datetime, timedelta
+import os
+import sys
 
 
 # --- Pydantic Schemas for API interactions ---
@@ -27,9 +29,22 @@ class UserUpdate(schemas.BaseUserUpdate):
 
 
 # --- User Manager (Handles registration, password reset, etc.) ---
-SECRET = "YOUR_STRONG_SECRET"  # !! CHANGE THIS IN PRODUCTION !!
-REFRESH_SECRET = "YOUR_REFRESH_TOKEN_SECRET"  # !! USE A DIFFERENT SECRET !!
+DEFAULT_SECRET = "YOUR_STRONG_SECRET"  # insecure default for detection only
+DEFAULT_REFRESH_SECRET = "YOUR_REFRESH_TOKEN_SECRET"  # insecure default for detection only
+
+SECRET = os.getenv("TRANSFORMERLAB_JWT_SECRET")
+REFRESH_SECRET = os.getenv("TRANSFORMERLAB_REFRESH_SECRET")
 REFRESH_LIFETIME = 60 * 60 * 24 * 7  # 7 days
+
+if os.getenv("TFL_MULTITENANT") == "true":
+    if not SECRET or not REFRESH_SECRET or SECRET == DEFAULT_SECRET or REFRESH_SECRET == DEFAULT_REFRESH_SECRET:
+        print(
+            "Missing or insecure JWT secrets. Please set TRANSFORMERLAB_JWT_SECRET and TRANSFORMERLAB_REFRESH_SECRET "
+            "to strong, different values in your environment variables or .env file. Exiting."
+        )
+        print(SECRET)
+        print(REFRESH_SECRET)
+        sys.exit(1)
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
