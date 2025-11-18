@@ -33,10 +33,30 @@ export default function UserLoginTest(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
+
+  // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
-  const { data: members } = useAPI('teams', ['getMembers'], {
-    teamId: authContext?.team?.id,
-  });
+
+  // Expose mutate for members so we can re-fetch after role change
+  const { data: members, mutate: membersMutate } = useAPI(
+    'teams',
+    ['getMembers'],
+    {
+      teamId: authContext?.team?.id,
+    },
+  );
+
+  // Simplify errors: show all errors under the "Members" title
+  const [roleError, setRoleError] = useState<string | undefined>(undefined);
+
+  // Clear all role errors or add an error text
+  function handleSetRoleError(message?: string) {
+    if (!message) {
+      setRoleError(undefined);
+    } else {
+      setRoleError(message);
+    }
+  }
 
   async function handleNewTeam() {
     setLoading(true);
@@ -69,6 +89,50 @@ export default function UserLoginTest(): JSX.Element {
       console.error('Error creating team:', e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUpdateRole(userId: string, currentRole: string) {
+    // No team selected / invalid input
+    const teamId = authContext?.team?.id;
+    if (!teamId || !userId) return;
+
+    const newRole = currentRole === 'owner' ? 'member' : 'owner';
+
+    // Clear errors when we start a change
+    handleSetRoleError(undefined);
+
+    try {
+      const res = await authContext.fetchWithAuth(
+        `teams/${teamId}/members/${userId}/role`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ role: newRole }),
+        },
+      );
+
+      if (!res.ok) {
+        // Try to read JSON or text error body
+        let bodyText: string;
+        try {
+          const json = await res.json();
+          bodyText = json && json.detail ? json.detail : JSON.stringify(json);
+        } catch {
+          bodyText = await res.text();
+        }
+
+        handleSetRoleError(bodyText || 'Failed to update role');
+        return;
+      }
+
+      // success — refetch members so UI updates, clear any errors
+      if (membersMutate) membersMutate();
+      handleSetRoleError(undefined);
+    } catch (e: any) {
+      handleSetRoleError(e?.message ?? String(e));
     }
   }
 
@@ -177,8 +241,16 @@ export default function UserLoginTest(): JSX.Element {
         </Stack>
         <Box sx={{ mt: 3 }}>
           <Typography level="title-lg" mb={1}>
-            Members: ({members?.members?.length})
+            Members: ({members?.members?.length ?? 0})
           </Typography>
+
+          {roleError ? (
+            <Box sx={{ mb: 0 }}>
+              <Typography level="body-sm" sx={{ color: 'red' }}>
+                {roleError}
+              </Typography>
+            </Box>
+          ) : null}
 
           <Table variant="soft" sx={{ mb: 2 }}>
             <thead>
@@ -189,8 +261,8 @@ export default function UserLoginTest(): JSX.Element {
               </tr>
             </thead>
             <tbody>
-              {members.members.map((m: any, idx: number) => (
-                <tr key={m.id ?? m.email ?? idx}>
+              {members?.members?.map((m: any, idx: number) => (
+                <tr key={m.user_id ?? m.email ?? idx}>
                   <td>
                     <Stack direction="row" alignItems="center" gap={1}>
                       <User2Icon />
@@ -203,9 +275,18 @@ export default function UserLoginTest(): JSX.Element {
                   </td>
                   <td>{m?.role}</td>
                   <td>
-                    <Button variant="outlined">
-                      {m?.role === 'owner' ? 'Make member' : 'Make owner'}
-                    </Button>
+                    <Box
+                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+                    >
+                      <Button
+                        variant="outlined"
+                        onClick={() => handleUpdateRole(m.user_id, m.role)}
+                      >
+                        {m?.role === 'owner' ? 'Make member' : 'Make owner'}
+                      </Button>
+
+                      {/* Per-member error display removed — all errors shown under the Members title */}
+                    </Box>
                   </td>
                 </tr>
               ))}
