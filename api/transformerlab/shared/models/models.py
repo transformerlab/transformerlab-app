@@ -108,3 +108,29 @@ class UserTeam(Base):
     user_id: Mapped[str] = mapped_column(String, primary_key=True)
     team_id: Mapped[str] = mapped_column(String, primary_key=True)
     role: Mapped[str] = mapped_column(String, nullable=False, default=TeamRole.MEMBER.value)
+
+
+class InvitationStatus(str, enum.Enum):
+    """Enum for invitation status."""
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+
+class TeamInvitation(Base):
+    """Team invitation model for pending invitations."""
+
+    __tablename__ = "team_invitations"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    token: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    team_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    invited_by_user_id: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False, default=TeamRole.MEMBER.value)
+    status: Mapped[str] = mapped_column(String, nullable=False, default=InvitationStatus.PENDING.value, index=True)
+    expires_at: Mapped[DateTime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
