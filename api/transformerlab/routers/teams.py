@@ -116,6 +116,13 @@ async def delete_team(
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
     user = owner_info["user"]
+    team = owner_info["team"]
+
+    # Check if this is a personal team (cannot delete personal teams)
+    # Personal teams are named "{username}'s Team" where username is from email or first_name
+    expected_personal_name = f"{user.first_name or user.email.split('@')[0]}'s Team"
+    if team.name == expected_personal_name:
+        raise HTTPException(status_code=400, detail="Cannot delete personal team")
 
     # Check if user has other teams
     stmt = select(UserTeam).where(UserTeam.user_id == str(user.id))

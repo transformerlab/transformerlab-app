@@ -516,7 +516,7 @@ def test_delete_team(client, owner_user):
 
 
 def test_cannot_delete_last_team(client, owner_user):
-    """Test that users cannot delete their last team"""
+    """Test that users cannot delete their last team (personal team)"""
     # Get user's teams
     headers = {"Authorization": f"Bearer {owner_user['token']}"}
     resp = client.get("/users/me/teams", headers=headers)
@@ -525,17 +525,26 @@ def test_cannot_delete_last_team(client, owner_user):
     # Should have at least one team (personal team)
     assert len(teams) >= 1
 
-    # Try to delete the first team
-    team_to_delete = teams[0]
+    # Find the personal team (named after the user's email username)
+    personal_team = None
+    username = owner_user["email"].split("@")[0]
+    for team in teams:
+        if team["name"] == f"{username}'s Team":
+            personal_team = team
+            break
+    
+    assert personal_team is not None, "Personal team not found"
+
+    # Try to delete the personal team
     headers = {
         "Authorization": f"Bearer {owner_user['token']}",
-        "X-Team-Id": team_to_delete["id"]
+        "X-Team-Id": personal_team["id"]
     }
-    resp = client.delete(f"/teams/{team_to_delete['id']}", headers=headers)
+    resp = client.delete(f"/teams/{personal_team['id']}", headers=headers)
 
-    # Should fail because it's the last team
+    # Should fail because it's the personal team (last team)
     assert resp.status_code == 400
-    assert "last team" in resp.json()["detail"].lower()
+    assert "personal team" in resp.json()["detail"].lower()
 
 
 def test_member_cannot_delete_team(client, member_user, test_team, member_in_test_team):

@@ -103,7 +103,15 @@ async def require_team_owner(
     if user_team.role != TeamRole.OWNER.value:
         raise HTTPException(status_code=403, detail="Only team owners can perform this action")
 
-    return {"user": user, "team_id": x_team, "role": user_team.role}
+    # Get the team object
+    stmt = select(Team).where(Team.id == x_team)
+    result = await session.execute(stmt)
+    team = result.scalar_one_or_none()
+
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+
+    return {"user": user, "team_id": x_team, "role": user_team.role, "team": team}
 
 
 @router.get("/test-users/authenticated-route")
