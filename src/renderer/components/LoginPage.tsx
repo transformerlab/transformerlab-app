@@ -322,14 +322,14 @@ export default function LoginPage() {
                   Sign In With Email
                 </Button>
                 <Typography
-                  color="danger"
+                  color="warning"
                   onClick={() => setMode('forgotPassword')}
                   sx={{ cursor: 'pointer', textAlign: 'right' }}
                 >
                   Forgot Your Password?
                 </Typography>
                 <Typography
-                  color="success"
+                  color="primary"
                   onClick={() => setMode('register')}
                   sx={{ cursor: 'pointer', textAlign: 'center' }}
                 >
