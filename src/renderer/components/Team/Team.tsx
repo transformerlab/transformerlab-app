@@ -19,6 +19,7 @@ import {
 import { PlusIcon, TypeOutline, User2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
+import RenameTeamModal from './RenameTeamModal';
 
 /*
   Minimal in-file auth utilities and request helpers.
@@ -33,6 +34,7 @@ export default function UserLoginTest(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -241,7 +243,14 @@ export default function UserLoginTest(): JSX.Element {
 
         <Stack mt={3} gap={1}>
           <Typography level="title-lg">Team</Typography>
-          <Button variant="outlined">Rename Workspace</Button>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setRenameModalOpen(true);
+            }}
+          >
+            Rename Workspace
+          </Button>
           <Button variant="outlined">Set Logo</Button>
         </Stack>
 
@@ -305,6 +314,15 @@ export default function UserLoginTest(): JSX.Element {
           </Button>
         </Box>
       </Box>
+      <RenameTeamModal
+        open={renameModalOpen}
+        onClose={() => {
+          setRenameModalOpen(false);
+          teamsMutate();
+        }}
+        teamId={authContext.team?.id || ''}
+        currentName={authContext.team?.name || ''}
+      />
     </div>
   );
 }

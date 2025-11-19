@@ -10,16 +10,80 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
+import { getPath } from 'renderer/lib/api-client/urls';
 import { useAuth } from '../lib/authContext';
 import HexLogo from './Shared/HexLogo';
 
-import labImage from '../components/Welcome/img/lab.jpg';
+import labImage from './Welcome/img/lab.jpg';
+
+function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
+  const { fetchWithAuth } = useAuth();
+
+  // Add local state for the forgot password form
+  const [email, setEmail] = useState('');
+
+  // Handler to call fake HTTP endpoint and show feedback
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // Call the fake endpoint using fetchWithAuth
+    try {
+      await fetchWithAuth(getPath('auth', ['forgotPassword'], {}), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+    } catch (error) {
+      console.error('Error sending reset instructions:', error);
+    }
+    // For now, just close the form after submission
+    onClose();
+  };
+
+  return (
+    <Box>
+      <Typography level="h4" component="div" sx={{ mb: 2 }}>
+        Forgot Password
+      </Typography>
+
+      <form
+        onSubmit={(e) => {
+          handleSubmit(e);
+        }}
+      >
+        <FormControl required>
+          <FormLabel>Email</FormLabel>
+          <Input
+            type="email"
+            placeholder="Enter your email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </FormControl>
+        <Button
+          // switched to submit so the form's onSubmit is used
+          type="submit"
+          variant="solid"
+          sx={{ mt: 2 }}
+        >
+          Send Reset Instructions
+        </Button>{' '}
+        <Button type="button" onClick={onClose} color="danger" variant="plain">
+          Cancel
+        </Button>
+      </form>
+    </Box>
+  );
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
 
   const { login } = useAuth();
 
@@ -77,45 +141,58 @@ export default function LoginPage() {
           <Typography level="h2" component="div" sx={{ mb: 1 }}>
             Transformer Lab
           </Typography>
-          <form onSubmit={handleSubmit}>
-            <Stack spacing={2}>
-              <FormControl required>
-                <FormLabel>Email</FormLabel>
-                <Input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoFocus
-                />
-              </FormControl>
+          {forgotPasswordMode ? (
+            <ForgotPasswordForm onClose={() => setForgotPasswordMode(false)} />
+          ) : (
+            <form onSubmit={handleSubmit}>
+              <Stack spacing={2}>
+                <FormControl required>
+                  <FormLabel>Email</FormLabel>
+                  <Input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoFocus
+                  />
+                </FormControl>
 
-              <FormControl required>
-                <FormLabel>Password</FormLabel>
-                <Input
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </FormControl>
+                <FormControl required>
+                  <FormLabel>Password</FormLabel>
+                  <Input
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </FormControl>
 
-              {error && (
-                <Typography level="body-sm" color="danger">
-                  {error}
-                </Typography>
-              )}
+                {error && (
+                  <Typography level="body-sm" color="danger">
+                    {error}
+                  </Typography>
+                )}
 
-              <Button
-                type="submit"
-                fullWidth
-                loading={isLoading}
-                sx={{ mt: 1 }}
-              >
-                Sign In
-              </Button>
-            </Stack>
-          </form>
+                <Button
+                  variant="plain"
+                  size="sm"
+                  color="danger"
+                  onClick={() => setForgotPasswordMode(true)}
+                >
+                  Forgot My Password
+                </Button>
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  loading={isLoading}
+                  sx={{ mt: 1 }}
+                >
+                  Sign In
+                </Button>
+              </Stack>
+            </form>
+          )}
         </ModalDialog>
       </Modal>
     </Box>
