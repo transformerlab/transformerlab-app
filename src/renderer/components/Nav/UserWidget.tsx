@@ -23,6 +23,7 @@ import {
   SettingsIcon,
   User2Icon,
   UserCog2Icon,
+  UsersRoundIcon,
 } from 'lucide-react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { useNavigate } from 'react-router-dom';
@@ -68,6 +69,7 @@ export default function LoginChip({}: Props) {
         alignItems: 'center',
       }}
       aria-label={`Account: ${email}${teamName ? `, team ${teamName}` : ''}`}
+      onClick={toggleMenu}
     >
       {/* <Avatar
         src={avatarSrc}
@@ -80,13 +82,7 @@ export default function LoginChip({}: Props) {
         {!avatarSrc && <User2Icon size={16} />}
       </Avatar> */}
       <Stack spacing={0} sx={{ textAlign: 'left', minWidth: 0 }}>
-        <Typography
-          level="title-sm"
-          noWrap
-          onClick={() => {
-            navigate('/user_info_test');
-          }}
-        >
+        <Typography level="title-sm" noWrap>
           {user?.email}
         </Typography>
         {teamName ? (
@@ -95,16 +91,22 @@ export default function LoginChip({}: Props) {
           </Typography>
         ) : null}
       </Stack>
-      <IconButton
-        size="sm"
-        onClick={toggleMenu}
-        aria-haspopup="true"
-        aria-expanded={menuOpen}
-      >
-        {menuOpen ? <ChevronDownIcon size={16} /> : <ChevronUpIcon size={16} />}
-      </IconButton>
+
+      {menuOpen ? <ChevronDownIcon size={16} /> : <ChevronUpIcon size={16} />}
 
       <Menu open={menuOpen} anchorEl={menuAnchor} onClose={closeMenu}>
+        <MenuItem
+          onClick={() => {
+            closeMenu();
+            // navigate to an edit page for the current team; adjust path as needed
+            navigate('/user');
+          }}
+        >
+          <ListItemDecorator>
+            <UserCog2Icon size={16} />
+          </ListItemDecorator>
+          User Settings
+        </MenuItem>
         <MenuItem
           onClick={() => {
             closeMenu();
@@ -113,7 +115,7 @@ export default function LoginChip({}: Props) {
           }}
         >
           <ListItemDecorator>
-            <SettingsIcon size={16} />
+            <UsersRoundIcon size={16} />
           </ListItemDecorator>
           Team Settings
         </MenuItem>
