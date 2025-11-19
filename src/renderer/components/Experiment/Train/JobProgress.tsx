@@ -114,6 +114,15 @@ export default function JobProgress({ job }: JobProps) {
               {dayjs(job?.job_data?.start_time).format('MMM D, YYYY HH:mm:ss')}
             </>
           )}
+          {job?.job_data?.estimated_time_remaining && (
+            <>
+              <br />
+              Estimated time remaining:{' '}
+              {dayjs
+                .duration(job.job_data.estimated_time_remaining, 'seconds')
+                .humanize()}
+            </>
+          )}
         </>
       ) : (
         <Stack direction={'column'} justifyContent={'space-between'}>
