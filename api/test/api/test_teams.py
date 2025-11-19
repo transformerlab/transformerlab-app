@@ -152,6 +152,9 @@ def test_invite_member(client, owner_user, member_user, test_team):
     assert data["role"] == "member"
     assert "invitation_url" in data
     assert "invitation_id" in data
+    # In dev mode, email_sent should be True (no actual sending, just logged)
+    assert data["email_sent"] == True
+    assert data["email_error"] is None
     
     # Accept the invitation
     token = data["invitation_url"].split("token=")[1]
@@ -198,6 +201,10 @@ def test_invite_nonexistent_user(client, owner_user, test_team):
     
     # Invitation is created even if user doesn't exist yet
     assert resp.status_code == 200
+    data = resp.json()
+    # In dev mode, email is logged but not actually sent
+    assert data["email_sent"] == True
+    assert data["email_error"] is None
     assert "invitation_url" in resp.json()
 
 
