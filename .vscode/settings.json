@@ -46,5 +46,17 @@
   },
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true
+  },
+  "python.testing.pytestArgs": ["${workspaceFolder}/api/test"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "remote.extensionKind": {
+    "charliermarsh.ruff": ["workspace"],
+    "esbenp.prettier-vscode": ["workspace"],
+    "ms-python.python": ["workspace"]
   }
 }

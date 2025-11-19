@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 
-import { Sheet, Stack, Typography } from '@mui/joy';
+import { Button, Sheet, Stack, Typography } from '@mui/joy';
 
 import labImage from './img/lab.jpg';
 
@@ -19,7 +19,7 @@ import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from 'renderer/lib/api-client/urls';
 
-import { Link as ReactRouterLink, useNavigate } from 'react-router-dom';
+import { Link, Link as ReactRouterLink, useNavigate } from 'react-router-dom';
 
 import DownloadFirstModelModal from '../DownloadFirstModelModal';
 import HexLogo from '../Shared/HexLogo';
@@ -267,6 +267,7 @@ export default function Welcome() {
               </a>{' '}
               for more ideas!
             </Typography>
+            {/* <Link to="/user_login_test">Test Login</Link> */}
           </div>
         </div>
       </Sheet>

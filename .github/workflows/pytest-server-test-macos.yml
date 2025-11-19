@@ -1,0 +1,59 @@
+# This workflow will install Python dependencies and run tests on macOS
+
+name: Test for Install and Serving (macOS)
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "api/**"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "api/**"
+
+jobs:
+  build:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: api
+    env:
+      AUTH_CLIENT_ID: ${{ secrets.AUTH_CLIENT_ID }}
+      AUTH_API_KEY: ${{ secrets.AUTH_API_KEY }}
+      FRONTEND_URL: http://localhost:8338
+      AUTH_SUCCESS_REDIRECT_URL: /
+      AUTH_ERROR_REDIRECT_URL: /
+      AUTH_LOGOUT_REDIRECT_URL: /
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install uv
+          ENV_NAME="transformerlab"
+          TLAB_DIR="$HOME/.transformerlab"
+          TLAB_CODE_DIR="${TLAB_DIR}/src"
+          TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
+          mkdir -p "${TLAB_DIR}"
+          mkdir -p "${TLAB_CODE_DIR}"
+          mkdir -p "${TLAB_STATIC_WEB_DIR}"
+          ./install.sh install_conda
+          ./install.sh create_conda_environment
+          ./install.sh install_dependencies
+          uv pip install --system pytest pytest-asyncio jsonschema requests
+      - name: Now run the server by calling ./run.sh and wait for it to be ready
+        run: |
+          ./run.sh &
+          sleep 30  # Wait for the server to start
+      - name: Test the API Server and DB Setup
+        run: |
+          pytest -m live_server test/server/

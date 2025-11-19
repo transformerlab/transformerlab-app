@@ -1,0 +1,47 @@
+{
+  "name": "GGUF Exporter",
+  "uniqueId": "gguf_exporter",
+  "description": "Exports the current model to GGUF format so it can be run on computers without a GPU.",
+  "plugin-format": "python",
+  "type": "exporter",
+  "version": "0.2.6",
+  "model_architectures": [
+    "CohereForCausalLM",
+    "FalconForCausalLM",
+    "LlamaForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "GPTJForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
+  ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx",
+    "amd"
+  ],
+  "export_architecture": "GGUF",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "outtype": {
+      "title": "Output Format",
+      "type": "string",
+      "default": "q8_0",
+      "enum": [
+        "q8_0",
+        "f16",
+        "f32"
+      ]
+    }
+  }
+}

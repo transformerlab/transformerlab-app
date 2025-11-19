@@ -1,0 +1,182 @@
+{
+  "name": "Unsloth GRPO trainer",
+  "uniqueId": "unsloth_grpo_trainer",
+  "description": "A GPRO trainer based on the unsloth grpo training notebooks",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.0.12",
+  "model_architectures": [
+    "LlamaForCausalLM",
+    "Qwen2ForCausalLM",
+    "GraniteForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
+  ],
+  "supported_hardware_architectures": [
+    "cuda"
+  ],
+  "git": "",
+  "url": "",
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "setup-script": "setup.sh",
+  "training_template_format": "alpaca",
+  "parameters": {
+    "start_thinking_string": {
+      "title": "Start Thinking String",
+      "type": "string",
+      "default": "<reasoning>"
+    },
+    "end_thinking_string": {
+      "title": "End Thinking String",
+      "type": "string",
+      "default": "</reasoning>"
+    },
+    "start_answer_string": {
+      "title": "Start Answer String",
+      "type": "string",
+      "default": "<answer>"
+    },
+    "end_answer_string": {
+      "title": "End Answer String",
+      "type": "string",
+      "default": "</answer>"
+    },
+    "maximum_sequence_length": {
+      "title": "Maximum Sequence Length",
+      "type": "integer",
+      "default": 1024,
+      "minimum": 1
+    },
+    "maximum_completion_length": {
+      "title": "Maximum Completion Length",
+      "type": "integer",
+      "default": 512,
+      "minimum": 1
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1
+    },
+    "learning_rate_schedule": {
+      "title": "Learning Rate Schedule",
+      "type": "string",
+      "enum": [
+        "constant",
+        "linear",
+        "cosine",
+        "constant_with_warmup"
+      ],
+      "default": "constant"
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 5e-05,
+      "minimum": 1e-06
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "max_steps": {
+      "title": "Max Steps (-1 means no limit)",
+      "type": "integer",
+      "default": -1
+    },
+    "lora_r": {
+      "title": "Lora R",
+      "type": "number",
+      "minimum": 4,
+      "maximum": 64,
+      "multipleOf": 4,
+      "default": 16
+    },
+    "lora_alpha": {
+      "title": "Lora Alpha",
+      "type": "number",
+      "minimum": 4,
+      "maximum": 128,
+      "multipleOf": 4,
+      "default": 32
+    },
+    "lora_dropout": {
+      "title": "Lora Dropout",
+      "type": "number",
+      "minimum": 0.05,
+      "maximum": 0.9,
+      "default": 0.05
+    },
+    "max_grad_norm": {
+      "title": "Max Grad Norm",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.3
+    },
+    "weight_decay": {
+      "title": "Weight Decay",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0
+    },
+    "adam_beta1": {
+      "title": "Adam Beta 1",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.9
+    },
+    "adam_beta2": {
+      "title": "Adam Beta 2",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.999
+    },
+    "adam_epsilon": {
+      "title": "Adam Epsilon",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 1e-08
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "required": true
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": true,
+      "required": true
+    }
+  },
+  "parameters_ui": {
+    "maximum_sequence_length": {
+      "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
+    },
+    "batch_size": {
+      "ui:help": "The number of sequences processed simultaneously during training. Higher values lower number of iterations but require more memory."
+    },
+    "lora_r": {
+      "ui:widget": "range",
+      "ui:help": "Rank of the update matrices, expressed in int. Lower rank results in smaller update matrices with fewer trainable parameters."
+    },
+    "lora_alpha": {
+      "ui:widget": "range",
+      "ui:help": "LoRA scaling factor. Make it a multiple of LoRA R."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+    }
+  }
+}

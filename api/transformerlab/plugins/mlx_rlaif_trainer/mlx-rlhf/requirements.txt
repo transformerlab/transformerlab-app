@@ -1,0 +1,8 @@
+mlx>=0.14.0
+mlx-lm>=0.14.0
+transformers>=4.39.3
+numpy>=1.26.3
+wandb>=0.16.3
+datasets>=2.17.0
+packaging>=23.2
+matplotlib>=3.8.2
