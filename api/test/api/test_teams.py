@@ -387,7 +387,7 @@ def test_member_cannot_update_roles(client, owner_user, member_user, test_team):
 def test_remove_member(client, owner_user, member_user, test_team, member_in_test_team):
     """Test removing a member from the team"""
     # Ensure member was added
-    assert member_in_test_team == True
+    assert member_in_test_team
 
     # Get member's user_id
     headers = {
@@ -415,10 +415,6 @@ def test_remove_member(client, owner_user, member_user, test_team, member_in_tes
     resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
     members_after = resp.json()["members"]
     assert not any(m["email"] == member_user["email"] for m in members_after)
-        resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
-        members = resp.json()["members"]
-        emails = [m["email"] for m in members]
-        assert member_user["email"] not in emails
 
 
 def test_cannot_remove_last_owner(client, owner_user, test_team):
@@ -559,7 +555,7 @@ def test_member_cannot_delete_team(client, member_user, test_team, member_in_tes
 def test_cannot_delete_team_with_multiple_users(client, owner_user, member_user, test_team, member_in_test_team):
     """Test that a team with multiple users cannot be deleted"""
     # Ensure member was added successfully
-    assert member_in_test_team == True
+    assert member_in_test_team
     
     headers = {
         "Authorization": f"Bearer {owner_user['token']}",

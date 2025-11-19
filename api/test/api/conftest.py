@@ -1,7 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
 import os
-import shutil
 
 # Create test directories before setting environment variables
 os.makedirs("test/tmp/workspace", exist_ok=True)
