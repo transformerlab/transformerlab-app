@@ -81,31 +81,30 @@ function RegisterForm({ onClose }: { onClose: () => void }) {
           handleSubmit(e);
         }}
       >
-        <FormControl required sx={{ mt: 1 }}>
+        <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+          <Input
+            type="text"
+            placeholder="First Name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            autoFocus
+            sx={{ flex: 1 }}
+          />
+          <Input
+            type="text"
+            placeholder="Last Name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            sx={{ flex: 1 }}
+          />
+        </Stack>
+        <FormControl required sx={{ mt: 3 }}>
           <Input
             type="email"
             placeholder="Email Address"
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-          />
-        </FormControl>
-        <FormControl required sx={{ mt: 3 }}>
-          <Input
-            type="text"
-            placeholder="First Name"
-            autoFocus
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-          />
-        </FormControl>
-        <FormControl required sx={{ mt: 1 }}>
-          <Input
-            type="text"
-            placeholder="Last Name"
-            autoFocus
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
           />
         </FormControl>
         <FormControl required sx={{ mt: 3 }}>
