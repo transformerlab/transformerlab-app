@@ -5,8 +5,12 @@ name: Pytest
 on:
   push:
     branches: ["main"]
+    paths:
+      - 'api/**'
   pull_request:
     branches: ["main"]
+    paths:
+      - 'api/**'
 
 jobs:
   build:

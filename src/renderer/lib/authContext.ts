@@ -8,20 +8,27 @@ import React, {
 } from 'react';
 import useSWR from 'swr';
 import { API_URL, fetcher } from './transformerlab-api-sdk';
-import { getAPIFullPath } from './api-client/urls';
+import { getAPIFullPath, getPath } from './api-client/urls';
 // Added types
-interface AuthContextValue {
+export type Team = {
+  id: string;
+  name: string;
+};
+// export the AuthContextValue so consumers get correct types
+export interface AuthContextValue {
   token: string | null;
   setToken: React.Dispatch<React.SetStateAction<string | null>>;
   user: any;
   userError: any;
   userIsLoading: boolean;
   userMutate: any;
-  login: () => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
   initializing: boolean;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
+  team: Team | null;
+  setTeam: React.Dispatch<React.SetStateAction<Team | null>>;
 }
 
 interface AuthProviderProps {
@@ -29,11 +36,21 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-// Update context generic
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+// Update context generic to use null as the empty value
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 let _accessToken: string | null =
   typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+// NEW: team in-memory cache (stored as JSON)
+let _currentTeam: Team | null = null;
+if (typeof window !== 'undefined') {
+  try {
+    const raw = localStorage.getItem('current_team');
+    if (raw) _currentTeam = JSON.parse(raw) as Team;
+  } catch {
+    _currentTeam = null;
+  }
+}
 const listeners = new Set<() => void>();
 
 function notifyListeners() {
@@ -49,6 +66,10 @@ function notifyListeners() {
 export function getAccessToken() {
   return _accessToken;
 }
+// NEW: team accessors
+export function getCurrentTeam(): Team | null {
+  return _currentTeam;
+}
 
 export function updateAccessToken(token: string | null) {
   _accessToken = token;
@@ -57,6 +78,17 @@ export function updateAccessToken(token: string | null) {
     else localStorage.removeItem('access_token');
   } catch (e) {
     /* ignore storage errors */
+  }
+  notifyListeners();
+}
+// NEW: update team (persists + notifies)
+export function updateCurrentTeam(team: Team | null) {
+  _currentTeam = team;
+  try {
+    if (team) localStorage.setItem('current_team', JSON.stringify(team));
+    else localStorage.removeItem('current_team');
+  } catch {
+    /* ignore */
   }
   notifyListeners();
 }
@@ -97,6 +129,7 @@ async function handleRefresh() {
 // --- Step 3: Wrapper Fetch Function ---
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const token = getAccessToken();
+  const currentTeam = getCurrentTeam();
   const fullUrl = `${API_URL()}${url}`;
 
   const response = await fetch(fullUrl, {
@@ -105,6 +138,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
       ...((options && options.headers) || {}),
       Authorization: `Bearer ${token ?? ''}`,
       'Content-Type': 'application/json',
+      // Include team headers if set (both id and name)
+      ...(currentTeam
+        ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
+        : {}),
     },
     credentials: 'include',
   });
@@ -119,6 +156,9 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
           ...((options && options.headers) || {}),
           Authorization: `Bearer ${newAccessToken ?? ''}`,
           'Content-Type': 'application/json',
+          ...(currentTeam
+            ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
+            : {}),
         },
         credentials: 'include',
       });
@@ -134,15 +174,18 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 export function AuthProvider({ connection, children }: AuthProviderProps) {
   const [token, setToken] = useState<string | null>(null);
   const [initializing, setInitializing] = useState<boolean>(true);
+  const [team, setTeamState] = useState<Team | null>(null);
 
   const connectionKey = connection ? connection.replace(/\./g, '-') : '';
   // Replace previous token load effects with subscription
   useEffect(() => {
     // Initialize current token immediately
     setToken(getAccessToken());
+    setTeamState(getCurrentTeam());
     setInitializing(false);
     const unsub = subscribeAuthChange(() => {
       setToken(getAccessToken());
+      setTeamState(getCurrentTeam());
     });
     return unsub;
   }, []);
@@ -163,46 +206,54 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       : null,
   );
   // New login handler
-  const handleLogin = useCallback(async () => {
-    console.log('Attempting login...');
-    try {
-      const form = new URLSearchParams({
-        username: 'test@example.com',
-        password: 'password123',
-      }).toString();
-      const res = await fetch(getAPIFullPath('auth', ['login'], {}), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: form,
-        credentials: 'include',
-      });
-      const data = await (async () => {
-        try {
-          return await res.json();
-        } catch {
-          return {};
+  const handleLogin = useCallback(
+    async (username: string, password: string) => {
+      console.log('Attempting login...');
+      try {
+        const form = new URLSearchParams({
+          username: username,
+          password: password,
+        }).toString();
+        const res = await fetch(getAPIFullPath('auth', ['login'], {}), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: form,
+          credentials: 'include',
+        });
+        const data = await (async () => {
+          try {
+            return await res.json();
+          } catch {
+            return {};
+          }
+        })();
+        if (!res.ok) {
+          console.error(`Login failed: ${res.status} ${JSON.stringify(data)}`);
+          const error = new Error(
+            `Login failed: ${res.status} ${JSON.stringify(data)}`,
+          );
+          error.info = data;
+          error.status = res.status;
+          return error;
         }
-      })();
-      if (!res.ok) {
-        console.error(`Login failed: ${res.status} ${JSON.stringify(data)}`);
-        return;
+        const newToken =
+          data.access_token ?? data.token ?? data.accessToken ?? null;
+        if (newToken) {
+          updateAccessToken(newToken);
+          setToken(newToken);
+          // Revalidate user data after login
+          if (userMutate) userMutate();
+        } else {
+          console.error(
+            `Login succeeded but no token returned: ${JSON.stringify(data)}`,
+          );
+        }
+      } catch (e) {
+        console.error(`Login error: ${e?.message ?? String(e)}`);
       }
-      const newToken =
-        data.access_token ?? data.token ?? data.accessToken ?? null;
-      if (newToken) {
-        updateAccessToken(newToken);
-        setToken(newToken);
-        // Revalidate user data after login
-        if (userMutate) userMutate();
-      } else {
-        console.error(
-          `Login succeeded but no token returned: ${JSON.stringify(data)}`,
-        );
-      }
-    } catch (e) {
-      console.error(`Login error: ${e?.message ?? String(e)}`);
-    }
-  }, [userMutate]);
+    },
+    [userMutate],
+  );
   // Register handler
   const handleRegister = useCallback(async () => {
     try {
@@ -258,6 +309,18 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   const login = handleLogin;
   const logout = handleLogout;
   const isAuthenticated = !!token;
+  const handleSetTeam = useCallback(
+    (value: React.SetStateAction<Team | null>) => {
+      const next =
+        typeof value === 'function'
+          ? (value as (prev: Team | null) => Team | null)(team)
+          : value;
+      updateCurrentTeam(next);
+      setTeamState(next);
+    },
+    [team],
+  );
+
   const contextValue = useMemo(
     () => ({
       token,
@@ -266,17 +329,14 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       userError,
       userIsLoading,
       userMutate,
-      // new handlers
-      handleLogin,
-      handleLogout,
       handleRegister,
-      // aliases
       login,
       logout,
-      // ui states
       isAuthenticated,
       initializing,
       fetchWithAuth,
+      team,
+      setTeam: handleSetTeam,
     }),
     [
       token,
@@ -284,13 +344,13 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
       userError,
       userIsLoading,
       userMutate,
-      handleLogin,
-      handleLogout,
       handleRegister,
       login,
       logout,
       isAuthenticated,
       initializing,
+      team,
+      handleSetTeam,
     ],
   );
   // Replace JSX return (file is .ts)
@@ -301,8 +361,73 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   );
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
+}
+
+/* The following useAPI hook is the same as the useAPI hook in api-client/hooks.ts,
+but this one uses the new auth we have for fastapi-users, instead of the auth
+implemented using workos */
+export function useAPI(
+  majorEntity: string,
+  pathArray: string[],
+  params: Record<string, any> = {},
+  options: any = {},
+) {
+  let path: string | null = getPath(majorEntity, pathArray, params) as any;
+  const fetcher = async (url: string) => {
+    // check for an access token. Will be "" if user not logged in.
+    const accessToken = await getAccessToken();
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    return fetchWithAuth(url, {
+      headers,
+    }).then((res) => {
+      // Check for HTTP 401 which means user is not authorized
+      if (res.status === 401) {
+        return {
+          status: 'unauthorized',
+          message: 'User not authorized',
+        };
+      }
+
+      // If there was an error then report in standard API format
+      if (!res.ok) {
+        console.log('Unexpected API response:');
+        console.log(res);
+        return {
+          status: 'error',
+          message: 'API returned HTTP ' + res.status,
+        };
+      }
+
+      // Otherwise return the JSON contained in the API response
+      return res.json();
+    });
+  };
+
+  // If any of the params are null or undefined, return null:
+  if (
+    Object.values(params).some((param) => param === null || param === undefined)
+  ) {
+    path = null;
+  }
+
+  const { data, error, isLoading, mutate } = useSWR(path, fetcher, {
+    ...options,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  return {
+    data,
+    error,
+    isLoading,
+    mutate,
+  };
 }

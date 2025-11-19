@@ -21,6 +21,10 @@ export function useAPI(
     // check for an access token. Will be "" if user not logged in.
     const accessToken = await getAccessToken();
 
+    console.log(
+      'Deprecated: useAPI in hooks.ts called. Please use useAPI in authContext.ts instead.',
+    );
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -63,7 +67,6 @@ export function useAPI(
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
-
   return {
     data,
     error,
