@@ -9,6 +9,7 @@ os.environ["TFL_HOME_DIR"] = "test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "test/tmp/workspace"
 os.environ["TRANSFORMERLAB_JWT_SECRET"] = "test-jwt-secret-for-testing-only"
 os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-only"
+os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
 
 from api import app  # noqa: E402
 
