@@ -10,7 +10,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { getPath } from 'renderer/lib/api-client/urls';
 import { useAuth } from '../lib/authContext';
 import HexLogo from './Shared/HexLogo';
 
@@ -27,7 +27,7 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     // Call the fake endpoint using fetchWithAuth
     try {
-      await fetchWithAuth(getAPIFullPath('auth', ['forgotPassword'], {}), {
+      await fetchWithAuth(getPath('auth', ['forgotPassword'], {}), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

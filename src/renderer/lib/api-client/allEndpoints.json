@@ -204,6 +204,10 @@
       "method": "DELETE",
       "path": "teams/{teamId}/delete"
     },
+    "rename": {
+      "method": "PUT",
+      "path": "teams/{teamId}"
+    },
     "getMembers": {
       "method": "GET",
       "path": "teams/{teamId}/members"
