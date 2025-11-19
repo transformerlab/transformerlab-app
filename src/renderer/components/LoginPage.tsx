@@ -27,7 +27,7 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     // Call the fake endpoint using fetchWithAuth
     try {
-      await fetchWithAuth(getAPIFullPath('users', ['forgotPassword'], {}), {
+      await fetchWithAuth(getAPIFullPath('auth', ['forgotPassword'], {}), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
