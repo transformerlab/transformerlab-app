@@ -211,6 +211,10 @@
     "getMembers": {
       "method": "GET",
       "path": "teams/{teamId}/members"
+    },
+    "inviteMember": {
+      "method": "POST",
+      "path": "teams/{teamId}/members"
     }
   },
   "auth": {

@@ -1,25 +1,21 @@
 import {
   Box,
   Button,
-  List,
-  ListItem,
-  ListItemContent,
   Typography,
   Input,
-  ListItemButton,
   Option,
   Select,
   Modal,
   ModalDialog,
   ModalClose,
   Stack,
-  ListItemDecorator,
   Table,
 } from '@mui/joy';
-import { PlusIcon, TypeOutline, User2Icon } from 'lucide-react';
+import { PlusIcon, User2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
+import InviteUserModal from './InviteUserModal';
 
 /*
   Minimal in-file auth utilities and request helpers.
@@ -35,6 +31,7 @@ export default function UserLoginTest(): JSX.Element {
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -50,6 +47,10 @@ export default function UserLoginTest(): JSX.Element {
 
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
+
+  const iAmOwner = members?.members?.some((m: any) => {
+    return m.user_id === authContext.user?.id && m.role === 'owner';
+  });
 
   // Clear all role errors or add an error text
   function handleSetRoleError(message?: string) {
@@ -248,10 +249,13 @@ export default function UserLoginTest(): JSX.Element {
             onClick={() => {
               setRenameModalOpen(true);
             }}
+            disabled={!iAmOwner}
           >
             Rename Workspace
           </Button>
-          <Button variant="outlined">Set Logo</Button>
+          <Button variant="outlined" disabled={!iAmOwner}>
+            Set Logo
+          </Button>
         </Stack>
 
         <Box sx={{ mt: 3 }}>
@@ -309,8 +313,13 @@ export default function UserLoginTest(): JSX.Element {
               ))}
             </tbody>
           </Table>
-          <Button startDecorator={<PlusIcon />} variant="soft">
-            Invite Member
+          <Button
+            startDecorator={<PlusIcon />}
+            onClick={() => setOpenInviteModal(true)}
+            variant="soft"
+            disabled={!iAmOwner}
+          >
+            Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
           </Button>
         </Box>
       </Box>
@@ -322,6 +331,11 @@ export default function UserLoginTest(): JSX.Element {
         }}
         teamId={authContext.team?.id || ''}
         currentName={authContext.team?.name || ''}
+      />
+      <InviteUserModal
+        open={openInviteModal}
+        onClose={() => setOpenInviteModal(false)}
+        teamId={authContext.team?.id || ''}
       />
     </div>
   );
