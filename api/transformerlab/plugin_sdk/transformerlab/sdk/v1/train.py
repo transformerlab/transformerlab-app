@@ -74,14 +74,38 @@ class TrainerTLabPlugin(TLabPlugin):
                 def __init__(self, tlab_instance):
                     self.tlab = tlab_instance
                     self.writer = None
+                    self.start_time = None
 
                 def on_init_end(self, args, state, control, **kwargs):
                     self.writer = SummaryWriter(log_dir=args.logging_dir)
+                    # Initialize start_time as fallback if on_train_begin hasn't been called yet
+                    if self.start_time is None and state.is_local_process_zero:
+                        self.start_time = time.time()
+
+                def on_train_begin(self, args, state, control, **kwargs):
+                    """Called at the beginning of training"""
+                    if state.is_local_process_zero:
+                        # Only set start_time if not already set (e.g., if on_init_end set it)
+                        if self.start_time is None:
+                            self.start_time = time.time()
 
                 def on_step_end(self, args, state, control, **cb_kwargs):
                     if state.is_local_process_zero and state.max_steps > 0:
                         progress = int(state.global_step / state.max_steps * 100)
                         self.tlab.progress_update(progress)
+
+                        # Calculate estimated time remaining
+                        if self.start_time is not None and state.global_step > 0:
+                            elapsed_time = time.time() - self.start_time
+                            steps_completed = state.global_step
+                            steps_remaining = state.max_steps - steps_completed
+
+                            if steps_completed > 0 and steps_remaining > 0:
+                                avg_time_per_step = elapsed_time / steps_completed
+                                estimated_time_remaining = avg_time_per_step * steps_remaining
+                                # Store estimated time remaining in seconds
+                                self.tlab.add_job_data("estimated_time_remaining", int(estimated_time_remaining))
+
                         if self.tlab.job.should_stop:
                             control.should_training_stop = True
                     return control
