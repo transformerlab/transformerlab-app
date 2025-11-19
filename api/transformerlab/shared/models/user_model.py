@@ -1,9 +1,9 @@
 # database.py
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import select
+from sqlalchemy import select, String
 
 # Replace with your actual database URL (e.g., PostgreSQL, SQLite)
 from transformerlab.db.constants import DATABASE_URL
@@ -12,7 +12,19 @@ from .models import Base, Team
 
 # 1. Define your User Model (inherits from a FastAPI Users base class)
 class User(SQLAlchemyBaseUserTableUUID, Base):
-    pass  # You can add custom fields here later, like 'first_name: str'
+    """
+    User database model. Inherits from SQLAlchemyBaseUserTableUUID which provides:
+    - id (UUID primary key)
+    - email (unique, indexed)
+    - hashed_password
+    - is_active (boolean)
+    - is_superuser (boolean)
+    - is_verified (boolean)
+    
+    We add custom fields below:
+    """
+    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
 
 # 2. Setup the Async Engine and Session

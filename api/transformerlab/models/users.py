@@ -16,16 +16,32 @@ import sys
 
 # --- Pydantic Schemas for API interactions ---
 class UserRead(schemas.BaseUser[uuid.UUID]):
-    # Add your custom fields here if you added them to the User model
-    pass
+    """
+    Schema for reading user data (returned by API).
+    Includes all fields that should be visible when fetching user info.
+    Inherits: id, email, is_active, is_superuser, is_verified
+    """
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class UserCreate(schemas.BaseUserCreate):
-    pass
+    """
+    Schema for creating a new user (registration).
+    Inherits: email, password, is_active, is_superuser, is_verified
+    """
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class UserUpdate(schemas.BaseUserUpdate):
-    pass
+    """
+    Schema for updating user data.
+    All fields are optional - only provided fields will be updated.
+    Inherits: email, password, is_active, is_superuser, is_verified
+    """
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 # --- User Manager (Handles registration, password reset, etc.) ---
