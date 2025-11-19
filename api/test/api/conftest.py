@@ -7,6 +7,8 @@ os.makedirs("test/tmp/workspace", exist_ok=True)
 
 os.environ["TFL_HOME_DIR"] = "test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "test/tmp/workspace"
+os.environ["TRANSFORMERLAB_JWT_SECRET"] = "test-jwt-secret-for-testing-only"
+os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-only"
 
 from api import app  # noqa: E402
 
