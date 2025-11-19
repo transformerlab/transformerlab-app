@@ -3,7 +3,7 @@ from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, Mapped, mapped_column
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import select, String
+from sqlalchemy import String
 
 # Replace with your actual database URL (e.g., PostgreSQL, SQLite)
 from transformerlab.db.constants import DATABASE_URL
