@@ -7,6 +7,7 @@ from fastapi_users.authentication import AuthenticationBackend, BearerTransport,
 from fastapi_users.db import SQLAlchemyUserDatabase
 from transformerlab.shared.models.user_model import User, get_async_session, create_default_team
 from transformerlab.shared.models.models import UserTeam, TeamRole
+from transformerlab.utils.email import send_password_reset_email
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt as _jose_jwt
 from datetime import datetime, timedelta
@@ -78,7 +79,24 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             await session.commit()
 
     async def on_after_forgot_password(self, user: User, token: str, request: Request | None = None):
-        print(f"User {user.id} has forgot their password. Reset token: {token}")
+        """
+        Called after a user requests a password reset.
+        Sends an email with a reset link containing the token.
+        """
+        print(f"User {user.id} has requested password reset. Token: {token}")
+        
+        # Get frontend URL from environment or use default
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
+        reset_url = f"{frontend_url}/reset-password?token={token}"
+        
+        try:
+            send_password_reset_email(
+                to_email=user.email,
+                reset_url=reset_url
+            )
+            print(f"✅ Password reset email sent to {user.email}")
+        except Exception as e:
+            print(f"❌ Failed to send password reset email to {user.email}: {str(e)}")
 
     async def on_after_request_verify(self, user: User, token: str, request: Request | None = None):
         print(f"Verification requested for user {user.id}. Verification token: {token}")

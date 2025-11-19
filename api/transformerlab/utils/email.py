@@ -132,6 +132,40 @@ def send_verification_email(
         raise RuntimeError(f"Unexpected error while sending email: {str(e)}")
 
 
+def send_password_reset_email(
+    to_email: str,
+    reset_url: str,
+    from_email: Optional[str] = None
+) -> None:
+    """
+    Send a password reset email with a secure reset link.
+    
+    Args:
+        to_email: Email address of the user requesting password reset
+        reset_url: URL containing the reset token
+        from_email: Optional sender email address
+    """
+    subject = "Password Reset Request - TransformerLab"
+    
+    body = f"""Hello,
+
+You recently requested to reset your password for your TransformerLab account ({to_email}).
+
+To reset your password, please click the link below:
+
+{reset_url}
+
+This link will expire in 1 hour for security reasons.
+
+If you did not request a password reset, please ignore this email or contact support if you have concerns.
+
+---
+TransformerLab Team
+"""
+    
+    send_verification_email(to_email, subject, body, from_email)
+
+
 def send_team_invitation_email(
     to_email: str,
     team_name: str,

@@ -31,6 +31,11 @@ router.include_router(
     prefix="/auth",
     tags=["auth"],
 )
+router.include_router(
+    fastapi_users.get_reset_password_router(),
+    prefix="/auth",
+    tags=["auth"],
+)
 # Include User Management Router (allows authenticated users to view/update their profile)
 router.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
