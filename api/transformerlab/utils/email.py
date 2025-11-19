@@ -2,6 +2,9 @@
 Email utility for sending verification emails using SMTP.
 
 Requires SMTP configuration in environment variables:
+- EMAIL_METHOD: "smtp" or "dev" (default: "smtp")
+  - "smtp": Send emails via SMTP server (requires SMTP_* config)
+  - "dev": Log emails to console (no SMTP config needed)
 - SMTP_SERVER: SMTP server address
 - SMTP_PORT: SMTP server port (usually 587 for TLS, 465 for SSL)
 - SMTP_USERNAME: SMTP authentication username
@@ -72,7 +75,7 @@ def send_verification_email(
     from_email: Optional[str] = None
 ) -> None:
     """
-    Send an email using SMTP.
+    Send an email using SMTP or log to console in dev mode.
     
     Args:
         to_email: Recipient email address
@@ -83,7 +86,15 @@ def send_verification_email(
     # Validate email format
     validate_email(to_email)
     
-    # Get SMTP configuration
+    # Check email method
+    email_method = getenv("EMAIL_METHOD", "smtp").lower()
+    
+    if email_method == "dev":
+        # Dev mode: just log the email
+        print(f"📧 [DEV MODE] Email not sent - body: {body}")
+        return
+    
+    # SMTP mode: send actual email
     config = get_smtp_config()
     sender_email = from_email or config["from_email"]
     
