@@ -20,9 +20,9 @@ import labImage from './Welcome/img/lab.jpg';
 
 function RegisterForm({ onClose }: { onClose: () => void }) {
   const { fetchWithAuth } = useAuth();
-
-  // Add local state for the registration form
   const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -81,10 +81,27 @@ function RegisterForm({ onClose }: { onClose: () => void }) {
           handleSubmit(e);
         }}
       >
-        <FormControl required>
+        <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+          <Input
+            type="text"
+            placeholder="First Name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            autoFocus
+            sx={{ flex: 1 }}
+          />
+          <Input
+            type="text"
+            placeholder="Last Name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            sx={{ flex: 1 }}
+          />
+        </Stack>
+        <FormControl required sx={{ mt: 3 }}>
           <Input
             type="email"
-            placeholder="Email"
+            placeholder="Email Address"
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -243,6 +260,7 @@ export default function LoginPage() {
             borderRadius: 'md',
             p: 3,
             boxShadow: 'lg',
+            overflow: 'auto',
           }}
         >
           <HexLogo width={32} height={32} />
@@ -304,14 +322,14 @@ export default function LoginPage() {
                   Sign In With Email
                 </Button>
                 <Typography
-                  color="danger"
+                  color="warning"
                   onClick={() => setMode('forgotPassword')}
                   sx={{ cursor: 'pointer', textAlign: 'right' }}
                 >
                   Forgot Your Password?
                 </Typography>
                 <Typography
-                  color="success"
+                  color="primary"
                   onClick={() => setMode('register')}
                   sx={{ cursor: 'pointer', textAlign: 'center' }}
                 >
