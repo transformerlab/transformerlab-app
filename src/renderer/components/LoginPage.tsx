@@ -20,9 +20,9 @@ import labImage from './Welcome/img/lab.jpg';
 
 function RegisterForm({ onClose }: { onClose: () => void }) {
   const { fetchWithAuth } = useAuth();
-
-  // Add local state for the registration form
   const [email, setEmail] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -81,13 +81,31 @@ function RegisterForm({ onClose }: { onClose: () => void }) {
           handleSubmit(e);
         }}
       >
-        <FormControl required>
+        <FormControl required sx={{ mt: 1 }}>
           <Input
             type="email"
-            placeholder="Email"
+            placeholder="Email Address"
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+          />
+        </FormControl>
+        <FormControl required sx={{ mt: 3 }}>
+          <Input
+            type="text"
+            placeholder="First Name"
+            autoFocus
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+          />
+        </FormControl>
+        <FormControl required sx={{ mt: 1 }}>
+          <Input
+            type="text"
+            placeholder="Last Name"
+            autoFocus
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
           />
         </FormControl>
         <FormControl required sx={{ mt: 3 }}>
