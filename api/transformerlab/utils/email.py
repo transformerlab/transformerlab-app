@@ -47,11 +47,16 @@ def get_smtp_config() -> dict:
     
     if not all([server, port, username, password, from_email]):
         missing = []
-        if not server: missing.append("SMTP_SERVER")
-        if not port: missing.append("SMTP_PORT")
-        if not username: missing.append("SMTP_USERNAME")
-        if not password: missing.append("SMTP_PASSWORD")
-        if not from_email: missing.append("EMAIL_FROM")
+        if not server:
+            missing.append("SMTP_SERVER")
+        if not port:
+            missing.append("SMTP_PORT")
+        if not username:
+            missing.append("SMTP_USERNAME")
+        if not password:
+            missing.append("SMTP_PASSWORD")
+        if not from_email:
+            missing.append("EMAIL_FROM")
         raise ValueError(f"Missing required SMTP configuration: {', '.join(missing)}")
     
     try:
