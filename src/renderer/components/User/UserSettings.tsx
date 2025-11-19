@@ -7,16 +7,72 @@ import {
   Typography,
   ListItemButton,
   Stack,
+  Modal,
+  ModalDialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Input,
 } from '@mui/joy';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 
-// --- React component ---
+function UserNameChangeForm({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}): JSX.Element {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+
+  const handleSave = () => {
+    // Logic to save the new name (e.g., API call)
+    console.log('Saving new name:', { firstName, lastName });
+    onClose();
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalDialog>
+        <DialogTitle>Change Name</DialogTitle>
+        <DialogContent>
+          <Box mt={2}>
+            <Input
+              placeholder="First Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              fullWidth
+            />
+            <Input
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              fullWidth
+              sx={{ mt: 2 }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose} variant="plain">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} variant="solid">
+            Save
+          </Button>
+        </DialogActions>
+      </ModalDialog>
+    </Modal>
+  );
+}
+
 export default function UserLoginTest(): JSX.Element {
   const authContext = useAuth();
   const [apiResult, setApiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [newTeamName, setNewTeamName] = useState<string>('');
+  const [isNameChangeOpen, setIsNameChangeOpen] = useState(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
   const { data: userInfo } = useAPI('users', ['me']);
 
@@ -74,11 +130,26 @@ export default function UserLoginTest(): JSX.Element {
       <Typography level="title-lg" mt={3}>
         User Profile
       </Typography>
-      <Stack gap={3} mt={3} maxWidth={400}>
-        <Button variant="outlined">Change Name</Button>
-        <Button variant="outlined">Change Profile Icon</Button>
-        <Button variant="outlined">Change Password</Button>
+      <Stack gap={1} mt={3} maxWidth={400}>
+        <Typography>First Name: {userInfo?.firstName}</Typography>
+        <Typography>Last Name: {userInfo?.lastName}</Typography>
+        <Button variant="outlined" onClick={() => setIsNameChangeOpen(true)}>
+          Change Name
+        </Button>
+        {/* <Button variant="outlined">Change Profile Icon</Button> */}
+        <Button
+          variant="outlined"
+          onClick={() => {
+            alert('Not yet implemented');
+          }}
+        >
+          Change Password
+        </Button>
       </Stack>
+      <UserNameChangeForm
+        open={isNameChangeOpen}
+        onClose={() => setIsNameChangeOpen(false)}
+      />
       <Box>
         <Typography level="title-lg" mt={3}>
           Workspaces you belong to:
