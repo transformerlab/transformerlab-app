@@ -260,6 +260,7 @@ export default function LoginPage() {
             borderRadius: 'md',
             p: 3,
             boxShadow: 'lg',
+            overflow: 'auto',
           }}
         >
           <HexLogo width={32} height={32} />
