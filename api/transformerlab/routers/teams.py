@@ -257,16 +257,21 @@ async def invite_member(
             invitation_url = f"{app_url}/invitations/accept?token={existing_invitation.token}"
             
             # Resend verification email with new expiration
-            email_result = send_team_invitation_email(
-                to_email=invite_data.email,
-                team_name=team.name,
-                inviter_email=inviter_user.email,
-                invitation_url=invitation_url
-            )
-            
-            if not email_result["success"]:
-                if email_result["error_type"] == "invalid_email":
-                    raise HTTPException(status_code=400, detail=email_result["error_message"])
+            try:
+                send_team_invitation_email(
+                    to_email=invite_data.email,
+                    team_name=team.name,
+                    inviter_email=inviter_user.email,
+                    invitation_url=invitation_url
+                )
+                email_sent = True
+                email_error = None
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            except (ConnectionError, RuntimeError) as e:
+                # Log warning but don't fail the invitation
+                email_sent = False
+                email_error = str(e)
                 
             return {
                 "message": "Invitation renewed and resent",
@@ -275,24 +280,29 @@ async def invite_member(
                 "role": existing_invitation.role,
                 "expires_at": existing_invitation.expires_at.isoformat(),
                 "invitation_url": invitation_url,
-                "email_sent": email_result["success"],
-                "email_error": email_result["error_message"] if not email_result["success"] else None
+                "email_sent": email_sent,
+                "email_error": email_error
             }
         else:
             # Valid pending invitation - resend without changing expiration
             invitation_url = f"{app_url}/invitations/accept?token={existing_invitation.token}"
             
             # Resend verification email
-            email_result = send_team_invitation_email(
-                to_email=invite_data.email,
-                team_name=team.name,
-                inviter_email=inviter_user.email,
-                invitation_url=invitation_url
-            )
-            
-            if not email_result["success"]:
-                if email_result["error_type"] == "invalid_email":
-                    raise HTTPException(status_code=400, detail=email_result["error_message"])
+            try:
+                send_team_invitation_email(
+                    to_email=invite_data.email,
+                    team_name=team.name,
+                    inviter_email=inviter_user.email,
+                    invitation_url=invitation_url
+                )
+                email_sent = True
+                email_error = None
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            except (ConnectionError, RuntimeError) as e:
+                # Log warning but don't fail the invitation
+                email_sent = False
+                email_error = str(e)
                     
             return {
                 "message": "Invitation already exists and was resent",
@@ -301,8 +311,8 @@ async def invite_member(
                 "role": existing_invitation.role,
                 "expires_at": existing_invitation.expires_at.isoformat(),
                 "invitation_url": invitation_url,
-                "email_sent": email_result["success"],
-                "email_error": email_result["error_message"] if not email_result["success"] else None
+                "email_sent": email_sent,
+                "email_error": email_error
             }
 
     # Create invitation
@@ -321,20 +331,24 @@ async def invite_member(
     invitation_url = f"{app_url}/invitations/accept?token={invitation.token}"
 
     # Send verification email to validate the email address exists
-    email_result = send_team_invitation_email(
-        to_email=invite_data.email,
-        team_name=team.name,
-        inviter_email=inviter_user.email,
-        invitation_url=invitation_url
-    )
-    
-    if not email_result["success"]:
-        if email_result["error_type"] == "invalid_email":
-            # Delete the invitation we just created since the email is invalid
-            await session.delete(invitation)
-            await session.commit()
-            raise HTTPException(status_code=400, detail=email_result["error_message"])
-        # For service/system errors, keep the invitation and return it with error info
+    try:
+        send_team_invitation_email(
+            to_email=invite_data.email,
+            team_name=team.name,
+            inviter_email=inviter_user.email,
+            invitation_url=invitation_url
+        )
+        email_sent = True
+        email_error = None
+    except ValueError as e:
+        # Delete the invitation we just created since the email is invalid
+        await session.delete(invitation)
+        await session.commit()
+        raise HTTPException(status_code=400, detail=str(e))
+    except (ConnectionError, RuntimeError) as e:
+        # Log warning but don't fail the invitation
+        email_sent = False
+        email_error = str(e)
 
     return {
         "message": "Invitation created successfully",
@@ -343,8 +357,8 @@ async def invite_member(
         "role": invite_data.role,
         "expires_at": invitation.expires_at.isoformat(),
         "invitation_url": invitation_url,
-        "email_sent": email_result["success"],
-        "email_error": email_result["error_message"] if not email_result["success"] else None
+        "email_sent": email_sent,
+        "email_error": email_error
     }
 
 

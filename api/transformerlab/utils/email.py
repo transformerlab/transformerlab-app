@@ -1,13 +1,68 @@
 """
-Email utility for sending verification emails using the OS mail system.
+Email utility for sending verification emails using SMTP.
 
-This is a temporary solution using the system's sendmail/mail command.
-TODO: Replace with a proper email service (SendGrid, AWS SES, etc.) for production use.
+Requires SMTP configuration in environment variables:
+- SMTP_SERVER: SMTP server address
+- SMTP_PORT: SMTP server port (usually 587 for TLS, 465 for SSL)
+- SMTP_USERNAME: SMTP authentication username
+- SMTP_PASSWORD: SMTP authentication password
+- EMAIL_FROM: Sender email address
 """
 
-import subprocess
+import smtplib
 import re
-from typing import Optional, Dict
+from os import getenv
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from typing import Optional
+
+
+def validate_email(email: str) -> None:
+    """
+    Validate email address format.
+    
+    Args:
+        email: Email address to validate
+    """
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if not re.match(email_pattern, email):
+        raise ValueError(f"Invalid email address format: {email}")
+
+
+def get_smtp_config() -> dict:
+    """
+    Get SMTP configuration from environment variables.
+    
+    Returns:
+        Dictionary with SMTP configuration
+    """
+    server = getenv("SMTP_SERVER")
+    port = getenv("SMTP_PORT")
+    username = getenv("SMTP_USERNAME")
+    password = getenv("SMTP_PASSWORD")
+    from_email = getenv("EMAIL_FROM")
+    
+    if not all([server, port, username, password, from_email]):
+        missing = []
+        if not server: missing.append("SMTP_SERVER")
+        if not port: missing.append("SMTP_PORT")
+        if not username: missing.append("SMTP_USERNAME")
+        if not password: missing.append("SMTP_PASSWORD")
+        if not from_email: missing.append("EMAIL_FROM")
+        raise ValueError(f"Missing required SMTP configuration: {', '.join(missing)}")
+    
+    try:
+        port = int(port)
+    except ValueError:
+        raise ValueError(f"Invalid SMTP_PORT: {port}. Must be a number.")
+    
+    return {
+        "server": server,
+        "port": port,
+        "username": username,
+        "password": password,
+        "from_email": from_email
+    }
 
 
 def send_verification_email(
@@ -15,88 +70,50 @@ def send_verification_email(
     subject: str,
     body: str,
     from_email: Optional[str] = None
-) -> Dict[str, any]:
+) -> None:
     """
-    Send an email using the OS mail system (sendmail or mail command).
+    Send an email using SMTP.
     
     Args:
         to_email: Recipient email address
         subject: Email subject
-        body: Email body content
-        from_email: Optional sender email address
-        
-    Returns:
-        Dictionary with:
-        - success: bool - Whether email was sent successfully
-        - error_type: str | None - Type of error if failed ('invalid_email', 'service_error', 'system_error')
-        - error_message: str | None - Detailed error message if failed
-        
-    Note:
-        This uses the system's mail command which requires:
-        - macOS: mail command (built-in)
-        - Linux: mail/mailx package or sendmail
-        
-        For production, this should be replaced with a proper email service.
+        body: Email body content (plain text)
+        from_email: Optional sender email address (overrides EMAIL_FROM env var)
     """
-    # Basic email validation
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if not re.match(email_pattern, to_email):
-        return {
-            "success": False,
-            "error_type": "invalid_email",
-            "error_message": f"Invalid email address format: {to_email}"
-        }
+    # Validate email format
+    validate_email(to_email)
     
+    # Get SMTP configuration
+    config = get_smtp_config()
+    sender_email = from_email or config["from_email"]
+    
+    # Create message
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+    
+    # Send email
     try:
-        # Construct the email message
-        # Using mail command which is available on most Unix systems
-        mail_cmd = ["mail", "-s", subject, to_email]
-        
-        # Send the email
-        process = subprocess.Popen(
-            mail_cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        
-        stdout, stderr = process.communicate(input=body)
-        
-        if process.returncode == 0:
-            return {
-                "success": True,
-                "error_type": None,
-                "error_message": None
-            }
-        else:
-            # Check if error indicates invalid email address
-            stderr_lower = stderr.lower()
-            if any(indicator in stderr_lower for indicator in ['user unknown', 'invalid', 'does not exist', 'not found', 'undeliverable']):
-                return {
-                    "success": False,
-                    "error_type": "invalid_email",
-                    "error_message": f"Email address may be invalid or unreachable: {stderr.strip()}"
-                }
-            else:
-                return {
-                    "success": False,
-                    "error_type": "service_error",
-                    "error_message": f"Mail service error: {stderr.strip()}"
-                }
+        with smtplib.SMTP(config["server"], config["port"]) as server:
+            server.starttls()  # Secure the connection
+            try:
+                server.login(config["username"], config["password"])
+            except smtplib.SMTPAuthenticationError as e:
+                raise RuntimeError(f"SMTP authentication failed: {str(e)}")
             
-    except FileNotFoundError:
-        return {
-            "success": False,
-            "error_type": "system_error",
-            "error_message": "Mail command not found. Please install mail/mailx package or configure sendmail."
-        }
+            server.send_message(msg)
+            
+    except RuntimeError:
+        # Re-raise authentication errors
+        raise
+    except (smtplib.SMTPConnectError, smtplib.SMTPServerDisconnected, ConnectionRefusedError, TimeoutError) as e:
+        raise ConnectionError(f"Failed to connect to SMTP server: {str(e)}")
+    except smtplib.SMTPException as e:
+        raise RuntimeError(f"Failed to send email: {str(e)}")
     except Exception as e:
-        return {
-            "success": False,
-            "error_type": "system_error",
-            "error_message": f"Unexpected error: {str(e)}"
-        }
+        raise RuntimeError(f"Unexpected error while sending email: {str(e)}")
 
 
 def send_team_invitation_email(
@@ -105,7 +122,7 @@ def send_team_invitation_email(
     inviter_email: str,
     invitation_url: str,
     from_email: Optional[str] = None
-) -> Dict[str, any]:
+) -> None:
     """
     Send a team invitation verification email.
     
@@ -116,8 +133,6 @@ def send_team_invitation_email(
         invitation_url: URL to accept the invitation
         from_email: Optional sender email address
         
-    Returns:
-        Dictionary with success status and error details (see send_verification_email)
     """
     subject = f"Team Invitation: {team_name}"
     
@@ -137,4 +152,4 @@ If you did not expect this invitation or believe it was sent in error, you can s
 TransformerLab Team
 """
     
-    return send_verification_email(to_email, subject, body, from_email)
+    send_verification_email(to_email, subject, body, from_email)
