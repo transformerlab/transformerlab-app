@@ -385,7 +385,10 @@ def test_member_cannot_update_roles(client, owner_user, member_user, test_team):
 
 
 def test_remove_member(client, owner_user, member_user, test_team, member_in_test_team):
-    """Test removing a member from the team (not allowed for Default Team)"""
+    """Test removing a member from the team"""
+    # Ensure member was added
+    assert member_in_test_team == True
+
     # Get member's user_id
     headers = {
         "Authorization": f"Bearer {owner_user['token']}",
@@ -394,30 +397,24 @@ def test_remove_member(client, owner_user, member_user, test_team, member_in_tes
     resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
     members = resp.json()["members"]
     member_data = next((m for m in members if m["email"] == member_user["email"]), None)
-    
-    # If this is the Default Team, we can't remove members
-    if test_team.get("name") == "Default Team":
-        if member_data:
-            member_id = member_data["user_id"]
-            resp = client.delete(
-                f"/teams/{test_team['id']}/members/{member_id}",
-                headers=headers
-            )
-            assert resp.status_code == 400
-            assert "cannot remove members from the default team" in resp.json()["detail"].lower()
-    else:
-        # For non-default teams, removal should work
-        assert member_data is not None
-        member_id = member_data["user_id"]
-        resp = client.delete(
-            f"/teams/{test_team['id']}/members/{member_id}",
-            headers=headers
-        )
-        
-        assert resp.status_code == 200
-        assert resp.json()["message"] == "Member removed successfully"
-        
-        # Verify member is removed
+
+    # Member should exist
+    assert member_data is not None
+    member_id = member_data["user_id"]
+
+    # Remove member
+    resp = client.delete(
+        f"/teams/{test_team['id']}/members/{member_id}",
+        headers=headers
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Member removed successfully"
+
+    # Verify member is removed
+    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
+    members_after = resp.json()["members"]
+    assert not any(m["email"] == member_user["email"] for m in members_after)
         resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
         members = resp.json()["members"]
         emails = [m["email"] for m in members]
@@ -522,23 +519,27 @@ def test_delete_team(client, owner_user):
     assert resp.json()["message"] == "Team deleted"
 
 
-def test_cannot_delete_default_team(client, owner_user):
-    """Test that the Default Team cannot be deleted"""
-    # Get user's teams to find Default Team
+def test_cannot_delete_last_team(client, owner_user):
+    """Test that users cannot delete their last team"""
+    # Get user's teams
     headers = {"Authorization": f"Bearer {owner_user['token']}"}
     resp = client.get("/users/me/teams", headers=headers)
     teams = resp.json()["teams"]
-    default_team = next((t for t in teams if t["name"] == "Default Team"), None)
-    
-    if default_team:
-        headers = {
-            "Authorization": f"Bearer {owner_user['token']}",
-            "X-Team-Id": default_team["id"]
-        }
-        resp = client.delete(f"/teams/{default_team['id']}", headers=headers)
-        
-        assert resp.status_code == 400
-        assert "cannot delete the default team" in resp.json()["detail"].lower()
+
+    # Should have at least one team (personal team)
+    assert len(teams) >= 1
+
+    # Try to delete the first team
+    team_to_delete = teams[0]
+    headers = {
+        "Authorization": f"Bearer {owner_user['token']}",
+        "X-Team-Id": team_to_delete["id"]
+    }
+    resp = client.delete(f"/teams/{team_to_delete['id']}", headers=headers)
+
+    # Should fail because it's the last team
+    assert resp.status_code == 400
+    assert "last team" in resp.json()["detail"].lower()
 
 
 def test_member_cannot_delete_team(client, member_user, test_team, member_in_test_team):
@@ -557,10 +558,21 @@ def test_member_cannot_delete_team(client, member_user, test_team, member_in_tes
 
 def test_cannot_delete_team_with_multiple_users(client, owner_user, member_user, test_team, member_in_test_team):
     """Test that a team with multiple users cannot be deleted"""
+    # Ensure member was added successfully
+    assert member_in_test_team == True
+    
     headers = {
         "Authorization": f"Bearer {owner_user['token']}",
         "X-Team-Id": test_team["id"]
     }
+    
+    # Verify team has multiple members before attempting delete
+    resp = client.get(f"/teams/{test_team['id']}/members", headers=headers)
+    assert resp.status_code == 200
+    members = resp.json()["members"]
+    assert len(members) >= 2, f"Team should have at least 2 members, but has {len(members)}"
+    
+    # Now try to delete - should fail
     resp = client.delete(f"/teams/{test_team['id']}", headers=headers)
     
     assert resp.status_code == 400

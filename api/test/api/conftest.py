@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 import os
+import shutil
 
 # Create test directories before setting environment variables
 os.makedirs("test/tmp/workspace", exist_ok=True)
@@ -13,6 +14,21 @@ os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-o
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
 
 from api import app  # noqa: E402
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_test_database():
+    """Clean up test database before and after test session"""
+    # Clean up before tests
+    db_path = "test/tmp/llmlab.sqlite3"
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    
+    yield
+    
+    # Clean up after tests
+    if os.path.exists(db_path):
+        os.remove(db_path)
 
 
 @pytest.fixture(scope="session")
