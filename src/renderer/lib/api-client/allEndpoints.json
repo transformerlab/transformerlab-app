@@ -225,6 +225,10 @@
     "logout": {
       "method": "POST",
       "path": "auth/logout"
+    },
+    "forgotPassword": {
+      "method": "POST",
+      "path": "auth/forgot_password"
     }
   },
   "experiment": {
