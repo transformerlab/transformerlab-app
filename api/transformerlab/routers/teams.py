@@ -4,6 +4,7 @@ from transformerlab.shared.models.user_model import User, get_async_session
 from transformerlab.shared.models.models import Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth2 import require_team_owner, get_user_and_team
+from transformerlab.utils.email import send_team_invitation_email
 
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select, delete, update, func, and_
@@ -194,9 +195,12 @@ async def invite_member(
     """
     Create a team invitation. Only team owners can invite members.
     
-    This creates a pending invitation that the user must accept.
-    Returns a shareable invitation URL.
+    This creates a pending invitation that the user must accept by clicking
+    the verification link sent to their email.
+    
+    Returns a shareable invitation URL and email delivery status.
     """
+    # TODO:  The verification email is sent using the OS mail system as a temporary solution.
     # Verify team_id matches the one in header
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
@@ -243,19 +247,63 @@ async def invite_member(
     app_url = getenv("FRONTEND_URL", "http://localhost:1212")
     
     if existing_invitation:
-        # Return the existing invitation URL instead of creating a new one
-        # This is useful if they lost the URL or want to resend it
-        invitation_url = f"{app_url}/invitations/accept?token={existing_invitation.token}"
+        # Check if the existing invitation has expired
+        if existing_invitation.expires_at < datetime.utcnow():
+            # Expired invitation - extend the expiration and resend
+            existing_invitation.expires_at = datetime.utcnow() + timedelta(days=7)
+            await session.commit()
+            await session.refresh(existing_invitation)
+            
+            invitation_url = f"{app_url}/invitations/accept?token={existing_invitation.token}"
+            
+            # Resend verification email with new expiration
+            email_result = send_team_invitation_email(
+                to_email=invite_data.email,
+                team_name=team.name,
+                inviter_email=inviter_user.email,
+                invitation_url=invitation_url
+            )
+            
+            if not email_result["success"]:
+                if email_result["error_type"] == "invalid_email":
+                    raise HTTPException(status_code=400, detail=email_result["error_message"])
                 
-        return {
-            "message": "Invitation already exists",
-            "invitation_id": existing_invitation.id,
-            "email": existing_invitation.email,
-            "role": existing_invitation.role,
-            "expires_at": existing_invitation.expires_at.isoformat(),
-            "invitation_url": invitation_url,
-            "note": "This user already has a pending invitation. Here's the existing invitation URL."
-        }
+            return {
+                "message": "Invitation renewed and resent",
+                "invitation_id": existing_invitation.id,
+                "email": existing_invitation.email,
+                "role": existing_invitation.role,
+                "expires_at": existing_invitation.expires_at.isoformat(),
+                "invitation_url": invitation_url,
+                "email_sent": email_result["success"],
+                "email_error": email_result["error_message"] if not email_result["success"] else None
+            }
+        else:
+            # Valid pending invitation - resend without changing expiration
+            invitation_url = f"{app_url}/invitations/accept?token={existing_invitation.token}"
+            
+            # Resend verification email
+            email_result = send_team_invitation_email(
+                to_email=invite_data.email,
+                team_name=team.name,
+                inviter_email=inviter_user.email,
+                invitation_url=invitation_url
+            )
+            
+            if not email_result["success"]:
+                if email_result["error_type"] == "invalid_email":
+                    raise HTTPException(status_code=400, detail=email_result["error_message"])
+                    
+            return {
+                "message": "Invitation already exists and was resent",
+                "invitation_id": existing_invitation.id,
+                "email": existing_invitation.email,
+                "role": existing_invitation.role,
+                "expires_at": existing_invitation.expires_at.isoformat(),
+                "invitation_url": invitation_url,
+                "email_sent": email_result["success"],
+                "email_error": email_result["error_message"] if not email_result["success"] else None
+            }
 
     # Create invitation
     invitation = TeamInvitation(
@@ -272,13 +320,31 @@ async def invite_member(
 
     invitation_url = f"{app_url}/invitations/accept?token={invitation.token}"
 
+    # Send verification email to validate the email address exists
+    email_result = send_team_invitation_email(
+        to_email=invite_data.email,
+        team_name=team.name,
+        inviter_email=inviter_user.email,
+        invitation_url=invitation_url
+    )
+    
+    if not email_result["success"]:
+        if email_result["error_type"] == "invalid_email":
+            # Delete the invitation we just created since the email is invalid
+            await session.delete(invitation)
+            await session.commit()
+            raise HTTPException(status_code=400, detail=email_result["error_message"])
+        # For service/system errors, keep the invitation and return it with error info
+
     return {
         "message": "Invitation created successfully",
         "invitation_id": invitation.id,
         "email": invite_data.email,
         "role": invite_data.role,
         "expires_at": invitation.expires_at.isoformat(),
-        "invitation_url": invitation_url  # Frontend URL to share
+        "invitation_url": invitation_url,
+        "email_sent": email_result["success"],
+        "email_error": email_result["error_message"] if not email_result["success"] else None
     }
 
 
