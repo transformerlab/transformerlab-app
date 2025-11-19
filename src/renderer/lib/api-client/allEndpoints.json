@@ -191,6 +191,24 @@
       "path": "users/me"
     }
   },
+  "teams": {
+    "list": {
+      "method": "GET",
+      "path": "users/me/teams"
+    },
+    "create": {
+      "method": "POST",
+      "path": "teams"
+    },
+    "delete": {
+      "method": "DELETE",
+      "path": "teams/{teamId}/delete"
+    },
+    "getMembers": {
+      "method": "GET",
+      "path": "teams/{teamId}/members"
+    }
+  },
   "auth": {
     "me": {
       "method": "GET",
