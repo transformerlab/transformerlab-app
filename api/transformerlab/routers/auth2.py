@@ -36,6 +36,12 @@ router.include_router(
     prefix="/auth",
     tags=["auth"],
 )
+# Include Verify Email Router (allows users to verify their email address)
+router.include_router(
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"],
+)
 # Include User Management Router (allows authenticated users to view/update their profile)
 router.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),

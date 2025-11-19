@@ -132,6 +132,40 @@ def send_verification_email(
         raise RuntimeError(f"Unexpected error while sending email: {str(e)}")
 
 
+def send_email_verification_link(
+    to_email: str,
+    verification_url: str,
+    from_email: Optional[str] = None
+) -> None:
+    """
+    Send an email verification link to confirm user's email address.
+    
+    Args:
+        to_email: Email address to verify
+        verification_url: URL containing the verification token
+        from_email: Optional sender email address
+    """
+    subject = "Verify Your Email - Transformer Lab"
+    
+    body = f"""Hello,
+
+Thank you for registering with Transformer Lab!
+
+To complete your registration and verify your email address, please click the link below:
+
+{verification_url}
+
+This link will expire in 24 hours.
+
+If you did not create an account with Transformer Lab, please ignore this email.
+
+---
+Transformer Lab Team
+"""
+    
+    send_verification_email(to_email, subject, body, from_email)
+
+
 def send_password_reset_email(
     to_email: str,
     reset_url: str,

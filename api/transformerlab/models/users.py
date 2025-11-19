@@ -7,7 +7,7 @@ from fastapi_users.authentication import AuthenticationBackend, BearerTransport,
 from fastapi_users.db import SQLAlchemyUserDatabase
 from transformerlab.shared.models.user_model import User, get_async_session, create_default_team
 from transformerlab.shared.models.models import UserTeam, TeamRole
-from transformerlab.utils.email import send_password_reset_email
+from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt as _jose_jwt
 from datetime import datetime, timedelta
@@ -70,7 +70,12 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     # Optional: Define custom logic after registration
     async def on_after_register(self, user: User, request: Optional[Request] = None):
+        """
+        Called after a user successfully registers.
+        Sends a verification email and adds user to default team.
+        """
         print(f"User {user.id} has registered.")
+        
         # Add to default team as owner
         async with self.user_db.session as session:
             team = await create_default_team(session)
@@ -99,7 +104,24 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             print(f"❌ Failed to send password reset email to {user.email}: {str(e)}")
 
     async def on_after_request_verify(self, user: User, token: str, request: Request | None = None):
-        print(f"Verification requested for user {user.id}. Verification token: {token}")
+        """
+        Called when a user requests email verification (or resend verification).
+        Sends an email with a verification link containing the token.
+        """
+        print(f"Verification requested for user {user.id}. Token: {token}")
+        
+        # Get frontend URL from environment or use default
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
+        verification_url = f"{frontend_url}/verify-email?token={token}"
+        
+        try:
+            send_email_verification_link(
+                to_email=user.email,
+                verification_url=verification_url
+            )
+            print(f"✅ Verification email sent to {user.email}")
+        except Exception as e:
+            print(f"❌ Failed to send verification email to {user.email}: {str(e)}")
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
