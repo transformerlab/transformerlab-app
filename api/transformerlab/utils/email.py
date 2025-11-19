@@ -145,11 +145,11 @@ def send_password_reset_email(
         reset_url: URL containing the reset token
         from_email: Optional sender email address
     """
-    subject = "Password Reset Request - TransformerLab"
+    subject = "Password Reset Request - Transformer Lab"
     
     body = f"""Hello,
 
-You recently requested to reset your password for your TransformerLab account ({to_email}).
+You recently requested to reset your password for your Transformer Lab account ({to_email}).
 
 To reset your password, please click the link below:
 
@@ -160,7 +160,7 @@ This link will expire in 1 hour for security reasons.
 If you did not request a password reset, please ignore this email or contact support if you have concerns.
 
 ---
-TransformerLab Team
+Transformer Lab Team
 """
     
     send_verification_email(to_email, subject, body, from_email)
@@ -188,7 +188,7 @@ def send_team_invitation_email(
     
     body = f"""Hello,
 
-{inviter_email} has invited you to join the team "{team_name}" on TransformerLab.
+{inviter_email} has invited you to join the team "{team_name}" on Transformer Lab.
 
 To accept this invitation and verify your email address, please click the link below:
 
@@ -199,7 +199,7 @@ This invitation will expire in 7 days.
 If you did not expect this invitation or believe it was sent in error, you can safely ignore this email.
 
 ---
-TransformerLab Team
+Transformer Lab Team
 """
     
     send_verification_email(to_email, subject, body, from_email)
