@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
-from transformerlab.shared.models.user_model import User, get_async_session, create_default_team
+from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team
 from transformerlab.shared.models.models import Team, UserTeam, TeamRole
 from transformerlab.models.users import (
     fastapi_users,
@@ -167,14 +167,15 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     result = await session.execute(stmt)
     user_teams = result.scalars().all()
 
-    # If user has no team associations, assign them to default team as owner
+    # If user has no team associations, create personal team as owner
     if not user_teams:
-        default_team = await create_default_team(session)
-        user_team = UserTeam(user_id=str(user.id), team_id=default_team.id, role=TeamRole.OWNER.value)
+        personal_team = await create_personal_team(session, user)
+        user_team = UserTeam(user_id=str(user.id), team_id=personal_team.id, role=TeamRole.OWNER.value)
         session.add(user_team)
         await session.commit()
         await session.refresh(user_team)
-        return {"user_id": str(user.id), "teams": [{"id": default_team.id, "name": default_team.name, "role": TeamRole.OWNER.value}]}
+        print(f"Created personal team '{personal_team.name}' for existing user {user.email}")
+        return {"user_id": str(user.id), "teams": [{"id": personal_team.id, "name": personal_team.name, "role": TeamRole.OWNER.value}]}
 
     # User has team associations, get the actual team objects
     team_ids = [ut.team_id for ut in user_teams]

@@ -115,13 +115,6 @@ async def delete_team(
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
 
-    # Check if this is the default team
-    stmt = select(Team).where(Team.id == team_id)
-    result = await session.execute(stmt)
-    team = result.scalar_one_or_none()
-    if team and team.name == "Default Team":
-        raise HTTPException(status_code=400, detail="Cannot delete the default team")
-
     user = owner_info["user"]
 
     # Check if user has other teams
@@ -373,13 +366,6 @@ async def remove_member(
     # Verify team_id matches the one in header
     if team_id != owner_info["team_id"]:
         raise HTTPException(status_code=400, detail="Team ID mismatch")
-
-    # Check if this is the default team
-    stmt = select(Team).where(Team.id == team_id)
-    result = await session.execute(stmt)
-    team = result.scalar_one_or_none()
-    if team and team.name == "Default Team":
-        raise HTTPException(status_code=400, detail="Cannot remove members from the default team")
 
     # Check if the user to be removed exists in the team
     stmt = select(UserTeam).where(

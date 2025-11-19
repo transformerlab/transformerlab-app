@@ -5,7 +5,7 @@ from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users.db import SQLAlchemyUserDatabase
-from transformerlab.shared.models.user_model import User, get_async_session, create_default_team
+from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team
 from transformerlab.shared.models.models import UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,16 +72,17 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         """
         Called after a user successfully registers.
-        Sends a verification email and adds user to default team.
+        Creates a personal team for the user and sends verification email.
         """
         print(f"User {user.id} has registered.")
         
-        # Add to default team as owner
+        # Create personal team for this user as owner
         async with self.user_db.session as session:
-            team = await create_default_team(session)
+            team = await create_personal_team(session, user)
             user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
             session.add(user_team)
             await session.commit()
+            print(f"Created personal team '{team.name}' for user {user.email}")
 
     async def on_after_forgot_password(self, user: User, token: str, request: Request | None = None):
         """
