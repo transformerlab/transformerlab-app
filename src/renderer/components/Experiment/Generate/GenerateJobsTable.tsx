@@ -179,8 +179,29 @@ const GenerateJobsTable = () => {
                   <td>
                     {/* <RenderScore score={job?.job_data?.score} /> */}
                     <Link
-                      onClick={() => handleOpenCSVModal(job)}
-                      sx={{ mt: 1, ml: 1 }}
+                      onClick={() => {
+                        if (
+                          job?.status === 'COMPLETE' &&
+                          job?.job_data?.completion_status === 'success'
+                        ) {
+                          handleOpenCSVModal(job);
+                        }
+                      }}
+                      disabled={
+                        !(
+                          job?.status === 'COMPLETE' &&
+                          job?.job_data?.completion_status === 'success'
+                        )
+                      }
+                      sx={{
+                        mt: 1,
+                        ml: 1,
+                        cursor:
+                          job?.status === 'COMPLETE' &&
+                          job?.job_data?.completion_status === 'success'
+                            ? 'pointer'
+                            : 'not-allowed',
+                      }}
                       startDecorator={<Grid3X3Icon size="14px" />}
                     >
                       Dataset Preview

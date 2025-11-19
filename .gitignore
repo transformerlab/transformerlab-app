@@ -37,6 +37,7 @@ npm-debug.log.*
 .cursorignore
 
 .env
+**/.env
 
 # Common Python ignores (applies to both api/ and lab-sdk/)
 # --------------------------------
