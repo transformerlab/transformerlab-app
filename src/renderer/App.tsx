@@ -193,16 +193,16 @@ function AppContent({
         </Box>
       </Box>
       <AutoUpdateModal />
-      {typeof process !== 'undefined' &&
-        process.env?.TL_FORCE_API_URL === 'false' && (
-          <LoginModal
-            setServer={setConnection}
-            connection={connection}
-            setTerminalDrawerOpen={setLogsDrawerOpen}
-            setSSHConnection={setSSHConnection}
-            setGPUOrchestrationServer={setGPUOrchestrationServer}
-          />
-        )}
+      {(typeof process === 'undefined' ||
+        process.env?.TL_FORCE_API_URL === 'false') && (
+        <LoginModal
+          setServer={setConnection}
+          connection={connection}
+          setTerminalDrawerOpen={setLogsDrawerOpen}
+          setSSHConnection={setSSHConnection}
+          setGPUOrchestrationServer={setGPUOrchestrationServer}
+        />
+      )}
     </Box>
   );
 }
