@@ -254,7 +254,8 @@ async def invite_member(
             await session.commit()
             await session.refresh(existing_invitation)
             
-            invitation_url = f"{app_url}/invitations/accept?token={existing_invitation.token}"
+            # Use hash router format for the invitation URL
+            invitation_url = f"{app_url}/#/?invitation_token={existing_invitation.token}"
             
             # Resend verification email with new expiration
             try:
@@ -285,7 +286,8 @@ async def invite_member(
             }
         else:
             # Valid pending invitation - resend without changing expiration
-            invitation_url = f"{app_url}/invitations/accept?token={existing_invitation.token}"
+            # Use hash router format for the invitation URL
+            invitation_url = f"{app_url}/#/?invitation_token={existing_invitation.token}"
             
             # Resend verification email
             try:
@@ -328,7 +330,8 @@ async def invite_member(
     await session.commit()
     await session.refresh(invitation)
 
-    invitation_url = f"{app_url}/invitations/accept?token={invitation.token}"
+    # Use hash router format for the invitation URL
+    invitation_url = f"{app_url}/#/?invitation_token={invitation.token}"
 
     # Send verification email to validate the email address exists
     try:

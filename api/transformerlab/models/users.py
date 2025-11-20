@@ -105,7 +105,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         
         # Get frontend URL from environment or use default
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        reset_url = f"{frontend_url}/reset-password?token={token}"
+        # Use hash router format for the reset URL
+        reset_url = f"{frontend_url}/#/?reset_token={token}"
         
         try:
             send_password_reset_email(
@@ -125,7 +126,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         
         # Get frontend URL from environment or use default
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        verification_url = f"{frontend_url}/verify-email?token={token}"
+        # Use hash router format for the verification URL
+        verification_url = f"{frontend_url}/#/?token={token}"
         
         try:
             send_email_verification_link(
