@@ -1,6 +1,47 @@
 import pytest
 
 
+def verify_user_in_db(email: str):
+    """Helper to mark a user as verified in the database (for testing)"""
+    import asyncio
+    from sqlalchemy import select
+    from transformerlab.shared.models.user_model import User
+    from transformerlab.db.session import async_session
+    
+    async def _verify():
+        async with async_session() as session:
+            stmt = select(User).where(User.email == email)
+            result = await session.execute(stmt)
+            user = result.scalar_one_or_none()
+            if user:
+                user.is_verified = True
+                await session.commit()
+                return True
+        return False
+    
+    # Get or create event loop
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop, create one
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError("Event loop is closed")
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    
+    if asyncio.iscoroutinefunction(_verify):
+        return loop.run_until_complete(_verify())
+
+
+@pytest.fixture
+def auto_verify_user():
+    """Fixture that returns the verify_user_in_db function for use in tests"""
+    return verify_user_in_db
+
+
 @pytest.fixture(scope="module")
 def owner_user(client):
     """Create and authenticate an owner user"""
@@ -11,6 +52,9 @@ def owner_user(client):
     }
     resp = client.post("/auth/register", json=user_data)
     assert resp.status_code in (200, 201, 400)  # 400 if already exists
+    
+    # Verify user in database (for testing, bypass email verification)
+    verify_user_in_db("owner@test.com")
     
     # Login
     login_data = {
@@ -24,7 +68,7 @@ def owner_user(client):
     return {"email": "owner@test.com", "token": token}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def member_user(client):
     """Create and authenticate a member user"""
     # Register
@@ -34,6 +78,9 @@ def member_user(client):
     }
     resp = client.post("/auth/register", json=user_data)
     assert resp.status_code in (200, 201, 400)  # 400 if already exists
+    
+    # Verify user in database (for testing, bypass email verification)
+    verify_user_in_db("member@test.com")
     
     # Login
     login_data = {
@@ -47,7 +94,7 @@ def member_user(client):
     return {"email": "member@test.com", "token": token}
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def test_team(client, owner_user):
     """Create a test team"""
     headers = {"Authorization": f"Bearer {owner_user['token']}"}
@@ -60,7 +107,7 @@ def test_team(client, owner_user):
     return team
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def member_in_test_team(client, owner_user, member_user, test_team):
     """Ensure member_user is added to test_team via invitation"""
     headers = {
@@ -80,7 +127,17 @@ def member_in_test_team(client, owner_user, member_user, test_team):
     resp = client.post(f"/teams/{test_team['id']}/members", json=invite_data, headers=headers)
     
     if resp.status_code == 200:
-        token = resp.json()["invitation_url"].split("token=")[1]
+        resp_json = resp.json()
+        # Extract token from invitation_url (format: http://.../#/?invitation_token=TOKEN)
+        if "invitation_url" in resp_json:
+            invitation_url = resp_json["invitation_url"]
+            if "invitation_token=" in invitation_url:
+                token = invitation_url.split("invitation_token=")[-1]
+            else:
+                return False
+        else:
+            return False
+            
         headers_member = {"Authorization": f"Bearer {member_user['token']}"}
         accept_data = {"token": token}
         resp = client.post("/invitations/accept", json=accept_data, headers=headers_member)
@@ -98,6 +155,9 @@ def fresh_owner_user(client):
     user_data = {"email": email, "password": "password123"}
     resp = client.post("/auth/register", json=user_data)
     assert resp.status_code in (200, 201)
+    
+    # Verify user in database (for testing, bypass email verification)
+    verify_user_in_db(email)
     
     login_data = {"username": email, "password": "password123"}
     resp = client.post("/auth/jwt/login", data=login_data)
@@ -340,7 +400,7 @@ def test_cannot_demote_last_owner(client, owner_user, test_team):
     assert "last owner" in resp.json()["detail"].lower()
 
 
-def test_member_cannot_invite(client, member_user, test_team):
+def test_member_cannot_invite(client, member_user, test_team, member_in_test_team):
     """Test that a member cannot invite other users"""
     headers = {
         "Authorization": f"Bearer {member_user['token']}",
@@ -356,7 +416,7 @@ def test_member_cannot_invite(client, member_user, test_team):
     assert "owner" in resp.json()["detail"].lower()
 
 
-def test_member_cannot_update_roles(client, owner_user, member_user, test_team):
+def test_member_cannot_update_roles(client, owner_user, member_user, test_team, member_in_test_team):
     """Test that a member cannot change roles"""
     # Get owner's user_id
     headers = {
@@ -598,6 +658,9 @@ def invited_user(client):
     resp = client.post("/auth/register", json=user_data)
     assert resp.status_code in (200, 201, 400)  # 400 if already exists
     
+    # Verify user in database (for testing, bypass email verification)
+    verify_user_in_db("invited@test.com")
+    
     # Login
     login_data = {
         "username": "invited@test.com",
@@ -620,6 +683,9 @@ def reject_user(client):
     }
     resp = client.post("/auth/register", json=user_data)
     assert resp.status_code in (200, 201, 400)  # 400 if already exists
+    
+    # Verify user in database (for testing, bypass email verification)
+    verify_user_in_db("reject@test.com")
     
     # Login
     login_data = {
@@ -886,6 +952,10 @@ def test_cannot_cancel_non_pending_invitation(client, fresh_owner_user, invited_
     # Register and accept as new user
     user_data = {"email": "accepted@test.com", "password": "password123"}
     client.post("/auth/register", json=user_data)
+    
+    # Verify user in database (for testing, bypass email verification)
+    verify_user_in_db("accepted@test.com")
+    
     login_data = {"username": "accepted@test.com", "password": "password123"}
     resp = client.post("/auth/jwt/login", data=login_data)
     new_token = resp.json()["access_token"]
