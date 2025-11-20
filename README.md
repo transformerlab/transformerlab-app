@@ -49,7 +49,6 @@ Transformer Lab is proud to be supported by Mozilla through the <a href="https:/
 
 ## Features
 
-
 Transformer Lab allows you to:
 
 - 💕 **One-click Download Hundreds of Popular Models**:
@@ -120,19 +119,25 @@ And you can do the above, all through a simple cross-platform GUI.
 
 <a href="https://transformerlab.ai/docs/install">Read this page</a> to learn how to install and use.
 
+### Requirements
+
+- NVIDIA or AMD GPU on Linux (or Windows via WSL2)
+- macOS with Apple Silicon is supported (training functionality varies by hardware)
+- CPU-only installs run inference but not GPU-heavy workflows
+
 ### Built With
 
 - [![Electron][Electron]][Electron-url]
 - [![React][React.js]][React-url]
 - [![HuggingFace][HuggingFace]][HuggingFace-url]
 
-## Developers
+## Notes for Developers
 
-### Building from Scratch
+### Building Frontend from Scratch
 
 To build the app yourself, pull this repo, and follow the steps below:
 
-(Please note that the current build doesn't work on Node v23 but it works on v22)
+(Please note that the current build doesn't work on Node v23+. Use Node v22.)
 
 ```bash
 npm install
@@ -142,30 +147,34 @@ npm install
 npm start
 ```
 
-## Packaging for Production
-
-To package apps for the local platform:
-
-```bash
-npm run package
-```
-
 ### Backend (API) Installation & Development
 
-If you need to run just the Transformer Lab API (for example on a remote machine) you can install it directly (or run `npm run api:install` from the repo root):
+If you need to run just the Transformer Lab API (for example, you might run the app on your local machine while running the API on a remote machine with GPU) you can install it directly:
 
 ```bash
 cd api
 ./install.sh
 ```
 
+(You can also run `npm run api:install` from the repo root, which does the same thing)
+
 This script installs Miniforge/Mamba if needed, sets up the Conda environment, and installs all Python dependencies via `uv`.
 
-To start the API after installation (`npm run api:start` from the repo root does the same):
+To start the API after installation:
 
 ```bash
 cd api
 ./run.sh
+```
+
+(Or run `npm run api:start` from the repo root, which does the same)
+
+### Packaging for Production
+
+To package apps for the local platform:
+
+```bash
+npm run package
 ```
 
 ### Python SDK Development
@@ -186,12 +195,6 @@ The SDK is published to PyPI as `transformerlab` and can be installed with:
 ```bash
 pip install transformerlab
 ```
-
-#### Requirements
-
-- NVIDIA or AMD GPU on Linux (or Windows via WSL2)
-- macOS with Apple Silicon is supported (training functionality varies by hardware)
-- CPU-only installs run inference but not GPU-heavy workflows
 
 #### Updating Python Requirements
 
@@ -229,7 +232,6 @@ Need a fully manual install without the helper script? Follow https://transforme
 ## License
 
 Distributed under the AGPL V3 License. See `LICENSE.txt` for more information.
-
 
 ## Reference
 
