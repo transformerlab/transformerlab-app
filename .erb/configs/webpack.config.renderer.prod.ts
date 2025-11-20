@@ -109,6 +109,9 @@ const configuration: webpack.Configuration = {
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'production',
       DEBUG_PROD: false,
+      MULTIUSER: 'false',
+      TL_API_URL: 'default',
+      TL_FORCE_API_URL: 'false',
     }),
 
     new MiniCssExtractPlugin({
