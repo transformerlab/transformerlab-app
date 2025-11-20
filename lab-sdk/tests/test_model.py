@@ -19,4 +19,3 @@ def test_model_get_dir(tmp_path, monkeypatch):
     m = Model("mixtral-8x7b")
     d = m.get_dir()
     assert d.endswith(os.path.join("models", "mixtral-8x7b"))
-

@@ -21,7 +21,14 @@ class Dataset(BaseLabResource):
             "json_data": {},
         }
 
-    def set_metadata(self, *, location: str | None = None, description: str | None = None, size: int | None = None, json_data: dict | None = None):
+    def set_metadata(
+        self,
+        *,
+        location: str | None = None,
+        description: str | None = None,
+        size: int | None = None,
+        json_data: dict | None = None,
+    ):
         data = self.get_json_data()
         if location is not None:
             data["location"] = location
@@ -62,5 +69,3 @@ class Dataset(BaseLabResource):
             except Exception:
                 continue
         return results
-
-

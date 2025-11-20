@@ -81,7 +81,6 @@ class BaseLabResource(ABC):
         """Get json file containing metadata for this resource."""
         return storage.join(self.get_dir(), "index.json")
 
-
     def get_json_data(self):
         """
         Return the JSON data that is stored for this resource in the filesystem.
@@ -89,7 +88,7 @@ class BaseLabResource(ABC):
         """
         # Migrate from timestamped files to single index.json if needed
         self._migrate_to_single_index()
-        
+
         json_file = self._get_json_file()
 
         # Try opening this file location and parsing the json inside
@@ -100,7 +99,7 @@ class BaseLabResource(ABC):
                 # Clean the content - remove trailing whitespace and extra characters
                 content = content.strip()
                 # Remove any trailing % characters (common in some shell outputs)
-                content = content.rstrip('%')
+                content = content.rstrip("%")
                 content = content.strip()
                 return json.loads(content)
         except (FileNotFoundError, json.JSONDecodeError):
@@ -160,14 +159,14 @@ class BaseLabResource(ABC):
                 if filename.startswith("index-") and filename.endswith(".json"):
                     has_timestamped_files = True
                     break
-            
+
             if not has_timestamped_files:
                 return  # Already migrated
 
         # Find the most recent timestamped file
         latest_file = None
         latest_timestamp = None
-        
+
         # First, try to use latest.txt if it exists
         latest_txt_path = storage.join(resource_dir, "latest.txt")
         if storage.exists(latest_txt_path):
@@ -206,11 +205,11 @@ class BaseLabResource(ABC):
             try:
                 with storage.open(latest_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                
+
                 # Write to index.json
                 with storage.open(index_file, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False)
-                
+
                 # Clean up timestamped files and latest.txt
                 try:
                     entries = storage.ls(resource_dir, detail=False)
@@ -220,10 +219,10 @@ class BaseLabResource(ABC):
                     filename = entry.rstrip("/").split("/")[-1]
                     if filename.startswith("index-") and filename.endswith(".json"):
                         storage.rm(storage.join(resource_dir, filename))
-                
+
                 if storage.exists(latest_txt_path):
                     storage.rm(latest_txt_path)
-                    
+
             except Exception:
                 # If migration fails, leave everything as is
                 pass
