@@ -170,7 +170,7 @@ async def refresh_access_token(
             "token_type": "bearer",
         }
 
-    except JWTError as e:
+    except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
     except Exception as e:
         print(f"Refresh Error: {e}")
