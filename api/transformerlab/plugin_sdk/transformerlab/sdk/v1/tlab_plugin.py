@@ -106,9 +106,22 @@ class TLabPlugin:
 
                     # Update final progress and success status
                     self.progress_update(progress_end)
-                    self.job.update_job_data_field("completion_status", "success")
-                    self.job.update_job_data_field("completion_details", "Job completed successfully")
-                    self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+
+                    job_data = self.job.get_json_data()
+                    if job_data.get("job_data", {}).get("completion_status", "") != "success":
+                        self.job.update_job_data_field("completion_status", "success")
+
+                    job_data = self.job.get_json_data()
+                    if job_data.get("job_data", {}).get("completion_status", "") != "Job completed successfully":
+                        self.job.update_job_data_field("completion_details", "Job completed successfully")
+
+                    job_data = self.job.get_json_data()
+                    if (
+                        job_data.get("job_data", {}).get("end_time", "") is not None
+                        and job_data.get("job_data", {}).get("end_time", "") != ""
+                    ):
+                        self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
 
