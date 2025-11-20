@@ -120,12 +120,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         Called when a user requests email verification (or resend verification).
         Sends an email with a verification link containing the token.
         """
-        print(f"Verification requested for user {user.id}. Token: {token}")
-        
         # Get frontend URL from environment or use default
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
         # Use hash router format for the verification URL
         verification_url = f"{frontend_url}/#/?token={token}"
+        
+        print(f"Verification requested for user {user.id}.")
+        print(f"Click on verification URL to verify your account: {verification_url}")
         
         try:
             send_email_verification_link(
