@@ -13,15 +13,8 @@ pip install transformerlab
 ```
 from lab import lab
 
-training_config = {
-    "experiment_name": "test-script",
-    "model_name": "HuggingFaceTB/SmolLM-135M-Instruct",
-    "dataset": "knkarthick/samsum",
-    "output_dir": "./output",
-}
-
-lab.init()
-lab.set_config(training_config)
+# Initialize with experiment ID
+lab.init("my-experiment")
 lab.log("Job initiated")
 
 config_artifact_path = lab.save_artifact(<config_file>, "training_config.json")
@@ -31,8 +24,7 @@ lab.update_progress(1)
 ...
 lab.update_progress(99)
 
-model_dir = os.path.join(training_config["output_dir"], "final_model")
-model_path = lab.save_model(model_dir, name="trained_model")
+model_path = lab.save_model(<training_output_dir>, name="trained_model")
 lab.log("Saved model file to {model_path}")
 
 lab.finish("Training completed successfully")
