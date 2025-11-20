@@ -28,7 +28,8 @@ import {
 import * as chatAPI from './lib/transformerlab-api-sdk';
 import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
 import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
-import { AuthProvider } from './lib/authContext';
+import { AuthProvider, useAuth } from './lib/authContext';
+import LoginPage from './components/LoginPage';
 
 type AppContentProps = {
   connection: string;
@@ -65,6 +66,12 @@ function AppContent({
     },
     [setLogsDrawerHeight],
   );
+
+  const authContext = useAuth();
+
+  if (process.env.MULTIUSER === 'true' && !authContext?.isAuthenticated) {
+    return <LoginPage />;
+  }
 
   return (
     <Box
@@ -182,13 +189,15 @@ function AppContent({
         </Box>
       </Box>
       <AutoUpdateModal />
-      <LoginModal
-        setServer={setConnection}
-        connection={connection}
-        setTerminalDrawerOpen={setLogsDrawerOpen}
-        setSSHConnection={setSSHConnection}
-        setGPUOrchestrationServer={setGPUOrchestrationServer}
-      />
+      {process.env.TL_FORCE_API_URL === 'false' && (
+        <LoginModal
+          setServer={setConnection}
+          connection={connection}
+          setTerminalDrawerOpen={setLogsDrawerOpen}
+          setSSHConnection={setSSHConnection}
+          setGPUOrchestrationServer={setGPUOrchestrationServer}
+        />
+      )}
     </Box>
   );
 }
@@ -196,11 +205,16 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  const [connection, setConnection] = useState('');
+  const [connection, setConnection] = useState(process.env.TL_API_URL || '');
   const [gpuOrchestrationServer, setGPUOrchestrationServer] = useState('');
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
   const [theme, setTheme] = useState(customTheme);
+
+  useEffect(() => {
+    window.TransformerLab = {};
+    window.TransformerLab.API_URL = process.env.TL_API_URL || '';
+  }, []);
 
   // if the logs drawer is open, set the initial height
   useEffect(() => {
