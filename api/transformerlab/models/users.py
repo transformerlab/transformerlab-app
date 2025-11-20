@@ -1,16 +1,14 @@
-# users.py
 import uuid
 from typing import Optional
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
-from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
+from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
 from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team
 from transformerlab.shared.models.models import UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 from sqlalchemy.ext.asyncio import AsyncSession
-from jose import jwt as _jose_jwt
-from datetime import datetime, timedelta
 import os
 import sys
 
@@ -19,9 +17,9 @@ import sys
 class UserRead(schemas.BaseUser[uuid.UUID]):
     """
     Schema for reading user data (returned by API).
-    Includes all fields that should be visible when fetching user info.
     Inherits: id, email, is_active, is_superuser, is_verified
     """
+
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
@@ -31,6 +29,7 @@ class UserCreate(schemas.BaseUserCreate):
     Schema for creating a new user (registration).
     Inherits: email, password, is_active, is_superuser, is_verified
     """
+
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
@@ -38,9 +37,9 @@ class UserCreate(schemas.BaseUserCreate):
 class UserUpdate(schemas.BaseUserUpdate):
     """
     Schema for updating user data.
-    All fields are optional - only provided fields will be updated.
     Inherits: email, password, is_active, is_superuser, is_verified
     """
+
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
@@ -48,6 +47,7 @@ class UserUpdate(schemas.BaseUserUpdate):
 # --- User Manager (Handles registration, password reset, etc.) ---
 DEFAULT_SECRET = "YOUR_STRONG_SECRET"  # insecure default for detection only
 DEFAULT_REFRESH_SECRET = "YOUR_REFRESH_TOKEN_SECRET"  # insecure default for detection only
+TOKEN_LIFETIME = 3600  # 1 hour in seconds
 
 SECRET = os.getenv("TRANSFORMERLAB_JWT_SECRET")
 REFRESH_SECRET = os.getenv("TRANSFORMERLAB_REFRESH_SECRET")
@@ -65,7 +65,7 @@ if os.getenv("TFL_MULTITENANT") == "true":
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_secret = SECRET
     verification_token_secret = SECRET
-    reset_password_token_lifetime_seconds = 3600  # 1 hour
+    reset_password_token_lifetime_seconds = TOKEN_LIFETIME
     reset_password_token_audience = "fastapi-users:reset"
 
     # Optional: Define custom logic after registration
@@ -75,7 +75,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         Creates a personal team for the user and sends verification email.
         """
         print(f"User {user.id} has registered.")
-        
+
         # Create personal team for this user as owner
         async with self.user_db.session as session:
             team = await create_personal_team(session, user)
@@ -83,7 +83,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             session.add(user_team)
             await session.commit()
             print(f"Created personal team '{team.name}' for user {user.email}")
-        
+
         # Automatically send verification email
         # This calls the built-in request_verify which generates a token
         # and triggers on_after_request_verify hook
@@ -100,17 +100,13 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         Sends an email with a reset link containing the token.
         """
         print(f"User {user.id} has requested password reset. Token: {token}")
-        
+
         # Get frontend URL from environment or use default
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
         # Use hash router format for the reset URL
         reset_url = f"{frontend_url}/#/?reset_token={token}"
-        
         try:
-            send_password_reset_email(
-                to_email=user.email,
-                reset_url=reset_url
-            )
+            send_password_reset_email(to_email=user.email, reset_url=reset_url)
             print(f"✅ Password reset email sent to {user.email}")
         except Exception as e:
             print(f"❌ Failed to send password reset email to {user.email}: {str(e)}")
@@ -120,19 +116,16 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         Called when a user requests email verification (or resend verification).
         Sends an email with a verification link containing the token.
         """
+        print(f"Verification requested for user {user.id}. Token: {token}")
+
         # Get frontend URL from environment or use default
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        # Use hash router format for the verification URL
         verification_url = f"{frontend_url}/#/?token={token}"
-        
+
         print(f"Verification requested for user {user.id}.")
         print(f"Click on verification URL to verify your account: {verification_url}")
-        
         try:
-            send_email_verification_link(
-                to_email=user.email,
-                verification_url=verification_url
-            )
+            send_email_verification_link(to_email=user.email, verification_url=verification_url)
             print(f"✅ Verification email sent to {user.email}")
         except Exception as e:
             print(f"❌ Failed to send verification email to {user.email}: {str(e)}")
@@ -146,91 +139,54 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
     yield UserManager(user_db)
 
 
-# --- Authentication Backend (JWT/Bearer Token) ---
+# --- Strategies & Transports ---
+
 bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:
-    # Token lasts for 3600 seconds (1 hour)
-    return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
+    # Access token lasts for 3600 seconds (1 hour)
+    return JWTStrategy(secret=SECRET, lifetime_seconds=TOKEN_LIFETIME)
 
 
-auth_backend = AuthenticationBackend(
+def get_refresh_strategy() -> JWTStrategy:
+    # Refresh token lasts for 7 days
+    return JWTStrategy(secret=REFRESH_SECRET, lifetime_seconds=REFRESH_LIFETIME)
+
+
+# --- Custom Authentication Backend ---
+
+
+class RefreshTokenBackend(AuthenticationBackend):
+    """
+    Overrides the default login behavior to return both Access and Refresh tokens.
+    """
+
+    async def login(self, strategy: Strategy, user: User) -> Response:
+        # 1. Generate Access Token (using the default strategy passed in)
+        access_token = await strategy.write_token(user)
+
+        # 2. Generate Refresh Token (explicitly using our refresh strategy)
+        refresh_strategy = get_refresh_strategy()
+        refresh_token = await refresh_strategy.write_token(user)
+
+        # 3. Return combined JSON response
+        return JSONResponse(
+            content={"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        )
+
+
+# Use the Custom Backend
+auth_backend = RefreshTokenBackend(
     name="jwt",
     transport=bearer_transport,
     get_strategy=get_jwt_strategy,
 )
 
-# --- FastAPIUsers Instance (The main utility) ---
+# --- FastAPIUsers Instance ---
 fastapi_users = FastAPIUsers[User, uuid.UUID](
     get_user_manager,
-    [auth_backend],  # Add more backends (like Google OAuth) here
+    [auth_backend],
 )
 
-# --- Dependency for Protected Routes ---
-# This is what you'll use in your route decorators
 current_active_user = fastapi_users.current_user(active=True)
-
-
-def get_refresh_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=REFRESH_SECRET, lifetime_seconds=REFRESH_LIFETIME)
-
-
-# --- Small helper to create access + refresh tokens for manual flows (e.g. refresh endpoint) ---
-
-
-class _JWTAuthenticationHelper:
-    """Minimal helper that mirrors a login response (access + refresh token).
-
-    We keep this small and explicit so callers (like the `refresh` endpoint in
-    `routers/auth.py`) can create new access tokens when given a valid
-    refresh token.
-    """
-
-    def __init__(
-        self,
-        access_secret: str,
-        refresh_secret: str,
-        access_lifetime: int = 3600,
-        refresh_lifetime: int = REFRESH_LIFETIME,
-    ):
-        self.access_secret = access_secret
-        self.refresh_secret = refresh_secret
-        self.access_lifetime = access_lifetime
-        self.refresh_lifetime = refresh_lifetime
-
-    def _create_token(self, user, secret: str, lifetime_seconds: int) -> str:
-        now = datetime.utcnow()
-        exp = now + timedelta(seconds=lifetime_seconds)
-        payload = {
-            "sub": str(user.id),
-            "email": getattr(user, "email", None),
-            "exp": int(exp.timestamp()),
-        }
-        return _jose_jwt.encode(payload, secret, algorithm="HS256")
-
-    def get_login_response(self, user) -> dict:
-        """Return a dict similar to what FastAPI-Users returns on login.
-
-        Keys:
-        - access_token: short-lived JWT
-        - refresh_token: long-lived JWT (can be validated with refresh strategy)
-        - token_type: 'bearer'
-        - expires_in: seconds until access token expiry
-        """
-        access = self._create_token(user, self.access_secret, self.access_lifetime)
-        refresh = self._create_token(user, self.refresh_secret, self.refresh_lifetime)
-        return {
-            "access_token": access,
-            "refresh_token": refresh,
-            "token_type": "bearer",
-            "expires_in": self.access_lifetime,
-        }
-
-
-# Module-level helpers for imports elsewhere
-jwt_authentication = _JWTAuthenticationHelper(
-    SECRET, REFRESH_SECRET, access_lifetime=3600, refresh_lifetime=REFRESH_LIFETIME
-)
-access_strategy = get_jwt_strategy()
-refresh_strategy = get_refresh_strategy()

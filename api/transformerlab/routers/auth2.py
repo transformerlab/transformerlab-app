@@ -142,19 +142,12 @@ async def refresh_access_token(
         # 1. Get the Refresh Strategy
         refresh_strategy = get_refresh_strategy()
 
-        # 2. Decode the Refresh Token
-        payload = jwt.decode(
-            refresh_token, str(refresh_strategy.secret), audience=refresh_strategy.token_audience, algorithms=["HS256"]
-        )
+        # 2. Validate the Refresh Token & Get User
+        # Use the strategy's read_token method to handle decoding and validation securely
+        user = await refresh_strategy.read_token(refresh_token, user_manager)
 
-        user_id = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid refresh token payload")
-
-        # 3. Validate User
-        user = await user_manager.get(user_id)
         if user is None or not user.is_active:
-            raise HTTPException(status_code=401, detail="User inactive or not found")
+            raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
         # 4. Generate a NEW Access Token
         access_strategy = auth_backend.get_strategy()
@@ -170,8 +163,8 @@ async def refresh_access_token(
             "token_type": "bearer",
         }
 
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Refresh Error: {e}")
         raise HTTPException(status_code=401, detail="Could not refresh token")

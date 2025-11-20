@@ -150,6 +150,7 @@ async function handleRefresh(): Promise<string> {
         throw new Error('No refresh token available');
       }
 
+      console.log('Refreshing access token...');
       const url = getAPIFullPath('auth', ['refresh'], {});
 
       const refreshResponse = await fetch(url, {
@@ -178,6 +179,8 @@ async function handleRefresh(): Promise<string> {
       if (data.refresh_token) {
         updateRefreshToken(data.refresh_token);
       }
+
+      console.log('Access token refreshed successfully.');
 
       return newAccessToken;
     } catch (error) {
@@ -282,8 +285,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   // using useSWR directly or your hook (assuming your hook uses fetchWithAuth internally or similar logic)
   // Since useAPI in your snippet calls fetchWithAuth, it will auto-refresh too!
   const { data: teamsData, mutate: teamsMutate } = useSWR(
-    token ? getAPIFullPath('users', ['me', 'teams'], {}) : null,
-    token ? (url) => fetchWithAuth(url).then(r => r.json()) : null
+    token ? getAPIFullPath('teams', ['list'], {}) : null,
+    token ? (url) => fetchWithAuth(url).then((r) => r.json()) : null,
   );
 
   useEffect(() => {
@@ -295,9 +298,9 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         setTeamState(teams[0]);
       }
     } else if (teams && teams.length === 0) {
-       // No teams available
-       updateCurrentTeam(null);
-       setTeamState(null);
+      // No teams available
+      updateCurrentTeam(null);
+      setTeamState(null);
     }
   }, [teamsData, token]);
 
@@ -319,7 +322,11 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         });
 
         const data = await (async () => {
-          try { return await res.json(); } catch { return {}; }
+          try {
+            return await res.json();
+          } catch {
+            return {};
+          }
         })();
 
         if (!res.ok) {
@@ -332,7 +339,8 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           return error;
         }
 
-        const newToken = data.access_token ?? data.token ?? data.accessToken ?? null;
+        const newToken =
+          data.access_token ?? data.token ?? data.accessToken ?? null;
         const newRefreshToken = data.refresh_token ?? data.refreshToken ?? null;
 
         if (newToken) {
@@ -353,7 +361,9 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           );
         }
       } catch (e) {
-        console.error(`Login error: ${e instanceof Error ? e.message : String(e)}`);
+        console.error(
+          `Login error: ${e instanceof Error ? e.message : String(e)}`,
+        );
         return e instanceof Error ? e : new Error(String(e));
       }
     },
@@ -392,10 +402,13 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
   // Logout handler
   const handleLogout = useCallback(async () => {
     try {
-      await fetch(getAPIFullPath('auth', ['logout'], {}) || '/auth/jwt/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await fetch(
+        getAPIFullPath('auth', ['logout'], {}) || '/auth/jwt/logout',
+        {
+          method: 'POST',
+          credentials: 'include',
+        },
+      );
     } catch {
       /* ignore errors */
     }
@@ -447,10 +460,10 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     ],
   );
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
+  return React.createElement(
+    AuthContext.Provider,
+    { value: contextValue },
+    children,
   );
 }
 
@@ -474,8 +487,8 @@ export function useAPI(
     const res = await fetchWithAuth(url);
 
     if (res.status === 401) {
-       // Should have been handled by fetchWithAuth, but if still 401, return error
-       return { status: 'unauthorized', message: 'User not authorized' };
+      // Should have been handled by fetchWithAuth, but if still 401, return error
+      return { status: 'unauthorized', message: 'User not authorized' };
     }
 
     if (!res.ok) {
@@ -485,7 +498,9 @@ export function useAPI(
     return res.json();
   };
 
-  if (Object.values(params).some((param) => param === null || param === undefined)) {
+  if (
+    Object.values(params).some((param) => param === null || param === undefined)
+  ) {
     path = null;
   }
 

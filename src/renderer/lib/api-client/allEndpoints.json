@@ -241,6 +241,10 @@
     "verify": {
       "method": "POST",
       "path": "auth/verify"
+    },
+    "refresh": {
+      "method": "POST",
+      "path": "auth/refresh"
     }
   },
   "invitations": {
