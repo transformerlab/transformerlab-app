@@ -221,16 +221,17 @@ export default function LoginPage() {
     const hash = window.location.hash;
     const hashWithoutSymbol = hash.substring(1);
     const queryIndex = hashWithoutSymbol.indexOf('?');
-    const queryString = queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
+    const queryString =
+      queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
     const params = new URLSearchParams(queryString);
     const token = params.get('token');
     const invitationToken = params.get('invitation_token');
-    
+
     // Store invitation token in localStorage so it persists through register → verify → login flow
     if (invitationToken) {
       localStorage.setItem('pending_invitation_token', invitationToken);
     }
-    
+
     if (token) {
       const verifyEmail = async () => {
         setIsLoading(true);
@@ -263,7 +264,7 @@ export default function LoginPage() {
           setIsLoading(false);
         }
       };
-      
+
       verifyEmail();
     }
   }, []);
@@ -286,49 +287,57 @@ export default function LoginPage() {
         const hash = window.location.hash;
         const hashWithoutSymbol = hash.substring(1);
         const queryIndex = hashWithoutSymbol.indexOf('?');
-        const queryString = queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
+        const queryString =
+          queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
         const params = new URLSearchParams(queryString);
         let invitationToken = params.get('invitation_token');
-        
+
         // If no token in URL, check localStorage (for register → verify → login flow)
         if (!invitationToken) {
           invitationToken = localStorage.getItem('pending_invitation_token');
         }
-        
+
         // Check if user just verified their email (came from verification flow)
         const justVerified = localStorage.getItem('just_verified') === 'true';
-        
+
         // If we got a token from localStorage but no token in URL, verify the user actually
         // came from an invitation flow by checking if they just verified their email
         // If not, clear the old token to prevent using stale invitations
-        if (invitationToken && !params.has('invitation_token') && !justVerified) {
+        if (
+          invitationToken &&
+          !params.has('invitation_token') &&
+          !justVerified
+        ) {
           // User is logging in normally without coming from invitation or verification link
           // Clear any old stored invitation token
           localStorage.removeItem('pending_invitation_token');
           invitationToken = null;
         }
-        
+
         // Clear the verification flag after checking
         if (justVerified) {
           localStorage.removeItem('just_verified');
         }
-        
+
         if (invitationToken) {
           try {
-            const response = await fetchWithAuth(getPath('invitations', ['accept'], {}), {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
+            const response = await fetchWithAuth(
+              getPath('invitations', ['accept'], {}),
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: invitationToken }),
               },
-              body: JSON.stringify({ token: invitationToken }),
-            });
-            
+            );
+
             if (response.ok) {
               const data = await response.json();
               // Clear invitation token from URL and localStorage
               window.location.hash = window.location.hash.split('?')[0];
               localStorage.removeItem('pending_invitation_token');
-              
+
               // Show success notification
               addNotification({
                 type: 'success',
@@ -338,13 +347,14 @@ export default function LoginPage() {
               const errorData = await response.json();
               // Clear the token on error
               localStorage.removeItem('pending_invitation_token');
-              
+
               // Show helpful error message based on error type
               let errorMessage = errorData.detail || 'Unknown error';
               if (errorMessage.includes('not for your email')) {
-                errorMessage = 'This invitation is for a different email address. Please login with the invited email or ask for a new invitation.';
+                errorMessage =
+                  'This invitation is for a different email address. Please login with the invited email or ask for a new invitation.';
               }
-              
+
               addNotification({
                 type: 'danger',
                 message: `Failed to accept invitation: ${errorMessage}`,
