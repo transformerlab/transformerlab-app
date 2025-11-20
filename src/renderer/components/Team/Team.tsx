@@ -148,12 +148,7 @@ export default function UserLoginTest(): JSX.Element {
         <Typography level="title-lg" mb={1}>
           Current Team:
         </Typography>
-        <Stack
-          direction="row"
-          spacing={2}
-          alignItems="center"
-          sx={{ width: '100%' }}
-        >
+        <Stack direction="row" spacing={2} alignItems="center" maxWidth={500}>
           <Select
             value={authContext.team?.id ?? ''}
             onChange={(_, value) => {
@@ -245,7 +240,7 @@ export default function UserLoginTest(): JSX.Element {
           </Box>
         </Stack>
 
-        <Stack mt={3} gap={1}>
+        <Stack mt={3} gap={1} maxWidth={500}>
           <Typography level="title-lg">Team</Typography>
           <Button
             variant="outlined"
