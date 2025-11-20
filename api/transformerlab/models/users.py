@@ -59,8 +59,6 @@ if os.getenv("TFL_MULTITENANT") == "true":
             "Missing or insecure JWT secrets. Please set TRANSFORMERLAB_JWT_SECRET and TRANSFORMERLAB_REFRESH_SECRET "
             "to strong, different values in your environment variables or .env file. Exiting."
         )
-        print(SECRET)
-        print(REFRESH_SECRET)
         sys.exit(1)
 
 
