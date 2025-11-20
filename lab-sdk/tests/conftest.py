@@ -23,5 +23,3 @@ def _isolate_imports_and_home(monkeypatch, tmp_path):
             sys.modules.pop(mod)
 
     yield
-
-

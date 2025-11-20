@@ -75,7 +75,7 @@ def test_job_data_field_updates(tmp_path, monkeypatch):
     from lab.job import Job
 
     job = Job.create("2")
-    
+
     # Test updating job data fields directly
     job.update_job_data_field("completion_status", "success")
     job.update_job_data_field("completion_details", "ok")
@@ -85,4 +85,3 @@ def test_job_data_field_updates(tmp_path, monkeypatch):
     assert data["job_data"]["completion_status"] == "success"
     assert data["job_data"]["completion_details"] == "ok"
     assert data["job_data"]["score"] == {"acc": 1}
-
