@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -11,7 +11,7 @@ import {
   Stack,
   Typography,
 } from '@mui/joy';
-import { getPath } from 'renderer/lib/api-client/urls';
+import { getPath, getAPIFullPath } from 'renderer/lib/api-client/urls';
 import { FaDiscord, FaGoogle } from 'react-icons/fa6';
 import { useAuth } from '../lib/authContext';
 import HexLogo from './Shared/HexLogo';
@@ -206,11 +206,53 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [verifySuccess, setVerifySuccess] = useState(false);
   const [mode, setMode] = useState<'login' | 'register' | 'forgotPassword'>(
     'login',
   );
 
-  const { login } = useAuth();
+  const { login, fetchWithAuth } = useAuth();
+
+  // Check for verification token on mount
+  useEffect(() => {
+    // Parse query params from hash URL (format: #/?token=...)
+    const hash = window.location.hash;
+    const hashWithoutSymbol = hash.substring(1);
+    const queryIndex = hashWithoutSymbol.indexOf('?');
+    const queryString = queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
+    const params = new URLSearchParams(queryString);
+    const token = params.get('token');
+    
+    if (token) {
+      const verifyEmail = async () => {
+        setIsLoading(true);
+        try {
+          const response = await fetch(getAPIFullPath('auth', ['verify'], {}), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ token }),
+          });
+
+          if (response.ok) {
+            setVerifySuccess(true);
+            setError('');
+            window.location.hash = window.location.hash.split('?')[0];
+          } else {
+            const data = await response.json();
+            setError(data.detail || 'Verification failed. Please try again.');
+          }
+        } catch (err) {
+          setError('Verification failed. Please try again.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      verifyEmail();
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,6 +349,11 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </FormControl>
+                {verifySuccess && (
+                  <Typography level="body-sm" color="success">
+                    ✅ Email verified successfully! You can now log in.
+                  </Typography>
+                )}
                 {error && (
                   <Typography level="body-sm" color="danger">
                     {error}

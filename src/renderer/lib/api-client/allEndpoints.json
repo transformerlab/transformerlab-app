@@ -237,6 +237,10 @@
     "forgotPassword": {
       "method": "POST",
       "path": "auth/forgot_password"
+    },
+    "verify": {
+      "method": "POST",
+      "path": "auth/verify"
     }
   },
   "experiment": {
