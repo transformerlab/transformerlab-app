@@ -189,7 +189,7 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
           // switched to submit so the form's onSubmit is used
           type="submit"
           variant="solid"
-          sx={{ mt: 2 }}
+          sx={{ mt: 3 }}
         >
           Reset Password
         </Button>{' '}
