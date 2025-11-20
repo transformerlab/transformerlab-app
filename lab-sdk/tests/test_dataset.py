@@ -82,7 +82,7 @@ def test_dataset_set_metadata(tmp_path, monkeypatch):
     from lab.dataset import Dataset
 
     ds = Dataset.create("test_dataset_metadata")
-    
+
     # Test setting individual metadata fields
     ds.set_metadata(location="remote", description="Test dataset", size=1000)
     data = ds.get_json_data()
@@ -144,7 +144,7 @@ def test_dataset_list_all(tmp_path, monkeypatch):
     all_datasets = Dataset.list_all()
     assert isinstance(all_datasets, list)
     assert len(all_datasets) >= 2
-    
+
     # Verify datasets are in the list
     dataset_ids = [d["dataset_id"] for d in all_datasets]
     assert "dataset1" in dataset_ids
@@ -189,4 +189,3 @@ def test_dataset_secure_filename(tmp_path, monkeypatch):
     # which is safe because ".." is part of the filename, not a path separator
     assert os.path.sep + ".." + os.path.sep not in dir_path
     assert dir_path.endswith("test_.._dataset") or "test_.._dataset" in dir_path
-
