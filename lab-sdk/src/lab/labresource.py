@@ -85,8 +85,6 @@ class BaseLabResource(ABC):
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
         """
-        # Migrate from timestamped files to single index.json if needed
-        self._migrate_to_single_index()
 
         json_file = self._get_json_file()
 
@@ -131,97 +129,6 @@ class BaseLabResource(ABC):
         json_data = self.get_json_data()
         json_data[key] = value
         self._set_json_data(json_data)
-
-    def _migrate_to_single_index(self):
-        """
-        Migrate from timestamped index files to a single index.json file.
-        This method is idempotent and safe to call multiple times.
-        """
-        resource_dir = self.get_dir()
-        if not storage.exists(resource_dir):
-            return
-
-        # Check if we already have a single index.json file
-        index_file = self._get_json_file()
-        if storage.exists(index_file):
-            # Check if there are any timestamped files to migrate
-            has_timestamped_files = False
-            try:
-                entries = storage.ls(resource_dir, detail=False)
-            except Exception:
-                entries = []
-            for entry in entries:
-                filename = entry.rstrip("/").split("/")[-1]
-                if filename.startswith("index-") and filename.endswith(".json"):
-                    has_timestamped_files = True
-                    break
-
-            if not has_timestamped_files:
-                return  # Already migrated
-
-        # Find the most recent timestamped file
-        latest_file = None
-        latest_timestamp = None
-
-        # First, try to use latest.txt if it exists
-        latest_txt_path = storage.join(resource_dir, "latest.txt")
-        if storage.exists(latest_txt_path):
-            try:
-                with storage.open(latest_txt_path, "r", encoding="utf-8") as lf:
-                    latest_filename = lf.read().strip()
-                    if latest_filename:
-                        candidate_path = storage.join(resource_dir, latest_filename)
-                        if storage.isfile(candidate_path):
-                            latest_file = candidate_path
-            except Exception:
-                pass
-
-        # If no latest.txt or file doesn't exist, find the most recent by timestamp
-        if not latest_file:
-            try:
-                entries = storage.ls(resource_dir, detail=False)
-            except Exception:
-                entries = []
-            for entry in entries:
-                filename = entry.rstrip("/").split("/")[-1]
-                if filename.startswith("index-") and filename.endswith(".json"):
-                    try:
-                        # Extract timestamp from filename
-                        timestamp_str = filename[6:-5]  # Remove "index-" and ".json"
-                        timestamp = datetime.strptime(timestamp_str, "%Y%m%dT%H%M%S%fZ")
-                        if latest_timestamp is None or timestamp > latest_timestamp:
-                            latest_timestamp = timestamp
-                            latest_file = storage.join(resource_dir, filename)
-                    except ValueError:
-                        # Skip files with invalid timestamp format
-                        continue
-
-        # If we found a latest file, migrate it to index.json
-        if latest_file and storage.exists(latest_file):
-            try:
-                with storage.open(latest_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-
-                # Write to index.json
-                with storage.open(index_file, "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False)
-
-                # Clean up timestamped files and latest.txt
-                try:
-                    entries = storage.ls(resource_dir, detail=False)
-                except Exception:
-                    entries = []
-                for entry in entries:
-                    filename = entry.rstrip("/").split("/")[-1]
-                    if filename.startswith("index-") and filename.endswith(".json"):
-                        storage.rm(storage.join(resource_dir, filename))
-
-                if storage.exists(latest_txt_path):
-                    storage.rm(latest_txt_path)
-
-            except Exception:
-                # If migration fails, leave everything as is
-                pass
 
     def delete(self):
         """
