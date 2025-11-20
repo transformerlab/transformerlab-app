@@ -21,11 +21,13 @@ router = APIRouter(tags=["users"])
 
 
 # Include Auth and Registration Routers
+# Require user verification before login (is_verified must be True)
 router.include_router(
-    fastapi_users.get_auth_router(auth_backend),
+    fastapi_users.get_auth_router(auth_backend, requires_verification=True),
     prefix="/auth/jwt",
     tags=["auth"],
 )
+# User starts with is_verified=False by default, must verify email
 router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
     prefix="/auth",

@@ -67,6 +67,8 @@ if os.getenv("TFL_MULTITENANT") == "true":
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_secret = SECRET
     verification_token_secret = SECRET
+    reset_password_token_lifetime_seconds = 3600  # 1 hour
+    reset_password_token_audience = "fastapi-users:reset"
 
     # Optional: Define custom logic after registration
     async def on_after_register(self, user: User, request: Optional[Request] = None):
@@ -83,6 +85,16 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             session.add(user_team)
             await session.commit()
             print(f"Created personal team '{team.name}' for user {user.email}")
+        
+        # Automatically send verification email
+        # This calls the built-in request_verify which generates a token
+        # and triggers on_after_request_verify hook
+        if not user.is_verified:
+            try:
+                await self.request_verify(user, request)
+                print(f"📧 Verification email requested for {user.email}")
+            except Exception as e:
+                print(f"⚠️  Could not send verification email: {e}")
 
     async def on_after_forgot_password(self, user: User, token: str, request: Request | None = None):
         """
