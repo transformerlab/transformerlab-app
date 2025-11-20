@@ -90,8 +90,9 @@ export default function LoginChip({}: Props) {
             }}
           >
             <Typography level="title-sm" noWrap>
-              {user?.first_name} {user?.last_name}
-              {/* {user?.email} */}
+              {user?.first_name
+                ? `${user.first_name} ${user.last_name}`
+                : user?.email}
             </Typography>
             {/* <Typography level="body-xs" textColor="text.tertiary" noWrap>
           {email}
