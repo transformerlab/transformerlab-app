@@ -14,6 +14,7 @@ import {
 import { getPath, getAPIFullPath } from 'renderer/lib/api-client/urls';
 import { FaDiscord, FaGoogle } from 'react-icons/fa6';
 import { useAuth } from '../lib/authContext';
+import { useNotification } from './Shared/NotificationSystem';
 import HexLogo from './Shared/HexLogo';
 
 import labImage from './Welcome/img/lab.jpg';
@@ -212,16 +213,23 @@ export default function LoginPage() {
   );
 
   const { login, fetchWithAuth } = useAuth();
+  const { addNotification } = useNotification();
 
-  // Check for verification token on mount
+  // Check for verification token and invitation token on mount
   useEffect(() => {
-    // Parse query params from hash URL (format: #/?token=...)
+    // Parse query params from hash URL (format: #/?token=... or #/?invitation_token=...)
     const hash = window.location.hash;
     const hashWithoutSymbol = hash.substring(1);
     const queryIndex = hashWithoutSymbol.indexOf('?');
     const queryString = queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
     const params = new URLSearchParams(queryString);
     const token = params.get('token');
+    const invitationToken = params.get('invitation_token');
+    
+    // Store invitation token in localStorage so it persists through register → verify → login flow
+    if (invitationToken) {
+      localStorage.setItem('pending_invitation_token', invitationToken);
+    }
     
     if (token) {
       const verifyEmail = async () => {
@@ -267,6 +275,56 @@ export default function LoginPage() {
           result.info?.message ??
             'Login failed. Please check your credentials.',
         );
+      } else {
+        // After successful login, check for invitation token and auto-accept
+        const hash = window.location.hash;
+        const hashWithoutSymbol = hash.substring(1);
+        const queryIndex = hashWithoutSymbol.indexOf('?');
+        const queryString = queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
+        const params = new URLSearchParams(queryString);
+        let invitationToken = params.get('invitation_token');
+        
+        // If no token in URL, check localStorage (for register → verify → login flow)
+        if (!invitationToken) {
+          invitationToken = localStorage.getItem('pending_invitation_token');
+        }
+        
+        if (invitationToken) {
+          try {
+            const response = await fetchWithAuth(getPath('invitations', ['accept'], {}), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ token: invitationToken }),
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              // Clear invitation token from URL and localStorage
+              window.location.hash = window.location.hash.split('?')[0];
+              localStorage.removeItem('pending_invitation_token');
+              
+              // Show success notification
+              addNotification({
+                type: 'success',
+                message: `Successfully joined team "${data.team_name || 'team'}"!`,
+              });
+            } else {
+              const errorData = await response.json();
+              addNotification({
+                type: 'danger',
+                message: `Failed to accept invitation: ${errorData.detail || 'Unknown error'}`,
+              });
+            }
+          } catch (err) {
+            console.error('Failed to accept invitation:', err);
+            addNotification({
+              type: 'danger',
+              message: 'Failed to accept team invitation',
+            });
+          }
+        }
       }
     } catch (err) {
       setError('Login failed. Please check your credentials.');

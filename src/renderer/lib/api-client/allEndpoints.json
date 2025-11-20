@@ -243,6 +243,12 @@
       "path": "auth/verify"
     }
   },
+  "invitations": {
+    "accept": {
+      "method": "POST",
+      "path": "invitations/accept"
+    }
+  },
   "experiment": {
     "getScriptsOfTypeWithFilter": {
       "method": "GET",
