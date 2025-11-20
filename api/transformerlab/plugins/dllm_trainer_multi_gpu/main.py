@@ -106,6 +106,7 @@ def train_model():
     # Import dependencies after the subprocess check
     import accelerate
     from accelerate import Accelerator
+    from jinja2 import Environment
     from dllm.utils import ModelArguments, DataArguments, TrainingArguments
     from dllm.utils import get_model, get_tokenizer, print_args_main, initial_training_setup
     from dllm.utils.data_utils import default_sft_map_fn, post_process_dataset, NoAttentionMaskCollator
@@ -193,38 +194,75 @@ def train_model():
     # Prepare dataset
     # Convert transformerlab dataset to format expected by dllm
     # dllm expects a dataset with "messages" column
+    jinja_environment = Environment()
+
+    # Get the template strings from params (similar to GRPO trainer)
+    input_template_str = tlab_trainer.params.get("input_template", "")
+    output_template_str = tlab_trainer.params.get("output_template", "")
+    instruction_template = tlab_trainer.params.get("instruction_template", "")
+
+    # Create Jinja2 templates from template strings (only input and output are Jinja templates)
+    input_template = jinja_environment.from_string(input_template_str) if input_template_str else None
+    output_template = jinja_environment.from_string(output_template_str) if output_template_str else None
+
+    def format_instruction(template, mapping):
+        """Helper function to format instruction using Jinja2 template (similar to GRPO trainer)"""
+        if template is None:
+            return ""
+        return template.render(mapping)
+
     def convert_to_messages(row):
         # Check if dataset already has messages format
         if "messages" in row and row["messages"]:
             return row
-        # Otherwise, try to convert from other formats
-        # This is a basic conversion - may need adjustment based on actual dataset format
+
         messages = []
-        if "instruction" in row and "output" in row:
-            if "input" in row and row["input"]:
-                messages.append({"role": "user", "content": f"{row['instruction']}\n{row['input']}"})
-            else:
-                messages.append({"role": "user", "content": row["instruction"]})
-            messages.append({"role": "assistant", "content": row["output"]})
-        elif "prompt" in row and "completion" in row:
-            messages.append({"role": "user", "content": row["prompt"]})
-            messages.append({"role": "assistant", "content": row["completion"]})
-        elif "text" in row:
-            # Try to parse as a simple text format
-            text = row["text"]
-            # Basic heuristic: if it contains common instruction markers, try to split
-            if "\n\n" in text:
-                parts = text.split("\n\n", 1)
-                if len(parts) == 2:
-                    messages.append({"role": "user", "content": parts[0]})
-                    messages.append({"role": "assistant", "content": parts[1]})
+
+        # Use templates if provided (similar to GRPO trainer's format_instructions)
+        if input_template_str or output_template_str:
+            # Add system message if instruction_template is provided (used directly, not as Jinja template)
+            if instruction_template:
+                messages.append({"role": "system", "content": instruction_template})
+
+            # Format user message using input_template (Jinja template)
+            user_content = format_instruction(input_template, row) if input_template_str else ""
+            if user_content:
+                messages.append({"role": "user", "content": user_content})
+
+            # Format assistant message using output_template (Jinja template)
+            assistant_content = format_instruction(output_template, row) if output_template_str else ""
+            if assistant_content:
+                messages.append({"role": "assistant", "content": assistant_content})
+
+        # Fallback to original logic if templates are not provided or result is empty
+        if not messages or (len(messages) == 1 and messages[0].get("role") == "system"):
+            messages = []
+            if "instruction" in row and "output" in row:
+                if "input" in row and row["input"]:
+                    messages.append({"role": "user", "content": f"{row['instruction']}\n{row['input']}"})
+                else:
+                    messages.append({"role": "user", "content": row["instruction"]})
+                messages.append({"role": "assistant", "content": row["output"]})
+            elif "prompt" in row and "completion" in row:
+                messages.append({"role": "user", "content": row["prompt"]})
+                messages.append({"role": "assistant", "content": row["completion"]})
+            elif "text" in row:
+                # Try to parse as a simple text format
+                text = row["text"]
+                # Basic heuristic: if it contains common instruction markers, try to split
+                if "\n\n" in text:
+                    parts = text.split("\n\n", 1)
+                    if len(parts) == 2:
+                        messages.append({"role": "user", "content": parts[0]})
+                        messages.append({"role": "assistant", "content": parts[1]})
+                    else:
+                        messages.append({"role": "user", "content": text})
                 else:
                     messages.append({"role": "user", "content": text})
             else:
-                messages.append({"role": "user", "content": text})
-        else:
-            # Fallback: create a simple message
-            messages.append({"role": "user", "content": str(row)})
+                # Fallback: create a simple message
+                messages.append({"role": "user", "content": str(row)})
+
         return {"messages": messages}
 
     # Convert to DatasetDict format expected by dllm

@@ -11,7 +11,7 @@
     "DreamModel",
     "LLaDAModelLM"
   ],
-  "training_template_format": "none",
+  "training_template_format": "alpaca",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -184,7 +184,8 @@
     "adaptor_name": {
       "title": "Adaptor Name",
       "type": "string",
-      "required": true
+      "required": true,
+      "default": "adaptor"
     },
     "log_to_wandb": {
       "title": "Log to Weights and Biases",
