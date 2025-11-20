@@ -64,13 +64,16 @@ class Job(BaseLabResource):
     def set_experiment(self, experiment_id: str, sync_rebuild: bool = False):
         self._update_json_data_field("experiment_id", experiment_id)
         self.update_job_data_field("experiment_name", experiment_id)
-        
+
         # Trigger cache rebuild for the experiment to discover this job
         try:
             from .experiment import Experiment
             from .dirs import get_workspace_dir
+
             exp = Experiment(experiment_id)
-            exp._trigger_cache_rebuild(workspace_dir=get_workspace_dir(), sync=sync_rebuild)
+            exp._trigger_cache_rebuild(
+                workspace_dir=get_workspace_dir(), sync=sync_rebuild
+            )
         except Exception:
             # Don't fail if cache rebuild trigger fails
             pass
@@ -90,10 +93,11 @@ class Job(BaseLabResource):
         status: str representing the status of the job
         """
         self._update_json_data_field("status", status)
-        
+
         # Trigger rebuild on every status update
         try:
             from .experiment import Experiment
+
             experiment_id = self.get_experiment_id()
             if experiment_id:
                 exp = Experiment(experiment_id)
@@ -166,18 +170,18 @@ class Job(BaseLabResource):
         try:
             log_path = self.get_log_path()
             storage.makedirs(posixpath.dirname(log_path), exist_ok=True)
-            
+
             # Read existing content if file exists
             existing_content = ""
             if storage.exists(log_path):
                 with storage.open(log_path, "r", encoding="utf-8") as f:
                     existing_content = f.read()
-            
+
             # Append new message to existing content on a new line
             if existing_content and not existing_content.endswith("\n"):
                 existing_content += "\n"
             new_content = existing_content + message_str
-            
+
             # Write back the complete content
             with storage.open(log_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
@@ -253,10 +257,12 @@ class Job(BaseLabResource):
                     job_data = job.get_json_data()
                     if job_data.get("status") == "QUEUED":
                         # Without ctime in object stores, sort lexicographically by job id
-                        queued_jobs.append((int(entry) if entry.isdigit() else 0, job_data))
+                        queued_jobs.append(
+                            (int(entry) if entry.isdigit() else 0, job_data)
+                        )
                 except Exception:
                     pass
-        
+
         if queued_jobs:
             queued_jobs.sort(key=lambda x: x[0])
             return queued_jobs[0][1]
@@ -267,13 +273,13 @@ class Job(BaseLabResource):
         Get the checkpoints directory path for this job.
         """
         return dirs.get_job_checkpoints_dir(self.id)
-    
+
     def get_artifacts_dir(self):
         """
         Get the artifacts directory path for this job.
         """
         return dirs.get_job_artifacts_dir(self.id)
-    
+
     def get_checkpoint_paths(self):
         """
         Get list of checkpoint paths for this job.
@@ -291,12 +297,11 @@ class Job(BaseLabResource):
                 for item_path in items:
                     checkpoint_files.append(item_path)
                 return sorted(checkpoint_files)
-            
+
             return []
         except Exception:
             return []
-    
-    
+
     def get_artifact_paths(self):
         """
         Get list of artifact file paths for this job.
@@ -324,11 +329,12 @@ class Job(BaseLabResource):
         Mark this job as deleted.
         """
         self.update_status("DELETED")
-        
+
         # Trigger cache rebuild since deleted jobs are removed from cache
         # This is non-blocking - just adds to pending queue
         try:
             from .experiment import Experiment
+
             experiment_id = self.get_experiment_id()
             if experiment_id:
                 exp = Experiment(experiment_id)

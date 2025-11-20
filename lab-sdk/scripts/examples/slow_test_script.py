@@ -56,40 +56,50 @@ def train():
             lab.log(f"Iteration {i + 1}/8")
             lab.update_progress(10 + (i + 1) * 10)
             print(f"Iteration {i + 1}/8")
-            
+
             # Save fake checkpoint every 2 iterations
             if (i + 1) % 2 == 0:
-                checkpoint_file = os.path.join(training_config["output_dir"], f"checkpoint_epoch_{i + 1}.txt")
+                checkpoint_file = os.path.join(
+                    training_config["output_dir"], f"checkpoint_epoch_{i + 1}.txt"
+                )
                 with open(checkpoint_file, "w") as f:
                     f.write(f"Fake checkpoint for epoch {i + 1}\n")
                     f.write(f"Model state: iteration_{i + 1}\n")
                     f.write(f"Loss: {0.5 - (i + 1) * 0.05:.3f}\n")
                     f.write(f"Accuracy: {0.6 + (i + 1) * 0.04:.3f}\n")
                     f.write(f"Timestamp: {datetime.now()}\n")
-                
+
                 # Save checkpoint using lab facade
-                saved_checkpoint_path = lab.save_checkpoint(checkpoint_file, f"epoch_{i + 1}_checkpoint.txt")
+                saved_checkpoint_path = lab.save_checkpoint(
+                    checkpoint_file, f"epoch_{i + 1}_checkpoint.txt"
+                )
                 lab.log(f"Saved checkpoint: {saved_checkpoint_path}")
-                
+
                 # Save some fake artifacts
-                artifact_file = os.path.join(training_config["output_dir"], f"training_metrics_epoch_{i + 1}.json")
+                artifact_file = os.path.join(
+                    training_config["output_dir"],
+                    f"training_metrics_epoch_{i + 1}.json",
+                )
                 with open(artifact_file, "w") as f:
-                    f.write('{\n')
+                    f.write("{\n")
                     f.write(f'  "epoch": {i + 1},\n')
                     f.write(f'  "loss": {0.5 - (i + 1) * 0.05:.3f},\n')
                     f.write(f'  "accuracy": {0.6 + (i + 1) * 0.04:.3f},\n')
                     f.write(f'  "learning_rate": {2e-5},\n')
                     f.write(f'  "batch_size": {8},\n')
                     f.write(f'  "timestamp": "{datetime.now().isoformat()}"\n')
-                    f.write('}\n')
-                
+                    f.write("}\n")
+
                 # Save artifact using lab facade
-                saved_artifact_path = lab.save_artifact(artifact_file, f"metrics_epoch_{i + 1}.json")
+                saved_artifact_path = lab.save_artifact(
+                    artifact_file, f"metrics_epoch_{i + 1}.json"
+                )
                 lab.log(f"Saved artifact: {saved_artifact_path}")
 
             if i == 3:  # Initialize wandb halfway through training
                 try:
                     import wandb
+
                     if wandb.run is None:
                         lab.log("🚀 Initializing wandb during training...")
                         wandb.init(
@@ -97,27 +107,34 @@ def train():
                             name=f"test-run-{lab.job.id}",
                             config=training_config["_config"],
                         )
-                        lab.log("✅ Wandb initialized - URL should be auto-detected on next progress update!")
+                        lab.log(
+                            "✅ Wandb initialized - URL should be auto-detected on next progress update!"
+                        )
                 except ImportError:
                     lab.log("⚠️  Wandb not available")
                 except Exception as e:
                     lab.log(f"⚠️  Error with wandb initialization: {e}")
-            
+
             # Log metrics to wandb if available
             try:
                 import wandb
+
                 if wandb.run is not None:
                     # Simulate training metrics
                     fake_loss = 0.5 - (i + 1) * 0.05
                     fake_accuracy = 0.6 + (i + 1) * 0.04
-                    
-                    wandb.log({
-                        "train/loss": fake_loss,
-                        "train/accuracy": fake_accuracy,
-                        "epoch": i + 1
-                    })
-                    
-                    lab.log(f"📈 Logged metrics to wandb: loss={fake_loss:.3f}, accuracy={fake_accuracy:.3f}")
+
+                    wandb.log(
+                        {
+                            "train/loss": fake_loss,
+                            "train/accuracy": fake_accuracy,
+                            "epoch": i + 1,
+                        }
+                    )
+
+                    lab.log(
+                        f"📈 Logged metrics to wandb: loss={fake_loss:.3f}, accuracy={fake_accuracy:.3f}"
+                    )
             except Exception:
                 pass
 
@@ -125,9 +142,11 @@ def train():
         end_time = datetime.now()
         training_duration = end_time - start_time
         lab.log(f"Training completed in {training_duration}")
-        
+
         # Save final artifacts
-        final_model_file = os.path.join(training_config["output_dir"], "final_model_summary.txt")
+        final_model_file = os.path.join(
+            training_config["output_dir"], "final_model_summary.txt"
+        )
         with open(final_model_file, "w") as f:
             f.write("Final Model Summary\n")
             f.write("==================\n")
@@ -137,17 +156,22 @@ def train():
             f.write(f"Model: {training_config['model_name']}\n")
             f.write(f"Dataset: {training_config['dataset']}\n")
             f.write(f"Completed at: {end_time}\n")
-        
+
         # Save final model as artifact
-        final_model_path = lab.save_artifact(final_model_file, "final_model_summary.txt")
+        final_model_path = lab.save_artifact(
+            final_model_file, "final_model_summary.txt"
+        )
         lab.log(f"Saved final model summary: {final_model_path}")
-        
+
         # Save training configuration as artifact
-        config_file = os.path.join(training_config["output_dir"], "training_config.json")
+        config_file = os.path.join(
+            training_config["output_dir"], "training_config.json"
+        )
         import json
+
         with open(config_file, "w") as f:
             json.dump(training_config, f, indent=2)
-        
+
         config_artifact_path = lab.save_artifact(config_file, "training_config.json")
         lab.log(f"Saved training config: {config_artifact_path}")
         # Get the captured wandb URL from job data for reporting
@@ -156,10 +180,10 @@ def train():
         lab.log(f"📋 Final wandb URL stored in job data: {captured_wandb_url}")
         sleep(300)
 
-        
         # Finish wandb run if it was initialized
         try:
             import wandb
+
             if wandb.run is not None:
                 wandb.finish()
                 lab.log("✅ Wandb run finished")

@@ -7,7 +7,9 @@ from . import storage
 from .storage import _current_tfl_storage_uri
 
 # TFL_HOME_DIR
-if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")):
+if "TFL_HOME_DIR" in os.environ and not (
+    _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
+):
     HOME_DIR = os.environ["TFL_HOME_DIR"]
     if not os.path.exists(HOME_DIR):
         print(f"Error: Home directory {HOME_DIR} does not exist")
@@ -15,7 +17,11 @@ if "TFL_HOME_DIR" in os.environ and not (_current_tfl_storage_uri.get() or os.ge
     print(f"Home directory is set to: {HOME_DIR}")
 else:
     # If TFL_STORAGE_URI is set (via context or env), HOME_DIR concept maps to storage.root_uri()
-    HOME_DIR = storage.root_uri() if (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")) else os.path.join(os.path.expanduser("~"), ".transformerlab")
+    HOME_DIR = (
+        storage.root_uri()
+        if (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI"))
+        else os.path.join(os.path.expanduser("~"), ".transformerlab")
+    )
     if not (_current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")):
         os.makedirs(name=HOME_DIR, exist_ok=True)
         print(f"Using default home directory: {HOME_DIR}")
@@ -24,6 +30,7 @@ else:
 _current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "current_org_id", default=None
 )
+
 
 def set_organization_id(organization_id: str | None) -> None:
     _current_org_id.set(organization_id)
@@ -39,11 +46,14 @@ def get_workspace_dir() -> str:
     if os.getenv("_TFL_REMOTE_SKYPILOT_WORKSPACE") == "true":
         if os.getenv("TFL_STORAGE_URI") is not None:
             return storage.root_uri()
-        
+
         return "/workspace"
 
     # Explicit override wins
-    if "TFL_WORKSPACE_DIR" in os.environ and not (_current_tfl_storage_uri.get() is not None and os.getenv("TFL_STORAGE_URI") is not None):
+    if "TFL_WORKSPACE_DIR" in os.environ and not (
+        _current_tfl_storage_uri.get() is not None
+        and os.getenv("TFL_STORAGE_URI") is not None
+    ):
         value = os.environ["TFL_WORKSPACE_DIR"]
         if not os.path.exists(value):
             print(f"Error: Workspace directory {value} does not exist")
@@ -59,7 +69,7 @@ def get_workspace_dir() -> str:
         path = storage.join(HOME_DIR, "orgs", org_id, "workspace")
         storage.makedirs(path, exist_ok=True)
         return path
-    
+
     if os.getenv("TFL_STORAGE_URI"):
         return storage.root_uri()
 
