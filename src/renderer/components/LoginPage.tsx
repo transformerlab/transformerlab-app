@@ -81,7 +81,7 @@ function RegisterForm({ onClose }: { onClose: () => void }) {
           handleSubmit(e);
         }}
       >
-        <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+        <Stack direction="row" spacing={2} sx={{ mt: 0 }}>
           <Input
             type="text"
             placeholder="First Name"
@@ -127,7 +127,7 @@ function RegisterForm({ onClose }: { onClose: () => void }) {
           // switched to submit so the form's onSubmit is used
           type="submit"
           variant="solid"
-          sx={{ mt: 2 }}
+          sx={{ mt: 4 }}
         >
           Sign Up
         </Button>{' '}
