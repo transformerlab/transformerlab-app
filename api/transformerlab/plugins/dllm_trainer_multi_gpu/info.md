@@ -145,3 +145,4 @@ This plugin uses the [dllm](https://github.com/ZHZisZZ/dllm) library's training 
 
 The plugin supports both full fine-tuning and LoRA-based parameter-efficient fine-tuning. When LoRA is enabled, only the LoRA adaptors are saved. When LoRA is disabled and training completes, the full model is saved to the workspace models directory.
 
+
