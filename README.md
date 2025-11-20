@@ -133,6 +133,10 @@ And you can do the above, all through a simple cross-platform GUI.
 
 ## Notes for Developers
 
+Transformer Lab consists of a React application "Frontend" that communicates with a Python API "Backend" (found in the `api` directory).
+Application data is stored in a file system workspace that is accessed by the API and third-party scripts using
+the SDK (which can be found in the `lab-sdk` directory).
+
 ### Building Frontend from Scratch
 
 To build the app yourself, pull this repo, and follow the steps below:
@@ -145,6 +149,14 @@ npm install
 
 ```bash
 npm start
+```
+
+### Packaging Frontend for Production
+
+To package apps for the local platform:
+
+```bash
+npm run package
 ```
 
 ### Backend (API) Installation & Development
@@ -169,38 +181,13 @@ cd api
 
 (Or run `npm run api:start` from the repo root, which does the same)
 
-### Packaging for Production
+#### Updating API Python Requirements
 
-To package apps for the local platform:
-
-```bash
-npm run package
-```
-
-### Python SDK Development
-
-This repository also includes the Transformer Lab Python SDK in the `lab-sdk/` directory. The SDK allows you to write plugins and ML scripts that integrate with Transformer Lab.
-
-To develop the SDK:
+Python dependencies (used by the API) are managed with `uv pip compile`. To add/change a dependency, update `requirements.in` and then refresh the platform specific files:
 
 ```bash
-cd lab-sdk
-uv venv
-uv pip install -e .
-uv run pytest  # Run tests
-```
+cd api
 
-The SDK is published to PyPI as `transformerlab` and can be installed with:
-
-```bash
-pip install transformerlab
-```
-
-#### Updating Python Requirements
-
-Dependencies are managed with `uv pip compile`. To refresh the lockfiles:
-
-```bash
 # CUDA (default)
 uv pip compile requirements.in -o requirements-uv.txt
 
@@ -226,6 +213,25 @@ Notes:
 See https://transformerlab.ai/docs/install/#install-on-windows for GPU driver and WSL guidance.
 
 Need a fully manual install without the helper script? Follow https://transformerlab.ai/docs/install/advanced-install for step-by-step instructions.
+
+### Lab SDK Development
+
+This repository also includes the Transformer Lab Python SDK in the `lab-sdk/` directory. The SDK allows you to write plugins and ML scripts that integrate with Transformer Lab.
+
+The SDK is published to PyPI as `transformerlab` and can be installed with:
+
+```bash
+pip install transformerlab
+```
+
+The API uses the SDK to interact with the local workspace. In order to develop the SDK locally and have the API pick up changes, you should install the SDK in "editable" mode:
+
+```bash
+cd lab-sdk
+uv venv
+uv pip install -e .
+uv run pytest  # Run tests
+```
 
 <!-- LICENSE -->
 
