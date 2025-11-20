@@ -15,22 +15,40 @@ import {
   Input,
 } from '@mui/joy';
 import { useState } from 'react';
-import { useAPI, useAuth } from 'renderer/lib/authContext';
+import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 
 function UserNameChangeForm({
+  originalFirstName,
+  originalLastName,
   open,
   onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}): JSX.Element {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+}) {
+  const [firstName, setFirstName] = useState(originalFirstName);
+  const [lastName, setLastName] = useState(originalLastName);
+  const { fetchWithAuth } = useAuth();
 
-  const handleSave = () => {
-    // Logic to save the new name (e.g., API call)
-    console.log('Saving new name:', { firstName, lastName });
-    onClose();
+  const handleSave = async () => {
+    try {
+      const response = await fetchWithAuth('users/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update user: ${response.statusText}`);
+      }
+
+      console.log('User updated successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error updating user:', error);
+    }
   };
 
   return (
@@ -74,7 +92,7 @@ export default function UserLoginTest(): JSX.Element {
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [isNameChangeOpen, setIsNameChangeOpen] = useState(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
-  const { data: userInfo } = useAPI('users', ['me']);
+  const { data: userInfo, mutate: userInfoMutate } = useAPI('users', ['me']);
 
   async function handleTestApi() {
     setApiResult(null);
@@ -97,6 +115,9 @@ export default function UserLoginTest(): JSX.Element {
 
   return (
     <div>
+      <Typography level="h2" mb={2}>
+        User Settings
+      </Typography>
       <div>
         <strong>Login status:</strong>{' '}
         {authContext?.isAuthenticated ? 'Logged in' : 'Not logged in'}
@@ -128,11 +149,15 @@ export default function UserLoginTest(): JSX.Element {
         )}
       </Box> */}
       <Typography level="title-lg" mt={3}>
-        User Profile
+        User Profile:
       </Typography>
-      <Stack gap={1} mt={3} maxWidth={400}>
-        <Typography>First Name: {userInfo?.firstName}</Typography>
-        <Typography>Last Name: {userInfo?.lastName}</Typography>
+      <Stack gap={1} mt={1} maxWidth={400}>
+        <Typography>
+          First Name: <b>{userInfo?.first_name}</b>
+        </Typography>
+        <Typography>
+          Last Name: <b>{userInfo?.last_name}</b>
+        </Typography>
         <Button variant="outlined" onClick={() => setIsNameChangeOpen(true)}>
           Change Name
         </Button>
@@ -148,11 +173,16 @@ export default function UserLoginTest(): JSX.Element {
       </Stack>
       <UserNameChangeForm
         open={isNameChangeOpen}
-        onClose={() => setIsNameChangeOpen(false)}
+        onClose={() => {
+          setIsNameChangeOpen(false);
+          userInfoMutate();
+        }}
+        originalFirstName={userInfo?.firstName || ''}
+        originalLastName={userInfo?.lastName || ''}
       />
       <Box>
         <Typography level="title-lg" mt={3}>
-          Workspaces you belong to:
+          Teams you belong to:
         </Typography>
         {/* {JSON.stringify(authContext, null, 2)} */}
         {teams?.teams && (

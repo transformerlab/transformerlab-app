@@ -21,6 +21,7 @@ import {
   CogIcon,
   LogOutIcon,
   SettingsIcon,
+  TypeOutline,
   User2Icon,
   UserCog2Icon,
   UsersRoundIcon,
@@ -81,10 +82,17 @@ export default function LoginChip({}: Props) {
       >
         {!avatarSrc && <User2Icon size={16} />}
       </Avatar> */}
-      <Stack spacing={0} sx={{ textAlign: 'left', minWidth: 0 }}>
+      <Stack
+        spacing={0}
+        sx={{ textAlign: 'left', minWidth: 0, justifyContent: 'space-between' }}
+      >
         <Typography level="title-sm" noWrap>
-          {user?.email}
+          {user?.first_name} {user?.last_name}
+          {/* {user?.email} */}
         </Typography>
+        {/* <Typography level="body-xs" textColor="text.tertiary" noWrap>
+          {email}
+        </Typography> */}
         {teamName ? (
           <Typography level="body-xs" textColor="text.tertiary" noWrap>
             {teamName}

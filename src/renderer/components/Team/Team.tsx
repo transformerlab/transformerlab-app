@@ -141,9 +141,12 @@ export default function UserLoginTest(): JSX.Element {
 
   return (
     <div>
+      <Typography level="h2" mb={2}>
+        Team Settings
+      </Typography>
       <Box>
         <Typography level="title-lg" mb={1}>
-          Current Workspace:
+          Current Team:
         </Typography>
         <Stack
           direction="row"
@@ -166,7 +169,7 @@ export default function UserLoginTest(): JSX.Element {
               }
             }}
             disabled={loading}
-            aria-label="Select workspace"
+            aria-label="Select team"
             sx={{ minWidth: 300 }}
           >
             {teams?.teams.map((team: any) => (
@@ -184,7 +187,7 @@ export default function UserLoginTest(): JSX.Element {
               variant="soft"
               startDecorator={<PlusIcon />}
             >
-              New Workspace
+              New Team
             </Button>
 
             <Modal
@@ -192,21 +195,21 @@ export default function UserLoginTest(): JSX.Element {
               onClose={() => setOpenNewTeamModal(false)}
             >
               <ModalDialog
-                aria-labelledby="new-workspace-title"
+                aria-labelledby="new-team-title"
                 sx={{ minWidth: 320 }}
               >
                 <ModalClose />
-                <Typography id="new-workspace-title" level="h4">
-                  New Workspace Name
+                <Typography id="new-team-title" level="h4">
+                  New Team Name
                 </Typography>
 
                 <Box sx={{ mt: 2 }}>
                   <Input
-                    placeholder="Workspace name"
+                    placeholder="Team name"
                     value={newTeamName}
                     onChange={(e: any) => setNewTeamName(e.target.value)}
                     disabled={loading}
-                    aria-label="New workspace name"
+                    aria-label="New team name"
                     size="sm"
                     autoFocus
                   />
@@ -251,7 +254,7 @@ export default function UserLoginTest(): JSX.Element {
             }}
             disabled={!iAmOwner}
           >
-            Rename Workspace
+            Rename Team
           </Button>
           <Button variant="outlined" disabled={!iAmOwner}>
             Set Logo
