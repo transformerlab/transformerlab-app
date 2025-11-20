@@ -125,6 +125,12 @@ And you can do the above, all through a simple cross-platform GUI.
 - macOS with Apple Silicon is supported (training functionality varies by hardware)
 - CPU-only installs run inference but not GPU-heavy workflows
 
+#### Windows Notes
+
+See https://transformerlab.ai/docs/install/#install-on-windows for GPU driver and WSL guidance.
+
+Need a fully manual install without the helper script? Follow https://transformerlab.ai/docs/install/advanced-install for step-by-step instructions.
+
 ### Built With
 
 - [![Electron][Electron]][Electron-url]
@@ -207,12 +213,6 @@ Notes:
 
 1. Remove `nvidia-ml-py` if it appears in the ROCm lockfile.
 2. The `sed` commands strip suffixes from PyTorch wheels that otherwise break installs using uv pip sync.
-
-#### Windows Notes
-
-See https://transformerlab.ai/docs/install/#install-on-windows for GPU driver and WSL guidance.
-
-Need a fully manual install without the helper script? Follow https://transformerlab.ai/docs/install/advanced-install for step-by-step instructions.
 
 ### Lab SDK Development
 
