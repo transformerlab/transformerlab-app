@@ -13,6 +13,8 @@ import {
   DialogContent,
   DialogTitle,
   Input,
+  FormControl,
+  FormLabel,
 } from '@mui/joy';
 import { useState } from 'react';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
@@ -56,21 +58,24 @@ function UserNameChangeForm({
       <ModalDialog>
         <DialogTitle>Change Name</DialogTitle>
         <DialogContent>
-          <Box mt={2}>
+          <FormControl sx={{ mt: 2 }}>
+            <FormLabel>First Name</FormLabel>
             <Input
               placeholder="First Name"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               fullWidth
             />
+          </FormControl>
+          <FormControl sx={{ mt: 2 }}>
+            <FormLabel>Last Name</FormLabel>
             <Input
               placeholder="Last Name"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               fullWidth
-              sx={{ mt: 2 }}
             />
-          </Box>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose} variant="plain">
@@ -153,10 +158,13 @@ export default function UserLoginTest(): JSX.Element {
       </Typography>
       <Stack gap={1} mt={1} maxWidth={400}>
         <Typography>
-          First Name: <b>{userInfo?.first_name}</b>
+          Name:{' '}
+          <b>
+            {userInfo?.first_name} {userInfo?.last_name}
+          </b>
         </Typography>
         <Typography>
-          Last Name: <b>{userInfo?.last_name}</b>
+          Email: <b>{userInfo?.email}</b>
         </Typography>
         <Button variant="outlined" onClick={() => setIsNameChangeOpen(true)}>
           Change Name
@@ -177,8 +185,8 @@ export default function UserLoginTest(): JSX.Element {
           setIsNameChangeOpen(false);
           userInfoMutate();
         }}
-        originalFirstName={userInfo?.firstName || ''}
-        originalLastName={userInfo?.lastName || ''}
+        originalFirstName={userInfo?.first_name || ''}
+        originalLastName={userInfo?.last_name || ''}
       />
       <Box>
         <Typography level="title-lg" mt={3}>
