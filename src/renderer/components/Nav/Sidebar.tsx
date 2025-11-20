@@ -920,8 +920,9 @@ export default function Sidebar({
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
       />
-      {typeof process !== 'undefined' &&
-        process.env?.MULTIUSER === 'true' && <LoginChip />}
+      {typeof process !== 'undefined' && process.env?.MULTIUSER === 'true' && (
+        <LoginChip />
+      )}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
     </Sheet>
   );
