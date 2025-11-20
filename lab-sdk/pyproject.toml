@@ -13,7 +13,7 @@ license = { file = "LICENSE" }
 dependencies = ["werkzeug", "pytest", "wandb", "fsspec", "s3fs"]
 
 [project.urls]
-"Homepage" = "https://github.com/transformerlab/transformerlab-sdk"
+"Homepage" = "https://github.com/transformerlab/transformerlab-app"
 "Bug Tracker" = "https://github.com/transformerlab/transformerlab-app/issues"
 
 [tool.setuptools.packages.find]
