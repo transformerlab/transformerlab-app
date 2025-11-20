@@ -235,7 +235,11 @@ export default function LoginPage() {
       const verifyEmail = async () => {
         setIsLoading(true);
         try {
-          const response = await fetch(getAPIFullPath('auth', ['verify'], {}), {
+          // Build URL directly since API_URL() might not be initialized yet at page load
+          let apiUrl = process.env.TL_API_URL || 'http://localhost:8338';
+          apiUrl = apiUrl.replace(/\/$/, ''); // Remove trailing slash
+          const url = `${apiUrl}/auth/verify`;
+          const response = await fetch(url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -312,13 +316,27 @@ export default function LoginPage() {
               });
             } else {
               const errorData = await response.json();
+              // Clear invitation token from URL and localStorage on error
+              window.location.hash = window.location.hash.split('?')[0];
+              localStorage.removeItem('pending_invitation_token');
+              
+              // Show helpful error message
+              let errorMessage = errorData.detail || 'Unknown error';
+              if (errorData.detail?.includes('not for your email')) {
+                errorMessage = 'This invitation is for a different email address. Please login with the invited email or ask for a new invitation.';
+              }
+              
               addNotification({
                 type: 'danger',
-                message: `Failed to accept invitation: ${errorData.detail || 'Unknown error'}`,
+                message: `Failed to accept invitation: ${errorMessage}`,
               });
             }
           } catch (err) {
             console.error('Failed to accept invitation:', err);
+            // Clear invitation token on error
+            window.location.hash = window.location.hash.split('?')[0];
+            localStorage.removeItem('pending_invitation_token');
+            
             addNotification({
               type: 'danger',
               message: 'Failed to accept team invitation',
