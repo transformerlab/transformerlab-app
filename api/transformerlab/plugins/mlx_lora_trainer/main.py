@@ -8,6 +8,7 @@ import yaml
 import re
 import subprocess
 import os
+import time
 
 
 # Import tlab_trainer from the SDK
@@ -156,6 +157,9 @@ def train_mlx_lora():
     print("Training beginning:")
     print("Adaptor will be saved in:", adaptor_output_dir)
 
+    # Track start time for estimated time remaining calculation
+    start_time = time.time()
+
     # Run the MLX LoRA training process
     with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
@@ -169,6 +173,17 @@ def train_mlx_lora():
                 percent_complete = float(iteration) / float(iters) * 100
                 print("Progress: ", f"{percent_complete:.2f}%")
                 tlab_trainer.progress_update(percent_complete)
+
+                # Calculate estimated time remaining
+                if iteration > 0:
+                    elapsed_time = time.time() - start_time
+                    iterations_remaining = int(iters) - iteration
+
+                    if iterations_remaining > 0:
+                        avg_time_per_iter = elapsed_time / iteration
+                        estimated_time_remaining = avg_time_per_iter * iterations_remaining
+                        # Store estimated time remaining in seconds
+                        tlab_trainer.add_job_data("estimated_time_remaining", int(estimated_time_remaining))
 
                 # Parse training metrics
                 pattern = (

@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.4.23",
+  "version": "0.4.24",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -24,18 +24,9 @@
     "Qwen3MoeForCausalLM",
     "SmolLM3ForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "mlx"
-  ],
-  "supports": [
-    "sweeps",
-    "chat_template_formatting",
-    "checkpoints"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["mlx"],
+  "supports": ["sweeps", "chat_template_formatting", "checkpoints"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "lora_layers": {
@@ -54,8 +45,8 @@
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 5e-05,
-      "minimum": 1e-06
+      "default": 5e-5,
+      "minimum": 1e-6
     },
     "lora_rank": {
       "title": "LoRA Rank",
