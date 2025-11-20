@@ -10,4 +10,14 @@ from .lab_facade import Lab
 # Provide a convenient singleton facade for simple usage
 lab = Lab()
 
-__all__ = ["WORKSPACE_DIR", "HOME_DIR", Job, Experiment, Model, Dataset, Task, "lab", "Lab"]
+__all__ = [
+    "WORKSPACE_DIR",
+    "HOME_DIR",
+    Job,
+    Experiment,
+    Model,
+    Dataset,
+    Task,
+    "lab",
+    "Lab",
+]
