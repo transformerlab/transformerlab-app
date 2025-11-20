@@ -20,7 +20,7 @@ def _get_fs_and_root():
     """
     # Check context variable first, then fall back to environment variable
     tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
-    
+
     if not tfl_uri or tfl_uri.strip() == "":
         root = os.getenv(
             "TFL_HOME_DIR",
@@ -128,20 +128,22 @@ def find(path: str) -> list[str]:
     return filesystem().find(path)
 
 
-def walk(path: str, maxdepth=None, topdown=True, on_error='omit'):
+def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     """
     Walk directory tree, yielding (root, dirs, files) tuples.
-    
+
     Args:
         path: Root directory to start the walk
         maxdepth: Maximum recursion depth (None for no limit)
         topdown: If True, traverse top-down; if False, bottom-up
         on_error: Error behavior ('omit', 'raise', or callable)
-    
+
     Yields:
         (root, dirs, files) tuples similar to os.walk()
     """
-    return filesystem().walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)
+    return filesystem().walk(
+        path, maxdepth=maxdepth, topdown=topdown, on_error=on_error
+    )
 
 
 def rm(path: str) -> None:
@@ -199,7 +201,7 @@ def copy_dir(src_dir: str, dest_dir: str) -> None:
 
     for src_file in src_files:
         # Compute relative path with respect to the source dir
-        rel_path = src_file[len(src_dir):].lstrip("/")
+        rel_path = src_file[len(src_dir) :].lstrip("/")
         dest_file = join(dest_dir, rel_path)
         # Ensure destination directory exists
         dest_parent = posixpath.dirname(dest_file)

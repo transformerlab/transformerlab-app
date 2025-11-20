@@ -21,7 +21,13 @@ class Model(BaseLabResource):
             "json_data": {},
         }
 
-    def set_metadata(self, *, model_id: str | None = None, name: str | None = None, json_data: dict | None = None):
+    def set_metadata(
+        self,
+        *,
+        model_id: str | None = None,
+        name: str | None = None,
+        json_data: dict | None = None,
+    ):
         """Set model metadata, similar to dataset service"""
         data = self.get_json_data()
         if model_id is not None:
@@ -73,60 +79,63 @@ class Model(BaseLabResource):
     def detect_architecture(self, model_path: str) -> str:
         """
         Detect the model architecture from a model directory's config.json.
-        
+
         Args:
             model_path: Path to the model directory or file
-            
+
         Returns:
             The model architecture (e.g., 'LlamaForCausalLM') or 'Unknown' if not found
         """
         architecture = "Unknown"
-        
+
         if storage.isdir(model_path):
             config_path = storage.join(model_path, "config.json")
             if storage.exists(config_path):
                 try:
-                    with storage.open(config_path, 'r') as f:
+                    with storage.open(config_path, "r") as f:
                         config = json.load(f)
                         architectures = config.get("architectures", [])
                         if architectures:
                             architecture = architectures[0]
                 except Exception:
                     pass
-        
+
         return architecture
 
     def fetch_pipeline_tag(self, parent_model: str) -> str | None:
         """
         Fetch the pipeline tag from a parent model on HuggingFace.
-        
+
         Args:
             parent_model: The HuggingFace model ID to fetch the pipeline tag from
-            
+
         Returns:
             The pipeline tag string if found, None otherwise
         """
         try:
             from huggingface_hub import HfApi
+
             api = HfApi()
             model_info = api.model_info(parent_model)
             return model_info.pipeline_tag
         except Exception as e:
-            print(f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
+            print(
+                f"Could not fetch pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}"
+            )
             return None
 
     def create_md5_checksums(self, model_path: str) -> list:
         """
         Create MD5 checksums for all files in the model directory.
-        
+
         Args:
             model_path: Path to the model directory
-            
+
         Returns:
             List of dicts with 'file_path' and 'md5_hash' keys
         """
         import hashlib
-        
+
         def compute_md5(file_path):
             md5 = hashlib.md5()
             with storage.open(file_path, "rb") as f:
@@ -137,7 +146,9 @@ class Model(BaseLabResource):
         md5_objects = []
 
         if not storage.isdir(model_path):
-            print(f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation")
+            print(
+                f"Model path '{model_path}' is not a directory, skipping MD5 checksum creation"
+            )
             return md5_objects
 
         # Use fsspec's walk equivalent for directory traversal
@@ -157,19 +168,29 @@ class Model(BaseLabResource):
                     if storage.isfile(entry):
                         try:
                             md5_hash = compute_md5(entry)
-                            md5_objects.append({"file_path": entry, "md5_hash": md5_hash})
+                            md5_objects.append(
+                                {"file_path": entry, "md5_hash": md5_hash}
+                            )
                         except Exception as e:
-                            print(f"Warning: Could not compute MD5 for {entry}: {str(e)}")
+                            print(
+                                f"Warning: Could not compute MD5 for {entry}: {str(e)}"
+                            )
             except Exception:
                 pass
 
         return md5_objects
 
-    def create_provenance_file(self, model_path: str, model_name: str = None, model_architecture: str = None,
-                               md5_objects: list = None, provenance_data: dict = None) -> str:
+    def create_provenance_file(
+        self,
+        model_path: str,
+        model_name: str = None,
+        model_architecture: str = None,
+        md5_objects: list = None,
+        provenance_data: dict = None,
+    ) -> str:
         """
         Create a _tlab_provenance.json file containing model provenance data.
-        
+
         Args:
             model_path: Path to the model directory
             model_name: Name of the model
@@ -182,11 +203,11 @@ class Model(BaseLabResource):
                 - adaptor_name: Name of the adapter if applicable
                 - parameters: Training configuration parameters
                 - start_time: When training/processing started
-            
+
         Returns:
             Path to the created provenance file
         """
-        
+
         # Start with base provenance data matching the structure from train.py
         final_provenance = {
             "model_name": model_name,
@@ -200,7 +221,7 @@ class Model(BaseLabResource):
             "end_time": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
             "md5_checksums": md5_objects,
         }
-        
+
         # Merge in any additional provenance data provided
         if provenance_data and isinstance(provenance_data, dict):
             final_provenance.update(provenance_data)

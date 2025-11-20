@@ -87,7 +87,7 @@ def test_task_set_metadata(tmp_path, monkeypatch):
     from lab.task import Task
 
     task = Task.create("test_task_metadata")
-    
+
     # Test setting all metadata fields
     task.set_metadata(
         name="Test Task",
@@ -97,7 +97,7 @@ def test_task_set_metadata(tmp_path, monkeypatch):
         plugin="test_plugin",
         outputs={"output1": "result1"},
         experiment_id="exp1",
-        remote_task=True
+        remote_task=True,
     )
     data = task.get_json_data()
     assert data["name"] == "Test Task"
@@ -159,7 +159,7 @@ def test_task_list_all(tmp_path, monkeypatch):
     all_tasks = Task.list_all()
     assert isinstance(all_tasks, list)
     assert len(all_tasks) >= 2
-    
+
     # Verify tasks are in the list
     task_ids = [t["id"] for t in all_tasks]
     assert "task1" in task_ids
@@ -194,7 +194,7 @@ def test_task_list_by_type(tmp_path, monkeypatch):
     training_tasks = Task.list_by_type("training")
     assert len(training_tasks) >= 2
     assert all(t["type"] == "training" for t in training_tasks)
-    
+
     eval_tasks = Task.list_by_type("evaluation")
     assert len(eval_tasks) >= 1
     assert all(t["type"] == "evaluation" for t in eval_tasks)
@@ -223,7 +223,7 @@ def test_task_list_by_experiment(tmp_path, monkeypatch):
     exp1_tasks = Task.list_by_experiment(1)
     assert len(exp1_tasks) >= 2
     assert all(t["experiment_id"] == 1 for t in exp1_tasks)
-    
+
     exp2_tasks = Task.list_by_experiment(2)
     assert len(exp2_tasks) >= 1
     assert all(t["experiment_id"] == 2 for t in exp2_tasks)
@@ -251,11 +251,15 @@ def test_task_list_by_type_in_experiment(tmp_path, monkeypatch):
     # List tasks by type and experiment
     exp1_training = Task.list_by_type_in_experiment("training", 1)
     assert len(exp1_training) >= 1
-    assert all(t["type"] == "training" and t["experiment_id"] == 1 for t in exp1_training)
-    
+    assert all(
+        t["type"] == "training" and t["experiment_id"] == 1 for t in exp1_training
+    )
+
     exp2_training = Task.list_by_type_in_experiment("training", 2)
     assert len(exp2_training) >= 1
-    assert all(t["type"] == "training" and t["experiment_id"] == 2 for t in exp2_training)
+    assert all(
+        t["type"] == "training" and t["experiment_id"] == 2 for t in exp2_training
+    )
 
 
 def test_task_get_by_id(tmp_path, monkeypatch):
@@ -298,15 +302,16 @@ def test_task_delete_all(tmp_path, monkeypatch):
     # Create some tasks
     Task.create("task_to_delete_1")
     Task.create("task_to_delete_2")
-    
+
     # Verify they exist
     assert len(Task.list_all()) >= 2
-    
+
     # Delete all tasks
     Task.delete_all()
-    
+
     # Verify tasks directory is empty or doesn't exist
     from lab.dirs import get_tasks_dir
+
     tasks_dir = get_tasks_dir()
     if os.path.exists(tasks_dir):
         assert len(os.listdir(tasks_dir)) == 0
@@ -327,4 +332,3 @@ def test_task_list_all_empty_dir(tmp_path, monkeypatch):
     all_tasks = Task.list_all()
     assert isinstance(all_tasks, list)
     # Should return empty list, not raise error
-

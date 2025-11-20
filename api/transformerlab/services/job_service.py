@@ -204,9 +204,9 @@ async def job_update_status(
 
         pass
 
-    # Trigger workflows if job status is COMPLETE
-    if status == "COMPLETE":
-        await _trigger_workflows_on_job_completion(job_id)
+    # # Trigger workflows if job status is COMPLETE
+    # if status == "COMPLETE":
+    #     await _trigger_workflows_on_job_completion(job_id)
 
 
 async def job_update(job_id: str, type: str, status: str, experiment_id: Optional[str] = None):
@@ -230,9 +230,9 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         print(f"Error updating job {job_id}: {e}")
         pass
 
-    # Trigger workflows if job status is COMPLETE
-    if status == "COMPLETE":
-        await _trigger_workflows_on_job_completion(job_id)
+    # # Trigger workflows if job status is COMPLETE
+    # if status == "COMPLETE":
+    #     await _trigger_workflows_on_job_completion(job_id)
 
 
 def job_update_status_sync(
@@ -259,9 +259,9 @@ def job_update_status_sync(
         print(f"Error updating job {job_id}: {e}")
         pass
 
-    # Trigger workflows if job status is COMPLETE
-    if status == "COMPLETE":
-        _trigger_workflows_on_job_completion_sync(job_id)
+    # # Trigger workflows if job status is COMPLETE
+    # if status == "COMPLETE":
+    #     _trigger_workflows_on_job_completion_sync(job_id)
 
 
 def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = None):
@@ -283,9 +283,9 @@ def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = Non
         print(f"Error updating job {job_id}: {e}")
         pass
 
-    # Trigger workflows if job status is COMPLETE
-    if status == "COMPLETE":
-        _trigger_workflows_on_job_completion_sync(job_id)
+    # # Trigger workflows if job status is COMPLETE
+    # if status == "COMPLETE":
+    #     _trigger_workflows_on_job_completion_sync(job_id)
 
 
 def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, experiment_id: Optional[str] = None):
@@ -306,8 +306,8 @@ def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, exp
         job.update_status(status)
 
         # Trigger workflows if job status is COMPLETE
-        if status == "COMPLETE":
-            _trigger_workflows_on_job_completion_sync(job_id)
+        # if status == "COMPLETE":
+        # _trigger_workflows_on_job_completion_sync(job_id)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
         pass
@@ -385,7 +385,7 @@ def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
         # Only update if currently running
         if job.get_status() == "RUNNING":
             job.update_status("COMPLETE")
-            _trigger_workflows_on_job_completion_sync(job_id)
+            # _trigger_workflows_on_job_completion_sync(job_id)
     except Exception as e:
         print(f"Error marking job {job_id} as complete: {e}")
         pass
