@@ -16,7 +16,7 @@ class Experiment(BaseLabResource):
     """
 
     DEFAULT_JOBS_INDEX = {"TRAIN": []}
-    
+
     # Class-level cache for background rebuild tracking
     _cache_rebuild_pending = set()  # set of (experiment_id, workspace_dir) tuples
     _cache_rebuild_lock = threading.Lock()
@@ -25,7 +25,10 @@ class Experiment(BaseLabResource):
     def __init__(self, experiment_id, create_new=False):
         self.id = experiment_id
         # Auto-initialize if create_new=True and experiment doesn't exist
-        if create_new and (not storage.exists(self.get_dir()) or not storage.exists(self._get_json_file())):
+        if create_new and (
+            not storage.exists(self.get_dir())
+            or not storage.exists(self._get_json_file())
+        ):
             self._initialize()
 
     def get_dir(self):
@@ -41,10 +44,7 @@ class Experiment(BaseLabResource):
 
         # Create a empty jobs index and write
         jobs_json_path = self._jobs_json_file()
-        empty_jobs_data = {
-            "index": self.DEFAULT_JOBS_INDEX,
-            "cached_jobs": {}
-        }
+        empty_jobs_data = {"index": self.DEFAULT_JOBS_INDEX, "cached_jobs": {}}
         with storage.open(jobs_json_path, "w") as f:
             json.dump(empty_jobs_data, f, indent=4)
 
@@ -58,9 +58,9 @@ class Experiment(BaseLabResource):
                 current_config = {}
         current_config[key] = value
         self._update_json_data_field("config", current_config)
-    
+
     @classmethod
-    def create_with_config(cls, name: str, config: dict) -> 'Experiment':
+    def create_with_config(cls, name: str, config: dict) -> "Experiment":
         """Create an experiment with config."""
         if isinstance(config, str):
             try:
@@ -101,6 +101,29 @@ class Experiment(BaseLabResource):
                         if storage.exists(index_file):
                             with storage.open(index_file, "r") as f:
                                 data = json.load(f)
+
+                            name = data.get("name")
+                            exp_id = data.get("id")
+
+                            if not name:
+                                print(
+                                    f"Experiment at {exp_path} missing required 'name' field; skipping"
+                                )
+                                continue
+
+                            if not exp_id:
+                                print(
+                                    f"Experiment at {exp_path} missing required 'id' field; id = name and updating {index_file}"
+                                )
+                                data["id"] = name
+                                try:
+                                    with storage.open(index_file, "w") as wf:
+                                        json.dump(data, wf, indent=4)
+                                except Exception as e:
+                                    print(
+                                        f"Failed to write corrected index.json for experiment '{name}' at {index_file}: {e}"
+                                    )
+
                             experiments.append(data)
                 except Exception:
                     pass
@@ -154,7 +177,7 @@ class Experiment(BaseLabResource):
         cached_jobs = self._get_cached_jobs_data()
         # print(f"Cached jobs: {cached_jobs}")
         # print(f"Job list: {job_list}")
-        
+
         # Iterate through the job list to return Job objects for valid jobs.
         # Also filter for status if that parameter was passed.
         results = []
@@ -165,7 +188,11 @@ class Experiment(BaseLabResource):
                     # Use cached data for completed jobs
                     job_json = cached_jobs[job_id]
                     # Check status of job if not RUNNING, LAUNCHING or NOT_STARTED, then remove from cache
-                    if job_json.get("status", "") in ["RUNNING", "LAUNCHING", "NOT_STARTED"]:
+                    if job_json.get("status", "") in [
+                        "RUNNING",
+                        "LAUNCHING",
+                        "NOT_STARTED",
+                    ]:
                         old_status = job_json.get("status", "")
                         del cached_jobs[job_id]
                         job = Job.get(job_id)
@@ -173,7 +200,7 @@ class Experiment(BaseLabResource):
                         # Trigger rebuild cache if old status and new status are different
                         if old_status != job_json.get("status", ""):
                             self._trigger_cache_rebuild(get_workspace_dir())
-                        
+
                 else:
                     # Job not in cache
                     job = Job.get(job_id)
@@ -203,37 +230,46 @@ class Experiment(BaseLabResource):
     # Index for tracking which jobs belong to this Experiment
     ###############################
 
-    def _jobs_json_file(self, workspace_dir=None, experiment_id = None):
+    def _jobs_json_file(self, workspace_dir=None, experiment_id=None):
         """
         Path to jobs.json index file for this experiment.
         """
         if workspace_dir and experiment_id:
-            return storage.join(workspace_dir, "experiments", experiment_id, "jobs.json")
+            return storage.join(
+                workspace_dir, "experiments", experiment_id, "jobs.json"
+            )
 
         return storage.join(self.get_dir(), "jobs.json")
 
     def rebuild_jobs_index(self, workspace_dir=None):
         results = {}
         cached_jobs = {}
-        
+
         # Create filesystem override if workspace_dir is an S3 URI (for background threads)
         fs_override = None
-        if workspace_dir and workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+        if workspace_dir and workspace_dir.startswith(
+            ("s3://", "gs://", "abfs://", "gcs://")
+        ):
             from .storage import _AWS_PROFILE
+
             storage_options = {"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-            fs_override, _token, _paths = fsspec.get_fs_token_paths(workspace_dir, storage_options=storage_options)
-        
+            fs_override, _token, _paths = fsspec.get_fs_token_paths(
+                workspace_dir, storage_options=storage_options
+            )
+
         try:
             # Use provided jobs_dir or get current one
             if workspace_dir:
                 jobs_directory = storage.join(workspace_dir, "jobs")
             else:
                 jobs_directory = get_jobs_dir()
-                        
+
             # Iterate through jobs directories and check for index.json
             # Sort entries numerically since job IDs are numeric strings (descending order)
             try:
-                job_entries_full = storage.ls(jobs_directory, detail=False, fs=fs_override)
+                job_entries_full = storage.ls(
+                    jobs_directory, detail=False, fs=fs_override
+                )
             except Exception as e:
                 print(f"Error getting job entries full: {e}")
                 job_entries_full = []
@@ -248,7 +284,7 @@ class Experiment(BaseLabResource):
                 if not entry.isdigit():
                     continue
                 job_entries.append(entry)
-            
+
             sorted_entries = sorted(job_entries, key=lambda x: int(x), reverse=True)
             for entry in sorted_entries:
                 entry_path = storage.join(jobs_directory, entry)
@@ -257,7 +293,9 @@ class Experiment(BaseLabResource):
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
                 try:
-                    with storage.open(index_file, "r", encoding="utf-8", fs=fs_override) as lf:
+                    with storage.open(
+                        index_file, "r", encoding="utf-8", fs=fs_override
+                    ) as lf:
                         content = lf.read().strip()
                         if not content:
                             # Skip empty files
@@ -271,26 +309,29 @@ class Experiment(BaseLabResource):
                     continue
                 if data.get("experiment_id", "") != self.id:
                     continue
-                
+
                 # Skip deleted jobs
                 if data.get("status") == "DELETED":
                     continue
-                    
+
                 job_type = data.get("type", "UNKNOWN")
                 results.setdefault(job_type, []).append(entry)
-                
+
                 # Store full job data in cache (except for RUNNING jobs which need real-time updates)
                 if data.get("status") != "RUNNING":
                     cached_jobs[entry] = data
 
             # Write discovered index to jobs.json with both structure and cached data
-            jobs_data = {
-                "index": results,
-                "cached_jobs": cached_jobs
-            }
+            jobs_data = {"index": results, "cached_jobs": cached_jobs}
             if results:
                 try:
-                    with storage.open(self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id), "w", fs=fs_override) as out:
+                    with storage.open(
+                        self._jobs_json_file(
+                            workspace_dir=workspace_dir, experiment_id=self.id
+                        ),
+                        "w",
+                        fs=fs_override,
+                    ) as out:
                         json.dump(jobs_data, out, indent=4)
                 except Exception as e:
                     print(f"Error writing jobs index: {e}")
@@ -411,37 +452,39 @@ class Experiment(BaseLabResource):
                 jobs_data = json.load(f)
         except Exception:
             jobs_data = {"index": {}, "cached_jobs": {}}
-        
+
         # Handle both old and new format
         if "index" in jobs_data:
             jobs = jobs_data["index"]
         else:
             jobs = jobs_data
             jobs_data = {"index": jobs, "cached_jobs": {}}
-        
+
         if type in jobs:
             jobs[type].append(job_id)
         else:
             jobs[type] = [job_id]
-        
+
         # Update the file with new structure
         with storage.open(self._jobs_json_file(), "w") as f:
             json.dump(jobs_data, f, indent=4)
-        
+
         # Trigger background cache rebuild
         self._trigger_cache_rebuild(get_workspace_dir())
-    
+
     @classmethod
     def _start_background_cache_rebuild(cls):
         """Start the background cache rebuild thread if not already running."""
         with cls._cache_rebuild_lock:
-            if cls._cache_rebuild_thread is None or not cls._cache_rebuild_thread.is_alive():
+            if (
+                cls._cache_rebuild_thread is None
+                or not cls._cache_rebuild_thread.is_alive()
+            ):
                 cls._cache_rebuild_thread = threading.Thread(
-                    target=cls._background_cache_rebuild_worker,
-                    daemon=True
+                    target=cls._background_cache_rebuild_worker, daemon=True
                 )
                 cls._cache_rebuild_thread.start()
-    
+
     @classmethod
     def _background_cache_rebuild_worker(cls):
         """Background worker that rebuilds caches for pending experiments."""
@@ -452,22 +495,23 @@ class Experiment(BaseLabResource):
                 with cls._cache_rebuild_lock:
                     pending_experiments = set(cls._cache_rebuild_pending)
                     cls._cache_rebuild_pending.clear()
-                
+
                 # Rebuild caches for pending experiments
                 for experiment_id, workspace_dir in pending_experiments:
                     try:
-                        
                         exp = cls(experiment_id)
                         exp.rebuild_jobs_index(workspace_dir=workspace_dir)
                     except Exception as e:
-                        print(f"Error rebuilding cache for experiment {experiment_id} in workspace {workspace_dir}: {e}")
+                        print(
+                            f"Error rebuilding cache for experiment {experiment_id} in workspace {workspace_dir}: {e}"
+                        )
 
                 # Sleep for a short time before checking again
                 time.sleep(1)
             except Exception as e:
                 print(f"Error in background cache rebuild worker: {e}")
                 time.sleep(5)  # Wait longer on error
-    
+
     def _trigger_cache_rebuild(self, workspace_dir, sync=False):
         """Trigger a cache rebuild for this experiment."""
         if sync:
@@ -476,11 +520,11 @@ class Experiment(BaseLabResource):
         else:
             # Start background thread if not running
             self._start_background_cache_rebuild()
-                    
+
             # Add to pending queue with jobs directory (non-blocking)
             with self._cache_rebuild_lock:
                 self._cache_rebuild_pending.add((self.id, workspace_dir))
-    
+
     # TODO: For experiments, delete the same way as jobs
     def delete(self):
         """Delete the experiment and all associated jobs."""
@@ -500,5 +544,5 @@ class Experiment(BaseLabResource):
                 job.delete()
             except Exception:
                 pass  # Job might not exist
-        
+
         self._trigger_cache_rebuild(get_workspace_dir())
