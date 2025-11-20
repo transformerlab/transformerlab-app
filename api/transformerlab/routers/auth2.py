@@ -10,14 +10,18 @@ from transformerlab.models.users import (
     UserUpdate,
     get_user_manager,
     get_refresh_strategy,
-    jwt_authentication,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
 from jose import jwt, JWTError
+from pydantic import BaseModel
 
 router = APIRouter(tags=["users"])
+
+
+# Simple Pydantic model for the refresh request body
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 
 # Include Auth and Registration Routers
@@ -123,51 +127,54 @@ async def authenticated_route(user_and_team=Depends(get_user_and_team)):
     return {"message": f"Hello, {user.email}! You are authenticated and acting as part of team {team_id}."}
 
 
-# To test this, register a new user via /auth/register
-# curl -X POST 'http://127.0.0.1:8338/auth/register' \
-#  -H 'Content-Type: application/json' \
-#  -d '{
-#    "email": "test@example.com",
-#    "password": "password123"
-# }'
-
-# Then
-# curl -X POST 'http://127.0.0.1:8338/auth/jwt/login' \
-#  -H 'Content-Type: application/x-www-form-urlencoded' \
-#  -d 'username=test@example.com&password=password123'
-
-# This will return a token, which you can use to access the authenticated route:
-# curl -X GET 'http://127.0.0.1:8338/authenticated-route' \
-#  -H 'Authorization: Bearer <YOUR_ACCESS_TOKEN>'
-
-
 @router.post("/auth/refresh")
 async def refresh_access_token(
-    refresh_token: str,  # Sent by the client in the request body
+    request: RefreshTokenRequest,
     user_manager=Depends(get_user_manager),
 ):
-    try:
-        # 1. Decode and Validate the Refresh Token
-        # Get a fresh refresh strategy instance and use its secret to decode
-        refresh_strategy = get_refresh_strategy()
-        payload = jwt.decode(refresh_token, str(refresh_strategy.secret), algorithms=["HS256"])
-        user_id = payload.get("sub")
+    """
+    Takes a long-lived refresh token, validates it, and returns a new short-lived access token.
+    AND rotates the refresh token (returns a new one) to keep the session alive indefinitely.
+    """
+    refresh_token = request.refresh_token
 
+    try:
+        # 1. Get the Refresh Strategy
+        refresh_strategy = get_refresh_strategy()
+
+        # 2. Decode the Refresh Token
+        payload = jwt.decode(
+            refresh_token, str(refresh_strategy.secret), audience=refresh_strategy.token_audience, algorithms=["HS256"]
+        )
+
+        user_id = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail="Invalid refresh token payload")
 
-        # 2. Get the user object from the database
+        # 3. Validate User
         user = await user_manager.get(user_id)
         if user is None or not user.is_active:
             raise HTTPException(status_code=401, detail="User inactive or not found")
 
-        # 3. Create a NEW Access Token (using the short-lived strategy from the main JWT)
-        new_access_token = jwt_authentication.get_login_response(user)  # Needs custom helper
+        # 4. Generate a NEW Access Token
+        access_strategy = auth_backend.get_strategy()
+        new_access_token = await access_strategy.write_token(user)
 
-        return {"access_token": new_access_token["access_token"], "token_type": "bearer"}
+        # 5. Generate a NEW Refresh Token (Rotation)
+        # We use the refresh_strategy to write a completely new token, resetting the clock
+        new_refresh_token = await refresh_strategy.write_token(user)
 
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Expired or invalid refresh token")
+        return {
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token,  # Return the new token
+            "token_type": "bearer",
+        }
+
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    except Exception as e:
+        print(f"Refresh Error: {e}")
+        raise HTTPException(status_code=401, detail="Could not refresh token")
 
 
 @router.get("/users/me/teams")
@@ -185,21 +192,25 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
         await session.commit()
         await session.refresh(user_team)
         print(f"Created personal team '{personal_team.name}' for existing user {user.email}")
-        return {"user_id": str(user.id), "teams": [{"id": personal_team.id, "name": personal_team.name, "role": TeamRole.OWNER.value}]}
+        return {
+            "user_id": str(user.id),
+            "teams": [{"id": personal_team.id, "name": personal_team.name, "role": TeamRole.OWNER.value}],
+        }
 
     # User has team associations, get the actual team objects
     team_ids = [ut.team_id for ut in user_teams]
     stmt = select(Team).where(Team.id.in_(team_ids))
     result = await session.execute(stmt)
     teams = result.scalars().all()
-    
+
     # Create a mapping of team_id to team
     teams_dict = {team.id: team for team in teams}
-    
+
     # Return teams with role information
     teams_with_roles = [
         {"id": ut.team_id, "name": teams_dict[ut.team_id].name, "role": ut.role}
-        for ut in user_teams if ut.team_id in teams_dict
+        for ut in user_teams
+        if ut.team_id in teams_dict
     ]
 
     return {"user_id": str(user.id), "teams": teams_with_roles}
