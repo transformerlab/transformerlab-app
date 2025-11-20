@@ -30,6 +30,13 @@
       "minimum": 1,
       "maximum": 256
     },
+    "temperature": {
+      "type": "number",
+      "default": 0.0,
+      "title": "Temperature",
+      "minimum": 0.0,
+      "maximum": 2.0
+    },
     "remasking": {
       "type": "string",
       "default": "low_confidence",
