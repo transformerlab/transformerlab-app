@@ -261,14 +261,14 @@ async def verify_provider(
             # Provider instantiated but connection test failed
             return {
                 "status": "warning",
-                "message": f"Provider is configured but connection test failed: {str(e)}",
+                "message": "Provider is configured but connection test failed",
                 "provider_type": provider.type,
             }
     except Exception as e:
         # Provider failed to instantiate
         return {
             "status": "error",
-            "message": f"Provider configuration is invalid: {str(e)}",
+            "message": "Provider configuration is invalid",
             "provider_type": provider.type,
         }
 
@@ -616,6 +616,11 @@ async def get_job_logs(
         else:
             # Return full log content as text
             log_content = str(logs) if logs else ""
+            # Suppress internal error details from provider
+            if log_content.startswith("Error reading logs:"):
+                # Optionally log or record the internal error here server-side.
+                return "Failed to retrieve logs."
+
             return log_content
     except Exception as e:
         raise HTTPException(
