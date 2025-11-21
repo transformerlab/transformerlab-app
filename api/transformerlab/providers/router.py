@@ -11,9 +11,13 @@ class ProviderRouter:
     def __init__(self, config_path: Optional[str] = None):
         """
         Initialize the provider router.
+        
+        Note: YAML config file is optional. Providers can be loaded from
+        the database via the providers API router, or added manually via add_provider().
 
         Args:
             config_path: Path to providers config file. If None, uses default.
+                        If file doesn't exist, router starts with no providers.
         """
         self._providers: Dict[str, Provider] = {}
         self._configs: Dict[str, ProviderConfig] = {}
@@ -21,18 +25,24 @@ class ProviderRouter:
         self._load_providers(config_path)
 
     def _load_providers(self, config_path: Optional[str] = None):
-        """Load providers from configuration."""
-        configs = load_providers_config(config_path)
-        self._configs = configs
+        """Load providers from configuration. YAML file is optional."""
+        try:
+            configs = load_providers_config(config_path)
+            self._configs = configs
 
-        for name, config in configs.items():
-            try:
-                provider = create_provider(config)
-                self._providers[name] = provider
-            except Exception as e:
-                print(f"Warning: Failed to create provider '{name}': {e}")
-                # Store the error for better error messages later
-                self._provider_errors[name] = str(e)
+            for name, config in configs.items():
+                try:
+                    provider = create_provider(config)
+                    self._providers[name] = provider
+                except Exception as e:
+                    print(f"Warning: Failed to create provider '{name}': {e}")
+                    # Store the error for better error messages later
+                    self._provider_errors[name] = str(e)
+        except Exception as e:
+            # If YAML loading fails, just continue with empty providers
+            # Providers can be added manually via add_provider() or loaded from database
+            print(f"Note: No providers.yaml file found or error loading it: {e}")
+            self._configs = {}
 
     def get_provider(self, provider_name: str) -> Provider:
         """

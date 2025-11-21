@@ -37,13 +37,17 @@ def load_providers_config(
 ) -> Dict[str, ProviderConfig]:
     """
     Load provider configurations from YAML or JSON file.
+    
+    Note: YAML file is optional. If not found, returns empty dict.
+    Providers are typically loaded from the database via the providers router.
 
     Args:
         config_path: Path to config file. If None, uses default location
                     or PROVIDERS_CONFIG_PATH env var.
 
     Returns:
-        Dictionary mapping provider names to ProviderConfig objects
+        Dictionary mapping provider names to ProviderConfig objects.
+        Returns empty dict if file doesn't exist.
     """
     if config_path is None:
         # Check environment variable first
@@ -82,19 +86,9 @@ def load_providers_config(
     config_path = Path(config_path).expanduser().resolve()
 
     if not config_path.exists():
-        # Provide helpful error message with suggestions
-        suggested_paths = [
-            os.path.join(os.path.dirname(__file__), "providers.yaml"),
-            os.path.join(os.getcwd(), "providers.yaml"),
-        ]
-        suggestions = "\n".join(f"  - {p}" for p in suggested_paths if Path(p).exists())
-        error_msg = (
-            f"Provider config file not found: {config_path}\n"
-            f"Please create a providers.yaml file or set PROVIDERS_CONFIG_PATH environment variable.\n"
-        )
-        if suggestions:
-            error_msg += f"Found config files at:\n{suggestions}\n"
-        raise FileNotFoundError(error_msg)
+        # YAML file is optional - return empty dict if not found
+        # Providers can be loaded from database instead
+        return {}
 
     with open(config_path, "r") as f:
         if config_path.suffix in [".yaml", ".yml"]:
