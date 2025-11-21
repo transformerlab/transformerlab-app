@@ -25,9 +25,6 @@ jobs:
       AUTH_SUCCESS_REDIRECT_URL: /
       AUTH_ERROR_REDIRECT_URL: /
       AUTH_LOGOUT_REDIRECT_URL: /
-      TRANSFORMERLAB_JWT_SECRET: ${{ secrets.TRANSFORMERLAB_JWT_SECRET }}
-      TRANSFORMERLAB_REFRESH_SECRET: ${{ secrets.TRANSFORMERLAB_REFRESH_SECRET }}
-      EMAIL_METHOD: "dev"
     strategy:
       fail-fast: false
       matrix:
