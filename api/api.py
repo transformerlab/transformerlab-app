@@ -82,7 +82,6 @@ from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
 from lab import storage
 
-from transformerlab.shared.models.user_model import create_db_and_tables
 
 from dotenv import load_dotenv
 

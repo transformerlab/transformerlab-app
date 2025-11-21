@@ -6,24 +6,10 @@ from sqlalchemy import pool
 from alembic import context
 
 # Import all models to ensure they're registered with Base.metadata
-from transformerlab.shared.models.models import (
-    Base,
-    Config,
-    Plugin,
-    TrainingTemplate,
-    Workflow,
-    WorkflowRun,
-    Team,
-    UserTeam,
-    TeamInvitation,
-)
+from transformerlab.shared.models.models import Base
 
-# Import User model which also inherits from Base
-try:
-    from transformerlab.shared.models.user_model import User
-except ImportError:
-    # fastapi-users might not be installed in all environments
-    pass
+# Override sqlalchemy.url from environment or use the one from constants
+from transformerlab.db.constants import DATABASE_URL
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -37,8 +23,6 @@ if config.config_file_name is not None:
 # Set target_metadata to Base.metadata for autogenerate support
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url from environment or use the one from constants
-from transformerlab.db.constants import DATABASE_URL
 
 # Remove the sqlite+aiosqlite:// prefix and use sqlite:// for Alembic
 # Alembic needs a synchronous connection URL (uses sqlite3, not aiosqlite)
@@ -84,9 +68,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

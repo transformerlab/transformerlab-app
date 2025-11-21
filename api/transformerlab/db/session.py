@@ -8,7 +8,6 @@ from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
 from lab.dirs import get_workspace_dir
-from transformerlab.shared.models import models
 
 
 # --- SQLAlchemy Async Engine ---
