@@ -86,11 +86,31 @@ async def validate_provider_data(
         await validate_user_team_membership(session, created_by_user_id, team_id)
 
 
-async def get_team_provider(session: AsyncSession, team_id: str, provider_id: str) -> Optional[TeamProvider]:
-    """Get a provider record by ID, ensuring it belongs to the team."""
-    stmt = select(TeamProvider).where(TeamProvider.id == provider_id, TeamProvider.team_id == team_id)
+async def get_provider_by_id(session: AsyncSession, provider_id: str) -> Optional[TeamProvider]:
+    """Get a provider record by ID only (without team filter)."""
+    stmt = select(TeamProvider).where(TeamProvider.id == provider_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def get_team_provider(session: AsyncSession, team_id: str, provider_id: str) -> Optional[TeamProvider]:
+    """
+    Get a provider record by ID, ensuring it belongs to the team.
+    Explicitly validates team membership for security.
+    """
+    # First get the provider by ID
+    provider = await get_provider_by_id(session, provider_id)
+    if not provider:
+        return None
+    
+    # Explicitly check team membership
+    if provider.team_id != team_id:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Provider '{provider_id}' belongs to a different team. Access denied."
+        )
+    
+    return provider
 
 
 async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamProvider]:

@@ -20,6 +20,11 @@ from transformerlab.schemas.providers import (
     mask_sensitive_config,
 )
 from transformerlab.shared.models.models import ProviderType
+from transformerlab.providers.models import (
+    ClusterConfig,
+    ClusterStatus,
+    ResourceInfo,
+)
 
 router = APIRouter(tags=["providers"])
 
@@ -241,7 +246,7 @@ async def verify_provider(
         # Use a dummy cluster name for testing
         test_cluster_name = "__test_connection__"
         try:
-            status = provider_instance.get_cluster_status(test_cluster_name)
+            provider_instance.get_cluster_status(test_cluster_name)
             # If we get here, the provider is at least configured correctly
             # (even if the cluster doesn't exist, we got a response)
             return {
@@ -263,3 +268,147 @@ async def verify_provider(
             "message": f"Provider configuration is invalid: {str(e)}",
             "provider_type": provider.type,
         }
+
+
+# ============================================================================
+# Cluster Management Routes
+# ============================================================================
+
+
+@router.post("/providers/{provider_id}/clusters/{cluster_name}/launch")
+async def launch_cluster(
+    provider_id: str,
+    cluster_name: str,
+    config: ClusterConfig,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Launch/provision a new cluster using the specified provider.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Launch cluster
+        result = provider_instance.launch_cluster(cluster_name, config)
+
+        return {
+            "status": "success",
+            "message": f"Cluster '{cluster_name}' launch initiated",
+            "cluster_name": cluster_name,
+            "result": result,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to launch cluster: {str(e)}",
+        )
+
+
+@router.post("/providers/{provider_id}/clusters/{cluster_name}/stop")
+async def stop_cluster(
+    provider_id: str,
+    cluster_name: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Stop a running cluster (but don't tear it down).
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Stop cluster
+        result = provider_instance.stop_cluster(cluster_name)
+
+        return {
+            "status": "success",
+            "message": f"Cluster '{cluster_name}' stop initiated",
+            "cluster_name": cluster_name,
+            "result": result,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to stop cluster: {str(e)}",
+        )
+
+
+@router.get("/providers/{provider_id}/clusters/{cluster_name}/status", response_model=ClusterStatus)
+async def get_cluster_status(
+    provider_id: str,
+    cluster_name: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get the status of a cluster.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Get cluster status
+        status = provider_instance.get_cluster_status(cluster_name)
+
+        return status
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get cluster status: {str(e)}",
+        )
+
+
+@router.get("/providers/{provider_id}/clusters/{cluster_name}/resources", response_model=ResourceInfo)
+async def get_cluster_resources(
+    provider_id: str,
+    cluster_name: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get resource information for a cluster (GPUs, CPUs, memory, etc.).
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Get cluster resources
+        resources = provider_instance.get_cluster_resources(cluster_name)
+
+        return resources
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get cluster resources: {str(e)}",
+        )
