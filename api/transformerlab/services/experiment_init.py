@@ -18,12 +18,7 @@ async def seed_default_admin_user():
             existing_admin = result.scalar_one_or_none()
             
             if existing_admin:
-                # If admin exists but is not verified, verify them
-                if not existing_admin.is_verified:
-                    existing_admin.is_verified = True
-                    session.add(existing_admin)
-                    await session.commit()
-                    print("✅ Verified existing admin user")
+                # Admin already exists, nothing to do
                 return
             
             user_db = SQLAlchemyUserDatabase(session, User)
@@ -36,28 +31,28 @@ async def seed_default_admin_user():
                 is_active=True,
                 is_superuser=True,
             )
-            try:
-                # Create user with safe=False to skip verification email
-                admin_user = await user_manager.create(user_create, safe=False, request=None)
-                
-                # Refresh the user object to ensure we have the latest state
-                await session.refresh(admin_user)
-                
-                # Mark as verified so login works immediately
-                admin_user.is_verified = True
-                session.add(admin_user)
-                await session.commit()
-                
-                # Refresh again after commit to ensure state is updated
-                await session.refresh(admin_user)
-                print(f"✅ Created and verified admin user admin@example.com (is_verified={admin_user.is_verified})")
-            except Exception as e:
-                print(f"⚠️  Failed to create admin user: {e}")
-                import traceback
-                traceback.print_exc()
-                return
+            
+            # Create user with safe=False to skip verification email
+            admin_user = await user_manager.create(user_create, safe=False, request=None)
+            
+            # Get the user ID before the object becomes detached
+            admin_user_id = admin_user.id
+            
+            # Re-fetch the user from the database to get a fresh, attached instance
+            stmt = select(User).where(User.id == admin_user_id)
+            result = await session.execute(stmt)
+            admin_user = result.scalar_one()
+            
+            # Mark as verified so login works immediately
+            admin_user.is_verified = True
+            session.add(admin_user)
+            await session.commit()
+            
+            print(f"✅ Created and verified admin user admin@example.com (id={admin_user_id}, is_verified={admin_user.is_verified})")
     except Exception as e:
         print(f"⚠️  Error in seed_default_admin_user: {e}")
+        import traceback
+        traceback.print_exc()
         return
 
 
