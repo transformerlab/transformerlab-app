@@ -84,20 +84,6 @@ class AuthenticatedTestClient(TestClient):
         return super().request(method, url, **kwargs)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def cleanup_test_database():
-    """Clean up test database before and after test session"""
-    # Clean up before tests
-    db_path = "test/tmp/llmlab.sqlite3"
-    if os.path.exists(db_path):
-        os.remove(db_path)
-    
-    yield
-    
-    # Clean up after tests
-    if os.path.exists(db_path):
-        os.remove(db_path)
-
 
 @pytest.fixture(scope="session")
 def client():
