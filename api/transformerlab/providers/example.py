@@ -1,7 +1,11 @@
 """Example usage of the provider bridge system."""
 
-import sys
 import os
+import sys
+
+# Use transformerlab imports
+from transformerlab.providers.router import get_provider, get_router
+from transformerlab.providers.models import ClusterConfig, JobConfig
 
 # Add parent directories to path to allow imports when running as script
 # This allows the script to be run directly: python example.py
@@ -10,14 +14,6 @@ src_dir = os.path.join(current_dir, "..", "..", "..")
 src_dir_abs = os.path.abspath(src_dir)
 if src_dir_abs not in sys.path:
     sys.path.insert(0, src_dir_abs)
-
-try:
-    from lattice.providers.router import get_provider, get_router
-    from lattice.providers.models import ClusterConfig, JobConfig
-except ImportError:
-    # Fallback to relative imports if running as module
-    from .router import get_provider, get_router
-    from .models import ClusterConfig, JobConfig
 
 
 def example_skypilot():

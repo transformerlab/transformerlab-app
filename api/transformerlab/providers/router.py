@@ -1,5 +1,6 @@
 """Provider router for managing and routing to provider instances."""
 
+import asyncio
 from typing import Dict, Optional
 from .base import Provider
 from .config import load_providers_config, create_provider, ProviderConfig
@@ -47,6 +48,7 @@ class ProviderRouter:
     def get_provider(self, provider_name: str) -> Provider:
         """
         Get a provider instance by name.
+        First checks the database, then falls back to YAML config.
 
         Args:
             provider_name: Name of the provider
@@ -57,6 +59,21 @@ class ProviderRouter:
         Raises:
             ValueError: If provider not found
         """
+        # First check if already loaded
+        if provider_name in self._providers:
+            return self._providers[provider_name]
+        
+        # Try to load from database first
+        try:
+            provider = _try_load_from_database(provider_name)
+            if provider:
+                self._providers[provider_name] = provider
+                return provider
+        except Exception as e:
+            # Database lookup failed, continue to YAML fallback
+            pass
+        
+        # Fall back to YAML config
         if provider_name not in self._providers:
             # Check if provider exists in config but failed to initialize
             if provider_name in self._configs:
@@ -95,6 +112,60 @@ class ProviderRouter:
 
 # Global router instance
 _global_router: Optional[ProviderRouter] = None
+
+
+def _try_load_from_database(provider_name: str) -> Optional[Provider]:
+    """
+    Try to load a provider from the database by name.
+    This is a helper function that attempts async database access from sync context.
+    
+    Args:
+        provider_name: Name of the provider to load
+        
+    Returns:
+        Provider instance if found, None otherwise
+    """
+    try:
+        # Import here to avoid circular dependencies
+        from transformerlab.db.session import async_session
+        from transformerlab.services.provider_service import (
+            list_team_providers,
+            get_provider_instance,
+        )
+        from sqlalchemy import select
+        from transformerlab.shared.models.models import TeamProvider
+        
+        # Try to get an async session and query the database
+        async def _async_load():
+            try:
+                async with async_session() as session:
+                    # Search for provider by name across all teams
+                    # Note: In a real scenario, you might want to filter by team_id
+                    stmt = select(TeamProvider).where(TeamProvider.name == provider_name)
+                    result = await session.execute(stmt)
+                    provider_record = result.scalar_one_or_none()
+                    
+                    if provider_record:
+                        return get_provider_instance(provider_record)
+                    return None
+            except Exception:
+                return None
+        
+        # Try to run the async function
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # We're in an async context, can't use asyncio.run()
+                # Return None and let caller fall back to YAML
+                return None
+            else:
+                return asyncio.run(_async_load())
+        except RuntimeError:
+            # No event loop, create one
+            return asyncio.run(_async_load())
+    except Exception:
+        # Database access failed, return None to fall back to YAML
+        return None
 
 
 def get_provider(provider_name: str, config_path: Optional[str] = None) -> Provider:
