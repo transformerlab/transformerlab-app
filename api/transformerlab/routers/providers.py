@@ -311,10 +311,8 @@ async def launch_cluster(
             "result": result,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to launch cluster: {str(e)}",
-        )
+        print(f"Failed to launch cluster: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to launch cluster")
 
 
 @router.post("/providers/{provider_id}/clusters/{cluster_name}/stop")
@@ -348,10 +346,8 @@ async def stop_cluster(
             "result": result,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to stop cluster: {str(e)}",
-        )
+        print(f"Failed to stop cluster: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to stop cluster")
 
 
 @router.get("/providers/{provider_id}/clusters/{cluster_name}/status", response_model=ClusterStatus)
@@ -380,10 +376,8 @@ async def get_cluster_status(
 
         return status
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get cluster status: {str(e)}",
-        )
+        print(f"Failed to get cluster status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get cluster status")
 
 
 @router.get("/providers/{provider_id}/clusters/{cluster_name}/resources", response_model=ResourceInfo)
@@ -412,10 +406,8 @@ async def get_cluster_resources(
 
         return resources
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get cluster resources: {str(e)}",
-        )
+        print(f"Failed to get cluster resources: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get cluster resources")
 
 
 # ============================================================================
@@ -459,10 +451,8 @@ async def submit_job(
             "result": result,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to submit job: {str(e)}",
-        )
+        print(f"Failed to submit job: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to submit job")
 
 
 @router.get("/providers/{provider_id}/clusters/{cluster_name}/jobs", response_model=List[JobInfo])
@@ -496,10 +486,8 @@ async def list_jobs(
 
         return jobs
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to list jobs: {str(e)}",
-        )
+        print(f"Failed to list jobs: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list jobs")
 
 
 @router.get("/providers/{provider_id}/clusters/{cluster_name}/jobs/{job_id}", response_model=JobInfo)
@@ -545,10 +533,8 @@ async def get_job_info(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get job info: {str(e)}",
-        )
+        print(f"Failed to get job info: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get job info")
 
 
 @router.get("/providers/{provider_id}/clusters/{cluster_name}/jobs/{job_id}/logs")
@@ -594,7 +580,8 @@ async def get_job_logs(
                             else:
                                 yield str(line) + "\n"
                     except Exception as e:
-                        yield f"\n[Error streaming logs: {str(e)}]\n"
+                        print(f"Error streaming logs: {str(e)}")
+                        yield "\n[Error streaming logs]\n"
 
                 return StreamingResponse(
                     generate(),
@@ -624,10 +611,8 @@ async def get_job_logs(
 
             return log_content
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get job logs: {str(e)}",
-        )
+        print(f"Failed to get job logs: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get job logs")
 
 
 @router.delete("/providers/{provider_id}/clusters/{cluster_name}/jobs/{job_id}")
@@ -663,7 +648,5 @@ async def cancel_job(
             "result": result,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to cancel job: {str(e)}",
-        )
+        print(f"Failed to cancel job: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to cancel job")
