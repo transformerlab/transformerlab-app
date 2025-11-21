@@ -1,0 +1,71 @@
+{
+  "name": "Diffusion LLM Server",
+  "uniqueId": "dllm_server",
+  "description": "Inference server for diffusion language models (dLLM) - supports LLaDA, Dream, and other diffusion-based text generation models",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "0.0.1",
+  "supports": ["text_diffusion"],
+  "model_architectures": [
+    "BertForMaskedLM",
+    "ModernBertForMaskedLM",
+    "DreamModel",
+    "LLaDAModelLM"
+  ],
+  "supported_hardware_architectures": ["cuda"],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "steps": {
+      "type": "integer",
+      "default": 128,
+      "title": "Diffusion Steps",
+      "minimum": 1,
+      "maximum": 512
+    },
+    "block_length": {
+      "type": "integer",
+      "default": 32,
+      "title": "Block Length",
+      "minimum": 1,
+      "maximum": 256
+    },
+    "temperature": {
+      "type": "number",
+      "default": 0.0,
+      "title": "Temperature",
+      "minimum": 0.0,
+      "maximum": 2.0
+    },
+    "remasking": {
+      "type": "string",
+      "default": "low_confidence",
+      "title": "Remasking Strategy",
+      "enum": ["low_confidence", "random"]
+    },
+    "cfg_scale": {
+      "type": "number",
+      "default": 0.0,
+      "title": "CFG Scale",
+      "minimum": 0.0,
+      "maximum": 10.0
+    }
+  },
+  "parameters_ui": {
+    "steps": {
+      "ui:help": "Number of diffusion steps for generation. More steps generally improve quality but increase generation time."
+    },
+    "block_length": {
+      "ui:help": "Length of blocks used in the diffusion process. Smaller blocks can improve efficiency."
+    },
+    "temperature": {
+      "ui:help": "Temperature for sampling. 0.0 means deterministic (greedy) generation."
+    },
+    "remasking": {
+      "ui:help": "Strategy for remasking tokens during diffusion. 'low_confidence' selects tokens with low confidence, 'random' uses random selection."
+    },
+    "cfg_scale": {
+      "ui:help": "Classifier-free guidance scale. 0.0 disables CFG. Higher values increase adherence to the prompt."
+    }
+  }
+}

@@ -205,7 +205,7 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  const [connection, setConnection] = useState(process.env.TL_API_URL || '');
+  const [connection, setConnection] = useState(process.env?.TL_API_URL || '');
   const [gpuOrchestrationServer, setGPUOrchestrationServer] = useState('');
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);

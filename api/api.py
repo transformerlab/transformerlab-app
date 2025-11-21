@@ -51,6 +51,8 @@ from transformerlab.routers import (
     batched_prompts,
     recipes,
     remote,
+    auth2,
+    teams,
 )
 import torch
 
@@ -80,6 +82,8 @@ from transformerlab.db.filesystem_migrations import (
 from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
 from lab import storage
+
+from transformerlab.shared.models.user_model import create_db_and_tables
 
 from dotenv import load_dotenv
 
@@ -111,6 +115,7 @@ async def lifespan(app: FastAPI):
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()
+    await create_db_and_tables()
     print("✅ SEED DATA")
     # Initialize experiments and cancel any running jobs
     seed_default_experiments()
@@ -231,6 +236,8 @@ app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(remote.router)
 app.include_router(fastchat_openai_api.router)
+app.include_router(teams.router)
+app.include_router(auth2.router)
 
 # Authentication and session management routes
 if os.getenv("TFL_MULTITENANT") == "true":

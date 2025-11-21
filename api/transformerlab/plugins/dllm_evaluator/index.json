@@ -1,0 +1,210 @@
+{
+  "name": "Diffusion LLM Evaluator",
+  "uniqueId": "dllm_evaluator",
+  "description": "Evaluation plugin for text diffusion LLMs (BERT, Dream, LLaDA) using the EleutherAI LM Evaluation Harness",
+  "plugin-format": "python",
+  "type": "evaluator",
+  "evalsType": "model",
+  "version": "0.0.1",
+  "git": "https://github.com/ZHZisZZ/dllm",
+  "url": "https://github.com/ZHZisZZ/dllm",
+  "supported_hardware_architectures": ["cuda"],
+  "files": ["main.py", "setup.sh"],
+  "_dataset": false,
+  "setup-script": "setup.sh",
+  "parameters": {
+    "model_type": {
+      "title": "Model Type",
+      "type": "string",
+      "required": true,
+      "enum": ["bert", "dream", "llada"],
+      "default": "llada"
+    },
+    "tasks": {
+      "title": "Task",
+      "type": "string",
+      "enum": [
+        "arc_easy",
+        "arc_challenge",
+        "hellaswag",
+        "leaderboard_bbh",
+        "mmlu",
+        "piqa",
+        "winogrande",
+        "gsm8k",
+        "bbh",
+        "minerva_math",
+        "humaneval",
+        "mbpp",
+        "gpqa_main_n_shot",
+        "truthfulqa_mc2",
+        "mmlu_abstract_algebra",
+        "mmlu_anatomy",
+        "mmlu_astronomy",
+        "mmlu_business_ethics",
+        "mmlu_clinical_knowledge",
+        "mmlu_college_biology",
+        "mmlu_college_chemistry",
+        "mmlu_college_computer_science",
+        "mmlu_college_mathematics",
+        "mmlu_college_medicine",
+        "mmlu_college_physics",
+        "mmlu_computer_security",
+        "mmlu_conceptual_physics",
+        "mmlu_econometrics",
+        "mmlu_electrical_engineering",
+        "mmlu_elementary_mathematics",
+        "mmlu_formal_logic",
+        "mmlu_global_facts",
+        "mmlu_high_school_biology",
+        "mmlu_high_school_chemistry",
+        "mmlu_high_school_computer_science",
+        "mmlu_high_school_european_history",
+        "mmlu_high_school_geography",
+        "mmlu_high_school_government_and_politics",
+        "mmlu_high_school_macroeconomics",
+        "mmlu_high_school_mathematics",
+        "mmlu_high_school_microeconomics",
+        "mmlu_high_school_physics",
+        "mmlu_high_school_psychology",
+        "mmlu_high_school_statistics",
+        "mmlu_high_school_us_history",
+        "mmlu_high_school_world_history",
+        "mmlu_human_aging",
+        "mmlu_human_sexuality",
+        "mmlu_international_law",
+        "mmlu_jurisprudence",
+        "mmlu_logical_fallacies",
+        "mmlu_machine_learning",
+        "mmlu_management",
+        "mmlu_marketing",
+        "mmlu_medical_genetics",
+        "mmlu_miscellaneous",
+        "mmlu_moral_disputes",
+        "mmlu_moral_scenarios",
+        "mmlu_nutrition",
+        "mmlu_philosophy",
+        "mmlu_prehistory",
+        "mmlu_professional_accounting",
+        "mmlu_professional_law",
+        "mmlu_professional_medicine",
+        "mmlu_professional_psychology",
+        "mmlu_public_relations",
+        "mmlu_security_studies",
+        "mmlu_sociology",
+        "mmlu_us_foreign_policy",
+        "mmlu_virology",
+        "mmlu_world_religions"
+      ]
+    },
+    "limit": {
+      "title": "Number of samples (Enter a floating point between 0 and 1. Set as 1 to get all samples)",
+      "type": ["number"],
+      "minimum": 0.0,
+      "default": 1.0,
+      "maximum": 1.0,
+      "multipleOf": 0.05
+    },
+    "steps": {
+      "title": "Diffusion Steps",
+      "type": "integer",
+      "default": 128,
+      "minimum": 1,
+      "maximum": 2048
+    },
+    "max_new_tokens": {
+      "title": "Max New Tokens",
+      "type": "integer",
+      "default": 128,
+      "minimum": 1,
+      "maximum": 4096
+    },
+    "block_length": {
+      "title": "Block Length (BERT/LLaDA only)",
+      "type": "integer",
+      "default": 32,
+      "minimum": 1,
+      "maximum": 256
+    },
+    "cfg_scale": {
+      "title": "CFG Scale (BERT/LLaDA only)",
+      "type": "number",
+      "default": 0.0,
+      "minimum": 0.0,
+      "maximum": 10.0
+    },
+    "temperature": {
+      "title": "Temperature (Dream only)",
+      "type": "number",
+      "default": 0.0,
+      "minimum": 0.0,
+      "maximum": 2.0
+    },
+    "top_p": {
+      "title": "Top P (Dream only)",
+      "type": "number",
+      "default": 0.95,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "mc_num": {
+      "title": "Monte Carlo Samples (for loglikelihood)",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 512
+    },
+    "num_fewshot": {
+      "title": "Number of Few-shot Examples",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 50
+    },
+    "apply_chat_template": {
+      "title": "Apply Chat Template",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "parameters_ui": {
+    "model_type": {
+      "ui:help": "Select the diffusion LLM model type: 'bert' for BERT-based models, 'dream' for Dream models, 'llada' for LLaDA models"
+    },
+    "tasks": {
+      "ui:help": "Select the task you want to run from the EleutherAI Harness",
+      "ui:widget": "AutoCompleteWidget"
+    },
+    "limit": {
+      "ui:help": "Select the fraction of samples you want to run from the EleutherAI Harness task",
+      "ui:widget": "RangeWidget"
+    },
+    "steps": {
+      "ui:help": "Number of diffusion steps for generation. More steps generally improve quality but increase generation time."
+    },
+    "max_new_tokens": {
+      "ui:help": "Maximum number of new tokens to generate."
+    },
+    "block_length": {
+      "ui:help": "Length of blocks used in the diffusion process (BERT/LLaDA only). Smaller blocks can improve efficiency."
+    },
+    "cfg_scale": {
+      "ui:help": "Classifier-free guidance scale (BERT/LLaDA only). Higher values make the model follow the prompt more closely."
+    },
+    "temperature": {
+      "ui:help": "Temperature for sampling (Dream only). Lower values make the output more deterministic."
+    },
+    "top_p": {
+      "ui:help": "Top-p (nucleus) sampling parameter (Dream only). Controls diversity of the output."
+    },
+    "mc_num": {
+      "ui:help": "Number of Monte Carlo samples for loglikelihood estimation. Higher values improve accuracy but increase computation time."
+    },
+    "num_fewshot": {
+      "ui:help": "Number of few-shot examples to include in the prompt."
+    },
+    "apply_chat_template": {
+      "ui:help": "Whether to apply chat template formatting to the input prompts."
+    }
+  }
+}

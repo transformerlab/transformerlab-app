@@ -46,12 +46,14 @@ def generate_dataset():
         ]
 
         for i in range(50):
-            dataset_data.append({
-                "text": sample_texts[i % len(sample_texts)] + f" (sample {i+1})",
-                "label": categories[i % len(categories)],
-                "label_id": i % len(categories),
-                "confidence": 0.7 + (i % 3) * 0.1,
-            })
+            dataset_data.append(
+                {
+                    "text": sample_texts[i % len(sample_texts)] + f" (sample {i + 1})",
+                    "label": categories[i % len(categories)],
+                    "label_id": i % len(categories),
+                    "confidence": 0.7 + (i % 3) * 0.1,
+                }
+            )
 
         df = pd.DataFrame(dataset_data)
         lab.log(f"Generated {len(df)} samples")
@@ -69,7 +71,7 @@ def generate_dataset():
                     "num_classes": 3,
                     "source": "synthetic_generation",
                 }
-            }
+            },
         )
         lab.log(f"✅ Saved dataset: {saved_path}")
         lab.update_progress(80)
@@ -96,7 +98,7 @@ def generate_dataset():
             score={
                 "total_samples": len(df),
                 "dataset_id": generated_datasets[0] if generated_datasets else None,
-            }
+            },
         )
 
         return {
@@ -125,4 +127,3 @@ def generate_dataset():
 if __name__ == "__main__":
     result = generate_dataset()
     print(result)
-
