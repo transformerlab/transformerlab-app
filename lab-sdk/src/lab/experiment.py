@@ -101,6 +101,29 @@ class Experiment(BaseLabResource):
                         if storage.exists(index_file):
                             with storage.open(index_file, "r") as f:
                                 data = json.load(f)
+
+                            name = data.get("name")
+                            exp_id = data.get("id")
+
+                            if not name:
+                                print(
+                                    f"Experiment at {exp_path} missing required 'name' field; skipping"
+                                )
+                                continue
+
+                            if not exp_id:
+                                print(
+                                    f"Experiment at {exp_path} missing required 'id' field; id = name and updating {index_file}"
+                                )
+                                data["id"] = name
+                                try:
+                                    with storage.open(index_file, "w") as wf:
+                                        json.dump(data, wf, indent=4)
+                                except Exception as e:
+                                    print(
+                                        f"Failed to write corrected index.json for experiment '{name}' at {index_file}: {e}"
+                                    )
+
                             experiments.append(data)
                 except Exception:
                     pass
