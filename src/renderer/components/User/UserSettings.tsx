@@ -17,7 +17,7 @@ import {
   FormLabel,
 } from '@mui/joy';
 import { useState } from 'react';
-import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
+import { useAPI, useAuth } from 'renderer/lib/authContext';
 
 function PasswordChangeForm({ open, onClose }) {
   const [newPassword, setNewPassword] = useState('');
