@@ -623,10 +623,20 @@ on the model's Huggingface page."
         return {"status": "error", "message": "An internal error has occurred."}
 
     if model_details is None:
-        error_msg = f"Error reading config for model with ID {model}"
-        if job_id:
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
-        return {"status": "error", "message": error_msg}
+        print(f"Warning: config not found for {model}, proceeding without config.")
+        try:
+            size_bytes = huggingfacemodel.get_huggingface_download_size(model, [])
+            size_mb = size_bytes / (1024 * 1024)
+        except Exception as e:
+            print(f"Could not determine size for model {model}: {type(e).__name__}: {e}")
+            size_mb = -1
+        model_details = {
+            "uniqueID": model,
+            "name": model,
+            "size_of_model_in_mb": size_mb,
+            "tags": [],
+            "siblings": [],
+        }
 
         # Check if this is a GGUF repository that requires file selection
     if model_details.get("requires_file_selection", False):
