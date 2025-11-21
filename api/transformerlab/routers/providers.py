@@ -1,8 +1,8 @@
 """Router for managing team-scoped compute providers."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional, Union
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth2 import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
@@ -24,6 +24,9 @@ from transformerlab.providers.models import (
     ClusterConfig,
     ClusterStatus,
     ResourceInfo,
+    JobConfig,
+    JobInfo,
+    JobState,
 )
 
 router = APIRouter(tags=["providers"])
@@ -411,4 +414,250 @@ async def get_cluster_resources(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get cluster resources: {str(e)}",
+        )
+
+
+# ============================================================================
+# Job Management Routes
+# ============================================================================
+
+
+@router.post("/providers/{provider_id}/clusters/{cluster_name}/jobs")
+async def submit_job(
+    provider_id: str,
+    cluster_name: str,
+    job_config: JobConfig,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Submit a job to an existing cluster.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Submit job
+        result = provider_instance.submit_job(cluster_name, job_config)
+
+        # Extract job_id from result
+        job_id = result.get("job_id") or result.get("request_id")
+
+        return {
+            "status": "success",
+            "message": "Job submitted successfully",
+            "job_id": job_id,
+            "cluster_name": cluster_name,
+            "result": result,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to submit job: {str(e)}",
+        )
+
+
+@router.get("/providers/{provider_id}/clusters/{cluster_name}/jobs", response_model=List[JobInfo])
+async def list_jobs(
+    provider_id: str,
+    cluster_name: str,
+    state: Optional[JobState] = Query(None, description="Filter jobs by state"),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    List all jobs for a cluster.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # List jobs
+        jobs = provider_instance.list_jobs(cluster_name)
+
+        # Filter by state if provided
+        if state:
+            jobs = [job for job in jobs if job.state == state]
+
+        return jobs
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list jobs: {str(e)}",
+        )
+
+
+@router.get("/providers/{provider_id}/clusters/{cluster_name}/jobs/{job_id}", response_model=JobInfo)
+async def get_job_info(
+    provider_id: str,
+    cluster_name: str,
+    job_id: Union[str, int],
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get information about a specific job.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # List jobs and find the specific one
+        jobs = provider_instance.list_jobs(cluster_name)
+
+        # Convert job_id to appropriate type for comparison
+        job_id_str = str(job_id)
+        job_id_int = int(job_id) if isinstance(job_id, str) and job_id.isdigit() else job_id
+
+        # Find job by ID (try both string and int comparison)
+        job = None
+        for j in jobs:
+            if str(j.job_id) == job_id_str or j.job_id == job_id_int:
+                job = j
+                break
+
+        if not job:
+            raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
+
+        return job
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get job info: {str(e)}",
+        )
+
+
+@router.get("/providers/{provider_id}/clusters/{cluster_name}/jobs/{job_id}/logs")
+async def get_job_logs(
+    provider_id: str,
+    cluster_name: str,
+    job_id: Union[str, int],
+    tail_lines: Optional[int] = Query(None, description="Number of lines to retrieve from the end"),
+    follow: bool = Query(False, description="Whether to stream/follow logs"),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get logs for a job.
+    Requires X-Team-Id header and team membership.
+
+    If follow=true, returns a streaming response (Server-Sent Events).
+    Otherwise, returns the full log content as text.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Get job logs
+        logs = provider_instance.get_job_logs(cluster_name, job_id, tail_lines=tail_lines, follow=follow)
+
+        if follow:
+            # Return streaming response
+            # If logs is already an iterator/stream, use it directly
+            if hasattr(logs, "__iter__") and not isinstance(logs, (str, bytes)):
+
+                async def generate():
+                    try:
+                        for line in logs:
+                            if isinstance(line, bytes):
+                                yield line.decode("utf-8", errors="replace")
+                            else:
+                                yield str(line) + "\n"
+                    except Exception as e:
+                        yield f"\n[Error streaming logs: {str(e)}]\n"
+
+                return StreamingResponse(
+                    generate(),
+                    media_type="text/plain",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+                )
+            else:
+                # Fallback: convert to string and stream line by line
+                log_str = str(logs) if logs else ""
+
+                async def generate():
+                    for line in log_str.split("\n"):
+                        yield line + "\n"
+
+                return StreamingResponse(
+                    generate(),
+                    media_type="text/plain",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+                )
+        else:
+            # Return full log content as text
+            log_content = str(logs) if logs else ""
+            return log_content
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get job logs: {str(e)}",
+        )
+
+
+@router.delete("/providers/{provider_id}/clusters/{cluster_name}/jobs/{job_id}")
+async def cancel_job(
+    provider_id: str,
+    cluster_name: str,
+    job_id: Union[str, int],
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Cancel a running or queued job.
+    Requires X-Team-Id header and team membership.
+    """
+    team_id = user_and_team["team_id"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        # Get provider instance
+        provider_instance = get_provider_instance(provider)
+
+        # Cancel job
+        result = provider_instance.cancel_job(cluster_name, job_id)
+
+        return {
+            "status": "success",
+            "message": "Job cancelled successfully",
+            "job_id": job_id,
+            "cluster_name": cluster_name,
+            "result": result,
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to cancel job: {str(e)}",
         )
