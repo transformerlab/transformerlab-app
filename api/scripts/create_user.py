@@ -54,7 +54,7 @@ def create_user(email: str, password: str, base_url: str = "http://127.0.0.1:833
 
 def main():
     parser = argparse.ArgumentParser(description="Create a new user by calling the /auth/register endpoint")
-    parser.add_argument("--user", required=True, help="User's email address")
+    parser.add_argument("--email", required=True, help="User's email address")
     parser.add_argument("--password", required=True, help="User's password")
     parser.add_argument(
         "--url", default="http://127.0.0.1:8338", help="Base URL of the API (default: http://127.0.0.1:8338)"
@@ -62,7 +62,7 @@ def main():
 
     args = parser.parse_args()
 
-    success = create_user(args.user, args.password, args.url)
+    success = create_user(args.email, args.password, args.url)
     sys.exit(0 if success else 1)
 
 
