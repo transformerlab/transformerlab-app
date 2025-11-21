@@ -102,14 +102,13 @@ async def get_team_provider(session: AsyncSession, team_id: str, provider_id: st
     provider = await get_provider_by_id(session, provider_id)
     if not provider:
         return None
-    
+
     # Explicitly check team membership
     if provider.team_id != team_id:
         raise HTTPException(
-            status_code=403,
-            detail=f"Provider '{provider_id}' belongs to a different team. Access denied."
+            status_code=403, detail=f"Provider '{provider_id}' belongs to a different team. Access denied."
         )
-    
+
     return provider
 
 
