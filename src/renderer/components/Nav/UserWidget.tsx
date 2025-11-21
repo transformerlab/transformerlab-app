@@ -45,6 +45,11 @@ export default function LoginChip({}: Props) {
 
   const { data: teams } = useAPI('teams', ['list']);
 
+  // Don't render anything until email is available
+  if (!email) {
+    return null;
+  }
+
   return (
     <Sheet
       // onClick={() => {
