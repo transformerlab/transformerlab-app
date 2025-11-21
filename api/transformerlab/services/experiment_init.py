@@ -1,6 +1,47 @@
 from lab import Experiment, Job
 from lab.dirs import get_jobs_dir
 from lab import storage
+import asyncio
+
+from sqlalchemy import select
+from transformerlab.shared.models.user_model import User, AsyncSessionLocal, create_personal_team
+from transformerlab.models.users import get_user_manager
+
+
+async def seed_default_admin_user():
+    """Create a default admin user with credentials admin/admin123 if one doesn't exist."""
+    try:
+        
+        async with AsyncSessionLocal() as session:
+            # Check if admin user already exists
+            stmt = select(User).where(User.email == "admin@localhost")
+            result = await session.execute(stmt)
+            existing_admin = result.scalar_one_or_none()
+            
+            if existing_admin:
+                print("✅ Default admin user already exists")
+                return
+            
+            # Create admin user
+            user_manager = get_user_manager(session)
+            admin_user = await user_manager.create(
+                {
+                    "email": "admin@localhost",
+                    "password": "admin123",
+                    "is_active": True,
+                    "is_verified": True,
+                    "is_superuser": True,
+                }
+            )
+            
+            # Create personal team for admin
+            await create_personal_team(session, admin_user)
+            
+            print("✅ Created default admin user: admin@localhost / admin123")
+            
+    except Exception as e:
+        print(f"⚠️  Error seeding default admin user: {e}")
+        pass
 
 
 def seed_default_experiments():

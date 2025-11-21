@@ -32,7 +32,7 @@ from fastchat.protocol.openai_api_protocol import (
 
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_create, job_get, job_update_status
-from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs
+from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs, seed_default_admin_user
 import transformerlab.db.session as db
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -117,6 +117,8 @@ async def lifespan(app: FastAPI):
     await db.init()
     await create_db_and_tables()
     print("✅ SEED DATA")
+    # Seed default admin user
+    await seed_default_admin_user()
     # Initialize experiments and cancel any running jobs
     seed_default_experiments()
     cancel_in_progress_jobs()
