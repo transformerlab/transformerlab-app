@@ -52,6 +52,7 @@ from transformerlab.routers import (
     remote,
     auth2,
     teams,
+    providers,
 )
 import torch
 
@@ -237,6 +238,7 @@ app.include_router(remote.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router)
 app.include_router(auth2.router)
+app.include_router(providers.router)
 
 # Authentication and session management routes
 if os.getenv("TFL_MULTITENANT") == "true":
