@@ -17,6 +17,11 @@ async def seed_default_admin_user():
         existing_admin = result.scalar_one_or_none()
         
         if existing_admin:
+            # If admin exists but is not verified, verify them
+            if not existing_admin.is_verified:
+                existing_admin.is_verified = True
+                session.add(existing_admin)
+                await session.commit()
             return
         
         user_db = SQLAlchemyUserDatabase(session, User)
@@ -35,8 +40,7 @@ async def seed_default_admin_user():
             return
         
         # Mark as verified so login works immediately
-        admin_user.is_verified = True
-        session.add(admin_user)
+        await user_manager.verify(admin_user)
         await session.commit()
 
 
