@@ -1,0 +1,253 @@
+{
+  "name": "Diffusion LLM Trainer",
+  "uniqueId": "dllm_trainer_multi_gpu",
+  "description": "A training plugin using dllm library for SFT training with support for bert, dream, and llada training methods",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.0.1",
+  "model_architectures": [
+    "BertForMaskedLM",
+    "ModernBertForMaskedLM",
+    "DreamModel",
+    "LLaDAModelLM"
+  ],
+  "training_template_format": "alpaca",
+  "git": "",
+  "url": "",
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cuda"],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "train_device": {
+      "title": "Training Device",
+      "type": "string",
+      "required": true,
+      "enum": ["cuda", "cpu", "tpu"],
+      "default": "cuda"
+    },
+    "gpu_ids": {
+      "title": "GPU IDs to Train",
+      "type": "string",
+      "default": "auto"
+    },
+    "training_method": {
+      "title": "Training Method",
+      "type": "string",
+      "required": true,
+      "enum": ["bert", "dream", "llada"],
+      "default": "bert"
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1
+    },
+    "learning_rate_schedule": {
+      "title": "Learning Rate Schedule",
+      "type": "string",
+      "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
+      "default": "cosine"
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 2e-5,
+      "minimum": 1e-6
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0
+    },
+    "train_steps": {
+      "title": "Number of Training Steps",
+      "type": "integer",
+      "default": 1000,
+      "minimum": 1
+    },
+    "max_length": {
+      "title": "Maximum Sequence Length",
+      "type": "integer",
+      "default": 1024,
+      "minimum": 1
+    },
+    "mask_prompt_loss": {
+      "title": "Mask Prompt Loss",
+      "type": "boolean",
+      "default": true
+    },
+    "load_in_4bit": {
+      "title": "Load in 4-bit",
+      "type": "boolean",
+      "default": false
+    },
+    "lora": {
+      "title": "Use LoRA",
+      "type": "boolean",
+      "default": false
+    },
+    "lora_r": {
+      "title": "LoRA R",
+      "type": "integer",
+      "minimum": 4,
+      "maximum": 64,
+      "multipleOf": 4,
+      "default": 32
+    },
+    "lora_alpha": {
+      "title": "LoRA Alpha",
+      "type": "integer",
+      "minimum": 4,
+      "maximum": 128,
+      "multipleOf": 4,
+      "default": 64
+    },
+    "lora_dropout": {
+      "title": "LoRA Dropout",
+      "type": "number",
+      "minimum": 0.05,
+      "maximum": 0.9,
+      "default": 0.05
+    },
+    "dtype": {
+      "title": "Data Type",
+      "type": "string",
+      "enum": ["float32", "float16", "bfloat16"],
+      "default": "bfloat16"
+    },
+    "gradient_accumulation_steps": {
+      "title": "Gradient Accumulation Steps",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
+    },
+    "warmup_ratio": {
+      "title": "Warmup Ratio",
+      "type": "number",
+      "default": 0.1,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "logging_steps": {
+      "title": "Logging Steps",
+      "type": "integer",
+      "default": 10,
+      "minimum": 1
+    },
+    "eval_strategy": {
+      "title": "Evaluation Strategy",
+      "type": "string",
+      "enum": ["no", "steps", "epoch"],
+      "default": "steps"
+    },
+    "eval_steps": {
+      "title": "Evaluation Steps",
+      "type": "number",
+      "default": 0.25
+    },
+    "save_steps": {
+      "title": "Save Steps",
+      "type": "number",
+      "default": 0.25
+    },
+    "num_proc": {
+      "title": "Number of Processes",
+      "type": "integer",
+      "default": 8
+    },
+    "truncation": {
+      "title": "Truncation Strategy",
+      "type": "string",
+      "enum": ["filter", "right"],
+      "default": "right"
+    },
+    "perbatch_cutoff": {
+      "title": "Per-batch Cutoff (Dream only)",
+      "type": "boolean",
+      "default": true
+    },
+    "resp_cutoff_ratio": {
+      "title": "Response Cutoff Ratio (Dream only)",
+      "type": "number",
+      "default": 0.0,
+      "minimum": 0,
+      "maximum": 1
+    },
+    "loss_weight_type": {
+      "title": "Loss Weight Type (Dream only)",
+      "type": "string",
+      "enum": ["cart[geo_p:0.3]", "scheduler"],
+      "default": "cart[geo_p:0.3]"
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "required": true,
+      "default": "adaptor"
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": true,
+      "required": true
+    }
+  },
+  "parameters_ui": {
+    "training_method": {
+      "ui:help": "Training method: 'bert' uses MDLMTrainer, 'dream' uses DreamTrainer with CART loss weighting, 'llada' uses MDLMTrainer for LLaDA models"
+    },
+    "train_device": {
+      "ui:help": "The device to train the model on. Use 'cuda' for Multi GPU Training, 'cpu' for CPU, and 'tpu' for TPU.",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
+    },
+    "gpu_ids": {
+      "ui:help": "Comma separated list of GPU IDs to use for training. Set to 'auto' for all GPUs. Example: 0,1,2,3 for 4 GPUs."
+    },
+    "batch_size": {
+      "ui:help": "The number of sequences processed simultaneously during training. Higher values lower number of iterations but require more memory."
+    },
+    "max_length": {
+      "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
+    },
+    "mask_prompt_loss": {
+      "ui:help": "Whether to mask the loss on prompt tokens. When enabled, only the response tokens contribute to the loss."
+    },
+    "load_in_4bit": {
+      "ui:help": "Load model with 4-bit quantization using BitsAndBytes. Reduces memory usage but may slightly impact performance."
+    },
+    "lora": {
+      "ui:help": "Use LoRA (Low-Rank Adaptation) for parameter-efficient fine-tuning. Reduces memory usage and training time."
+    },
+    "lora_r": {
+      "ui:widget": "range",
+      "ui:help": "Rank of the update matrices, expressed in int. Lower rank results in smaller update matrices with fewer trainable parameters."
+    },
+    "lora_alpha": {
+      "ui:widget": "range",
+      "ui:help": "LoRA scaling factor. Make it a multiple of LoRA R."
+    },
+    "perbatch_cutoff": {
+      "ui:help": "Randomly pick a response length from batch and trim other responses. Only applies to Dream training method."
+    },
+    "resp_cutoff_ratio": {
+      "ui:help": "The probability of randomly cutting sequences during training. Only applies to Dream training method."
+    },
+    "num_train_epochs": {
+      "ui:help": "Number of epochs to train for. Set to 0 to train by number of steps instead."
+    },
+    "train_steps": {
+      "ui:help": "Total number of optimizer steps to run when epochs is set to 0."
+    },
+    "loss_weight_type": {
+      "ui:help": "The loss weight type for Dream training. Choose 'cart[geo_p:0.3]' for CART weighting or 'scheduler' for scheduler-based weighting."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+    }
+  }
+}
