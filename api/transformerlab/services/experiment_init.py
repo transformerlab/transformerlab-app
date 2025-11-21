@@ -37,15 +37,24 @@ async def seed_default_admin_user():
                 is_superuser=True,
             )
             try:
-                admin_user = await user_manager.create(user_create, safe=False)
+                # Create user with safe=False to skip verification email
+                admin_user = await user_manager.create(user_create, safe=False, request=None)
+                
+                # Refresh the user object to ensure we have the latest state
+                await session.refresh(admin_user)
                 
                 # Mark as verified so login works immediately
                 admin_user.is_verified = True
                 session.add(admin_user)
                 await session.commit()
-                print("✅ Created and verified admin user admin@example.com")
+                
+                # Refresh again after commit to ensure state is updated
+                await session.refresh(admin_user)
+                print(f"✅ Created and verified admin user admin@example.com (is_verified={admin_user.is_verified})")
             except Exception as e:
                 print(f"⚠️  Failed to create admin user: {e}")
+                import traceback
+                traceback.print_exc()
                 return
     except Exception as e:
         print(f"⚠️  Error in seed_default_admin_user: {e}")
