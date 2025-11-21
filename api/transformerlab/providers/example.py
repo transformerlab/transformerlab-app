@@ -3,17 +3,20 @@
 import os
 import sys
 
-# Use transformerlab imports
-from transformerlab.providers.router import get_provider, get_router
-from transformerlab.providers.models import ClusterConfig, JobConfig
-
 # Add parent directories to path to allow imports when running as script
 # This allows the script to be run directly: python example.py
+# The file is at: api/transformerlab/providers/example.py
+# We need to add api/ to the path so transformerlab imports work
 current_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.join(current_dir, "..", "..", "..")
-src_dir_abs = os.path.abspath(src_dir)
-if src_dir_abs not in sys.path:
-    sys.path.insert(0, src_dir_abs)
+# Go up 3 levels: providers -> transformerlab -> api
+api_dir = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
+if api_dir not in sys.path:
+    sys.path.insert(0, api_dir)
+
+# Now import transformerlab modules (must be after path setup)
+# noqa: E402 - imports must come after sys.path modification
+from transformerlab.providers.router import get_provider, get_router  # noqa: E402
+from transformerlab.providers.models import ClusterConfig, JobConfig  # noqa: E402
 
 
 def example_skypilot():

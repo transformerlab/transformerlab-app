@@ -12,7 +12,7 @@ class ProviderRouter:
     def __init__(self, config_path: Optional[str] = None):
         """
         Initialize the provider router.
-        
+
         Note: YAML config file is optional. Providers can be loaded from
         the database via the providers API router, or added manually via add_provider().
 
@@ -62,7 +62,7 @@ class ProviderRouter:
         # First check if already loaded
         if provider_name in self._providers:
             return self._providers[provider_name]
-        
+
         # Try to load from database first
         try:
             provider = _try_load_from_database(provider_name)
@@ -72,7 +72,7 @@ class ProviderRouter:
         except Exception as e:
             # Database lookup failed, continue to YAML fallback
             pass
-        
+
         # Fall back to YAML config
         if provider_name not in self._providers:
             # Check if provider exists in config but failed to initialize
@@ -118,10 +118,10 @@ def _try_load_from_database(provider_name: str) -> Optional[Provider]:
     """
     Try to load a provider from the database by name.
     This is a helper function that attempts async database access from sync context.
-    
+
     Args:
         provider_name: Name of the provider to load
-        
+
     Returns:
         Provider instance if found, None otherwise
     """
@@ -134,7 +134,7 @@ def _try_load_from_database(provider_name: str) -> Optional[Provider]:
         )
         from sqlalchemy import select
         from transformerlab.shared.models.models import TeamProvider
-        
+
         # Try to get an async session and query the database
         async def _async_load():
             try:
@@ -144,13 +144,13 @@ def _try_load_from_database(provider_name: str) -> Optional[Provider]:
                     stmt = select(TeamProvider).where(TeamProvider.name == provider_name)
                     result = await session.execute(stmt)
                     provider_record = result.scalar_one_or_none()
-                    
+
                     if provider_record:
                         return get_provider_instance(provider_record)
                     return None
             except Exception:
                 return None
-        
+
         # Try to run the async function
         try:
             loop = asyncio.get_event_loop()
