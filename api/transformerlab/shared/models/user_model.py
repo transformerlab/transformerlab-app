@@ -33,9 +33,15 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 
 
 # 3. Utility to create tables (run this on app startup)
+# NOTE: This function is deprecated. Database schema is now managed by Alembic migrations.
+# See transformerlab.db.session.run_alembic_migrations() for the migration function.
 async def create_db_and_tables():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """
+    Deprecated: Database tables are now created via Alembic migrations.
+    This function is kept for backwards compatibility but does nothing.
+    """
+    # Tables are now created via Alembic migrations in db.session.init()
+    pass
 
 
 # 4. Database session dependency
