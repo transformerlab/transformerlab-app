@@ -283,6 +283,14 @@ export default function LoginPage() {
             'Login failed. Please check your credentials.',
         );
       } else {
+        if (password === 'admin123') {
+          addNotification({
+            type: 'danger',
+            message:
+              'You are using a default insecure password. Please change it in User Settings.',
+          });
+        }
+
         // After successful login, check for invitation token and auto-accept
         const hash = window.location.hash;
         const hashWithoutSymbol = hash.substring(1);
