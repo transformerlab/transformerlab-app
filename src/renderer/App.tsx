@@ -69,11 +69,7 @@ function AppContent({
 
   const authContext = useAuth();
 
-  if (
-    typeof process !== 'undefined' &&
-    process.env?.MULTIUSER === 'true' &&
-    !authContext?.isAuthenticated
-  ) {
+  if (process.env.MULTIUSER === 'true' && !authContext?.isAuthenticated) {
     return <LoginPage />;
   }
 
@@ -193,8 +189,7 @@ function AppContent({
         </Box>
       </Box>
       <AutoUpdateModal />
-      {(typeof process === 'undefined' ||
-        process.env?.TL_FORCE_API_URL === 'false') && (
+      {process.env.TL_FORCE_API_URL === 'false' && (
         <LoginModal
           setServer={setConnection}
           connection={connection}
@@ -210,9 +205,7 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  const [connection, setConnection] = useState(
-    (typeof process !== 'undefined' && process.env?.TL_API_URL) || '',
-  );
+  const [connection, setConnection] = useState(process.env?.TL_API_URL || '');
   const [gpuOrchestrationServer, setGPUOrchestrationServer] = useState('');
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
@@ -220,8 +213,7 @@ export default function App() {
 
   useEffect(() => {
     window.TransformerLab = {};
-    window.TransformerLab.API_URL =
-      (typeof process !== 'undefined' && process.env?.TL_API_URL) || '';
+    window.TransformerLab.API_URL = process.env.TL_API_URL || '';
   }, []);
 
   // if the logs drawer is open, set the initial height
