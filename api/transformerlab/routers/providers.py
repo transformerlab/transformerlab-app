@@ -1,6 +1,7 @@
 """Router for managing team-scoped compute providers."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Union
 from transformerlab.shared.models.user_model import get_async_session
