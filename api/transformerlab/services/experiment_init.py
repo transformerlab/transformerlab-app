@@ -4,43 +4,40 @@ from lab import storage
 
 from sqlalchemy import select
 from transformerlab.shared.models.user_model import User, AsyncSessionLocal, create_personal_team
-from transformerlab.models.users import get_user_manager
+from transformerlab.models.users import UserManager, UserCreate
+from fastapi_users.db import SQLAlchemyUserDatabase
 
 
 async def seed_default_admin_user():
-    """Create a default admin user with credentials admin/admin123 if one doesn't exist."""
-    try:
+    """Create a default admin user with credentials admin@example.com / admin123 if one doesn't exist."""
+    async with AsyncSessionLocal() as session:
+        # Check if admin user already exists
+        stmt = select(User).where(User.email == "admin@example.com")
+        result = await session.execute(stmt)
+        existing_admin = result.scalar_one_or_none()
         
-        async with AsyncSessionLocal() as session:
-            # Check if admin user already exists
-            stmt = select(User).where(User.email == "admin@localhost")
-            result = await session.execute(stmt)
-            existing_admin = result.scalar_one_or_none()
-            
-            if existing_admin:
-                print("✅ Default admin user already exists")
-                return
-            
-            # Create admin user
-            user_manager = get_user_manager(session)
-            admin_user = await user_manager.create(
-                {
-                    "email": "admin@localhost",
-                    "password": "admin123",
-                    "is_active": True,
-                    "is_verified": True,
-                    "is_superuser": True,
-                }
-            )
-            
-            # Create personal team for admin
-            await create_personal_team(session, admin_user)
-            
-            print("✅ Created default admin user: admin@localhost / admin123")
-            
-    except Exception as e:
-        print(f"⚠️  Error seeding default admin user: {e}")
-        pass
+        if existing_admin:
+            return
+        
+        user_db = SQLAlchemyUserDatabase(session, User)
+        user_manager = UserManager(user_db)
+        
+        # Create admin user using UserCreate schema
+        user_create = UserCreate(
+            email="admin@example.com",
+            password="admin123",
+            is_active=True,
+            is_superuser=True,
+        )
+        try:
+            admin_user = await user_manager.create(user_create, safe=False)
+        except Exception:
+            return
+        
+        # Mark as verified so login works immediately
+        admin_user.is_verified = True
+        session.add(admin_user)
+        await session.commit()
 
 
 def seed_default_experiments():
