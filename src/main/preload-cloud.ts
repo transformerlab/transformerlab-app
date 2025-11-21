@@ -90,18 +90,9 @@ contextBridge.exposeInMainWorld('electron', electronHandler);
 
 contextBridge.exposeInMainWorld('platform', {
   appmode: 'cloud',
-  environment:
-    typeof process !== 'undefined' && process.env
-      ? process.env.NODE_ENV
-      : 'production', // Webpack's EnvironmentPlugin will replace this with 'production' or 'development'
-  version:
-    typeof process !== 'undefined' && process.env
-      ? process.env.VERSION
-      : '0.0.0',
-  multiuser:
-    typeof process !== 'undefined' && process.env
-      ? process.env.MULTIUSER === 'true'
-      : false,
+  environment: process.env.NODE_ENV,
+  version: process.env.VERSION,
+  multiuser: process.env.MULTIUSER === 'true',
 });
 
 contextBridge.exposeInMainWorld('storage', {
