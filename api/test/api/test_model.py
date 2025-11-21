@@ -86,6 +86,7 @@ def test_install_peft_success(client):
     adapter_id = "tcotter/Llama-3.2-1B-Instruct-Mojo-Adapter"
     model_id = "unsloth/Llama-3.2-1B-Instruct"
 
+    mock_task = MagicMock()
     with (
         patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
         patch("builtins.open", mock_open(read_data='{"architectures": "MockArch", "model_type": "MockType"}')),
@@ -93,7 +94,7 @@ def test_install_peft_success(client):
         patch("huggingface_hub.HfApi.model_info", return_value=make_mock_adapter_info()),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
-        patch("transformerlab.routers.model.asyncio.create_task"),
+        patch("transformerlab.routers.model.asyncio.create_task", return_value=mock_task),
     ):
         response = client.post(
             "/model/install_peft", params={"peft": adapter_id, "model_id": model_id, "experiment_id": 1}
