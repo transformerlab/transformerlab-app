@@ -17,7 +17,76 @@ import {
   FormLabel,
 } from '@mui/joy';
 import { useState } from 'react';
-import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
+import { useAPI, useAuth } from 'renderer/lib/authContext';
+
+function PasswordChangeForm({ open, onClose }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const { fetchWithAuth } = useAuth();
+
+  const handleSave = async () => {
+    if (newPassword !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth('users/me', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          password: newPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update password: ${response.statusText}`);
+      }
+      console.log('Password updated successfully');
+      onClose();
+    } catch (error) {
+      console.error('Error updating password:', error);
+    }
+  };
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalDialog>
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent>
+          <FormControl sx={{ mt: 2 }}>
+            <FormLabel>New Password:</FormLabel>
+            <Input
+              type="password"
+              placeholder="New Password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              fullWidth
+            />
+          </FormControl>
+          <FormControl sx={{ mt: 1 }}>
+            <Input
+              type="password"
+              placeholder="Confirm New Password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              fullWidth
+            />
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose} variant="plain">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} variant="solid">
+            Save
+          </Button>
+        </DialogActions>
+      </ModalDialog>
+    </Modal>
+  );
+}
 
 function UserNameChangeForm({
   originalFirstName,
@@ -98,6 +167,7 @@ export default function UserLoginTest(): JSX.Element {
   const [isNameChangeOpen, setIsNameChangeOpen] = useState(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
   const { data: userInfo, mutate: userInfoMutate } = useAPI('users', ['me']);
+  const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
 
   async function handleTestApi() {
     setApiResult(null);
@@ -173,11 +243,15 @@ export default function UserLoginTest(): JSX.Element {
         <Button
           variant="outlined"
           onClick={() => {
-            alert('Not yet implemented');
+            setIsPasswordChangeOpen(true);
           }}
         >
           Change Password
         </Button>
+        <PasswordChangeForm
+          open={isPasswordChangeOpen}
+          onClose={() => setIsPasswordChangeOpen(false)}
+        />
       </Stack>
       <UserNameChangeForm
         open={isNameChangeOpen}
