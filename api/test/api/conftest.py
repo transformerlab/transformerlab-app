@@ -13,6 +13,17 @@ os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-o
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
 
 from api import app  # noqa: E402
+from transformerlab.routers.auth2 import get_user_and_team  # noqa: E402
+
+
+# Mock dependency for testing
+async def mock_get_user_and_team():
+    """Mock user and team for testing - bypasses authentication"""
+    return {
+        "user_id": "test-user-id",
+        "team_id": "test-team-id",
+        "user": None
+    }
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -32,5 +43,11 @@ def cleanup_test_database():
 
 @pytest.fixture(scope="session")
 def client():
+    # Override the get_user_and_team dependency for all routes
+    app.dependency_overrides[get_user_and_team] = mock_get_user_and_team
+    
     with TestClient(app) as c:
         yield c
+    
+    # Clean up overrides after tests
+    app.dependency_overrides.clear()
