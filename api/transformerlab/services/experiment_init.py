@@ -10,39 +10,46 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 
 async def seed_default_admin_user():
     """Create a default admin user with credentials admin@example.com / admin123 if one doesn't exist."""
-    async with AsyncSessionLocal() as session:
-        # Check if admin user already exists
-        stmt = select(User).where(User.email == "admin@example.com")
-        result = await session.execute(stmt)
-        existing_admin = result.scalar_one_or_none()
-        
-        if existing_admin:
-            # If admin exists but is not verified, verify them
-            if not existing_admin.is_verified:
-                existing_admin.is_verified = True
-                session.add(existing_admin)
+    try:
+        async with AsyncSessionLocal() as session:
+            # Check if admin user already exists
+            stmt = select(User).where(User.email == "admin@example.com")
+            result = await session.execute(stmt)
+            existing_admin = result.scalar_one_or_none()
+            
+            if existing_admin:
+                # If admin exists but is not verified, verify them
+                if not existing_admin.is_verified:
+                    existing_admin.is_verified = True
+                    session.add(existing_admin)
+                    await session.commit()
+                    print("✅ Verified existing admin user")
+                return
+            
+            user_db = SQLAlchemyUserDatabase(session, User)
+            user_manager = UserManager(user_db)
+            
+            # Create admin user using UserCreate schema
+            user_create = UserCreate(
+                email="admin@example.com",
+                password="admin123",
+                is_active=True,
+                is_superuser=True,
+            )
+            try:
+                admin_user = await user_manager.create(user_create, safe=False)
+                
+                # Mark as verified so login works immediately
+                admin_user.is_verified = True
+                session.add(admin_user)
                 await session.commit()
-            return
-        
-        user_db = SQLAlchemyUserDatabase(session, User)
-        user_manager = UserManager(user_db)
-        
-        # Create admin user using UserCreate schema
-        user_create = UserCreate(
-            email="admin@example.com",
-            password="admin123",
-            is_active=True,
-            is_superuser=True,
-        )
-        try:
-            admin_user = await user_manager.create(user_create, safe=False)
-        except Exception:
-            return
-        
-        # Mark as verified so login works immediately
-        admin_user.is_verified = True
-        session.add(admin_user)
-        await session.commit()
+                print("✅ Created and verified admin user admin@example.com")
+            except Exception as e:
+                print(f"⚠️  Failed to create admin user: {e}")
+                return
+    except Exception as e:
+        print(f"⚠️  Error in seed_default_admin_user: {e}")
+        return
 
 
 def seed_default_experiments():

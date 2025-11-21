@@ -9,7 +9,7 @@ def test_server_info(live_server):
         f"{live_server}/auth/jwt/login",
         data={"username": "admin@example.com", "password": "admin123"}
     )
-    assert login_response.status_code == 200
+    assert login_response.status_code == 200, f"Login failed with {login_response.status_code}: {login_response.text}"
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     
@@ -46,7 +46,7 @@ def test_server_python_libraries(live_server):
         f"{live_server}/auth/jwt/login",
         data={"username": "admin@example.com", "password": "admin123"}
     )
-    assert login_response.status_code == 200
+    assert login_response.status_code == 200, f"Login failed with {login_response.status_code}: {login_response.text}"
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     
@@ -77,7 +77,7 @@ def test_server_pytorch_collect_env(live_server):
         f"{live_server}/auth/jwt/login",
         data={"username": "admin@example.com", "password": "admin123"}
     )
-    assert login_response.status_code == 200
+    assert login_response.status_code == 200, f"Login failed with {login_response.status_code}: {login_response.text}"
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     
