@@ -1,7 +1,6 @@
 from lab import Experiment, Job
 from lab.dirs import get_jobs_dir
 from lab import storage
-import asyncio
 
 from sqlalchemy import select
 from transformerlab.shared.models.user_model import User, AsyncSessionLocal, create_personal_team
