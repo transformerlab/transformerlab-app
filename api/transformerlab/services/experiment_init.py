@@ -3,7 +3,7 @@ from lab.dirs import get_jobs_dir
 from lab import storage
 
 from sqlalchemy import select
-from transformerlab.shared.models.user_model import User, AsyncSessionLocal, create_personal_team
+from transformerlab.shared.models.user_model import User, AsyncSessionLocal
 from transformerlab.models.users import UserManager, UserCreate
 from fastapi_users.db import SQLAlchemyUserDatabase
 
