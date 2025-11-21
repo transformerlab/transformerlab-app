@@ -13,17 +13,35 @@ os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-o
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
 
 from api import app  # noqa: E402
-from transformerlab.routers.auth2 import get_user_and_team  # noqa: E402
 
 
-# Mock dependency for testing
-async def mock_get_user_and_team():
-    """Mock user and team for testing - bypasses authentication"""
-    return {
-        "user_id": "test-user-id",
-        "team_id": "test-team-id",
-        "user": None
-    }
+class AuthenticatedTestClient(TestClient):
+    """TestClient that automatically adds admin authentication headers to all requests"""
+    
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(app, *args, **kwargs)
+        self._token = None
+    
+    def _get_token(self):
+        """Get or refresh admin token"""
+        if self._token is None:
+            login_response = super().post(
+                "/auth/jwt/login",
+                data={"username": "admin@localhost", "password": "admin123"}
+            )
+            if login_response.status_code != 200:
+                raise RuntimeError(f"Failed to get admin token: {login_response.text}")
+            self._token = login_response.json()["access_token"]
+        return self._token
+    
+    def request(self, method, url, **kwargs):
+        """Override request to add auth headers"""
+        # Don't add auth headers to auth endpoints
+        if "/auth/" not in url:
+            if "headers" not in kwargs:
+                kwargs["headers"] = {}
+            kwargs["headers"]["Authorization"] = f"Bearer {self._get_token()}"
+        return super().request(method, url, **kwargs)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -43,11 +61,5 @@ def cleanup_test_database():
 
 @pytest.fixture(scope="session")
 def client():
-    # Override the get_user_and_team dependency for all routes
-    app.dependency_overrides[get_user_and_team] = mock_get_user_and_team
-    
-    with TestClient(app) as c:
+    with AuthenticatedTestClient(app) as c:
         yield c
-    
-    # Clean up overrides after tests
-    app.dependency_overrides.clear()
