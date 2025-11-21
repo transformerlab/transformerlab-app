@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import useSWR from 'swr';
 
@@ -103,6 +103,31 @@ export default function TrainingModalLoRA({
   const [chatColumn, setChatColumn] = useState('');
   const [formattingTemplate, setFormattingTemplate] = useState('');
   const [formattingChatTemplate, setFormattingChatTemplate] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  // Keep a ref to the input so we can preserve caret position across renders
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Prefer the native input ref for selection/read; fall back to event target
+    const inputEl =
+      (nameInputRef.current as HTMLInputElement | null) ||
+      (e.target as HTMLInputElement);
+    const start = inputEl?.selectionStart ?? 0;
+    const end = inputEl?.selectionEnd ?? start;
+    const value = inputEl?.value ?? (e.target as HTMLInputElement).value;
+    setNameInput(value);
+    // Restore the selection after React updates the value
+    requestAnimationFrame(() => {
+      const el = nameInputRef.current;
+      if (el && document.activeElement === el) {
+        try {
+          el.setSelectionRange(start, end);
+        } catch (err) {
+          // ignore if browser doesn't allow
+        }
+      }
+    });
+  };
 
   // Fetch training type with useSWR
   const { data: trainingTypeData } = useSWR(
@@ -244,7 +269,9 @@ export default function TrainingModalLoRA({
     if (!templateData) {
       setSelectedDataset(null);
       setConfig({});
-      setNameInput(generateFriendlyName());
+      if (!isEditingName) {
+        setNameInput(generateFriendlyName());
+      }
       setFormattingTemplate('');
       setFormattingChatTemplate('');
       setApplyChatTemplate(false);
@@ -273,7 +300,9 @@ export default function TrainingModalLoRA({
         parsedConfig.dataset_name || parsedInputs.dataset_name;
       setSelectedDataset(datasetName || null);
       setConfig(parsedConfig);
-      setNameInput(templateData.name || generateFriendlyName());
+      if (!isEditingName) {
+        setNameInput(templateData.name || generateFriendlyName());
+      }
 
       // Set template fields
       if (parsedConfig.formatting_template) {
@@ -303,7 +332,9 @@ export default function TrainingModalLoRA({
       // This case is for when we are creating a new template or config is missing
       setSelectedDataset(null);
       setConfig({});
-      setNameInput(templateData?.name || generateFriendlyName());
+      if (!isEditingName) {
+        setNameInput(templateData?.name || generateFriendlyName());
+      }
       setFormattingTemplate('');
       setFormattingChatTemplate('');
       setApplyChatTemplate(false);
@@ -356,7 +387,10 @@ export default function TrainingModalLoRA({
             required
             autoFocus
             value={nameInput} //Value needs to be stored in a state variable otherwise it will not update on change/update
-            onChange={(e) => setNameInput(e.target.value)}
+            onChange={handleNameChange}
+            slotProps={{ input: { ref: nameInputRef } }}
+            onFocus={() => setIsEditingName(true)}
+            onBlur={() => setIsEditingName(false)}
             name="template_name"
             size="lg"
           />
