@@ -105,19 +105,25 @@ export default function TrainingModalLoRA({
   const [formattingChatTemplate, setFormattingChatTemplate] = useState('');
   const nameInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Preserve cursor position in controlled input
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Before updating state, capture cursor position & scroll so we can restore them.
+    // React re-renders controlled inputs, which normally resets the cursor (causing jumps).
+
     const inputEl =
       (nameInputRef.current as HTMLInputElement | null) ||
       (e.target as HTMLInputElement);
+
     const start = inputEl?.selectionStart ?? 0;
     const end = inputEl?.selectionEnd ?? start;
     const scrollLeft = inputEl?.scrollLeft ?? 0;
     const value = (e.target as HTMLInputElement).value;
 
     flushSync(() => {
-      setNameInput(value);
+      setNameInput(value); // update input value immediately
     });
 
+    // After the re-render, restore cursor & scroll so typing feels natural in controlled input.
     const cur = nameInputRef.current;
     if (cur && document.activeElement === cur) {
       try {
@@ -125,7 +131,7 @@ export default function TrainingModalLoRA({
         cur.setSelectionRange(Math.min(start, max), Math.min(end, max));
         cur.scrollLeft = scrollLeft;
       } catch {
-        // ignore in case browser disallows
+        // ignore if browser doesn't allow programmatic cursor updates
       }
     }
   };
