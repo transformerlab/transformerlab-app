@@ -278,6 +278,13 @@ export default function LoginPage() {
       // Call the login method from auth context
       const result = await login(email, password);
       if (result instanceof Error) {
+        // Check if the issue is just that the user is not verified:
+        if (result.info?.detail === 'LOGIN_USER_NOT_VERIFIED') {
+          setError(
+            'Email not verified. Please check your email for the verification link.',
+          );
+          return;
+        }
         setError(
           result.info?.message ??
             'Login failed. Please check your credentials.',
