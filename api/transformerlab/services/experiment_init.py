@@ -40,7 +40,8 @@ async def seed_default_admin_user():
             return
         
         # Mark as verified so login works immediately
-        await user_manager.verify(admin_user)
+        admin_user.is_verified = True
+        session.add(admin_user)
         await session.commit()
 
 
