@@ -38,7 +38,7 @@ import Diffusion from './Experiment/Diffusion/Diffusion';
 import Audio from './Experiment/Audio/Audio';
 import AudioSTT from './Experiment/Audio/AudioSTT';
 import ExperimentNotes from './Experiment/ExperimentNotes';
-import UserLoginTest from './Welcome/UserLoginTest';
+import UserSettings from './User/UserSettings';
 import TransformerLabSettings from './Settings/TransformerLabSettings';
 import Logs from './Logs';
 import FoundationHome from './Experiment/Foundation';
@@ -489,7 +489,7 @@ export default function MainAppPanel({
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
-        <Route path="/user_info_test" element={<UserLoginTest />} />
+        <Route path="/user" element={<UserSettings />} />
         <Route path="/team" element={<Team />} />
       </Routes>
     </>

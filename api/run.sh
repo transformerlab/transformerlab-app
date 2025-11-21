@@ -25,7 +25,7 @@ load_env_files() {
         ".env.production"
         ".env.development"
     )
-    
+
     for env_file in "${env_files[@]}"; do
         # Check in current directory only
         if [ -f "$env_file" ]; then
@@ -109,25 +109,25 @@ fi
 # Check if multitenant mode is enabled
 if [ "$TFL_MULTITENANT" = "true" ]; then
     echo "🏢 Multitenant mode detected, setting up remote workspace"
-    
+
     # # Create remote workspace directory if it doesn't exist
     # REMOTE_WORKSPACE_DIR="$HOME/.transformerlab/orgs/org_1/workspace"
     # if [ ! -d "$REMOTE_WORKSPACE_DIR" ]; then
     #     echo "📁 Creating remote workspace directory: $REMOTE_WORKSPACE_DIR"
     #     mkdir -p "$REMOTE_WORKSPACE_DIR"
     # fi
-    
+
     # Setup AWS credentials in ~/.aws directory
     if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
         echo "🔐 Setting up AWS credentials in ~/.aws directory"
-        
+
         # Create .aws directory if it doesn't exist
         AWS_DIR="$HOME/.aws"
         if [ ! -d "$AWS_DIR" ]; then
             mkdir -p "$AWS_DIR"
             chmod 700 "$AWS_DIR"
         fi
-        
+
         # Update credentials file - preserve existing profiles
         CREDENTIALS_FILE="$AWS_DIR/credentials"
         if [ -f "$CREDENTIALS_FILE" ]; then
@@ -138,7 +138,7 @@ if [ "$TFL_MULTITENANT" = "true" ]; then
         else
             echo "📝 Creating new credentials file"
         fi
-        
+
         # Append transformerlab-s3 profile
         cat >> "$CREDENTIALS_FILE" << EOF
 [transformerlab-s3]
@@ -146,7 +146,7 @@ aws_access_key_id=$AWS_ACCESS_KEY_ID
 aws_secret_access_key=$AWS_SECRET_ACCESS_KEY
 EOF
         chmod 600 "$CREDENTIALS_FILE"
-        
+
         # Update config file - preserve existing profiles
         CONFIG_FILE="$AWS_DIR/config"
         if [ -f "$CONFIG_FILE" ]; then
@@ -157,7 +157,7 @@ EOF
         else
             echo "📝 Creating new config file"
         fi
-        
+
         # Append transformerlab-s3 profile
         if [ -n "$AWS_DEFAULT_REGION" ]; then
             cat >> "$CONFIG_FILE" << EOF
@@ -173,12 +173,12 @@ output=json
 EOF
         fi
         chmod 600 "$CONFIG_FILE"
-        
+
         echo "✅ AWS credentials configured in ~/.aws (transformerlab-s3 profile)"
     else
         echo "⚠️ AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY not set, skipping AWS setup"
     fi
-    
+
 fi
 
 echo "▶️ Starting the API server:"
