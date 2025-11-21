@@ -13,7 +13,6 @@ from transformerlab.models.users import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from jose import jwt, JWTError
 from pydantic import BaseModel
 
 router = APIRouter(tags=["users"])
