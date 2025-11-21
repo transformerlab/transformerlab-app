@@ -75,9 +75,11 @@ class AuthenticatedTestClient(TestClient):
             # Ensure headers dict exists
             if "headers" not in kwargs or kwargs["headers"] is None:
                 kwargs["headers"] = {}
-            kwargs["headers"]["Authorization"] = f"Bearer {self._get_token()}"
-            # Add team header for multi-tenant support
-            if self._team_id:
+            # Only add Authorization if not already present
+            if "Authorization" not in kwargs["headers"]:
+                kwargs["headers"]["Authorization"] = f"Bearer {self._get_token()}"
+            # Only add team header if not already present
+            if self._team_id and "X-Team-Id" not in kwargs["headers"]:
                 kwargs["headers"]["X-Team-Id"] = self._team_id
         return super().request(method, url, **kwargs)
 
@@ -101,3 +103,4 @@ def cleanup_test_database():
 def client():
     with AuthenticatedTestClient(app) as c:
         yield c
+
