@@ -204,8 +204,16 @@
       "method": "DELETE",
       "path": "teams/{teamId}/delete"
     },
+    "rename": {
+      "method": "PUT",
+      "path": "teams/{teamId}"
+    },
     "getMembers": {
       "method": "GET",
+      "path": "teams/{teamId}/members"
+    },
+    "inviteMember": {
+      "method": "POST",
       "path": "teams/{teamId}/members"
     }
   },
@@ -225,6 +233,24 @@
     "logout": {
       "method": "POST",
       "path": "auth/logout"
+    },
+    "forgotPassword": {
+      "method": "POST",
+      "path": "auth/forgot_password"
+    },
+    "verify": {
+      "method": "POST",
+      "path": "auth/verify"
+    },
+    "refresh": {
+      "method": "POST",
+      "path": "auth/refresh"
+    }
+  },
+  "invitations": {
+    "accept": {
+      "method": "POST",
+      "path": "invitations/accept"
     }
   },
   "experiment": {
