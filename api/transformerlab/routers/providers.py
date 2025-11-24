@@ -258,14 +258,14 @@ async def verify_provider(
                 "message": "Provider is properly configured and accessible",
                 "provider_type": provider.type,
             }
-        except Exception as e:
+        except Exception:
             # Provider instantiated but connection test failed
             return {
                 "status": "warning",
                 "message": "Provider is configured but connection test failed",
                 "provider_type": provider.type,
             }
-    except Exception as e:
+    except Exception:
         # Provider failed to instantiate
         return {
             "status": "error",

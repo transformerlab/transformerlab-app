@@ -69,7 +69,7 @@ class ProviderRouter:
             if provider:
                 self._providers[provider_name] = provider
                 return provider
-        except Exception as e:
+        except Exception:
             # Database lookup failed, continue to YAML fallback
             pass
 
@@ -129,7 +129,6 @@ def _try_load_from_database(provider_name: str) -> Optional[Provider]:
         # Import here to avoid circular dependencies
         from transformerlab.db.session import async_session
         from transformerlab.services.provider_service import (
-            list_team_providers,
             get_provider_instance,
         )
         from sqlalchemy import select
