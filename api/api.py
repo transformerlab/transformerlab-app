@@ -238,7 +238,7 @@ app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(remote.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(teams.router)
+app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(auth2.router)
 
 # Authentication and session management routes
