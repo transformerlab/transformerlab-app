@@ -93,7 +93,7 @@ def test_install_peft_success(client):
         patch("huggingface_hub.HfApi.model_info", return_value=make_mock_adapter_info()),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
-        patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock),
+        patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
             "/model/install_peft", params={"peft": adapter_id, "model_id": model_id, "experiment_id": 1}
@@ -139,7 +139,7 @@ def test_install_peft_architecture_detection_unknown(client):
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
-        patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock),
+        patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
             "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
@@ -157,7 +157,7 @@ def test_install_peft_unknown_field_status(client):
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
-        patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock),
+        patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
             "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
