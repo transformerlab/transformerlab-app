@@ -233,6 +233,28 @@ uv pip install -e .
 uv run pytest  # Run tests
 ```
 
+### Database Migrations (Alembic)
+
+Our Alembic setup lives under `api/alembic`. Use the API Conda/uv environment before running any commands.
+
+- **Autogenerate a migration**
+
+  ```bash
+  cd api
+  alembic revision --autogenerate -m "describe change"
+  ```
+
+  The autogenerator respects the exclusions configured in `api/alembic/env.py` (e.g., exclusion of tables `workflows`, `workflow_runs`). Always review the generated file before committing.
+
+- **Run migrations locally for testing**
+
+  ```bash
+  cd api
+  alembic upgrade head
+  ```
+
+  To roll back the most recent migration while iterating, run `alembic downgrade -1`.
+
 <!-- LICENSE -->
 
 ## License
