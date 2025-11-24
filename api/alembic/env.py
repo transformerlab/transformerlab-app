@@ -23,7 +23,7 @@ if config.config_file_name is not None:
 # Set target_metadata to Base.metadata for autogenerate support
 target_metadata = Base.metadata
 
-EXCLUDED_TABLES = {"workflows", "workflow_runs"}
+EXCLUDED_TABLES = {"workflows", "workflow_runs", "user"}
 
 
 def include_object(object, name, type_, reflected, compare_to):
