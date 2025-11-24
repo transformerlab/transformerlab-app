@@ -215,9 +215,6 @@ async def validation_exception_handler(request, exc):
     return create_error_response(ErrorCode.VALIDATION_TYPE_ERROR, str(exc))
 
 
-### END GENERAL API - NOT OPENAI COMPATIBLE ###
-
-
 app.include_router(model.router)
 app.include_router(serverinfo.router)
 app.include_router(train.router)
@@ -236,13 +233,6 @@ app.include_router(remote.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(teams.router)
 app.include_router(auth2.router)
-
-# Authentication and session management routes
-if os.getenv("TFL_MULTITENANT") == "true":
-    from transformerlab.routers import auth  # noqa: E402
-
-    app.include_router(auth.router)
-
 
 controller_process = None
 worker_process = None
