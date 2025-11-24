@@ -851,7 +851,8 @@ async def get_job_logs(
                             if text.startswith("Error reading logs:"):
                                 yield "Failed to retrieve logs.\n"
                                 break
-                            yield text
+                            elif text and not text.startswith("Error reading logs:"):
+                                yield text
                     except Exception as e:
                         print(f"Error streaming logs: {str(e)}")
                         yield "\n[Error streaming logs]\n"
@@ -867,7 +868,11 @@ async def get_job_logs(
 
                 async def generate():
                     for line in log_str.split("\n"):
-                        yield line + "\n"
+                        if line.startswith("Error reading logs:"):
+                            yield "Failed to retrieve logs.\n"
+                            break
+                        elif line:
+                            yield line + "\n"
 
                 return StreamingResponse(
                     generate(),
