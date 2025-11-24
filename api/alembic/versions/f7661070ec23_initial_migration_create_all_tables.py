@@ -42,37 +42,51 @@ def upgrade() -> None:
         op.create_index(op.f("ix_config_key"), "config", ["key"], unique=True)
 
     # Plugin table
-    if not table_exists("plugins"):
-        op.create_table(
-            "plugins",
-            sa.Column("id", sa.Integer(), nullable=False),
-            sa.Column("name", sa.String(), nullable=False),
-            sa.Column("type", sa.String(), nullable=False),
-            sa.PrimaryKeyConstraint("id"),
-            sa.UniqueConstraint("name"),
-        )
-        op.create_index(op.f("ix_plugins_name"), "plugins", ["name"], unique=True)
-        op.create_index(op.f("ix_plugins_type"), "plugins", ["type"], unique=False)
+    if table_exists("plugins"):
+        # Drop all indexes on the table
+        op.drop_index(op.f("ix_plugins_name"), table_name="plugins")
+        op.drop_index(op.f("ix_plugins_type"), table_name="plugins")
+        # Drop the table
+        op.drop_table("plugins")
+        # Create the table again
+        # op.create_table(
+        #     "plugins",
+        #     sa.Column("id", sa.Integer(), nullable=False),
+        #     sa.Column("name", sa.String(), nullable=False),
+        #     sa.Column("type", sa.String(), nullable=False),
+        #     sa.PrimaryKeyConstraint("id"),
+        #     sa.UniqueConstraint("name"),
+        # )
+        # op.create_index(op.f("ix_plugins_name"), "plugins", ["name"], unique=True)
+        # op.create_index(op.f("ix_plugins_type"), "plugins", ["type"], unique=False)
 
     # TrainingTemplate table
-    if not table_exists("training_template"):
-        op.create_table(
-            "training_template",
-            sa.Column("id", sa.Integer(), nullable=False),
-            sa.Column("name", sa.String(), nullable=False),
-            sa.Column("description", sa.String(), nullable=True),
-            sa.Column("type", sa.String(), nullable=True),
-            sa.Column("datasets", sa.String(), nullable=True),
-            sa.Column("config", sa.String(), nullable=True),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.PrimaryKeyConstraint("id"),
-            sa.UniqueConstraint("name"),
-        )
-        op.create_index(op.f("ix_training_template_name"), "training_template", ["name"], unique=True)
-        op.create_index(op.f("ix_training_template_created_at"), "training_template", ["created_at"], unique=False)
-        op.create_index(op.f("ix_training_template_type"), "training_template", ["type"], unique=False)
-        op.create_index(op.f("ix_training_template_updated_at"), "training_template", ["updated_at"], unique=False)
+    if table_exists("training_template"):
+        # Drop all indexes on the table
+        op.drop_index(op.f("ix_training_template_name"), table_name="training_template")
+        op.drop_index(op.f("ix_training_template_created_at"), table_name="training_template")
+        op.drop_index(op.f("ix_training_template_type"), table_name="training_template")
+        op.drop_index(op.f("ix_training_template_updated_at"), table_name="training_template")
+        # Drop the table
+        op.drop_table("training_template")
+        # Create the table again
+        # op.create_table(
+        #     "training_template",
+        #     sa.Column("id", sa.Integer(), nullable=False),
+        #     sa.Column("name", sa.String(), nullable=False),
+        #     sa.Column("description", sa.String(), nullable=True),
+        #     sa.Column("type", sa.String(), nullable=True),
+        #     sa.Column("datasets", sa.String(), nullable=True),
+        #     sa.Column("config", sa.String(), nullable=True),
+        #     sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
+        #     sa.Column("updated_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
+        #     sa.PrimaryKeyConstraint("id"),
+        #     sa.UniqueConstraint("name"),
+        # )
+        # op.create_index(op.f("ix_training_template_name"), "training_template", ["name"], unique=True)
+        # op.create_index(op.f("ix_training_template_created_at"), "training_template", ["created_at"], unique=False)
+        # op.create_index(op.f("ix_training_template_type"), "training_template", ["type"], unique=False)
+        # op.create_index(op.f("ix_training_template_updated_at"), "training_template", ["updated_at"], unique=False)
 
     # Workflow table
     if not table_exists("workflows"):

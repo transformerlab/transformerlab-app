@@ -32,28 +32,28 @@ router = APIRouter(prefix="/train", tags=["train"])
 #     return {"message": "OK"}
 
 
-@router.post("/template/create")
-async def create_training_template(
-    name: str,
-    description: str,
-    type: str,
-    config: Annotated[str, Body(embed=True)],
-):
-    configObject = json.loads(config)
-    datasets = configObject["dataset_name"]
-    await db.create_training_template(name, description, type, datasets, config)
-    return {"message": "OK"}
+# @router.post("/template/create")
+# async def create_training_template(
+#     name: str,
+#     description: str,
+#     type: str,
+#     config: Annotated[str, Body(embed=True)],
+# ):
+#     configObject = json.loads(config)
+#     datasets = configObject["dataset_name"]
+#     await db.create_training_template(name, description, type, datasets, config)
+#     return {"message": "OK"}
 
 
-@router.get("/templates")
-async def get_training_templates():
-    return await db.get_training_templates()
+# @router.get("/templates")
+# async def get_training_templates():
+#     return await db.get_training_templates()
 
 
-@router.get("/template/{template_id}/delete")
-async def delete_training_template(template_id: str):
-    await db.delete_training_template(template_id)
-    return {"message": "OK"}
+# @router.get("/template/{template_id}/delete")
+# async def delete_training_template(template_id: str):
+#     await db.delete_training_template(template_id)
+#     return {"message": "OK"}
 
 
 tensorboard_process = None
