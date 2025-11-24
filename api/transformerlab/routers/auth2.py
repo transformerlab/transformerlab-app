@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Response
 from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team
 from transformerlab.shared.models.models import Team, UserTeam, TeamRole
 from transformerlab.models.users import (
@@ -14,6 +14,11 @@ from transformerlab.models.users import (
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
+import os
+
+# Simple Pydantic model for selecting a team
+class SelectTeamRequest(BaseModel):
+    team_id: str
 
 router = APIRouter(tags=["users"])
 
@@ -206,3 +211,41 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     ]
 
     return {"user_id": str(user.id), "teams": teams_with_roles}
+
+
+@router.post("/users/me/select-team")
+async def select_team(
+    request: SelectTeamRequest,
+    response: Response,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Select a team for the current user session.
+    Sets the organization cookie to the selected team_id.
+    """
+    team_id = request.team_id
+
+    # Verify user is associated with the provided team id
+    stmt = select(UserTeam).where(
+        UserTeam.user_id == str(user.id),
+        UserTeam.team_id == team_id,
+    )
+    result = await session.execute(stmt)
+    user_team = result.scalar_one_or_none()
+
+    if user_team is None:
+        raise HTTPException(status_code=403, detail="User is not a member of the specified team")
+
+    # Set the organization cookie
+    org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
+    response.set_cookie(
+        key=org_cookie_name,
+        value=team_id,
+        httponly=True,  # Prevent access via JavaScript
+        secure=False,   # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=60*60*24*7,  # 7 days
+    )
+
+    return {"message": "Team selected successfully", "team_id": team_id}

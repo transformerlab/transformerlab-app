@@ -294,8 +294,20 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     const teams = teamsData?.teams;
     if (teams && teams.length > 0) {
       if (!getCurrentTeam()) {
-        updateCurrentTeam(teams[0]);
-        setTeamState(teams[0]);
+        const firstTeam = teams[0];
+        updateCurrentTeam(firstTeam);
+        setTeamState(firstTeam);
+
+        // Call API to set the organization cookie for workspace mapping
+        if (token) {
+          fetchWithAuth('/users/me/select-team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ team_id: firstTeam.id }),
+          }).catch((error) => {
+            console.error('Failed to auto-select team:', error);
+          });
+        }
       }
     } else if (teams && teams.length === 0) {
       // No teams available
