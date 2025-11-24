@@ -1,23 +1,21 @@
 import {
   Box,
   Button,
-  List,
-  ListItem,
-  ListItemContent,
   Typography,
   Input,
-  ListItemButton,
   Option,
   Select,
   Modal,
   ModalDialog,
   ModalClose,
   Stack,
-  ListItemDecorator,
+  Table,
 } from '@mui/joy';
 import { PlusIcon, User2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
+import RenameTeamModal from './RenameTeamModal';
+import InviteUserModal from './InviteUserModal';
 
 /*
   Minimal in-file auth utilities and request helpers.
@@ -32,10 +30,36 @@ export default function UserLoginTest(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(false);
   const [newTeamName, setNewTeamName] = useState<string>('');
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
+
+  // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
-  const { data: members } = useAPI('teams', ['getMembers'], {
-    teamId: authContext?.team?.id,
+
+  // Expose mutate for members so we can re-fetch after role change
+  const { data: members, mutate: membersMutate } = useAPI(
+    'teams',
+    ['getMembers'],
+    {
+      teamId: authContext?.team?.id,
+    },
+  );
+
+  // Simplify errors: show all errors under the "Members" title
+  const [roleError, setRoleError] = useState<string | undefined>(undefined);
+
+  const iAmOwner = members?.members?.some((m: any) => {
+    return m.user_id === authContext.user?.id && m.role === 'owner';
   });
+
+  // Clear all role errors or add an error text
+  function handleSetRoleError(message?: string) {
+    if (!message) {
+      setRoleError(undefined);
+    } else {
+      setRoleError(message);
+    }
+  }
 
   async function handleNewTeam() {
     setLoading(true);
@@ -71,18 +95,60 @@ export default function UserLoginTest(): JSX.Element {
     }
   }
 
+  async function handleUpdateRole(userId: string, currentRole: string) {
+    // No team selected / invalid input
+    const teamId = authContext?.team?.id;
+    if (!teamId || !userId) return;
+
+    const newRole = currentRole === 'owner' ? 'member' : 'owner';
+
+    // Clear errors when we start a change
+    handleSetRoleError(undefined);
+
+    try {
+      const res = await authContext.fetchWithAuth(
+        `teams/${teamId}/members/${userId}/role`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ role: newRole }),
+        },
+      );
+
+      if (!res.ok) {
+        // Try to read JSON or text error body
+        let bodyText: string;
+        try {
+          const json = await res.json();
+          bodyText = json && json.detail ? json.detail : JSON.stringify(json);
+        } catch {
+          bodyText = await res.text();
+        }
+
+        handleSetRoleError(bodyText || 'Failed to update role');
+        return;
+      }
+
+      // success — refetch members so UI updates, clear any errors
+      if (membersMutate) membersMutate();
+      handleSetRoleError(undefined);
+    } catch (e: any) {
+      handleSetRoleError(e?.message ?? String(e));
+    }
+  }
+
   return (
     <div>
+      <Typography level="h2" mb={2}>
+        Team Settings
+      </Typography>
       <Box>
         <Typography level="title-lg" mb={1}>
-          Current Workspace:
+          Current Team:
         </Typography>
-        <Stack
-          direction="row"
-          spacing={2}
-          alignItems="center"
-          sx={{ width: '100%' }}
-        >
+        <Stack direction="row" spacing={2} alignItems="center" maxWidth={500}>
           <Select
             value={authContext.team?.id ?? ''}
             onChange={(_, value) => {
@@ -98,7 +164,7 @@ export default function UserLoginTest(): JSX.Element {
               }
             }}
             disabled={loading}
-            aria-label="Select workspace"
+            aria-label="Select team"
             sx={{ minWidth: 300 }}
           >
             {teams?.teams.map((team: any) => (
@@ -116,7 +182,7 @@ export default function UserLoginTest(): JSX.Element {
               variant="soft"
               startDecorator={<PlusIcon />}
             >
-              New Workspace
+              New Team
             </Button>
 
             <Modal
@@ -124,26 +190,25 @@ export default function UserLoginTest(): JSX.Element {
               onClose={() => setOpenNewTeamModal(false)}
             >
               <ModalDialog
-                aria-labelledby="new-workspace-title"
+                aria-labelledby="new-team-title"
                 sx={{ minWidth: 320 }}
               >
                 <ModalClose />
-                <Typography id="new-workspace-title" level="h4">
-                  New Workspace Name
+                <Typography id="new-team-title" level="h4">
+                  New Team Name
                 </Typography>
 
                 <Box sx={{ mt: 2 }}>
                   <Input
-                    placeholder="Workspace name"
+                    placeholder="Team name"
                     value={newTeamName}
                     onChange={(e: any) => setNewTeamName(e.target.value)}
                     disabled={loading}
-                    aria-label="New workspace name"
+                    aria-label="New team name"
                     size="sm"
                     autoFocus
                   />
                 </Box>
-
                 <Box
                   sx={{
                     display: 'flex',
@@ -174,40 +239,102 @@ export default function UserLoginTest(): JSX.Element {
             </Modal>
           </Box>
         </Stack>
+
+        <Stack mt={3} gap={1} maxWidth={500}>
+          <Typography level="title-lg">Team</Typography>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setRenameModalOpen(true);
+            }}
+            disabled={!iAmOwner}
+          >
+            Rename Team
+          </Button>
+          <Button variant="outlined" disabled={!iAmOwner}>
+            Set Logo
+          </Button>
+        </Stack>
+
         <Box sx={{ mt: 3 }}>
           <Typography level="title-lg" mb={1}>
-            Members:
+            Members: ({members?.members?.length ?? 0})
           </Typography>
 
-          <List>
-            {members?.members?.map((m: any, idx: number) => (
-              <ListItem key={m.id ?? m.email ?? idx}>
-                <ListItemButton>
-                  <ListItemDecorator>
-                    <User2Icon />
-                  </ListItemDecorator>
-                  <ListItemContent>
-                    <Typography fontWeight="md">{m?.email}</Typography>
-                    {m.email && (
-                      <Typography level="body2" textColor="neutral.500">
-                        Role: {m?.role}
-                      </Typography>
-                    )}
-                  </ListItemContent>
-                </ListItemButton>
-              </ListItem>
-            ))}
-            <ListItem>
-              <Typography level="body2" textColor="neutral.500">
-                Total Members: {members?.members?.length ?? 0}
+          {roleError ? (
+            <Box sx={{ mb: 0 }}>
+              <Typography level="body-sm" sx={{ color: 'red' }}>
+                {roleError}
               </Typography>
-            </ListItem>
-          </List>
-          <Button startDecorator={<PlusIcon />} variant="soft">
-            Invite Member (Coming Soon)
+            </Box>
+          ) : null}
+
+          <Table variant="soft" sx={{ mb: 2 }}>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th>&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members?.members?.map((m: any, idx: number) => (
+                <tr key={m.user_id ?? m.email ?? idx}>
+                  <td>
+                    <Stack direction="row" alignItems="center" gap={1}>
+                      <User2Icon />
+                      <Box>
+                        <Typography fontWeight="md">
+                          {m?.email ?? '—'}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </td>
+                  <td>{m?.role}</td>
+                  <td>
+                    <Box
+                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+                    >
+                      <Button
+                        variant="outlined"
+                        onClick={() => handleUpdateRole(m.user_id, m.role)}
+                      >
+                        {m?.role === 'owner'
+                          ? 'Change role to member'
+                          : 'Change role to owner'}
+                      </Button>
+
+                      {/* Per-member error display removed — all errors shown under the Members title */}
+                    </Box>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+          <Button
+            startDecorator={<PlusIcon />}
+            onClick={() => setOpenInviteModal(true)}
+            variant="soft"
+            disabled={!iAmOwner}
+          >
+            Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
           </Button>
         </Box>
       </Box>
+      <RenameTeamModal
+        open={renameModalOpen}
+        onClose={() => {
+          setRenameModalOpen(false);
+          teamsMutate();
+        }}
+        teamId={authContext.team?.id || ''}
+        currentName={authContext.team?.name || ''}
+      />
+      <InviteUserModal
+        open={openInviteModal}
+        onClose={() => setOpenInviteModal(false)}
+        teamId={authContext.team?.id || ''}
+      />
     </div>
   );
 }

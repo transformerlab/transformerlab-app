@@ -62,6 +62,9 @@ const configuration: webpack.Configuration = {
       NODE_ENV: 'production',
       DEBUG_PROD: false,
       START_MINIMIZED: false,
+      MULTIUSER: 'false',
+      TL_API_URL: 'default',
+      TL_FORCE_API_URL: 'false',
     }),
 
     new webpack.DefinePlugin({
