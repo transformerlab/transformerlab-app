@@ -1,7 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
 import os
-import asyncio
 
 # Create test directories before setting environment variables
 os.makedirs("test/tmp/workspace", exist_ok=True)
@@ -14,10 +13,6 @@ os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-o
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
 
 from api import app  # noqa: E402
-from transformerlab.shared.models.user_model import create_db_and_tables, User, AsyncSessionLocal  # noqa: E402
-from transformerlab.services.experiment_init import seed_default_admin_user  # noqa: E402
-import transformerlab.db.session as db  # noqa: E402
-from sqlalchemy import select  # noqa: E402
 
 
 class AuthenticatedTestClient(TestClient):
@@ -27,34 +22,8 @@ class AuthenticatedTestClient(TestClient):
         super().__init__(app, *args, **kwargs)
         self._token = None
         self._team_id = None
-        
-        # Initialize database and admin user BEFORE making any requests
-        asyncio.run(self._init_db_and_admin())
-        
-        # Get token for authenticated requests
         self._get_token()
     
-    async def _init_db_and_admin(self):
-        """Initialize database, create admin user, and get team ID"""
-        await db.init()
-        await create_db_and_tables()
-        await seed_default_admin_user()
-        
-        # Get the admin user's team ID
-        async with AsyncSessionLocal() as session:
-            stmt = select(User).where(User.email == "admin@example.com")
-            result = await session.execute(stmt)
-            admin_user = result.scalar_one_or_none()
-            
-            if admin_user:
-                # Get the user's first team
-                from transformerlab.shared.models.models import UserTeam
-                stmt = select(UserTeam).where(UserTeam.user_id == str(admin_user.id))
-                result = await session.execute(stmt)
-                user_team = result.scalar_one_or_none()
-                
-                if user_team:
-                    self._team_id = user_team.team_id
     
     def _get_token(self):
         """Get or refresh admin token"""
