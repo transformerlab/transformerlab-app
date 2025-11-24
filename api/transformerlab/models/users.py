@@ -5,8 +5,9 @@ from fastapi.responses import JSONResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
-from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team
-from transformerlab.shared.models.models import UserTeam, TeamRole
+from transformerlab.shared.models.models import User, UserTeam, TeamRole
+from transformerlab.db.db import get_async_session
+from transformerlab.shared.models.user_model import create_personal_team
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 from sqlalchemy.ext.asyncio import AsyncSession
 import os

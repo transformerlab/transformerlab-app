@@ -1,6 +1,7 @@
 from typing import Optional
 from sqlalchemy import String, JSON, DateTime, func, Integer, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 import uuid
 import enum
 
@@ -64,6 +65,23 @@ class Team(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class User(SQLAlchemyBaseUserTableUUID, Base):
+    """
+    User database model. Inherits from SQLAlchemyBaseUserTableUUID which provides:
+    - id (UUID primary key)
+    - email (unique, indexed)
+    - hashed_password
+    - is_active (boolean)
+    - is_superuser (boolean)
+    - is_verified (boolean)
+
+    We add custom fields below:
+    """
+
+    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
 
 class TeamRole(str, enum.Enum):
