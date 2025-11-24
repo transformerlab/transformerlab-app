@@ -1,59 +1,13 @@
-import json
 import subprocess
-from typing import Annotated
 
-from fastapi import APIRouter, Body
-import transformerlab.db.db as db
+from fastapi import APIRouter
 import transformerlab.services.job_service as job_service
 from lab import Experiment, storage
 
 from werkzeug.utils import secure_filename
 
-# @TODO hook this up to an endpoint so we can cancel a finetune
-
-
-def abort_fine_tune():
-    print("Aborting training...")
-    return "abort"
-
 
 router = APIRouter(prefix="/train", tags=["train"])
-
-
-# @router.post("/finetune_lora")
-# def finetune_lora(
-#     model: str,
-#     adaptor_name: str,
-#     text: Annotated[str, Body()],
-#     background_tasks: BackgroundTasks,
-# ):
-#     background_tasks.add_task(finetune, model, text, adaptor_name)
-
-#     return {"message": "OK"}
-
-
-@router.post("/template/create")
-async def create_training_template(
-    name: str,
-    description: str,
-    type: str,
-    config: Annotated[str, Body(embed=True)],
-):
-    configObject = json.loads(config)
-    datasets = configObject["dataset_name"]
-    await db.create_training_template(name, description, type, datasets, config)
-    return {"message": "OK"}
-
-
-@router.get("/templates")
-async def get_training_templates():
-    return await db.get_training_templates()
-
-
-@router.get("/template/{template_id}/delete")
-async def delete_training_template(template_id: str):
-    await db.delete_training_template(template_id)
-    return {"message": "OK"}
 
 
 tensorboard_process = None
