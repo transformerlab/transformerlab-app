@@ -7,13 +7,17 @@ import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
-import Textarea from '@mui/joy/Textarea';
-import { FormHelperText, ModalClose, ModalDialog } from '@mui/joy';
+import {
+  FormHelperText,
+  ModalClose,
+  ModalDialog,
+  Select,
+  Option,
+} from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 
-import DirectoryUpload from './DirectoryUpload';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 
 const { parseTmTheme } = require('monaco-themes');
@@ -24,6 +28,11 @@ function setTheme(editor: any, monaco: any) {
   monaco.editor.defineTheme('my-theme', themeData);
   monaco.editor.setTheme('my-theme');
 }
+
+type ProviderOption = {
+  id: string;
+  name: string;
+};
 
 type NewTaskModalProps = {
   open: boolean;
@@ -38,10 +47,11 @@ type NewTaskModalProps = {
     accelerators?: string;
     num_nodes?: number;
     setup?: string;
-    uploaded_dir_path?: string;
-    local_upload_copy?: string;
+    provider_id?: string;
   }) => void;
   isSubmitting?: boolean;
+  providers: ProviderOption[];
+  isProvidersLoading?: boolean;
 };
 
 export default function NewTaskModal({
@@ -49,6 +59,8 @@ export default function NewTaskModal({
   onClose,
   onSubmit,
   isSubmitting = false,
+  providers,
+  isProvidersLoading = false,
 }: NewTaskModalProps) {
   const { addNotification } = useNotification();
 
@@ -61,11 +73,24 @@ export default function NewTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
-  const [uploadedDirPath, setUploadedDirPath] = React.useState('');
-  const [localUploadCopy, setLocalUploadCopy] = React.useState('');
+  const [selectedProviderId, setSelectedProviderId] = useState('');
   // keep separate refs for the two Monaco editors
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!providers.length) {
+      setSelectedProviderId('');
+      return;
+    }
+    if (!selectedProviderId) {
+      setSelectedProviderId(providers[0].id);
+      return;
+    }
+    if (!providers.find((p) => p.id === selectedProviderId)) {
+      setSelectedProviderId(providers[0].id);
+    }
+  }, [providers, selectedProviderId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +105,14 @@ export default function NewTaskModal({
       return;
     }
 
+    if (!selectedProviderId) {
+      addNotification({
+        type: 'warning',
+        message: 'Select a provider before creating the task.',
+      });
+      return;
+    }
+
     onSubmit({
       title,
       cluster_name: clusterName,
@@ -90,8 +123,7 @@ export default function NewTaskModal({
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue,
-      uploaded_dir_path: uploadedDirPath || undefined,
-      local_upload_copy: localUploadCopy || undefined,
+      provider_id: selectedProviderId,
     });
     // Reset all form fields
     setTitle('');
@@ -103,7 +135,7 @@ export default function NewTaskModal({
     setAccelerators('');
     setNumNodes('');
     setSetup('');
-    setUploadedDirPath('');
+    setSelectedProviderId(providers[0]?.id || '');
     // clear editor contents if mounted
     try {
       setupEditorRef?.current?.setValue?.('');
@@ -144,6 +176,36 @@ export default function NewTaskModal({
                 placeholder="Task title"
                 autoFocus
               />
+            </FormControl>
+
+            <FormControl required sx={{ mt: 2 }}>
+              <FormLabel>Provider</FormLabel>
+              <Select
+                placeholder={
+                  providers.length
+                    ? 'Select a provider'
+                    : 'No providers configured'
+                }
+                value={selectedProviderId || null}
+                onChange={(_, value) => setSelectedProviderId(value || '')}
+                disabled={
+                  isSubmitting ||
+                  isProvidersLoading ||
+                  providers.length === 0
+                }
+                slotProps={{
+                  listbox: { sx: { maxHeight: 240 } },
+                }}
+              >
+                {providers.map((provider) => (
+                  <Option key={provider.id} value={provider.id}>
+                    {provider.name}
+                  </Option>
+                ))}
+              </Select>
+              <FormHelperText>
+                Choose which provider should launch this task.
+              </FormHelperText>
             </FormControl>
 
             {/* <FormControl required sx={{ mt: 2 }}>
@@ -272,16 +334,6 @@ export default function NewTaskModal({
               </FormHelperText>
             </FormControl>
 
-            <DirectoryUpload
-              onUploadComplete={(path, localPath) => {
-                setUploadedDirPath(path);
-                if (localPath) {
-                  setLocalUploadCopy(localPath);
-                }
-              }}
-              onUploadError={(error) => console.error('Upload error:', error)}
-              disabled={isSubmitting}
-            />
           </DialogContent>
           <DialogActions>
             <Button
@@ -292,7 +344,12 @@ export default function NewTaskModal({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="solid" loading={isSubmitting}>
+            <Button
+              type="submit"
+              variant="solid"
+              loading={isSubmitting}
+              disabled={isSubmitting || providers.length === 0}
+            >
               Create Task
             </Button>
           </DialogActions>

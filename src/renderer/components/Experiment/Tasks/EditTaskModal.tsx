@@ -7,16 +7,13 @@ import Button from '@mui/joy/Button';
 import FormControl from '@mui/joy/FormControl';
 import FormLabel from '@mui/joy/FormLabel';
 import Input from '@mui/joy/Input';
-import Textarea from '@mui/joy/Textarea';
 import {
   FormHelperText,
   ModalClose,
   ModalDialog,
-  Sheet,
-  Stack,
-  Typography,
+  Select,
+  Option,
 } from '@mui/joy';
-import { FolderIcon } from 'lucide-react';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
 
@@ -26,6 +23,11 @@ import { SafeJSONParse } from 'renderer/components/Shared/SafeJSONParse';
 import { useRef } from 'react';
 
 const { parseTmTheme } = require('monaco-themes');
+
+type ProviderOption = {
+  id: string;
+  name: string;
+};
 
 function setTheme(editor: any, monaco: any) {
   const themeData = parseTmTheme(fairyflossTheme);
@@ -39,6 +41,8 @@ type EditTaskModalProps = {
   onClose: () => void;
   task: any | null;
   onSaved?: () => void;
+  providers: ProviderOption[];
+  isProvidersLoading?: boolean;
 };
 
 export default function EditTaskModal({
@@ -46,6 +50,8 @@ export default function EditTaskModal({
   onClose,
   task,
   onSaved = () => {},
+  providers,
+  isProvidersLoading = false,
 }: EditTaskModalProps) {
   const { addNotification } = useNotification();
   const [title, setTitle] = React.useState('');
@@ -58,6 +64,7 @@ export default function EditTaskModal({
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
   const [saving, setSaving] = React.useState(false);
+  const [selectedProviderId, setSelectedProviderId] = React.useState('');
 
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -74,7 +81,22 @@ export default function EditTaskModal({
     setAccelerators(cfg.accelerators != null ? String(cfg.accelerators) : '');
     setNumNodes(cfg.num_nodes != null ? String(cfg.num_nodes) : '');
     setSetup(cfg.setup != null ? String(cfg.setup) : '');
+    setSelectedProviderId(cfg.provider_id || '');
   }, [task]);
+
+  React.useEffect(() => {
+    if (!providers.length) {
+      setSelectedProviderId('');
+      return;
+    }
+    if (!selectedProviderId) {
+      setSelectedProviderId(providers[0].id);
+      return;
+    }
+    if (!providers.find((p) => p.id === selectedProviderId)) {
+      setSelectedProviderId(providers[0].id);
+    }
+  }, [providers, selectedProviderId]);
 
   // Keep Monaco editors in sync if the state changes after mount
   React.useEffect(
@@ -146,6 +168,13 @@ export default function EditTaskModal({
       addNotification({ type: 'warning', message: 'Command is required' });
       return;
     }
+    if (!selectedProviderId) {
+      addNotification({
+        type: 'warning',
+        message: 'Select a provider before saving.',
+      });
+      return;
+    }
     setSaving(true);
 
     // Preserve existing config and only update editable fields
@@ -160,7 +189,14 @@ export default function EditTaskModal({
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue || undefined,
+      provider_id: selectedProviderId,
     } as any;
+    const providerMeta = providers.find(
+      (provider) => provider.id === selectedProviderId,
+    );
+    if (providerMeta) {
+      config.provider_name = providerMeta.name;
+    }
 
     const body = {
       name: title,
@@ -247,6 +283,34 @@ export default function EditTaskModal({
                 }}
                 placeholder="Task title"
               />
+            </FormControl>
+
+            <FormControl required sx={{ mt: 2 }}>
+              <FormLabel>Provider</FormLabel>
+              <Select
+                placeholder={
+                  providers.length
+                    ? 'Select a provider'
+                    : 'No providers configured'
+                }
+                value={selectedProviderId || null}
+                onChange={(_, value) => setSelectedProviderId(value || '')}
+                disabled={
+                  saving || isProvidersLoading || providers.length === 0
+                }
+                slotProps={{
+                  listbox: { sx: { maxHeight: 240 } },
+                }}
+              >
+                {providers.map((provider) => (
+                  <Option key={provider.id} value={provider.id}>
+                    {provider.name}
+                  </Option>
+                ))}
+              </Select>
+              <FormHelperText>
+                Choose which provider this template should use.
+              </FormHelperText>
             </FormControl>
 
             <div
@@ -367,24 +431,6 @@ export default function EditTaskModal({
               </FormHelperText>
             </FormControl>
 
-            {/* Show uploaded directory indicator if present */}
-            {task &&
-              (() => {
-                const cfg = SafeJSONParse(task.config, {});
-                return cfg.uploaded_dir_path ? (
-                  <Sheet
-                    variant="soft"
-                    sx={{ p: 2, borderRadius: 'md', mt: 2 }}
-                  >
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <FolderIcon size={16} />
-                      <Typography level="body-sm">
-                        This task includes an uploaded directory
-                      </Typography>
-                    </Stack>
-                  </Sheet>
-                ) : null;
-              })()}
           </DialogContent>
           <DialogActions>
             <Button
@@ -395,7 +441,12 @@ export default function EditTaskModal({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="solid" loading={saving}>
+            <Button
+              type="submit"
+              variant="solid"
+              loading={saving}
+              disabled={saving || providers.length === 0}
+            >
               Save Changes
             </Button>
           </DialogActions>

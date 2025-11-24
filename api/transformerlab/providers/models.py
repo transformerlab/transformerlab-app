@@ -30,6 +30,9 @@ class JobState(str, Enum):
 class ClusterConfig(BaseModel):
     """Configuration for launching a cluster."""
 
+    cluster_name: Optional[str] = None
+    provider_name: Optional[str] = None
+    provider_id: Optional[str] = None
     # Resource specifications
     instance_type: Optional[str] = None
     cpus: Optional[Union[int, str]] = None

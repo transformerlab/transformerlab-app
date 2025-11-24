@@ -42,6 +42,12 @@ Endpoints.Tasks = {
     `${API_URL()}tasks/local_gallery/${taskDir}/files/${filePath}`,
 };
 
+Endpoints.Providers = {
+  List: () => `${API_URL()}providers`,
+  LaunchTask: (providerId: string) =>
+    `${API_URL()}providers/${providerId}/tasks/launch`,
+};
+
 Endpoints.Workflows = {
   ListInExperiment: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/list`,

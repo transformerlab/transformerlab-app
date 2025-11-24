@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Union
+from pydantic import BaseModel, Field
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth2 import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
@@ -29,8 +30,35 @@ from transformerlab.providers.models import (
     JobInfo,
     JobState,
 )
+from transformerlab.services import job_service
 
 router = APIRouter(tags=["providers"])
+
+
+class ProviderTaskLaunchRequest(BaseModel):
+    """Payload for launching a remote task via providers."""
+
+    experiment_id: str = Field(..., description="Experiment that owns the job")
+    task_name: Optional[str] = Field(None, description="Friendly task name")
+    cluster_name: Optional[str] = Field(None, description="Base cluster name, suffix is appended automatically")
+    command: str = Field(..., description="Command to execute on the cluster")
+    subtype: Optional[str] = Field(None, description="Optional subtype for filtering")
+    cpus: Optional[str] = None
+    memory: Optional[str] = None
+    disk_space: Optional[str] = None
+    accelerators: Optional[str] = None
+    num_nodes: Optional[int] = None
+    setup: Optional[str] = None
+    provider_name: Optional[str] = None
+
+
+def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
+    """Return a filesystem-safe cluster base name."""
+    if not base_name:
+        return "remote-task"
+    normalized = "".join(ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in base_name.strip())
+    normalized = normalized.strip("-_")
+    return normalized or "remote-task"
 
 
 @router.get("/providers", response_model=List[ProviderRead])
@@ -301,6 +329,11 @@ async def launch_cluster(
         # Get provider instance
         provider_instance = get_provider_instance(provider)
 
+        if not config.cluster_name:
+            config.cluster_name = cluster_name
+        config.provider_name = provider.name
+        config.provider_id = provider.id
+
         # Launch cluster
         result = provider_instance.launch_cluster(cluster_name, config)
 
@@ -313,6 +346,125 @@ async def launch_cluster(
     except Exception as e:
         print(f"Failed to launch cluster: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to launch cluster")
+
+
+@router.post("/providers/{provider_id}/tasks/launch")
+async def launch_task_on_provider(
+    provider_id: str,
+    request: ProviderTaskLaunchRequest,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Create a REMOTE job and launch a provider-backed cluster.
+    Mirrors the legacy /remote/launch flow but routes through providers.
+    """
+
+    team_id = user_and_team["team_id"]
+    user = user_and_team["user"]
+
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    provider_instance = get_provider_instance(provider)
+
+    job_id = job_service.job_create(
+        type="REMOTE",
+        status="LAUNCHING",
+        experiment_id=request.experiment_id,
+    )
+
+    base_name = request.cluster_name or request.task_name or provider.name
+    formatted_cluster_name = f"{_sanitize_cluster_basename(base_name)}-job-{job_id}"
+
+    user_info = {}
+    if getattr(user, "first_name", None) or getattr(user, "last_name", None):
+        user_info["name"] = " ".join(
+            part for part in [getattr(user, "first_name", ""), getattr(user, "last_name", "")] if part
+        ).strip()
+    if getattr(user, "email", None):
+        user_info["email"] = getattr(user, "email")
+
+    provider_display_name = request.provider_name or provider.name
+
+    job_data = {
+        "task_name": request.task_name,
+        "command": request.command,
+        "cluster_name": formatted_cluster_name,
+        "subtype": request.subtype,
+        "cpus": request.cpus,
+        "memory": request.memory,
+        "disk_space": request.disk_space,
+        "accelerators": request.accelerators,
+        "num_nodes": request.num_nodes,
+        "setup": request.setup,
+        "provider_id": provider.id,
+        "provider_type": provider.type,
+        "provider_name": provider_display_name,
+        "user_info": user_info or None,
+    }
+
+    for key, value in job_data.items():
+        if value is not None:
+            job_service.job_update_job_data_insert_key_value(job_id, key, value, request.experiment_id)
+
+    disk_size = None
+    if request.disk_space:
+        try:
+            disk_size = int(request.disk_space)
+        except (TypeError, ValueError):
+            disk_size = None
+
+    cluster_config = ClusterConfig(
+        cluster_name=formatted_cluster_name,
+        provider_name=provider_display_name,
+        provider_id=provider.id,
+        command=request.command,
+        setup=request.setup,
+        cpus=request.cpus,
+        memory=request.memory,
+        accelerators=request.accelerators,
+        num_nodes=request.num_nodes,
+        disk_size=disk_size,
+        provider_config={"requested_disk_space": request.disk_space},
+    )
+
+    try:
+        launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
+    except Exception as exc:
+        await job_service.job_update_status(
+            job_id,
+            "FAILED",
+            request.experiment_id,
+            error_msg=str(exc),
+        )
+        raise HTTPException(status_code=500, detail="Failed to launch cluster") from exc
+
+    request_id = None
+    if isinstance(launch_result, dict):
+        job_service.job_update_job_data_insert_key_value(
+            job_id,
+            "provider_launch_result",
+            launch_result,
+            request.experiment_id,
+        )
+        request_id = launch_result.get("request_id")
+        if request_id:
+            job_service.job_update_job_data_insert_key_value(
+                job_id,
+                "orchestrator_request_id",
+                request_id,
+                request.experiment_id,
+            )
+
+    return {
+        "status": "success",
+        "job_id": job_id,
+        "cluster_name": formatted_cluster_name,
+        "request_id": request_id,
+        "message": "Provider launch initiated",
+    }
 
 
 @router.post("/providers/{provider_id}/clusters/{cluster_name}/stop")

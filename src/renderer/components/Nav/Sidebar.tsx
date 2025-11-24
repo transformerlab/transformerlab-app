@@ -226,6 +226,12 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           disabled={!experimentInfo?.name}
         />
         <SubNavItem
+          title="Tasks"
+          path="/experiment/tasks"
+          icon={<StretchHorizontalIcon />}
+          disabled={!experimentInfo?.name}
+        />
+        <SubNavItem
           title="Generate"
           path="/experiment/generate"
           icon={<SquareStackIcon />}
