@@ -183,24 +183,47 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           task.experiment_id === experimentInfo?.id,
       ) || [];
 
-  // Check remote job status periodically to update LAUNCHING jobs
-  const { data: remoteJobStatus } = useSWR(
-    '/remote/check-status',
-    async (url) => {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.CheckStatus(),
-        {
-          method: 'GET',
-        },
-      );
-      return response;
-    },
-    {
-      refreshInterval: 10000, // Check every 10 seconds
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-    },
-  );
+  // Check each LAUNCHING job individually via provider endpoints
+  useEffect(() => {
+    if (!jobs || !Array.isArray(jobs)) return;
+
+    const launchingJobs = jobs.filter(
+      (job: any) =>
+        job.type === 'REMOTE' &&
+        job.status === 'LAUNCHING' &&
+        job.job_data?.provider_id, // Only check jobs with provider_id
+    );
+
+    if (launchingJobs.length === 0) return;
+
+    // Check each job individually
+    const checkJobs = async () => {
+      for (const job of launchingJobs) {
+        try {
+          const response = await fetchWithAuth(
+            chatAPI.Endpoints.Providers.CheckJobStatus(String(job.id)),
+            { method: 'GET' },
+          );
+          if (response.ok) {
+            const result = await response.json();
+            // If job was updated to COMPLETE, refresh jobs list
+            if (result.updated && result.new_status === 'COMPLETE') {
+              setTimeout(() => jobsMutate(), 0);
+            }
+          }
+        } catch (error) {
+          // Silently ignore errors for individual job checks
+          console.error(`Failed to check job ${job.id}:`, error);
+        }
+      }
+    };
+
+    // Check immediately and then every 10 seconds
+    checkJobs();
+    const interval = setInterval(checkJobs, 10000);
+
+    return () => clearInterval(interval);
+  }, [jobs, fetchWithAuth, jobsMutate]);
 
   const loading = tasksIsLoading || jobsIsLoading;
 

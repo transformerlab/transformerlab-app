@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 from pydantic import BaseModel, Field
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth2 import require_team_owner, get_user_and_team
@@ -21,7 +21,8 @@ from transformerlab.schemas.providers import (
     ProviderRead,
     mask_sensitive_config,
 )
-from transformerlab.shared.models.models import ProviderType
+from transformerlab.shared.models.models import ProviderType, TeamProvider
+from transformerlab.providers.base import Provider
 from transformerlab.providers.models import (
     ClusterConfig,
     ClusterStatus,
@@ -59,6 +60,17 @@ def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
     normalized = "".join(ch if ch.isalnum() or ch in ("-", "_") else "-" for ch in base_name.strip())
     normalized = normalized.strip("-_")
     return normalized or "remote-task"
+
+
+def _get_provider_instances(providers: list[TeamProvider]) -> Dict[str, Provider]:
+    """Instantiate providers safely."""
+    instances: Dict[str, Provider] = {}
+    for provider in providers:
+        try:
+            instances[provider.id] = get_provider_instance(provider)
+        except Exception as exc:
+            print(f"Failed to instantiate provider {provider.id}: {exc}")
+    return instances
 
 
 @router.get("/providers", response_model=List[ProviderRead])
@@ -465,6 +477,103 @@ async def launch_task_on_provider(
         "request_id": request_id,
         "message": "Provider launch initiated",
     }
+
+
+@router.get("/providers/jobs/{job_id}/check-status")
+async def check_provider_job_status(
+    job_id: str,
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Check a single REMOTE job launched via providers and update status if cluster finishes.
+    Uses provider_id and cluster_name from job_data to check the provider.
+    """
+    team_id = user_and_team["team_id"]
+
+    # Get the job
+    job = job_service.job_get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Only check REMOTE jobs in LAUNCHING state
+    if job.get("type") != "REMOTE" or job.get("status") != "LAUNCHING":
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "current_status": job.get("status"),
+            "message": "Job is not a REMOTE job in LAUNCHING state",
+        }
+
+    job_data = job.get("job_data", {}) or {}
+    provider_id = job_data.get("provider_id")
+    cluster_name = job_data.get("cluster_name")
+    experiment_id = job.get("experiment_id")
+
+    if not provider_id or not cluster_name:
+        return {
+            "status": "error",
+            "job_id": job_id,
+            "message": "Job missing provider_id or cluster_name in job_data",
+        }
+
+    # Get the provider
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        return {
+            "status": "error",
+            "job_id": job_id,
+            "message": "Provider not found or not accessible",
+        }
+
+    try:
+        provider_instance = get_provider_instance(provider)
+    except Exception as exc:
+        return {
+            "status": "error",
+            "job_id": job_id,
+            "message": f"Failed to instantiate provider: {exc}",
+        }
+
+    # Check jobs on the cluster
+    try:
+        provider_jobs = provider_instance.list_jobs(cluster_name)
+    except Exception as exc:
+        return {
+            "status": "error",
+            "job_id": job_id,
+            "message": f"Failed to list jobs for cluster {cluster_name}: {exc}",
+        }
+
+    terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
+    jobs_finished = bool(provider_jobs) and all(
+        getattr(provider_job, "state", JobState.UNKNOWN) in terminal_states for provider_job in provider_jobs
+    )
+
+    if jobs_finished:
+        try:
+            await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
+            return {
+                "status": "success",
+                "job_id": job_id,
+                "updated": True,
+                "new_status": "COMPLETE",
+                "message": "All provider jobs completed",
+            }
+        except Exception as exc:
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": f"Failed to update job status: {exc}",
+            }
+    else:
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "updated": False,
+            "current_status": "LAUNCHING",
+            "message": "Jobs still running on provider",
+        }
 
 
 @router.post("/providers/{provider_id}/clusters/{cluster_name}/stop")

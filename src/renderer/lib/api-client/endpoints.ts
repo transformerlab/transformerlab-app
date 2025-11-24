@@ -46,6 +46,8 @@ Endpoints.Providers = {
   List: () => `${API_URL()}providers`,
   LaunchTask: (providerId: string) =>
     `${API_URL()}providers/${providerId}/tasks/launch`,
+  CheckJobStatus: (jobId: string) =>
+    `${API_URL()}providers/jobs/${jobId}/check-status`,
 };
 
 Endpoints.Workflows = {
