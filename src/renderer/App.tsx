@@ -29,7 +29,7 @@ import * as chatAPI from './lib/transformerlab-api-sdk';
 import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
 import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
 import { AuthProvider, useAuth } from './lib/authContext';
-import LoginPage from './components/LoginPage';
+import LoginPage from './components/Login/LoginPage';
 
 type AppContentProps = {
   connection: string;
