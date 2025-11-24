@@ -20,6 +20,7 @@ import {
   ProgressState,
 } from 'renderer/lib/orchestrator-log-parser';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { useAuth } from 'renderer/lib/authContext';
 import OrchestratorLogsModal from './OrchestratorLogsModal';
 
 dayjs.extend(relativeTime);
@@ -46,6 +47,7 @@ interface JobProps {
 
 export default function JobProgress({ job }: JobProps) {
   const { experimentInfo } = useExperimentInfo();
+  const { fetchWithAuth } = useAuth();
   const [orchestratorProgress, setOrchestratorProgress] =
     useState<ProgressState | null>(null);
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -190,6 +192,62 @@ export default function JobProgress({ job }: JobProps) {
     }
   }, [job?.job_data?.orchestrator_request_id]);
 
+  // Shared stop handler for both LAUNCHING and RUNNING states
+  const handleStopJob = useCallback(async () => {
+    // eslint-disable-next-line no-alert
+    if (!confirm('Are you sure you want to stop this job?')) {
+      return;
+    }
+
+    if (job.type === 'REMOTE') {
+      // For REMOTE jobs, check if they have provider_id (new provider-based jobs)
+      const providerId = job.job_data?.provider_id;
+      const clusterName = job.job_data?.cluster_name;
+
+      if (providerId && clusterName) {
+        // Use the providers stop endpoint
+        try {
+          const response = await fetchWithAuth(
+            chatAPI.Endpoints.Providers.StopCluster(providerId, clusterName),
+            { method: 'POST' },
+          );
+          if (response.ok && experimentInfo?.id && job?.id) {
+            // Update job status to STOPPED
+            await chatAPI.authenticatedFetch(
+              chatAPI.Endpoints.Jobs.Update(
+                experimentInfo.id,
+                job.id,
+                'STOPPED',
+              ),
+            );
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.error('Failed to stop provider cluster:', error);
+        }
+      } else if (clusterName && job?.id) {
+        // Fallback to legacy remote stop endpoint for jobs without provider_id
+        const formData = new FormData();
+        formData.append('job_id', job.id);
+        formData.append('cluster_name', clusterName);
+        await chatAPI.authenticatedFetch(chatAPI.Endpoints.Jobs.StopRemote(), {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        // eslint-disable-next-line no-console
+        console.error(
+          'No cluster_name or provider_id found in REMOTE job data',
+        );
+      }
+    } else if (experimentInfo?.id && job?.id) {
+      // For other job types, use the regular stop endpoint
+      await chatAPI.authenticatedFetch(
+        chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
+      );
+    }
+  }, [job, experimentInfo?.id, fetchWithAuth]);
+
   // Initialize log parser for remote jobs
   useEffect(() => {
     if (job?.type === 'REMOTE' && job?.job_data?.orchestrator_request_id) {
@@ -269,6 +327,9 @@ export default function JobProgress({ job }: JobProps) {
                   View Logs
                 </Button>
               )}
+            <IconButton color="danger" onClick={handleStopJob}>
+              <StopCircleIcon size="20px" />
+            </IconButton>
           </Stack>
           {job?.job_data?.start_time && (
             <>
@@ -355,35 +416,7 @@ export default function JobProgress({ job }: JobProps) {
             </Chip>
             {progress === -1 ? '' : `${progress.toFixed(1)}%`}
             <LinearProgress determinate value={progress} sx={{ my: 1 }} />
-            <IconButton
-              color="danger"
-              onClick={async () => {
-                // eslint-disable-next-line no-alert
-                if (confirm('Are you sure you want to stop this job?')) {
-                  if (job.type === 'REMOTE') {
-                    // For REMOTE jobs, use the remote stop endpoint
-                    const clusterName = job.job_data?.cluster_name;
-                    if (clusterName) {
-                      const formData = new FormData();
-                      formData.append('job_id', job.id);
-                      formData.append('cluster_name', clusterName);
-                      await chatAPI.authenticatedFetch(
-                        chatAPI.Endpoints.Jobs.StopRemote(),
-                        { method: 'POST', body: formData },
-                      );
-                    } else {
-                      // eslint-disable-next-line no-console
-                      console.error('No cluster_name found in REMOTE job data');
-                    }
-                  } else {
-                    // For other job types, use the regular stop endpoint
-                    await chatAPI.authenticatedFetch(
-                      chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
-                    );
-                  }
-                }
-              }}
-            >
+            <IconButton color="danger" onClick={handleStopJob}>
               <StopCircleIcon size="20px" />
             </IconButton>
           </Stack>
