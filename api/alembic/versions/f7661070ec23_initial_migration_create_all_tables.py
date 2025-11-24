@@ -88,41 +88,6 @@ def upgrade() -> None:
         # op.create_index(op.f("ix_training_template_type"), "training_template", ["type"], unique=False)
         # op.create_index(op.f("ix_training_template_updated_at"), "training_template", ["updated_at"], unique=False)
 
-    # Workflow table
-    if not table_exists("workflows"):
-        op.create_table(
-            "workflows",
-            sa.Column("id", sa.Integer(), nullable=False),
-            sa.Column("name", sa.String(), nullable=True),
-            sa.Column("config", sa.JSON(), nullable=True),
-            sa.Column("status", sa.String(), nullable=True),
-            sa.Column("experiment_id", sa.Integer(), nullable=True),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.PrimaryKeyConstraint("id"),
-        )
-        op.create_index(op.f("ix_workflows_status"), "workflows", ["status"], unique=False)
-        op.create_index("idx_workflow_id_experiment", "workflows", ["id", "experiment_id"], unique=False)
-
-    # WorkflowRun table
-    if not table_exists("workflow_runs"):
-        op.create_table(
-            "workflow_runs",
-            sa.Column("id", sa.Integer(), nullable=False),
-            sa.Column("workflow_id", sa.Integer(), nullable=True),
-            sa.Column("workflow_name", sa.String(), nullable=True),
-            sa.Column("job_ids", sa.JSON(), nullable=True),
-            sa.Column("node_ids", sa.JSON(), nullable=True),
-            sa.Column("status", sa.String(), nullable=True),
-            sa.Column("current_tasks", sa.JSON(), nullable=True),
-            sa.Column("current_job_ids", sa.JSON(), nullable=True),
-            sa.Column("experiment_id", sa.Integer(), nullable=True),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.PrimaryKeyConstraint("id"),
-        )
-        op.create_index(op.f("ix_workflow_runs_status"), "workflow_runs", ["status"], unique=False)
-
     # Team table
     if not table_exists("teams"):
         op.create_table(
@@ -228,19 +193,7 @@ def downgrade() -> None:
     op.drop_table("team_invitations")
     op.drop_table("users_teams")
     op.drop_table("teams")
-    op.drop_index(op.f("ix_workflow_runs_status"), table_name="workflow_runs")
-    op.drop_table("workflow_runs")
-    op.drop_index("idx_workflow_id_experiment", table_name="workflows")
-    op.drop_index(op.f("ix_workflows_status"), table_name="workflows")
-    op.drop_table("workflows")
-    op.drop_index(op.f("ix_training_template_updated_at"), table_name="training_template")
-    op.drop_index(op.f("ix_training_template_type"), table_name="training_template")
-    op.drop_index(op.f("ix_training_template_created_at"), table_name="training_template")
-    op.drop_index(op.f("ix_training_template_name"), table_name="training_template")
-    op.drop_table("training_template")
-    op.drop_index(op.f("ix_plugins_type"), table_name="plugins")
-    op.drop_index(op.f("ix_plugins_name"), table_name="plugins")
-    op.drop_table("plugins")
+
     op.drop_index(op.f("ix_config_key"), table_name="config")
     op.drop_table("config")
     # User table - only drop if it was created by this migration
