@@ -13,8 +13,8 @@ os.environ["TRANSFORMERLAB_JWT_SECRET"] = "test-jwt-secret-for-testing-only"
 os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-only"
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
 
-# Use in-memory database for tests
-os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
+# Use in-memory database with shared cache for tests (allows multiple connections to share the same DB)
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:?cache=shared"
 
 from api import app  # noqa: E402
 
@@ -71,9 +71,10 @@ def client():
     # Initialize database and run migrations (replaces create_db_and_tables)
     asyncio.run(db.init())
 
+    # Seed admin user BEFORE creating the test client (client tries to login in __init__)
+    asyncio.run(seed_default_admin_user())
+
     with AuthenticatedTestClient(app) as c:
-        # Seed admin user after database is initialized
-        asyncio.run(seed_default_admin_user())
         yield c
 
     # Cleanup: close database connection
