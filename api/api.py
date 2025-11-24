@@ -83,7 +83,6 @@ from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
 from lab import storage
 
-from transformerlab.shared.models.user_model import create_db_and_tables
 
 from dotenv import load_dotenv
 
@@ -113,13 +112,10 @@ async def lifespan(app: FastAPI):
     # Do the following at API Startup:
     print_launch_message()
     galleries.update_gallery_cache()
-    
-    # Skip subprocess spawning in test mode
-    if os.environ.get("PYTEST_CURRENT_TEST") is None:
-        spawn_fastchat_controller_subprocess()
-    
-    await db.init()
+    spawn_fastchat_controller_subprocess()
+    await db.init()  # This now runs Alembic migrations internally
     await create_db_and_tables()
+    # create_db_and_tables() is deprecated - migrations are handled in db.init()
     print("✅ SEED DATA")
     # Seed default admin user
     await seed_default_admin_user()
