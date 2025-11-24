@@ -118,54 +118,6 @@ async def get_training_job(job_id: str):
     return job
 
 
-# @router.get("/{job_id}/output")
-# async def get_training_job_output(job_id: str, sweeps: bool = False):
-#     # First get the template Id from this job:
-#     job = job_service.job_get(job_id)
-#     if job is None:
-#         return {"checkpoints": []}
-#     job_data = job["job_data"]
-
-#     if not isinstance(job_data, dict):
-#         try:
-#             job_data = json.loads(job_data)
-#         except JSONDecodeError:
-#             print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
-#             job_data = {}
-
-#     if sweeps:
-#         output_file = job_data.get("sweep_output_file", None)
-#         if output_file is not None and storage.exists(output_file):
-#             with storage.open(output_file, "r") as f:
-#                 output = f.read()
-#             return output
-
-#     if "template_id" not in job_data:
-#         return {"error": "true"}
-
-#     template_id = job_data["template_id"]
-#     # Then get the template:
-#     template = await get_training_template(template_id)
-#     # Then get the plugin name from the template:
-#     if not isinstance(template["config"], dict):
-#         template_config = json.loads(template["config"])
-#     else:
-#         template_config = template["config"]
-#     if "plugin_name" not in template_config:
-#         return {"error": "true"}
-
-#     plugin_name = template_config["plugin_name"]
-
-#     # Now we can get the output.txt from the plugin which is stored in
-#     # /workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt
-#     output_file = storage.join(dirs.plugin_dir_by_name(plugin_name), "output.txt")
-#     if storage.exists(output_file):
-#         with storage.open(output_file, "r") as f:
-#             output = f.read()
-#         return output
-#     return ""
-
-
 @router.get("/{job_id}/tasks_output")
 async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     """
