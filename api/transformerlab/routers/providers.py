@@ -1,5 +1,6 @@
 """Router for managing team-scoped compute providers."""
 
+import os
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +33,7 @@ from transformerlab.providers.models import (
     JobState,
 )
 from transformerlab.services import job_service
+from lab import storage
 
 router = APIRouter(tags=["providers"])
 
@@ -361,6 +363,47 @@ async def launch_cluster(
         raise HTTPException(status_code=500, detail="Failed to launch cluster")
 
 
+def _generate_aws_credentials_setup(
+    aws_access_key_id: str, aws_secret_access_key: str, aws_profile: Optional[str] = None
+) -> str:
+    """
+    Generate bash script to set up AWS credentials in ~/.aws/credentials.
+
+    Args:
+        aws_access_key_id: AWS access key ID
+        aws_secret_access_key: AWS secret access key
+        aws_profile: AWS profile name (defaults to 'transformerlab-s3' if not provided)
+
+    Returns:
+        Bash script to configure AWS credentials
+    """
+    profile_name = aws_profile or os.getenv("AWS_PROFILE", "transformerlab-s3")
+
+    # Escape for bash: single quotes and special characters
+    def escape_bash(s: str) -> str:
+        return s.replace("'", "'\"'\"'").replace("\\", "\\\\").replace("$", "\\$")
+
+    escaped_access_key = escape_bash(aws_access_key_id)
+    escaped_secret_key = escape_bash(aws_secret_access_key)
+    escaped_profile = escape_bash(profile_name).replace("[", "\\[").replace("]", "\\]")
+
+    # Simple approach: create dir, remove old profile section directly, append new profile
+    setup_script = (
+        f"echo 'Setting up AWS credentials for profile: {profile_name}'; "
+        f"mkdir -p ~/.aws; "
+        f"chmod 700 ~/.aws; "
+        f"if [ -f ~/.aws/credentials ]; then "
+        f"  awk 'BEGIN{{in_profile=0}} /^\\[{escaped_profile}\\]/{{in_profile=1; next}} /^\\[/{{in_profile=0}} !in_profile{{print}}' ~/.aws/credentials > ~/.aws/credentials.new && mv ~/.aws/credentials.new ~/.aws/credentials || true; "
+        f"fi; "
+        f"echo '[{profile_name}]' >> ~/.aws/credentials; "
+        f"echo 'aws_access_key_id={escaped_access_key}' >> ~/.aws/credentials; "
+        f"echo 'aws_secret_access_key={escaped_secret_key}' >> ~/.aws/credentials; "
+        f"chmod 600 ~/.aws/credentials; "
+        f"echo 'AWS credentials configured successfully'"
+    )
+    return setup_script
+
+
 @router.post("/providers/{provider_id}/tasks/launch")
 async def launch_task_on_provider(
     provider_id: str,
@@ -401,6 +444,53 @@ async def launch_task_on_provider(
 
     provider_display_name = request.provider_name or provider.name
 
+    # Prepare environment variables - start with a copy of requested env_vars
+    env_vars = request.env_vars.copy() if request.env_vars else {}
+
+    # Extract AWS credentials from env_vars if present (keep them in env_vars for setup script access)
+    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    aws_profile = os.getenv("AWS_PROFILE")
+
+    print(f"AWS credentials: {aws_access_key_id}, {aws_secret_access_key}, {aws_profile}")
+
+    # Build setup script - prepend AWS credentials setup if credentials are provided
+    setup_commands = []
+    if aws_access_key_id and aws_secret_access_key:
+        aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
+        setup_commands.append(aws_setup)
+
+    # Add user-provided setup if any
+    if request.setup:
+        setup_commands.append(request.setup)
+
+    final_setup = ";".join(setup_commands) if setup_commands else None
+
+    # Add default environment variables
+    env_vars["_TFL_JOB_ID"] = str(job_id)
+
+    # Get TFL_STORAGE_URI from environment or storage context
+    # Check environment variable first, then try to get from storage context
+    tfl_storage_uri = os.getenv("TFL_URI")
+    if not tfl_storage_uri:
+        # Try to get from storage root_uri if it's a remote URI (s3://, gs://, etc.)
+        try:
+            storage_root = storage.root_uri()
+            # Check if it's a remote URI (not a local path)
+            if storage_root and any(
+                storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
+            ):
+                tfl_storage_uri = storage_root
+        except Exception:
+            pass
+
+    if tfl_storage_uri:
+        env_vars["TFL_STORAGE_URI"] = tfl_storage_uri
+        env_vars["_TFL_REMOTE_SKYPILOT_WORKSPACE"] = "true"
+        env_vars["AWS_PROFILE"] = aws_profile
+        # env_vars["AWS_ACCESS_KEY_ID"] = aws_access_key_id
+        # env_vars["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
+
     job_data = {
         "task_name": request.task_name,
         "command": request.command,
@@ -411,8 +501,8 @@ async def launch_task_on_provider(
         "disk_space": request.disk_space,
         "accelerators": request.accelerators,
         "num_nodes": request.num_nodes,
-        "setup": request.setup,
-        "env_vars": request.env_vars if request.env_vars else None,
+        "setup": final_setup,
+        "env_vars": env_vars if env_vars else None,
         "provider_id": provider.id,
         "provider_type": provider.type,
         "provider_name": provider_display_name,
@@ -435,8 +525,8 @@ async def launch_task_on_provider(
         provider_name=provider_display_name,
         provider_id=provider.id,
         command=request.command,
-        setup=request.setup,
-        env_vars=request.env_vars,
+        setup=final_setup,
+        env_vars=env_vars,
         cpus=request.cpus,
         memory=request.memory,
         accelerators=request.accelerators,
