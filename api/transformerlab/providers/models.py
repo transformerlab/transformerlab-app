@@ -51,6 +51,7 @@ class ClusterConfig(BaseModel):
     idle_minutes_to_autostop: Optional[int] = None
     command: Optional[str] = None  # Initial command to run
     setup: Optional[str] = None  # Setup script
+    env_vars: Dict[str, str] = Field(default_factory=dict)  # Environment variables
 
     # Additional provider-specific config
     provider_config: Dict[str, Any] = Field(default_factory=dict)

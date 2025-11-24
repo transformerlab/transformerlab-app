@@ -50,6 +50,7 @@ class ProviderTaskLaunchRequest(BaseModel):
     accelerators: Optional[str] = None
     num_nodes: Optional[int] = None
     setup: Optional[str] = None
+    env_vars: Dict[str, str] = Field(default_factory=dict, description="Environment variables as key-value pairs")
     provider_name: Optional[str] = None
 
 
@@ -411,6 +412,7 @@ async def launch_task_on_provider(
         "accelerators": request.accelerators,
         "num_nodes": request.num_nodes,
         "setup": request.setup,
+        "env_vars": request.env_vars if request.env_vars else None,
         "provider_id": provider.id,
         "provider_type": provider.type,
         "provider_name": provider_display_name,
@@ -434,6 +436,7 @@ async def launch_task_on_provider(
         provider_id=provider.id,
         command=request.command,
         setup=request.setup,
+        env_vars=request.env_vars,
         cpus=request.cpus,
         memory=request.memory,
         accelerators=request.accelerators,

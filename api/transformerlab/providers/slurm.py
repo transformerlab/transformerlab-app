@@ -110,18 +110,58 @@ class SLURMProvider(Provider):
 
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
         """
-        Launch a cluster.
+        Launch a cluster by submitting a job (similar to submit_job).
 
-        Note: SLURM doesn't support dynamic cluster provisioning in the same way.
-        This method may not be applicable for SLURM. For now, we'll return a
-        placeholder response indicating the cluster is available.
+        For SLURM, "launching" means submitting the job since clusters are pre-configured.
+        This creates a SLURM script with setup, env vars, and command, then submits it.
         """
-        # SLURM clusters are typically pre-configured
-        # This is a placeholder - actual implementation depends on SLURM setup
+        # Create a temporary SLURM script
+        script_content = "#!/bin/bash\n"
+        script_content += f"#SBATCH --job-name={cluster_name}\n"
+
+        if config.num_nodes and config.num_nodes > 1:
+            script_content += f"#SBATCH --nodes={config.num_nodes}\n"
+
+        # Add setup commands if provided
+        if config.setup:
+            script_content += f"\n# Setup commands\n{config.setup}\n"
+
+        # Add environment variables
+        for key, value in config.env_vars.items():
+            script_content += f"export {key}={value}\n"
+
+        # Add the main command
+        if config.command:
+            script_content += f"\n# Main command\n{config.command}\n"
+
+        if self.mode == "ssh":
+            # Write script to remote and submit
+            script_name = f"/tmp/cluster_{cluster_name}.sh"
+            # Create script using heredoc and submit
+            command = f'cat > {script_name} << "EOFSLURM"\n{script_content}\nEOFSLURM\nsbatch {script_name}'
+            output = self._ssh_execute(command)
+            # Parse job ID from output: "Submitted batch job 12345"
+            job_id = None
+            for line in output.split("\n"):
+                if "Submitted batch job" in line:
+                    job_id = line.split()[-1]
+                    break
+        else:
+            # REST API - POST to /slurm/v0.0.39/job/submit
+            data = {
+                "script": script_content,
+                "job": {
+                    "name": cluster_name,
+                },
+            }
+            result = self._rest_request("POST", "/slurm/v0.0.39/job/submit", data=data)
+            job_id = result.get("job_id")
+
         return {
             "cluster_name": cluster_name,
-            "message": "SLURM cluster assumed to be pre-configured",
-            "status": "available",
+            "job_id": job_id,
+            "message": "SLURM job submitted",
+            "status": "submitted",
         }
 
     def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:

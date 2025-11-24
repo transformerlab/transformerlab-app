@@ -13,9 +13,12 @@ import {
   ModalDialog,
   Select,
   Option,
+  IconButton,
+  Stack,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
+import { Trash2Icon, PlusIcon } from 'lucide-react';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
@@ -63,6 +66,9 @@ export default function EditTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
+  const [envVars, setEnvVars] = React.useState<Array<{ key: string; value: string }>>([
+    { key: '', value: '' },
+  ]);
   const [saving, setSaving] = React.useState(false);
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
 
@@ -82,6 +88,16 @@ export default function EditTaskModal({
     setNumNodes(cfg.num_nodes != null ? String(cfg.num_nodes) : '');
     setSetup(cfg.setup != null ? String(cfg.setup) : '');
     setSelectedProviderId(cfg.provider_id || '');
+    // Initialize env_vars from config
+    if (cfg.env_vars && typeof cfg.env_vars === 'object') {
+      const envVarsArray = Object.entries(cfg.env_vars).map(([key, value]) => ({
+        key,
+        value: String(value),
+      }));
+      setEnvVars(envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }]);
+    } else {
+      setEnvVars([{ key: '', value: '' }]);
+    }
   }, [task]);
 
   React.useEffect(() => {
@@ -177,6 +193,14 @@ export default function EditTaskModal({
     }
     setSaving(true);
 
+    // Convert env_vars array to object, filtering out empty entries
+    const envVarsObj: Record<string, string> = {};
+    envVars.forEach(({ key, value }) => {
+      if (key.trim() && value.trim()) {
+        envVarsObj[key.trim()] = value.trim();
+      }
+    });
+
     // Preserve existing config and only update editable fields
     const existingConfig = SafeJSONParse(task.config, {});
     const config = {
@@ -189,6 +213,7 @@ export default function EditTaskModal({
       accelerators: accelerators || undefined,
       num_nodes: numNodes ? parseInt(numNodes, 10) : undefined,
       setup: setupValue || undefined,
+      env_vars: Object.keys(envVarsObj).length > 0 ? envVarsObj : undefined,
       provider_id: selectedProviderId,
     } as any;
     const providerMeta = providers.find(
@@ -399,6 +424,60 @@ export default function EditTaskModal({
               />
               <FormHelperText>
                 e.g. <code>pip install -r requirements.txt</code>
+              </FormHelperText>
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>Environment Variables</FormLabel>
+              <Stack spacing={1}>
+                {envVars.map((envVar, index) => (
+                  <Stack key={index} direction="row" spacing={1} alignItems="center">
+                    <Input
+                      placeholder="Key"
+                      value={envVar.key}
+                      onChange={(e) => {
+                        const newEnvVars = [...envVars];
+                        newEnvVars[index].key = e.target.value;
+                        setEnvVars(newEnvVars);
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <Input
+                      placeholder="Value"
+                      value={envVar.value}
+                      onChange={(e) => {
+                        const newEnvVars = [...envVars];
+                        newEnvVars[index].value = e.target.value;
+                        setEnvVars(newEnvVars);
+                      }}
+                      sx={{ flex: 1 }}
+                    />
+                    <IconButton
+                      color="danger"
+                      variant="plain"
+                      onClick={() => {
+                        if (envVars.length > 1) {
+                          setEnvVars(envVars.filter((_, i) => i !== index));
+                        } else {
+                          setEnvVars([{ key: '', value: '' }]);
+                        }
+                      }}
+                    >
+                      <Trash2Icon size={16} />
+                    </IconButton>
+                  </Stack>
+                ))}
+                <Button
+                  variant="outlined"
+                  size="sm"
+                  startDecorator={<PlusIcon size={16} />}
+                  onClick={() => setEnvVars([...envVars, { key: '', value: '' }])}
+                >
+                  Add Environment Variable
+                </Button>
+              </Stack>
+              <FormHelperText>
+                Optional environment variables to set when launching the cluster
               </FormHelperText>
             </FormControl>
 

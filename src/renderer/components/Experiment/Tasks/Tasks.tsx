@@ -392,6 +392,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         accelerators: data.accelerators || undefined,
         num_nodes: data.num_nodes || undefined,
         setup: data.setup || undefined,
+        env_vars: data.env_vars || undefined,
       };
 
       config.provider_id = providerMeta.id;
@@ -507,6 +508,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         accelerators: cfg.accelerators,
         num_nodes: cfg.num_nodes,
         setup: cfg.setup,
+        env_vars: cfg.env_vars || {},
         provider_name: providerMeta.name,
       };
 

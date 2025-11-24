@@ -234,7 +234,10 @@ class SkyPilotProvider(Provider):
         """Launch a cluster using SkyPilot."""
 
         # Build sky.Task object from ClusterConfig
-        task = sky.Task()
+        if config.env_vars:
+            task = sky.Task(envs=config.env_vars)
+        else:
+            task = sky.Task()
 
         # Set run command
         if config.command:
@@ -339,10 +342,15 @@ class SkyPilotProvider(Provider):
         # Add default env_vars and entrypoint_command if not already in LaunchBody
         # These are typically added by the SDK's request building, but we add them here
         # to match the expected API format
-        if self.default_env_vars:
+        # Merge user-provided env_vars with default_env_vars (user vars take precedence)
+        if config.env_vars or self.default_env_vars:
             if "env_vars" not in body_json:
                 body_json["env_vars"] = {}
-            body_json["env_vars"].update(self.default_env_vars)
+            # First add defaults, then override with user-provided env_vars
+            if self.default_env_vars:
+                body_json["env_vars"].update(self.default_env_vars)
+            if config.env_vars:
+                body_json["env_vars"].update(config.env_vars)
         if self.default_entrypoint_command:
             body_json.setdefault("entrypoint_command", self.default_entrypoint_command)
         body_json.setdefault("using_remote_api_server", False)
