@@ -18,7 +18,7 @@ import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -32,7 +32,7 @@ from fastchat.protocol.openai_api_protocol import (
 
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_create, job_get, job_update_status
-from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs
+from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs, seed_default_admin_user
 import transformerlab.db.session as db
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -54,6 +54,7 @@ from transformerlab.routers import (
     teams,
     providers,
 )
+from transformerlab.routers.auth2 import get_user_and_team
 import torch
 
 try:
@@ -116,6 +117,8 @@ async def lifespan(app: FastAPI):
     await db.init()  # This now runs Alembic migrations internally
     # create_db_and_tables() is deprecated - migrations are handled in db.init()
     print("✅ SEED DATA")
+    # Seed default admin user
+    await seed_default_admin_user()
     # Initialize experiments and cancel any running jobs
     seed_default_experiments()
     cancel_in_progress_jobs()
@@ -219,23 +222,23 @@ async def validation_exception_handler(request, exc):
 ### END GENERAL API - NOT OPENAI COMPATIBLE ###
 
 
-app.include_router(model.router)
-app.include_router(serverinfo.router)
-app.include_router(train.router)
-app.include_router(data.router)
-app.include_router(experiment.router)
-app.include_router(plugins.router)
-app.include_router(evals.router)
-app.include_router(jobs.router)
-app.include_router(tasks.router)
-app.include_router(config.router)
-app.include_router(prompts.router)
-app.include_router(tools.router)
-app.include_router(recipes.router)
-app.include_router(batched_prompts.router)
-app.include_router(remote.router)
-app.include_router(fastchat_openai_api.router)
-app.include_router(teams.router)
+app.include_router(model.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(serverinfo.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(train.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(data.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(experiment.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(plugins.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(evals.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(jobs.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(tasks.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(config.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(remote.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
+app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(auth2.router)
 app.include_router(providers.router)
 

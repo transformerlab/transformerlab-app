@@ -2,6 +2,59 @@ from lab import Experiment, Job
 from lab.dirs import get_jobs_dir
 from lab import storage
 
+from sqlalchemy import select
+from transformerlab.shared.models.user_model import User, AsyncSessionLocal
+from transformerlab.models.users import UserManager, UserCreate
+from fastapi_users.db import SQLAlchemyUserDatabase
+
+
+async def seed_default_admin_user():
+    """Create a default admin user with credentials admin@example.com / admin123 if one doesn't exist."""
+    try:
+        async with AsyncSessionLocal() as session:
+            # Check if admin user already exists
+            stmt = select(User).where(User.email == "admin@example.com")
+            result = await session.execute(stmt)
+            existing_admin = result.scalar_one_or_none()
+            
+            if existing_admin:
+                # Admin already exists, nothing to do
+                return
+            
+            user_db = SQLAlchemyUserDatabase(session, User)
+            user_manager = UserManager(user_db)
+            
+            # Create admin user using UserCreate schema
+            user_create = UserCreate(
+                email="admin@example.com",
+                password="admin123",
+                is_active=True,
+                is_superuser=True,
+            )
+            
+            # Create user with safe=False to skip verification email
+            admin_user = await user_manager.create(user_create, safe=False, request=None)
+            
+            # Get the user ID before the object becomes detached
+            admin_user_id = admin_user.id
+            
+            # Re-fetch the user from the database to get a fresh, attached instance
+            stmt = select(User).where(User.id == admin_user_id)
+            result = await session.execute(stmt)
+            admin_user = result.scalar_one()
+            
+            # Mark as verified so login works immediately
+            admin_user.is_verified = True
+            session.add(admin_user)
+            await session.commit()
+            
+            print(f"✅ Created and verified admin user admin@example.com (id={admin_user_id}, is_verified={admin_user.is_verified})")
+    except Exception as e:
+        print(f"⚠️  Error in seed_default_admin_user: {e}")
+        import traceback
+        traceback.print_exc()
+        return
+
 
 def seed_default_experiments():
     """Create a few default experiments if they do not exist (filesystem-backed)."""
