@@ -448,6 +448,7 @@ async def launch_task_on_provider(
     try:
         launch_result = provider_instance.launch_cluster(formatted_cluster_name, cluster_config)
     except Exception as exc:
+        print(f"Failed to launch cluster: {exc}")
         await job_service.job_update_status(
             job_id,
             "FAILED",
@@ -532,20 +533,22 @@ async def check_provider_job_status(
     try:
         provider_instance = get_provider_instance(provider)
     except Exception as exc:
+        print(f"Failed to instantiate provider: {exc}")
         return {
             "status": "error",
             "job_id": job_id,
-            "message": f"Failed to instantiate provider: {exc}",
+            "message": "Failed to instantiate provider",
         }
 
     # Check jobs on the cluster
     try:
         provider_jobs = provider_instance.list_jobs(cluster_name)
     except Exception as exc:
+        print(f"Failed to list jobs for cluster {cluster_name}: {exc}")
         return {
             "status": "error",
             "job_id": job_id,
-            "message": f"Failed to list jobs for cluster {cluster_name}: {exc}",
+            "message": "Failed to list jobs for cluster {cluster_name}",
         }
 
     terminal_states = {JobState.COMPLETED, JobState.FAILED, JobState.CANCELLED}
@@ -564,10 +567,11 @@ async def check_provider_job_status(
                 "message": "All provider jobs completed",
             }
         except Exception as exc:
+            print(f"Failed to update job status: {exc}")
             return {
                 "status": "error",
                 "job_id": job_id,
-                "message": f"Failed to update job status: {exc}",
+                "message": "Failed to update job status",
             }
     else:
         return {
@@ -840,9 +844,14 @@ async def get_job_logs(
                     try:
                         for line in logs:
                             if isinstance(line, bytes):
-                                yield line.decode("utf-8", errors="replace")
+                                text = line.decode("utf-8", errors="replace")
                             else:
-                                yield str(line) + "\n"
+                                text = str(line) + "\n"
+
+                            if text.startswith("Error reading logs:"):
+                                yield "Failed to retrieve logs.\n"
+                                break
+                            yield text
                     except Exception as e:
                         print(f"Error streaming logs: {str(e)}")
                         yield "\n[Error streaming logs]\n"
