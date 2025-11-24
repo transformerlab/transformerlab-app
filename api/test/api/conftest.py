@@ -13,15 +13,8 @@ os.environ["TRANSFORMERLAB_JWT_SECRET"] = "test-jwt-secret-for-testing-only"
 os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-only"
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
 
-# Use in-memory database for tests to avoid hanging
+# Use in-memory database for tests
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
-
-# Initialize database tables before importing app
-from transformerlab.shared.models.user_model import create_db_and_tables  # noqa: E402
-from transformerlab.services.experiment_init import seed_default_admin_user  # noqa: E402
-
-asyncio.run(create_db_and_tables())
-asyncio.run(seed_default_admin_user())
 
 from api import app  # noqa: E402
 
@@ -77,6 +70,13 @@ class AuthenticatedTestClient(TestClient):
 
 @pytest.fixture(scope="session")
 def client():
+    # Initialize database tables for tests
+    from transformerlab.shared.models.user_model import create_db_and_tables  # noqa: E402
+    from transformerlab.services.experiment_init import seed_default_admin_user  # noqa: E402
+    
+    asyncio.run(create_db_and_tables())
+    asyncio.run(seed_default_admin_user())
+    
     with AuthenticatedTestClient(app) as c:
         yield c
 
