@@ -4,12 +4,11 @@ import json
 import os
 import csv
 import pandas as pd
-from fastapi import APIRouter, Body, Response, Request
+from fastapi import APIRouter, Response, Request
 from fastapi.responses import StreamingResponse, FileResponse
 from lab import storage
 
 from transformerlab.shared import shared
-from typing import Annotated
 from json import JSONDecodeError
 
 from werkzeug.utils import secure_filename
@@ -20,7 +19,7 @@ from datetime import datetime
 
 import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
-from lab import dirs, Job
+from lab import Job
 from lab.dirs import get_workspace_dir
 
 router = APIRouter(prefix="/jobs", tags=["train"])
