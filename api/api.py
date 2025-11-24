@@ -113,7 +113,11 @@ async def lifespan(app: FastAPI):
     # Do the following at API Startup:
     print_launch_message()
     galleries.update_gallery_cache()
-    spawn_fastchat_controller_subprocess()
+    
+    # Skip subprocess spawning in test mode
+    if os.environ.get("PYTEST_CURRENT_TEST") is None:
+        spawn_fastchat_controller_subprocess()
+    
     await db.init()
     await create_db_and_tables()
     print("✅ SEED DATA")
