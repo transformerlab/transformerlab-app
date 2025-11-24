@@ -114,7 +114,6 @@ async def lifespan(app: FastAPI):
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()  # This now runs Alembic migrations internally
-    await create_db_and_tables()
     # create_db_and_tables() is deprecated - migrations are handled in db.init()
     print("✅ SEED DATA")
     # Seed default admin user
