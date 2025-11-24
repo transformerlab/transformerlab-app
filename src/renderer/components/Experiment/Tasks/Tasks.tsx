@@ -56,10 +56,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   } = useSWR(
     team?.id ? ['providers', team.id] : null,
     async () => {
-      const response = await fetchWithAuth(
-        chatAPI.Endpoints.Providers.List(),
-        { method: 'GET' },
-      );
+      const response = await fetchWithAuth(chatAPI.Endpoints.Providers.List(), {
+        method: 'GET',
+      });
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || 'Failed to load providers');

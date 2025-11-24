@@ -77,9 +77,9 @@ export default function NewTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
-  const [envVars, setEnvVars] = React.useState<Array<{ key: string; value: string }>>([
-    { key: '', value: '' },
-  ]);
+  const [envVars, setEnvVars] = React.useState<
+    Array<{ key: string; value: string }>
+  >([{ key: '', value: '' }]);
   const [selectedProviderId, setSelectedProviderId] = useState('');
   // keep separate refs for the two Monaco editors
   const setupEditorRef = useRef<any>(null);
@@ -206,9 +206,7 @@ export default function NewTaskModal({
                 value={selectedProviderId || null}
                 onChange={(_, value) => setSelectedProviderId(value || '')}
                 disabled={
-                  isSubmitting ||
-                  isProvidersLoading ||
-                  providers.length === 0
+                  isSubmitting || isProvidersLoading || providers.length === 0
                 }
                 slotProps={{
                   listbox: { sx: { maxHeight: 240 } },
@@ -327,7 +325,12 @@ export default function NewTaskModal({
               <FormLabel>Environment Variables</FormLabel>
               <Stack spacing={1}>
                 {envVars.map((envVar, index) => (
-                  <Stack key={index} direction="row" spacing={1} alignItems="center">
+                  <Stack
+                    key={index}
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                  >
                     <Input
                       placeholder="Key"
                       value={envVar.key}
@@ -367,7 +370,9 @@ export default function NewTaskModal({
                   variant="outlined"
                   size="sm"
                   startDecorator={<PlusIcon size={16} />}
-                  onClick={() => setEnvVars([...envVars, { key: '', value: '' }])}
+                  onClick={() =>
+                    setEnvVars([...envVars, { key: '', value: '' }])
+                  }
                 >
                   Add Environment Variable
                 </Button>
@@ -404,7 +409,6 @@ export default function NewTaskModal({
                 e.g. <code>python train.py --epochs 10</code>
               </FormHelperText>
             </FormControl>
-
           </DialogContent>
           <DialogActions>
             <Button

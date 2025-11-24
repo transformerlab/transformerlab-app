@@ -66,9 +66,9 @@ export default function EditTaskModal({
   const [accelerators, setAccelerators] = React.useState('');
   const [numNodes, setNumNodes] = React.useState('');
   const [setup, setSetup] = React.useState('');
-  const [envVars, setEnvVars] = React.useState<Array<{ key: string; value: string }>>([
-    { key: '', value: '' },
-  ]);
+  const [envVars, setEnvVars] = React.useState<
+    Array<{ key: string; value: string }>
+  >([{ key: '', value: '' }]);
   const [saving, setSaving] = React.useState(false);
   const [selectedProviderId, setSelectedProviderId] = React.useState('');
 
@@ -94,7 +94,9 @@ export default function EditTaskModal({
         key,
         value: String(value),
       }));
-      setEnvVars(envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }]);
+      setEnvVars(
+        envVarsArray.length > 0 ? envVarsArray : [{ key: '', value: '' }],
+      );
     } else {
       setEnvVars([{ key: '', value: '' }]);
     }
@@ -431,7 +433,12 @@ export default function EditTaskModal({
               <FormLabel>Environment Variables</FormLabel>
               <Stack spacing={1}>
                 {envVars.map((envVar, index) => (
-                  <Stack key={index} direction="row" spacing={1} alignItems="center">
+                  <Stack
+                    key={index}
+                    direction="row"
+                    spacing={1}
+                    alignItems="center"
+                  >
                     <Input
                       placeholder="Key"
                       value={envVar.key}
@@ -471,7 +478,9 @@ export default function EditTaskModal({
                   variant="outlined"
                   size="sm"
                   startDecorator={<PlusIcon size={16} />}
-                  onClick={() => setEnvVars([...envVars, { key: '', value: '' }])}
+                  onClick={() =>
+                    setEnvVars([...envVars, { key: '', value: '' }])
+                  }
                 >
                   Add Environment Variable
                 </Button>
@@ -509,7 +518,6 @@ export default function EditTaskModal({
                 e.g. <code>python train.py --epochs 10</code>
               </FormHelperText>
             </FormControl>
-
           </DialogContent>
           <DialogActions>
             <Button
