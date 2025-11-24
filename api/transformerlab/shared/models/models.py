@@ -19,35 +19,6 @@ class Config(Base):
     value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 
-# I believe we are not using the following table anymore as the filesystem
-# is being used to track plugins
-class Plugin(Base):
-    """Plugin definition model."""
-
-    __tablename__ = "plugins"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    type: Mapped[str] = mapped_column(String, index=True, nullable=False)
-
-
-class TrainingTemplate(Base):
-    """Training template model."""
-
-    __tablename__ = "training_template"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    type: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    datasets: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    config: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    created_at: Mapped[DateTime] = mapped_column(DateTime, index=True, server_default=func.now(), nullable=False)
-    updated_at: Mapped[DateTime] = mapped_column(
-        DateTime, index=True, server_default=func.now(), onupdate=func.now(), nullable=False
-    )
-
-
 class Workflow(Base):
     """Workflow model."""
 
