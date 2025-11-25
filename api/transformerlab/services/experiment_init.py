@@ -30,7 +30,7 @@ async def seed_default_admin_user():
                 # Check if admin user has a team
                 stmt = select(UserTeam).where(UserTeam.user_id == str(admin_user_id))
                 result = await session.execute(stmt)
-                user_team = result.scalar_one_or_none()
+                user_team = result.first()
 
                 if not user_team:
                     # Create personal team for existing admin user
