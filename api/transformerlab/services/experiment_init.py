@@ -10,6 +10,7 @@ from transformerlab.models.users import UserManager, UserCreate
 from fastapi_users.db import SQLAlchemyUserDatabase
 import os
 import shutil
+import json
 
 
 async def seed_default_admin_user():
@@ -222,8 +223,103 @@ async def migrate_workspace_to_org(team_id: str):
 
         print(f"✅ Successfully migrated workspace to: {new_workspace}")
 
+        # Update image paths in diffusion history.json files after migration
+        update_diffusion_history_paths(old_workspace, new_workspace)
+
     except Exception as e:
         print(f"⚠️  Error migrating workspace: {e}")
+        import traceback
+
+        traceback.print_exc()
+
+
+def update_diffusion_history_paths(old_workspace: str, new_workspace: str):
+    """
+    Update image paths in all diffusion history.json files after workspace migration.
+
+    This function:
+    1. Finds all history.json files in the new workspace (experiment-specific and legacy)
+    2. Updates all path fields (image_path, input_image_path, mask_image_path, processed_image)
+       to replace the old workspace path with the new one
+    """
+    try:
+        # Path fields that may contain workspace paths
+        path_fields = ["image_path", "input_image_path", "mask_image_path", "processed_image"]
+
+        # Find all history.json files in the new workspace
+        history_files = []
+
+        # Check for legacy global history.json
+        legacy_history = os.path.join(new_workspace, "diffusion", "history.json")
+        if os.path.exists(legacy_history):
+            history_files.append(legacy_history)
+
+        # Check for experiment-specific history.json files
+        experiments_dir = os.path.join(new_workspace, "experiments")
+        if os.path.exists(experiments_dir):
+            for exp_name in os.listdir(experiments_dir):
+                exp_path = os.path.join(experiments_dir, exp_name)
+                if os.path.isdir(exp_path):
+                    exp_history = os.path.join(exp_path, "diffusion", "history.json")
+                    if os.path.exists(exp_history):
+                        history_files.append(exp_history)
+
+        # Update each history.json file
+        updated_count = 0
+        for history_file in history_files:
+            try:
+                with open(history_file, "r") as f:
+                    history_data = json.load(f)
+
+                # Check if this is a list of items
+                if not isinstance(history_data, list):
+                    continue
+
+                updated = False
+                for item in history_data:
+                    if not isinstance(item, dict):
+                        continue
+
+                    # Update each path field
+                    for field in path_fields:
+                        if field in item and item[field]:
+                            old_path = item[field]
+                            # Only update if the path starts with the old workspace
+                            # Use os.path.normpath to handle path separators correctly
+                            normalized_old_path = os.path.normpath(old_path)
+                            normalized_old_workspace = os.path.normpath(old_workspace)
+                            normalized_new_workspace = os.path.normpath(new_workspace)
+
+                            # Check if path starts with old workspace (with path separator)
+                            if (
+                                normalized_old_path.startswith(normalized_old_workspace + os.sep)
+                                or normalized_old_path == normalized_old_workspace
+                            ):
+                                # Replace old workspace path with new one
+                                new_path = (
+                                    normalized_new_workspace + normalized_old_path[len(normalized_old_workspace) :]
+                                )
+                                item[field] = new_path
+                                updated = True
+
+                # Write back if any updates were made
+                if updated:
+                    with open(history_file, "w") as f:
+                        json.dump(history_data, f, indent=2)
+                    updated_count += 1
+                    print(f"   Updated paths in: {history_file}")
+
+            except (json.JSONDecodeError, IOError) as e:
+                print(f"⚠️  Error updating history file {history_file}: {e}")
+                continue
+
+        if updated_count > 0:
+            print(f"✅ Updated image paths in {updated_count} history.json file(s)")
+        else:
+            print("ℹ️  No history.json files found or no paths needed updating")
+
+    except Exception as e:
+        print(f"⚠️  Error updating diffusion history paths: {e}")
         import traceback
 
         traceback.print_exc()
