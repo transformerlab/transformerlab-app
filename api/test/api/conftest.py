@@ -15,8 +15,8 @@ os.environ["TFL_MULTITENANT"] = "false"
 # This prevents FileNotFoundError when spawn_fastchat_controller_subprocess() runs at startup
 # The file will be created in the default workspace location before org context is set
 os.makedirs("test/tmp/workspace/logs", exist_ok=True)
-with open("test/tmp/workspace/logs/controller.log", "w") as f:
-    f.write("")  # Empty dummy file
+# with open("test/tmp/workspace/logs/controller.log", "w") as f:
+#     f.write("")  # Empty dummy file
 os.environ["TRANSFORMERLAB_JWT_SECRET"] = "test-jwt-secret-for-testing-only"
 os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-only"
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
@@ -78,6 +78,8 @@ def client():
 
     asyncio.run(create_db_and_tables())
     asyncio.run(seed_default_admin_user())
+    with open("test/tmp/workspace/logs/controller.log", "w") as f:
+        f.write("")  # Empty dummy file
 
     with AuthenticatedTestClient(app) as c:
         yield c
