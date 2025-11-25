@@ -45,6 +45,11 @@ export default function LoginChip({}: Props) {
 
   const { data: teams } = useAPI('teams', ['list']);
 
+  // Don't render anything until email is available
+  if (!email) {
+    return null;
+  }
+
   return (
     <Sheet
       // onClick={() => {
@@ -127,29 +132,30 @@ export default function LoginChip({}: Props) {
             Team Settings
           </MenuItem>
           <Divider />
-          {teams?.teams.length > 0 ? (
+          {user && teams?.teams.length > 0 ? (
             // header indicator for teams (non-interactive)
             <MenuItem disabled>Select Team:</MenuItem>
           ) : null}
-          {teams?.teams.map((t: any) => (
-            <MenuItem
-              key={t.id}
-              onClick={() => {
-                // try common setter names on authContext, otherwise navigate
-                authContext.setTeam(t);
-              }}
-              sx={{
-                fontWeight: authContext.team?.id === t.id ? 'bold' : 'normal',
-              }}
-            >
-              <ListItemDecorator>
-                {authContext.team?.id === t.id ? (
-                  <ArrowRightIcon size={16} strokeWidth={4} />
-                ) : null}
-              </ListItemDecorator>
-              {t.name}
-            </MenuItem>
-          ))}
+          {user &&
+            teams?.teams.map((t: any) => (
+              <MenuItem
+                key={t.id}
+                onClick={() => {
+                  // try common setter names on authContext, otherwise navigate
+                  authContext.setTeam(t);
+                }}
+                sx={{
+                  fontWeight: authContext.team?.id === t.id ? 'bold' : 'normal',
+                }}
+              >
+                <ListItemDecorator>
+                  {authContext.team?.id === t.id ? (
+                    <ArrowRightIcon size={16} strokeWidth={4} />
+                  ) : null}
+                </ListItemDecorator>
+                {t.name}
+              </MenuItem>
+            ))}
           <Divider />
           <MenuItem
             onClick={() => {
