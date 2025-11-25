@@ -5,6 +5,7 @@ import {
   DEFAULT_API_FALLBACK,
   parseCallbackParams,
   processAuthCallback,
+  processFastAPIUsersOAuthCallback,
 } from './authCallbackUtils';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 
@@ -21,7 +22,16 @@ function isAuthCallbackLocation(loc: Location) {
   const normalizedHash = hash.startsWith('#') ? hash.slice(1) : hash;
   const pathPart = normalizedHash.split('?')[0];
   const normalizedPath = pathPart.startsWith('/') ? pathPart : `/${pathPart}`;
-  return /(^|\/)auth\/callback(\/|$)/.test(normalizedPath);
+  if (/(^|\/)auth\/callback(\/|$)/.test(normalizedPath)) {
+    return true;
+  }
+
+  // Check for FastAPI Users Google OAuth callbacks
+  if (loc.pathname.includes('/auth/google/callback')) {
+    return true;
+  }
+
+  return false;
 }
 
 function getBasePath(loc: Location) {
@@ -64,7 +74,15 @@ export default function RootAuthCallbackHandler() {
 
         const basePath = getBasePath(window.location);
         const fallbackBase = DEFAULT_API_FALLBACK;
-        const result = await processAuthCallback(cbParams, { fallbackBase });
+        
+        // Check if this is a FastAPI Users Google OAuth callback
+        const isFastAPIUsersOAuth = (cbParams.accessToken && cbParams.code) ||
+                                    (window.location.search.includes('access_token') &&
+                                     window.location.pathname.includes('/auth/callback'));
+        
+        const result = isFastAPIUsersOAuth 
+          ? await processFastAPIUsersOAuthCallback()
+          : await processAuthCallback(cbParams, { fallbackBase });
         if (!result.ok) {
           setStatus('error');
           setMessage(result.message || 'Login failed.');
