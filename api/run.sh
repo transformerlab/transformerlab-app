@@ -21,9 +21,7 @@ load_env_files() {
     # Look for .env files in current directory only
     local env_files=(
         ".env"
-        ".env.local"
-        ".env.production"
-        ".env.development"
+        "../.env"
     )
 
     for env_file in "${env_files[@]}"; do
