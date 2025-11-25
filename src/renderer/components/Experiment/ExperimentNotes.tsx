@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { useRef, useEffect, useState } from 'react';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import Sheet from '@mui/joy/Sheet';
 

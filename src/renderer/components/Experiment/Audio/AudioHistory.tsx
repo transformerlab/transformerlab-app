@@ -11,6 +11,7 @@ import {
 import { Trash2Icon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import AudioPlayer from '../../Data/AudioPlayer';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface AudioHistoryItem {
   id: string;
@@ -144,7 +145,7 @@ const AudioHistory = React.forwardRef<HTMLDivElement, AudioHistoryProps>(
                             experimentId,
                           },
                         );
-                        await fetch(deleteURL, {
+                        await fetchWithAuth(deleteURL, {
                           method: 'DELETE',
                         });
                         mutateHistory();
