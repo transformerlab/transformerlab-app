@@ -10,7 +10,7 @@ from transformerlab.services.auth import AuthenticatedIdentity, auth_service
 
 from .api_key_auth import get_user_or_api_key
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth-workos-deprecated"], deprecated=True)
 
 
 @router.get("/login-url")
