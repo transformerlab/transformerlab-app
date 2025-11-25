@@ -26,7 +26,6 @@ import {
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
-import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
 import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
@@ -69,7 +68,7 @@ function AppContent({
 
   const authContext = useAuth();
 
-  if (process.env.MULTIUSER === 'true' && !authContext?.isAuthenticated) {
+  if (!authContext?.isAuthenticated) {
     return <LoginPage />;
   }
 
@@ -235,8 +234,6 @@ export default function App() {
     <NotificationProvider>
       <CssVarsProvider disableTransitionOnChange theme={theme}>
         <CssBaseline />
-        {/* Handle non-hash OAuth callback (/auth/callback) before rendering the app */}
-        <RootAuthCallbackHandler />
         <AuthProvider connection={connection}>
           <ExperimentInfoProvider connection={connection}>
             <AppContent
