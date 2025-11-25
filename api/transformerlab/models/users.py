@@ -5,7 +5,9 @@ from fastapi.responses import JSONResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
-from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team
+from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
+from httpx_oauth.clients.google import GoogleOAuth2
+from transformerlab.shared.models.user_model import User, OAuthAccount, get_async_session, create_personal_team
 from transformerlab.shared.models.models import UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -135,6 +137,10 @@ async def get_user_db(session: AsyncSession = Depends(get_async_session)):
     yield SQLAlchemyUserDatabase(session, User)
 
 
+async def get_oauth_account_db(session: AsyncSession = Depends(get_async_session)):
+    yield SQLAlchemyUserDatabase(session, OAuthAccount)
+
+
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
     yield UserManager(user_db)
 
@@ -152,6 +158,24 @@ def get_jwt_strategy() -> JWTStrategy:
 def get_refresh_strategy() -> JWTStrategy:
     # Refresh token lasts for 7 days
     return JWTStrategy(secret=REFRESH_SECRET, lifetime_seconds=REFRESH_LIFETIME)
+
+
+# --- OAuth Configuration ---
+google_oauth_client = GoogleOAuth2(
+    client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
+    client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+)
+
+# Check if OAuth is properly configured
+GOOGLE_OAUTH_ENABLED = bool(
+    os.getenv("GOOGLE_OAUTH_CLIENT_ID") and 
+    os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+)
+
+if not GOOGLE_OAUTH_ENABLED:
+    print("⚠️  Google OAuth not configured. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to enable Google login.")
+else:
+    print("✅ Google OAuth configured and ready.")
 
 
 # --- Custom Authentication Backend ---
@@ -183,10 +207,36 @@ auth_backend = RefreshTokenBackend(
     get_strategy=get_jwt_strategy,
 )
 
+# OAuth backend
+class OAuthBackend(AuthenticationBackend):
+    """
+    OAuth backend that redirects to frontend callback with tokens in URL.
+    """
+
+    async def login(self, strategy: Strategy, user: User) -> Response:
+        # Generate tokens
+        access_token = await strategy.write_token(user)
+        refresh_token = await get_refresh_strategy().write_token(user)
+
+        # Redirect to frontend callback with tokens in URL
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
+        callback_url = f"{frontend_url}/#/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
+        
+        return Response(
+            status_code=302,
+            headers={"Location": callback_url}
+        )
+
+oauth_backend = OAuthBackend(
+    name="oauth",
+    transport=bearer_transport,
+    get_strategy=get_jwt_strategy,
+)
+
 # --- FastAPIUsers Instance ---
 fastapi_users = FastAPIUsers[User, uuid.UUID](
     get_user_manager,
-    [auth_backend],
+    [auth_backend, oauth_backend],
 )
 
 current_active_user = fastapi_users.current_user(active=True)
