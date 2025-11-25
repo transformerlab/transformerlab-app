@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from 'renderer/lib/api-client/hooks';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import ImportModelsBar from './ImportModelsBar';
