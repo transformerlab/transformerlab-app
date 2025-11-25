@@ -20,7 +20,7 @@ import {
   Type,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import TensorboardModal from '../Train/TensorboardModal';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
@@ -358,16 +358,16 @@ const EvalJobsTable = () => {
                 <Checkbox
                   size="sm"
                   indeterminate={
-                    selected.length > 0 && selected.length !== jobs.length
+                    selected.length > 0 && selected.length !== jobs?.length
                   }
-                  checked={selected.length === jobs.length}
+                  checked={selected.length === jobs?.length}
                   onChange={(event) => {
                     setSelected(
                       event.target.checked ? jobs.map((row) => row.id) : [],
                     );
                   }}
                   color={
-                    selected.length > 0 || selected.length === jobs.length
+                    selected.length > 0 || selected.length === jobs?.length
                       ? 'primary'
                       : undefined
                   }

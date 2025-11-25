@@ -9,7 +9,7 @@ import {
 } from '@mui/joy';
 
 import DatasetTable from './DatasetTable';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import DatasetPreviewEditImage from './DatasetPreviewEditImage';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';

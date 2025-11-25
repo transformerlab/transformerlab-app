@@ -8,7 +8,7 @@ import {
 } from '@mui/joy';
 import { Trash2Icon } from 'lucide-react';
 import { useState } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ViewOutputModalStreaming from './ViewOutputModalStreaming';
 import JobProgress from '../Train/JobProgress';

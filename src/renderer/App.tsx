@@ -3,7 +3,7 @@ import { CssVarsProvider } from '@mui/joy/styles';
 import CssBaseline from '@mui/joy/CssBaseline';
 import Box from '@mui/joy/Box';
 
-// import useSWR from 'swr'; // REMOVE: No longer needed here
+// import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext'; // REMOVE: No longer needed here
 import { ChevronDownIcon, ChevronUpIcon } from 'lucide-react';
 import { IconButton } from '@mui/joy';
 import Sidebar from './components/Nav/Sidebar';

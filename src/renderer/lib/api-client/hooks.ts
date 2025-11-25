@@ -1,7 +1,10 @@
 /**
  * SWR hooks
  */
-import useSWR from 'swr';
+import {
+  fetchWithAuth,
+  useSWRWithAuth as useSWR,
+} from 'renderer/lib/authContext';
 import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
 import { authenticatedFetch } from './functions';
@@ -11,18 +14,12 @@ export const fetcher = async (
   init?: RequestInit,
   parseJson: boolean = true,
 ): Promise<any> => {
-  const accessToken = await getAccessToken();
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init?.headers as Record<string, string>),
   };
 
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
-  }
-
-  const response = await authenticatedFetch(input as any, {
+  const response = await fetchWithAuth(input as any, {
     ...init,
     headers,
   });

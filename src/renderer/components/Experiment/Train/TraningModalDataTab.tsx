@@ -12,7 +12,7 @@ import {
   Typography,
   Alert,
 } from '@mui/joy';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { parse } from 'path';
 import DatasetTable from 'renderer/components/Data/DatasetTable';

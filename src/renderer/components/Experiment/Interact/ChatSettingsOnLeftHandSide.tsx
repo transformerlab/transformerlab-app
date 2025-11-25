@@ -8,7 +8,7 @@ import {
   Typography,
 } from '@mui/joy';
 import { useState } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import MainGenerationConfigKnobs from './MainGenerationConfigKnobs';
 import PreviousMessageList from './PreviousMessageList';
 import PromptSettingsModal from './PromptSettingsModal';
