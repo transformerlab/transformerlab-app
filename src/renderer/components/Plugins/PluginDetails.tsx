@@ -39,7 +39,7 @@ import fairyflossTheme from '../Shared/fairyfloss.tmTheme.js';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext.js';
 
 function ListPluginFiles({

@@ -8,6 +8,7 @@ import {
   FormContextType,
 } from '@rjsf/utils';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 function ModelProviderWidget<
   T = any,
@@ -128,7 +129,7 @@ function ModelProviderWidget<
     const fetchConfigValues = async () => {
       const configResults = await Promise.all(
         configKeysInOrder.map(async (key) => {
-          const response = await fetch(
+          const response = await fetchWithAuth(
             chatAPI.getAPIFullPath('config', ['get'], { key }),
           );
           if (!response.ok) {

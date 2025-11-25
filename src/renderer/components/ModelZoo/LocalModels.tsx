@@ -8,7 +8,7 @@ import { useLocation } from 'react-router-dom';
 import CurrentFoundationInfo from '../Experiment/Foundation/CurrentFoundationInfo';
 import ImportModelsBar from './ImportModelsBar';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import Welcome from '../Welcome/Welcome';
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import {
   Box,
@@ -22,6 +22,7 @@ import DatasetCard from './DatasetCard';
 import NewDatasetModal from './NewDatasetModal';
 
 import { fetcher } from '../../lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export function filterByFiltersDatasetID(data, searchText = '', filters = {}) {
   return data.filter((row) => {
@@ -187,7 +188,7 @@ export default function LocalDatasets() {
                     // this triggers UI changes while download is in progress
                     setDownloadingDataset(dataset);
                     // Datasets can be very large so do this asynchronously
-                    fetch(
+                    fetchWithAuth(
                       chatAPI.Endpoints.Dataset.Download(dataset, configName),
                     )
                       .then((response) => {

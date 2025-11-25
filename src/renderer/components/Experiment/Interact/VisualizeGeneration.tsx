@@ -21,6 +21,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function VisualizeGeneration({
   tokenCount,
@@ -147,7 +148,7 @@ export default function VisualizeGeneration({
       };
 
       // Make fetch request
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

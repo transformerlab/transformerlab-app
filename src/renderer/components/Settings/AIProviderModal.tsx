@@ -13,6 +13,7 @@ import {
 
 import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface Provider {
   name: string;
@@ -35,7 +36,7 @@ export default function AIProviderModal({
   });
 
   const saveProvider = async (provider: Provider, token: string) => {
-    await fetch(
+    await fetchWithAuth(
       getAPIFullPath('config', ['set'], {
         key: provider.keyName,
         value: token,

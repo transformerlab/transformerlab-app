@@ -9,6 +9,7 @@ import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 dayjs.extend(relativeTime);
 dayjs.extend(duration);
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface JobData {
   start_time?: string;
@@ -63,7 +64,7 @@ export default function JobProgress({ job }: JobProps) {
               color="danger"
               onClick={async () => {
                 confirm('Are you sure you want to stop this job?') &&
-                  (await fetch(
+                  (await fetchWithAuth(
                     chatAPI.Endpoints.Jobs.Stop(experimentInfo.id, job.id),
                   ));
               }}

@@ -25,13 +25,14 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { Bar, ResponsiveBar } from '@nivo/bar';
 import { ResponsiveLine } from '@nivo/line';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 // write a fetcher that uses POST:
 const fetcher = (url: string, body: Record<string, unknown>) =>
-  fetch(url, {
+  fetchWithAuth(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -236,7 +237,7 @@ export default function ModelLayerVisualization({
           adaptor: currentAdaptor || '',
         }),
       );
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

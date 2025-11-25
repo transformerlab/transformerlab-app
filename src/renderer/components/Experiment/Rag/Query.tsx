@@ -22,6 +22,7 @@ import { SendHorizonalIcon } from 'lucide-react';
 
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 /* Pass this function an error from the RAG query and it will attempt to diagnose the error and return a helpful message */
 const tryToDiagnoseRAGError = (error: string) => {
@@ -44,7 +45,7 @@ export default function Query({ experimentInfo }) {
     }
     setIsLoading(true);
     setResponse({ response: '' });
-    const response = await fetch(
+    const response = await fetchWithAuth(
       chatAPI.Endpoints.Rag.Query(
         experimentInfo.id,
         experimentInfo?.config?.foundation,

@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { Button, CircularProgress } from '@mui/joy';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface SelectButtonProps {
   setFoundation: (model: any, additionalConfigs?: any) => void;
@@ -56,7 +57,7 @@ export default function SelectButton({
         `model_architectures:${modelArchitecture}`,
       );
 
-      const resp = await fetch(url);
+      const resp = await fetchWithAuth(url);
       if (!resp.ok) {
         throw new Error(`HTTP error! status: ${resp.status}`);
       }

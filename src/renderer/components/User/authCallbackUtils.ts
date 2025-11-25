@@ -1,6 +1,8 @@
 /* eslint-disable prefer-template */
 /* eslint-disable no-console */
 
+import { fetchWithAuth } from 'renderer/lib/authContext';
+
 export const DEFAULT_API_FALLBACK = 'http://localhost:8338/';
 
 export type CallbackParams = {
@@ -169,7 +171,7 @@ export async function processAuthCallback(
 
     if (!cb.accessToken && cb.code) {
       // Backend handles code at GET /auth/callback by redirect; here we just verify session via /auth/check
-      const response = await fetch(`${apiBase}auth/check`, {
+      const response = await fetchWithAuth(`${apiBase}auth/check`, {
         method: 'GET',
         credentials: 'include',
       });

@@ -6,6 +6,7 @@ import {
   ModalDialog,
 } from '@mui/joy';
 import { useEffect, useState } from 'react';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 export default function ResultsModal({
@@ -21,7 +22,7 @@ export default function ResultsModal({
       const output_file = `plugins/${plugin}/output.txt`;
       console.log('Fetching results from', output_file);
 
-      fetch(
+      fetchWithAuth(
         chatAPI.Endpoints.Experiment.GetGenerationOutput(
           experimentInfo?.id,
           generator,
