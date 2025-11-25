@@ -72,21 +72,8 @@ export const fetcher = async (
   init?: RequestInit,
   parseJson: boolean = true,
 ): Promise<any> => {
-  const accessToken = await getAccessToken();
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(init?.headers as Record<string, string>),
-  };
-
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
-  }
-
-  const response = await authenticatedFetch(input as any, {
-    ...init,
-    headers,
-  });
+  const response = await authenticatedFetch(input as any, init);
 
   if (!response.ok) {
     const err: any = new Error('An error occurred fetching ' + response.url);
