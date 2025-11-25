@@ -1,7 +1,7 @@
 /* eslint-disable prefer-template */
 /* eslint-disable no-console */
 
-import { fetchWithAuth } from 'renderer/lib/authContext';
+import { fetchWithAuth, updateAccessToken, updateRefreshToken } from 'renderer/lib/authContext';
 
 export const DEFAULT_API_FALLBACK = 'http://localhost:8338/';
 
@@ -104,12 +104,19 @@ export function safeSetApiUrl(
 
 export async function storeProfile(params: {
   accessToken?: string | null;
+  refreshToken?: string | null;
   name?: string | null;
   email?: string | null;
 }) {
   const w: any = window as any;
-  if (params.accessToken)
+  if (params.accessToken) {
     await w.storage.set('accessToken', params.accessToken);
+    updateAccessToken(params.accessToken);
+  }
+  if (params.refreshToken) {
+    await w.storage.set('refreshToken', params.refreshToken);
+    updateRefreshToken(params.refreshToken);
+  }
   if (params.name) await w.storage.set('userName', params.name);
   if (params.email) await w.storage.set('userEmail', params.email);
 }
@@ -123,7 +130,7 @@ export async function processAuthCallback(
     const w: any = window as any;
     const expectedState = await w.storage.get('authWorkosState');
 
-    // Updated state validation logic:
+    // Original WorkOS OAuth logic continues below...
     // Some providers / flows may return an implicit access_token *without* echoing back the state.
     // Original logic rejected this (causing white screen + requiring refresh). We now:
     // 1. Validate state only if BOTH expectedState and cb.state are present.
@@ -209,5 +216,29 @@ export async function processAuthCallback(
     };
   } catch (e) {
     return { ok: false, message: `Exception processing callback: ${e}` };
+  }
+}
+
+// Handle FastAPI Users Google OAuth callbacks
+export async function processFastAPIUsersOAuthCallback(): Promise<ProcessResult> {
+  // Handle FastAPI Users Google OAuth callback with tokens in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const accessToken = urlParams.get('access_token');
+  const refreshToken = urlParams.get('refresh_token');
+  const tokenType = urlParams.get('token_type');
+
+  if (accessToken && refreshToken) {
+    // Store the tokens
+    await storeProfile({
+      accessToken: accessToken,
+      refreshToken: refreshToken
+    });
+
+    // Clean up URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    return { ok: true, message: 'Google login successful. Redirecting...' };
+  } else {
+    return { ok: false, message: 'Google login failed: missing tokens in callback.' };
   }
 }
