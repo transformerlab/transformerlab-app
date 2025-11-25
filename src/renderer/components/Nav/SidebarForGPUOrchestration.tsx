@@ -51,20 +51,16 @@ import {
   useModelStatus,
   usePluginStatus,
   useAPI,
-  logout,
-  getAccessToken,
-  setAccessToken,
-  setRefreshToken,
   API_URL,
   apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 import { DEFAULT_API_FALLBACK } from '../User/authCallbackUtils';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
