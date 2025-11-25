@@ -47,6 +47,8 @@ export default function ProviderDetailsModal({
       );
 
       if (response.ok) {
+        setName('');
+        setConfig('');
         onClose();
       } else {
         const errorData = await response.json();
