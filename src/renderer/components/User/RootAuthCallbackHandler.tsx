@@ -74,13 +74,14 @@ export default function RootAuthCallbackHandler() {
 
         const basePath = getBasePath(window.location);
         const fallbackBase = DEFAULT_API_FALLBACK;
-        
+
         // Check if this is a FastAPI Users Google OAuth callback
-        const isFastAPIUsersOAuth = (cbParams.accessToken && cbParams.code) ||
-                                    (window.location.search.includes('access_token') &&
-                                     window.location.pathname.includes('/auth/callback'));
-        
-        const result = isFastAPIUsersOAuth 
+        const isFastAPIUsersOAuth =
+          (cbParams.accessToken && cbParams.code) ||
+          (window.location.search.includes('access_token') &&
+            window.location.pathname.includes('/auth/callback'));
+
+        const result = isFastAPIUsersOAuth
           ? await processFastAPIUsersOAuthCallback()
           : await processAuthCallback(cbParams, { fallbackBase });
         if (!result.ok) {

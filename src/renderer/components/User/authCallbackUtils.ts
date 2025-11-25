@@ -1,7 +1,11 @@
 /* eslint-disable prefer-template */
 /* eslint-disable no-console */
 
-import { fetchWithAuth, updateAccessToken, updateRefreshToken } from 'renderer/lib/authContext';
+import {
+  fetchWithAuth,
+  updateAccessToken,
+  updateRefreshToken,
+} from 'renderer/lib/authContext';
 
 export const DEFAULT_API_FALLBACK = 'http://localhost:8338/';
 
@@ -231,7 +235,7 @@ export async function processFastAPIUsersOAuthCallback(): Promise<ProcessResult>
     // Store the tokens
     await storeProfile({
       accessToken: accessToken,
-      refreshToken: refreshToken
+      refreshToken: refreshToken,
     });
 
     // Clean up URL
@@ -239,6 +243,9 @@ export async function processFastAPIUsersOAuthCallback(): Promise<ProcessResult>
 
     return { ok: true, message: 'Google login successful. Redirecting...' };
   } else {
-    return { ok: false, message: 'Google login failed: missing tokens in callback.' };
+    return {
+      ok: false,
+      message: 'Google login failed: missing tokens in callback.',
+    };
   }
 }
