@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
+import ProviderDetailsModal from './ProviderDetailsModal';
 
 /*
   Minimal in-file auth utilities and request helpers.
@@ -32,6 +33,7 @@ export default function UserLoginTest(): JSX.Element {
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
+  const [openProviderDetailsModal, setOpenProviderDetailsModal] = useState<boolean>(false);
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -359,7 +361,7 @@ export default function UserLoginTest(): JSX.Element {
                         onClick={() => alert(provider?.config)}
                         disabled
                       >
-                        Edit
+                        Details
                       </Button>
                     </Box>
                   </td>
@@ -367,6 +369,14 @@ export default function UserLoginTest(): JSX.Element {
               ))}
             </tbody>
           </Table>
+          <Button
+            startDecorator={<PlusIcon />}
+            onClick={() => setOpenProviderDetailsModal(true)}
+            variant="soft"
+            disabled={!iAmOwner}
+          >
+            Add Provider {!iAmOwner ? '(Only owners can add providers)' : ''}
+          </Button>
         </Box>
       </Box>
       <RenameTeamModal
@@ -381,6 +391,11 @@ export default function UserLoginTest(): JSX.Element {
       <InviteUserModal
         open={openInviteModal}
         onClose={() => setOpenInviteModal(false)}
+        teamId={authContext.team?.id || ''}
+      />
+      <ProviderDetailsModal
+        open={openProviderDetailsModal}
+        onClose={() => setOpenProviderDetailsModal(false)}
         teamId={authContext.team?.id || ''}
       />
     </div>
