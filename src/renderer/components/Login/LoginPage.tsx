@@ -131,7 +131,12 @@ export default function LoginPage() {
     if (token) {
       const verifyEmail = async () => {
         try {
-          let apiUrl = process.env.TL_API_URL || 'http://localhost:8338';
+          // Normalize TL_API_URL - ensure it's not "default" or empty
+          const envUrl = process.env.TL_API_URL;
+          let apiUrl =
+            !envUrl || envUrl === 'default' || envUrl.trim() === ''
+              ? 'http://localhost:8338'
+              : envUrl;
           apiUrl = apiUrl.replace(/\/$/, '');
           const url = `${apiUrl}/auth/verify`;
           const response = await fetch(url, {
