@@ -192,7 +192,6 @@ async def set_org_context(request: Request, call_next):
     try:
         org_id = None
         if os.getenv("TFL_MULTITENANT") == "true":
-            # Read team ID from X-Team-Id header instead of cookie
             # This header is automatically sent by the frontend for all authenticated requests
             org_id = request.headers.get("X-Team-Id")
         set_current_org_id(org_id)
