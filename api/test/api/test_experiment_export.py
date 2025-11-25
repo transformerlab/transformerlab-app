@@ -2,7 +2,6 @@ import os
 import json
 from transformerlab.services import experiment_service
 from transformerlab.services.tasks_service import tasks_service
-from lab.dirs import get_workspace_dir
 from lab import storage
 
 
@@ -67,7 +66,10 @@ async def test_export_experiment(client):
     # The response should be a JSON file
     assert response.headers["content-type"] == "application/json"
 
-    workspace_dir = get_workspace_dir()
+    # Get the workspace_dir using team_id from the client (org-based workspace)
+    from lab import HOME_DIR
+
+    workspace_dir = storage.join(HOME_DIR, "orgs", client._team_id, "workspace")
 
     # Read the exported file from workspace directory
     export_file = storage.join(workspace_dir, f"{test_experiment_name}_export.json")
