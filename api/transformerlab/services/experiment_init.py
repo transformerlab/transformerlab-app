@@ -149,6 +149,11 @@ async def migrate_workspace_to_org(team_id: str):
             print(f"⚠️  Could not list contents of old workspace: {old_workspace}")
             return
 
+        # Check if old workspace has a migration.txt file
+        if os.path.exists(os.path.join(old_workspace, "migration.txt")):
+            print(f"ℹ️  Old workspace has already been migrated: {old_workspace}")
+            return
+
         # Check if new workspace already exists and has content
         if os.path.exists(new_workspace):
             try:
