@@ -14,9 +14,12 @@ os.environ["TFL_MULTITENANT"] = "false"
 # Create dummy controller.log file for tests (tests don't actually use FastChat controller)
 # This prevents FileNotFoundError when spawn_fastchat_controller_subprocess() runs at startup
 # The file will be created in the default workspace location before org context is set
-os.makedirs("test/tmp/workspace/logs", exist_ok=True)
-# with open("test/tmp/workspace/logs/controller.log", "w") as f:
-#     f.write("")  # Empty dummy file
+controller_log_dir = os.path.join("test", "tmp", "workspace", "logs")
+os.makedirs(controller_log_dir, exist_ok=True)
+controller_log_path = os.path.join(controller_log_dir, "controller.log")
+# Create the file (or truncate if it exists)
+with open(controller_log_path, "w") as f:
+    f.write("")  # Empty dummy file
 os.environ["TRANSFORMERLAB_JWT_SECRET"] = "test-jwt-secret-for-testing-only"
 os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-only"
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
@@ -78,8 +81,12 @@ def client():
 
     asyncio.run(create_db_and_tables())
     asyncio.run(seed_default_admin_user())
-    with open("test/tmp/workspace/logs/controller.log", "w") as f:
-        f.write("")  # Empty dummy file
+    controller_log_dir = os.path.join("test", "tmp", "workspace", "logs")
+    os.makedirs(controller_log_dir, exist_ok=True)
+    controller_log_path = os.path.join(controller_log_dir, "controller.log")
+    # Create the file (or truncate if it exists)
+    with open(controller_log_path, "w") as f:
+        f.write("")  # Empty dummy file Empty dummy file
 
     with AuthenticatedTestClient(app) as c:
         yield c
