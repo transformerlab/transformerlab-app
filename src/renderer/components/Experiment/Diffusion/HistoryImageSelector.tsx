@@ -18,7 +18,11 @@ import {
 } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { ChevronLeftIcon, ChevronRightIcon, CheckIcon } from 'lucide-react';
-import { getAPIFullPath, useAPI } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  authenticatedFetch,
+  getAPIFullPath,
+  useAPI,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { HistoryImage } from './types';
 
 interface HistoryImageSelectorProps {
@@ -61,7 +65,7 @@ const HistoryImageSelector: React.FC<HistoryImageSelectorProps> = ({
 
     try {
       // Fetch the image as base64
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['getImage'], {
           imageId: selectedImageId,
           index: selectedImageIndex,

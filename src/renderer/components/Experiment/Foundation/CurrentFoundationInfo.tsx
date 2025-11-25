@@ -44,7 +44,7 @@ import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 const DEFAULT_EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5';
 
 const fetchWithPost = ({ url, post }) =>
-  fetch(url, {
+  authenticatedFetch(url, {
     method: 'POST',
     body: post,
   }).then((res) => res.json());
@@ -152,7 +152,7 @@ export default function CurrentFoundationInfo({
   const pollJobStatus = (jobId) => {
     const intervalId = setInterval(async () => {
       try {
-        const response = await fetch(
+        const response = await authenticatedFetch(
           chatAPI.Endpoints.Jobs.Get(experimentInfo.id, jobId),
         );
         const result = await response.json();
@@ -196,7 +196,7 @@ export default function CurrentFoundationInfo({
       alert('Please enter an adapter ID.');
       return;
     }
-    const installedResponse = await fetch(
+    const installedResponse = await authenticatedFetch(
       chatAPI.Endpoints.Models.GetPeftsForModel(),
       {
         method: 'POST',
@@ -213,7 +213,7 @@ export default function CurrentFoundationInfo({
       if (!shouldReplace) return;
 
       // Delete existing adapter first
-      await fetch(
+      await authenticatedFetch(
         getAPIFullPath('models', ['deletePeft'], {
           modelId: experimentInfo.config.foundation,
           peft: secureAdapterId,
@@ -224,7 +224,7 @@ export default function CurrentFoundationInfo({
     setCurrentlyInstalling(adapterId); // track progress immediately
 
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('models', ['installPeft'], {
           modelId: experimentInfo?.config?.foundation,
           peft: adapterId,
@@ -264,7 +264,7 @@ export default function CurrentFoundationInfo({
   const handleCancelDownload = async () => {
     if (jobId) {
       setCanceling(true);
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('jobs', ['stop'], {
           id: jobId,
           experimentId: experimentInfo?.id,
@@ -283,7 +283,7 @@ export default function CurrentFoundationInfo({
   const resetToDefaultEmbedding = async () => {
     setEmbeddingModel(DEFAULT_EMBEDDING_MODEL);
     try {
-      await fetch(
+      await authenticatedFetch(
         chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
         {
           method: 'POST',
@@ -576,27 +576,14 @@ export default function CurrentFoundationInfo({
                         variant={adaptor === peft ? 'solid' : 'soft'}
                         color="primary"
                         onClick={() => {
-                          if (adaptor === peft) {
-                            fetch(
-                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-                                experimentInfo?.id,
-                                'adaptor',
-                                '',
-                              ),
-                            ).then(() => {
-                              setAdaptor('');
-                            });
-                          } else {
-                            fetch(
-                              chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
-                                experimentInfo?.id,
-                                'adaptor',
-                                peft,
-                              ),
-                            ).then(() => {
-                              setAdaptor(peft);
-                            });
-                          }
+                          const url = chatAPI.GET_EXPERIMENT_UPDATE_CONFIG_URL(
+                            experimentInfo?.id,
+                            'adaptor',
+                            adaptor === peft ? '' : peft,
+                          );
+                          authenticatedFetch(url).then(() => {
+                            setAdaptor(adaptor === peft ? '' : peft);
+                          });
                         }}
                       >
                         {adaptor === peft ? 'Selected' : 'Select'}
@@ -610,7 +597,7 @@ export default function CurrentFoundationInfo({
                               'Are you sure you want to delete this adaptor?',
                             )
                           ) {
-                            fetch(
+                            authenticatedFetch(
                               getAPIFullPath('models', ['deletePeft'], {
                                 modelId: experimentInfo?.config?.foundation,
                                 peft,

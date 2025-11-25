@@ -39,6 +39,7 @@ import {
   Plug2Icon,
 } from 'lucide-react';
 import {
+  authenticatedFetch,
   getAPIFullPath,
   useServerStats,
   useAPI,
@@ -292,7 +293,7 @@ export default function Diffusion() {
       if (!selectedPlugin || !experimentInfo?.id) return;
 
       try {
-        const res = await fetch(
+        const res = await authenticatedFetch(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {
             experimentId: experimentInfo.id,
           }),
@@ -351,7 +352,7 @@ export default function Diffusion() {
   const checkImg2ImgEligibility = async () => {
     setIsImg2ImgEligible(null);
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),
@@ -372,7 +373,7 @@ export default function Diffusion() {
   const checkInpaintingEligibility = async () => {
     setIsInpaintingEligible(null);
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),
@@ -450,7 +451,7 @@ export default function Diffusion() {
   // Intermediate image generation helper functions
   const getGenerationId = async (): Promise<string | null> => {
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['generateId'], {
           experimentId: experimentId,
         }),
@@ -497,7 +498,7 @@ export default function Diffusion() {
           imageId: genId,
           index: 0,
         });
-        const stepResponse = await fetch(`${stepUrl}&step=true`);
+        const stepResponse = await authenticatedFetch(`${stepUrl}&step=true`);
         if (stepResponse.ok) {
           const blob = await stepResponse.blob();
           const imageUrl = URL.createObjectURL(blob);
@@ -514,7 +515,7 @@ export default function Diffusion() {
             experimentId,
             generationId: genId,
           });
-          const resultResponse = await fetch(resultUrl);
+          const resultResponse = await authenticatedFetch(resultUrl);
           if (resultResponse.ok) {
             const json = await resultResponse.json();
             hasReceivedJson = true;
@@ -552,7 +553,7 @@ export default function Diffusion() {
     return new Promise((resolve) => {
       const poll = async () => {
         try {
-          const res = await fetch(
+          const res = await authenticatedFetch(
             getAPIFullPath('jobs', ['get'], {
               id: jobId,
               experimentId: experimentInfo?.id,
@@ -696,7 +697,7 @@ export default function Diffusion() {
         },
       );
 
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['generate'], {
           experimentId: experimentId,
         }),
@@ -786,7 +787,7 @@ export default function Diffusion() {
         requestBody.height = Number(inpaintingImageHeight);
       }
 
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['generate'], {
           experimentId: experimentId,
         }),
@@ -896,7 +897,7 @@ export default function Diffusion() {
   const checkValidDiffusion = async () => {
     setIsStableDiffusion(null);
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['checkValidDiffusion'], {
           experimentId: experimentId,
         }),

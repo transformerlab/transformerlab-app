@@ -57,6 +57,7 @@ import {
   getAccessToken,
   setAccessToken,
   setRefreshToken,
+  authenticatedFetch,
   API_URL,
 } from 'renderer/lib/transformerlab-api-sdk';
 
@@ -109,7 +110,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         const url = getAPIFullPath('models', ['pipeline_tag'], {
           modelName: experimentInfo.config.foundation,
         });
-        const response = await fetch(url, { method: 'GET' });
+        const response = await authenticatedFetch(url, { method: 'GET' });
         if (!response.ok) {
           setPipelineTag(null);
         } else {
@@ -131,7 +132,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
 
       // Otherwise, check diffusion
       try {
-        const response = await fetch(
+        const response = await authenticatedFetch(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {
             experimentId: experimentInfo.id,
           }),

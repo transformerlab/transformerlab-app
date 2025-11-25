@@ -24,6 +24,7 @@ const OutputTerminal = ({
   const lineQueue = useRef<string[]>([]);
   const isProcessing = useRef(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleResize = debounce(() => {
     if (termRef.current) {
@@ -76,19 +77,64 @@ const OutputTerminal = ({
 
     termRef.current.writeln(initialMessage);
 
-    const eventSource = new EventSource(logEndpoint);
-    eventSource.onmessage = (event) => {
-      if (termRef.current) {
-        const lines = JSON.parse(event.data);
-        addLinesOneByOne(lines);
+    const streamLogs = async () => {
+      try {
+        abortControllerRef.current = new AbortController();
+        const response = await chatAPI.authenticatedFetch(logEndpoint, {
+          signal: abortControllerRef.current.signal,
+        });
+
+        if (!response.ok) {
+          console.error(`Failed to connect to log stream (${response.status})`);
+          return;
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) {
+          console.error('No response body for log stream');
+          return;
+        }
+
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+
+          const events = buffer.split('\n\n');
+          buffer = events.pop() || '';
+
+          for (const eventBlock of events) {
+            const dataLine = eventBlock
+              .split('\n')
+              .find((line) => line.startsWith('data:'));
+            if (!dataLine) continue;
+            try {
+              const payload = JSON.parse(dataLine.replace(/^data:\s*/, ''));
+              if (Array.isArray(payload)) {
+                addLinesOneByOne(payload);
+              }
+            } catch (err) {
+              console.error('Failed to parse log payload', err);
+            }
+          }
+        }
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          console.error('Error streaming logs:', error);
+        }
       }
     };
-    eventSource.onerror = (error) => {
-      console.error('EventSource failed:', error);
-    };
+
+    streamLogs();
 
     return () => {
-      eventSource.close();
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       termRef.current?.dispose();
       termRef.current = null;

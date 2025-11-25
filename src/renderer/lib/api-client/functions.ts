@@ -1,6 +1,19 @@
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from './urls';
 
+type StorageBridge = {
+  get?: (key: string) => Promise<string | null | undefined>;
+  set?: (key: string, value: string | null | undefined) => Promise<void>;
+  delete?: (key: string) => Promise<void>;
+};
+
+const getStorageBridge = (): StorageBridge | undefined => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+  return (window as any).storage as StorageBridge | undefined;
+};
+
 const ACCESS_TOKEN_KEYS = ['access_token', 'accessToken'];
 const REFRESH_TOKEN_KEYS = ['refresh_token', 'refreshToken'];
 const TEAM_KEYS = ['current_team', 'currentTeam'];
@@ -15,12 +28,17 @@ async function setBridgeValue(
   keys: string[],
   value: string | null | undefined,
 ) {
+  const storage = getStorageBridge();
+  if (!storage) {
+    return;
+  }
+
   for (const key of keys) {
     try {
       if (value !== undefined && value !== null) {
-        await window.storage?.set?.(key, value);
+        await storage.set?.(key, value);
       } else {
-        await window.storage?.delete?.(key);
+        await storage.delete?.(key);
       }
     } catch {
       /* ignore electron storage bridge errors */
@@ -47,9 +65,14 @@ function setBrowserValue(keys: string[], value: string | null | undefined) {
 }
 
 async function getBridgeValue(keys: string[]) {
+  const storage = getStorageBridge();
+  if (!storage) {
+    return null;
+  }
+
   for (const key of keys) {
     try {
-      const value = await window.storage?.get?.(key);
+      const value = await storage.get?.(key);
       if (value) {
         return value;
       }
@@ -118,7 +141,7 @@ export async function login(username: string, password: string) {
   formData.append('username', username);
   formData.append('password', password);
 
-  let result = {};
+  let result: any = {};
   try {
     const response = await fetch(loginURL, {
       method: 'POST',
@@ -239,7 +262,7 @@ export async function registerUser(
     password: password,
   };
 
-  let result = {};
+  let result: any = {};
   try {
     const response = await fetch(registerURL, {
       method: 'POST',

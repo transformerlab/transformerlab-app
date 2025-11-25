@@ -31,9 +31,9 @@ import {
   ChevronRightIcon,
 } from 'lucide-react';
 import {
+  authenticatedFetch,
   getAPIFullPath,
   useAPI,
-  authenticatedFetch,
 } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import HistoryCard from './HistoryCard';
@@ -228,7 +228,7 @@ const History: React.FC<HistoryProps> = () => {
     setDatasetError('');
 
     try {
-      const response = await fetch(
+      const response = await authenticatedFetch(
         getAPIFullPath('diffusion', ['createDataset'], {
           experimentId,
         }),
