@@ -51,14 +51,11 @@ import {
   useModelStatus,
   usePluginStatus,
   useAPI,
-  logout,
-  getAccessToken,
-  setAccessToken,
-  setRefreshToken,
   API_URL,
   apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 import { DEFAULT_API_FALLBACK } from '../User/authCallbackUtils';
 

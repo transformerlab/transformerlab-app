@@ -1,7 +1,7 @@
 import { API_URL, INFERENCE_SERVER_URL, FULL_PATH } from './urls';
 import { getMcpServerFile } from 'renderer/components/Experiment/Interact/interactUtils';
 import * as chatAPI from './endpoints';
-import { getAccessToken, authenticatedFetch } from './functions';
+import { authenticatedFetch } from './functions';
 
 export async function sendAndReceive(
   currentModel: String,
@@ -845,25 +845,15 @@ export async function callTool(
     url += (url.includes('?') ? '&' : '?') + params.join('&');
   }
 
-  const accessToken = await getAccessToken();
-  const headers: Record<string, string> = {};
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
-  const response = await authenticatedFetch(url, {
-    headers,
-  });
+  const response = await authenticatedFetch(url, {});
   const result = await response.json();
   return result;
 }
 
 export async function getAvailableModels() {
-  const accessToken = await getAccessToken();
   const headers: Record<string, string> = {};
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
-  const response = await authenticatedFetch(API_URL() + 'model/gallery', {
-    headers,
-  });
+  const response = await authenticatedFetch(API_URL() + 'model/gallery', {});
   const result = await response.json();
   return result;
 }
@@ -882,14 +872,7 @@ export async function getToolsForCompletions() {
     url += (url.includes('?') ? '&' : '?') + params.join('&');
   }
 
-  const accessToken = await getAccessToken();
-  const headers: Record<string, string> = {};
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
-  const response = await fetch(url, {
-    headers,
-    credentials: 'include',
-  });
+  const response = await fetch(url, {});
   const result = await response.json();
   return result;
 }
@@ -909,16 +892,8 @@ export async function getEmbeddings(model: string, text: string[]) {
   };
 
   try {
-    const accessToken = await getAccessToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
     const response = await authenticatedFetch(`${API_URL()}v1/embeddings`, {
       method: 'POST', // or 'PUT'
-      headers,
       body: JSON.stringify(data),
     });
     result = await response.json();
@@ -940,16 +915,8 @@ export async function tokenize(model: string, text: string) {
   };
 
   try {
-    const accessToken = await getAccessToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
     const response = await authenticatedFetch(`${API_URL()}tokenize`, {
       method: 'POST', // or 'PUT'
-      headers,
       body: JSON.stringify(data),
     });
     result = await response.json();
@@ -1024,18 +991,10 @@ export async function countTokens(model: string, text: string[]) {
   };
 
   try {
-    const accessToken = await getAccessToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
     const response = await authenticatedFetch(
       `${API_URL()}api/v1/token_check`,
       {
         method: 'POST', // or 'PUT'
-        headers,
         body: JSON.stringify(data),
       },
     );
@@ -1066,18 +1025,10 @@ export async function countChatTokens(model: string, text: any) {
   let result;
 
   try {
-    const accessToken = await getAccessToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      accept: 'application/json',
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-
     const response = await authenticatedFetch(
       `${API_URL()}v1/chat/count_tokens`,
       {
         method: 'POST', // or 'PUT'
-        headers,
         body: JSON.stringify(data),
       },
     );

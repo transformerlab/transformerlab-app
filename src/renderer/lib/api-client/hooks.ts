@@ -4,7 +4,7 @@
 import useSWR from 'swr';
 import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
-import { getAccessToken, authenticatedFetch } from './functions';
+import { authenticatedFetch } from './functions';
 
 export function useAPI(
   majorEntity: string,
@@ -19,19 +19,11 @@ export function useAPI(
   ) as any;
   const fetcher = async (url: string) => {
     // check for an access token. Will be "" if user not logged in.
-    const accessToken = await getAccessToken();
-
     console.log(
       'Deprecated: useAPI in hooks.ts called. Please use useAPI in authContext.ts instead.',
     );
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    return authenticatedFetch(url, {
-      headers,
-    }).then((res) => {
+    return authenticatedFetch(url, {}).then((res) => {
       // Check for HTTP 401 which means user is not authorized
       if (res.status === 401) {
         return {
