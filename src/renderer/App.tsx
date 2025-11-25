@@ -69,8 +69,6 @@ function AppContent({
 
   const authContext = useAuth();
 
-  debugger;
-
   if (!authContext?.isAuthenticated) {
     return <LoginPage />;
   }
