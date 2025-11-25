@@ -23,6 +23,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
 from fastchat.constants import (
     ErrorCode,
 )
@@ -32,7 +38,11 @@ from fastchat.protocol.openai_api_protocol import (
 
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_create, job_get, job_update_status
-from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs, seed_default_admin_user
+from transformerlab.services.experiment_init import (
+    seed_default_experiments,
+    cancel_in_progress_jobs,
+    seed_default_admin_user,
+)
 import transformerlab.db.session as db
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -83,10 +93,6 @@ from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
 from lab import storage
 
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
