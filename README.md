@@ -191,6 +191,9 @@ cd api
 
 Python dependencies (used by the API) are managed with `uv pip compile`. To add/change a dependency, update `requirements.in` and then refresh the platform specific files:
 
+> [!IMPORTANT]
+> You should run these commands on an NVIDIA machine, and it can run all of them. If you run on a Mac, you can only run the Mac one
+
 ```bash
 cd api
 
