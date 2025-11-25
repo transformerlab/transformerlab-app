@@ -74,7 +74,6 @@ title() {
 load_env_from_file() {
   local env_path="$1"
   if [ -f "$env_path" ]; then
-    ohai "Loading environment from $env_path"
     set -a
     # shellcheck disable=SC1090
     source "$env_path"
