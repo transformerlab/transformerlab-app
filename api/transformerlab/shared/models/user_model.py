@@ -2,8 +2,9 @@
 from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker, Mapped, mapped_column
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import String
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
+from sqlalchemy import String, UUID
+import uuid
 
 # Replace with your actual database URL (e.g., PostgreSQL, SQLite)
 from transformerlab.db.constants import DATABASE_URL
@@ -20,11 +21,21 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     - is_active (boolean)
     - is_superuser (boolean)
     - is_verified (boolean)
-    
+
     We add custom fields below:
     """
     first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+
+# 2. Define OAuth Account Model
+class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
+    """
+    OAuth account model for linking OAuth providers to users.
+    Stores OAuth provider info (Google, etc.) linked to our users.
+    """
+    # Link to user by storing their ID as string
+    user_id: Mapped[str] = mapped_column(String(36), nullable=False)  # UUID as string
 
 
 # 2. Setup the Async Engine and Session
