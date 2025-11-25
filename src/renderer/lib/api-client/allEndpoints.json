@@ -221,6 +221,10 @@
     "list": {
       "method": "GET",
       "path": "providers"
+    },
+    "create": {
+      "method": "POST",
+      "path": "providers"
     }
   },
   "auth": {
