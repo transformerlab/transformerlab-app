@@ -378,11 +378,43 @@ export async function checkDependencies() {
   }
 
   // parse returned JSON in to pipList
+  // The stdout may contain conda messages before the JSON, so we need to extract the JSON
   let pipList = [];
   try {
-    pipList = JSON.parse(stdout);
+    // Try to find JSON in the output - look for the first '[' or '{' that starts valid JSON
+    // We need to count both array brackets and object braces since arrays can contain objects
+    let jsonStart = -1;
+    let jsonEnd = -1;
+    let bracketCount = 0;
+    let foundStart = false;
+    
+    for (let i = 0; i < stdout.length; i++) {
+      const char = stdout[i];
+      if (char === '[' || char === '{') {
+        if (!foundStart) {
+          jsonStart = i;
+          foundStart = true;
+        }
+        bracketCount++;
+      } else if (char === ']' || char === '}') {
+        bracketCount--;
+        if (foundStart && bracketCount === 0) {
+          jsonEnd = i + 1;
+          break;
+        }
+      }
+    }
+    
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      const jsonString = stdout.substring(jsonStart, jsonEnd);
+      pipList = JSON.parse(jsonString);
+    } else {
+      // Fallback: try parsing the whole stdout
+      pipList = JSON.parse(stdout);
+    }
   } catch (e) {
-    console.log(e);
+    console.log('JSON parse error:', e);
+    console.log('stdout:', stdout);
     response.status = 'error';
     response.message = 'Failed to parse package list';
     response.data = { stdout, stderr };
@@ -412,9 +444,9 @@ export async function checkDependencies() {
 
   response.data = missingDependencies;
   console.log('missingDependencies', missingDependencies);
-  if (missingDependencies.legnth > 0) {
+  if (missingDependencies.length > 0) {
     response.status = 'error';
-    const missingList = missingDependencies.data?.join(', ');
+    const missingList = missingDependencies.join(', ');
     response.message = `Missing dependencies including: ${missingList}...`;
   } else {
     response.status = 'success';
