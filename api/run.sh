@@ -20,6 +20,7 @@ HTTPS=false
 load_env_files() {
     # Look for .env files in current directory only
     local env_files=(
+        ".env"
         "../.env"
     )
 
