@@ -193,10 +193,7 @@ app.add_middleware(
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
     try:
-        org_id = None
-        if os.getenv("TFL_MULTITENANT") == "true":
-            # This header is automatically sent by the frontend for all authenticated requests
-            org_id = request.headers.get("X-Team-Id")
+        org_id = request.headers.get("X-Team-Id")
         set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
