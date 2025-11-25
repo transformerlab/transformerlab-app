@@ -1,6 +1,115 @@
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { API_URL } from './urls';
 
+const ACCESS_TOKEN_KEYS = ['access_token', 'accessToken'];
+const REFRESH_TOKEN_KEYS = ['refresh_token', 'refreshToken'];
+const TEAM_KEYS = ['current_team', 'currentTeam'];
+
+type StoredTeam = {
+  id?: string;
+  name?: string;
+  slug?: string;
+};
+
+async function setBridgeValue(
+  keys: string[],
+  value: string | null | undefined,
+) {
+  for (const key of keys) {
+    try {
+      if (value !== undefined && value !== null) {
+        await window.storage?.set?.(key, value);
+      } else {
+        await window.storage?.delete?.(key);
+      }
+    } catch {
+      /* ignore electron storage bridge errors */
+    }
+  }
+}
+
+function setBrowserValue(keys: string[], value: string | null | undefined) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  for (const key of keys) {
+    try {
+      if (value !== undefined && value !== null) {
+        window.localStorage?.setItem(key, value);
+      } else {
+        window.localStorage?.removeItem(key);
+      }
+    } catch {
+      /* ignore localStorage errors */
+    }
+  }
+}
+
+async function getBridgeValue(keys: string[]) {
+  for (const key of keys) {
+    try {
+      const value = await window.storage?.get?.(key);
+      if (value) {
+        return value;
+      }
+    } catch {
+      /* ignore bridge errors */
+    }
+  }
+  return null;
+}
+
+function getBrowserValue(keys: string[]) {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  for (const key of keys) {
+    try {
+      const value = window.localStorage?.getItem(key);
+      if (value) {
+        return value;
+      }
+    } catch {
+      /* ignore localStorage errors */
+    }
+  }
+
+  return null;
+}
+
+function normalizeTeam(value: unknown): StoredTeam | null {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as StoredTeam;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === 'object') {
+    return value as StoredTeam;
+  }
+  return null;
+}
+
+async function getStoredTeam() {
+  const bridgeValue = await getBridgeValue(TEAM_KEYS);
+  const normalizedBridge = normalizeTeam(bridgeValue);
+  if (normalizedBridge?.id) {
+    return normalizedBridge;
+  }
+  const browserValue = getBrowserValue(TEAM_KEYS);
+  const normalizedBrowser = normalizeTeam(browserValue);
+  if (normalizedBrowser?.id) {
+    return normalizedBrowser;
+  }
+  return null;
+}
+
 export async function login(username: string, password: string) {
   const loginURL = getAPIFullPath('auth', ['login'], {});
 
@@ -41,17 +150,24 @@ export async function login(username: string, password: string) {
   }
 }
 
-export async function setAccessToken(token: string) {
-  if (!token) {
-    await window.storage.delete('accessToken');
-    return;
-  }
-  await window.storage.set('accessToken', token);
+export async function setAccessToken(token: string | null | undefined) {
+  const hasToken = Boolean(token);
+  await setBridgeValue(ACCESS_TOKEN_KEYS, hasToken ? token : null);
+  setBrowserValue(ACCESS_TOKEN_KEYS, hasToken ? token : null);
 }
 
 export async function getAccessToken() {
-  const access_token = await window.storage.get('accessToken');
-  return access_token || '';
+  const bridgeToken = await getBridgeValue(ACCESS_TOKEN_KEYS);
+  if (bridgeToken) {
+    return bridgeToken;
+  }
+
+  const browserToken = getBrowserValue(ACCESS_TOKEN_KEYS);
+  if (browserToken) {
+    return browserToken;
+  }
+
+  return '';
 }
 
 // Helper function to create authenticated fetch requests
@@ -60,6 +176,7 @@ export async function authenticatedFetch(
   options: RequestInit = {},
 ) {
   const accessToken = await getAccessToken();
+  const team = await getStoredTeam();
 
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string>),
@@ -67,6 +184,12 @@ export async function authenticatedFetch(
 
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
+  }
+  if (team?.id) {
+    headers['X-Team-Id'] = team.id;
+  }
+  if (team?.name) {
+    headers['X-Team-Name'] = team.name;
   }
 
   return fetch(url, {
@@ -89,17 +212,19 @@ export async function logout() {
   } catch (e) {
     // ignore network errors; proceed to clear local tokens
   } finally {
-    await window.storage.delete('accessToken');
-    await window.storage.delete('refreshToken');
+    await setBridgeValue(ACCESS_TOKEN_KEYS, null);
+    await setBridgeValue(REFRESH_TOKEN_KEYS, null);
+    await setBridgeValue(TEAM_KEYS, null);
+    setBrowserValue(ACCESS_TOKEN_KEYS, null);
+    setBrowserValue(REFRESH_TOKEN_KEYS, null);
+    setBrowserValue(TEAM_KEYS, null);
   }
 }
 
 export async function setRefreshToken(token: string | null | undefined) {
-  if (!token) {
-    await window.storage.delete('refreshToken');
-    return;
-  }
-  await window.storage.set('refreshToken', token);
+  const hasToken = Boolean(token);
+  await setBridgeValue(REFRESH_TOKEN_KEYS, hasToken ? token : null);
+  setBrowserValue(REFRESH_TOKEN_KEYS, hasToken ? token : null);
 }
 
 export async function registerUser(
