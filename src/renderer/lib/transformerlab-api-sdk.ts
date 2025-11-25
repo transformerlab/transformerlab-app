@@ -45,7 +45,6 @@ export {
 } from './api-client/functions';
 
 export {
-  useAPI,
   useModelStatus,
   usePluginStatus,
   useServerStats,
@@ -58,3 +57,5 @@ export {
   API_URL,
   getAPIFullPath,
 } from './api-client/urls';
+
+export { useAPI } from './authContext';
