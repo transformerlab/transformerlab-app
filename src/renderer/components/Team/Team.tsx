@@ -151,29 +151,16 @@ export default function UserLoginTest(): JSX.Element {
         <Stack direction="row" spacing={2} alignItems="center" maxWidth={500}>
           <Select
             value={authContext.team?.id ?? ''}
-            onChange={async (_, value) => {
+            onChange={(_, value) => {
               const selectedId = value as string;
               const selectedTeam = teams?.teams.find(
                 (t: any) => t.id === selectedId,
               );
               if (selectedTeam) {
-                // Update local context first
                 authContext.setTeam({
                   id: selectedTeam.id,
                   name: selectedTeam.name,
                 });
-
-                // Call API to set the organization cookie for workspace mapping
-                try {
-                  await authContext.fetchWithAuth('/users/me/select-team', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ team_id: selectedTeam.id }),
-                  });
-                } catch (error) {
-                  console.error('Failed to select team:', error);
-                  // Optionally show error to user
-                }
               }
             }}
             disabled={loading}

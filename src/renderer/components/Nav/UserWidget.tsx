@@ -134,21 +134,9 @@ export default function LoginChip({}: Props) {
           {teams?.teams.map((t: any) => (
             <MenuItem
               key={t.id}
-              onClick={async () => {
-                // Update local context first
+              onClick={() => {
+                // try common setter names on authContext, otherwise navigate
                 authContext.setTeam(t);
-
-                // Call API to set the organization cookie for workspace mapping
-                try {
-                  await authContext.fetchWithAuth('/users/me/select-team', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ team_id: t.id }),
-                  });
-                } catch (error) {
-                  console.error('Failed to select team:', error);
-                  // Optionally show error to user
-                }
               }}
               sx={{
                 fontWeight: authContext.team?.id === t.id ? 'bold' : 'normal',
