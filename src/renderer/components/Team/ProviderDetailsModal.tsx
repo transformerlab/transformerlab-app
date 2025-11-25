@@ -79,7 +79,7 @@ export default function ProviderDetailsModal({
         />
         <Select
           value={type}
-          onChange={(event, value) => setType(value ?? 'member')}
+          onChange={(event, value) => setType(value ?? 'skypilot')}
           sx={{ mt: 2, width: '100%' }}
         >
           <Option value="skypilot">Skypilot</Option>
