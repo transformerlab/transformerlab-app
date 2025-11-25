@@ -358,16 +358,16 @@ const EvalJobsTable = () => {
                 <Checkbox
                   size="sm"
                   indeterminate={
-                    selected.length > 0 && selected.length !== jobs.length
+                    selected.length > 0 && selected.length !== jobs?.length
                   }
-                  checked={selected.length === jobs.length}
+                  checked={selected.length === jobs?.length}
                   onChange={(event) => {
                     setSelected(
                       event.target.checked ? jobs.map((row) => row.id) : [],
                     );
                   }}
                   color={
-                    selected.length > 0 || selected.length === jobs.length
+                    selected.length > 0 || selected.length === jobs?.length
                       ? 'primary'
                       : undefined
                   }
