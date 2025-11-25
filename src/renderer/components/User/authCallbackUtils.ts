@@ -130,7 +130,7 @@ export async function processAuthCallback(
     const w: any = window as any;
     const expectedState = await w.storage.get('authWorkosState');
 
-    // Original WorkOS OAuth logic continues below...
+    // Updated state validation logic:
     // Some providers / flows may return an implicit access_token *without* echoing back the state.
     // Original logic rejected this (causing white screen + requiring refresh). We now:
     // 1. Validate state only if BOTH expectedState and cb.state are present.

@@ -26,7 +26,6 @@ import {
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
-import RootAuthCallbackHandler from './components/User/RootAuthCallbackHandler';
 import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
@@ -69,8 +68,35 @@ function AppContent({
 
   const authContext = useAuth();
 
-  if (process.env.MULTIUSER === 'true' && !authContext?.isAuthenticated) {
-    return <LoginPage />;
+  // Only show LoginPage when:
+  // 1. Multi-user mode is enabled AND user is not authenticated
+  // 2. OR in single-user mode, user is not authenticated but has a connection (meaning auto-login failed)
+  // In single-user mode without connection, the LoginModal will handle connection and auto-login
+  if (!authContext?.isAuthenticated) {
+    // In multi-user mode, always show LoginPage
+    if (process.env.MULTIUSER === 'true') {
+      return <LoginPage />;
+    }
+    // In single-user mode, only show LoginPage if we have a connection but aren't authenticated
+    // (meaning auto-login failed or connection was lost after being established)
+    if (connection && connection !== '') {
+      return <LoginPage />;
+    }
+    // In single-user mode without connection, render just the LoginModal
+    // which will handle connection + auto-login
+    if (process.env.TL_FORCE_API_URL === 'false') {
+      return (
+        <LoginModal
+          setServer={setConnection}
+          connection={connection}
+          setTerminalDrawerOpen={setLogsDrawerOpen}
+          setSSHConnection={setSSHConnection}
+          setGPUOrchestrationServer={setGPUOrchestrationServer}
+        />
+      );
+    }
+    // If TL_FORCE_API_URL is not 'false', show nothing (connection should be set via env var)
+    return null;
   }
 
   return (
@@ -205,7 +231,17 @@ function AppContent({
 const INITIAL_LOGS_DRAWER_HEIGHT = 200; // Default height for logs drawer when first opened
 
 export default function App() {
-  const [connection, setConnection] = useState(process.env?.TL_API_URL || '');
+  // Normalize TL_API_URL - ensure it's either a valid URL or empty string
+  const initialApiUrl = (() => {
+    const envUrl = process.env?.TL_API_URL;
+    // If undefined, null, or the string "default", use empty string
+    if (!envUrl || envUrl === 'default' || envUrl.trim() === '') {
+      return '';
+    }
+    return envUrl;
+  })();
+
+  const [connection, setConnection] = useState(initialApiUrl);
   const [gpuOrchestrationServer, setGPUOrchestrationServer] = useState('');
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
@@ -213,8 +249,8 @@ export default function App() {
 
   useEffect(() => {
     window.TransformerLab = {};
-    window.TransformerLab.API_URL = process.env.TL_API_URL || '';
-  }, []);
+    window.TransformerLab.API_URL = initialApiUrl;
+  }, [initialApiUrl]);
 
   // if the logs drawer is open, set the initial height
   useEffect(() => {
@@ -235,8 +271,6 @@ export default function App() {
     <NotificationProvider>
       <CssVarsProvider disableTransitionOnChange theme={theme}>
         <CssBaseline />
-        {/* Handle non-hash OAuth callback (/auth/callback) before rendering the app */}
-        <RootAuthCallbackHandler />
         <AuthProvider connection={connection}>
           <ExperimentInfoProvider connection={connection}>
             <AppContent
