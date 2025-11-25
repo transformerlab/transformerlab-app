@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import MainGenerationConfigKnobs from '../MainGenerationConfigKnobs';
 import NewBatchPromptModal from './NewBatchPromptModal';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import ThinSlider from '../ThinSlider';
 
 // fetcher used by SWR

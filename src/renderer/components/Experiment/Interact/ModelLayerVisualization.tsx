@@ -25,7 +25,7 @@ import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import ChatSettingsOnLeftHandSide from './ChatSettingsOnLeftHandSide';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { Bar, ResponsiveBar } from '@nivo/bar';
 import { ResponsiveLine } from '@nivo/line';
 import { fetchWithAuth } from 'renderer/lib/authContext';

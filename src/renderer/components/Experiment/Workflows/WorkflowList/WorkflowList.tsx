@@ -35,7 +35,7 @@ import { Editor } from '@monaco-editor/react';
 
 import * as chatAPI from '../../../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../../../lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import NewWorkflowModal from './NewWorkflowModal';
 import NewNodeModal from './NewNodeModal';
 import WorkflowCanvas from './WorkflowCanvas';

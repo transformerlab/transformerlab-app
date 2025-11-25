@@ -29,14 +29,16 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAPI } from 'renderer/lib/api-client/hooks';
 import ModelDetailsModal from './ModelDetailsModal';
 import DownloadProgressBox from '../Shared/DownloadProgressBox';
 import ImportModelsBar from './ImportModelsBar';
 import TinyMLXLogo from '../Shared/TinyMLXLogo';
 import { formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { downloadModelFromGallery } from '../../lib/transformerlab-api-sdk';
+import {
+  downloadModelFromGallery,
+  useAPI,
+} from '../../lib/transformerlab-api-sdk';
 import { useDebounce } from 'use-debounce';
 
 function getModelHuggingFaceURL(model) {

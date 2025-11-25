@@ -1,5 +1,5 @@
 import { useState, FormEvent, useEffect } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import Markdown from 'react-markdown';

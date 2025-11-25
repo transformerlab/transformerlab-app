@@ -17,7 +17,7 @@ import {
 import { ReactElement, useState } from 'react';
 import { PlayIcon, PlusCircleIcon, Trash2Icon, Plug2Icon } from 'lucide-react';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useAnalytics } from 'renderer/components/Shared/analytics/AnalyticsContext';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 import ExportModal from './ExportModal';
