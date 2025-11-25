@@ -202,6 +202,33 @@ download_transformer_lab() {
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
 
+
+  # Generate and save JWT secrets to .env file
+  ohai "Generating JWT secrets..."
+  ENV_FILE="${TLAB_CODE_DIR}/.env"
+
+  # Generate secrets using /dev/urandom (available on all Unix-like systems)
+  JWT_SECRET=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-f0-9' | head -c 64)
+  REFRESH_SECRET=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-f0-9' | head -c 64)
+
+  # Create or update .env file
+  if [ -f "${ENV_FILE}" ]; then
+    # File exists, check if secrets are already present
+    if ! grep -q "^TRANSFORMERLAB_JWT_SECRET=" "${ENV_FILE}"; then
+      echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" >> "${ENV_FILE}"
+    fi
+    if ! grep -q "^TRANSFORMERLAB_REFRESH_SECRET=" "${ENV_FILE}"; then
+      echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
+    fi
+    ohai "✅ JWT secrets checked/added to existing ${ENV_FILE}"
+  else
+    # Create new .env file
+    echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" > "${ENV_FILE}"
+    echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
+    ohai "✅ JWT secrets generated and saved to ${ENV_FILE}"
+  fi
+
+
   # Now do the same thing for the web app which is in a different repo called https://github.com/transformerlab/transformerlab-app
   # Step 1: First get the latest release version:
   TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"

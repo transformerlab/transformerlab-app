@@ -25,6 +25,7 @@ import { apiHealthz } from '../../lib/transformerlab-api-sdk';
 import { useState } from 'react';
 import LocalConnection from './LocalConnection';
 import OneTimePopup from '../Shared/OneTimePopup';
+import { useAuth } from '../../lib/authContext';
 
 import MuxPlayer from '@mux/mux-player-react';
 
@@ -51,6 +52,7 @@ export default function LoginModal({
   const [host, setHost] = useState('');
 
   const WEB_APP = window.platform.appmode == 'cloud';
+  const authContext = useAuth();
 
   React.useEffect(() => {
     window.storage
@@ -95,6 +97,22 @@ export default function LoginModal({
         setGPUOrchestrationServer(response.gpu_orchestration_server);
       }
       setServer(window.TransformerLab.API_URL);
+
+      // Attempt auto-login in single-user mode after successful connection
+      if (
+        process.env.MULTIUSER !== 'true' &&
+        authContext &&
+        !authContext.isAuthenticated
+      ) {
+        try {
+          console.log(
+            'Attempting auto-login for single user mode after connection',
+          );
+          await authContext.login('admin@example.com', 'admin123');
+        } catch (error) {
+          console.error('Auto-login failed after connection:', error);
+        }
+      }
     } else {
       setFailed(true);
     }
