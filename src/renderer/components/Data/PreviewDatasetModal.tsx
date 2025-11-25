@@ -14,11 +14,6 @@ import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import DatasetPreviewEditImage from './DatasetPreviewEditImage';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
-const fetcher = (url) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((data) => data);
-
 export default function PreviewDatasetModal({
   dataset_id,
   open,

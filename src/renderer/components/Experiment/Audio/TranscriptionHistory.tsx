@@ -11,6 +11,7 @@ import {
 import { Trash2Icon } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import AudioPlayer from '../../Data/AudioPlayer';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface TranscriptionHistoryItem {
   id: string;
@@ -50,7 +51,7 @@ const TranscriptionHistory = React.forwardRef<
             },
           );
           try {
-            const response = await fetch(textUrl);
+            const response = await fetchWithAuth(textUrl);
             const text = await response.text();
             setTextContents((prev) => ({ ...prev, [item.id]: text }));
           } catch (err) {
@@ -147,7 +148,7 @@ const TranscriptionHistory = React.forwardRef<
                           experimentId,
                         },
                       );
-                      await fetch(deleteTextURL, {
+                      await fetchWithAuth(deleteTextURL, {
                         method: 'DELETE',
                       });
                       mutateHistory();

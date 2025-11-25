@@ -21,6 +21,7 @@ dayjs.extend(relativeTime);
 dayjs.extend(duration);
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface Job {
   id: string;
@@ -111,7 +112,7 @@ const ExportJobsTable = () => {
                       <IconButton variant="plain">
                         <Trash2Icon
                           onClick={async () => {
-                            await fetch(
+                            await fetchWithAuth(
                               chatAPI.Endpoints.Jobs.Delete(
                                 experimentInfo.id,
                                 job?.id,
