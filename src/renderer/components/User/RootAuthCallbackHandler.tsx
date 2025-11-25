@@ -73,14 +73,14 @@ export default function RootAuthCallbackHandler() {
           return;
         }
 
-        // Wait for auth/me to complete before showing success/reloading
+        // Wait for users/me to complete before showing success/reloading
         // This ensures the login state persists until user info is loaded
         const apiBase =
           ((window as any).TransformerLab &&
             (window as any).TransformerLab.API_URL) ||
           fallbackBase;
 
-        // Poll for auth/me to succeed (with timeout)
+        // Poll for users/me to succeed (with timeout)
         // This handles both token-based and session-based auth
         let attempts = 0;
         const maxAttempts = 20; // 10 seconds max wait
@@ -100,7 +100,7 @@ export default function RootAuthCallbackHandler() {
             }
 
             // Use credentials: 'include' to send session cookies (for session-based auth)
-            const response = await fetchWithAuth(`${apiBase}auth/me`, {
+            const response = await fetchWithAuth(`${apiBase}users/me`, {
               method: 'GET',
               headers,
               credentials: 'include',
