@@ -47,6 +47,7 @@ export default function UserLoginTest(): JSX.Element {
 
   // Get providers list (unchanged)
   const { data: providers, mutate: providersMutate } = useAPI('providers', ['list']);
+  console.log(providers);
 
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
@@ -337,6 +338,33 @@ export default function UserLoginTest(): JSX.Element {
               </tr>
             </thead>
             <tbody>
+              {providers?.map((provider: any) => (
+                <tr key={provider.id}>
+                  <td>
+                    <Stack direction="row" alignItems="center" gap={1}>
+                      <Box>
+                        <Typography fontWeight="md">
+                          {provider?.name ?? '—'}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </td>
+                  <td>{provider?.type}</td>
+                  <td>
+                    <Box
+                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+                    >
+                      <Button
+                        variant="outlined"
+                        onClick={() => alert(provider?.config)}
+                        disabled
+                      >
+                        Edit
+                      </Button>
+                    </Box>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </Table>
         </Box>
