@@ -26,6 +26,7 @@ import {
   Info,
 } from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
   const [rows, setRows] = useState([]);
@@ -61,7 +62,7 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
         limit: pageSize,
       });
 
-      const response = await fetch(url);
+      const response = await fetchWithAuth(url);
       const result = await response.json();
       if (result?.data?.len && datasetLen === null) {
         setDatasetLen(result.data.len);
@@ -141,7 +142,7 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
     }
     setSaving(true);
     try {
-      const checkResponse = await fetch(
+      const checkResponse = await fetchWithAuth(
         getAPIFullPath('datasets', ['info'], {
           datasetId: datasetName,
         }),
@@ -171,7 +172,7 @@ const DatasetPreviewEditImage = ({ datasetId, template, onClose }) => {
         type: 'application/json',
       });
       formData.append('file', blob, 'metadata_updates.json');
-      const response = await fetch(
+      const response = await fetchWithAuth(
         getAPIFullPath('datasets', ['saveMetadata'], {
           datasetId,
           newDatasetId: datasetName,

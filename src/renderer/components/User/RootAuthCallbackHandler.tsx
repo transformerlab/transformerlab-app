@@ -6,6 +6,7 @@ import {
   parseCallbackParams,
   processAuthCallback,
 } from './authCallbackUtils';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 function isAuthCallbackLocation(loc: Location) {
   if (/\/auth\/callback\/?$/.test(loc.pathname)) {
@@ -99,7 +100,7 @@ export default function RootAuthCallbackHandler() {
             }
 
             // Use credentials: 'include' to send session cookies (for session-based auth)
-            const response = await fetch(`${apiBase}auth/me`, {
+            const response = await fetchWithAuth(`${apiBase}auth/me`, {
               method: 'GET',
               headers,
               credentials: 'include',

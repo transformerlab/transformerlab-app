@@ -65,6 +65,7 @@ import { DEFAULT_API_FALLBACK } from '../User/authCallbackUtils';
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
@@ -516,7 +517,7 @@ async function loginWithWorkOS() {
     const cacheBuster = Date.now().toString();
     const authorizeEndpoint = `${apiBase}auth/login-url?cb=${cacheBuster}`;
 
-    const resp = await fetch(authorizeEndpoint, {
+    const resp = await fetchWithAuth(authorizeEndpoint, {
       method: 'GET',
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
@@ -767,7 +768,7 @@ function BottomMenuItems({ navigate, themeSetter }) {
         return;
       }
 
-      const response = await fetch(`${apiBase}auth/workos/scope`, {
+      const response = await fetchWithAuth(`${apiBase}auth/workos/scope`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
