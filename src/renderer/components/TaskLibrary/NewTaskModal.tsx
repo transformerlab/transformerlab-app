@@ -19,8 +19,8 @@ import {
 } from '@mui/joy';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
-import { useAPI } from 'renderer/lib/api-client/hooks';
 import { fetchWithAuth } from 'renderer/lib/authContext';
+import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 
 interface NewTaskModalProps {
   open: boolean;

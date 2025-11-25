@@ -10,7 +10,7 @@ import {
 } from '@mui/joy';
 import { ArrowDownIcon, CheckCircle2Icon, XCircleIcon } from 'lucide-react';
 import { useRef } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { clamp, formatBytes } from '../../lib/utils';
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';

@@ -6,8 +6,8 @@ import React, {
   useEffect,
   useCallback,
 } from 'react';
-import useSWR from 'swr';
 import { API_URL, fetcher } from './transformerlab-api-sdk';
+import useSWR from 'swr';
 import { getAPIFullPath, getPath } from './api-client/urls';
 // Added types
 export type Team = {
@@ -511,4 +511,35 @@ export function useAPI(
   });
 
   return { data, error, isLoading, mutate };
+}
+
+// Create a new function called useSWRWithAuth which is EXACTLY the same as useSWR,
+// but uses fetchWithAuth as the fetcher.
+export function useSWRWithAuth(key: string | null, fetcher_unused?: any) {
+  const fetcher = async (url: string) => {
+    const res = await fetchWithAuth(url);
+
+    if (res.status === 401) {
+      // Should have been handled by fetchWithAuth, but if still 401, return error
+      const error: any = new Error('User not authorized');
+      error.status = 'unauthorized';
+      throw error;
+    }
+
+    if (!res.ok) {
+      const error: any = new Error('API returned HTTP ' + res.status);
+      error.status = res.status;
+      throw error;
+    }
+
+    return res.json();
+  };
+  const { data, error, isLoading, mutate } = useSWR(key, fetcher);
+
+  return {
+    data,
+    isLoading,
+    isError: error,
+    mutate,
+  };
 }

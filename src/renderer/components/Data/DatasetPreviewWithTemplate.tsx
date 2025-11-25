@@ -13,7 +13,7 @@ import {
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { ChevronLeftIcon, ChevronRightIcon, Sheet } from 'lucide-react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
 

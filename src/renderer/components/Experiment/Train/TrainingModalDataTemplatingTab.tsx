@@ -18,7 +18,7 @@ import { useState, useEffect } from 'react';
 import DatasetTableWithTemplate from 'renderer/components/Data/DatasetPreviewWithTemplate';
 import DatasetTable from 'renderer/components/Data/DatasetTable';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useDebounce } from 'use-debounce';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
