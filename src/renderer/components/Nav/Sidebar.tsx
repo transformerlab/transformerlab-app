@@ -52,19 +52,15 @@ import {
   useModelStatus,
   usePluginStatus,
   useAPI,
-  logout,
   getAPIFullPath,
-  getAccessToken,
-  setAccessToken,
-  setRefreshToken,
   API_URL,
 } from 'renderer/lib/transformerlab-api-sdk';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import LoginChip from './UserWidget';
 import { fetchWithAuth } from 'renderer/lib/authContext';
 
