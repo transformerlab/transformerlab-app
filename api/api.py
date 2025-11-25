@@ -29,24 +29,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-from fastchat.constants import (
+from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
-from fastchat.protocol.openai_api_protocol import (
+from fastchat.protocol.openai_api_protocol import (  # noqa: E402
     ErrorResponse,
 )
 
-from transformerlab.services.experiment_service import experiment_get
-from transformerlab.services.job_service import job_create, job_get, job_update_status
-from transformerlab.services.experiment_init import (
+from transformerlab.services.experiment_service import experiment_get  # noqa: E402
+from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
+from transformerlab.services.experiment_init import (  # noqa: E402
     seed_default_experiments,
     cancel_in_progress_jobs,
     seed_default_admin_user,
 )
-import transformerlab.db.session as db
+import transformerlab.db.session as db  # noqa: E402
 
-from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
-from transformerlab.routers import (
+from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
+from transformerlab.routers import (  # noqa: E402
     data,
     model,
     serverinfo,
@@ -63,35 +63,35 @@ from transformerlab.routers import (
     auth2,
     teams,
 )
-from transformerlab.routers.auth2 import get_user_and_team
-import torch
+from transformerlab.routers.auth2 import get_user_and_team  # noqa: E402
+import torch  # noqa: E402
 
 try:
-    from pynvml import nvmlShutdown
+    from pynvml import nvmlShutdown  # noqa: E402
 
     HAS_AMD = False
 except Exception:
-    from pyrsmi import rocml
+    from pyrsmi import rocml  # noqa: E402
 
     HAS_AMD = True
-from transformerlab import fastchat_openai_api
-from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows
-from transformerlab.routers.experiment import jobs
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
-from lab.dirs import get_workspace_dir
-from lab import dirs as lab_dirs
-from transformerlab.shared import dirs
-from transformerlab.db.filesystem_migrations import (
-    migrate_datasets_table_to_filesystem,
-    migrate_models_table_to_filesystem,
-    migrate_tasks_table_to_filesystem,
-    migrate_job_and_experiment_to_filesystem,
+from transformerlab import fastchat_openai_api  # noqa: E402
+from transformerlab.routers.experiment import experiment  # noqa: E402
+from transformerlab.routers.experiment import workflows  # noqa: E402
+from transformerlab.routers.experiment import jobs  # noqa: E402
+from transformerlab.shared import shared  # noqa: E402
+from transformerlab.shared import galleries  # noqa: E402
+from lab.dirs import get_workspace_dir  # noqa: E402
+from lab import dirs as lab_dirs  # noqa: E402
+from transformerlab.shared import dirs  # noqa: E402
+from transformerlab.db.filesystem_migrations import (  # noqa: E402
+    migrate_datasets_table_to_filesystem,  # noqa: E402
+    migrate_models_table_to_filesystem,  # noqa: E402
+    migrate_tasks_table_to_filesystem,  # noqa: E402
+    migrate_job_and_experiment_to_filesystem,  # noqa: E402
 )
-from transformerlab.shared.request_context import set_current_org_id
-from lab.dirs import set_organization_id as lab_set_org_id
-from lab import storage
+from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
+from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
+from lab import storage  # noqa: E402
 
 
 # The following environment variable can be used by other scripts
