@@ -395,7 +395,10 @@ export default function UserLoginTest(): JSX.Element {
       />
       <ProviderDetailsModal
         open={openProviderDetailsModal}
-        onClose={() => setOpenProviderDetailsModal(false)}
+        onClose={() => {
+          setOpenProviderDetailsModal(false);
+          providersMutate();
+        }}
         teamId={authContext.team?.id || ''}
       />
     </div>
