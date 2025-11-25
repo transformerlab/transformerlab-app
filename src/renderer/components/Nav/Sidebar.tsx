@@ -591,7 +591,7 @@ function BottomMenuItems({ navigate, themeSetter }) {
     data: userInfo,
     error: userError,
     mutate: userMutate,
-  } = useAPI('auth', ['me'], {});
+  } = useAPI('users', ['me'], {});
 
   const workosDetails = userInfo ? extractWorkOSDetails(userInfo) : null;
   const availableOrganizations = workosDetails?.organizations || [];
@@ -707,23 +707,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
   return (
     <>
       <Divider sx={{ my: 1 }} />
-      <Box
-        sx={{
-          display: window.platform?.appmode === 'cloud' ? 'flex' : 'none',
-          gap: 1,
-          alignItems: 'center',
-          mb: 1,
-          maxWidth: '180px',
-        }}
-      >
-        {userInfo && userInfo.id && (
-          <UserDetailsPanel
-            userDetails={userInfo}
-            mutate={userMutate}
-            onManageWorkOS={() => setWorkosScopeModalOpen(true)}
-          />
-        )}
-      </Box>
       <ButtonGroup
         sx={{
           display: 'flex',

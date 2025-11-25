@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, FormEvent } from 'react';
 
 import {
@@ -11,7 +10,6 @@ import {
   FileIcon,
   UserIcon,
   LogOutIcon,
-  LogInIcon,
   StretchHorizontalIcon,
   LibraryBigIcon,
   ComputerIcon,
@@ -503,99 +501,7 @@ function UserDetailsPanel({ userDetails, mutate, onManageWorkOS }) {
   );
 }
 
-// WorkOS login function
-async function loginWithWorkOS() {
-  try {
-    const w: any = window as any;
-    const fallbackBase = DEFAULT_API_FALLBACK;
-    const apiBase =
-      (API_URL && API_URL()) || w.TransformerLab?.API_URL || fallbackBase;
-    // Add a cache-buster to avoid browsers (or proxies) returning 304 with HTML body
-    const cacheBuster = Date.now().toString();
-    const authorizeEndpoint = `${apiBase}auth/login-url?cb=${cacheBuster}`;
-
-    const resp = await fetchWithAuth(authorizeEndpoint, {
-      method: 'GET',
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-        Pragma: 'no-cache',
-        'X-Requested-With': 'XMLHttpRequest',
-        Accept: 'application/json, */*;q=0.8',
-      },
-    });
-
-    if (resp.status === 304) {
-      // Treat 304 as an error for this JSON-init endpoint; force retry logic by clearing state
-      await w.storage.delete('authWorkosState');
-      throw new Error(
-        'Failed to initiate SSO (stale cached response). Please try again.',
-      );
-    }
-
-    if (!resp.ok) {
-      await w.storage.delete('authWorkosState');
-      throw new Error(`Failed to initiate SSO (HTTP ${resp.status}).`);
-    }
-
-    let data: any = null;
-    const contentType = resp.headers.get('content-type') || '';
-    try {
-      if (contentType.includes('application/json')) {
-        data = await resp.json();
-      } else {
-        const text = await resp.text();
-        // If HTML came back, this is unexpected
-        if (
-          text.trim().startsWith('<!DOCTYPE') ||
-          text.trim().startsWith('<html')
-        ) {
-          throw new Error('Server returned HTML instead of JSON.');
-        }
-        // Attempt a lenient parse
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = { detail: 'Unexpected response format.' };
-        }
-      }
-    } catch (parseErr) {
-      await w.storage.delete('authWorkosState');
-      throw new Error('SSO start failed: ' + parseErr);
-    }
-    const redirectTo = data?.login_url || data?.authorization_url;
-    if (redirectTo) {
-      try {
-        const redirectUrl = new URL(redirectTo);
-        const stateFromQuery = redirectUrl.searchParams.get('state');
-        const hash = redirectUrl.hash || '';
-        const stateFromHash = hash
-          ? new URLSearchParams(
-              hash.startsWith('#') ? hash.slice(1) : hash,
-            ).get('state')
-          : null;
-        const stateValue =
-          stateFromQuery || stateFromHash || data?.state || null;
-        if (stateValue) {
-          await w.storage.set('authWorkosState', stateValue);
-        } else {
-          await w.storage.delete('authWorkosState');
-        }
-      } catch {
-        await w.storage.delete('authWorkosState');
-      }
-      window.location.href = redirectTo;
-    } else {
-      await w.storage.delete('authWorkosState');
-      throw new Error(data?.detail || 'Failed to initiate SSO.');
-    }
-  } catch (e) {
-    const w: any = window as any;
-    await w.storage.delete('authWorkosState');
-    throw new Error('SSO start failed: ' + e);
-  }
-}
-
-function BottomMenuItems({ navigate, themeSetter }) {
+function BottomMenuItems({ themeSetter }) {
   const [workosScopeModalOpen, setWorkosScopeModalOpen] = useState(false);
   const [selectedOrgOption, setSelectedOrgOption] = useState<string | null>(
     null,
@@ -604,19 +510,7 @@ function BottomMenuItems({ navigate, themeSetter }) {
   const [scopeError, setScopeError] = useState<string | null>(null);
   const [scopeSuccess, setScopeSuccess] = useState<string | null>(null);
   const [isScoping, setIsScoping] = useState(false);
-  // Check sessionStorage on mount to persist login state across reloads
-  const [isLoggingIn, setIsLoggingIn] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('isLoggingIn') === 'true';
-    }
-    return false;
-  });
-  const {
-    data: userInfo,
-    error: userError,
-    isLoading: isLoadingUserInfo,
-    mutate: userMutate,
-  } = useAPI('auth', ['me'], {});
+  const { data: userInfo, mutate: userMutate } = useAPI('users', ['me'], {});
 
   const workosDetails = userInfo ? extractWorkOSDetails(userInfo) : null;
   const availableOrganizations = workosDetails?.organizations || [];
@@ -626,100 +520,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
     workosDetails?.organizationId ||
     'Not scoped';
   const hasWorkOSAccount = Boolean(workosDetails?.account);
-
-  // Keep login state active until auth/me completes successfully
-  useEffect(() => {
-    // Check if we have a login flag in sessionStorage (from a previous page load)
-    const hasLoginFlag = sessionStorage.getItem('isLoggingIn') === 'true';
-    const loginStartTime = sessionStorage.getItem('isLoggingInStartTime');
-    const isOnCallbackPage =
-      window.location.pathname.includes('/auth/callback') ||
-      window.location.hash.includes('/auth/callback');
-
-    if (hasLoginFlag && !isLoggingIn) {
-      setIsLoggingIn(true);
-    }
-
-    if (isLoggingIn || hasLoginFlag) {
-      // If we have user info and it's authenticated, clear the login state
-      if (userInfo && userInfo.authenticated && !isLoadingUserInfo) {
-        setIsLoggingIn(false);
-        sessionStorage.removeItem('isLoggingIn');
-        sessionStorage.removeItem('isLoggingInStartTime');
-        return;
-      }
-
-      // Check for timeout (15 seconds max wait)
-      if (loginStartTime) {
-        const elapsed = Date.now() - parseInt(loginStartTime, 10);
-        const maxWaitTime = 15000; // 15 seconds
-        if (elapsed > maxWaitTime) {
-          // Timeout - clear the login state
-          setIsLoggingIn(false);
-          sessionStorage.removeItem('isLoggingIn');
-          sessionStorage.removeItem('isLoggingInStartTime');
-          return;
-        }
-      }
-
-      // If we're not on callback page and auth/me has completed (not loading),
-      // and we're not authenticated, clear the state (user likely canceled or navigated back)
-      if (!isOnCallbackPage && !isLoadingUserInfo) {
-        if (userError || !userInfo?.authenticated) {
-          // Give it a moment in case auth/me is still in flight after callback
-          // But if we've been waiting and not authenticated, clear
-          if (loginStartTime) {
-            const elapsed = Date.now() - parseInt(loginStartTime, 10);
-            // Wait at least 2 seconds after callback before clearing (in case of delays)
-            if (elapsed > 2000) {
-              setIsLoggingIn(false);
-              sessionStorage.removeItem('isLoggingIn');
-              sessionStorage.removeItem('isLoggingInStartTime');
-            }
-          } else {
-            // No start time means this is stale, clear immediately
-            setIsLoggingIn(false);
-            sessionStorage.removeItem('isLoggingIn');
-            sessionStorage.removeItem('isLoggingInStartTime');
-          }
-        }
-      }
-    }
-  }, [userInfo, userError, isLoadingUserInfo, isLoggingIn]);
-
-  // Periodic cleanup check for stale login states (runs every 2 seconds)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const hasLoginFlag = sessionStorage.getItem('isLoggingIn') === 'true';
-      const loginStartTime = sessionStorage.getItem('isLoggingInStartTime');
-      const isOnCallbackPage =
-        window.location.pathname.includes('/auth/callback') ||
-        window.location.hash.includes('/auth/callback');
-
-      if (hasLoginFlag && loginStartTime) {
-        const elapsed = Date.now() - parseInt(loginStartTime, 10);
-        const maxWaitTime = 15000; // 15 seconds
-
-        // If timeout exceeded, clear the state
-        if (elapsed > maxWaitTime) {
-          setIsLoggingIn(false);
-          sessionStorage.removeItem('isLoggingIn');
-          sessionStorage.removeItem('isLoggingInStartTime');
-        }
-        // If not on callback page and enough time has passed (user likely navigated back)
-        else if (!isOnCallbackPage && elapsed > 3000) {
-          // Only clear if we're definitely not authenticated (not just still loading)
-          if (!isLoadingUserInfo && (!userInfo?.authenticated || userError)) {
-            setIsLoggingIn(false);
-            sessionStorage.removeItem('isLoggingIn');
-            sessionStorage.removeItem('isLoggingInStartTime');
-          }
-        }
-      }
-    }, 2000); // Check every 2 seconds
-
-    return () => clearInterval(interval);
-  }, [isLoadingUserInfo, userInfo, userError]);
 
   useEffect(() => {
     if (workosScopeModalOpen) {
@@ -819,15 +619,6 @@ function BottomMenuItems({ navigate, themeSetter }) {
     }
   };
 
-  if (userError) {
-    console.log(userError);
-  }
-
-  // Show login state if we're actively logging in OR if we're waiting for auth/me after a callback
-  const showLoginState =
-    isLoggingIn ||
-    (sessionStorage.getItem('isLoggingIn') === 'true' && isLoadingUserInfo);
-
   return (
     <>
       <Divider sx={{ my: 1 }} />
@@ -846,92 +637,7 @@ function BottomMenuItems({ navigate, themeSetter }) {
             mutate={userMutate}
             onManageWorkOS={() => setWorkosScopeModalOpen(true)}
           />
-        ) : (
-          <List
-            sx={{
-              '--ListItem-radius': '6px',
-              '--ListItem-minHeight': '32px',
-              overflowY: 'auto',
-              flex: 1,
-            }}
-          >
-            <ListItem className="FirstSidebar_Content">
-              <ListItemButton
-                variant="plain"
-                disabled={showLoginState}
-                onClick={async () => {
-                  if (showLoginState) return; // Prevent multiple clicks
-
-                  setIsLoggingIn(true);
-                  // Persist login state in sessionStorage so it survives page reloads
-                  // Also store timestamp for timeout detection
-                  sessionStorage.setItem('isLoggingIn', 'true');
-                  sessionStorage.setItem(
-                    'isLoggingInStartTime',
-                    Date.now().toString(),
-                  );
-                  try {
-                    // Check if we're in cloud mode
-                    if (window.platform?.appmode === 'cloud') {
-                      try {
-                        await loginWithWorkOS();
-                        // Don't clear isLoggingIn here - it will be cleared after auth/me completes
-                        // The redirect will happen, and after callback/reload, the useEffect will handle it
-                      } catch (error) {
-                        console.error('Login failed:', error);
-                        setIsLoggingIn(false);
-                        sessionStorage.removeItem('isLoggingIn');
-                        sessionStorage.removeItem('isLoggingInStartTime');
-                        // You could add a toast notification here if needed
-                      }
-                    } else {
-                      // Non-cloud mode - login handled elsewhere
-                      setIsLoggingIn(false);
-                      sessionStorage.removeItem('isLoggingIn');
-                      sessionStorage.removeItem('isLoggingInStartTime');
-                    }
-                  } catch (error) {
-                    setIsLoggingIn(false);
-                    sessionStorage.removeItem('isLoggingIn');
-                    sessionStorage.removeItem('isLoggingInStartTime');
-                  }
-                }}
-              >
-                <ListItemDecorator sx={{ minInlineSize: '30px' }}>
-                  {showLoginState ? (
-                    <Box
-                      sx={{
-                        width: '18px',
-                        height: '18px',
-                        border: '2px solid transparent',
-                        borderTop: '2px solid currentColor',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        '@keyframes spin': {
-                          '0%': { transform: 'rotate(0deg)' },
-                          '100%': { transform: 'rotate(360deg)' },
-                        },
-                      }}
-                    />
-                  ) : (
-                    <LogInIcon />
-                  )}
-                </ListItemDecorator>
-                <ListItemContent
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'flex-start',
-                    alignContent: 'center',
-                  }}
-                >
-                  <Typography level="body-sm">
-                    {showLoginState ? 'Logging in...' : 'Login'}
-                  </Typography>
-                </ListItemContent>
-              </ListItemButton>
-            </ListItem>
-          </List>
-        )}
+        ) : null}
       </Box>
       <ButtonGroup
         sx={{
@@ -1062,8 +768,6 @@ export default function SidebarForGPUOrchestration({
   const { models, isError, isLoading } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
 
-  const navigate = useNavigate();
-
   const DEV_MODE = experimentInfo?.name === 'dev';
 
   return (
@@ -1121,7 +825,7 @@ export default function SidebarForGPUOrchestration({
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
       />
-      <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
+      <BottomMenuItems themeSetter={themeSetter} />
     </Sheet>
   );
 }
