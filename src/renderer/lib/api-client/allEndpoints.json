@@ -217,6 +217,12 @@
       "path": "teams/{teamId}/members"
     }
   },
+  "providers": {
+    "list": {
+      "method": "GET",
+      "path": "providers"
+    }
+  },
   "auth": {
     "me": {
       "method": "GET",
