@@ -71,16 +71,22 @@ export default function ProviderDetailsModal({
         <Typography level="h4" component="div" sx={{ mb: 2 }}>
           Add Provider
         </Typography>
+        <Typography level="body-sm" sx={{ mb: 0.5 }}>
+          Provider Name:
+        </Typography>
         <Input
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
           placeholder="Enter friendly name for provider"
           fullWidth
         />
+        <Typography level="body-sm" sx={{ mb: 0.5, mt: 3 }}>
+          Provider Type:
+        </Typography>
         <Select
           value={type}
           onChange={(event, value) => setType(value ?? 'skypilot')}
-          sx={{ mt: 2, width: '100%' }}
+          sx={{ width: '100%' }}
         >
           <Option value="skypilot">Skypilot</Option>
           <Option value="slurm">Slurm</Option>
@@ -90,7 +96,7 @@ export default function ProviderDetailsModal({
             Cancel
           </Button>
           <Button onClick={createProvider} loading={loading}>
-            Invite
+            Add Provider
           </Button>
         </Box>
       </ModalDialog>
