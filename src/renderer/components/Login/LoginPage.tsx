@@ -179,7 +179,6 @@ export default function LoginPage() {
             </Typography>
           )}
           <Routes>
-            <Route path="/" element={<LoginForm />} />
             <Route
               path="/register"
               element={<RegisterForm onClose={() => navigate('/')} />}
@@ -188,6 +187,7 @@ export default function LoginPage() {
               path="/forgot-password"
               element={<ForgotPasswordForm onClose={() => navigate('/')} />}
             />
+            <Route path="*" element={<LoginForm />} />
           </Routes>
         </ModalDialog>
       </Modal>
