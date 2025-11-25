@@ -17,11 +17,6 @@ import useSWR from 'swr';
 import { useAPI } from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
 
-const fetcher = (url) =>
-  fetch(url)
-    .then((res) => res.json())
-    .then((data) => data);
-
 const DatasetTableWithTemplate = ({
   datasetId,
   template,

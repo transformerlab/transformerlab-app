@@ -20,6 +20,7 @@ import {
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import { useAPI } from 'renderer/lib/api-client/hooks';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 interface NewTaskModalProps {
   open: boolean;
@@ -64,7 +65,7 @@ export default function NewTaskModal({
       form.set('source_task_id', selectedTaskId);
       form.set('tag', tag);
 
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

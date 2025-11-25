@@ -13,6 +13,7 @@ import {
 import { MessagesSquareIcon, XIcon } from 'lucide-react';
 
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 function truncate(str, n) {
   if (!str) return '';
@@ -92,7 +93,7 @@ export default function PreviousMessageList({
                     </ListItemContent>
                     <IconButton
                       onClick={() => {
-                        fetch(
+                        fetchWithAuth(
                           chatAPI.Endpoints.Experiment.DeleteConversation(
                             experimentInfo?.id,
                             c?.id,

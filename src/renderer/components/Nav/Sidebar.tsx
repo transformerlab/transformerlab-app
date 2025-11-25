@@ -52,20 +52,17 @@ import {
   useModelStatus,
   usePluginStatus,
   useAPI,
-  logout,
   getAPIFullPath,
-  getAccessToken,
-  setAccessToken,
-  setRefreshToken,
   API_URL,
 } from 'renderer/lib/transformerlab-api-sdk';
 
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import LoginChip from './UserWidget';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
@@ -109,7 +106,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
         const url = getAPIFullPath('models', ['pipeline_tag'], {
           modelName: experimentInfo.config.foundation,
         });
-        const response = await fetch(url, { method: 'GET' });
+        const response = await fetchWithAuth(url, { method: 'GET' });
         if (!response.ok) {
           setPipelineTag(null);
         } else {
@@ -131,7 +128,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
 
       // Otherwise, check diffusion
       try {
-        const response = await fetch(
+        const response = await fetchWithAuth(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {
             experimentId: experimentInfo.id,
           }),
@@ -649,7 +646,7 @@ function BottomMenuItems({ navigate, themeSetter }) {
         return;
       }
 
-      const response = await fetch(`${apiBase}auth/workos/scope`, {
+      const response = await fetchWithAuth(`${apiBase}auth/workos/scope`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

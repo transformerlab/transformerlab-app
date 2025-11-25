@@ -16,6 +16,7 @@ import {
   Typography,
 } from '@mui/joy';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function Embeddings({}) {
   const { experimentInfo } = useExperimentInfo();
@@ -50,7 +51,7 @@ export default function Embeddings({}) {
         text,
       };
 
-      const response = await fetch(
+      const response = await fetchWithAuth(
         chatAPI.Endpoints.Rag.Embeddings(experimentId),
         {
           method: 'POST',
