@@ -69,7 +69,9 @@ function AppContent({
 
   const authContext = useAuth();
 
-  if (process.env.MULTIUSER === 'true' && !authContext?.isAuthenticated) {
+  debugger;
+
+  if (!authContext?.isAuthenticated) {
     return <LoginPage />;
   }
 

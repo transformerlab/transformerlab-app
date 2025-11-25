@@ -75,7 +75,24 @@ export default function LoginPage() {
   const [verifyMessage, setVerifyMessage] = useState('');
   const [hash, setHash] = useState(window.location.hash);
 
+  const authContext = useAuth();
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const autoLogin = async () => {
+      try {
+        await authContext.login('admin@example.com', 'admin123');
+      } catch (error) {
+        console.error('Auto-login failed:', error);
+      }
+    };
+
+    if (process.env.MULTIUSER !== 'true') {
+      console.log('Attempting auto-login for single user mode');
+      autoLogin();
+    }
+  }, []); // Empty dependency array ensures this runs only once
 
   useEffect(() => {
     const handleHashChange = () => {
