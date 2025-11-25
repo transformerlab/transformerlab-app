@@ -45,6 +45,8 @@ export default function UserLoginTest(): JSX.Element {
     },
   );
 
+  const providers = [];
+
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
 
@@ -319,6 +321,23 @@ export default function UserLoginTest(): JSX.Element {
           >
             Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
           </Button>
+        </Box>
+        <Box sx={{ mt: 3 }}>
+          <Typography level="title-lg" mb={1}>
+            Providers: ({providers?.length ?? 0})
+          </Typography>
+
+          <Table variant="soft" sx={{ mb: 2 }}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </Table>
         </Box>
       </Box>
       <RenameTeamModal
