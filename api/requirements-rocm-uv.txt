@@ -521,6 +521,7 @@ setuptools==70.2.0
     # via
     #   pytorch-triton-rocm
     #   tensorboard
+    #   torch
     #   wandb
 shellingham==1.5.4
     # via typer
