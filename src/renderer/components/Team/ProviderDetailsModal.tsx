@@ -77,13 +77,16 @@ export default function ProviderDetailsModal({
   }, [open]);
 
   async function createProvider(name: String, type: String, config: String) {
-    return await fetchWithAuth(getPath('compute_provider', ['create'], { teamId }), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    return await fetchWithAuth(
+      getPath('compute_provider', ['create'], { teamId }),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, type, config }),
       },
-      body: JSON.stringify({ name, type, config }),
-    });
+    );
   }
 
   async function updateProvider(id: String, name: String, config: String) {

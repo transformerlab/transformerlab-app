@@ -208,7 +208,10 @@ export default function JobProgress({ job }: JobProps) {
         // Use the providers stop endpoint
         try {
           const response = await fetchWithAuth(
-            chatAPI.Endpoints.ComputeProvider.StopCluster(providerId, clusterName),
+            chatAPI.Endpoints.ComputeProvider.StopCluster(
+              providerId,
+              clusterName,
+            ),
             { method: 'POST' },
           );
           if (response.ok && experimentInfo?.id && job?.id) {
