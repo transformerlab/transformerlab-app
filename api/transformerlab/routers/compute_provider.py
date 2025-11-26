@@ -16,15 +16,15 @@ from transformerlab.services.provider_service import (
     delete_team_provider,
     get_provider_instance,
 )
-from transformerlab.schemas.providers import (
+from transformerlab.schemas.compute_providers import (
     ProviderCreate,
     ProviderUpdate,
     ProviderRead,
     mask_sensitive_config,
 )
 from transformerlab.shared.models.models import ProviderType, TeamComputeProvider
-from transformerlab.providers.base import Provider
-from transformerlab.providers.models import (
+from transformerlab.compute_providers.base import ComputeProvider
+from transformerlab.compute_providers.models import (
     ClusterConfig,
     ClusterStatus,
     ResourceInfo,
@@ -36,7 +36,7 @@ from transformerlab.services import job_service
 from lab import storage
 from lab.dirs import get_workspace_dir
 
-router = APIRouter(tags=["compute_provider"])
+router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
 
 
 class ProviderTaskLaunchRequest(BaseModel):
@@ -79,9 +79,9 @@ def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
     return normalized or "remote-task"
 
 
-def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, Provider]:
+def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, ComputeProvider]:
     """Instantiate providers safely."""
-    instances: Dict[str, Provider] = {}
+    instances: Dict[str, ComputeProvider] = {}
     for provider in providers:
         try:
             instances[provider.id] = get_provider_instance(provider)
@@ -90,7 +90,7 @@ def _get_provider_instances(providers: list[TeamComputeProvider]) -> Dict[str, P
     return instances
 
 
-@router.post("/compute_provider/{provider_id}/tasks/{task_id}/file-upload", response_model=ProviderTaskFileUploadResponse)
+@router.post("/{provider_id}/tasks/{task_id}/file-upload", response_model=ProviderTaskFileUploadResponse)
 async def upload_task_file_for_provider(
     provider_id: str,
     task_id: str,
@@ -153,7 +153,7 @@ async def upload_task_file_for_provider(
         raise HTTPException(status_code=500, detail="Failed to upload task file")
 
 
-@router.get("/compute_provider", response_model=List[ProviderRead])
+@router.get("/", response_model=List[ProviderRead])
 async def list_providers(
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
@@ -185,7 +185,7 @@ async def list_providers(
     return result
 
 
-@router.post("/compute_provider", response_model=ProviderRead)
+@router.post("/", response_model=ProviderRead)
 async def create_provider(
     provider_data: ProviderCreate,
     owner_info=Depends(require_team_owner),
@@ -242,7 +242,7 @@ async def create_provider(
     )
 
 
-@router.get("/compute_provider/{provider_id}", response_model=ProviderRead)
+@router.get("/{provider_id}", response_model=ProviderRead)
 async def get_provider(
     provider_id: str,
     user_and_team=Depends(get_user_and_team),
@@ -272,7 +272,7 @@ async def get_provider(
     )
 
 
-@router.patch("/compute_provider/{provider_id}", response_model=ProviderRead)
+@router.patch("/{provider_id}", response_model=ProviderRead)
 async def update_provider(
     provider_id: str,
     provider_data: ProviderUpdate,
@@ -326,7 +326,7 @@ async def update_provider(
     )
 
 
-@router.delete("/compute_provider/{provider_id}")
+@router.delete("/{provider_id}")
 async def delete_provider(
     provider_id: str,
     owner_info=Depends(require_team_owner),
@@ -346,7 +346,7 @@ async def delete_provider(
     return {"message": "Provider deleted successfully"}
 
 
-@router.post("/compute_provider/{provider_id}/verify")
+@router.post("/{provider_id}/verify")
 async def verify_provider(
     provider_id: str,
     user_and_team=Depends(get_user_and_team),
@@ -399,7 +399,7 @@ async def verify_provider(
 # ============================================================================
 
 
-@router.post("/compute_provider/{provider_id}/clusters/{cluster_name}/launch")
+@router.post("/{provider_id}/clusters/{cluster_name}/launch")
 async def launch_cluster(
     provider_id: str,
     cluster_name: str,
@@ -481,7 +481,7 @@ def _generate_aws_credentials_setup(
     return setup_script
 
 
-@router.post("/compute_provider/{provider_id}/tasks/launch")
+@router.post("/{provider_id}/tasks/launch")
 async def launch_task_on_provider(
     provider_id: str,
     request: ProviderTaskLaunchRequest,
@@ -650,7 +650,7 @@ async def launch_task_on_provider(
     }
 
 
-@router.get("/compute_provider/jobs/{job_id}/check-status")
+@router.get("/jobs/{job_id}/check-status")
 async def check_provider_job_status(
     job_id: str,
     user_and_team=Depends(get_user_and_team),
@@ -750,7 +750,7 @@ async def check_provider_job_status(
         }
 
 
-@router.post("/compute_provider/{provider_id}/clusters/{cluster_name}/stop")
+@router.post("/{provider_id}/clusters/{cluster_name}/stop")
 async def stop_cluster(
     provider_id: str,
     cluster_name: str,
@@ -785,7 +785,7 @@ async def stop_cluster(
         raise HTTPException(status_code=500, detail="Failed to stop cluster")
 
 
-@router.get("/compute_provider/{provider_id}/clusters/{cluster_name}/status", response_model=ClusterStatus)
+@router.get("/{provider_id}/clusters/{cluster_name}/status", response_model=ClusterStatus)
 async def get_cluster_status(
     provider_id: str,
     cluster_name: str,
@@ -815,7 +815,7 @@ async def get_cluster_status(
         raise HTTPException(status_code=500, detail="Failed to get cluster status")
 
 
-@router.get("/compute_provider/{provider_id}/clusters/{cluster_name}/resources", response_model=ResourceInfo)
+@router.get("/{provider_id}/clusters/{cluster_name}/resources", response_model=ResourceInfo)
 async def get_cluster_resources(
     provider_id: str,
     cluster_name: str,
@@ -850,7 +850,7 @@ async def get_cluster_resources(
 # ============================================================================
 
 
-@router.post("/compute_provider/{provider_id}/clusters/{cluster_name}/jobs")
+@router.post("/{provider_id}/clusters/{cluster_name}/jobs")
 async def submit_job(
     provider_id: str,
     cluster_name: str,
@@ -890,7 +890,7 @@ async def submit_job(
         raise HTTPException(status_code=500, detail="Failed to submit job")
 
 
-@router.get("/compute_provider/{provider_id}/clusters/{cluster_name}/jobs", response_model=List[JobInfo])
+@router.get("/{provider_id}/clusters/{cluster_name}/jobs", response_model=List[JobInfo])
 async def list_jobs(
     provider_id: str,
     cluster_name: str,
@@ -925,7 +925,7 @@ async def list_jobs(
         raise HTTPException(status_code=500, detail="Failed to list jobs")
 
 
-@router.get("/compute_provider/{provider_id}/clusters/{cluster_name}/jobs/{job_id}", response_model=JobInfo)
+@router.get("/{provider_id}/clusters/{cluster_name}/jobs/{job_id}", response_model=JobInfo)
 async def get_job_info(
     provider_id: str,
     cluster_name: str,
@@ -972,7 +972,7 @@ async def get_job_info(
         raise HTTPException(status_code=500, detail="Failed to get job info")
 
 
-@router.get("/compute_provider/{provider_id}/clusters/{cluster_name}/jobs/{job_id}/logs")
+@router.get("/{provider_id}/clusters/{cluster_name}/jobs/{job_id}/logs")
 async def get_job_logs(
     provider_id: str,
     cluster_name: str,
@@ -1060,7 +1060,7 @@ async def get_job_logs(
         raise HTTPException(status_code=500, detail="Failed to get job logs")
 
 
-@router.delete("/compute_provider/{provider_id}/clusters/{cluster_name}/jobs/{job_id}")
+@router.delete("/{provider_id}/clusters/{cluster_name}/jobs/{job_id}")
 async def cancel_job(
     provider_id: str,
     cluster_name: str,

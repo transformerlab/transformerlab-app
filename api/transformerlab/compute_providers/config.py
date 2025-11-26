@@ -8,8 +8,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 
-class ProviderConfig(BaseModel):
-    """Configuration for a single provider."""
+class ComputeProviderConfig(BaseModel):
+    """Configuration for a single compute provider."""
 
     type: str  # "skypilot" or "slurm"
     name: str  # Provider name/identifier
@@ -32,21 +32,21 @@ class ProviderConfig(BaseModel):
     extra_config: Dict[str, Any] = Field(default_factory=dict)
 
 
-def load_providers_config(
+def load_compute_providers_config(
     config_path: Optional[str] = None,
-) -> Dict[str, ProviderConfig]:
+) -> Dict[str, ComputeProviderConfig]:
     """
-    Load provider configurations from YAML or JSON file.
+    Load compute provider configurations from YAML or JSON file.
     
     Note: YAML file is optional. If not found, returns empty dict.
-    Providers are typically loaded from the database via the providers router.
+    Compute providers are typically loaded from the database via the compute_provider router.
 
     Args:
         config_path: Path to config file. If None, uses default location
                     or PROVIDERS_CONFIG_PATH env var.
 
     Returns:
-        Dictionary mapping provider names to ProviderConfig objects.
+        Dictionary mapping provider names to ComputeProviderConfig objects.
         Returns empty dict if file doesn't exist.
     """
     if config_path is None:
@@ -62,8 +62,8 @@ def load_providers_config(
             package_config = current_file.parent / "providers.yaml"
 
             # 2. Check in source directory (when running from repo)
-            # Go up from src/lattice/providers/config.py to find repo root
-            # Then look for src/lattice/providers/providers.yaml
+            # Go up from src/lattice/compute_providers/config.py to find repo root
+            # Then look for src/lattice/compute_providers/compute_providers.yaml
             source_config = None
             for parent in [
                 current_file.parent.parent.parent.parent,
@@ -103,20 +103,20 @@ def load_providers_config(
 
     for name, provider_data in providers_data.items():
         provider_data["name"] = name
-        providers[name] = ProviderConfig(**provider_data)
+        providers[name] = ComputeProviderConfig(**provider_data)
 
     return providers
 
 
-def create_provider(config: ProviderConfig):
+def create_compute_provider(config: ComputeProviderConfig):
     """
-    Factory function to create a provider instance from config.
+    Factory function to create a compute provider instance from config.
 
     Args:
-        config: ProviderConfig object
+        config: ComputeProviderConfig object
 
     Returns:
-        Provider instance
+        ComputeProvider instance
     """
     from .skypilot import SkyPilotProvider
     from .slurm import SLURMProvider

@@ -220,11 +220,11 @@
   "compute_provider": {
     "list": {
       "method": "GET",
-      "path": "compute_provider"
+      "path": "compute_provider/"
     },
     "create": {
       "method": "POST",
-      "path": "compute_provider"
+      "path": "compute_provider/"
     },
     "get": {
       "method": "GET",

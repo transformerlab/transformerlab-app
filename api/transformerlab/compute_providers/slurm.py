@@ -4,7 +4,7 @@ import requests
 import os
 from typing import Dict, Any, Optional, Union, List
 from lab import storage
-from .base import Provider
+from .base import ComputeProvider
 from .models import (
     ClusterConfig,
     JobConfig,
@@ -27,7 +27,7 @@ class AddIfVerified(paramiko.MissingHostKeyPolicy):
         client._host_keys.save(os.path.expanduser("~/.ssh/known_hosts"))
 
 
-class SLURMProvider(Provider):
+class SLURMProvider(ComputeProvider):
     """Provider implementation for SLURM (REST API or SSH)."""
 
     def __init__(

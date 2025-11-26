@@ -11,8 +11,8 @@ from .models import (
 )
 
 
-class Provider(ABC):
-    """Abstract base class for all provider implementations."""
+class ComputeProvider(ABC):
+    """Abstract base class for all compute provider implementations."""
 
     @abstractmethod
     def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:

@@ -6,8 +6,8 @@ from sqlalchemy import select
 from fastapi import HTTPException
 from transformerlab.shared.models.models import TeamComputeProvider, Team, UserTeam
 from transformerlab.shared.models.user_model import User
-from transformerlab.providers.config import ProviderConfig, create_provider
-from transformerlab.providers.base import Provider
+from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
+from transformerlab.compute_providers.base import ComputeProvider
 
 
 async def validate_team_exists(session: AsyncSession, team_id: str) -> None:
@@ -119,20 +119,20 @@ async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamC
     return list(result.scalars().all())
 
 
-def db_record_to_provider_config(record: TeamComputeProvider) -> ProviderConfig:
+def db_record_to_provider_config(record: TeamComputeProvider) -> ComputeProviderConfig:
     """
-    Convert a database TeamComputeProvider record to a ProviderConfig object.
+    Convert a database TeamComputeProvider record to a ComputeProviderConfig object.
 
     Args:
         record: TeamComputeProvider database record
 
     Returns:
-        ProviderConfig object ready for create_provider()
+        ComputeProviderConfig object ready for create_compute_provider()
     """
     config_dict = record.config or {}
 
-    # Build ProviderConfig from database record
-    provider_config = ProviderConfig(
+    # Build ComputeProviderConfig from database record
+    provider_config = ComputeProviderConfig(
         type=record.type,
         name=record.name,
         server_url=config_dict.get("server_url"),
@@ -151,18 +151,18 @@ def db_record_to_provider_config(record: TeamComputeProvider) -> ProviderConfig:
     return provider_config
 
 
-def get_provider_instance(record: TeamComputeProvider) -> Provider:
+def get_provider_instance(record: TeamComputeProvider) -> ComputeProvider:
     """
-    Get an instantiated Provider from a database record.
+    Get an instantiated ComputeProvider from a database record.
 
     Args:
         record: TeamComputeProvider database record
 
     Returns:
-        Instantiated Provider object
+        Instantiated ComputeProvider object
     """
     config = db_record_to_provider_config(record)
-    return create_provider(config)
+    return create_compute_provider(config)
 
 
 async def create_team_provider(

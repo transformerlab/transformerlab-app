@@ -1,60 +1,60 @@
-"""Provider router for managing and routing to provider instances."""
+"""Compute provider router for managing and routing to compute provider instances."""
 
 import asyncio
 from typing import Dict, Optional
-from .base import Provider
-from .config import load_providers_config, create_provider, ProviderConfig
+from .base import ComputeProvider
+from .config import load_compute_providers_config, create_compute_provider, ComputeProviderConfig
 
 
-class ProviderRouter:
-    """Router that manages provider instances and routes requests."""
+class ComputeProviderRouter:
+    """Router that manages compute provider instances and routes requests."""
 
     def __init__(self, config_path: Optional[str] = None):
         """
-        Initialize the provider router.
+        Initialize the compute provider router.
 
-        Note: YAML config file is optional. Providers can be loaded from
-        the database via the providers API router, or added manually via add_provider().
+        Note: YAML config file is optional. Compute providers can be loaded from
+        the database via the compute_provider API router, or added manually via add_provider().
 
         Args:
-            config_path: Path to providers config file. If None, uses default.
+            config_path: Path to compute_providers config file. If None, uses default.
                         If file doesn't exist, router starts with no providers.
         """
-        self._providers: Dict[str, Provider] = {}
-        self._configs: Dict[str, ProviderConfig] = {}
+        self._providers: Dict[str, ComputeProvider] = {}
+        self._configs: Dict[str, ComputeProviderConfig] = {}
         self._provider_errors: Dict[str, str] = {}
         self._load_providers(config_path)
 
     def _load_providers(self, config_path: Optional[str] = None):
-        """Load providers from configuration. YAML file is optional."""
+        """Load compute providers from configuration. YAML file is optional."""
         try:
-            configs = load_providers_config(config_path)
+            configs = load_compute_providers_config(config_path)
             self._configs = configs
 
             for name, config in configs.items():
                 try:
-                    provider = create_provider(config)
+                    provider = create_compute_provider(config)
                     self._providers[name] = provider
                 except Exception as e:
-                    print(f"Warning: Failed to create provider '{name}': {e}")
+                    print(f"Warning: Failed to create compute provider '{name}': {e}")
                     # Store the error for better error messages later
                     self._provider_errors[name] = str(e)
         except Exception as e:
             # If YAML loading fails, just continue with empty providers
-            # Providers can be added manually via add_provider() or loaded from database
-            print(f"Note: No providers.yaml file found or error loading it: {e}")
+            # Compute providers can be added manually via add_provider() or loaded from database
+            print(f"Note: No compute_providers.yaml file found or error loading it: {e}")
             self._configs = {}
 
-    def get_provider(self, provider_name: str) -> Provider:
+    def get_provider(self, provider_name: str) -> ComputeProvider:
         """
-        Get a provider instance by name.
+        Get a compute provider instance by name.
         First checks the database, then falls back to YAML config.
 
         Args:
-            provider_name: Name of the provider
+            provider_name: Name of the compute provider
 
         Returns:
-            Provider instance
+            ComputeProvider instance
 
         Raises:
             ValueError: If provider not found
@@ -93,37 +93,37 @@ class ProviderRouter:
         return list(self._providers.keys())
 
     def reload(self, config_path: Optional[str] = None):
-        """Reload providers from configuration."""
+        """Reload compute providers from configuration."""
         self._providers.clear()
         self._configs.clear()
         self._provider_errors.clear()
         self._load_providers(config_path)
 
-    def add_provider(self, name: str, provider: Provider):
+    def add_provider(self, name: str, provider: ComputeProvider):
         """
-        Manually add a provider instance.
+        Manually add a compute provider instance.
 
         Args:
             name: Provider name
-            provider: Provider instance
+            provider: ComputeProvider instance
         """
         self._providers[name] = provider
 
 
 # Global router instance
-_global_router: Optional[ProviderRouter] = None
+_global_router: Optional[ComputeProviderRouter] = None
 
 
-def _try_load_from_database(provider_name: str) -> Optional[Provider]:
+def _try_load_from_database(provider_name: str) -> Optional[ComputeProvider]:
     """
-    Try to load a provider from the database by name.
+    Try to load a compute provider from the database by name.
     This is a helper function that attempts async database access from sync context.
 
     Args:
-        provider_name: Name of the provider to load
+        provider_name: Name of the compute provider to load
 
     Returns:
-        Provider instance if found, None otherwise
+        ComputeProvider instance if found, None otherwise
     """
     try:
         # Import here to avoid circular dependencies
@@ -167,24 +167,24 @@ def _try_load_from_database(provider_name: str) -> Optional[Provider]:
         return None
 
 
-def get_provider(provider_name: str, config_path: Optional[str] = None) -> Provider:
+def get_provider(provider_name: str, config_path: Optional[str] = None) -> ComputeProvider:
     """
-    Get a provider instance (convenience function using global router).
+    Get a compute provider instance (convenience function using global router).
 
     Args:
-        provider_name: Name of the provider
+        provider_name: Name of the compute provider
         config_path: Optional config path (only used on first call)
 
     Returns:
-        Provider instance
+        ComputeProvider instance
     """
     global _global_router
     if _global_router is None:
-        _global_router = ProviderRouter(config_path)
+        _global_router = ComputeProviderRouter(config_path)
     return _global_router.get_provider(provider_name)
 
 
-def get_router(config_path: Optional[str] = None) -> ProviderRouter:
+def get_router(config_path: Optional[str] = None) -> ComputeProviderRouter:
     """
     Get the global router instance.
 
@@ -192,9 +192,9 @@ def get_router(config_path: Optional[str] = None) -> ProviderRouter:
         config_path: Optional config path (only used on first call)
 
     Returns:
-        ProviderRouter instance
+        ComputeProviderRouter instance
     """
     global _global_router
     if _global_router is None:
-        _global_router = ProviderRouter(config_path)
+        _global_router = ComputeProviderRouter(config_path)
     return _global_router

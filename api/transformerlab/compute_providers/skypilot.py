@@ -5,7 +5,7 @@ import json
 import re
 from typing import Dict, Any, Optional, Union, List
 
-from .base import Provider
+from .base import ComputeProvider
 from .models import (
     ClusterConfig,
     JobConfig,
@@ -36,7 +36,7 @@ except Exception:
     raise ImportError("SkyPilot SDK is required. Install with: pip install skypilot")
 
 
-class SkyPilotProvider(Provider):
+class SkyPilotProvider(ComputeProvider):
     """Provider implementation for SkyPilot remote server API."""
 
     def __init__(

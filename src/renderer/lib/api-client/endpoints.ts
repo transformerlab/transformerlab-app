@@ -43,7 +43,7 @@ Endpoints.Tasks = {
 };
 
 Endpoints.ComputeProvider = {
-  List: () => `${API_URL()}compute_provider`,
+  List: () => `${API_URL()}compute_provider/`,
   LaunchTask: (providerId: string) =>
     `${API_URL()}compute_provider/${providerId}/tasks/launch`,
   CheckJobStatus: (jobId: string) =>
