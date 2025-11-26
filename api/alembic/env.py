@@ -7,6 +7,7 @@ from alembic import context
 
 # Import all models to ensure they're registered with Base.metadata
 from transformerlab.shared.models.models import Base
+from transformerlab.shared.models.user_model import User, OAuthAccount
 
 # Override sqlalchemy.url from environment or use the one from constants
 from transformerlab.db.constants import DATABASE_URL
