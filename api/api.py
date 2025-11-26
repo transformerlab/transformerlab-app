@@ -59,12 +59,11 @@ from transformerlab.routers import (  # noqa: E402
     tools,
     batched_prompts,
     recipes,
-    remote,
-    auth2,
     teams,
     providers,
+    auth,
 )
-from transformerlab.routers.auth2 import get_user_and_team  # noqa: E402
+from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 import torch  # noqa: E402
 
 try:
@@ -222,9 +221,6 @@ async def validation_exception_handler(request, exc):
     return create_error_response(ErrorCode.VALIDATION_TYPE_ERROR, str(exc))
 
 
-### END GENERAL API - NOT OPENAI COMPATIBLE ###
-
-
 app.include_router(model.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(serverinfo.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(train.router, dependencies=[Depends(get_user_and_team)])
@@ -239,18 +235,10 @@ app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(remote.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(auth2.router)
 app.include_router(providers.router)
-
-# Authentication and session management routes
-if os.getenv("TFL_MULTITENANT") == "true":
-    from transformerlab.routers import auth  # noqa: E402
-
-    app.include_router(auth.router)
-
+app.include_router(auth.router)
 
 controller_process = None
 worker_process = None
