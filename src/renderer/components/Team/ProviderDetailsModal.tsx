@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -9,25 +9,44 @@ import {
   Typography,
   Option,
 } from '@mui/joy';
-import { useAuth } from 'renderer/lib/authContext';
+import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { getPath } from 'renderer/lib/api-client/urls';
 
-interface InviteUserModalProps {
+interface ProviderDetailsModalProps {
   open: boolean;
   onClose: () => void;
   teamId: string;
+  providerId?: string;
 }
 
 export default function ProviderDetailsModal({
   open,
   onClose,
   teamId,
-}: InviteUserModalProps) {
+  providerId,
+}: ProviderDetailsModalProps) {
   const [name, setName] = useState('');
   const [type, setType] = useState('');
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
   const { fetchWithAuth } = useAuth();
+  const { data: providerData } = useAPI('providers', ['get',], {
+    providerId
+  });
+
+  // if a providerId is passed then we are editing an existing provider
+  // Otherwise we are creating a new provider
+  useEffect(() => {
+    if (providerId && providerData) {
+      setName(providerData.name);
+      setType(providerData.type);
+      setConfig(providerData.config);
+    } else {
+      setName('');
+      setType('');
+      setConfig('');
+    }
+  }, [providerId]);
 
   const createProvider = async () => {
     setLoading(true);
@@ -102,7 +121,7 @@ export default function ProviderDetailsModal({
             Cancel
           </Button>
           <Button onClick={createProvider} loading={loading}>
-            Add Provider
+            {providerId ? 'Save Provider' : 'Add Provider'}
           </Button>
         </Box>
       </ModalDialog>

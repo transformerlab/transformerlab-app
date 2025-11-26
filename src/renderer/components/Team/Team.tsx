@@ -35,6 +35,7 @@ export default function UserLoginTest(): JSX.Element {
   const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
   const [openProviderDetailsModal, setOpenProviderDetailsModal] =
     useState<boolean>(false);
+  const [providerId, setProviderId] = useState<string>('');
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -362,8 +363,10 @@ export default function UserLoginTest(): JSX.Element {
                       sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
                     >
                       <Button
-                        onClick={() => alert(provider?.config)}
-                        disabled
+                        onClick={() => {
+                          setProviderId(provider.id);
+                          setOpenProviderDetailsModal(true);
+                        }}
                       >
                         Edit
                       </Button>
@@ -413,9 +416,11 @@ export default function UserLoginTest(): JSX.Element {
         open={openProviderDetailsModal}
         onClose={() => {
           setOpenProviderDetailsModal(false);
+          setProviderId('');
           providersMutate();
         }}
         teamId={authContext.team?.id || ''}
+        providerId={providerId}
       />
     </div>
   );
