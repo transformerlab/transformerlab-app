@@ -1,7 +1,7 @@
 # database.py
 from typing import AsyncGenerator, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, relationship, foreign
+from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, relationship
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID, SQLAlchemyUserDatabase
 from sqlalchemy import String, UUID, select
 import uuid
