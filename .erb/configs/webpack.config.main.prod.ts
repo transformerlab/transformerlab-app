@@ -63,7 +63,7 @@ const configuration: webpack.Configuration = {
       DEBUG_PROD: false,
       START_MINIMIZED: false,
       MULTIUSER: 'false',
-      TL_API_URL: 'default',
+      TL_API_URL: '',
       TL_FORCE_API_URL: 'false',
     }),
 
