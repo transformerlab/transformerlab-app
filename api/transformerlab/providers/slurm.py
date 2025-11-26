@@ -3,6 +3,7 @@
 import requests
 import os
 from typing import Dict, Any, Optional, Union, List
+from lab import storage
 from .base import Provider
 from .models import (
     ClusterConfig,
@@ -101,14 +102,22 @@ class SLURMProvider(Provider):
 
         Used to implement ClusterConfig.file_mounts semantics for SSH mode.
         The mapping is interpreted as {remote_path: local_path}.
+
+        The local_path is interpreted using lab.storage first (workspace-aware),
+        falling back to the OS filesystem if needed.
         """
         try:
             import paramiko
         except ImportError:
             raise ImportError("paramiko is required for SSH mode. Install with: pip install paramiko")
 
+        # Normalize local path (may be a workspace path created via lab.storage)
         local_path = os.path.expanduser(local_path)
-        if not os.path.exists(local_path):
+
+        # Determine existence and directory-ness using storage first, then os.*
+        if storage.exists(local_path):
+            is_dir = storage.isdir(local_path)
+        else:
             raise FileNotFoundError(f"Local path for file_mounts does not exist: {local_path}")
 
         ssh = paramiko.SSHClient()
@@ -156,11 +165,14 @@ class SLURMProvider(Provider):
             def _upload_file(local_f: str, remote_f: str) -> None:
                 remote_dir = os.path.dirname(remote_f.rstrip("/"))
                 _mkdir_p(remote_dir)
+                # For now assume local_f is a real filesystem path; this is true for
+                # workspace_dir-based uploads written via storage.open on local FS.
                 sftp.put(local_f, remote_f)
 
-            if os.path.isdir(local_path):
+            if is_dir:
                 # Recursively upload directory contents
-                for root, _, files in os.walk(local_path):
+                walker = storage.walk(local_path)
+                for root, _dirs, files in walker:
                     rel = os.path.relpath(root, local_path)
                     if rel == ".":
                         remote_root = remote_path.rstrip("/")
@@ -168,7 +180,7 @@ class SLURMProvider(Provider):
                         remote_root = f"{remote_path.rstrip('/')}/{rel}"
                     _mkdir_p(remote_root)
                     for fname in files:
-                        local_f = os.path.join(root, fname)
+                        local_f = storage.join(root, fname)
                         remote_f = f"{remote_root.rstrip('/')}/{fname}"
                         _upload_file(local_f, remote_f)
             else:
