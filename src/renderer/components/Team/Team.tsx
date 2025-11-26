@@ -33,7 +33,8 @@ export default function UserLoginTest(): JSX.Element {
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
-  const [openProviderDetailsModal, setOpenProviderDetailsModal] = useState<boolean>(false);
+  const [openProviderDetailsModal, setOpenProviderDetailsModal] =
+    useState<boolean>(false);
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -48,7 +49,9 @@ export default function UserLoginTest(): JSX.Element {
   );
 
   // Get providers list (unchanged)
-  const { data: providers, mutate: providersMutate } = useAPI('providers', ['list']);
+  const { data: providers, mutate: providersMutate } = useAPI('providers', [
+    'list',
+  ]);
   console.log(providers);
 
   // Simplify errors: show all errors under the "Members" title

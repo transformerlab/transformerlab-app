@@ -33,7 +33,8 @@ export default function ProviderDetailsModal({
     setLoading(true);
     try {
       // The API expects an object for config, not a JSON string
-      const parsedConfig = typeof config === 'string' ? JSON.parse(config) : config;
+      const parsedConfig =
+        typeof config === 'string' ? JSON.parse(config) : config;
 
       const response = await fetchWithAuth(
         getPath('providers', ['create'], { teamId }),
