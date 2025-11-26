@@ -1,9 +1,9 @@
 # database.py
 from typing import AsyncGenerator, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, relationship
+from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, relationship, foreign
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID, SQLAlchemyUserDatabase
-from sqlalchemy import String, UUID, select, ForeignKey
+from sqlalchemy import String, UUID, select
 import uuid
 from fastapi import Depends
 
@@ -27,6 +27,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     
     oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
         "OAuthAccount",
+        primaryjoin="User.id == foreign(OAuthAccount.user_id)",
         lazy="joined"
     )
 
@@ -37,7 +38,7 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
     OAuth account model for linking OAuth providers to users.
     Stores OAuth provider info (Google, etc.) linked to our users.
     """
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
 
 
 # 3. Setup the Async Engine and Session
