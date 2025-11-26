@@ -225,6 +225,18 @@
     "create": {
       "method": "POST",
       "path": "providers"
+    },
+    "get": {
+      "method": "GET",
+      "path": "providers/{providerId}"
+    },
+    "update": {
+      "method": "PATCH",
+      "path": "providers/{providerId}"
+    },
+    "delete": {
+      "method": "DELETE",
+      "path": "providers/{providerId}"
     }
   },
   "auth": {
