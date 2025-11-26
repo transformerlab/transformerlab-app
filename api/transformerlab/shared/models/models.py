@@ -121,10 +121,10 @@ class ProviderType(str, enum.Enum):
     SKYPILOT = "skypilot"
 
 
-class TeamProvider(Base):
-    """Team provider model for managing compute providers per team."""
+class TeamComputeProvider(Base):
+    """Team compute provider model for managing compute providers per team."""
 
-    __tablename__ = "team_providers"
+    __tablename__ = "compute_providers"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     team_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
@@ -139,4 +139,4 @@ class TeamProvider(Base):
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
-    __table_args__ = (Index("idx_team_provider_name", "team_id", "name"),)
+    __table_args__ = (Index("idx_compute_provider_name", "team_id", "name"),)

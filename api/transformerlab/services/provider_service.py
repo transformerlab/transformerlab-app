@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
-from transformerlab.shared.models.models import TeamProvider, Team, UserTeam
+from transformerlab.shared.models.models import TeamComputeProvider, Team, UserTeam
 from transformerlab.shared.models.user_model import User
 from transformerlab.providers.config import ProviderConfig, create_provider
 from transformerlab.providers.base import Provider
@@ -86,14 +86,14 @@ async def validate_provider_data(
         await validate_user_team_membership(session, created_by_user_id, team_id)
 
 
-async def get_provider_by_id(session: AsyncSession, provider_id: str) -> Optional[TeamProvider]:
+async def get_provider_by_id(session: AsyncSession, provider_id: str) -> Optional[TeamComputeProvider]:
     """Get a provider record by ID only (without team filter)."""
-    stmt = select(TeamProvider).where(TeamProvider.id == provider_id)
+    stmt = select(TeamComputeProvider).where(TeamComputeProvider.id == provider_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 
 
-async def get_team_provider(session: AsyncSession, team_id: str, provider_id: str) -> Optional[TeamProvider]:
+async def get_team_provider(session: AsyncSession, team_id: str, provider_id: str) -> Optional[TeamComputeProvider]:
     """
     Get a provider record by ID, ensuring it belongs to the team.
     Explicitly validates team membership for security.
@@ -112,19 +112,19 @@ async def get_team_provider(session: AsyncSession, team_id: str, provider_id: st
     return provider
 
 
-async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamProvider]:
+async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamComputeProvider]:
     """List all providers for a team."""
-    stmt = select(TeamProvider).where(TeamProvider.team_id == team_id).order_by(TeamProvider.created_at.desc())
+    stmt = select(TeamComputeProvider).where(TeamComputeProvider.team_id == team_id).order_by(TeamComputeProvider.created_at.desc())
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
-def db_record_to_provider_config(record: TeamProvider) -> ProviderConfig:
+def db_record_to_provider_config(record: TeamComputeProvider) -> ProviderConfig:
     """
-    Convert a database TeamProvider record to a ProviderConfig object.
+    Convert a database TeamComputeProvider record to a ProviderConfig object.
 
     Args:
-        record: TeamProvider database record
+        record: TeamComputeProvider database record
 
     Returns:
         ProviderConfig object ready for create_provider()
@@ -151,12 +151,12 @@ def db_record_to_provider_config(record: TeamProvider) -> ProviderConfig:
     return provider_config
 
 
-def get_provider_instance(record: TeamProvider) -> Provider:
+def get_provider_instance(record: TeamComputeProvider) -> Provider:
     """
     Get an instantiated Provider from a database record.
 
     Args:
-        record: TeamProvider database record
+        record: TeamComputeProvider database record
 
     Returns:
         Instantiated Provider object
@@ -173,9 +173,9 @@ async def create_team_provider(
     config: dict,
     created_by_user_id: str,
     validate: bool = True,
-) -> TeamProvider:
+) -> TeamComputeProvider:
     """
-    Create a new team provider record with referential integrity validation.
+    Create a new team compute provider record with referential integrity validation.
 
     Args:
         session: Database session
@@ -187,7 +187,7 @@ async def create_team_provider(
         validate: Whether to validate referential integrity (default: True)
 
     Returns:
-        Created TeamProvider record
+        Created TeamComputeProvider record
 
     Raises:
         HTTPException: If validation fails
@@ -196,7 +196,7 @@ async def create_team_provider(
     if validate:
         await validate_provider_data(session, team_id, created_by_user_id, validate_membership=True)
 
-    provider = TeamProvider(
+    provider = TeamComputeProvider(
         team_id=team_id, name=name, type=provider_type, config=config, created_by_user_id=created_by_user_id
     )
     session.add(provider)
@@ -206,8 +206,8 @@ async def create_team_provider(
 
 
 async def update_team_provider(
-    session: AsyncSession, provider: TeamProvider, name: Optional[str] = None, config: Optional[dict] = None
-) -> TeamProvider:
+    session: AsyncSession, provider: TeamComputeProvider, name: Optional[str] = None, config: Optional[dict] = None
+) -> TeamComputeProvider:
     """Update an existing team provider record."""
     if name is not None:
         provider.name = name
@@ -218,7 +218,7 @@ async def update_team_provider(
     return provider
 
 
-async def delete_team_provider(session: AsyncSession, provider: TeamProvider) -> None:
+async def delete_team_provider(session: AsyncSession, provider: TeamComputeProvider) -> None:
     """Delete a team provider record."""
     await session.delete(provider)
     await session.commit()

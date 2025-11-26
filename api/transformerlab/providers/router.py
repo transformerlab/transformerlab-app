@@ -132,7 +132,7 @@ def _try_load_from_database(provider_name: str) -> Optional[Provider]:
             get_provider_instance,
         )
         from sqlalchemy import select
-        from transformerlab.shared.models.models import TeamProvider
+        from transformerlab.shared.models.models import TeamComputeProvider
 
         # Try to get an async session and query the database
         async def _async_load():
@@ -140,7 +140,7 @@ def _try_load_from_database(provider_name: str) -> Optional[Provider]:
                 async with async_session() as session:
                     # Search for provider by name across all teams
                     # Note: In a real scenario, you might want to filter by team_id
-                    stmt = select(TeamProvider).where(TeamProvider.name == provider_name)
+                    stmt = select(TeamComputeProvider).where(TeamComputeProvider.name == provider_name)
                     result = await session.execute(stmt)
                     provider_record = result.scalar_one_or_none()
 
