@@ -13,6 +13,29 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
 
+  const handleGoogleLogin = async () => {
+    // Fetch the authorization URL and redirect to Google
+    const apiUrl = (window as any).TransformerLab?.API_URL;
+    if (!apiUrl) {
+      console.error('API URL not available for Google OAuth');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${apiUrl}auth/google/authorize`);
+      const data = await response.json();
+      
+      // Redirect to Google's authorization URL
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      } else {
+        console.error('Failed to initialize Google login.');
+      }
+    } catch (error) {
+      console.error('Error during Google login:', error);
+    }
+  };
+
   // Handler to call fake HTTP endpoint and show feedback
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +80,7 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
 
   return (
     <Stack spacing={2}>
-      <Button startDecorator={<FaGoogle />}>Register with Google</Button>
+      <Button startDecorator={<FaGoogle />} onClick={handleGoogleLogin}>Register with Google</Button>
       <Button startDecorator={<FaDiscord />}>Register with Discord</Button>
       <Typography level="body-md" component="div" sx={{ pt: 3 }}>
         Or Register Using Email:
