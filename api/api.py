@@ -59,10 +59,10 @@ from transformerlab.routers import (  # noqa: E402
     tools,
     batched_prompts,
     recipes,
-    auth2,
     teams,
+    auth,
 )
-from transformerlab.routers.auth2 import get_user_and_team  # noqa: E402
+from transformerlab.routers.auth import get_user_and_team  # noqa: E402
 import torch  # noqa: E402
 
 try:
@@ -236,7 +236,7 @@ app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(auth2.router)
+app.include_router(auth.router)
 
 controller_process = None
 worker_process = None
