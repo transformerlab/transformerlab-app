@@ -76,7 +76,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         print(f"User {user.id} has registered.")
 
         # Create personal team for this user as owner
-        # FIX: Use get_async_session() instead of self.user_db.session
         async for session in get_async_session():
             try:
                 team = await create_personal_team(session, user)
