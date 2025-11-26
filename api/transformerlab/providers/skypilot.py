@@ -884,7 +884,8 @@ class SkyPilotProvider(Provider):
                 else:
                     return ""
             except Exception as e:
-                return f"Error reading logs: {str(e)}"
+                print(f"Error reading logs: {str(e)}")
+                return "Error reading logs"
 
     def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
         """Cancel a job."""
