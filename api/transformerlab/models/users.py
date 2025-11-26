@@ -2,11 +2,11 @@ import uuid
 from typing import Optional
 from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse
-from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas
+from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, exceptions
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
 from httpx_oauth.clients.google import GoogleOAuth2
-from transformerlab.shared.models.user_model import User, OAuthAccount, get_async_session, create_personal_team
+from transformerlab.shared.models.user_model import User, OAuthAccount, get_async_session, create_personal_team, get_user_db
 from transformerlab.shared.models.models import UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -69,7 +69,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_lifetime_seconds = TOKEN_LIFETIME
     reset_password_token_audience = "fastapi-users:reset"
 
-    # Optional: Define custom logic after registration
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         """
         Called after a user successfully registers.
@@ -78,16 +77,25 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         print(f"User {user.id} has registered.")
 
         # Create personal team for this user as owner
-        async with self.user_db.session as session:
-            team = await create_personal_team(session, user)
-            user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
-            session.add(user_team)
-            await session.commit()
-            print(f"Created personal team '{team.name}' for user {user.email}")
+        # FIX: Use get_async_session() instead of self.user_db.session
+        async for session in get_async_session():
+            try:
+                team = await create_personal_team(session, user)
+                user_team = UserTeam(
+                    user_id=str(user.id), 
+                    team_id=team.id, 
+                    role=TeamRole.OWNER.value
+                )
+                session.add(user_team)
+                await session.commit()
+                print(f"Created personal team '{team.name}' for user {user.email}")
+            except Exception as e:
+                print(f"⚠️  Failed to create team for {user.email}: {e}")
+                await session.rollback()
+            finally:
+                break  # Only use first session
 
         # Automatically send verification email
-        # This calls the built-in request_verify which generates a token
-        # and triggers on_after_request_verify hook
         if not user.is_verified:
             try:
                 await self.request_verify(user, request)
@@ -104,8 +112,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
         # Get frontend URL from environment or use default
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        # Use hash router format for the reset URL
         reset_url = f"{frontend_url}/#/?reset_token={token}"
+        
         try:
             send_password_reset_email(to_email=user.email, reset_url=reset_url)
             print(f"✅ Password reset email sent to {user.email}")
@@ -123,27 +131,54 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
         verification_url = f"{frontend_url}/#/?token={token}"
 
-        print(f"Verification requested for user {user.id}.")
         print(f"Click on verification URL to verify your account: {verification_url}")
+        
         try:
             send_email_verification_link(to_email=user.email, verification_url=verification_url)
             print(f"✅ Verification email sent to {user.email}")
         except Exception as e:
             print(f"❌ Failed to send verification email to {user.email}: {str(e)}")
 
+    async def oauth_callback(self, oauth_name: str, access_token: str, account_id: str, account_email: str, expires_at: int | None = None, refresh_token: str | None = None, request: Request | None = None, **kwargs) -> User:
+        """
+        Handle OAuth callback. If user exists by OAuth account, return it.
+        If user exists by email, link the OAuth account and return the user.
+        Otherwise, create a new user.
+        """
+        # First, check if OAuth account already exists
+        user = await self.user_db.get_by_oauth_account(oauth_name, account_id)
+        if user:
+            return user
 
-async def get_user_db(session: AsyncSession = Depends(get_async_session)):
-    yield SQLAlchemyUserDatabase(session, User)
+        # Check if user exists by email
+        try:
+            existing_user = await self.get_by_email(account_email)
+            # Link OAuth account to existing user
+            oauth_account_dict = {
+                "oauth_name": oauth_name,
+                "access_token": access_token,
+                "account_id": account_id,
+                "account_email": account_email,
+                "expires_at": expires_at,
+                "refresh_token": refresh_token,
+            }
+            await self.user_db.add_oauth_account(existing_user, oauth_account_dict)
+            print(f"Linked OAuth account ({oauth_name}) to existing user {existing_user.email}")
+            return existing_user
+        except exceptions.UserNotExists:
+            # User doesn't exist, create new user
+            import secrets
+            random_password = secrets.token_urlsafe(32)  # Generate a secure random password
+            user_create = UserCreate(email=account_email, password=random_password, is_verified=True)  # OAuth emails are pre-verified
+            user = await self.create(user_create, request=request)
+            print(f"Created new user {user.email} via OAuth ({oauth_name})")
+            return user
 
 
-async def get_oauth_account_db(session: AsyncSession = Depends(get_async_session)):
-    yield SQLAlchemyUserDatabase(session, OAuthAccount)
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
     yield UserManager(user_db)
-
-
 # --- Strategies & Transports ---
 
 bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
@@ -163,6 +198,11 @@ def get_refresh_strategy() -> JWTStrategy:
 google_oauth_client = GoogleOAuth2(
     client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
     client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+    scopes=[
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.email",
+        "https://www.googleapis.com/auth/userinfo.profile",
+    ]
 )
 
 # Check if OAuth is properly configured
@@ -219,7 +259,7 @@ class OAuthBackend(AuthenticationBackend):
 
         # Redirect to frontend callback with tokens in URL
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        callback_url = f"{frontend_url}/#/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
+        callback_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
         
         return Response(
             status_code=302,
