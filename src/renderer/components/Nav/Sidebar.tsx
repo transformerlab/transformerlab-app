@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 import {
   CodeIcon,
@@ -47,14 +47,27 @@ import SelectExperimentMenu from '../Experiment/SelectExperimentMenu';
 import SubNavItem from './SubNavItem';
 import ColorSchemeToggle from './ColorSchemeToggle';
 import LoginChip from './UserWidget';
-import { fetchWithAuth } from 'renderer/lib/authContext';
+import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 
 function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
+  const { team } = useAuth();
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
   >(null);
+
+  // Fetch providers to determine if Tasks tab should be visible
+  const {
+    data: providerListData,
+  } = useAPI('providers', ['list'], { teamId: team?.id ?? null });
+
+  const providers = useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+
+  const hasProviders = providers.length > 0;
 
   function activeModelIsNotSameAsFoundation() {
     if (models === null) {
@@ -207,12 +220,14 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           icon={<GraduationCapIcon />}
           disabled={!experimentInfo?.name}
         />
-        <SubNavItem
-          title="Tasks"
-          path="/experiment/tasks"
-          icon={<StretchHorizontalIcon />}
-          disabled={!experimentInfo?.name}
-        />
+        {hasProviders && (
+          <SubNavItem
+            title="Tasks"
+            path="/experiment/tasks"
+            icon={<StretchHorizontalIcon />}
+            disabled={!experimentInfo?.name}
+          />
+        )}
         <SubNavItem
           title="Generate"
           path="/experiment/generate"
