@@ -81,8 +81,8 @@ async def create_team(
     # Add logic to seed experiment if no experiments exist
     existing_experiments = Experiment.get_all()
     if len(existing_experiments) == 0:
-        _ = Experiment("default", create_new=True)
-        print(f"✅ Created default experiment for team '{team.name}' (id={team.id})")
+        _ = Experiment("alpha", create_new=True)
+        print(f"✅ Created alpha experiment for team '{team.name}' (id={team.id})")
 
     return TeamResponse(id=team.id, name=team.name)
 
