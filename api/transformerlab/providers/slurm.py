@@ -77,7 +77,7 @@ class SLURMProvider(Provider):
             raise ImportError("paramiko is required for SSH mode. Install with: pip install paramiko")
 
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(AddIfVerified())
+        ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
 
         try:
             # Build SSH connection parameters
@@ -133,7 +133,7 @@ class SLURMProvider(Provider):
             raise FileNotFoundError(f"Local path for file_mounts does not exist: {local_path}")
 
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(AddIfVerified())
+        ssh.set_missing_host_key_policy(paramiko.WarningPolicy())
 
         try:
             # Build SSH connection parameters
