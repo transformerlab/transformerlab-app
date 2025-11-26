@@ -23,7 +23,6 @@ class AddIfVerified(paramiko.MissingHostKeyPolicy):
 
     def missing_host_key(self, client, hostname, key):
         """Handle missing host key by adding it to known_hosts after verification."""
-        # Here you can implement your own verification (e.g., compare fingerprint)
         client._host_keys.add(hostname, key.get_name(), key)
         client._host_keys.save(os.path.expanduser("~/.ssh/known_hosts"))
 
