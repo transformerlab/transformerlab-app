@@ -8,6 +8,7 @@ from sqlalchemy import String
 # Replace with your actual database URL (e.g., PostgreSQL, SQLite)
 from transformerlab.db.constants import DATABASE_URL
 from .models import Base, Team
+from lab import Experiment
 
 
 # 1. Define your User Model (inherits from a FastAPI Users base class)
@@ -20,9 +21,10 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     - is_active (boolean)
     - is_superuser (boolean)
     - is_verified (boolean)
-    
+
     We add custom fields below:
     """
+
     first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
@@ -45,15 +47,16 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 # 5. Create personal team for user
-async def create_personal_team(session: AsyncSession, user) -> Team:
+async def create_personal_team(session: AsyncSession, user, seed_experiment: bool = True) -> Team:
     """
     Create a personal team for the user named "Username's Team".
     Each user gets their own team.
-    
+
     Args:
         session: Database session
         user: User object with first_name, last_name, or email
-    
+        seed_experiment: If True, create a default experiment after creating the team. Defaults to True.
+
     Returns:
         Team: The created personal team
     """
@@ -63,12 +66,24 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     else:
         # Fallback to email username if no first_name
         team_name = f"{user.email.split('@')[0]}'s Team"
-    
+
     # Create new team for this user
     team = Team(name=team_name)
     session.add(team)
     await session.commit()
     await session.refresh(team)
+
+    # Create a default experiment if seed_experiment is True (only if no experiments exist)
+    existing_experiments = Experiment.get_all()
+    if len(existing_experiments) == 0 and seed_experiment:
+        try:
+            _ = Experiment("default", create_new=True)
+            print(f"✅ Created default experiment for team '{team_name}' (id={team.id})")
+        except Exception as e:
+            # Best-effort seeding; ignore errors (e.g., partial setups)
+            print(f"⚠️  Error creating default experiment for team '{team_name}': {e}")
+            pass
+
     return team
 
 

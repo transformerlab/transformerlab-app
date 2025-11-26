@@ -33,8 +33,8 @@ async def seed_default_admin_user():
                 user_team = result.scalar_one_or_none()
 
                 if not user_team:
-                    # Create personal team for existing admin user
-                    personal_team = await create_personal_team(session, admin_user)
+                    # Create personal team for existing admin user (dont seed experiment as we will migrate that in the workspace migration)
+                    personal_team = await create_personal_team(session, admin_user, seed_experiment=False)
                     user_team = UserTeam(
                         user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value
                     )
@@ -85,8 +85,8 @@ async def seed_default_admin_user():
             user_team = result.scalar_one_or_none()
 
             if not user_team:
-                # Create personal team for admin user
-                personal_team = await create_personal_team(session, admin_user)
+                # Create personal team for admin user (dont seed experiment as we will migrate that in the workspace migration)
+                personal_team = await create_personal_team(session, admin_user, seed_experiment=False)
                 user_team = UserTeam(user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value)
                 session.add(user_team)
                 await session.commit()
@@ -216,6 +216,10 @@ async def migrate_workspace_to_org(team_id: str):
         except OSError:
             # Directory not empty or other error, leave it
             pass
+
+        # Recreate workspace directory (default sdk behaviour is to create this directory again when auth isnt done -- which will happen at startup)
+        if not storage.exists(old_workspace):
+            storage.makedirs(old_workspace, exist_ok=True)
 
         # Add a text file in the old workspace saying where the migration happened
         with open(os.path.join(old_workspace, "migration.txt"), "w") as f:
