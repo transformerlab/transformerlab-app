@@ -17,7 +17,6 @@ import {
 } from '@mui/joy';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { getPath } from 'renderer/lib/api-client/urls';
-import { Form } from 'react-router-dom';
 
 interface ProviderDetailsModalProps {
   open: boolean;
@@ -37,23 +36,45 @@ export default function ProviderDetailsModal({
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
   const { fetchWithAuth } = useAuth();
-  const { data: providerData } = useAPI('providers', ['get'], {
-    providerId,
-  });
+  const { data: providerData } = useAPI(
+    'providers',
+    ['get'],
+    {
+      providerId,
+    },
+    {
+      skip: !providerId,
+    },
+  );
 
   // if a providerId is passed then we are editing an existing provider
   // Otherwise we are creating a new provider
   useEffect(() => {
     if (providerId && providerData) {
-      setName(providerData.name);
-      setType(providerData.type);
-      setConfig(providerData.config);
-    } else {
+      setName(providerData.name || '');
+      setType(providerData.type || '');
+      // Config is an object, stringify it for display in textarea
+      setConfig(
+        typeof providerData.config === 'string'
+          ? providerData.config
+          : JSON.stringify(providerData.config || {}, null, 2),
+      );
+    } else if (!providerId) {
+      // Reset form when in "add" mode (no providerId)
       setName('');
       setType('');
       setConfig('');
     }
-  }, [providerId]);
+  }, [providerId, providerData]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!open) {
+      setName('');
+      setType('');
+      setConfig('');
+    }
+  }, [open]);
 
   async function createProvider(name: String, type: String, config: String) {
     return await fetchWithAuth(getPath('providers', ['create'], { teamId }), {
@@ -107,7 +128,9 @@ export default function ProviderDetailsModal({
   return (
     <Modal open={open} onClose={onClose}>
       <ModalDialog sx={{ gap: 0, minWidth: 500 }}>
-        <DialogTitle>Add Compute Provider</DialogTitle>
+        <DialogTitle>
+          {providerId ? 'Edit Compute Provider' : 'Add Compute Provider'}
+        </DialogTitle>
         <DialogContent>
           <FormControl sx={{ mt: 2 }}>
             <FormLabel>Provider Name</FormLabel>
@@ -123,11 +146,17 @@ export default function ProviderDetailsModal({
             <Select
               value={type}
               onChange={(event, value) => setType(value ?? 'skypilot')}
+              disabled={!!providerId}
               sx={{ width: '100%' }}
             >
               <Option value="skypilot">Skypilot</Option>
               <Option value="slurm">Slurm</Option>
             </Select>
+            {providerId && (
+              <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
+                Provider type cannot be changed after creation
+              </Typography>
+            )}
           </FormControl>
           <FormControl sx={{ mt: 1 }}>
             <FormLabel>Configuration</FormLabel>
