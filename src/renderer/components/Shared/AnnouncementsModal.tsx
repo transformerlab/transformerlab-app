@@ -21,6 +21,13 @@ interface AnnouncementsData {
   announcements: Announcement[];
 }
 
+// Parse date string as local date to avoid timezone issues
+// e.g., "2025-01-15" becomes a Date object for Jan 15 in local timezone
+function parseLocalDate(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export default function AnnouncementsModal() {
   const [open, setOpen] = useState(false);
   const [currentAnnouncement, setCurrentAnnouncement] =
@@ -89,7 +96,8 @@ export default function AnnouncementsModal() {
         // If no last viewed date, or if the latest announcement is newer, show it
         if (
           !lastViewedDate ||
-          new Date(latestAnnouncement.date) > new Date(lastViewedDate)
+          parseLocalDate(latestAnnouncement.date) >
+            parseLocalDate(lastViewedDate)
         ) {
           setCurrentAnnouncement(latestAnnouncement);
           setOpen(true);
@@ -150,7 +158,7 @@ export default function AnnouncementsModal() {
           <Typography level="body-md">{currentAnnouncement.content}</Typography>
           {currentAnnouncement.date && (
             <Typography level="body-sm" sx={{ mt: 2, opacity: 0.7 }}>
-              {new Date(currentAnnouncement.date).toLocaleDateString()}
+              {parseLocalDate(currentAnnouncement.date).toLocaleDateString()}
             </Typography>
           )}
         </DialogContent>
