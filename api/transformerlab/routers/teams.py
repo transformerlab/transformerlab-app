@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.db.db import get_async_session
 from transformerlab.models.users import current_active_user
-from transformerlab.routers.auth2 import require_team_owner, get_user_and_team
+from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 
 from pydantic import BaseModel, EmailStr

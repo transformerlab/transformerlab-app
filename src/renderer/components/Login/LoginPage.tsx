@@ -9,7 +9,7 @@ import {
   ModalDialog,
   Typography,
 } from '@mui/joy';
-import { getPath } from 'renderer/lib/api-client/urls';
+import { getPath, API_URL } from 'renderer/lib/api-client/urls';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
 import HexLogo from '../Shared/HexLogo';
@@ -75,7 +75,33 @@ export default function LoginPage() {
   const [verifyMessage, setVerifyMessage] = useState('');
   const [hash, setHash] = useState(window.location.hash);
 
+  const authContext = useAuth();
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const autoLogin = async () => {
+      // Only attempt auto-login if we have a valid API URL (connection is established)
+      const apiUrl = API_URL();
+      if (!apiUrl) {
+        console.log(
+          'Skipping auto-login: no API URL available. Connection modal should show first.',
+        );
+        return;
+      }
+
+      try {
+        console.log('Attempting auto-login for single user mode');
+        await authContext.login('admin@example.com', 'admin123');
+      } catch (error) {
+        console.error('Auto-login failed:', error);
+      }
+    };
+
+    if (process.env.MULTIUSER !== 'true') {
+      autoLogin();
+    }
+  }, [authContext]); // Include authContext in dependencies
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -105,7 +131,12 @@ export default function LoginPage() {
     if (token) {
       const verifyEmail = async () => {
         try {
-          let apiUrl = process.env.TL_API_URL || 'http://localhost:8338';
+          // Normalize TL_API_URL - ensure it's not "default" or empty
+          const envUrl = process.env.TL_API_URL;
+          let apiUrl =
+            !envUrl || envUrl === 'default' || envUrl.trim() === ''
+              ? 'http://localhost:8338'
+              : envUrl;
           apiUrl = apiUrl.replace(/\/$/, '');
           const url = `${apiUrl}/auth/verify`;
           const response = await fetch(url, {
@@ -179,7 +210,6 @@ export default function LoginPage() {
             </Typography>
           )}
           <Routes>
-            <Route path="/" element={<LoginForm />} />
             <Route
               path="/register"
               element={<RegisterForm onClose={() => navigate('/')} />}
@@ -188,6 +218,7 @@ export default function LoginPage() {
               path="/forgot-password"
               element={<ForgotPasswordForm onClose={() => navigate('/')} />}
             />
+            <Route path="*" element={<LoginForm />} />
           </Routes>
         </ModalDialog>
       </Modal>

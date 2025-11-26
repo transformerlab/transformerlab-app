@@ -22,7 +22,7 @@ import {
 } from '@mui/joy';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { EyeIcon, EyeOffIcon, RotateCcwIcon } from 'lucide-react';
 
 import AIProvidersSettings from './AIProvidersSettings';

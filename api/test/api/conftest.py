@@ -4,11 +4,22 @@ import os
 import asyncio
 
 # Create test directories before setting environment variables
-os.makedirs("test/tmp/workspace", exist_ok=True)
+os.makedirs("test/tmp/", exist_ok=True)
 
 os.environ["TFL_HOME_DIR"] = "test/tmp/"
-os.environ["TFL_WORKSPACE_DIR"] = "test/tmp/workspace"
+# Note: TFL_WORKSPACE_DIR is not set so that get_workspace_dir() will use the org-based
+# workspace directory (test/tmp/orgs/<team-id>/workspace) after migration
 os.environ["TFL_MULTITENANT"] = "false"
+
+# Create dummy controller.log file for tests (tests don't actually use FastChat controller)
+# This prevents FileNotFoundError when spawn_fastchat_controller_subprocess() runs at startup
+# The file will be created in the default workspace location before org context is set
+controller_log_dir = os.path.join("test", "tmp", "workspace", "logs")
+os.makedirs(controller_log_dir, exist_ok=True)
+controller_log_path = os.path.join(controller_log_dir, "controller.log")
+# Create the file (or truncate if it exists)
+with open(controller_log_path, "w") as f:
+    f.write("")  # Empty dummy file
 os.environ["TRANSFORMERLAB_JWT_SECRET"] = "test-jwt-secret-for-testing-only"
 os.environ["TRANSFORMERLAB_REFRESH_SECRET"] = "test-refresh-secret-for-testing-only"
 os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email sending)
@@ -67,6 +78,13 @@ def client():
     # Initialize database tables for tests
     import transformerlab.db.session as db  # noqa: E402
     from transformerlab.services.experiment_init import seed_default_admin_user  # noqa: E402
+
+    controller_log_dir = os.path.join("test", "tmp", "workspace", "logs")
+    os.makedirs(controller_log_dir, exist_ok=True)
+    controller_log_path = os.path.join(controller_log_dir, "controller.log")
+    # Create the file (or truncate if it exists)
+    with open(controller_log_path, "w") as f:
+        f.write("")  # Empty dummy file Empty dummy file
 
     # Initialize database and run migrations (replaces create_db_and_tables)
     asyncio.run(db.init())

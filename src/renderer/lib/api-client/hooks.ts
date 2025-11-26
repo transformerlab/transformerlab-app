@@ -1,97 +1,25 @@
 /**
  * SWR hooks
  */
-import useSWR from 'swr';
+import {
+  fetchWithAuth,
+  useSWRWithAuth as useSWR,
+} from 'renderer/lib/authContext';
 import { API_URL, getAPIFullPath } from './urls';
 import { Endpoints } from './endpoints';
-import { getAccessToken, authenticatedFetch } from './functions';
-
-export function useAPI(
-  majorEntity: string,
-  pathArray: string[],
-  params: Record<string, any> = {},
-  options: any = {},
-) {
-  let path: string | null = getAPIFullPath(
-    majorEntity,
-    pathArray,
-    params,
-  ) as any;
-  const fetcher = async (url: string) => {
-    // check for an access token. Will be "" if user not logged in.
-    const accessToken = await getAccessToken();
-
-    console.log(
-      'Deprecated: useAPI in hooks.ts called. Please use useAPI in authContext.ts instead.',
-    );
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    return authenticatedFetch(url, {
-      headers,
-    }).then((res) => {
-      // Check for HTTP 401 which means user is not authorized
-      if (res.status === 401) {
-        return {
-          status: 'unauthorized',
-          message: 'User not authorized',
-        };
-      }
-
-      // If there was an error then report in standard API format
-      if (!res.ok) {
-        console.log('Unexpected API response:');
-        console.log(res);
-        return {
-          status: 'error',
-          message: 'API returned HTTP ' + res.status,
-        };
-      }
-
-      // Otherwise return the JSON contained in the API response
-      return res.json();
-    });
-  };
-
-  // If any of the params are null or undefined, return null:
-  if (
-    Object.values(params).some((param) => param === null || param === undefined)
-  ) {
-    path = null;
-  }
-
-  const { data, error, isLoading, mutate } = useSWR(path, fetcher, {
-    ...options,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-  });
-  return {
-    data,
-    error,
-    isLoading,
-    mutate,
-  };
-}
+import { authenticatedFetch } from './functions';
 
 export const fetcher = async (
   input: RequestInfo | URL,
   init?: RequestInit,
   parseJson: boolean = true,
 ): Promise<any> => {
-  const accessToken = await getAccessToken();
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(init?.headers as Record<string, string>),
   };
 
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
-  }
-
-  const response = await authenticatedFetch(input as any, {
+  const response = await fetchWithAuth(input as any, {
     ...init,
     headers,
   });
