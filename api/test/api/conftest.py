@@ -1,7 +1,10 @@
-import pytest
-from fastapi.testclient import TestClient
-import os
 import asyncio
+import os
+from contextlib import asynccontextmanager
+
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 # Create test directories before setting environment variables
 os.makedirs("test/tmp/", exist_ok=True)
@@ -28,6 +31,22 @@ os.environ["EMAIL_METHOD"] = "dev"  # Use dev mode for tests (no actual email se
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:?cache=shared"
 
 from api import app  # noqa: E402
+
+
+@asynccontextmanager
+async def _test_noop_lifespan(app: FastAPI):
+    """
+    Replace the production lifespan for tests so we don't start
+    background tasks or subprocesses that keep pytest from exiting.
+
+    We still manually init/seed/close the DB in the test fixtures.
+    """
+    yield
+
+
+# Override the app lifespan for tests to avoid spawning background
+# tasks (run_over_and_over, migrations, fastchat controller, etc.).
+app.router.lifespan_context = _test_noop_lifespan
 
 
 class AuthenticatedTestClient(TestClient):
