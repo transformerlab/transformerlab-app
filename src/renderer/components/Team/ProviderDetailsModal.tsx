@@ -48,23 +48,43 @@ export default function ProviderDetailsModal({
     }
   }, [providerId]);
 
-  const createProvider = async () => {
-    setLoading(true);
-    try {
-      // The API expects an object for config, not a JSON string
-      const parsedConfig =
-        typeof config === 'string' ? JSON.parse(config) : config;
-
-      const response = await fetchWithAuth(
+  async function createProvider(name: String, type: String, config: String) {
+    return await fetchWithAuth(
         getPath('providers', ['create'], { teamId }),
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ name, type, config: parsedConfig }),
+          body: JSON.stringify({ name, type, config }),
         },
       );
+  };
+
+  async function updateProvider(id: String, name: String, config: String) {
+    return await fetchWithAuth(
+        getPath('providers', ['update'], { providerId: id, teamId }),
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name, config }),
+        },
+      );
+
+  };
+
+  const saveProvider = async () => {
+    setLoading(true);
+    try {
+      // The API expects an object for config, not a JSON string
+      const parsedConfig =
+        typeof config === 'string' ? JSON.parse(config) : config;
+
+      const response = providerId ?
+        await updateProvider(providerId, name, parsedConfig) :
+        await createProvider(name, type, parsedConfig);
 
       if (response.ok) {
         setName('');
@@ -79,7 +99,7 @@ export default function ProviderDetailsModal({
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -120,7 +140,7 @@ export default function ProviderDetailsModal({
           <Button variant="outlined" onClick={onClose} sx={{ mr: 1 }}>
             Cancel
           </Button>
-          <Button onClick={createProvider} loading={loading}>
+          <Button onClick={saveProvider} loading={loading}>
             {providerId ? 'Save Provider' : 'Add Provider'}
           </Button>
         </Box>
