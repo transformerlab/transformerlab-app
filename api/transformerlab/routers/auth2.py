@@ -75,7 +75,7 @@ if GOOGLE_OAUTH_ENABLED:
         oauth_backend,
         get_oauth_account_db,
         UserRead,
-        redirect_url=os.getenv("FRONTEND_URL", "http://localhost:1212") + "/#/auth/callback",
+        redirect_url=os.getenv("FRONTEND_URL", "http://localhost:1212") + "/auth/callback",
     )
     router.include_router(
         oauth_router,
