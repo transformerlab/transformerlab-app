@@ -27,7 +27,13 @@ export default function LoginForm() {
   useEffect(() => {
     const checkGoogleOAuthStatus = async () => {
       try {
-        const response = await fetch('/auth/google/status');
+        const apiUrl = (window as any).TransformerLab?.API_URL;
+        if (!apiUrl) {
+          console.warn('API URL not available yet, will retry...');
+          setGoogleOAuthEnabled(false);
+          return;
+        }
+        const response = await fetch(`${apiUrl}auth/google/status`);
         const data = await response.json();
         setGoogleOAuthEnabled(data.enabled);
       } catch (err) {
@@ -37,11 +43,47 @@ export default function LoginForm() {
     };
 
     checkGoogleOAuthStatus();
+    
+    // Also set up an interval to check periodically in case API_URL becomes available later
+    const interval = setInterval(() => {
+      if ((window as any).TransformerLab?.API_URL) {
+        checkGoogleOAuthStatus();
+        clearInterval(interval);
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
   }, []);
 
-  const handleGoogleLogin = () => {
-    // Redirect to Google OAuth authorization URL
-    window.location.href = '/auth/google/authorize';
+  const handleGoogleLogin = async () => {
+    // Fetch the authorization URL and redirect to Google
+    const apiUrl = (window as any).TransformerLab?.API_URL;
+    if (!apiUrl) {
+      console.error('API URL not available for Google OAuth');
+      setError('Unable to initialize Google login. Please try again.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(''); // Clear any previous errors
+      
+      const response = await fetch(`${apiUrl}auth/google/authorize`);
+      const data = await response.json();
+      
+      // Redirect to Google's authorization URL
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      } else {
+        setError('Failed to initialize Google login.');
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Google OAuth error:', err);
+      setError('Failed to connect to Google. Please try again.');
+      setIsLoading(false);
+    }
+    // Note: We don't set isLoading to false on success because the page will redirect
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,6 +129,8 @@ export default function LoginForm() {
             onClick={handleGoogleLogin}
             variant="outlined"
             color="neutral"
+            loading={isLoading}
+            disabled={isLoading}
           >
             Continue with Google
           </Button>
@@ -96,6 +140,7 @@ export default function LoginForm() {
           onClick={() => {
             alert('Not Yet Implemented');
           }}
+          disabled={isLoading}
         >
           Continue with Discord
         </Button>
@@ -107,6 +152,7 @@ export default function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoFocus
+            disabled={isLoading}
           />
         </FormControl>
         <FormControl required>
@@ -115,6 +161,7 @@ export default function LoginForm() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
           />
         </FormControl>
         {error && (
