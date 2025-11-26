@@ -150,10 +150,13 @@ export default function ProviderDetailsModal({
               sx={{ width: '100%' }}
             >
               <Option value="skypilot">Skypilot</Option>
-              <Option value="slurm">Slurm</Option>
+              <Option value="slurm">SLURM</Option>
             </Select>
             {providerId && (
-              <Typography level="body-sm" sx={{ mt: 0.5, color: 'text.tertiary' }}>
+              <Typography
+                level="body-sm"
+                sx={{ mt: 0.5, color: 'text.tertiary' }}
+              >
                 Provider type cannot be changed after creation
               </Typography>
             )}
