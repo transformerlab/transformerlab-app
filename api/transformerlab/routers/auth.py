@@ -13,8 +13,8 @@ from transformerlab.models.users import (
     get_user_manager,
     get_refresh_strategy,
     google_oauth_client,
-    get_oauth_account_db,
     GOOGLE_OAUTH_ENABLED,
+    SECRET,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -73,9 +73,7 @@ if GOOGLE_OAUTH_ENABLED:
     oauth_router = fastapi_users.get_oauth_router(
         google_oauth_client,
         oauth_backend,
-        get_oauth_account_db,
-        UserRead,
-        redirect_url=os.getenv("FRONTEND_URL", "http://localhost:1212") + "/auth/callback",
+        SECRET,
     )
     router.include_router(
         oauth_router,
