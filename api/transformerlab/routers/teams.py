@@ -11,6 +11,8 @@ from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
 
+from lab import Experiment
+
 
 class TeamCreate(BaseModel):
     name: str
@@ -75,6 +77,12 @@ async def create_team(
     user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
     session.add(user_team)
     await session.commit()
+
+    # Add logic to seed experiment if no experiments exist
+    existing_experiments = Experiment.get_all()
+    if len(existing_experiments) == 0:
+        _ = Experiment("default", create_new=True)
+        print(f"✅ Created default experiment for team '{team.name}' (id={team.id})")
 
     return TeamResponse(id=team.id, name=team.name)
 
