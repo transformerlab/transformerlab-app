@@ -70,10 +70,12 @@ export default function AnnouncementsModal() {
           return;
         }
 
-        // Get the latest announcement (assuming they're sorted by date, newest first)
+        // Get the latest announcement only (even if there are many announcements,
+        // new users will only see the most recent one)
         // Sort announcements by date descending to ensure we get the latest
         const sortedAnnouncements = [...data.announcements].sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+          (a, b) =>
+            parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime(),
         );
         const latestAnnouncement = sortedAnnouncements[0];
 
