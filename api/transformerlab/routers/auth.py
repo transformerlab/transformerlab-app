@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
-import os
 from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team
 from transformerlab.shared.models.models import Team, UserTeam, TeamRole
 from transformerlab.models.users import (
