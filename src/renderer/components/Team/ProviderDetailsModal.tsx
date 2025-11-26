@@ -30,8 +30,8 @@ export default function ProviderDetailsModal({
   const [config, setConfig] = useState('');
   const [loading, setLoading] = useState(false);
   const { fetchWithAuth } = useAuth();
-  const { data: providerData } = useAPI('providers', ['get',], {
-    providerId
+  const { data: providerData } = useAPI('providers', ['get'], {
+    providerId,
   });
 
   // if a providerId is passed then we are editing an existing provider

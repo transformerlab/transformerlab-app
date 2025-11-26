@@ -376,10 +376,7 @@ export default function UserLoginTest(): JSX.Element {
                     <Box
                       sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
                     >
-                      <Button
-                        onClick={() => alert(provider?.config)}
-                        disabled
-                      >
+                      <Button onClick={() => alert(provider?.config)} disabled>
                         Delete
                       </Button>
                     </Box>

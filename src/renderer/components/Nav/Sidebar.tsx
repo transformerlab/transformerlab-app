@@ -58,9 +58,9 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   >(null);
 
   // Fetch providers to determine if Tasks tab should be visible
-  const {
-    data: providerListData,
-  } = useAPI('providers', ['list'], { teamId: team?.id ?? null });
+  const { data: providerListData } = useAPI('providers', ['list'], {
+    teamId: team?.id ?? null,
+  });
 
   const providers = useMemo(
     () => (Array.isArray(providerListData) ? providerListData : []),
