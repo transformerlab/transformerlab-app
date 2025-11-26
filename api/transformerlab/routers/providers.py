@@ -529,8 +529,6 @@ async def launch_task_on_provider(
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
     aws_profile = os.getenv("AWS_PROFILE")
 
-    print(f"AWS credentials: {aws_access_key_id}, {aws_secret_access_key}, {aws_profile}")
-
     # Build setup script - prepend AWS credentials setup if credentials are provided
     setup_commands = []
     if aws_access_key_id and aws_secret_access_key:
