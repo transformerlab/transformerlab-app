@@ -33,8 +33,8 @@ async def seed_default_admin_user():
                 user_team = result.scalar_one_or_none()
 
                 if not user_team:
-                    # Create personal team for existing admin user (dont seed experiment as we will migrate that in the workspace migration)
-                    personal_team = await create_personal_team(session, admin_user, seed_experiment=False)
+                    # Create personal team for existing admin user
+                    personal_team = await create_personal_team(session, admin_user)
                     user_team = UserTeam(
                         user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value
                     )
@@ -85,8 +85,8 @@ async def seed_default_admin_user():
             user_team = result.scalar_one_or_none()
 
             if not user_team:
-                # Create personal team for admin user (dont seed experiment as we will migrate that in the workspace migration)
-                personal_team = await create_personal_team(session, admin_user, seed_experiment=False)
+                # Create personal team for admin user
+                personal_team = await create_personal_team(session, admin_user)
                 user_team = UserTeam(user_id=str(admin_user_id), team_id=personal_team.id, role=TeamRole.OWNER.value)
                 session.add(user_team)
                 await session.commit()
