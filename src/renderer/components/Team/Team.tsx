@@ -150,6 +150,41 @@ export default function UserLoginTest(): JSX.Element {
     }
   }
 
+  async function handleDeleteProvider(id: string, name: string) {
+    // Confirm deletion
+    // eslint-disable-next-line no-alert
+    if (
+      !confirm(
+        `Are you sure you want to delete the provider "${name}"? This action cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await authContext.fetchWithAuth(`providers/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({
+          detail: 'Failed to delete provider',
+        }));
+        // eslint-disable-next-line no-alert
+        alert(
+          `Failed to delete provider: ${errorData.detail || 'Unknown error'}`,
+        );
+        return;
+      }
+
+      // Success — refetch providers to update UI
+      if (providersMutate) providersMutate();
+    } catch (e: any) {
+      // eslint-disable-next-line no-alert
+      alert(`Error deleting provider: ${e?.message ?? String(e)}`);
+    }
+  }
+
   return (
     <Sheet sx={{ overflowY: 'auto', p: 2 }}>
       <Typography level="h2" mb={2}>
@@ -377,7 +412,14 @@ export default function UserLoginTest(): JSX.Element {
                     <Box
                       sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
                     >
-                      <Button onClick={() => alert(provider?.config)} disabled>
+                      <Button
+                        color="danger"
+                        variant="outlined"
+                        onClick={() =>
+                          handleDeleteProvider(provider.id, provider.name)
+                        }
+                        disabled={!iAmOwner}
+                      >
                         Delete
                       </Button>
                     </Box>
