@@ -11,7 +11,7 @@ import {
   Stack,
   Table,
 } from '@mui/joy';
-import { PlusIcon, User2Icon } from 'lucide-react';
+import { NetworkIcon, PlusIcon, User2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
@@ -347,6 +347,7 @@ export default function UserLoginTest(): JSX.Element {
                 <tr key={provider.id}>
                   <td>
                     <Stack direction="row" alignItems="center" gap={1}>
+                      <NetworkIcon />
                       <Box>
                         <Typography fontWeight="md">
                           {provider?.name ?? '—'}
