@@ -339,7 +339,8 @@ export default function UserLoginTest(): JSX.Element {
               <tr>
                 <th>Name</th>
                 <th>Type</th>
-                <th>&nbsp;</th>
+                <th style={{ width: '80px' }}>&nbsp;</th>
+                <th style={{ width: '80px' }}>&nbsp;</th>
               </tr>
             </thead>
             <tbody>
@@ -361,11 +362,22 @@ export default function UserLoginTest(): JSX.Element {
                       sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
                     >
                       <Button
-                        variant="outlined"
                         onClick={() => alert(provider?.config)}
                         disabled
                       >
-                        Details
+                        Edit
+                      </Button>
+                    </Box>
+                  </td>
+                  <td>
+                    <Box
+                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+                    >
+                      <Button
+                        onClick={() => alert(provider?.config)}
+                        disabled
+                      >
+                        Delete
                       </Button>
                     </Box>
                   </td>
