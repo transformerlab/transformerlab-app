@@ -24,7 +24,7 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
     try {
       const response = await fetch(`${apiUrl}auth/google/authorize`);
       const data = await response.json();
-      
+
       // Redirect to Google's authorization URL
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
@@ -80,7 +80,9 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
 
   return (
     <Stack spacing={2}>
-      <Button startDecorator={<FaGoogle />} onClick={handleGoogleLogin}>Register with Google</Button>
+      <Button startDecorator={<FaGoogle />} onClick={handleGoogleLogin}>
+        Register with Google
+      </Button>
       <Button startDecorator={<FaDiscord />}>Register with Discord</Button>
       <Typography level="body-md" component="div" sx={{ pt: 3 }}>
         Or Register Using Email:

@@ -43,7 +43,7 @@ export default function LoginForm() {
     };
 
     checkGoogleOAuthStatus();
-    
+
     // Also set up an interval to check periodically in case API_URL becomes available later
     const interval = setInterval(() => {
       if ((window as any).TransformerLab?.API_URL) {
@@ -51,7 +51,7 @@ export default function LoginForm() {
         clearInterval(interval);
       }
     }, 1000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -67,10 +67,10 @@ export default function LoginForm() {
     try {
       setIsLoading(true);
       setError(''); // Clear any previous errors
-      
+
       const response = await fetch(`${apiUrl}auth/google/authorize`);
       const data = await response.json();
-      
+
       // Redirect to Google's authorization URL
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
