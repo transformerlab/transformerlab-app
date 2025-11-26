@@ -15,6 +15,18 @@ from .models import (
     JobState,
 )
 
+import paramiko
+
+
+class AddIfVerified(paramiko.MissingHostKeyPolicy):
+    """Custom SSH host key policy that adds host keys after verification."""
+
+    def missing_host_key(self, client, hostname, key):
+        """Handle missing host key by adding it to known_hosts after verification."""
+        # Here you can implement your own verification (e.g., compare fingerprint)
+        client._host_keys.add(hostname, key.get_name(), key)
+        client._host_keys.save(os.path.expanduser("~/.ssh/known_hosts"))
+
 
 class SLURMProvider(Provider):
     """Provider implementation for SLURM (REST API or SSH)."""
@@ -65,7 +77,7 @@ class SLURMProvider(Provider):
             raise ImportError("paramiko is required for SSH mode. Install with: pip install paramiko")
 
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.set_missing_host_key_policy(AddIfVerified())
 
         try:
             # Build SSH connection parameters
@@ -121,7 +133,7 @@ class SLURMProvider(Provider):
             raise FileNotFoundError(f"Local path for file_mounts does not exist: {local_path}")
 
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.set_missing_host_key_policy(AddIfVerified())
 
         try:
             # Build SSH connection parameters
