@@ -23,6 +23,13 @@ async def seed_default_admin_user():
             existing_admin = result.scalar_one_or_none()
 
             if existing_admin:
+                # Ensure admin is verified
+                if not existing_admin.is_verified:
+                    existing_admin.is_verified = True
+                    session.add(existing_admin)
+                    await session.commit()
+                    print("✅ Verified existing admin user")
+
                 # Admin already exists, but we should still ensure they have a team and migrate workspace
                 admin_user_id = existing_admin.id
                 admin_user = existing_admin
@@ -61,6 +68,7 @@ async def seed_default_admin_user():
                 password="admin123",
                 is_active=True,
                 is_superuser=True,
+                is_verified=True,  # Ensure admin is verified
             )
 
             # Create user with safe=False to skip verification email
