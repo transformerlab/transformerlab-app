@@ -162,7 +162,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 "refresh_token": refresh_token,
             }
             await self.user_db.add_oauth_account(existing_user, oauth_account_dict)
-            print(f"Linked OAuth account ({oauth_name}) to existing user {existing_user.email}")
             return existing_user
         except exceptions.UserNotExists:
             # User doesn't exist, create new user
@@ -170,7 +169,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             random_password = secrets.token_urlsafe(32)  # Generate a secure random password
             user_create = UserCreate(email=account_email, password=random_password, is_verified=True)  # OAuth emails are pre-verified
             user = await self.create(user_create, request=request)
-            print(f"Created new user {user.email} via OAuth ({oauth_name})")
             return user
 
 
