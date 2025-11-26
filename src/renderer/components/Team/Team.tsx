@@ -10,8 +10,9 @@ import {
   ModalClose,
   Stack,
   Table,
+  Sheet,
 } from '@mui/joy';
-import { NetworkIcon, PlusIcon, User2Icon } from 'lucide-react';
+import { NetworkIcon, PlusIcon, ServerIcon, User2Icon } from 'lucide-react';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
@@ -150,7 +151,7 @@ export default function UserLoginTest(): JSX.Element {
   }
 
   return (
-    <div>
+    <Sheet sx={{ overflowY: 'auto', p: 2 }}>
       <Typography level="h2" mb={2}>
         Team Settings
       </Typography>
@@ -330,9 +331,9 @@ export default function UserLoginTest(): JSX.Element {
             Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
           </Button>
         </Box>
-        <Box sx={{ mt: 3 }}>
-          <Typography level="title-lg" mb={1}>
-            Providers: ({providers?.length ?? 0})
+        <Box sx={{ mt: 4 }}>
+          <Typography level="title-lg" mb={1} startDecorator={<ServerIcon />}>
+            Compute Providers: ({providers?.length ?? 0})
           </Typography>
 
           <Table variant="soft" sx={{ mb: 2 }}>
@@ -419,6 +420,6 @@ export default function UserLoginTest(): JSX.Element {
         teamId={authContext.team?.id || ''}
         providerId={providerId}
       />
-    </div>
+    </Sheet>
   );
 }

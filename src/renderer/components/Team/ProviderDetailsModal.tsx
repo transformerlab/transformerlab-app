@@ -8,9 +8,16 @@ import {
   Select,
   Typography,
   Option,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  FormLabel,
+  Textarea,
 } from '@mui/joy';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import { getPath } from 'renderer/lib/api-client/urls';
+import { Form } from 'react-router-dom';
 
 interface ProviderDetailsModalProps {
   open: boolean;
@@ -49,31 +56,27 @@ export default function ProviderDetailsModal({
   }, [providerId]);
 
   async function createProvider(name: String, type: String, config: String) {
-    return await fetchWithAuth(
-        getPath('providers', ['create'], { teamId }),
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name, type, config }),
-        },
-      );
-  };
+    return await fetchWithAuth(getPath('providers', ['create'], { teamId }), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, type, config }),
+    });
+  }
 
   async function updateProvider(id: String, name: String, config: String) {
     return await fetchWithAuth(
-        getPath('providers', ['update'], { providerId: id, teamId }),
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ name, config }),
+      getPath('providers', ['update'], { providerId: id, teamId }),
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
-
-  };
+        body: JSON.stringify({ name, config }),
+      },
+    );
+  }
 
   const saveProvider = async () => {
     setLoading(true);
@@ -82,9 +85,9 @@ export default function ProviderDetailsModal({
       const parsedConfig =
         typeof config === 'string' ? JSON.parse(config) : config;
 
-      const response = providerId ?
-        await updateProvider(providerId, name, parsedConfig) :
-        await createProvider(name, type, parsedConfig);
+      const response = providerId
+        ? await updateProvider(providerId, name, parsedConfig)
+        : await createProvider(name, type, parsedConfig);
 
       if (response.ok) {
         setName('');
@@ -99,51 +102,55 @@ export default function ProviderDetailsModal({
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalDialog sx={{ gap: 0 }}>
-        <Typography level="h4" component="div" sx={{ mb: 2 }}>
-          Add Provider
-        </Typography>
-        <Typography level="body-sm" sx={{ mb: 0.5 }}>
-          Provider Name:
-        </Typography>
-        <Input
-          value={name}
-          onChange={(event) => setName(event.currentTarget.value)}
-          placeholder="Enter friendly name for provider"
-          fullWidth
-        />
-        <Typography level="body-sm" sx={{ mb: 0.5, mt: 3 }}>
-          Provider Type:
-        </Typography>
-        <Select
-          value={type}
-          onChange={(event, value) => setType(value ?? 'skypilot')}
-          sx={{ width: '100%' }}
-        >
-          <Option value="skypilot">Skypilot</Option>
-          <Option value="slurm">Slurm</Option>
-        </Select>
-        <Typography level="body-sm" sx={{ mb: 0.5, mt: 3 }}>
-          Configuration:
-        </Typography>
-        <Input
-          value={typeof config === 'string' ? config : JSON.stringify(config)}
-          onChange={(event) => setConfig(event.currentTarget.value)}
-          placeholder="JSON sent to provider"
-          fullWidth
-        />
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-          <Button variant="outlined" onClick={onClose} sx={{ mr: 1 }}>
-            Cancel
-          </Button>
-          <Button onClick={saveProvider} loading={loading}>
-            {providerId ? 'Save Provider' : 'Add Provider'}
-          </Button>
-        </Box>
+      <ModalDialog sx={{ gap: 0, minWidth: 500 }}>
+        <DialogTitle>Add Compute Provider</DialogTitle>
+        <DialogContent>
+          <FormControl sx={{ mt: 2 }}>
+            <FormLabel>Provider Name</FormLabel>
+            <Input
+              value={name}
+              onChange={(event) => setName(event.currentTarget.value)}
+              placeholder="Enter friendly name for provider"
+              fullWidth
+            />
+          </FormControl>
+          <FormControl sx={{ mt: 1 }}>
+            <FormLabel>Provider Type</FormLabel>
+            <Select
+              value={type}
+              onChange={(event, value) => setType(value ?? 'skypilot')}
+              sx={{ width: '100%' }}
+            >
+              <Option value="skypilot">Skypilot</Option>
+              <Option value="slurm">Slurm</Option>
+            </Select>
+          </FormControl>
+          <FormControl sx={{ mt: 1 }}>
+            <FormLabel>Configuration</FormLabel>
+            <Textarea
+              value={
+                typeof config === 'string' ? config : JSON.stringify(config)
+              }
+              onChange={(event) => setConfig(event.currentTarget.value)}
+              placeholder="JSON sent to provider"
+              minRows={5}
+            />
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+            <Button variant="outlined" onClick={onClose} sx={{ mr: 1 }}>
+              Cancel
+            </Button>
+            <Button onClick={saveProvider} loading={loading}>
+              {providerId ? 'Save Provider' : 'Add Provider'}
+            </Button>
+          </Box>
+        </DialogActions>
       </ModalDialog>
     </Modal>
   );
