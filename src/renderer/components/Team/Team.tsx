@@ -50,10 +50,11 @@ export default function UserLoginTest(): JSX.Element {
     },
   );
 
-  // Get providers list (unchanged)
-  const { data: providers, mutate: providersMutate } = useAPI('providers', [
-    'list',
-  ]);
+  // Get compute_provider list (unchanged)
+  const { data: providers, mutate: providersMutate } = useAPI(
+    'compute_provider',
+    ['list'],
+  );
   console.log(providers);
 
   // Simplify errors: show all errors under the "Members" title

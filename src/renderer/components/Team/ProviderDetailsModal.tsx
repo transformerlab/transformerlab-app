@@ -37,7 +37,7 @@ export default function ProviderDetailsModal({
   const [loading, setLoading] = useState(false);
   const { fetchWithAuth } = useAuth();
   const { data: providerData } = useAPI(
-    'providers',
+    'compute_provider',
     ['get'],
     {
       providerId,
@@ -77,7 +77,7 @@ export default function ProviderDetailsModal({
   }, [open]);
 
   async function createProvider(name: String, type: String, config: String) {
-    return await fetchWithAuth(getPath('providers', ['create'], { teamId }), {
+    return await fetchWithAuth(getPath('compute_provider', ['create'], { teamId }), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ export default function ProviderDetailsModal({
 
   async function updateProvider(id: String, name: String, config: String) {
     return await fetchWithAuth(
-      getPath('providers', ['update'], { providerId: id, teamId }),
+      getPath('compute_provider', ['update'], { providerId: id, teamId }),
       {
         method: 'PATCH',
         headers: {

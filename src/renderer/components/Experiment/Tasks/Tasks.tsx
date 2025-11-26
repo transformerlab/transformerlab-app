@@ -53,7 +53,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     data: providerListData,
     error: providerListError,
     isLoading: providersIsLoading,
-  } = useAPI('providers', ['list'], { teamId: team?.id ?? null });
+  } = useAPI('compute_provider', ['list'], { teamId: team?.id ?? null });
 
   const providers = useMemo(
     () => (Array.isArray(providerListData) ? providerListData : []),
@@ -184,7 +184,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       for (const job of launchingJobs) {
         try {
           const response = await fetchWithAuth(
-            chatAPI.Endpoints.Providers.CheckJobStatus(String(job.id)),
+            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(String(job.id)),
             { method: 'GET' },
           );
           if (response.ok) {
@@ -498,7 +498,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       };
 
       const response = await fetchWithAuth(
-        chatAPI.Endpoints.Providers.LaunchTask(providerId),
+        chatAPI.Endpoints.ComputeProvider.LaunchTask(providerId),
         {
           method: 'POST',
           headers: {

@@ -57,8 +57,8 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
     boolean | null
   >(null);
 
-  // Fetch providers to determine if Tasks tab should be visible
-  const { data: providerListData } = useAPI('providers', ['list'], {
+  // Fetch compute_provider to determine if Tasks tab should be visible
+  const { data: providerListData } = useAPI('compute_provider', ['list'], {
     teamId: team?.id ?? null,
   });
 

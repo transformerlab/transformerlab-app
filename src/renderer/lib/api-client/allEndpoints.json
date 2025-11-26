@@ -217,26 +217,26 @@
       "path": "teams/{teamId}/members"
     }
   },
-  "providers": {
+  "compute_provider": {
     "list": {
       "method": "GET",
-      "path": "providers"
+      "path": "compute_provider"
     },
     "create": {
       "method": "POST",
-      "path": "providers"
+      "path": "compute_provider"
     },
     "get": {
       "method": "GET",
-      "path": "providers/{providerId}"
+      "path": "compute_provider/{providerId}"
     },
     "update": {
       "method": "PATCH",
-      "path": "providers/{providerId}"
+      "path": "compute_provider/{providerId}"
     },
     "delete": {
       "method": "DELETE",
-      "path": "providers/{providerId}"
+      "path": "compute_provider/{providerId}"
     },
     "launchTask": {
       "method": "POST",

@@ -248,7 +248,7 @@ export default function EditTaskModal({
         const formData = new FormData();
         formData.append('file', fm.file);
         // Use 0 as template ID for now; stored path is independent of ID
-        const uploadUrl = chatAPI.Endpoints.Providers.UploadTaskFile(
+        const uploadUrl = chatAPI.Endpoints.ComputeProvider.UploadTaskFile(
           selectedProviderId,
           0,
         );
