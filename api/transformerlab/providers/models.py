@@ -53,6 +53,11 @@ class ClusterConfig(BaseModel):
     setup: Optional[str] = None  # Setup script
     env_vars: Dict[str, str] = Field(default_factory=dict)  # Environment variables
 
+    # File mounts: mapping of remote path -> local path
+    # For SkyPilot, this is passed directly to task.set_file_mounts().
+    # For SLURM, this is interpreted as SFTP/SCP upload instructions when using SSH mode.
+    file_mounts: Dict[str, str] = Field(default_factory=dict)
+
     # Additional provider-specific config
     provider_config: Dict[str, Any] = Field(default_factory=dict)
 

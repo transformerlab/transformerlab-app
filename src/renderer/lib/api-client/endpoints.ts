@@ -50,6 +50,8 @@ Endpoints.Providers = {
     `${API_URL()}providers/jobs/${jobId}/check-status`,
   StopCluster: (providerId: string, clusterName: string) =>
     `${API_URL()}providers/${providerId}/clusters/${clusterName}/stop`,
+  UploadTaskFile: (providerId: string, taskId: string | number) =>
+    `${API_URL()}providers/${providerId}/tasks/${taskId}/file-upload`,
 };
 
 Endpoints.Workflows = {

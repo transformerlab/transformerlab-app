@@ -247,6 +247,15 @@ class SkyPilotProvider(Provider):
         if config.setup:
             task.setup = config.setup
 
+        # Set file mounts (remote path -> local path)
+        # This mirrors the SkyPilot SDK: task.set_file_mounts({...})
+        if getattr(config, "file_mounts", None):
+            try:
+                task.set_file_mounts(config.file_mounts)
+            except Exception:
+                # If file mounts fail to set (e.g., invalid paths), continue without them
+                pass
+
         # Build Resources object
         resources_kwargs = {}
         if config.instance_type:

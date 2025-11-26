@@ -237,6 +237,22 @@
     "delete": {
       "method": "DELETE",
       "path": "providers/{providerId}"
+    },
+    "launchTask": {
+      "method": "POST",
+      "path": "providers/{providerId}/tasks/launch"
+    },
+    "checkJobStatus": {
+      "method": "GET",
+      "path": "providers/jobs/{jobId}/check-status"
+    },
+    "stopCluster": {
+      "method": "POST",
+      "path": "providers/{providerId}/clusters/{clusterName}/stop"
+    },
+    "uploadTaskFile": {
+      "method": "POST",
+      "path": "providers/{providerId}/tasks/{taskId}/file-upload"
     }
   },
   "auth": {

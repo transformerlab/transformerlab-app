@@ -1,13 +1,13 @@
 """Router for managing team-scoped compute providers."""
 
 import os
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, List, Optional, Union
 from pydantic import BaseModel, Field
 from transformerlab.shared.models.user_model import get_async_session
-from transformerlab.routers.auth2 import require_team_owner, get_user_and_team
+from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.services.provider_service import (
     get_team_provider,
     list_team_providers,
@@ -34,6 +34,7 @@ from transformerlab.providers.models import (
 )
 from transformerlab.services import job_service
 from lab import storage
+from lab.dirs import get_workspace_dir
 
 router = APIRouter(tags=["providers"])
 
@@ -53,7 +54,20 @@ class ProviderTaskLaunchRequest(BaseModel):
     num_nodes: Optional[int] = None
     setup: Optional[str] = None
     env_vars: Dict[str, str] = Field(default_factory=dict, description="Environment variables as key-value pairs")
+    # File mounts: mapping of remote path -> local path
+    file_mounts: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="File mounts in the form {<remote_path>: <local_path>}",
+    )
     provider_name: Optional[str] = None
+
+
+class ProviderTaskFileUploadResponse(BaseModel):
+    """Response for a single task file upload."""
+
+    status: str
+    stored_path: str
+    message: Optional[str] = None
 
 
 def _sanitize_cluster_basename(base_name: Optional[str]) -> str:
@@ -74,6 +88,69 @@ def _get_provider_instances(providers: list[TeamProvider]) -> Dict[str, Provider
         except Exception as exc:
             print(f"Failed to instantiate provider {provider.id}: {exc}")
     return instances
+
+
+@router.post("/providers/{provider_id}/tasks/{task_id}/file-upload", response_model=ProviderTaskFileUploadResponse)
+async def upload_task_file_for_provider(
+    provider_id: str,
+    task_id: str,
+    request: Request,
+    file: UploadFile = File(...),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Upload a single file for a provider-backed task.
+
+    The file is stored under workspace_dir/uploads/tasks/{task_id}/ and the
+    stored_path returned from this endpoint can be used as the local side of a
+    file mount mapping: {<remote_path>: <stored_path>}.
+    """
+
+    # Ensure team can access provider (also validates team context)
+    team_id = user_and_team["team_id"]
+    provider = await get_team_provider(session, team_id, provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        workspace_dir = get_workspace_dir()
+        if not workspace_dir:
+            raise RuntimeError("Workspace directory is not configured")
+
+        # uploads/tasks/{task_id}/
+        uploads_root = storage.join(workspace_dir, "uploads", "tasks")
+        storage.makedirs(uploads_root, exist_ok=True)
+
+        import uuid
+
+        task_dir = storage.join(uploads_root, str(task_id))
+        storage.makedirs(task_dir, exist_ok=True)
+
+        # Use original filename with a random suffix to avoid collisions
+        original_name = file.filename or "uploaded_file"
+        suffix = uuid.uuid4().hex[:8]
+        # Avoid path separators from filename
+        safe_name = original_name.split("/")[-1].split("\\")[-1]
+        stored_filename = f"{safe_name}.{suffix}"
+        stored_path = storage.join(task_dir, stored_filename)
+
+        # Persist file contents
+        await file.seek(0)
+        content = await file.read()
+        with storage.open(stored_path, "wb") as f:
+            f.write(content)
+
+        return ProviderTaskFileUploadResponse(
+            status="success",
+            stored_path=stored_path,
+            message="File uploaded successfully",
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"Task file upload error: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to upload task file")
 
 
 @router.get("/providers", response_model=List[ProviderRead])
@@ -503,6 +580,7 @@ async def launch_task_on_provider(
         "num_nodes": request.num_nodes,
         "setup": final_setup,
         "env_vars": env_vars if env_vars else None,
+        "file_mounts": request.file_mounts or None,
         "provider_id": provider.id,
         "provider_type": provider.type,
         "provider_name": provider_display_name,
@@ -532,6 +610,7 @@ async def launch_task_on_provider(
         accelerators=request.accelerators,
         num_nodes=request.num_nodes,
         disk_size=disk_size,
+        file_mounts=request.file_mounts or {},
         provider_config={"requested_disk_space": request.disk_space},
     )
 

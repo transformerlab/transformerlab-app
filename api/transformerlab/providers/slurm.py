@@ -96,6 +96,92 @@ class SLURMProvider(Provider):
         finally:
             ssh.close()
 
+    def _ssh_sftp_upload(self, local_path: str, remote_path: str) -> None:
+        """Upload a file or directory to the remote host via SFTP.
+
+        Used to implement ClusterConfig.file_mounts semantics for SSH mode.
+        The mapping is interpreted as {remote_path: local_path}.
+        """
+        try:
+            import paramiko
+        except ImportError:
+            raise ImportError("paramiko is required for SSH mode. Install with: pip install paramiko")
+
+        local_path = os.path.expanduser(local_path)
+        if not os.path.exists(local_path):
+            raise FileNotFoundError(f"Local path for file_mounts does not exist: {local_path}")
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        try:
+            # Build SSH connection parameters
+            connect_kwargs = {
+                "hostname": self.ssh_host,
+                "port": self.ssh_port,
+                "username": self.ssh_user,
+            }
+
+            if self.ssh_key_path:
+                key_path = os.path.expanduser(self.ssh_key_path)
+                connect_kwargs["key_filename"] = key_path
+            else:
+                # Try to use default SSH key
+                default_key = os.path.expanduser("~/.ssh/id_rsa")
+                if os.path.exists(default_key):
+                    connect_kwargs["key_filename"] = default_key
+
+            ssh.connect(**connect_kwargs)
+            sftp = ssh.open_sftp()
+
+            def _mkdir_p(remote_dir: str) -> None:
+                """Recursively create remote directories if they don't exist."""
+                if not remote_dir:
+                    return
+                parts = remote_dir.split("/")
+                path = ""
+                for part in parts:
+                    if not part:
+                        continue
+                    path = f"{path}/{part}"
+                    try:
+                        sftp.stat(path)
+                    except IOError:
+                        try:
+                            sftp.mkdir(path)
+                        except IOError:
+                            # If directory creation fails, let upload attempt fail later
+                            pass
+
+            def _upload_file(local_f: str, remote_f: str) -> None:
+                remote_dir = os.path.dirname(remote_f.rstrip("/"))
+                _mkdir_p(remote_dir)
+                sftp.put(local_f, remote_f)
+
+            if os.path.isdir(local_path):
+                # Recursively upload directory contents
+                for root, _, files in os.walk(local_path):
+                    rel = os.path.relpath(root, local_path)
+                    if rel == ".":
+                        remote_root = remote_path.rstrip("/")
+                    else:
+                        remote_root = f"{remote_path.rstrip('/')}/{rel}"
+                    _mkdir_p(remote_root)
+                    for fname in files:
+                        local_f = os.path.join(root, fname)
+                        remote_f = f"{remote_root.rstrip('/')}/{fname}"
+                        _upload_file(local_f, remote_f)
+            else:
+                _upload_file(local_path, remote_path)
+        finally:
+            try:
+                # sftp may not exist if open_sftp failed
+                if "sftp" in locals():
+                    sftp.close()
+            except Exception:
+                pass
+            ssh.close()
+
     def _rest_request(self, method: str, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Make HTTP request to SLURM REST API."""
         url = f"{self.rest_url.rstrip('/')}{endpoint}"
@@ -115,6 +201,12 @@ class SLURMProvider(Provider):
         For SLURM, "launching" means submitting the job since clusters are pre-configured.
         This creates a SLURM script with setup, env vars, and command, then submits it.
         """
+        # If in SSH mode, resolve any file mounts by uploading local paths to remote.
+        # Mapping semantics: {remote_path: local_path}
+        if self.mode == "ssh" and getattr(config, "file_mounts", None):
+            for remote_path, local_path in config.file_mounts.items():
+                self._ssh_sftp_upload(local_path, remote_path)
+
         # Create a temporary SLURM script
         script_content = "#!/bin/bash\n"
         script_content += f"#SBATCH --job-name={cluster_name}\n"
