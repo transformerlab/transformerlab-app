@@ -6,7 +6,7 @@ import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { PlusIcon } from 'lucide-react';
-import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
+import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -53,23 +53,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     data: providerListData,
     error: providerListError,
     isLoading: providersIsLoading,
-  } = useSWR(
-    team?.id ? ['providers', team.id] : null,
-    async () => {
-      const response = await fetchWithAuth(chatAPI.Endpoints.Providers.List(), {
-        method: 'GET',
-      });
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || 'Failed to load providers');
-      }
-      return response.json();
-    },
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-    },
-  );
+  } = useAPI('providers', ['list'], { teamId: team?.id ?? null });
 
   const providers = useMemo(
     () => (Array.isArray(providerListData) ? providerListData : []),
