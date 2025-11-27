@@ -42,6 +42,18 @@ Endpoints.Tasks = {
     `${API_URL()}tasks/local_gallery/${taskDir}/files/${filePath}`,
 };
 
+Endpoints.ComputeProvider = {
+  List: () => `${API_URL()}compute_provider/`,
+  LaunchTask: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/tasks/launch`,
+  CheckJobStatus: (jobId: string) =>
+    `${API_URL()}compute_provider/jobs/${jobId}/check-status`,
+  StopCluster: (providerId: string, clusterName: string) =>
+    `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
+  UploadTaskFile: (providerId: string, taskId: string | number) =>
+    `${API_URL()}compute_provider/${providerId}/tasks/${taskId}/file-upload`,
+};
+
 Endpoints.Workflows = {
   ListInExperiment: (experimentId: string) =>
     `${API_URL()}experiment/${experimentId}/workflows/list`,
