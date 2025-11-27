@@ -96,6 +96,7 @@ cpu = [
   "einops==0.8.0",
   "fastapi==0.115.7",
   "mcp[cli]==1.8.1",
+  "nvidia-ml-py==12.575.51",
   "peft==0.14.0",
   "psutil==6.1.1",
   "python-dotenv==1.0.1",
