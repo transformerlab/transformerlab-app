@@ -550,109 +550,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     setEditModalOpen(true);
   };
 
-  const handleSelectInstance = async (task: any, instance: any) => {
-    if (!experimentInfo?.id) return;
-
-    addNotification({
-      type: 'success',
-      message: `Submitting job to cluster ${instance.cluster_name}...`,
-    });
-
-    try {
-      const cfg =
-        typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config || {};
-
-      // Use the cluster name from the selected instance
-      const clusterName = instance.cluster_name;
-
-      // Create form data with the cluster name from the selected instance
-      const formData = new FormData();
-      formData.append('cluster_name', clusterName);
-      formData.append('task_name', task.name || '');
-      formData.append('command', cfg.command || '');
-
-      if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
-      if (cfg.memory) formData.append('memory', String(cfg.memory));
-      if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
-      if (cfg.accelerators)
-        formData.append('accelerators', String(cfg.accelerators));
-      if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
-      if (cfg.setup) formData.append('setup', String(cfg.setup));
-      if (cfg.uploaded_dir_path)
-        formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
-
-      // Create the actual remote job with the existing cluster name
-      const createJobResp = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.CreateRemoteJob(experimentInfo.id),
-        { method: 'POST', body: formData },
-      );
-      const createJobResult = await createJobResp.json();
-
-      if (createJobResult.status === 'success') {
-        await jobsMutate();
-
-        addNotification({
-          type: 'success',
-          message: `Job created. Submitting to ${clusterName}...`,
-        });
-
-        // Launch with use_existing_cluster flag
-        const launchFormData = new FormData();
-        launchFormData.append('job_id', createJobResult.job_id);
-        launchFormData.append('cluster_name', clusterName);
-        launchFormData.append('task_name', task.name || '');
-        launchFormData.append('command', cfg.command || '');
-        launchFormData.append('use_existing_cluster', 'true');
-
-        if (cfg.cpus) launchFormData.append('cpus', String(cfg.cpus));
-        if (cfg.memory) launchFormData.append('memory', String(cfg.memory));
-        if (cfg.disk_space)
-          launchFormData.append('disk_space', String(cfg.disk_space));
-        if (cfg.accelerators)
-          launchFormData.append('accelerators', String(cfg.accelerators));
-        if (cfg.num_nodes)
-          launchFormData.append('num_nodes', String(cfg.num_nodes));
-        if (cfg.setup) launchFormData.append('setup', String(cfg.setup));
-        if (cfg.uploaded_dir_path)
-          launchFormData.append(
-            'uploaded_dir_path',
-            String(cfg.uploaded_dir_path),
-          );
-
-        const launchResp = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
-          { method: 'POST', body: launchFormData },
-        );
-        const launchResult = await launchResp.json();
-
-        if (launchResult.status === 'success') {
-          addNotification({
-            type: 'success',
-            message: `Job submitted to ${clusterName} successfully.`,
-          });
-          await Promise.all([jobsMutate(), tasksMutate()]);
-        } else {
-          addNotification({
-            type: 'danger',
-            message: `Failed to submit job: ${launchResult.message}`,
-          });
-        }
-      } else {
-        addNotification({
-          type: 'danger',
-          message: `Failed to create job: ${createJobResult.message}`,
-        });
-      }
-    } catch (e) {
-      console.error(e);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to submit job to existing cluster.',
-      });
-    }
-  };
 
   return (
     <Sheet
@@ -711,7 +608,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             onDeleteTask={handleDeleteTask}
             onQueueTask={handleQueue}
             onEditTask={handleEditTask}
-            onSelectInstance={handleSelectInstance}
           />
         )}
       </Sheet>
