@@ -179,18 +179,35 @@ EOF
 
 fi
 
+# Detect GPU type to determine which extra to use
+EXTRA=""
+if command -v nvidia-smi &> /dev/null; then
+    GPU_INFO=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits 2>/dev/null || echo "")
+    if [ -n "$GPU_INFO" ]; then
+        EXTRA="nvidia"
+    fi
+elif command -v rocminfo &> /dev/null; then
+    EXTRA="rocm"
+elif [ "$(uname)" = "Darwin" ]; then
+    # macOS - use cpu extra
+    EXTRA="cpu"
+else
+    # Linux without GPU - use cpu extra
+    EXTRA="cpu"
+fi
+
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
     if [ "$HTTPS" = true ]; then
-        uv run -v python api.py --https --reload --port ${PORT} --host ${TLABHOST}
+        uv run -v --extra ${EXTRA} python api.py --https --reload --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
+        uv run -v --extra ${EXTRA} uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
     fi
 else
     if [ "$HTTPS" = true ]; then
-        uv run -v python api.py --https --port ${PORT} --host ${TLABHOST}
+        uv run -v --extra ${EXTRA} python api.py --https --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
+        uv run -v --extra ${EXTRA} uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
     fi
 fi
