@@ -170,7 +170,7 @@ async def get_team_members(
     user_ids = [ut.user_id for ut in user_teams]
     stmt = select(User).where(User.id.in_(user_ids))
     result = await session.execute(stmt)
-    users = result.scalars().all()
+    users = result.scalars().unique().all()
 
     # Create a mapping
     users_dict = {str(user.id): user for user in users}
