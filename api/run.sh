@@ -196,18 +196,24 @@ else
     EXTRA="cpu"
 fi
 
+# Ensure the package is installed with the correct extra in the conda environment
+# if [ "$CUSTOM_ENV" != true ]; then
+#     # Install/update the package with the correct extra
+#     uv pip install -e .[${EXTRA}] 2>/dev/null || true
+# fi
+
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
     if [ "$HTTPS" = true ]; then
-        uv run -v --extra ${EXTRA} python api.py --https --reload --port ${PORT} --host ${TLABHOST}
+        python api.py --https --reload --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v --extra ${EXTRA} uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
+        uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
     fi
 else
     if [ "$HTTPS" = true ]; then
-        uv run -v --extra ${EXTRA} python api.py --https --port ${PORT} --host ${TLABHOST}
+        python api.py --https --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v --extra ${EXTRA} uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
+        uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
     fi
 fi
