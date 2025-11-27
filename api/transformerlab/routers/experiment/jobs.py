@@ -27,7 +27,7 @@ from transformerlab.services.provider_service import (
     get_provider_instance,
 )
 from transformerlab.routers.auth import get_user_and_team
-from transformerlab.db.session import get_async_session
+from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.compute_providers.models import JobState
 from lab import Job
 from lab.dirs import get_workspace_dir

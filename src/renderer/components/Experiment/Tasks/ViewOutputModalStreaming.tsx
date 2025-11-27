@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -8,16 +8,104 @@ import {
   ModalDialog,
   Tab,
   TabList,
-  TabPanel,
   Tabs,
   Typography,
 } from '@mui/joy';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import PollingOutputTerminal from './PollingOutputTerminal';
 
-export default function ViewOutputModalStreaming({ jobId, setJobId }) {
+interface ProviderLogsTerminalProps {
+  logsText: string;
+}
+
+const ProviderLogsTerminal: React.FC<ProviderLogsTerminalProps> = ({
+  logsText,
+}) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const termRef = useRef<Terminal | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+
+  useEffect(() => {
+    const term = new Terminal({
+      convertEol: true,
+      fontFamily: 'JetBrains Mono, Menlo, monospace',
+      fontSize: 13,
+      theme: {
+        background: '#000000',
+      },
+      smoothScrollDuration: 150,
+    });
+    const fit = new FitAddon();
+    term.loadAddon(fit);
+    fitAddonRef.current = fit;
+
+    if (containerRef.current) {
+      term.open(containerRef.current);
+      fit.fit();
+    }
+
+    termRef.current = term;
+
+    const resizeObserver = new ResizeObserver(() => {
+      try {
+        fit.fit();
+      } catch {
+        // ignore resize errors
+      }
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+      term.dispose();
+      termRef.current = null;
+      fitAddonRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!termRef.current) return;
+
+    const text = logsText || 'No provider log data yet.';
+    // Clear screen and move cursor to home
+    termRef.current.write('\x1b[2J\x1b[H');
+    const normalized = text.replace(/\r\n/g, '\n');
+    const lines = normalized.split('\n');
+    lines.forEach((line) => {
+      termRef.current!.writeln(line);
+    });
+  }, [logsText]);
+
+  return (
+    <Box
+      sx={{
+        flex: 1,
+        borderRadius: '8px',
+        border: '1px solid #333',
+        backgroundColor: '#000000',
+        overflow: 'hidden',
+      }}
+      ref={containerRef}
+    />
+  );
+};
+
+interface ViewOutputModalStreamingProps {
+  jobId: number;
+  setJobId: (jobId: number) => void;
+}
+
+export default function ViewOutputModalStreaming({
+  jobId,
+  setJobId,
+}: ViewOutputModalStreamingProps) {
   const { experimentInfo } = useExperimentInfo();
   const [activeTab, setActiveTab] = useState<'output' | 'provider'>('output');
 
@@ -49,15 +137,10 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
     return response.json();
   };
 
-  const {
-    data: providerLogsData,
-    error: providerLogsError,
-    isLoading: providerLogsLoading,
-  } = useSWR(providerLogsUrl, fetchProviderLogs, {
-    refreshInterval: 5000,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-  });
+  const swrResult: any = useSWR(providerLogsUrl, fetchProviderLogs);
+  const providerLogsData = swrResult?.data;
+  const providerLogsError = swrResult?.error;
+  const providerLogsLoading = !providerLogsData && !providerLogsError;
 
   if (jobId === -1 || !experimentInfo) {
     return null;
@@ -72,7 +155,7 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
       onClose={() => {
         setJobId(-1);
       }}
-    > 
+    >
       <ModalDialog
         sx={{
           width: '80vw',
@@ -92,20 +175,27 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
               setActiveTab(value as 'output' | 'provider');
             }
           }}
-          sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
         >
           <TabList>
             <Tab value="output">Task Output</Tab>
             <Tab value="provider">Provider Logs</Tab>
           </TabList>
-          <TabPanel
-            value="output"
-            sx={{ flex: 1, display: 'flex', p: 0, pt: 1, minHeight: 0 }}
-          >
+        </Tabs>
+        <Box
+          sx={{
+            mt: 1,
+            flex: 1,
+            minHeight: 0,
+            width: '100%',
+            display: 'flex',
+          }}
+        >
+          {activeTab === 'output' ? (
             <Box
               sx={{
-                border: '10px solid #444',
-                padding: '0rem 0 0 1rem',
+                borderRadius: '8px',
+                border: '1px solid #444',
+                padding: '0 0 0 0.5rem',
                 backgroundColor: '#000',
                 width: '100%',
                 flex: 1,
@@ -120,73 +210,31 @@ export default function ViewOutputModalStreaming({ jobId, setJobId }) {
                 initialMessage="Loading job output..."
               />
             </Box>
-          </TabPanel>
-          <TabPanel
-            value="provider"
-            sx={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-              p: 0,
-              pt: 1,
-              minHeight: 0,
-            }}
-          >
-            {providerLogsLoading && (
-              <Box
-                sx={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CircularProgress size="sm" />
-              </Box>
-            )}
-            {providerLogsError && (
-              <Alert color="danger" variant="soft">
-                {providerLogsError.message}
-              </Alert>
-            )}
-            {!providerLogsLoading && !providerLogsError && (
-              <>
-                <Typography level="body-sm" color="neutral">
-                  {providerLogsData
-                    ? `Cluster ${providerLogsData.cluster_name} • Provider job ${providerLogsData.provider_job_id}`
-                    : 'Job logs will appear once available from the provider.'}
-                </Typography>
+          ) : (
+            <>
+              {providerLogsLoading && (
                 <Box
                   sx={{
                     flex: 1,
-                    borderRadius: '8px',
-                    border: '1px solid #333',
-                    backgroundColor: '#050505',
-                    color: '#d7d7d7',
-                    overflow: 'auto',
-                    fontFamily: 'JetBrains Mono, "Fira Code", monospace',
-                    fontSize: '0.85rem',
-                    p: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
-                  <Typography
-                    component="pre"
-                    sx={{
-                      m: 0,
-                      whiteSpace: 'pre-wrap',
-                      fontFamily: 'inherit',
-                    }}
-                  >
-                    {providerLogText.trim()
-                      ? providerLogText
-                      : 'No provider log data yet.'}
-                  </Typography>
+                  <CircularProgress size="sm" />
                 </Box>
-              </>
-            )}
-          </TabPanel>
-        </Tabs>
+              )}
+              {providerLogsError && (
+                <Alert color="danger" variant="soft">
+                  {providerLogsError.message}
+                </Alert>
+              )}
+              {!providerLogsLoading && !providerLogsError && (
+                <ProviderLogsTerminal logsText={providerLogText} />
+              )}
+            </>
+          )}
+        </Box>
       </ModalDialog>
     </Modal>
   );
