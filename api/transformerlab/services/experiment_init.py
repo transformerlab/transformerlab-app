@@ -4,8 +4,8 @@ from lab import storage
 from lab import HOME_DIR
 
 from sqlalchemy import select
-from transformerlab.shared.models.user_model import User, AsyncSessionLocal, create_personal_team
-from transformerlab.shared.models.models import UserTeam, TeamRole
+from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
+from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.models.users import UserManager, UserCreate
 from fastapi_users.db import SQLAlchemyUserDatabase
 import os

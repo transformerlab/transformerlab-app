@@ -6,8 +6,8 @@ from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, e
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
 from httpx_oauth.clients.google import GoogleOAuth2
-from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team, get_user_db
-from transformerlab.shared.models.models import UserTeam, TeamRole
+from transformerlab.shared.models.user_model import get_async_session, create_personal_team, get_user_db
+from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 import os
 import sys
