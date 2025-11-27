@@ -123,24 +123,18 @@ export default function ViewOutputModalStreaming({
     );
   }, [experimentInfo?.id, jobId]);
 
-  const fetchProviderLogs = async (url: string) => {
-    const response = await chatAPI.authenticatedFetch(url);
-    if (!response.ok) {
-      const text = await response.text();
-      try {
-        const parsed = JSON.parse(text);
-        throw new Error(parsed?.detail || text || `HTTP ${response.status}`);
-      } catch {
-        throw new Error(text || `HTTP ${response.status}`);
-      }
-    }
-    return response.json();
-  };
+  const {
+    data: providerLogsData,
+    isError: providerLogsError,
+    isLoading: providerLogsLoading,
+  }: {
+    data: any;
+    isError: any;
+    isLoading: boolean;
+  } = useSWR(providerLogsUrl);
 
-  const swrResult: any = useSWR(providerLogsUrl, fetchProviderLogs);
-  const providerLogsData = swrResult?.data;
-  const providerLogsError = swrResult?.error;
-  const providerLogsLoading = !providerLogsData && !providerLogsError;
+  const isNoProviderLogsYet =
+    providerLogsError && (providerLogsError as any).status === 404;
 
   if (jobId === -1 || !experimentInfo) {
     return null;
@@ -224,11 +218,48 @@ export default function ViewOutputModalStreaming({
                   <CircularProgress size="sm" />
                 </Box>
               )}
-              {providerLogsError && (
-                <Alert color="danger" variant="soft">
-                  {providerLogsError.message}
-                </Alert>
+              {isNoProviderLogsYet && (
+                <Box
+                  sx={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 2,
+                  }}
+                >
+                  <Alert
+                    color="neutral"
+                    variant="soft"
+                    sx={{ maxWidth: '600px', width: '100%' }}
+                  >
+                    No provider logs are available for this job yet. The cluster
+                    may not have started or may have already been destroyed.
+                    Please try again later.
+                  </Alert>
+                </Box>
               )}
+              {!providerLogsLoading &&
+                providerLogsError &&
+                !isNoProviderLogsYet && (
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 2,
+                    }}
+                  >
+                    <Alert
+                      color="danger"
+                      variant="soft"
+                      sx={{ maxWidth: '600px', width: '100%' }}
+                    >
+                      {providerLogsError.message}
+                    </Alert>
+                  </Box>
+                )}
               {!providerLogsLoading && !providerLogsError && (
                 <ProviderLogsTerminal logsText={providerLogText} />
               )}
