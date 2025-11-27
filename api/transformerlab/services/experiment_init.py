@@ -4,8 +4,8 @@ from lab import storage
 from lab import HOME_DIR
 
 from sqlalchemy import select
-from transformerlab.shared.models.user_model import User, AsyncSessionLocal, create_personal_team
-from transformerlab.shared.models.models import UserTeam, TeamRole
+from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
+from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.models.users import UserManager, UserCreate
 from fastapi_users.db import SQLAlchemyUserDatabase
 import os
@@ -20,9 +20,16 @@ async def seed_default_admin_user():
             # Check if admin user already exists
             stmt = select(User).where(User.email == "admin@example.com")
             result = await session.execute(stmt)
-            existing_admin = result.scalar_one_or_none()
+            existing_admin = result.unique().scalar_one_or_none()
 
             if existing_admin:
+                # Ensure admin is verified
+                if not existing_admin.is_verified:
+                    existing_admin.is_verified = True
+                    session.add(existing_admin)
+                    await session.commit()
+                    print("✅ Verified existing admin user")
+
                 # Admin already exists, but we should still ensure they have a team and migrate workspace
                 admin_user_id = existing_admin.id
                 admin_user = existing_admin
@@ -61,6 +68,7 @@ async def seed_default_admin_user():
                 password="admin123",
                 is_active=True,
                 is_superuser=True,
+                is_verified=True,  # Ensure admin is verified
             )
 
             # Create user with safe=False to skip verification email
@@ -72,7 +80,7 @@ async def seed_default_admin_user():
             # Re-fetch the user from the database to get a fresh, attached instance
             stmt = select(User).where(User.id == admin_user_id)
             result = await session.execute(stmt)
-            admin_user = result.scalar_one()
+            admin_user = result.unique().scalar_one()
 
             # Mark as verified so login works immediately
             admin_user.is_verified = True

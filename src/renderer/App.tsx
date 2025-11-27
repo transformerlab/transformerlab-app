@@ -20,6 +20,7 @@ import OutputTerminal from './components/OutputTerminal';
 import DraggableElipsis from './components/Shared/DraggableEllipsis';
 // import OutputTerminal from './components/OutputTerminal';
 import AutoUpdateModal from './components/AutoUpdateModal';
+import AnnouncementsModal from './components/Shared/AnnouncementsModal';
 import { NotificationProvider } from './components/Shared/NotificationSystem';
 import {
   ExperimentInfoProvider,
@@ -215,6 +216,7 @@ function AppContent({
         </Box>
       </Box>
       <AutoUpdateModal />
+      <AnnouncementsModal />
       {process.env.TL_FORCE_API_URL === 'false' && (
         <LoginModal
           setServer={setConnection}
