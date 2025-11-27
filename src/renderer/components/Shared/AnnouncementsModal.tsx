@@ -32,6 +32,7 @@ export default function AnnouncementsModal() {
   const [open, setOpen] = useState(false);
   const [currentAnnouncement, setCurrentAnnouncement] =
     useState<Announcement | null>(null);
+  // Tracks whether we've already fetched announcements for the current connection
   const [hasChecked, setHasChecked] = useState(false);
 
   const { server, isLoading, isError } = chatAPI.useServerStats();
