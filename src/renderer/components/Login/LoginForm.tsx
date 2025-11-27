@@ -127,23 +127,13 @@ export default function LoginForm() {
           <Button
             startDecorator={<FaGoogle />}
             onClick={handleGoogleLogin}
-            variant="outlined"
-            color="neutral"
+            variant="solid"
             loading={isLoading}
             disabled={isLoading}
           >
             Continue with Google
           </Button>
         )}
-        <Button
-          startDecorator={<FaDiscord />}
-          onClick={() => {
-            alert('Not Yet Implemented');
-          }}
-          disabled={isLoading}
-        >
-          Continue with Discord
-        </Button>
         <Divider />
         <FormControl required>
           <Input
