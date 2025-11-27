@@ -222,6 +222,7 @@ if not GOOGLE_OAUTH_ENABLED:
 else:
     print("✅ Google OAuth configured and ready.")
 
+EMAIL_AUTH_ENABLED = os.getenv("EMAIL_AUTH_ENABLED", "true").lower() == "true"
 
 # --- Custom Authentication Backend ---
 
