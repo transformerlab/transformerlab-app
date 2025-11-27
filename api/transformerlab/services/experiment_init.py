@@ -20,7 +20,7 @@ async def seed_default_admin_user():
             # Check if admin user already exists
             stmt = select(User).where(User.email == "admin@example.com")
             result = await session.execute(stmt)
-            existing_admin = result.scalar_one_or_none()
+            existing_admin = result.unique().scalar_one_or_none()
 
             if existing_admin:
                 # Ensure admin is verified
