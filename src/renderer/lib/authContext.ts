@@ -207,7 +207,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
-    'Content-Type': 'application/json',
+    // Only set Content-Type if body is not FormData (browser will set it with boundary for FormData)
+    ...(options.body instanceof FormData
+      ? {}
+      : { 'Content-Type': 'application/json' }),
     ...(currentTeam
       ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
       : {}),
