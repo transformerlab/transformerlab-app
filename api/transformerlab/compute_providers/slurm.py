@@ -15,16 +15,19 @@ from .models import (
     JobState,
 )
 
-import paramiko
 
+def get_add_if_verified_policy():
+    import paramiko
 
-class AddIfVerified(paramiko.MissingHostKeyPolicy):
-    """Custom SSH host key policy that adds host keys after verification."""
+    class AddIfVerified(paramiko.MissingHostKeyPolicy):
+        """Custom SSH host key policy that adds host keys after verification."""
 
-    def missing_host_key(self, client, hostname, key):
-        """Handle missing host key by adding it to known_hosts after verification."""
-        client._host_keys.add(hostname, key.get_name(), key)
-        client._host_keys.save(os.path.expanduser("~/.ssh/known_hosts"))
+        def missing_host_key(self, client, hostname, key):
+            """Handle missing host key by adding it to known_hosts after verification."""
+            client._host_keys.add(hostname, key.get_name(), key)
+            client._host_keys.save(os.path.expanduser("~/.ssh/known_hosts"))
+
+    return AddIfVerified()
 
 
 class SLURMProvider(ComputeProvider):
@@ -76,7 +79,7 @@ class SLURMProvider(ComputeProvider):
             raise ImportError("paramiko is required for SSH mode. Install with: pip install paramiko")
 
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(AddIfVerified())
+        ssh.set_missing_host_key_policy(get_add_if_verified_policy())
 
         try:
             # Build SSH connection parameters
@@ -132,7 +135,7 @@ class SLURMProvider(ComputeProvider):
             raise FileNotFoundError(f"Local path for file_mounts does not exist: {local_path}")
 
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(AddIfVerified())
+        ssh.set_missing_host_key_policy(get_add_if_verified_policy())
 
         try:
             # Build SSH connection parameters
