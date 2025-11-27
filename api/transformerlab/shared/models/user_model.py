@@ -1,16 +1,17 @@
 # database.py
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, Mapped, mapped_column
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import String
+from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, relationship
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID, SQLAlchemyUserDatabase
+from sqlalchemy import String, UUID, select
+import uuid
+from fastapi import Depends
 
-# Replace with your actual database URL (e.g., PostgreSQL, SQLite)
 from transformerlab.db.constants import DATABASE_URL
 from .models import Base, Team
 
 
-# 1. Define your User Model (inherits from a FastAPI Users base class)
+# 1. Define your User Model WITH oauth_accounts relationship
 class User(SQLAlchemyBaseUserTableUUID, Base):
     """
     User database model. Inherits from SQLAlchemyBaseUserTableUUID which provides:
@@ -20,31 +21,79 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     - is_active (boolean)
     - is_superuser (boolean)
     - is_verified (boolean)
-    
-    We add custom fields below:
     """
     first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    
+    oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
+        "OAuthAccount",
+        primaryjoin="User.id == foreign(OAuthAccount.user_id)",
+        lazy="joined"
+    )
 
 
-# 2. Setup the Async Engine and Session
+# 2. Define OAuth Account Model
+class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
+    """
+    OAuth account model for linking OAuth providers to users.
+    Stores OAuth provider info (Google, etc.) linked to our users.
+    """
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+
+
+# 3. Setup the Async Engine and Session
 engine = create_async_engine(DATABASE_URL)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-# 3. Utility to create tables (run this on app startup)
+# 4. Utility to create tables (run this on app startup)
 async def create_db_and_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
-# 4. Database session dependency
+# 5. Database session dependency
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
 
 
-# 5. Create personal team for user
+# 6. Custom User Database with OAuth support (REQUIRED!)
+class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
+    """
+    Extended SQLAlchemyUserDatabase with OAuth support.
+    This is REQUIRED because the base class raises NotImplementedError for get_by_oauth_account.
+    """
+    
+    async def get_by_oauth_account(self, oauth: str, account_id: str) -> Optional[User]:
+        """
+        Get a user by OAuth account provider and account ID.
+        Args:
+            oauth: OAuth provider name (e.g., 'google')
+            account_id: The account ID from the OAuth provider
+        Returns:
+            User if found, None otherwise
+        """
+        statement = (
+            select(User)
+            .join(OAuthAccount, User.id == OAuthAccount.user_id)
+            .where(
+                OAuthAccount.oauth_name == oauth,
+                OAuthAccount.account_id == account_id
+            )
+        )
+        result = await self.session.execute(statement)
+        user = result.scalar_one_or_none()
+        return user
+
+
+# 7. Get user database dependency (REQUIRED!)
+async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+    """Provides database access for users and OAuth accounts"""
+    yield SQLAlchemyUserDatabaseWithOAuth(session, User, OAuthAccount)
+
+
+# 8. Create personal team for user
 async def create_personal_team(session: AsyncSession, user) -> Team:
     """
     Create a personal team for the user named "Username's Team".
@@ -72,7 +121,7 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     return team
 
 
-# Keep for backwards compatibility - but now creates personal teams
+# Keep for backwards compatibility
 async def create_default_team(session: AsyncSession, user=None) -> Team:
     """
     Deprecated: Use create_personal_team instead.

@@ -261,6 +261,28 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     setTeamState(getCurrentTeam());
     setInitializing(false);
 
+    // Check for OAuth callback tokens in URL
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessToken = urlParams.get('access_token');
+      const refreshToken = urlParams.get('refresh_token');
+
+      if (accessToken) {
+        updateAccessToken(accessToken);
+        setToken(accessToken);
+      }
+      if (refreshToken) {
+        updateRefreshToken(refreshToken);
+      }
+
+      // Clean up URL if tokens were found
+      if (accessToken || refreshToken) {
+        // Remove the query params
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    }
+
     // Subscribe
     const unsub = subscribeAuthChange(() => {
       setToken(getAccessToken());
