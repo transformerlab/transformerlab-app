@@ -550,7 +550,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     setEditModalOpen(true);
   };
 
-
   return (
     <Sheet
       sx={{

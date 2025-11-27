@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  Table,
-  ButtonGroup,
-  Typography,
-  IconButton,
-  Button,
-} from '@mui/joy';
+import { Table, ButtonGroup, Typography, IconButton, Button } from '@mui/joy';
 import { PlayIcon, Trash2Icon } from 'lucide-react';
 import SafeJSONParse from 'renderer/components/Shared/SafeJSONParse';
 
@@ -34,7 +28,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
   onQueueTask,
   onEditTask,
 }) => {
-
   const getResourcesInfo = (task: TaskRow) => {
     if (!task.remote_task) {
       return 'N/A';
@@ -76,7 +69,6 @@ const TaskTemplateList: React.FC<TaskTemplateListProps> = ({
     // Truncate long commands
     return command.length > 50 ? `${command.substring(0, 50)}...` : command;
   };
-
 
   return (
     <Table stickyHeader>
