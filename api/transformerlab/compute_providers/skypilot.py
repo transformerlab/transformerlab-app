@@ -982,6 +982,10 @@ class SkyPilotProvider(ComputeProvider):
                     else:
                         job_records = [job_records] if job_records else []
             except Exception as e:
+                if f"ClusterNotUpError in request payload: {str(e)}":
+                    return []
+                elif "does not exist" in str(e):
+                    return []
                 print(f"Error getting job records from request payload: {e}")
                 # Fallback: try to parse response directly
                 try:
