@@ -4,8 +4,7 @@ from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
-from transformerlab.shared.models.models import TeamComputeProvider, Team, UserTeam
-from transformerlab.shared.models.user_model import User
+from transformerlab.shared.models.models import TeamComputeProvider, Team, UserTeam, User
 from transformerlab.compute_providers.config import ComputeProviderConfig, create_compute_provider
 from transformerlab.compute_providers.base import ComputeProvider
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformerlab.shared.models.user_model import User, get_async_session
-from transformerlab.shared.models.models import Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
+from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
@@ -170,7 +170,7 @@ async def get_team_members(
     user_ids = [ut.user_id for ut in user_teams]
     stmt = select(User).where(User.id.in_(user_ids))
     result = await session.execute(stmt)
-    users = result.scalars().all()
+    users = result.scalars().unique().all()
 
     # Create a mapping
     users_dict = {str(user.id): user for user in users}
