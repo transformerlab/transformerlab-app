@@ -79,11 +79,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         async for session in get_async_session():
             try:
                 team = await create_personal_team(session, user)
-                user_team = UserTeam(
-                    user_id=str(user.id), 
-                    team_id=team.id, 
-                    role=TeamRole.OWNER.value
-                )
+                user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
                 session.add(user_team)
                 await session.commit()
                 print(f"Created personal team '{team.name}' for user {user.email}")
@@ -111,7 +107,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         # Get frontend URL from environment or use default
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
         reset_url = f"{frontend_url}/#/?reset_token={token}"
-        
+
         try:
             send_password_reset_email(to_email=user.email, reset_url=reset_url)
             print(f"✅ Password reset email sent to {user.email}")
@@ -130,14 +126,24 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         verification_url = f"{frontend_url}/#/?token={token}"
 
         print(f"Click on verification URL to verify your account: {verification_url}")
-        
+
         try:
             send_email_verification_link(to_email=user.email, verification_url=verification_url)
             print(f"✅ Verification email sent to {user.email}")
         except Exception as e:
             print(f"❌ Failed to send verification email to {user.email}: {str(e)}")
 
-    async def oauth_callback(self, oauth_name: str, access_token: str, account_id: str, account_email: str, expires_at: int | None = None, refresh_token: str | None = None, request: Request | None = None, **kwargs) -> User:
+    async def oauth_callback(
+        self,
+        oauth_name: str,
+        access_token: str,
+        account_id: str,
+        account_email: str,
+        expires_at: int | None = None,
+        refresh_token: str | None = None,
+        request: Request | None = None,
+        **kwargs,
+    ) -> User:
         """
         Handle OAuth callback. If user exists by OAuth account, return it.
         If user exists by email, link the OAuth account and return the user.
@@ -165,16 +171,19 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         except exceptions.UserNotExists:
             # User doesn't exist, create new user
             import secrets
+
             random_password = secrets.token_urlsafe(32)  # Generate a secure random password
-            user_create = UserCreate(email=account_email, password=random_password, is_verified=True)  # OAuth emails are pre-verified
+            user_create = UserCreate(
+                email=account_email, password=random_password, is_verified=True
+            )  # OAuth emails are pre-verified
             user = await self.create(user_create, request=request)
             return user
 
 
-
-
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
     yield UserManager(user_db)
+
+
 # --- Strategies & Transports ---
 
 bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
@@ -198,17 +207,16 @@ google_oauth_client = GoogleOAuth2(
         "openid",
         "https://www.googleapis.com/auth/userinfo.email",
         "https://www.googleapis.com/auth/userinfo.profile",
-    ]
+    ],
 )
 
 # Check if OAuth is properly configured
-GOOGLE_OAUTH_ENABLED = bool(
-    os.getenv("GOOGLE_OAUTH_CLIENT_ID") and 
-    os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
-)
+GOOGLE_OAUTH_ENABLED = bool(os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"))
 
 if not GOOGLE_OAUTH_ENABLED:
-    print("⚠️  Google OAuth not configured. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to enable Google login.")
+    print(
+        "⚠️  Google OAuth not configured. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to enable Google login."
+    )
 else:
     print("✅ Google OAuth configured and ready.")
 
@@ -242,6 +250,7 @@ auth_backend = RefreshTokenBackend(
     get_strategy=get_jwt_strategy,
 )
 
+
 # OAuth backend
 class OAuthBackend(AuthenticationBackend):
     """
@@ -255,12 +264,12 @@ class OAuthBackend(AuthenticationBackend):
 
         # Redirect to frontend callback with tokens in URL
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
-        callback_url = f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
-        
-        return Response(
-            status_code=302,
-            headers={"Location": callback_url}
+        callback_url = (
+            f"{frontend_url}/auth/callback?access_token={access_token}&refresh_token={refresh_token}&token_type=bearer"
         )
+
+        return Response(status_code=302, headers={"Location": callback_url})
+
 
 oauth_backend = OAuthBackend(
     name="oauth",
