@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from os import getenv
 
 from lab import Experiment
+from lab.dirs import set_organization_id
 
 
 class TeamCreate(BaseModel):
@@ -78,11 +79,22 @@ async def create_team(
     session.add(user_team)
     await session.commit()
 
-    # Add logic to seed experiment if no experiments exist
-    existing_experiments = Experiment.get_all()
-    if len(existing_experiments) == 0:
-        _ = Experiment("alpha", create_new=True)
-        print(f"✅ Created alpha experiment for team '{team.name}' (id={team.id})")
+    # Create default experiment "alpha" for the new team
+    # Temporarily set the organization context to the new team ID
+    # so the experiment is created in the correct workspace
+    try:
+        # Set organization context to the new team ID
+        # The middleware will handle context for the next request
+        set_organization_id(team.id)
+
+        # Create the default experiment
+        Experiment("alpha", create_new=True)
+    except Exception as e:
+        # Log error but don't fail team creation if experiment creation fails
+        print(f"Warning: Failed to create default experiment 'alpha' for team {team.id}: {e}")
+    finally:
+        # Clear the organization context (middleware will set it for next request)
+        set_organization_id(None)
 
     return TeamResponse(id=team.id, name=team.name)
 
