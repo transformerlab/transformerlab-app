@@ -1,6 +1,7 @@
-from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from typing import Optional, List
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
 import enum
 
@@ -140,3 +141,36 @@ class TeamComputeProvider(Base):
     )
 
     __table_args__ = (Index("idx_compute_provider_name", "team_id", "name"),)
+
+
+# User and OAuth Account models
+class User(SQLAlchemyBaseUserTableUUID, Base):
+    """
+    User database model. Inherits from SQLAlchemyBaseUserTableUUID which provides:
+    - id (UUID primary key)
+    - email (unique, indexed)
+    - hashed_password
+    - is_active (boolean)
+    - is_superuser (boolean)
+    - is_verified (boolean)
+    """
+
+    __tablename__ = "user"
+
+    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
+        "OAuthAccount", primaryjoin="User.id == foreign(OAuthAccount.user_id)", lazy="joined"
+    )
+
+
+class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
+    """
+    OAuth account model for linking OAuth providers to users.
+    Stores OAuth provider info (Google, etc.) linked to our users.
+    """
+
+    __tablename__ = "oauth_account"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)

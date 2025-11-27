@@ -176,8 +176,13 @@ httpcore==1.0.7
     # via httpx
 httpx==0.28.1
     # via
+    #   httpx-oauth
     #   mcp
     #   transformerlab-inference
+httpx-oauth==0.16.1
+    # via
+    #   -r requirements.in
+    #   fastapi-users
 httpx-sse==0.4.0
     # via mcp
 huggingface-hub==0.34.3
@@ -514,7 +519,6 @@ setproctitle==1.3.5
 setuptools==70.2.0
     # via
     #   tensorboard
-    #   torch
     #   wandb
 shellingham==1.5.4
     # via typer

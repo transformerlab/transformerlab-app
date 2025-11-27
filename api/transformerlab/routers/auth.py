@@ -1,15 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, Header
-from transformerlab.shared.models.user_model import User, get_async_session, create_personal_team
-from transformerlab.shared.models.models import Team, UserTeam, TeamRole
+from transformerlab.shared.models.user_model import get_async_session, create_personal_team
+from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
 from transformerlab.models.users import (
     fastapi_users,
     auth_backend,
+    oauth_backend,
     current_active_user,
     UserRead,
     UserCreate,
     UserUpdate,
     get_user_manager,
     get_refresh_strategy,
+    google_oauth_client,
+    GOOGLE_OAUTH_ENABLED,
+    SECRET,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -53,6 +57,30 @@ router.include_router(
     prefix="/users",
     tags=["users"],
 )
+
+
+# Check if Google OAuth is enabled
+@router.get("/auth/google/status")
+async def google_oauth_status():
+    """
+    Returns whether Google OAuth is configured and available.
+    Frontend can use this to show/hide the Google login button.
+    """
+    return {"enabled": GOOGLE_OAUTH_ENABLED}
+
+
+# Include OAuth Router for Google authentication (only if enabled)
+if GOOGLE_OAUTH_ENABLED:
+    oauth_router = fastapi_users.get_oauth_router(
+        google_oauth_client,
+        oauth_backend,
+        SECRET,
+    )
+    router.include_router(
+        oauth_router,
+        prefix="/auth/google",
+        tags=["auth"],
+    )
 
 
 async def get_user_and_team(
@@ -119,11 +147,11 @@ async def require_team_owner(
     return {"user": user, "team_id": x_team, "role": user_team.role, "team": team}
 
 
-@router.get("/test-users/authenticated-route")
-async def authenticated_route(user_and_team=Depends(get_user_and_team)):
-    user = user_and_team["user"]
-    team_id = user_and_team["team_id"]
-    return {"message": f"Hello, {user.email}! You are authenticated and acting as part of team {team_id}."}
+# @router.get("/test-users/authenticated-route")
+# async def authenticated_route(user_and_team=Depends(get_user_and_team)):
+#     user = user_and_team["user"]
+#     team_id = user_and_team["team_id"]
+#     return {"message": f"Hello, {user.email}! You are authenticated and acting as part of team {team_id}."}
 
 
 @router.post("/auth/refresh")
