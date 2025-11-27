@@ -53,10 +53,11 @@ router.include_router(
 )
 # Include User Management Router (allows authenticated users to view/update their profile)
 router.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
+    fastapi_users.get_users_router(UserRead, UserUpdate, requires_verification=True),
     prefix="/users",
     tags=["users"],
 )
+
 
 # Check if Google OAuth is enabled
 @router.get("/auth/google/status")
@@ -66,6 +67,7 @@ async def google_oauth_status():
     Frontend can use this to show/hide the Google login button.
     """
     return {"enabled": GOOGLE_OAUTH_ENABLED}
+
 
 # Include OAuth Router for Google authentication (only if enabled)
 if GOOGLE_OAUTH_ENABLED:
