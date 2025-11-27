@@ -2,13 +2,8 @@
   "announcements": [
     {
       "date": "2025-11-27",
-      "title": "Announcements Modal",
-      "content": "This is a test announcement. It will be displayed in the announcements modal."
-    },
-    {
-      "date": "2025-01-15",
       "title": "Welcome to Transformer Lab",
-      "content": "Welcome to Transformer Lab! We're excited to have you here. Check out our latest features and improvements."
+      "content": "Welcome to Transformer Lab! We're excited to have you here."
     }
   ]
 }
