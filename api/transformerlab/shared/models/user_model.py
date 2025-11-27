@@ -1,44 +1,13 @@
 # database.py
-from typing import AsyncGenerator, Optional, List
+from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, Mapped, mapped_column, relationship
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID, SQLAlchemyUserDatabase
-from sqlalchemy import String, UUID, select
-import uuid
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import select
+from fastapi_users.db import SQLAlchemyUserDatabase
 from fastapi import Depends
 
 from transformerlab.db.constants import DATABASE_URL
-from .models import Base, Team
-
-
-# 1. Define your User Model WITH oauth_accounts relationship
-class User(SQLAlchemyBaseUserTableUUID, Base):
-    """
-    User database model. Inherits from SQLAlchemyBaseUserTableUUID which provides:
-    - id (UUID primary key)
-    - email (unique, indexed)
-    - hashed_password
-    - is_active (boolean)
-    - is_superuser (boolean)
-    - is_verified (boolean)
-    """
-    first_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    
-    oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
-        "OAuthAccount",
-        primaryjoin="User.id == foreign(OAuthAccount.user_id)",
-        lazy="joined"
-    )
-
-
-# 2. Define OAuth Account Model
-class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
-    """
-    OAuth account model for linking OAuth providers to users.
-    Stores OAuth provider info (Google, etc.) linked to our users.
-    """
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+from transformerlab.shared.models.models import Base, Team, User, OAuthAccount
 
 
 # 3. Setup the Async Engine and Session
@@ -64,7 +33,7 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
     Extended SQLAlchemyUserDatabase with OAuth support.
     This is REQUIRED because the base class raises NotImplementedError for get_by_oauth_account.
     """
-    
+
     async def get_by_oauth_account(self, oauth: str, account_id: str) -> Optional[User]:
         """
         Get a user by OAuth account provider and account ID.
@@ -77,10 +46,7 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
         statement = (
             select(User)
             .join(OAuthAccount, User.id == OAuthAccount.user_id)
-            .where(
-                OAuthAccount.oauth_name == oauth,
-                OAuthAccount.account_id == account_id
-            )
+            .where(OAuthAccount.oauth_name == oauth, OAuthAccount.account_id == account_id)
         )
         result = await self.session.execute(statement)
         user = result.scalar_one_or_none()
@@ -98,11 +64,11 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     """
     Create a personal team for the user named "Username's Team".
     Each user gets their own team.
-    
+
     Args:
         session: Database session
         user: User object with first_name, last_name, or email
-    
+
     Returns:
         Team: The created personal team
     """
@@ -112,7 +78,7 @@ async def create_personal_team(session: AsyncSession, user) -> Team:
     else:
         # Fallback to email username if no first_name
         team_name = f"{user.email.split('@')[0]}'s Team"
-    
+
     # Create new team for this user
     team = Team(name=team_name)
     session.add(team)

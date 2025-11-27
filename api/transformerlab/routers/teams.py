@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from transformerlab.shared.models.user_model import User, get_async_session
-from transformerlab.shared.models.models import Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
+from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole, TeamInvitation, InvitationStatus
 from transformerlab.models.users import current_active_user
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
