@@ -13,7 +13,7 @@ import {
   Sheet,
 } from '@mui/joy';
 import { NetworkIcon, PlusIcon, ServerIcon, User2Icon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
@@ -55,7 +55,6 @@ export default function UserLoginTest(): JSX.Element {
     'compute_provider',
     ['list'],
   );
-  console.log(providers);
 
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
@@ -63,6 +62,11 @@ export default function UserLoginTest(): JSX.Element {
   const iAmOwner = members?.members?.some((m: any) => {
     return m.user_id === authContext.user?.id && m.role === 'owner';
   });
+
+  // Re-fetch providers whenever the selected team changes
+  useEffect(() => {
+    providersMutate();
+  }, [authContext?.team?.id]);
 
   // Clear all role errors or add an error text
   function handleSetRoleError(message?: string) {
@@ -145,6 +149,10 @@ export default function UserLoginTest(): JSX.Element {
 
       // success — refetch members so UI updates, clear any errors
       if (membersMutate) membersMutate();
+
+      // Switching role might change what you can see from providers
+      if (providersMutate) providersMutate();
+
       handleSetRoleError(undefined);
     } catch (e: any) {
       handleSetRoleError(e?.message ?? String(e));
