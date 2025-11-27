@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Button,
   Divider,
@@ -17,10 +17,74 @@ export default function LoginForm() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
 
   const { login } = useAuth();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
+
+  // Check if Google OAuth is enabled on component mount
+  useEffect(() => {
+    const checkGoogleOAuthStatus = async () => {
+      try {
+        const apiUrl = (window as any).TransformerLab?.API_URL;
+        if (!apiUrl) {
+          console.warn('API URL not available yet, will retry...');
+          setGoogleOAuthEnabled(false);
+          return;
+        }
+        const response = await fetch(`${apiUrl}auth/google/status`);
+        const data = await response.json();
+        setGoogleOAuthEnabled(data.enabled);
+      } catch (err) {
+        console.warn('Failed to check Google OAuth status:', err);
+        setGoogleOAuthEnabled(false);
+      }
+    };
+
+    checkGoogleOAuthStatus();
+
+    // Also set up an interval to check periodically in case API_URL becomes available later
+    const interval = setInterval(() => {
+      if ((window as any).TransformerLab?.API_URL) {
+        checkGoogleOAuthStatus();
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    // Fetch the authorization URL and redirect to Google
+    const apiUrl = (window as any).TransformerLab?.API_URL;
+    if (!apiUrl) {
+      console.error('API URL not available for Google OAuth');
+      setError('Unable to initialize Google login. Please try again.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(''); // Clear any previous errors
+
+      const response = await fetch(`${apiUrl}auth/google/authorize`);
+      const data = await response.json();
+
+      // Redirect to Google's authorization URL
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      } else {
+        setError('Failed to initialize Google login.');
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Google OAuth error:', err);
+      setError('Failed to connect to Google. Please try again.');
+      setIsLoading(false);
+    }
+    // Note: We don't set isLoading to false on success because the page will redirect
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,22 +123,17 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit}>
       <Stack spacing={2}>
-        <Button
-          startDecorator={<FaGoogle />}
-          onClick={() => {
-            alert('Not Yet Implemented');
-          }}
-        >
-          Continue with Google
-        </Button>
-        <Button
-          startDecorator={<FaDiscord />}
-          onClick={() => {
-            alert('Not Yet Implemented');
-          }}
-        >
-          Continue with Discord
-        </Button>
+        {googleOAuthEnabled && (
+          <Button
+            startDecorator={<FaGoogle />}
+            onClick={handleGoogleLogin}
+            variant="solid"
+            loading={isLoading}
+            disabled={isLoading}
+          >
+            Continue with Google
+          </Button>
+        )}
         <Divider />
         <FormControl required>
           <Input
@@ -83,6 +142,7 @@ export default function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoFocus
+            disabled={isLoading}
           />
         </FormControl>
         <FormControl required>
@@ -91,6 +151,7 @@ export default function LoginForm() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={isLoading}
           />
         </FormControl>
         {error && (

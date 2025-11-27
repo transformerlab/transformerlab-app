@@ -5,7 +5,7 @@ def verify_user_in_db(email: str):
     """Helper to mark a user as verified in the database (for testing)"""
     import asyncio
     from sqlalchemy import select
-    from transformerlab.shared.models.user_model import User
+    from transformerlab.shared.models.models import User
     from transformerlab.db.session import async_session
     
     async def _verify():
