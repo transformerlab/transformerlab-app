@@ -217,6 +217,44 @@
       "path": "teams/{teamId}/members"
     }
   },
+  "compute_provider": {
+    "list": {
+      "method": "GET",
+      "path": "compute_provider/"
+    },
+    "create": {
+      "method": "POST",
+      "path": "compute_provider/"
+    },
+    "get": {
+      "method": "GET",
+      "path": "compute_provider/{providerId}"
+    },
+    "update": {
+      "method": "PATCH",
+      "path": "compute_provider/{providerId}"
+    },
+    "delete": {
+      "method": "DELETE",
+      "path": "compute_provider/{providerId}"
+    },
+    "launchTask": {
+      "method": "POST",
+      "path": "providers/{providerId}/tasks/launch"
+    },
+    "checkJobStatus": {
+      "method": "GET",
+      "path": "providers/jobs/{jobId}/check-status"
+    },
+    "stopCluster": {
+      "method": "POST",
+      "path": "providers/{providerId}/clusters/{clusterName}/stop"
+    },
+    "uploadTaskFile": {
+      "method": "POST",
+      "path": "providers/{providerId}/tasks/{taskId}/file-upload"
+    }
+  },
   "auth": {
     "me": {
       "method": "GET",

@@ -225,6 +225,8 @@ async def migrate_workspace_to_org(team_id: str):
             # Directory not empty or other error, leave it
             pass
 
+        # make the directory again (because default sdk behaviour is to create this directory again when auth isnt dont -- which will happen at startup)
+        os.makedirs(old_workspace, exist_ok=True)
         # Add a text file in the old workspace saying where the migration happened
         with open(os.path.join(old_workspace, "migration.txt"), "w") as f:
             f.write(f"Migration happened from {old_workspace} to {new_workspace}")
