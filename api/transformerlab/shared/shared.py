@@ -28,57 +28,57 @@ from transformerlab.shared import dirs
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
     """
-    Runs a subprocess.Popen, and then calls the function onExit when the
-    subprocess completes.
-
-    Use it exactly the way you'd normally use subprocess.Popen, except include a
-    callable to execute as the first argument. onExit is a callable object, and
-    *popenArgs and **popenKWArgs are simply passed up to subprocess.Popen.
-
-    from https://stackoverflow.com/questions/2581817/python-subprocess-callback-when-cmd-exits
-
-    #TODO: There is an async IO way of doing this instead:
-    https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.create_subprocess_exec
-    If we use the above then we can probably make onExit a coroutine and await it
-    but when I tried to implement it as above, it would not work. The subprocess
-    wouldn't work concurrently as expected.
-
-    Note: If you want to pass environment variables, include them in popenKWArgs as 'env'.
-    If env is provided, it will be merged with the current environment.
+    Runs a subprocess.Popen, then calls onExit when it completes.
     """
 
+    # -------- REMOVE EXISTING IO ARGS IMMEDIATELY --------
+    # Remove stdin/stdout/stderr BEFORE anything else
+    cleanedKW = dict(popenKWArgs)
+    for key in ["stdin", "stdout", "stderr"]:
+        cleanedKW.pop(key, None)
+
     def runInThread(onExit, popenArgs, popenKWArgs):
-        # Handle environment variables - merge with current env if provided
+        # -------- HANDLE ENV MERGE --------
         if "env" in popenKWArgs and popenKWArgs["env"]:
+            additional_env = popenKWArgs["env"]
             process_env = os.environ.copy()
-            process_env.update(popenKWArgs["env"])
+            process_env.update(additional_env)
             popenKWArgs = {k: v for k, v in popenKWArgs.items() if k != "env"}
             popenKWArgs["env"] = process_env
         elif "env" in popenKWArgs:
-            # Remove env if it's None or empty
             popenKWArgs = {k: v for k, v in popenKWArgs.items() if k != "env"}
 
+        # -------- OUTPUT FILE SETUP --------
         if output_file is not None:
             log = storage.open(output_file, "a")
-            # get the current date and time as a string:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            print("Printing to file: " + output_file)
-            log.write(f"\n\n-- RUN {current_time}--\n")
+            log.write(f"\n\n-- RUN {current_time} --\n")
             log.flush()
         else:
-            print("No output file specified, printing to stdout")
             log = subprocess.PIPE
 
-        proc = subprocess.Popen(*popenArgs, **popenKWArgs, stdin=subprocess.PIPE, stdout=log, stderr=log)
+        # -------- REMOVE IO AGAIN (SAFETY) --------
+        for key in ["stdin", "stdout", "stderr"]:
+            popenKWArgs.pop(key, None)
+
+        # -------- SET OUR IO --------
+        popenKWArgs["stdin"] = subprocess.PIPE
+        popenKWArgs["stdout"] = log
+        popenKWArgs["stderr"] = log
+
+        print("FINAL popenKWArgs:", popenKWArgs)
+        print("FINAL popenArgs:", popenArgs)
+
+        proc = subprocess.Popen(popenArgs, **popenKWArgs)
         proc.communicate(input=input.encode("utf-8"))
         proc.wait()
+
         onExit()
-        return
 
-    thread = threading.Thread(target=runInThread, args=(onExit, popenArgs, popenKWArgs))
+    # Pass copies into thread
+    thread = threading.Thread(target=runInThread, args=(onExit, list(popenArgs), dict(cleanedKW)))
     thread.start()
-
-    return thread  # returns immediately after the thread starts
+    return thread
 
 
 def slugify(value, allow_unicode=False):

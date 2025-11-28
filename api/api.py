@@ -391,6 +391,7 @@ async def server_worker_start(
 
     # Pass organization_id as environment variable to subprocess
     from transformerlab.shared.request_context import get_current_org_id
+
     org_id = get_current_org_id()
     subprocess_env = {}
     if org_id:
