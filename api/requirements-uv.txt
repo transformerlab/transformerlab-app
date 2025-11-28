@@ -94,7 +94,6 @@ cryptography==44.0.2
     #   msal
     #   pdfminer-six
     #   pyjwt
-    #   workos
 datasets==3.6.0
     # via
     #   -r requirements.in
@@ -177,9 +176,14 @@ httpcore==1.0.7
     # via httpx
 httpx==0.28.1
     # via
+    #   httpx-oauth
     #   mcp
     #   transformerlab-inference
     #   workos
+httpx-oauth==0.16.1
+    # via
+    #   -r requirements.in
+    #   fastapi-users
 httpx-sse==0.4.0
     # via mcp
 huggingface-hub==0.34.3
@@ -445,7 +449,6 @@ pydantic==2.11.7
     #   pydantic-settings
     #   transformerlab-inference
     #   wandb
-    #   workos
 pydantic-core==2.33.2
     # via pydantic
 pydantic-settings==2.8.1
@@ -463,7 +466,6 @@ pyjwt==2.10.1
     # via
     #   fastapi-users
     #   msal
-    #   workos
 pytest==8.4.2
     # via transformerlab
 python-dateutil==2.9.0.post0
@@ -555,6 +557,7 @@ setproctitle==1.3.5
 setuptools==70.2.0
     # via
     #   tensorboard
+    #   torch
     #   triton
     #   wandb
 shellingham==1.5.4
@@ -711,8 +714,6 @@ werkzeug==3.1.3
     #   -r requirements.in
     #   tensorboard
     #   transformerlab
-workos==5.28.0
-    # via -r requirements.in
 wrapt==1.17.3
     # via aiobotocore
 xlrd==2.0.1

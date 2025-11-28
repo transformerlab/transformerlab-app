@@ -207,7 +207,10 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
-    'Content-Type': 'application/json',
+    // Only set Content-Type if body is not FormData (browser will set it with boundary for FormData)
+    ...(options.body instanceof FormData
+      ? {}
+      : { 'Content-Type': 'application/json' }),
     ...(currentTeam
       ? { 'X-Team-Id': currentTeam.id, 'X-Team-Name': currentTeam.name }
       : {}),
@@ -257,6 +260,28 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
     setToken(getAccessToken());
     setTeamState(getCurrentTeam());
     setInitializing(false);
+
+    // Check for OAuth callback tokens in URL
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessToken = urlParams.get('access_token');
+      const refreshToken = urlParams.get('refresh_token');
+
+      if (accessToken) {
+        updateAccessToken(accessToken);
+        setToken(accessToken);
+      }
+      if (refreshToken) {
+        updateRefreshToken(refreshToken);
+      }
+
+      // Clean up URL if tokens were found
+      if (accessToken || refreshToken) {
+        // Remove the query params
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    }
 
     // Subscribe
     const unsub = subscribeAuthChange(() => {

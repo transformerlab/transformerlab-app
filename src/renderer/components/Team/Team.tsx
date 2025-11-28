@@ -10,12 +10,14 @@ import {
   ModalClose,
   Stack,
   Table,
+  Sheet,
 } from '@mui/joy';
-import { PlusIcon, User2Icon } from 'lucide-react';
-import { useState } from 'react';
+import { NetworkIcon, PlusIcon, ServerIcon, User2Icon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
 import RenameTeamModal from './RenameTeamModal';
 import InviteUserModal from './InviteUserModal';
+import ProviderDetailsModal from './ProviderDetailsModal';
 
 /*
   Minimal in-file auth utilities and request helpers.
@@ -32,6 +34,9 @@ export default function UserLoginTest(): JSX.Element {
   const [openNewTeamModal, setOpenNewTeamModal] = useState<boolean>(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [openInviteModal, setOpenInviteModal] = useState<boolean>(false);
+  const [openProviderDetailsModal, setOpenProviderDetailsModal] =
+    useState<boolean>(false);
+  const [providerId, setProviderId] = useState<string>('');
 
   // Get teams list (unchanged)
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
@@ -45,12 +50,23 @@ export default function UserLoginTest(): JSX.Element {
     },
   );
 
+  // Get compute_provider list (unchanged)
+  const { data: providers, mutate: providersMutate } = useAPI(
+    'compute_provider',
+    ['list'],
+  );
+
   // Simplify errors: show all errors under the "Members" title
   const [roleError, setRoleError] = useState<string | undefined>(undefined);
 
   const iAmOwner = members?.members?.some((m: any) => {
     return m.user_id === authContext.user?.id && m.role === 'owner';
   });
+
+  // Re-fetch providers whenever the selected team changes
+  useEffect(() => {
+    providersMutate();
+  }, [authContext?.team?.id]);
 
   // Clear all role errors or add an error text
   function handleSetRoleError(message?: string) {
@@ -133,14 +149,53 @@ export default function UserLoginTest(): JSX.Element {
 
       // success — refetch members so UI updates, clear any errors
       if (membersMutate) membersMutate();
+
+      // Switching role might change what you can see from providers
+      if (providersMutate) providersMutate();
+
       handleSetRoleError(undefined);
     } catch (e: any) {
       handleSetRoleError(e?.message ?? String(e));
     }
   }
 
+  async function handleDeleteProvider(id: string, name: string) {
+    // Confirm deletion
+    // eslint-disable-next-line no-alert
+    if (
+      !confirm(
+        `Are you sure you want to delete the provider "${name}"? This action cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await authContext.fetchWithAuth(`providers/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({
+          detail: 'Failed to delete provider',
+        }));
+        // eslint-disable-next-line no-alert
+        alert(
+          `Failed to delete provider: ${errorData.detail || 'Unknown error'}`,
+        );
+        return;
+      }
+
+      // Success — refetch providers to update UI
+      if (providersMutate) providersMutate();
+    } catch (e: any) {
+      // eslint-disable-next-line no-alert
+      alert(`Error deleting provider: ${e?.message ?? String(e)}`);
+    }
+  }
+
   return (
-    <div>
+    <Sheet sx={{ overflowY: 'auto', p: 2 }}>
       <Typography level="h2" mb={2}>
         Team Settings
       </Typography>
@@ -320,6 +375,77 @@ export default function UserLoginTest(): JSX.Element {
             Invite Member {!iAmOwner ? '(Only owners can invite members)' : ''}
           </Button>
         </Box>
+        <Box sx={{ mt: 4 }}>
+          <Typography level="title-lg" mb={1} startDecorator={<ServerIcon />}>
+            Compute Providers: ({providers?.length ?? 0})
+          </Typography>
+
+          <Table variant="soft" sx={{ mb: 2 }}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th style={{ width: '80px' }}>&nbsp;</th>
+                <th style={{ width: '80px' }}>&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody>
+              {providers?.map((provider: any) => (
+                <tr key={provider.id}>
+                  <td>
+                    <Stack direction="row" alignItems="center" gap={1}>
+                      <NetworkIcon />
+                      <Box>
+                        <Typography fontWeight="md">
+                          {provider?.name ?? '—'}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </td>
+                  <td>{provider?.type}</td>
+                  <td>
+                    <Box
+                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+                    >
+                      <Button
+                        onClick={() => {
+                          setProviderId(provider.id);
+                          setOpenProviderDetailsModal(true);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </Box>
+                  </td>
+                  <td>
+                    <Box
+                      sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}
+                    >
+                      <Button
+                        color="danger"
+                        variant="outlined"
+                        onClick={() =>
+                          handleDeleteProvider(provider.id, provider.name)
+                        }
+                        disabled={!iAmOwner}
+                      >
+                        Delete
+                      </Button>
+                    </Box>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+          <Button
+            startDecorator={<PlusIcon />}
+            onClick={() => setOpenProviderDetailsModal(true)}
+            variant="soft"
+            disabled={!iAmOwner}
+          >
+            Add Provider {!iAmOwner ? '(Only owners can add providers)' : ''}
+          </Button>
+        </Box>
       </Box>
       <RenameTeamModal
         open={renameModalOpen}
@@ -335,6 +461,16 @@ export default function UserLoginTest(): JSX.Element {
         onClose={() => setOpenInviteModal(false)}
         teamId={authContext.team?.id || ''}
       />
-    </div>
+      <ProviderDetailsModal
+        open={openProviderDetailsModal}
+        onClose={() => {
+          setOpenProviderDetailsModal(false);
+          setProviderId('');
+          providersMutate();
+        }}
+        teamId={authContext.team?.id || ''}
+        providerId={providerId}
+      />
+    </Sheet>
   );
 }

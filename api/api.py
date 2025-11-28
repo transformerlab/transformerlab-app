@@ -24,20 +24,30 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from fastchat.constants import (
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
-from fastchat.protocol.openai_api_protocol import (
+from fastchat.protocol.openai_api_protocol import (  # noqa: E402
     ErrorResponse,
 )
 
-from transformerlab.services.experiment_service import experiment_get
-from transformerlab.services.job_service import job_create, job_get, job_update_status
-from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs, seed_default_admin_user
-import transformerlab.db.session as db
+from transformerlab.services.experiment_service import experiment_get  # noqa: E402
+from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
+from transformerlab.services.experiment_init import (  # noqa: E402
+    seed_default_experiments,
+    cancel_in_progress_jobs,
+    seed_default_admin_user,
+)
+import transformerlab.db.session as db  # noqa: E402
 
-from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
-from transformerlab.routers import (
+from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
+from transformerlab.routers import (  # noqa: E402
     data,
     model,
     serverinfo,
@@ -50,44 +60,40 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
     recipes,
-    remote,
-    auth2,
     teams,
+    compute_provider,
+    auth,
 )
-from transformerlab.routers.auth2 import get_user_and_team
-import torch
+from transformerlab.routers.auth import get_user_and_team  # noqa: E402
+import torch  # noqa: E402
 
 try:
-    from pynvml import nvmlShutdown
+    from pynvml import nvmlShutdown  # noqa: E402
 
     HAS_AMD = False
 except Exception:
-    from pyrsmi import rocml
+    from pyrsmi import rocml  # noqa: E402
 
     HAS_AMD = True
-from transformerlab import fastchat_openai_api
-from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows
-from transformerlab.routers.experiment import jobs
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
-from lab.dirs import get_workspace_dir
-from lab import dirs as lab_dirs
-from transformerlab.shared import dirs
-from transformerlab.db.filesystem_migrations import (
-    migrate_datasets_table_to_filesystem,
-    migrate_models_table_to_filesystem,
-    migrate_tasks_table_to_filesystem,
-    migrate_job_and_experiment_to_filesystem,
+from transformerlab import fastchat_openai_api  # noqa: E402
+from transformerlab.routers.experiment import experiment  # noqa: E402
+from transformerlab.routers.experiment import workflows  # noqa: E402
+from transformerlab.routers.experiment import jobs  # noqa: E402
+from transformerlab.shared import shared  # noqa: E402
+from transformerlab.shared import galleries  # noqa: E402
+from lab.dirs import get_workspace_dir  # noqa: E402
+from lab import dirs as lab_dirs  # noqa: E402
+from transformerlab.shared import dirs  # noqa: E402
+from transformerlab.db.filesystem_migrations import (  # noqa: E402
+    migrate_datasets_table_to_filesystem,  # noqa: E402
+    migrate_models_table_to_filesystem,  # noqa: E402
+    migrate_tasks_table_to_filesystem,  # noqa: E402
+    migrate_job_and_experiment_to_filesystem,  # noqa: E402
 )
-from transformerlab.shared.request_context import set_current_org_id
-from lab.dirs import set_organization_id as lab_set_org_id
-from lab import storage
+from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
+from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
+from lab import storage  # noqa: E402
 
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
@@ -194,10 +200,7 @@ app.add_middleware(
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
     try:
-        org_id = None
-        if os.getenv("TFL_MULTITENANT") == "true":
-            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-            org_id = request.cookies.get(org_cookie_name)
+        org_id = request.headers.get("X-Team-Id")
         set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
@@ -219,9 +222,6 @@ async def validation_exception_handler(request, exc):
     return create_error_response(ErrorCode.VALIDATION_TYPE_ERROR, str(exc))
 
 
-### END GENERAL API - NOT OPENAI COMPATIBLE ###
-
-
 app.include_router(model.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(serverinfo.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(train.router, dependencies=[Depends(get_user_and_team)])
@@ -236,17 +236,10 @@ app.include_router(prompts.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(tools.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(recipes.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(batched_prompts.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(remote.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(fastchat_openai_api.router, dependencies=[Depends(get_user_and_team)])
 app.include_router(teams.router, dependencies=[Depends(get_user_and_team)])
-app.include_router(auth2.router)
-
-# Authentication and session management routes
-if os.getenv("TFL_MULTITENANT") == "true":
-    from transformerlab.routers import auth  # noqa: E402
-
-    app.include_router(auth.router)
-
+app.include_router(compute_provider.router)
+app.include_router(auth.router)
 
 controller_process = None
 worker_process = None

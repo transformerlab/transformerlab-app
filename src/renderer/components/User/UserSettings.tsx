@@ -161,68 +161,16 @@ function UserNameChangeForm({
 
 export default function UserLoginTest(): JSX.Element {
   const authContext = useAuth();
-  const [apiResult, setApiResult] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [newTeamName, setNewTeamName] = useState<string>('');
   const [isNameChangeOpen, setIsNameChangeOpen] = useState(false);
   const { data: teams, mutate: teamsMutate } = useAPI('teams', ['list']);
   const { data: userInfo, mutate: userInfoMutate } = useAPI('users', ['me']);
   const [isPasswordChangeOpen, setIsPasswordChangeOpen] = useState(false);
-
-  async function handleTestApi() {
-    setApiResult(null);
-    setLoading(true);
-    try {
-      const res = await authContext.fetchWithAuth(
-        'test-users/authenticated-route',
-        {
-          method: 'GET',
-        },
-      );
-      const text = await res.text();
-      setApiResult(`Status: ${res.status} — Body: ${text}`);
-    } catch (e: any) {
-      setApiResult(`Error: ${e?.message ?? String(e)}`);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <div>
       <Typography level="h2" mb={2}>
         User Settings
       </Typography>
-      <div>
-        <strong>Login status:</strong>{' '}
-        {authContext?.isAuthenticated ? 'Logged in' : 'Not logged in'}
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <Button
-          type="button"
-          onClick={() => handleTestApi()}
-          disabled={loading}
-        >
-          {loading ? 'Testing...' : 'Test protected API'}
-        </Button>
-        {apiResult && (
-          <div style={{ marginTop: 8 }}>
-            <pre style={{ whiteSpace: 'pre-wrap' }}>{apiResult}</pre>
-          </div>
-        )}
-      </div>
-
-      {/* <Box>
-        <Typography level="h4" mt={3}>
-          User Info:
-        </Typography>
-        {userInfo && (
-          <pre style={{ whiteSpace: 'pre-wrap' }}>
-            {JSON.stringify(userInfo, null, 2)}
-          </pre>
-        )}
-      </Box> */}
       <Typography level="title-lg" mt={3}>
         User Profile:
       </Typography>
