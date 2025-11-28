@@ -511,6 +511,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # Flatten job_config["config"] into CLI args
         config = job_config.get("config", {})
 
+        # Add job_id to config
+        config["job_id"] = job_id
+
         # Convert base64 images to files and update config
         base64_fields = {
             "input_image": "input_image_path",
