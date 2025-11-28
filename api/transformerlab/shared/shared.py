@@ -85,7 +85,9 @@ def slugify(value, allow_unicode=False):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
-async def async_run_python_script_and_update_status(python_script: list[str], job_id: str, begin_string: str):
+async def async_run_python_script_and_update_status(
+    python_script: list[str], job_id: str, begin_string: str, env: dict | None = None
+):
     """
     Use this script for one time, long running scripts that have a definite end. For example
     downloading a model.
@@ -93,7 +95,15 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     This function runs a python script and updates the status of the job in the database
     to RUNNING when the python script prints begin_string to stderr
 
-    The FastAPI worker uses stderr, not stdout"""
+    The FastAPI worker uses stderr, not stdout
+
+    Args:
+        python_script: List of command-line arguments for the Python script
+        job_id: Job ID for status updates
+        begin_string: String to look for in output to mark job as RUNNING
+        env: Optional dictionary of environment variables to pass to subprocess.
+             These are merged with the current environment and are process-local (won't leak to API).
+    """
 
     print(f"Job {job_id} Running async python script: " + str(python_script))
     # Extract plugin location from the python_script list
@@ -128,7 +138,15 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
         print(">Using system Python interpreter")
         command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
-    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    # Prepare environment variables for subprocess
+    # Start with current environment and merge any provided env vars
+    process_env = os.environ.copy()
+    if env:
+        process_env.update(env)
+
+    process = await open_process(
+        command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env
+    )
 
     # read stderr and print:
     if process.stdout:
