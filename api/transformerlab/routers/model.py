@@ -51,12 +51,11 @@ def get_current_org_id() -> str | None:
     Returns None if multitenancy is disabled or org id cannot be determined.
     """
     try:
-        if os.getenv("TFL_MULTITENANT") == "true":
-            from lab.dirs import get_workspace_dir
+        from lab.dirs import get_workspace_dir
 
-            ws = get_workspace_dir()
-            if "/orgs/" in ws:
-                return ws.split("/orgs/")[-1].split("/")[0]
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            return ws.split("/orgs/")[-1].split("/")[0]
     except Exception:
         pass
     return None
@@ -517,20 +516,16 @@ async def download_huggingface_model(
 
     # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
     try:
-        if os.getenv("TFL_MULTITENANT") == "true" and organization_id:
+        if organization_id:
             # Construct org-specific workspace path manually
             from lab import HOME_DIR
 
             workspace_dir = storage.join(HOME_DIR, "orgs", organization_id, "workspace")
-            print(f"🔵 CONSTRUCTED ORG WORKSPACE: {workspace_dir}")
         else:
             # Use default workspace path
             workspace_dir = get_workspace_dir()
-            print(f"🔵 DEFAULT WORKSPACE: {workspace_dir}")
-        print(f"🔵 PASSING TO SUBPROCESS: --workspace_dir {workspace_dir}")
         args += ["--workspace_dir", workspace_dir]
-    except Exception as e:
-        print(f"🔵 ERROR CONSTRUCTING WORKSPACE: {e}")
+    except Exception:
         pass
 
     if hugging_face_filename is not None:
