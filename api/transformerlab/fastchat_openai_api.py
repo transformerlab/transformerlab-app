@@ -127,6 +127,17 @@ class VisualizationRequest(PydanticBaseModel):
     stream: Optional[bool] = True
 
 
+class TextDiffusionRequest(PydanticBaseModel):
+    model: str
+    adaptor: Optional[str] = ""
+    prompt: str
+    max_tokens: Optional[int] = 128
+    temperature: Optional[float] = 0.0
+    top_p: Optional[float] = 1.0
+    min_p: Optional[float] = 0.0
+    stop: Optional[Union[str, List[str]]] = None
+
+
 class ModelArchitectureRequest(PydanticBaseModel):
     model: str
     adaptor: Optional[str] = ""
@@ -308,7 +319,8 @@ def check_requests(request) -> Optional[JSONResponse]:
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.max_tokens} is less than the minimum of 1 - 'max_tokens'",
         )
-    if request.n is not None and request.n <= 0:
+    # Only check 'n' if the request has that attribute
+    if hasattr(request, "n") and request.n is not None and request.n <= 0:
         return create_error_response(
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.n} is less than the minimum of 1 - 'n'",
@@ -596,8 +608,8 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
 
     exp_obj = Experiment.get(request.experiment_id)
     experiment_dir = exp_obj.get_dir()
-    transcription_dir = os.path.join(experiment_dir, "transcriptions")
-    os.makedirs(transcription_dir, exist_ok=True)
+    transcription_dir = storage.join(experiment_dir, "transcriptions")
+    storage.makedirs(transcription_dir, exist_ok=True)
 
     gen_params = {
         "model": request.model,
@@ -1549,6 +1561,99 @@ async def generate_model_architecture(model_name: str):
             timeout=WORKER_API_TIMEOUT,
         )
         return response.json()
+
+
+@router.post("/v1/text_diffusion", dependencies=[Depends(check_api_key)], tags=["visualization"])
+async def text_diffusion_visualization(request: TextDiffusionRequest):
+    """Stream text diffusion visualization showing each step of the generation process"""
+    error_check_ret = await check_model(request)
+    if error_check_ret is not None:
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+
+    error_check_ret = check_requests(request)
+    if error_check_ret is not None:
+        return error_check_ret
+
+    gen_params = await get_gen_params(
+        request.model,
+        request.prompt,
+        temperature=request.temperature,
+        top_p=request.top_p,
+        min_p=request.min_p,
+        max_tokens=request.max_tokens,
+        echo=False,
+        stream=True,
+        stop=request.stop,
+        logprobs=False,
+    )
+
+    error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
+    if error_check_ret is not None:
+        return error_check_ret
+
+    generator = text_diffusion_stream_generator(request.model, gen_params)
+    return StreamingResponse(generator, media_type="text/event-stream")
+
+
+async def text_diffusion_stream_generator(model_name: str, gen_params: Dict[str, Any]) -> AsyncGenerator[str, Any]:
+    """Generator for text diffusion visualization stream"""
+    id = f"diff-{shortuuid.random()}"
+
+    try:
+        async for content in generate_completion_stream(gen_params):
+            if content.get("error_code", 0) != 0:
+                error_dict = content if isinstance(content, dict) else content.model_dump()
+                error_json = json.dumps(error_dict, ensure_ascii=False)
+                yield f"data: {error_json}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+
+            # Extract diffusion-specific metadata
+            diffusion_step = content.get("diffusion_step")
+            total_steps = content.get("total_steps")
+            masks_remaining = content.get("masks_remaining")
+            text = content.get("text", "")
+            finish_reason = content.get("finish_reason")
+
+            # Format response with diffusion metadata
+            # Always include text (even if empty) and step info for each diffusion step
+            response_data = {
+                "id": id,
+                "object": "text_diffusion",
+                "model": model_name,
+                "text": text if text is not None else "",
+            }
+
+            # Add diffusion step metadata if available
+            if diffusion_step is not None:
+                response_data["diffusion_step"] = diffusion_step
+            if total_steps is not None:
+                response_data["total_steps"] = total_steps
+            if masks_remaining is not None:
+                response_data["masks_remaining"] = masks_remaining
+            if finish_reason is not None:
+                response_data["finish_reason"] = finish_reason
+
+            response_json = json.dumps(response_data, ensure_ascii=False)
+            yield f"data: {response_json}\n\n"
+
+            if finish_reason:
+                yield "data: [DONE]\n\n"
+                return
+
+    except Exception as e:
+        logger.error(f"Error in text diffusion stream: {e}")
+        error_msg = json.dumps(
+            {
+                "error": "Error in text diffusion stream",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
+        )
+        yield f"data: {error_msg}\n\n"
+        yield "data: [DONE]\n\n"
 
 
 @router.post("/v1/layer_details", dependencies=[Depends(check_api_key)], tags=["visualization"])

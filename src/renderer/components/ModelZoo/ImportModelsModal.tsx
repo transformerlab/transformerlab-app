@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 
 import {
@@ -25,6 +25,7 @@ import {
 
 // fetcher used by SWR
 import { fetcher } from '../../lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function ImportModelsModal({ open, setOpen }) {
   const [importing, setImporting] = useState(false);
@@ -66,7 +67,7 @@ export default function ImportModelsModal({ open, setOpen }) {
         model_source == 'local'
           ? chatAPI.Endpoints.Models.ImportFromLocalPath(model_id)
           : chatAPI.Endpoints.Models.ImportFromSource(model_source, model_id);
-      const response = await fetch(api_endpoint);
+      const response = await fetchWithAuth(api_endpoint);
 
       // Read the response to see if it was successful and report any errors
       let response_error = '';

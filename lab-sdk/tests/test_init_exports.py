@@ -10,4 +10,3 @@ def test_exports():
     assert hasattr(lab, "Task")
     assert hasattr(lab, "Lab")
     assert hasattr(lab, "lab")
-

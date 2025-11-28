@@ -2,7 +2,8 @@
 # TEMPORARILY DISABLED
 name: Trigger Netlify Docs Build on Release
 
-on: []
+on:
+  workflow_dispatch: # Temporarily disable: Allows manual triggering only
 #   release:
 #     types: [published]
 

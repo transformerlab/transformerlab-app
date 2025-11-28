@@ -49,7 +49,6 @@ Transformer Lab is proud to be supported by Mozilla through the <a href="https:/
 
 ## Features
 
-
 Transformer Lab allows you to:
 
 - 💕 **One-click Download Hundreds of Popular Models**:
@@ -120,19 +119,35 @@ And you can do the above, all through a simple cross-platform GUI.
 
 <a href="https://transformerlab.ai/docs/install">Read this page</a> to learn how to install and use.
 
+### Requirements
+
+- NVIDIA or AMD GPU on Linux (or Windows via WSL2)
+- macOS with Apple Silicon is supported (training functionality varies by hardware)
+- CPU-only installs run inference but not GPU-heavy workflows
+
+#### Windows Notes
+
+See https://transformerlab.ai/docs/install/#install-on-windows for GPU driver and WSL guidance.
+
+Need a fully manual install without the helper script? Follow https://transformerlab.ai/docs/install/advanced-install for step-by-step instructions.
+
 ### Built With
 
 - [![Electron][Electron]][Electron-url]
 - [![React][React.js]][React-url]
 - [![HuggingFace][HuggingFace]][HuggingFace-url]
 
-## Developers
+## Notes for Developers
 
-### Building from Scratch
+Transformer Lab consists of a React application "Frontend" that communicates with a Python API "Backend" (found in the `api` directory).
+Application data is stored in a file system workspace that is accessed by the API and third-party scripts using
+the SDK (which can be found in the `lab-sdk` directory).
+
+### Building Frontend from Scratch
 
 To build the app yourself, pull this repo, and follow the steps below:
 
-(Please note that the current build doesn't work on Node v23 but it works on v22)
+(Please note that the current build doesn't work on Node v23+. Use Node v22.)
 
 ```bash
 npm install
@@ -142,7 +157,7 @@ npm install
 npm start
 ```
 
-## Packaging for Production
+### Packaging Frontend for Production
 
 To package apps for the local platform:
 
@@ -152,52 +167,33 @@ npm run package
 
 ### Backend (API) Installation & Development
 
-If you need to run just the Transformer Lab API (for example on a remote machine) you can install it directly (or run `npm run api:install` from the repo root):
+If you need to run just the Transformer Lab API (for example, you might run the app on your local machine while running the API on a remote machine with GPU) you can install it directly:
 
 ```bash
 cd api
 ./install.sh
 ```
 
+(You can also run `npm run api:install` from the repo root, which does the same thing)
+
 This script installs Miniforge/Mamba if needed, sets up the Conda environment, and installs all Python dependencies via `uv`.
 
-To start the API after installation (`npm run api:start` from the repo root does the same):
+To start the API after installation:
 
 ```bash
 cd api
 ./run.sh
 ```
 
-### Python SDK Development
+(Or run `npm run api:start` from the repo root, which does the same)
 
-This repository also includes the Transformer Lab Python SDK in the `lab-sdk/` directory. The SDK allows you to write plugins and ML scripts that integrate with Transformer Lab.
+#### Updating API Python Requirements
 
-To develop the SDK:
-
-```bash
-cd lab-sdk
-uv venv
-uv pip install -e .
-uv run pytest  # Run tests
-```
-
-The SDK is published to PyPI as `transformerlab` and can be installed with:
+Python dependencies (used by the API) are managed with `uv pip compile`. To add/change a dependency, update `requirements.in` and then refresh the platform specific files:
 
 ```bash
-pip install transformerlab
-```
+cd api
 
-#### Requirements
-
-- NVIDIA or AMD GPU on Linux (or Windows via WSL2)
-- macOS with Apple Silicon is supported (training functionality varies by hardware)
-- CPU-only installs run inference but not GPU-heavy workflows
-
-#### Updating Python Requirements
-
-Dependencies are managed with `uv pip compile`. To refresh the lockfiles:
-
-```bash
 # CUDA (default)
 uv pip compile requirements.in -o requirements-uv.txt
 
@@ -218,18 +214,52 @@ Notes:
 1. Remove `nvidia-ml-py` if it appears in the ROCm lockfile.
 2. The `sed` commands strip suffixes from PyTorch wheels that otherwise break installs using uv pip sync.
 
-#### Windows Notes
+### Lab SDK Development
 
-See https://transformerlab.ai/docs/install/#install-on-windows for GPU driver and WSL guidance.
+This repository also includes the Transformer Lab Python SDK in the `lab-sdk/` directory. The SDK allows you to write plugins and ML scripts that integrate with Transformer Lab.
 
-Need a fully manual install without the helper script? Follow https://transformerlab.ai/docs/install/advanced-install for step-by-step instructions.
+The SDK is published to PyPI as `transformerlab` and can be installed with:
+
+```bash
+pip install transformerlab
+```
+
+The API uses the SDK to interact with the local workspace. In order to develop the SDK locally and have the API pick up changes, you should install the SDK in "editable" mode:
+
+```bash
+cd lab-sdk
+uv venv
+uv pip install -e .
+uv run pytest  # Run tests
+```
+
+### Database Migrations (Alembic)
+
+Our Alembic setup lives under `api/alembic`. Use the API Conda/uv environment before running any commands.
+
+- **Autogenerate a migration**
+
+  ```bash
+  cd api
+  alembic revision --autogenerate -m "describe change"
+  ```
+
+  The autogenerator respects the exclusions configured in `api/alembic/env.py` (e.g., exclusion of tables `workflows`, `workflow_runs`). Always review the generated file before committing.
+
+- **Run migrations locally for testing**
+
+  ```bash
+  cd api
+  alembic upgrade head
+  ```
+
+  To roll back the most recent migration while iterating, run `alembic downgrade -1`.
 
 <!-- LICENSE -->
 
 ## License
 
 Distributed under the AGPL V3 License. See `LICENSE.txt` for more information.
-
 
 ## Reference
 

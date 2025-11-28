@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import {
   Box,

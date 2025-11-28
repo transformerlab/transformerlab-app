@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import * as React from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import {
   Sheet,
@@ -34,6 +34,7 @@ import Batched from './Batched/Batched';
 import VisualizeLogProbs from './VisualizeLogProbs';
 import VisualizeGeneration from './VisualizeGeneration';
 import ModelLayerVisualization from './ModelLayerVisualization';
+import TextDiffusionVisualization from './TextDiffusionVisualization';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
 // const supports = [
@@ -842,6 +843,12 @@ export default function Chat({
             <Option value="batched" disabled={!supports.includes('batched')}>
               Batched Query
             </Option>
+            <Option
+              value="text_diffusion"
+              disabled={!supports.includes('text_diffusion')}
+            >
+              Text Diffusion
+            </Option>
           </Select>
         </FormControl>
         <Typography level="title-md">
@@ -1021,6 +1028,23 @@ export default function Chat({
             setGenerationParameters={setGenerationParameters}
             sendCompletionToLLM={sendCompletionToLLM}
             experimentInfo={experimentInfo}
+          />
+        )}
+        {mode === 'text_diffusion' && (
+          <TextDiffusionVisualization
+            tokenCount={tokenCount}
+            stopStreaming={stopStreaming}
+            generationParameters={generationParameters}
+            setGenerationParameters={setGenerationParameters}
+            defaultPromptConfigForModel={defaultPromptConfigForModel}
+            conversations={conversations}
+            conversationsIsLoading={conversationsIsLoading}
+            conversationsMutate={conversationsMutate}
+            setChats={setChats}
+            setConversationId={setConversationId}
+            conversationId={conversationId}
+            experimentInfo={experimentInfo}
+            experimentInfoMutate={experimentInfoMutate}
           />
         )}
       </Sheet>

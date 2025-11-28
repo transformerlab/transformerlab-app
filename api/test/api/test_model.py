@@ -82,7 +82,8 @@ async def test_install_peft_base_model_adaptor_not_found(mock_run_script, mock_g
     assert "adapter not found" in data["message"]
 
 
-def test_install_peft_success(client):
+@pytest.mark.asyncio
+async def test_install_peft_success(client):
     adapter_id = "tcotter/Llama-3.2-1B-Instruct-Mojo-Adapter"
     model_id = "unsloth/Llama-3.2-1B-Instruct"
 
@@ -93,7 +94,6 @@ def test_install_peft_success(client):
         patch("huggingface_hub.HfApi.model_info", return_value=make_mock_adapter_info()),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
-        patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
             "/model/install_peft", params={"peft": adapter_id, "model_id": model_id, "experiment_id": 1}
@@ -130,7 +130,8 @@ def test_install_peft_adapter_info_fail(client):
         assert response.json()["check_status"]["error"] == "not found"
 
 
-def test_install_peft_architecture_detection_unknown(client):
+@pytest.mark.asyncio
+async def test_install_peft_architecture_detection_unknown(client):
     adapter_info = make_mock_adapter_info()
     with (
         patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
@@ -139,7 +140,6 @@ def test_install_peft_architecture_detection_unknown(client):
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
-        patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
             "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
@@ -148,7 +148,8 @@ def test_install_peft_architecture_detection_unknown(client):
         assert response.json()["check_status"]["architectures_status"] == "unknown"
 
 
-def test_install_peft_unknown_field_status(client):
+@pytest.mark.asyncio
+async def test_install_peft_unknown_field_status(client):
     adapter_info = make_mock_adapter_info(overrides={"config": {}})
     with (
         patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
@@ -157,7 +158,6 @@ def test_install_peft_unknown_field_status(client):
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.job_service.job_create", return_value=123),
-        patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post(
             "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}

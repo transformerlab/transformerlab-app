@@ -14,7 +14,7 @@ import {
   Chip,
   Stack,
 } from '@mui/joy';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
