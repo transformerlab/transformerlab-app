@@ -1,5 +1,4 @@
 import json
-import sqlite3
 import time
 from threading import Thread, Event
 from huggingface_hub import hf_hub_download, snapshot_download, HfFileSystem, list_repo_files
@@ -11,7 +10,7 @@ from pathlib import Path
 from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
 
-from lab import HOME_DIR, Job
+from lab import HOME_DIR
 from lab import storage
 
 
@@ -200,12 +199,10 @@ def get_downloaded_files_from_cache(repo_id, file_metadata):
 def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files_downloaded=None, files_total=None):
     """Update progress in the database"""
     try:
-        job = Job.get(job_id)
-
         downloaded_mb = downloaded_bytes / 1024 / 1024
         total_mb = total_bytes / 1024 / 1024
         progress_pct = (downloaded_bytes / total_bytes * 100) if total_bytes > 0 else 0
-        job.update_progress(progress_pct)
+        set_job_progress(job_id, WORKSPACE_DIR, progress_pct)
 
         # Set more data in job_data
         job_data = {
@@ -224,7 +221,7 @@ def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes, files
             job_data["files_downloaded"] = files_downloaded
             job_data["files_total"] = files_total
 
-        job.set_job_data(job_data)
+        update_job_data(job_id, WORKSPACE_DIR, job_data)
 
         if files_downloaded is not None and files_total is not None:
             print(
@@ -334,7 +331,7 @@ if mode == "adaptor":
     safe_model_id = secure_filename(local_model_id)
     safe_peft = secure_filename(peft)
 
-    # Always set target_dir to WORKSPACE_DIR/adaptors/local_model_id
+    # Always set tar.dir to WORKSPACE_DIR/adaptors/local_model_id
     target_dir = storage.join(WORKSPACE_DIR, "adaptors", safe_model_id, safe_peft)
     if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
         raise ValueError("Invalid path after sanitization. Potential security risk.")
@@ -379,8 +376,8 @@ def do_download(repo_id, queue, allow_patterns=None, mode="model"):
 
 def cancel_check():
     try:
-        job = Job.get(job_id)
-        return job.get_status() == "cancelled"
+        status = get_job_status(job_id, WORKSPACE_DIR)
+        return status == "cancelled"
     except Exception as e:
         print(f"Warning: cancel_check() failed: {e}", file=sys.stderr)
     return False
@@ -432,6 +429,84 @@ else:
 print("starting script with progressbar updater")
 
 
+# Helper functions to directly manipulate job index.json without using Job SDK
+# This avoids workspace directory resolution issues in subprocess context
+def get_job_index_path(job_id, workspace_dir):
+    """Get the path to the job's index.json file"""
+    job_id_safe = secure_filename(str(job_id))
+    job_dir = storage.join(workspace_dir, "jobs", job_id_safe)
+    return storage.join(job_dir, "index.json")
+
+
+def read_job_json(job_id, workspace_dir):
+    """Read the job's JSON data from index.json"""
+    json_path = get_job_index_path(job_id, workspace_dir)
+    try:
+        if storage.exists(json_path):
+            with storage.open(json_path, "r", encoding="utf-8") as f:
+                content = f.read().strip().rstrip("%").strip()
+                return json.loads(content)
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    # Return default structure if file doesn't exist or is invalid
+    return {
+        "id": job_id,
+        "experiment_id": "",
+        "job_data": {},
+        "status": "NOT_STARTED",
+        "type": "DOWNLOAD_MODEL",
+        "progress": 0,
+    }
+
+
+def write_job_json(job_id, workspace_dir, json_data):
+    """Write the job's JSON data to index.json"""
+    json_path = get_job_index_path(job_id, workspace_dir)
+    # Construct job directory path directly (same logic as get_job_index_path)
+    job_id_safe = secure_filename(str(job_id))
+    job_dir = storage.join(workspace_dir, "jobs", job_id_safe)
+    storage.makedirs(job_dir, exist_ok=True)
+    with storage.open(json_path, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, ensure_ascii=False, indent=2)
+
+
+def update_job_field(job_id, workspace_dir, field, value):
+    """Update a single field in the job's JSON data"""
+    job_data = read_job_json(job_id, workspace_dir)
+    job_data[field] = value
+    write_job_json(job_id, workspace_dir, job_data)
+
+
+def set_job_progress(job_id, workspace_dir, progress):
+    """Update the progress field in the job's JSON data"""
+    update_job_field(job_id, workspace_dir, "progress", progress)
+
+
+def update_job_data(job_id, workspace_dir, job_data_dict):
+    """Update the job_data field in the job's JSON data"""
+    update_job_field(job_id, workspace_dir, "job_data", job_data_dict)
+
+
+def update_job_data_field(job_id, workspace_dir, key, value):
+    """Update a single key in the job_data nested object"""
+    job_data = read_job_json(job_id, workspace_dir)
+    if "job_data" not in job_data:
+        job_data["job_data"] = {}
+    job_data["job_data"][key] = value
+    write_job_json(job_id, workspace_dir, job_data)
+
+
+def get_job_status(job_id, workspace_dir):
+    """Get the status of the job"""
+    job_data = read_job_json(job_id, workspace_dir)
+    return job_data.get("status", "NOT_STARTED")
+
+
+def update_job_status(job_id, workspace_dir, status):
+    """Update the status field in the job's JSON data"""
+    update_job_field(job_id, workspace_dir, "status", status)
+
+
 def download_blocking(model_is_downloaded):
     global error_msg, returncode, _cache_stop_monitoring
     print("Downloading")
@@ -459,10 +534,9 @@ def download_blocking(model_is_downloaded):
 
     print(job_data)
 
-    # Initialize job data using SDK
-    job = Job.get(job_id)
-    job.update_progress(0)
-    job.set_job_data(job_data)
+    # Initialize job data directly using workspace_dir
+    set_job_progress(job_id, WORKSPACE_DIR, 0)
+    update_job_data(job_id, WORKSPACE_DIR, job_data)
 
     # Check if model is gated before starting download
     if mode == "adaptor":
@@ -487,10 +561,9 @@ def download_blocking(model_is_downloaded):
             file_metadata, actual_total_size = get_repo_file_metadata(peft)
 
             # Update job_data with files_total
-            job = Job.get(job_id)
-            job_data = job.get_job_data() or {}
+            job_data = read_job_json(job_id, WORKSPACE_DIR).get("job_data", {})
             job_data["files_total"] = len(file_metadata)
-            job.set_job_data(job_data)
+            update_job_data(job_id, WORKSPACE_DIR, job_data)
 
             # Start progress monitoring thread
             progress_thread = Thread(
@@ -541,10 +614,9 @@ def download_blocking(model_is_downloaded):
                 file_size = total_size_of_model_in_mb * 1024 * 1024
 
             # Update job_data with files_total (1 file for single file downloads)
-            job = Job.get(job_id)
-            job_data = job.get_job_data() or {}
+            job_data = read_job_json(job_id, WORKSPACE_DIR).get("job_data", {})
             job_data["files_total"] = 1
-            job.set_job_data(job_data)
+            update_job_data(job_id, WORKSPACE_DIR, job_data)
 
             # Start progress monitoring thread
             progress_thread = Thread(
@@ -593,10 +665,9 @@ def download_blocking(model_is_downloaded):
                 file_metadata, actual_total_size = get_repo_file_metadata(model, allow_patterns)
 
                 # Update job_data with files_total
-                job = Job.get(job_id)
-                job_data = job.get_job_data() or {}
+                job_data = read_job_json(job_id, WORKSPACE_DIR).get("job_data", {})
                 job_data["files_total"] = len(file_metadata)
-                job.set_job_data(job_data)
+                update_job_data(job_id, WORKSPACE_DIR, job_data)
 
                 # Start progress monitoring thread
                 progress_thread = Thread(
@@ -683,10 +754,9 @@ def main():
         # If the error is that the database is locked then this call might also fail
         # for the same reason! Better catch and at least print a message.
         try:
-            job = Job.get(job_id)
-            job.update_status(status)
-            job.update_job_data_field("error_msg", str(error_msg))
-        except sqlite3.OperationalError:
+            update_job_status(job_id, WORKSPACE_DIR, status)
+            update_job_data_field(job_id, WORKSPACE_DIR, "error_msg", str(error_msg))
+        except Exception:
             # NOTE: If we fail to write to the database the app won't get
             # the right error message. So set a different
             print(f"Failed to save download job status {status}:")

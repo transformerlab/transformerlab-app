@@ -260,6 +260,7 @@ async def async_run_python_daemon_and_update_status(
             print(">Using system Python interpreter")
             command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
+        log.write(f"!!!{command}")
         process = await asyncio.create_subprocess_exec(
             *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE
         )
@@ -500,6 +501,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
 
     elif master_job_type == "DIFFUSION":
+        # Log diffusion job start to output file
+        # Log diffusion job start to global log file
+        with storage.open(get_global_log_path(), "a") as log:
+            log.write(f"Running diffusion job, job id: {job_id}\n")
+            log.flush()
         plugin_name = job_config["plugin"]
 
         await job_service.job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
@@ -510,6 +516,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         # Flatten job_config["config"] into CLI args
         config = job_config.get("config", {})
+
+        # Add job_id to config
+        config["job_id"] = job_id
 
         # Convert base64 images to files and update config
         base64_fields = {
@@ -584,6 +593,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 config_args.append(f"--{k}")
                 config_args.append(str(v))
 
+        print(f"!!!!Job {job_id}")
         extra_args = (
             plugin_main_args
             + config_args
