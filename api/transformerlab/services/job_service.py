@@ -77,6 +77,52 @@ def job_count_running():
     return Job.count_running_jobs()
 
 
+def _find_org_id_for_job(job_id: str) -> Optional[str]:
+    """
+    Find which organization a job belongs to by searching all org directories.
+    Returns the org_id if found, None otherwise.
+    """
+    # Get HOME_DIR
+    try:
+        home_dir = lab_dirs.HOME_DIR
+    except AttributeError:
+        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+
+    # Check if context is set correctly already
+    from lab.dirs import get_workspace_dir
+
+    workspace_dir = get_workspace_dir()
+    if "/orgs/" in workspace_dir:
+        return workspace_dir.split("/orgs/")[-1].split("/")[0]
+
+    # Check all org directories
+    orgs_dir = storage.join(home_dir, "orgs")
+    if storage.exists(orgs_dir) and storage.isdir(orgs_dir):
+        try:
+            org_entries = storage.ls(orgs_dir, detail=False)
+            for org_path in org_entries:
+                if storage.isdir(org_path):
+                    org_id = org_path.rstrip("/").split("/")[-1]
+
+                    # Set org context and check if job exists
+                    lab_dirs.set_organization_id(org_id)
+                    try:
+                        jobs_dir = lab_dirs.get_jobs_dir()
+                        job_path = storage.join(jobs_dir, job_id)
+                        if storage.exists(job_path) and storage.isdir(job_path):
+                            # Job found in this org
+                            lab_dirs.set_organization_id(None)
+                            return org_id
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    # Clear org context
+    lab_dirs.set_organization_id(None)
+    return None
+
+
 def job_count_running_across_all_orgs() -> int:
     """
     Count running jobs across all organizations.
@@ -351,14 +397,31 @@ def job_update_status_sync(
     """
     # Update the job status using SDK Job class
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
-            return
-        job.update_status(status)
-        if error_msg:
-            job.set_error_message(error_msg)
+        # Find which org this job belongs to (in case we're called from a callback without org context)
+        org_id = _find_org_id_for_job(str(job_id))
+
+        # Set org context before accessing the job
+        if org_id:
+            lab_dirs.set_organization_id(org_id)
+
+        try:
+            job = Job.get(str(job_id))
+            if experiment_id is not None and job.get_experiment_id() != experiment_id:
+                return
+            job.update_status(status)
+            if error_msg:
+                job.set_error_message(error_msg)
+        finally:
+            # Clear org context
+            if org_id:
+                lab_dirs.set_organization_id(None)
     except Exception as e:
         print(f"Error updating job {job_id}: {e}")
+        # Ensure org context is cleared even on error
+        try:
+            lab_dirs.set_organization_id(None)
+        except Exception:
+            pass
         pass
 
     # # Trigger workflows if job status is COMPLETE
@@ -481,13 +544,29 @@ async def _trigger_workflows_async(job_id: str, job_type: str, experiment_id: st
 def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
     """Service wrapper: mark job as complete if running and then trigger workflows."""
     try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
-            return
-        # Only update if currently running
-        if job.get_status() == "RUNNING":
-            job.update_status("COMPLETE")
-            # _trigger_workflows_on_job_completion_sync(job_id)
+        # Find which org this job belongs to
+        org_id = _find_org_id_for_job(str(job_id))
+
+        # Set org context before accessing the job
+        if org_id:
+            lab_dirs.set_organization_id(org_id)
+
+        try:
+            job = Job.get(str(job_id))
+            if experiment_id is not None and job.get_experiment_id() != experiment_id:
+                return
+            # Only update if currently running
+            if job.get_status() == "RUNNING":
+                job.update_status("COMPLETE")
+                # _trigger_workflows_on_job_completion_sync(job_id)
+        finally:
+            # Clear org context
+            if org_id:
+                lab_dirs.set_organization_id(None)
     except Exception as e:
         print(f"Error marking job {job_id} as complete: {e}")
-        pass
+        # Ensure org context is cleared even on error
+        try:
+            lab_dirs.set_organization_id(None)
+        except Exception:
+            pass
