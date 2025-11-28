@@ -120,6 +120,16 @@ export default function LoginForm() {
     }
   };
 
+  // Check if email/password authentication is enabled
+  // We do a try catch because process is not actually available, it is replaced
+  // by webpack using EnvironmentPlugin at build time.
+  let emailAuthEnabled = true;
+  try {
+    emailAuthEnabled = process.env.EMAIL_AUTH_ENABLED === 'true';
+  } catch {
+    emailAuthEnabled = true;
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       <Stack spacing={2}>
@@ -135,47 +145,51 @@ export default function LoginForm() {
           </Button>
         )}
         <Divider />
-        <FormControl required>
-          <Input
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoFocus
-            disabled={isLoading}
-          />
-        </FormControl>
-        <FormControl required>
-          <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading}
-          />
-        </FormControl>
-        {error && (
-          <Typography level="body-sm" color="danger">
-            {error}
-          </Typography>
+        {emailAuthEnabled && (
+          <>
+            <FormControl required>
+              <Input
+                type="email"
+                placeholder="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoFocus
+                disabled={isLoading}
+              />
+            </FormControl>
+            <FormControl required>
+              <Input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+              />
+            </FormControl>
+            {error && (
+              <Typography level="body-sm" color="danger">
+                {error}
+              </Typography>
+            )}
+            <Button type="submit" fullWidth loading={isLoading} sx={{ mt: 1 }}>
+              Sign In With Email
+            </Button>
+            <Typography
+              color="warning"
+              onClick={() => navigate('/forgot-password')}
+              sx={{ cursor: 'pointer', textAlign: 'right' }}
+            >
+              Forgot Your Password?
+            </Typography>
+            <Typography
+              color="primary"
+              onClick={() => navigate('/register')}
+              sx={{ cursor: 'pointer', textAlign: 'center' }}
+            >
+              Don&apos;t have an account? <b>Sign up here.</b>
+            </Typography>{' '}
+          </>
         )}
-        <Button type="submit" fullWidth loading={isLoading} sx={{ mt: 1 }}>
-          Sign In With Email
-        </Button>
-        <Typography
-          color="warning"
-          onClick={() => navigate('/forgot-password')}
-          sx={{ cursor: 'pointer', textAlign: 'right' }}
-        >
-          Forgot Your Password?
-        </Typography>
-        <Typography
-          color="primary"
-          onClick={() => navigate('/register')}
-          sx={{ cursor: 'pointer', textAlign: 'center' }}
-        >
-          Don&apos;t have an account? <b>Sign up here.</b>
-        </Typography>
       </Stack>
     </form>
   );

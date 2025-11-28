@@ -211,7 +211,9 @@ google_oauth_client = GoogleOAuth2(
 )
 
 # Check if OAuth is properly configured
-GOOGLE_OAUTH_ENABLED = bool(os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"))
+GOOGLE_OAUTH_ENABLED = os.getenv("GOOGLE_OAUTH_ENABLED", "false").lower() == "true" and bool(
+    os.getenv("GOOGLE_OAUTH_CLIENT_ID") and os.getenv("GOOGLE_OAUTH_CLIENT_SECRET")
+)
 
 if not GOOGLE_OAUTH_ENABLED:
     print(
@@ -220,6 +222,7 @@ if not GOOGLE_OAUTH_ENABLED:
 else:
     print("✅ Google OAuth configured and ready.")
 
+EMAIL_AUTH_ENABLED = os.getenv("EMAIL_AUTH_ENABLED", "true").lower() == "true"
 
 # --- Custom Authentication Backend ---
 
