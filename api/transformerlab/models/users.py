@@ -10,7 +10,6 @@ from transformerlab.shared.models.user_model import get_async_session, create_pe
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 import os
-import sys
 
 
 # --- Pydantic Schemas for API interactions ---
