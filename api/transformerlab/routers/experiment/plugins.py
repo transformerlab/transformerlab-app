@@ -46,6 +46,7 @@ async def experiment_list_scripts(id: str, type: str = None, filter: str = None)
     from lab.dirs import get_plugin_dir
 
     scripts_dir = get_plugin_dir()
+    print(f"Looking for plugins in {scripts_dir}")
 
     # Return empty if multitenant mode is enabled as we don't need plugins in this mode.
     # TODO: Optimize this later on with similar index as jobs.json
