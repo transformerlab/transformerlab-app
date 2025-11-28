@@ -56,7 +56,11 @@ export default function RunModelButton({
     inferenceEngineFriendlyName: '',
   });
 
-  const { data: loaderData, error: loaderError, isLoading: loaderIsLoading } = useAPI(
+  const {
+    data: loaderData,
+    error: loaderError,
+    isLoading: loaderIsLoading,
+  } = useAPI(
     'experiment',
     ['getScriptsOfTypeWithoutFilter'],
     {
@@ -68,7 +72,11 @@ export default function RunModelButton({
     },
   );
 
-  const { data: diffusionData, error: diffusionError, isLoading: diffusionIsLoading } = useAPI(
+  const {
+    data: diffusionData,
+    error: diffusionError,
+    isLoading: diffusionIsLoading,
+  } = useAPI(
     'experiment',
     ['getScriptsOfTypeWithoutFilter'],
     {
