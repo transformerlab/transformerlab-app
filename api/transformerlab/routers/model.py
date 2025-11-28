@@ -521,15 +521,13 @@ async def download_huggingface_model(
             from lab import HOME_DIR
 
             workspace_dir = storage.join(HOME_DIR, "orgs", organization_id, "workspace")
-            print(f"🔵 CONSTRUCTED ORG WORKSPACE: {workspace_dir}")
         else:
             # Use default workspace path
             workspace_dir = get_workspace_dir()
-            print(f"🔵 DEFAULT WORKSPACE: {workspace_dir}")
-        print(f"🔵 PASSING TO SUBPROCESS: --workspace_dir {workspace_dir}")
+
         args += ["--workspace_dir", workspace_dir]
     except Exception as e:
-        print(f"🔵 ERROR CONSTRUCTING WORKSPACE: {e}")
+        print(f"Error constructing workspace directory: {e}")
         pass
 
     if hugging_face_filename is not None:
