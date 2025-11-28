@@ -6,11 +6,12 @@ import { Button, LinearProgress, Stack, Typography } from '@mui/joy';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { PlusIcon } from 'lucide-react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR, useAPI } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';
+import { useAuth } from 'renderer/lib/authContext';
 import { useNotification } from 'renderer/components/Shared/NotificationSystem';
 import TaskTemplateList from './TaskTemplateList';
 import JobsList from './JobsList';
@@ -46,6 +47,25 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   }>({ open: false, datasetId: null });
   const { experimentInfo } = useExperimentInfo();
   const { addNotification } = useNotification();
+  const { fetchWithAuth, team } = useAuth();
+
+  const {
+    data: providerListData,
+    error: providerListError,
+    isLoading: providersIsLoading,
+  } = useAPI('compute_provider', ['list'], { teamId: team?.id ?? null });
+
+  const providers = useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+
+  useEffect(() => {
+    if (providerListError) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to fetch providers', providerListError);
+    }
+  }, [providerListError]);
 
   // Pending job IDs persisted per experiment to show immediate placeholders
   const pendingJobsStorageKey = useMemo(
@@ -146,24 +166,47 @@ export default function Tasks({ subtype }: { subtype?: string }) {
           task.experiment_id === experimentInfo?.id,
       ) || [];
 
-  // Check remote job status periodically to update LAUNCHING jobs
-  const { data: remoteJobStatus } = useSWR(
-    '/remote/check-status',
-    async (url) => {
-      const response = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.CheckStatus(),
-        {
-          method: 'GET',
-        },
-      );
-      return response;
-    },
-    {
-      refreshInterval: 10000, // Check every 10 seconds
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-    },
-  );
+  // Check each LAUNCHING job individually via provider endpoints
+  useEffect(() => {
+    if (!jobs || !Array.isArray(jobs)) return;
+
+    const launchingJobs = jobs.filter(
+      (job: any) =>
+        job.type === 'REMOTE' &&
+        job.status === 'LAUNCHING' &&
+        job.job_data?.provider_id, // Only check jobs with provider_id
+    );
+
+    if (launchingJobs.length === 0) return;
+
+    // Check each job individually
+    const checkJobs = async () => {
+      for (const job of launchingJobs) {
+        try {
+          const response = await fetchWithAuth(
+            chatAPI.Endpoints.ComputeProvider.CheckJobStatus(String(job.id)),
+            { method: 'GET' },
+          );
+          if (response.ok) {
+            const result = await response.json();
+            // If job was updated to COMPLETE, refresh jobs list
+            if (result.updated && result.new_status === 'COMPLETE') {
+              setTimeout(() => jobsMutate(), 0);
+            }
+          }
+        } catch (error) {
+          // Silently ignore errors for individual job checks
+          console.error(`Failed to check job ${job.id}:`, error);
+        }
+      }
+    };
+
+    // Check immediately and then every 10 seconds
+    checkJobs();
+    const interval = setInterval(checkJobs, 10000);
+
+    return () => clearInterval(interval);
+  }, [jobs, fetchWithAuth, jobsMutate]);
 
   const loading = tasksIsLoading || jobsIsLoading;
 
@@ -299,6 +342,27 @@ export default function Tasks({ subtype }: { subtype?: string }) {
       return;
     }
 
+    if (!data.provider_id) {
+      addNotification({
+        type: 'warning',
+        message: 'Select a provider before creating a task.',
+      });
+      return;
+    }
+
+    const providerMeta = providers.find(
+      (provider) => provider.id === data.provider_id,
+    );
+
+    if (!providerMeta) {
+      addNotification({
+        type: 'danger',
+        message:
+          'Selected provider is unavailable. Please refresh or choose another provider.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Create a remote task template first
@@ -311,9 +375,12 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         accelerators: data.accelerators || undefined,
         num_nodes: data.num_nodes || undefined,
         setup: data.setup || undefined,
-        uploaded_dir_path: data.uploaded_dir_path || undefined,
-        local_upload_copy: data.local_upload_copy || undefined,
+        env_vars: data.env_vars || undefined,
+        file_mounts: data.file_mounts || undefined,
       };
+
+      config.provider_id = providerMeta.id;
+      config.provider_name = providerMeta.name;
 
       // Add subtype to config if provided
       if (subtype) {
@@ -367,114 +434,113 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
-  // Helper function to build FormData for remote job operations
-  const buildRemoteJobFormData = (task: any, cfg: any, jobId?: string) => {
-    const formData = new FormData();
-    formData.append('experimentId', experimentInfo.id);
-
-    if (jobId) {
-      formData.append('job_id', jobId);
-    }
-
-    if (cfg.cluster_name) formData.append('cluster_name', cfg.cluster_name);
-    if (cfg.command) formData.append('command', cfg.command);
-    if (task.name) formData.append('task_name', task.name);
-    if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
-    if (cfg.memory) formData.append('memory', String(cfg.memory));
-    if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
-    if (cfg.accelerators)
-      formData.append('accelerators', String(cfg.accelerators));
-    if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
-    if (cfg.setup) formData.append('setup', String(cfg.setup));
-    if (cfg.uploaded_dir_path)
-      formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
-
-    // Add subtype to job data if present in task config
-    if (cfg.subtype) {
-      formData.append('subtype', String(cfg.subtype));
-    }
-
-    return formData;
-  };
-
   const handleQueue = async (task: any) => {
     if (!experimentInfo?.id) return;
 
+    const cfg =
+      typeof task.config === 'string'
+        ? JSON.parse(task.config)
+        : task.config || {};
+
+    const providerId =
+      cfg.provider_id || (providers.length ? providers[0]?.id : null);
+    if (!providerId) {
+      addNotification({
+        type: 'danger',
+        message:
+          'No providers available. Add a provider in the team settings first.',
+      });
+      return;
+    }
+
+    const providerMeta = providers.find(
+      (provider) => provider.id === providerId,
+    );
+
+    if (!providerMeta) {
+      addNotification({
+        type: 'danger',
+        message:
+          'Selected provider is unavailable. Please create or update providers in team settings.',
+      });
+      return;
+    }
+
+    if (!cfg.command) {
+      addNotification({
+        type: 'warning',
+        message: 'Task is missing a command to run.',
+      });
+      return;
+    }
+
     addNotification({
       type: 'success',
-      message: 'Creating job...',
+      message: 'Launching provider job...',
     });
 
     try {
-      const cfg =
-        typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config || {};
+      const payload = {
+        experiment_id: experimentInfo.id,
+        task_name: task.name,
+        cluster_name: cfg.cluster_name,
+        command: cfg.command,
+        subtype: cfg.subtype,
+        cpus: cfg.cpus,
+        memory: cfg.memory,
+        disk_space: cfg.disk_space,
+        accelerators: cfg.accelerators,
+        num_nodes: cfg.num_nodes,
+        setup: cfg.setup,
+        env_vars: cfg.env_vars || {},
+        file_mounts: cfg.file_mounts,
+        provider_name: providerMeta.name,
+      };
 
-      // Create the actual remote job
-      const createJobFormData = buildRemoteJobFormData(task, cfg);
-
-      const createJobResp = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.CreateRemoteJob(experimentInfo.id),
-        { method: 'POST', body: createJobFormData },
+      const response = await fetchWithAuth(
+        chatAPI.Endpoints.ComputeProvider.LaunchTask(providerId),
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        },
       );
-      const createJobResult = await createJobResp.json();
 
-      if (createJobResult.status === 'success') {
-        // Persist pending placeholder immediately so it shows up in the UI
-        const newId = String(createJobResult.job_id);
+      let launchResult: any = {};
+      try {
+        launchResult = await response.json();
+      } catch {
+        launchResult = {};
+      }
+
+      if (response.ok && launchResult?.status === 'success') {
+        const newId = String(launchResult.job_id);
         const pending = getPendingJobIds();
         if (!pending.includes(newId)) {
           setPendingJobIds([newId, ...pending]);
         }
-        // IMPORTANT: Don't await jobsMutate, let UI update before real jobs arrive
         setTimeout(() => jobsMutate(), 0);
 
         addNotification({
           type: 'success',
-          message: 'Job created. Launching remotely...',
+          message: 'Provider cluster launch initiated.',
         });
-
-        // Then launch the remote job using the formatted cluster_name from create-job (if provided)
-        const formattedClusterName =
-          createJobResult.cluster_name || cfg.cluster_name;
-        const launchCfg = { ...cfg, cluster_name: formattedClusterName };
-
-        const launchFormData = buildRemoteJobFormData(
-          task,
-          launchCfg,
-          createJobResult.job_id,
-        );
-
-        const launchResp = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
-          { method: 'POST', body: launchFormData },
-        );
-        const launchResult = await launchResp.json();
-
-        if (launchResult.status === 'success') {
-          addNotification({
-            type: 'success',
-            message: 'Task launched remotely.',
-          });
-          await Promise.all([jobsMutate(), tasksMutate()]);
-        } else {
-          addNotification({
-            type: 'danger',
-            message: `Remote launch failed: ${launchResult.message}`,
-          });
-        }
+        await Promise.all([jobsMutate(), tasksMutate()]);
       } else {
+        const message =
+          launchResult?.message || 'Failed to queue provider-backed task.';
         addNotification({
           type: 'danger',
-          message: `Failed to create job: ${createJobResult.message}`,
+          message,
         });
       }
     } catch (e) {
       console.error(e);
       addNotification({
         type: 'danger',
-        message: 'Failed to queue remote task.',
+        message: 'Failed to queue provider-backed task.',
       });
     }
   };
@@ -482,110 +548,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
   const handleEditTask = (task: any) => {
     setTaskBeingEdited(task);
     setEditModalOpen(true);
-  };
-
-  const handleSelectInstance = async (task: any, instance: any) => {
-    if (!experimentInfo?.id) return;
-
-    addNotification({
-      type: 'success',
-      message: `Submitting job to cluster ${instance.cluster_name}...`,
-    });
-
-    try {
-      const cfg =
-        typeof task.config === 'string'
-          ? JSON.parse(task.config)
-          : task.config || {};
-
-      // Use the cluster name from the selected instance
-      const clusterName = instance.cluster_name;
-
-      // Create form data with the cluster name from the selected instance
-      const formData = new FormData();
-      formData.append('cluster_name', clusterName);
-      formData.append('task_name', task.name || '');
-      formData.append('command', cfg.command || '');
-
-      if (cfg.cpus) formData.append('cpus', String(cfg.cpus));
-      if (cfg.memory) formData.append('memory', String(cfg.memory));
-      if (cfg.disk_space) formData.append('disk_space', String(cfg.disk_space));
-      if (cfg.accelerators)
-        formData.append('accelerators', String(cfg.accelerators));
-      if (cfg.num_nodes) formData.append('num_nodes', String(cfg.num_nodes));
-      if (cfg.setup) formData.append('setup', String(cfg.setup));
-      if (cfg.uploaded_dir_path)
-        formData.append('uploaded_dir_path', String(cfg.uploaded_dir_path));
-
-      // Create the actual remote job with the existing cluster name
-      const createJobResp = await chatAPI.authenticatedFetch(
-        chatAPI.Endpoints.Jobs.CreateRemoteJob(experimentInfo.id),
-        { method: 'POST', body: formData },
-      );
-      const createJobResult = await createJobResp.json();
-
-      if (createJobResult.status === 'success') {
-        await jobsMutate();
-
-        addNotification({
-          type: 'success',
-          message: `Job created. Submitting to ${clusterName}...`,
-        });
-
-        // Launch with use_existing_cluster flag
-        const launchFormData = new FormData();
-        launchFormData.append('job_id', createJobResult.job_id);
-        launchFormData.append('cluster_name', clusterName);
-        launchFormData.append('task_name', task.name || '');
-        launchFormData.append('command', cfg.command || '');
-        launchFormData.append('use_existing_cluster', 'true');
-
-        if (cfg.cpus) launchFormData.append('cpus', String(cfg.cpus));
-        if (cfg.memory) launchFormData.append('memory', String(cfg.memory));
-        if (cfg.disk_space)
-          launchFormData.append('disk_space', String(cfg.disk_space));
-        if (cfg.accelerators)
-          launchFormData.append('accelerators', String(cfg.accelerators));
-        if (cfg.num_nodes)
-          launchFormData.append('num_nodes', String(cfg.num_nodes));
-        if (cfg.setup) launchFormData.append('setup', String(cfg.setup));
-        if (cfg.uploaded_dir_path)
-          launchFormData.append(
-            'uploaded_dir_path',
-            String(cfg.uploaded_dir_path),
-          );
-
-        const launchResp = await chatAPI.authenticatedFetch(
-          chatAPI.Endpoints.Jobs.LaunchRemote(experimentInfo.id),
-          { method: 'POST', body: launchFormData },
-        );
-        const launchResult = await launchResp.json();
-
-        if (launchResult.status === 'success') {
-          addNotification({
-            type: 'success',
-            message: `Job submitted to ${clusterName} successfully.`,
-          });
-          await Promise.all([jobsMutate(), tasksMutate()]);
-        } else {
-          addNotification({
-            type: 'danger',
-            message: `Failed to submit job: ${launchResult.message}`,
-          });
-        }
-      } else {
-        addNotification({
-          type: 'danger',
-          message: `Failed to create job: ${createJobResult.message}`,
-        });
-      }
-    } catch (e) {
-      console.error(e);
-      addNotification({
-        type: 'danger',
-        message: 'Failed to submit job to existing cluster.',
-      });
-    }
   };
 
   return (
@@ -602,11 +564,15 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         onClose={handleClose}
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
+        providers={providers}
+        isProvidersLoading={providersIsLoading}
       />
       <EditTaskModal
         open={editModalOpen}
         onClose={handleEditClose}
         task={taskBeingEdited}
+        providers={providers}
+        isProvidersLoading={providersIsLoading}
         onSaved={async () => {
           await tasksMutate();
         }}
@@ -641,7 +607,6 @@ export default function Tasks({ subtype }: { subtype?: string }) {
             onDeleteTask={handleDeleteTask}
             onQueueTask={handleQueue}
             onEditTask={handleEditTask}
-            onSelectInstance={handleSelectInstance}
           />
         )}
       </Sheet>

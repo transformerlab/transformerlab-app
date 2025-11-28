@@ -10,6 +10,7 @@ import { Typography, Option, Stack } from '@mui/joy';
 import GenerateJobsTable from './GenerateJobsTable';
 import GenerateTasksTable from './GenerateTasksTable';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 function getTemplateParametersForPlugin(pluginName, plugins) {
   if (!pluginName || !plugins) {
@@ -37,7 +38,7 @@ export default function Generate({ addGeneration }) {
 
     if (value) {
       // Use fetch to post the value to the server
-      await fetch(
+      await fetchWithAuth(
         chatAPI.Endpoints.Experiment.SavePlugin(
           project,
           generationName,

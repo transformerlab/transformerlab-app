@@ -3,21 +3,16 @@ import os
 import asyncio
 
 # Create test directories before setting environment variables
-os.makedirs("./test/tmp/workspace", exist_ok=True)
+os.makedirs("./test/tmp/", exist_ok=True)
 
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
-os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
+# Note: TFL_WORKSPACE_DIR is not set so that get_workspace_dir() will use the org-based
+# workspace directory (./test/tmp/orgs/<team-id>/workspace) after migration
 
 
 from transformerlab.db.db import (  # noqa: E402
-    get_training_template_by_name,
     config_get,
     config_set,
-    get_training_template,
-    get_training_templates,
-    create_training_template,
-    update_training_template,
-    delete_training_template,
 )
 
 from transformerlab.services import experiment_service  # noqa: E402
@@ -55,14 +50,6 @@ import pytest  # noqa: E402
 
 
 @pytest.mark.asyncio
-async def test_get_training_template_and_by_name_returns_none_for_missing():
-    tmpl = await get_training_template(999999)
-    assert tmpl is None
-    tmpl = await get_training_template_by_name("does_not_exist")
-    assert tmpl is None
-
-
-@pytest.mark.asyncio
 @pytest.mark.skip("skipping workflow tests")
 async def test_workflows_get_by_id_returns_none_for_missing():
     workflow = await workflows_get_by_id(999999, 1)
@@ -83,20 +70,6 @@ async def test_config_get_returns_none_for_missing():
 
 
 pytest_plugins = ("pytest_asyncio",)
-
-
-@pytest.mark.asyncio
-async def test_training_template_crud():
-    await create_training_template("tmpl", "desc", "type", "[]", "{}")
-    templates = await get_training_templates()
-    assert any(t.get("name") == "tmpl" for t in templates)
-    tmpl_id = templates[0].get("id")
-    await update_training_template(tmpl_id, "tmpl2", "desc2", "type2", "[]", "{}")
-    tmpl = await get_training_template(tmpl_id)
-    assert tmpl["name"] == "tmpl2"
-    await delete_training_template(tmpl_id)
-    tmpl = await get_training_template(tmpl_id)
-    assert tmpl is None
 
 
 pytest_plugins = ("pytest_asyncio",)
@@ -354,91 +327,3 @@ class TestWorkflows:
         # Check that workflow was triggered again
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert len(workflow_runs) >= 3
-
-
-# @pytest.mark.skip(reason="Skipping  because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_workflow_run_get_running(setup_db):
-#     """Test the workflow_run_get_running function."""
-#     # Create a workflow and workflow_run using db methods
-#     workflow_id = await db.workflow_create("test_workflow", "{}", "test_experiment")
-#     await db.workflow_queue(workflow_id)
-
-#     # Sleep for 3 seconds, async:
-#     await asyncio.sleep(3)
-
-#     # Test the function
-#     running_workflow = await db.workflow_run_get_running()
-
-#     # Verify results
-#     assert running_workflow is not None
-#     assert running_workflow["status"] == "RUNNING"
-#     assert running_workflow["workflow_name"] == "test_workflow"
-
-
-# @pytest.mark.skip(reason="Skipping because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_training_jobs_get_all(setup_db):
-#     """Test the training_jobs_get_all function."""
-#     # Create a training template using db method
-#     template_id = await db.create_training_template("test_template", "Test description", "fine-tuning", "[]", "{}")
-
-#     # Create a job that references this training template
-#     job_data = {"template_id": template_id, "description": "Test training job"}
-#     job_id = await db.job_create("TRAIN", "QUEUED", json.dumps(job_data), "test_experiment")
-
-#     # Test the function
-#     training_jobs = await db.training_jobs_get_all()
-
-#     # Verify results
-#     assert len(training_jobs) > 0
-#     found_job = False
-#     for job in training_jobs:
-#         if job["id"] == job_id:
-#             found_job = True
-#             assert job["type"] == "TRAIN"
-#             assert job.get("status") == "QUEUED"
-#             assert job["job_data"]["template_id"] == template_id
-#             assert job["job_data"]["description"] == "Test training job"
-#             assert "config" in job
-
-#     assert found_job, "The created training job was not found in the results"
-
-
-# @pytest.mark.skip(reason="Skipping test_workflow_run_get_running because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_workflow_run_get_queued(setup_db):
-#     """Test the workflow_run_get_queued function."""
-#     # Create a workflow and workflow_run using db methods
-#     workflow_id = await db.workflow_create("queued_workflow", "{}", "test_experiment")
-
-#     # Test the function
-#     queued_workflow = await db.workflow_run_get_queued()
-
-#     # Verify results
-#     assert queued_workflow is not None
-#     assert queued_workflow["status"] == "QUEUED"
-#     assert queued_workflow["workflow_name"] == "queued_workflow"
-
-
-# @pytest.mark.skip(reason="Skipping test_workflow_run_get_running because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_workflow_run_update_with_new_job(setup_db):
-#     """Test the workflow_run_update_with_new_job function."""
-#     # Create a workflow and workflow_run using db methods
-#     workflow_id = await db.workflow_create("test_workflow", "{}", "test_experiment")  # noqa: F841
-
-#     # New task and job IDs
-#     current_task = '["task1"]'
-#     current_job_id = "[1]"
-
-#     # Test the function
-#     await db.workflow_run_update_with_new_job(workflow_run_id, current_task, current_job_id)
-
-#     # Verify results
-#     updated_workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
-#     assert updated_workflow_run is not None
-#     assert updated_workflow_run["current_tasks"] == current_task
-#     assert updated_workflow_run["current_job_ids"] == current_job_id
-#     assert json.loads(updated_workflow_run["job_ids"]) == [1]
-#     assert json.loads(updated_workflow_run["node_ids"]) == ["task1"]

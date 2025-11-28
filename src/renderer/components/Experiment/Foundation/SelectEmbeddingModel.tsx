@@ -3,10 +3,11 @@
 import { Typography, Sheet, Button, Box } from '@mui/joy';
 
 import { useLocation, useNavigate } from 'react-router-dom';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import * as chatAPI from '../../../lib/transformerlab-api-sdk';
 import LocalModelsTable from 'renderer/components/ModelZoo/LocalModelsTable';
 import { fetcher } from '../../../lib/transformerlab-api-sdk';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 export default function SelectEmbeddingModel({
   experimentInfo,
@@ -43,7 +44,7 @@ export default function SelectEmbeddingModel({
 
     // Update the embedding model in the experiment config
     async function updateEmbeddingConfig() {
-      await fetch(
+      await fetchWithAuth(
         chatAPI.Endpoints.Experiment.UpdateConfigs(experimentInfo?.id),
         {
           method: 'POST',

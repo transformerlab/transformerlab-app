@@ -36,6 +36,7 @@ import {
   DialogContent,
   ModalClose,
 } from '@mui/joy';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 
 function scrollChatToBottom() {
   document.getElementById('endofchat').scrollIntoView();
@@ -392,7 +393,7 @@ export default function ChatSubmit({
                       onClick={async () => {
                         const toBase64 = async (url) => {
                           try {
-                            const res = await fetch(url);
+                            const res = await fetchWithAuth(url);
                             const blob = await res.blob();
                             return await new Promise((resolve, reject) => {
                               const reader = new FileReader();

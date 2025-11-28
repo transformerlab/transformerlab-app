@@ -24,7 +24,7 @@ import {
   Box,
 } from '@mui/joy';
 import { useState, useEffect, FormEvent, useCallback } from 'react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 import { useNavigate } from 'react-router-dom';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';

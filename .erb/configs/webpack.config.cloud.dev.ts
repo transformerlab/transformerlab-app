@@ -144,7 +144,7 @@ const configuration: webpack.Configuration = {
       NODE_ENV: 'development',
       npm_package_version: 'default',
       MULTIUSER: 'false',
-      TL_API_URL: 'default',
+      TL_API_URL: '',
       TL_FORCE_API_URL: 'false',
     }),
 

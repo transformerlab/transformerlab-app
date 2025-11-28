@@ -10,7 +10,7 @@ import {
   TabPanel,
 } from '@mui/joy';
 import { PlusIcon, DownloadIcon, UploadIcon } from 'lucide-react';
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import * as chatAPI from 'renderer/lib/transformerlab-api-sdk';
 import { fetcher } from 'renderer/lib/transformerlab-api-sdk';

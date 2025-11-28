@@ -44,7 +44,7 @@ import {
   LinkIcon,
 } from 'lucide-react';
 
-import useSWR from 'swr';
+import { useSWRWithAuth as useSWR } from 'renderer/lib/authContext';
 
 import { formatBytes } from 'renderer/lib/utils';
 
