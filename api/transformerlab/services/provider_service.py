@@ -113,7 +113,11 @@ async def get_team_provider(session: AsyncSession, team_id: str, provider_id: st
 
 async def list_team_providers(session: AsyncSession, team_id: str) -> list[TeamComputeProvider]:
     """List all providers for a team."""
-    stmt = select(TeamComputeProvider).where(TeamComputeProvider.team_id == team_id).order_by(TeamComputeProvider.created_at.desc())
+    stmt = (
+        select(TeamComputeProvider)
+        .where(TeamComputeProvider.team_id == team_id)
+        .order_by(TeamComputeProvider.created_at.desc())
+    )
     result = await session.execute(stmt)
     return list(result.scalars().all())
 
