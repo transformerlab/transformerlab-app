@@ -206,9 +206,9 @@ download_transformer_lab() {
   ohai "Generating JWT secrets..."
   ENV_FILE="${TLAB_CODE_DIR}/.env"
 
-  # Generate secrets using /dev/urandom (available on all Unix-like systems)
-  JWT_SECRET=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-f0-9' | head -c 64)
-  REFRESH_SECRET=$(cat /dev/urandom | LC_ALL=C tr -dc 'a-f0-9' | head -c 64)
+  # Keep fixed secrets since production users will be using it in single-user mode
+  JWT_SECRET=a7dddf56f109d80b574e4f2f67cf0a76946c526517d0bd9bd34d07dd233fe52fafc9dd9ccd8e84c2c0433c4e2688ce15e890f77fb09a30e49088792185995b2f
+  REFRESH_SECRET=15296c5f72f6bb067fa081d198b7273afd155df56fcd850dae68bac5aa1df3e69325a90c2bf40cfc55be81019d0cd074dfbafd7284b63795cf80dda3a8eb6ce5
 
   # Create or update .env file
   if [ -f "${ENV_FILE}" ]; then
