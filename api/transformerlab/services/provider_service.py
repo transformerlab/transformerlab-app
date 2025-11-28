@@ -40,7 +40,7 @@ async def validate_user_exists(session: AsyncSession, user_id: str) -> None:
     """
     stmt = select(User).where(User.id == user_id)
     result = await session.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = result.unique().scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail=f"User with id '{user_id}' not found")
 
