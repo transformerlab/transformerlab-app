@@ -56,7 +56,11 @@ export default function RunModelButton({
     inferenceEngineFriendlyName: '',
   });
 
-  const { data: allPlugins, error, isLoading } = useAPI(
+  const {
+    data: allPlugins,
+    error,
+    isLoading,
+  } = useAPI(
     'experiment',
     ['getScriptsOfTypeWithoutFilter'],
     {
@@ -70,9 +74,11 @@ export default function RunModelButton({
 
   // Filter to only include loader and diffusion type plugins
   const data = React.useMemo(() => {
-    return allPlugins?.filter(plugin => 
-      plugin.type === 'loader' || plugin.type === 'diffusion'
-    ) || [];
+    return (
+      allPlugins?.filter(
+        (plugin) => plugin.type === 'loader' || plugin.type === 'diffusion',
+      ) || []
+    );
   }, [allPlugins]);
 
   const { data: pipelineTagData, isLoading: pipelineTagLoading } = useAPI(
