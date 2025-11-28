@@ -1,6 +1,7 @@
 """Router for managing team-scoped compute providers."""
 
 import os
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +34,7 @@ from transformerlab.compute_providers.models import (
     JobState,
 )
 from transformerlab.services import job_service
-from lab import storage
+from lab import storage, Experiment
 from lab.dirs import get_workspace_dir
 
 router = APIRouter(prefix="/compute_provider", tags=["compute_provider"])
@@ -773,6 +774,33 @@ async def stop_cluster(
 
         # Stop cluster
         result = provider_instance.stop_cluster(cluster_name)
+
+        # Find and update all jobs with this cluster_name
+        # Search through all experiments to find jobs with matching cluster_name
+        experiments = Experiment.get_all()
+
+        for exp_id in experiments:
+            try:
+                jobs = job_service.jobs_get_all(type="REMOTE", status="", experiment_id=exp_id)
+                for job in jobs:
+                    job_data = job.get("job_data", {})
+                    if not isinstance(job_data, dict):
+                        try:
+                            job_data = json.loads(job_data)
+                        except (json.JSONDecodeError, TypeError):
+                            job_data = {}
+
+                    # Check if this job has the matching cluster_name
+                    if job_data.get("cluster_name") == cluster_name:
+                        # Set cluster_stopped: true
+                        job_service.job_update_job_data_insert_key_value(job["id"], "cluster_stopped", True, exp_id)
+                        # Only update status to STOPPED if it's not already COMPLETE
+                        if job.get("status") != "COMPLETE":
+                            await job_service.job_update_status(job["id"], "STOPPED", experiment_id=exp_id)
+            except Exception as e:
+                # Continue searching other experiments if one fails
+                print(f"Error processing jobs for experiment {exp_id}: {e}")
+                continue
 
         return {
             "status": "success",

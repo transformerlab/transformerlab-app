@@ -14,6 +14,7 @@ import {
   LogsIcon,
   FileTextIcon,
   DatabaseIcon,
+  PowerIcon,
 } from 'lucide-react';
 import JobProgress from './JobProgress';
 
@@ -28,6 +29,7 @@ interface JobsListProps {
   onViewSweepOutput?: (jobId: string) => void;
   onViewEvalResults?: (jobId: string) => void;
   onViewGeneratedDataset?: (jobId: string, datasetId: string) => void;
+  onDownInstance?: (jobId: string) => void;
 }
 
 const JobsList: React.FC<JobsListProps> = ({
@@ -41,6 +43,7 @@ const JobsList: React.FC<JobsListProps> = ({
   onViewSweepOutput,
   onViewEvalResults,
   onViewGeneratedDataset,
+  onDownInstance,
 }) => {
   const formatJobConfig = (job: any) => {
     const jobData = job?.job_data || {};
@@ -192,6 +195,27 @@ const JobsList: React.FC<JobsListProps> = ({
                       Output
                     </Box>
                   </Button>
+                  {job?.job_data?.cluster_name && (
+                    <Button
+                      size="sm"
+                      variant="plain"
+                      onClick={() => onDownInstance?.(job?.id)}
+                      disabled={job?.job_data?.cluster_stopped === true}
+                      startDecorator={<PowerIcon />}
+                    >
+                      <Box
+                        sx={{
+                          display: {
+                            xs: 'none',
+                            sm: 'none',
+                            md: 'inline-flex',
+                          },
+                        }}
+                      >
+                        Down Instance
+                      </Box>
+                    </Button>
+                  )}
                   {job?.job_data?.eval_images_dir && (
                     <Button
                       size="sm"

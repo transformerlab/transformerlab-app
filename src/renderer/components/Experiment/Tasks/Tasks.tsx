@@ -336,6 +336,93 @@ export default function Tasks({ subtype }: { subtype?: string }) {
     }
   };
 
+  const handleDownInstance = useCallback(
+    async (jobId: string) => {
+      if (!experimentInfo?.id) return;
+
+      // Find the job to get cluster information
+      // Use jobsWithPlaceholders to find the job, but filter out placeholders
+      const allJobs = Array.isArray(jobs) ? jobs : [];
+      const job = allJobs.find((j: any) => String(j.id) === String(jobId));
+      if (!job) {
+        addNotification({
+          type: 'warning',
+          message: 'Job not found.',
+        });
+        return;
+      }
+
+      const jobData = job.job_data || {};
+      const providerId = jobData?.provider_id;
+      const clusterName = jobData?.cluster_name;
+
+      if (!clusterName) {
+        addNotification({
+          type: 'warning',
+          message: 'No cluster found for this job.',
+        });
+        return;
+      }
+
+      try {
+        let response: Response;
+
+        if (providerId && clusterName) {
+          // Use the providers stop endpoint
+          response = await fetchWithAuth(
+            chatAPI.Endpoints.ComputeProvider.StopCluster(
+              providerId,
+              clusterName,
+            ),
+            { method: 'POST' },
+          );
+        } else if (clusterName && job?.id) {
+          // Fallback to legacy remote stop endpoint for jobs without provider_id
+          const formData = new FormData();
+          formData.append('job_id', job.id);
+          formData.append('cluster_name', clusterName);
+          response = await chatAPI.authenticatedFetch(
+            chatAPI.Endpoints.Jobs.StopRemote(),
+            {
+              method: 'POST',
+              body: formData,
+            },
+          );
+        } else {
+          addNotification({
+            type: 'warning',
+            message: 'No provider or cluster information found for this job.',
+          });
+          return;
+        }
+
+        if (response.ok) {
+          addNotification({
+            type: 'success',
+            message: 'Cluster stop initiated successfully.',
+          });
+          // Job data and status updates are now handled by the backend stop_cluster endpoint
+          // Refresh the jobs list
+          await jobsMutate();
+        } else {
+          addNotification({
+            type: 'warning',
+            message:
+              'Failed to stop cluster. It may have already been stopped or something went wrong internally.',
+          });
+        }
+      } catch (error) {
+        console.error('Error stopping cluster:', error);
+        addNotification({
+          type: 'warning',
+          message:
+            'Failed to stop cluster. It may have already been stopped or something went wrong internally.',
+        });
+      }
+    },
+    [experimentInfo?.id, jobs, fetchWithAuth, addNotification, jobsMutate],
+  );
+
   const handleSubmit = async (data: any) => {
     if (!experimentInfo?.id) {
       addNotification({ type: 'warning', message: 'No experiment selected' });
@@ -641,6 +728,7 @@ export default function Tasks({ subtype }: { subtype?: string }) {
               setViewOutputFromSweepJob(true);
               setViewOutputFromJob(parseInt(jobId));
             }}
+            onDownInstance={handleDownInstance}
           />
         )}
       </Sheet>

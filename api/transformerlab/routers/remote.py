@@ -388,8 +388,22 @@ async def stop_remote(
             )
 
             if response.status_code == 200:
-                # Update job status to STOPPED on successful down request
-                await job_update_status(job_id, "STOPPED")
+                # Get the job to check its status and update job_data
+                job = job_service.job_get(job_id)
+                if job:
+                    experiment_id = job.get("experiment_id")
+                    if experiment_id:
+                        # Set cluster_stopped: true in job_data
+                        job_service.job_update_job_data_insert_key_value(
+                            job_id, "cluster_stopped", True, experiment_id
+                        )
+                        # Only update job status to STOPPED if it's not already COMPLETE
+                        if job.get("status") != "COMPLETE":
+                            await job_update_status(job_id, "STOPPED", experiment_id=experiment_id)
+                    else:
+                        # Fallback: update status without experiment_id (backward compatibility)
+                        if job.get("status") != "COMPLETE":
+                            await job_update_status(job_id, "STOPPED")
 
                 return {
                     "status": "success",
