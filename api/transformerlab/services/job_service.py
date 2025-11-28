@@ -1,7 +1,10 @@
 import json
-from typing import Optional
+import os
+from typing import Optional, Tuple
 
 from lab import Experiment, Job
+from lab import dirs as lab_dirs
+from lab import storage
 
 
 # Allowed job types:
@@ -74,8 +77,107 @@ def job_count_running():
     return Job.count_running_jobs()
 
 
+def job_count_running_across_all_orgs() -> int:
+    """
+    Count running jobs across all organizations.
+    Returns the total count of jobs with status "RUNNING" across all orgs.
+    """
+    count = 0
+
+    # Get HOME_DIR
+    try:
+        home_dir = lab_dirs.HOME_DIR
+    except AttributeError:
+        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+
+    # Check all org directories
+    orgs_dir = storage.join(home_dir, "orgs")
+    if storage.exists(orgs_dir) and storage.isdir(orgs_dir):
+        try:
+            org_entries = storage.ls(orgs_dir, detail=False)
+            for org_path in org_entries:
+                if storage.isdir(org_path):
+                    org_id = org_path.rstrip("/").split("/")[-1]
+                    lab_dirs.set_organization_id(org_id)
+                    try:
+                        count += Job.count_running_jobs()
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    # Clear org context
+    lab_dirs.set_organization_id(None)
+
+    return count
+
+
 def jobs_get_next_queued_job():
     return Job.get_next_queued_job()
+
+
+def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional[str]]:
+    """
+    Get the next queued job across all organizations.
+    Returns a tuple of (job_data_dict, organization_id) or (None, None) if no queued jobs found.
+
+    Jobs are sorted by job_id (oldest first) to ensure fair queue ordering across all orgs.
+    """
+    queued_jobs = []  # List of (job_id, job_data, org_id) tuples
+
+    # Get HOME_DIR - need to access it from lab.dirs module
+    try:
+        # Get HOME_DIR value - it's set at module level
+        home_dir = lab_dirs.HOME_DIR
+    except AttributeError:
+        # Fallback to environment variable or default
+        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+
+    # List all organization directories
+    orgs_dir = storage.join(home_dir, "orgs")
+
+    # Check all org directories
+    if storage.exists(orgs_dir) and storage.isdir(orgs_dir):
+        try:
+            org_entries = storage.ls(orgs_dir, detail=False)
+            for org_path in org_entries:
+                if storage.isdir(org_path):
+                    org_id = org_path.rstrip("/").split("/")[-1]
+
+                    # Set org context to get jobs for this org
+                    lab_dirs.set_organization_id(org_id)
+
+                    try:
+                        # Get jobs directory for this org
+                        jobs_dir = lab_dirs.get_jobs_dir()
+                        if storage.exists(jobs_dir) and storage.isdir(jobs_dir):
+                            entries = storage.ls(jobs_dir, detail=False)
+                            for job_path in entries:
+                                if storage.isdir(job_path):
+                                    job_id_str = job_path.rstrip("/").split("/")[-1]
+                                    try:
+                                        job_id = int(job_id_str) if job_id_str.isdigit() else 0
+                                        job = Job.get(job_id_str)
+                                        job_data = job.get_json_data()
+                                        if job_data.get("status") == "QUEUED":
+                                            queued_jobs.append((job_id, job_data, org_id))
+                                    except Exception:
+                                        continue
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    # Clear org context after scanning
+    lab_dirs.set_organization_id(None)
+
+    # Sort by job_id (oldest first) and return the first one
+    if queued_jobs:
+        queued_jobs.sort(key=lambda x: x[0])
+        job_id, job_data, org_id = queued_jobs[0]
+        return (job_data, org_id)
+
+    return (None, None)
 
 
 def job_delete_all(experiment_id):
