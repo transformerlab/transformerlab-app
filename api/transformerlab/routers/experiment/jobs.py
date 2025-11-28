@@ -3,8 +3,9 @@ from fnmatch import fnmatch
 import json
 import os
 import csv
+from typing import List, Optional
 import pandas as pd
-from fastapi import APIRouter, Response, Request
+from fastapi import APIRouter, Response, Request, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse, FileResponse
 from lab import storage
 
@@ -17,8 +18,17 @@ from transformerlab.routers.serverinfo import watch_file
 
 from datetime import datetime
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
+from transformerlab.services.provider_service import (
+    get_team_provider,
+    get_provider_instance,
+)
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.shared.models.user_model import get_async_session
+from transformerlab.compute_providers.models import JobState
 from lab import Job
 from lab.dirs import get_workspace_dir
 
@@ -196,6 +206,109 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
         # Handle general error
         print(f"Error in get_tasks_job_output: {e}")
         return ["An internal error has occurred!"]
+
+
+@router.get("/{job_id}/provider_logs")
+async def get_provider_job_logs(
+    experimentId: str,
+    job_id: str,
+    tail_lines: int = Query(400, ge=100, le=2000),
+    user_and_team=Depends(get_user_and_team),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Fetch the raw job logs directly from the underlying compute provider for a REMOTE job.
+    """
+
+    job = job_service.job_get(job_id)
+    if not job or str(job.get("experiment_id")) != str(experimentId):
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    job_data = job.get("job_data") or {}
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except JSONDecodeError:
+            job_data = {}
+
+    provider_id = job_data.get("provider_id")
+    cluster_name = job_data.get("cluster_name")
+    if not provider_id or not cluster_name:
+        raise HTTPException(
+            status_code=400, detail="Job does not contain provider metadata (provider_id/cluster_name missing)"
+        )
+
+    provider = await get_team_provider(session, user_and_team["team_id"], provider_id)
+    if not provider:
+        raise HTTPException(status_code=404, detail="Provider not found")
+
+    try:
+        provider_instance = get_provider_instance(provider)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to initialize provider: {exc}") from exc
+
+    # Figure out which provider-side job_id to query logs for
+    provider_job_id: Optional[str | int] = job_data.get("provider_job_id")
+
+    provider_job_candidates: List[dict] = []
+    if provider_job_id is None:
+        provider_job_ids = job_data.get("provider_job_ids")
+        if isinstance(provider_job_ids, list) and provider_job_ids:
+            provider_job_id = provider_job_ids[-1]
+
+    if provider_job_id is None:
+        try:
+            provider_jobs = provider_instance.list_jobs(cluster_name)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Failed to enumerate provider jobs: {exc}") from exc
+
+        if provider_jobs:
+            running_states = {JobState.RUNNING, JobState.PENDING}
+            chosen_job = next((job for job in provider_jobs if job.state in running_states), provider_jobs[-1])
+            provider_job_id = chosen_job.job_id
+            provider_job_candidates = [
+                {
+                    "job_id": str(job.job_id),
+                    "state": job.state.value if isinstance(job.state, JobState) else str(job.state),
+                    "submitted_at": job.submitted_at,
+                    "started_at": job.started_at,
+                    "finished_at": job.finished_at,
+                }
+                for job in provider_jobs
+            ]
+
+    if provider_job_id is None:
+        raise HTTPException(status_code=404, detail="Unable to determine provider job id for this job")
+
+    try:
+        raw_logs = provider_instance.get_job_logs(
+            cluster_name,
+            provider_job_id,
+            tail_lines=tail_lines or None,
+            follow=False,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch provider logs: {exc}") from exc
+
+    if isinstance(raw_logs, (bytes, bytearray)):
+        logs_text = raw_logs.decode("utf-8", errors="replace")
+    elif isinstance(raw_logs, str):
+        logs_text = raw_logs
+    else:
+        try:
+            logs_text = json.dumps(raw_logs, indent=2)
+        except TypeError:
+            logs_text = str(raw_logs)
+
+    return {
+        "cluster_name": cluster_name,
+        "provider_id": provider_id,
+        "provider_job_id": str(provider_job_id),
+        "provider_name": job_data.get("provider_name"),
+        "tail_lines": tail_lines,
+        "logs": logs_text,
+        "job_candidates": provider_job_candidates,
+    }
 
 
 # Templates
