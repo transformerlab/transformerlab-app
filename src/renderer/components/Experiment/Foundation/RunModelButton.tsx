@@ -93,9 +93,6 @@ export default function RunModelButton({
     const combined = [];
     if (loaderData) combined.push(...loaderData);
     if (diffusionData) combined.push(...diffusionData);
-    console.log('Loader data:', loaderData);
-    console.log('Diffusion data:', diffusionData);
-    console.log('Combined data:', combined);
     return combined;
   }, [loaderData, diffusionData]);
 
@@ -120,7 +117,7 @@ export default function RunModelButton({
   const supportedEngines = React.useMemo(() => {
     if (!data || pipelineTagLoading) return [];
 
-    const supported = data.filter((row) => {
+    return data.filter((row) => {
       const supportsArchitecture =
         Array.isArray(row.model_architectures) &&
         row.model_architectures.some(
@@ -157,22 +154,18 @@ export default function RunModelButton({
       // For non-text-to-speech models: must NOT have text-to-speech support
       return !hasTextToSpeechSupport;
     });
-    console.log('Supported engines:', supported.length, supported);
-    console.log('Arch tag:', archTag, 'Pipeline tag:', pipelineTag);
-    return supported;
   }, [data, pipelineTagLoading, pipelineTag, archTag]);
 
   const unsupportedEngines = React.useMemo(() => {
     if (!data) return [];
 
-    const unsupported = data.filter(
+    // Simply return everything that's NOT in supportedEngines
+    return data.filter(
       (row) =>
         !supportedEngines.some(
           (supported) => supported.uniqueId === row.uniqueId,
         ),
     );
-    console.log('Unsupported engines:', unsupported.length, unsupported);
-    return unsupported;
   }, [data, supportedEngines]);
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
