@@ -342,11 +342,6 @@ async def list_plugins() -> list[object]:
 
     local_workspace_gallery_directory = get_plugin_dir()
 
-    # Return empty if multitenant mode is enabled as we don't need plugins in this mode.
-    # TODO: Optimize this later on with similar index as jobs.json
-    if os.getenv("TFL_MULTITENANT") == "true":
-        return []
-
     # now get the local workspace gallery
     workspace_gallery = []
     if os.path.exists(local_workspace_gallery_directory):

@@ -10,7 +10,6 @@ from transformerlab.shared.models.user_model import get_async_session, create_pe
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
 import os
-import sys
 
 
 # --- Pydantic Schemas for API interactions ---
@@ -53,13 +52,11 @@ SECRET = os.getenv("TRANSFORMERLAB_JWT_SECRET")
 REFRESH_SECRET = os.getenv("TRANSFORMERLAB_REFRESH_SECRET")
 REFRESH_LIFETIME = 60 * 60 * 24 * 7  # 7 days
 
-if os.getenv("TFL_MULTITENANT") == "true":
-    if not SECRET or not REFRESH_SECRET or SECRET == DEFAULT_SECRET or REFRESH_SECRET == DEFAULT_REFRESH_SECRET:
-        print(
-            "Missing or insecure JWT secrets. Please set TRANSFORMERLAB_JWT_SECRET and TRANSFORMERLAB_REFRESH_SECRET "
-            "to strong, different values in your environment variables or .env file. Exiting."
-        )
-        sys.exit(1)
+if not SECRET or not REFRESH_SECRET or SECRET == DEFAULT_SECRET or REFRESH_SECRET == DEFAULT_REFRESH_SECRET:
+    print(
+        "Missing or insecure JWT secrets. Please set TRANSFORMERLAB_JWT_SECRET and TRANSFORMERLAB_REFRESH_SECRET "
+        "to strong, different values in your environment variables or .env file. Exiting."
+    )
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):

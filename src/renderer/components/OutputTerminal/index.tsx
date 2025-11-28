@@ -27,8 +27,21 @@ const OutputTerminal = ({
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleResize = debounce(() => {
-    if (termRef.current) {
-      fitAddon.current.fit();
+    if (termRef.current && terminalRef.current && fitAddon.current) {
+      // Check if container has dimensions before fitting
+      const rect = terminalRef.current.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        try {
+          // Additional check: ensure terminal element is in DOM and has xterm class
+          const xtermElement = terminalRef.current.querySelector('.xterm');
+          if (xtermElement) {
+            fitAddon.current.fit();
+          }
+        } catch (error) {
+          // Ignore fit errors if dimensions aren't ready yet
+          console.warn('FitAddon fit failed:', error);
+        }
+      }
     }
   }, 300);
 
@@ -67,8 +80,46 @@ const OutputTerminal = ({
     });
     termRef.current.loadAddon(fitAddon.current);
 
-    if (terminalRef.current) termRef.current.open(terminalRef.current);
-    fitAddon.current.fit();
+    if (terminalRef.current) {
+      termRef.current.open(terminalRef.current);
+
+      // Delay fit() until container has dimensions
+      // Try multiple times with delays to ensure container is visible
+      const tryFit = (attempt = 0) => {
+        if (terminalRef.current && termRef.current && fitAddon.current) {
+          const rect = terminalRef.current.getBoundingClientRect();
+          // Check if container has dimensions and terminal element exists
+          const xtermElement = terminalRef.current.querySelector('.xterm');
+          if (rect.width > 0 && rect.height > 0 && xtermElement) {
+            try {
+              fitAddon.current.fit();
+            } catch (error) {
+              // If fit fails and we haven't tried too many times, retry
+              if (attempt < 5) {
+                setTimeout(() => tryFit(attempt + 1), 100);
+              } else {
+                console.warn(
+                  'Initial FitAddon fit failed after retries:',
+                  error,
+                );
+              }
+            }
+          } else if (attempt < 10) {
+            // Container not visible yet or terminal not initialized, retry after a delay
+            setTimeout(() => tryFit(attempt + 1), 100);
+          }
+        } else if (attempt < 10) {
+          setTimeout(() => tryFit(attempt + 1), 100);
+        }
+      };
+
+      // Start trying to fit after a short delay
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          tryFit();
+        });
+      });
+    }
 
     const resizeObserver = new ResizeObserver(() => {
       handleResize();
