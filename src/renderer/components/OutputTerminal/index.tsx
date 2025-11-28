@@ -82,7 +82,7 @@ const OutputTerminal = ({
 
     if (terminalRef.current) {
       termRef.current.open(terminalRef.current);
-      
+
       // Delay fit() until container has dimensions
       // Try multiple times with delays to ensure container is visible
       const tryFit = (attempt = 0) => {
@@ -98,7 +98,10 @@ const OutputTerminal = ({
               if (attempt < 5) {
                 setTimeout(() => tryFit(attempt + 1), 100);
               } else {
-                console.warn('Initial FitAddon fit failed after retries:', error);
+                console.warn(
+                  'Initial FitAddon fit failed after retries:',
+                  error,
+                );
               }
             }
           } else if (attempt < 10) {
@@ -109,7 +112,7 @@ const OutputTerminal = ({
           setTimeout(() => tryFit(attempt + 1), 100);
         }
       };
-      
+
       // Start trying to fit after a short delay
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
