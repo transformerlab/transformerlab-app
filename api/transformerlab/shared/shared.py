@@ -144,9 +144,7 @@ async def async_run_python_script_and_update_status(
     if env:
         process_env.update(env)
 
-    process = await open_process(
-        command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env
-    )
+    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env)
 
     # read stderr and print:
     if process.stdout:
