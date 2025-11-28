@@ -147,11 +147,11 @@ async def require_team_owner(
     return {"user": user, "team_id": x_team, "role": user_team.role, "team": team}
 
 
-@router.get("/test-users/authenticated-route")
-async def authenticated_route(user_and_team=Depends(get_user_and_team)):
-    user = user_and_team["user"]
-    team_id = user_and_team["team_id"]
-    return {"message": f"Hello, {user.email}! You are authenticated and acting as part of team {team_id}."}
+# @router.get("/test-users/authenticated-route")
+# async def authenticated_route(user_and_team=Depends(get_user_and_team)):
+#     user = user_and_team["user"]
+#     team_id = user_and_team["team_id"]
+#     return {"message": f"Hello, {user.email}! You are authenticated and acting as part of team {team_id}."}
 
 
 @router.post("/auth/refresh")
