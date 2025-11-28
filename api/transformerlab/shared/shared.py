@@ -500,6 +500,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
 
     elif master_job_type == "DIFFUSION":
+        print(f"Running diffusion job, job id: {job_id}")
         plugin_name = job_config["plugin"]
 
         await job_service.job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
@@ -587,6 +588,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 config_args.append(f"--{k}")
                 config_args.append(str(v))
 
+        print(f"!!!!Job {job_id}")
         extra_args = (
             plugin_main_args
             + config_args
