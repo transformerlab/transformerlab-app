@@ -37,7 +37,7 @@ def load_compute_providers_config(
 ) -> Dict[str, ComputeProviderConfig]:
     """
     Load compute provider configurations from YAML or JSON file.
-    
+
     Note: YAML file is optional. If not found, returns empty dict.
     Compute providers are typically loaded from the database via the compute_provider router.
 
