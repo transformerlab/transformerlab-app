@@ -49,7 +49,7 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
             .where(OAuthAccount.oauth_name == oauth, OAuthAccount.account_id == account_id)
         )
         result = await self.session.execute(statement)
-        user = result.scalar_one_or_none()
+        user = result.unique().scalar_one_or_none()
         return user
 
 
