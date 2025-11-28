@@ -90,8 +90,9 @@ from transformerlab.db.filesystem_migrations import (  # noqa: E402
     migrate_job_and_experiment_to_filesystem,  # noqa: E402
 )
 from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
-from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
+from lab.dirs import set_organization_id as lab_set_org_id, get_workspace_dir   # noqa: E402
 from lab import storage  # noqa: E402
+
 
 
 # The following environment variable can be used by other scripts
@@ -378,6 +379,10 @@ async def server_worker_start(
         "--parameters",
         json.dumps(inference_params),
     ]
+
+    # Add workspace directory as parameter for subprocess
+    workspace_dir = get_workspace_dir()
+    params.extend(["--workspace_dir", workspace_dir])
 
     job_id = job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
