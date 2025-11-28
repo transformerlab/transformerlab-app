@@ -122,10 +122,11 @@ async def lifespan(app: FastAPI):
     await db.init()  # This now runs Alembic migrations internally
     # create_db_and_tables() is deprecated - migrations are handled in db.init()
     print("✅ SEED DATA")
+    # Initialize experiments
+    seed_default_experiments()
     # Seed default admin user
     await seed_default_admin_user()
-    # Initialize experiments and cancel any running jobs
-    seed_default_experiments()
+    # Cancel any running jobs
     cancel_in_progress_jobs()
 
     if "--reload" in sys.argv:
