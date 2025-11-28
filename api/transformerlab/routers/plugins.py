@@ -266,7 +266,7 @@ async def install_plugin(plugin_id: str):
         await log_file.write(f"## Installing API dependencies for {plugin_id}...\n")
         source_code_dir = os.environ["_TFL_SOURCE_CODE_DIR"]
         pyproject_path = os.path.join(source_code_dir, "pyproject.toml")
-        
+
         if not os.path.exists(pyproject_path):
             error_msg = f"pyproject.toml not found at {pyproject_path}"
             print(error_msg)
