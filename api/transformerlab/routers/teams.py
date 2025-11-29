@@ -11,6 +11,9 @@ from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
 
+from lab import Experiment
+from lab.dirs import set_organization_id
+
 
 class TeamCreate(BaseModel):
     name: str
@@ -75,6 +78,23 @@ async def create_team(
     user_team = UserTeam(user_id=str(user.id), team_id=team.id, role=TeamRole.OWNER.value)
     session.add(user_team)
     await session.commit()
+
+    # Create default experiment "alpha" for the new team
+    # Temporarily set the organization context to the new team ID
+    # so the experiment is created in the correct workspace
+    try:
+        # Set organization context to the new team ID
+        # The middleware will handle context for the next request
+        set_organization_id(team.id)
+
+        # Create the default experiment
+        Experiment("alpha", create_new=True)
+    except Exception as e:
+        # Log error but don't fail team creation if experiment creation fails
+        print(f"Warning: Failed to create default experiment 'alpha' for team {team.id}: {e}")
+    finally:
+        # Clear the organization context (middleware will set it for next request)
+        set_organization_id(None)
 
     return TeamResponse(id=team.id, name=team.name)
 

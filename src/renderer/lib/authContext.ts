@@ -451,6 +451,11 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           : value;
       updateCurrentTeam(next);
       setTeamState(next);
+      // If the team changes, we reload the app to ensure all components pick up new team context
+      // But only do this if the team actually changed
+      if (next?.id !== team?.id) {
+        window.location.reload();
+      }
     },
     [team],
   );
