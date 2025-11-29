@@ -7,15 +7,9 @@
   "version": "0.0.5",
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "diffusion_worker.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cuda",
-    "amd"
-  ],
+  "files": ["main.py", "diffusion_worker.py", "setup.sh"],
+  "model_architectures": ["DiffusionPipeline", "WanPipeline"],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {},
