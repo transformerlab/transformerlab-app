@@ -6,13 +6,12 @@ import requests
 def test_server_info(live_server):
     # Get admin token for authentication
     login_response = requests.post(
-        f"{live_server}/auth/jwt/login",
-        data={"username": "admin@example.com", "password": "admin123"}
+        f"{live_server}/auth/jwt/login", data={"username": "admin@example.com", "password": "admin123"}
     )
     assert login_response.status_code == 200, f"Login failed with {login_response.status_code}: {login_response.text}"
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     # Get user's team ID
     teams_response = requests.get(f"{live_server}/users/me/teams", headers=headers)
     assert teams_response.status_code == 200
@@ -20,7 +19,7 @@ def test_server_info(live_server):
     assert "teams" in teams_data and len(teams_data["teams"]) > 0, "User has no teams"
     team_id = teams_data["teams"][0]["id"]
     headers["X-Team-Id"] = team_id
-    
+
     response = requests.get(f"{live_server}/server/info", headers=headers)
     assert response.status_code == 200
     data = response.json()
@@ -43,13 +42,12 @@ def test_server_info(live_server):
 def test_server_python_libraries(live_server):
     # Get admin token for authentication
     login_response = requests.post(
-        f"{live_server}/auth/jwt/login",
-        data={"username": "admin@example.com", "password": "admin123"}
+        f"{live_server}/auth/jwt/login", data={"username": "admin@example.com", "password": "admin123"}
     )
     assert login_response.status_code == 200, f"Login failed with {login_response.status_code}: {login_response.text}"
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     # Get user's team ID
     teams_response = requests.get(f"{live_server}/users/me/teams", headers=headers)
     assert teams_response.status_code == 200
@@ -57,7 +55,7 @@ def test_server_python_libraries(live_server):
     assert "teams" in teams_data and len(teams_data["teams"]) > 0, "User has no teams"
     team_id = teams_data["teams"][0]["id"]
     headers["X-Team-Id"] = team_id
-    
+
     response = requests.get(f"{live_server}/server/python_libraries", headers=headers)
     assert response.status_code == 200
     data = response.json()
@@ -74,13 +72,12 @@ def test_server_python_libraries(live_server):
 def test_server_pytorch_collect_env(live_server):
     # Get admin token for authentication
     login_response = requests.post(
-        f"{live_server}/auth/jwt/login",
-        data={"username": "admin@example.com", "password": "admin123"}
+        f"{live_server}/auth/jwt/login", data={"username": "admin@example.com", "password": "admin123"}
     )
     assert login_response.status_code == 200, f"Login failed with {login_response.status_code}: {login_response.text}"
     token = login_response.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    
+
     # Get user's team ID
     teams_response = requests.get(f"{live_server}/users/me/teams", headers=headers)
     assert teams_response.status_code == 200
@@ -88,7 +85,7 @@ def test_server_pytorch_collect_env(live_server):
     assert "teams" in teams_data and len(teams_data["teams"]) > 0, "User has no teams"
     team_id = teams_data["teams"][0]["id"]
     headers["X-Team-Id"] = team_id
-    
+
     response = requests.get(f"{live_server}/server/pytorch_collect_env", headers=headers)
     assert response.status_code == 200
     data = response.text
