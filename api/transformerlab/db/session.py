@@ -35,16 +35,16 @@ async def run_alembic_migrations():
         current_dir = os.path.dirname(os.path.abspath(__file__))
         # Go up to api directory where alembic.ini is located
         api_dir = os.path.dirname(os.path.dirname(current_dir))
-        
+
         # Run alembic upgrade head
         result = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=api_dir,
             capture_output=True,
             text=True,
-            check=False
+            check=False,
         )
-        
+
         if result.returncode != 0:
             print(f"⚠️  Alembic migration warning: {result.stderr}")
             # Don't fail completely - the database might already be up to date
