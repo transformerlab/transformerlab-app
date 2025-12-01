@@ -188,9 +188,8 @@ app = fastapi.FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    # Restrict origins so credentialed requests (cookies) are allowed
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # Not needed - we use Bearer token auth, not cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )
