@@ -557,7 +557,10 @@ async def launch_task_on_provider(
 
     # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
     aws_profile = "transformerlab-s3"
-    aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+    if os.getenv("TFL_API_STORAGE_URI"):
+        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+    else:
+        aws_access_key_id, aws_secret_access_key = None, None
 
     # Build setup script - prepend AWS credentials setup if credentials are provided
     setup_commands = []
