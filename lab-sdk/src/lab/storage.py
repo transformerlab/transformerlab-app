@@ -10,7 +10,7 @@ _current_tfl_storage_uri: contextvars.ContextVar[str | None] = contextvars.Conte
     "current_tfl_storage_uri", default=None
 )
 
-_AWS_PROFILE = os.getenv("AWS_PROFILE")
+_AWS_PROFILE = os.getenv("AWS_PROFILE", "transformerlab-s3")
 
 
 def _get_fs_and_root():

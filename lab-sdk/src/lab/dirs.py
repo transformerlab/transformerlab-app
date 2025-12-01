@@ -35,7 +35,13 @@ _current_org_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 def set_organization_id(organization_id: str | None) -> None:
     _current_org_id.set(organization_id)
     if organization_id is not None:
-        _current_tfl_storage_uri.set(os.getenv("TFL_API_STORAGE_URI"))
+        # If TFL_API_STORAGE_URI is set, use s3://<team_id> instead of the value itself
+        tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI")
+        if tfl_api_storage_uri:
+            # Use s3://<team_id> format
+            _current_tfl_storage_uri.set(f"s3://{organization_id}")
+        else:
+            _current_tfl_storage_uri.set(None)
     else:
         _current_tfl_storage_uri.set(None)
 
