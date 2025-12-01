@@ -55,7 +55,7 @@ if EMAIL_AUTH_ENABLED:
     )
 # Include User Management Router (allows authenticated users to view/update their profile)
 router.include_router(
-    fastapi_users.get_users_router(UserRead, UserUpdate),
+    fastapi_users.get_users_router(UserRead, UserUpdate, requires_verification=True),
     prefix="/users",
     tags=["users"],
 )
