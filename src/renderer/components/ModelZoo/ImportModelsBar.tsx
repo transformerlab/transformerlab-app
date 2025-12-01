@@ -81,7 +81,7 @@ export default function ImportModelsBar({ jobId, setJobId }) {
         >
           <FormControl>
             <Input
-              placeholder="decapoda-research/llama-30b-hf"
+              placeholder="Enter model name (e.g. google/gemma-2b)"
               name="download-model-name"
               endDecorator={
                 <Button
