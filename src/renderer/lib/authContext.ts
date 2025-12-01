@@ -223,7 +223,6 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const response = await fetch(fullUrl, {
     ...options,
     headers,
-    credentials: 'include',
   });
 
   // If Unauthorized (401)
@@ -239,7 +238,6 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}) {
           ...headers,
           Authorization: `Bearer ${newAccessToken}`,
         },
-        credentials: 'include',
       });
     } catch (e) {
       // Refresh failed (and user was logged out inside handleRefresh)
@@ -343,7 +341,6 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: form,
-          credentials: 'include',
         });
 
         const data = await (async () => {
@@ -431,7 +428,6 @@ export function AuthProvider({ connection, children }: AuthProviderProps) {
         getAPIFullPath('auth', ['logout'], {}) || '/auth/jwt/logout',
         {
           method: 'POST',
-          credentials: 'include',
         },
       );
     } catch {
