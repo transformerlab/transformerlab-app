@@ -193,8 +193,8 @@ Python dependencies (used by the API) are managed with `pyproject.toml`. To add/
 
 - Base dependencies go in `[project.dependencies]`
 - Platform-specific dependencies go in `[project.optional-dependencies]`:
-  - `nvidia` - For NVIDIA GPU support (includes `nvidia-ml-py`)
-  - `rocm` - For AMD ROCm GPU support (includes `pyrsmi`, `workos`, and PyTorch with `+rocm6.4` suffix)
+  - `nvidia` - For NVIDIA GPU support (includes `nvidia-ml-py`, PyTorch with `+cu128` suffix)
+  - `rocm` - For AMD ROCm GPU support (includes `pyrsmi`, and PyTorch with `+rocm6.4` suffix)
   - `cpu` - For CPU-only installations
 
 To install with a specific platform:
