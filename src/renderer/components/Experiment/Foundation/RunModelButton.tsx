@@ -56,7 +56,11 @@ export default function RunModelButton({
     inferenceEngineFriendlyName: '',
   });
 
-  const { data, error, isLoading } = useAPI(
+  const {
+    data: loaderData,
+    error: loaderError,
+    isLoading: loaderIsLoading,
+  } = useAPI(
     'experiment',
     ['getScriptsOfTypeWithoutFilter'],
     {
@@ -67,6 +71,33 @@ export default function RunModelButton({
       skip: !experimentInfo?.id,
     },
   );
+
+  const {
+    data: diffusionData,
+    error: diffusionError,
+    isLoading: diffusionIsLoading,
+  } = useAPI(
+    'experiment',
+    ['getScriptsOfTypeWithoutFilter'],
+    {
+      experimentId: experimentInfo?.id,
+      type: 'diffusion',
+    },
+    {
+      skip: !experimentInfo?.id,
+    },
+  );
+
+  // Combine loader and diffusion data
+  const data = React.useMemo(() => {
+    const combined = [];
+    if (loaderData) combined.push(...loaderData);
+    if (diffusionData) combined.push(...diffusionData);
+    return combined;
+  }, [loaderData, diffusionData]);
+
+  const error = loaderError || diffusionError;
+  const isLoading = loaderIsLoading || diffusionIsLoading;
 
   const { data: pipelineTagData, isLoading: pipelineTagLoading } = useAPI(
     'models',
