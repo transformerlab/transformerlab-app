@@ -1257,5 +1257,4 @@ async def diffusion_generate_job():
         raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
 
 
-if __name__ == "__main__":
-    diffusion_generate_job()
+diffusion_generate_job()

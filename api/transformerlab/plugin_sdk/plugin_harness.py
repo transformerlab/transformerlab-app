@@ -18,6 +18,7 @@ import os
 parser = argparse.ArgumentParser()
 parser.add_argument("--plugin_dir", type=str, required=True)
 parser.add_argument("--workspace_dir", type=str, required=False)
+parser.add_argument("--job_id", type=str, default=None)
 args, unknown = parser.parse_known_args()
 
 # Set workspace directory if provided

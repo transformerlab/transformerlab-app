@@ -593,7 +593,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 config_args.append(f"--{k}")
                 config_args.append(str(v))
 
-        print(f"!!!!Job {job_id}")
         extra_args = (
             plugin_main_args
             + config_args
