@@ -207,6 +207,7 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     user_teams = result.scalars().all()
 
     # If user has no team associations, create personal team as owner
+    # (dont seed experiment as existing user may already have experiments from old workspace)
     if not user_teams:
         personal_team = await create_personal_team(session, user)
         user_team = UserTeam(user_id=str(user.id), team_id=personal_team.id, role=TeamRole.OWNER.value)
