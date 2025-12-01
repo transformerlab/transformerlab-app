@@ -57,8 +57,13 @@ beautifulsoup4==4.13.4
     # via
     #   markdownify
     #   markitdown
+boto3==1.40.70
+    # via -r requirements-rocm.in
 botocore==1.40.70
-    # via aiobotocore
+    # via
+    #   aiobotocore
+    #   boto3
+    #   s3transfer
 certifi==2022.12.7
     # via
     #   httpcore
@@ -223,6 +228,7 @@ jinja2==3.1.4
 jmespath==1.0.1
     # via
     #   aiobotocore
+    #   boto3
     #   botocore
 joblib==1.4.2
     # via
@@ -493,6 +499,8 @@ rich==14.0.0
     #   typer
 s3fs==2025.3.0
     # via transformerlab
+s3transfer==0.14.0
+    # via boto3
 safetensors==0.5.3
     # via
     #   accelerate
@@ -526,7 +534,6 @@ setuptools==70.2.0
     # via
     #   pytorch-triton-rocm
     #   tensorboard
-    #   torch
     #   wandb
 shellingham==1.5.4
     # via typer

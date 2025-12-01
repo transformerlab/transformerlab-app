@@ -1,6 +1,7 @@
 accelerate
 aiofiles
 aiosqlite
+boto3
 datasets==3.6.0
 einops
 evaluate
