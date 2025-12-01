@@ -189,7 +189,7 @@ app = fastapi.FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # Not needed - we use Bearer token auth, not cookies
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
