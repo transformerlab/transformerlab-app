@@ -35,7 +35,8 @@ def create_s3_bucket_for_team(team_id: str, profile_name: str = "transformerlab-
 
     # Validate bucket name (S3 bucket naming rules)
     # Bucket names must be 3-63 characters, lowercase, and can contain only letters, numbers, dots, and hyphens
-    bucket_name = team_id.lower()
+    # Add workspace_ prefix to bucket name
+    bucket_name = f"workspace_{team_id}".lower()
     if len(bucket_name) < 3 or len(bucket_name) > 63:
         print(f"Team ID '{team_id}' is not a valid S3 bucket name (must be 3-63 characters)")
         return False
