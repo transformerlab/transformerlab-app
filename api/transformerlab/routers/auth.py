@@ -13,6 +13,7 @@ from transformerlab.models.users import (
     get_refresh_strategy,
     google_oauth_client,
     GOOGLE_OAUTH_ENABLED,
+    EMAIL_AUTH_ENABLED,
     SECRET,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,30 +28,31 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
-# Include Auth and Registration Routers
-# Require user verification before login (is_verified must be True)
-router.include_router(
-    fastapi_users.get_auth_router(auth_backend, requires_verification=True),
-    prefix="/auth/jwt",
-    tags=["auth"],
-)
-# User starts with is_verified=False by default, must verify email
-router.include_router(
-    fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/auth",
-    tags=["auth"],
-)
-router.include_router(
-    fastapi_users.get_reset_password_router(),
-    prefix="/auth",
-    tags=["auth"],
-)
-# Include Verify Email Router (allows users to verify their email address)
-router.include_router(
-    fastapi_users.get_verify_router(UserRead),
-    prefix="/auth",
-    tags=["auth"],
-)
+# Include Auth and Registration Routers only if EMAIL_AUTH_ENABLED is True
+if EMAIL_AUTH_ENABLED:
+    # Require user verification before login (is_verified must be True)
+    router.include_router(
+        fastapi_users.get_auth_router(auth_backend, requires_verification=True),
+        prefix="/auth/jwt",
+        tags=["auth"],
+    )
+    # User starts with is_verified=False by default, must verify email
+    router.include_router(
+        fastapi_users.get_register_router(UserRead, UserCreate),
+        prefix="/auth",
+        tags=["auth"],
+    )
+    router.include_router(
+        fastapi_users.get_reset_password_router(),
+        prefix="/auth",
+        tags=["auth"],
+    )
+    # Include Verify Email Router (allows users to verify their email address)
+    router.include_router(
+        fastapi_users.get_verify_router(UserRead),
+        prefix="/auth",
+        tags=["auth"],
+    )
 # Include User Management Router (allows authenticated users to view/update their profile)
 router.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate, requires_verification=True),
@@ -205,6 +207,7 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     user_teams = result.scalars().all()
 
     # If user has no team associations, create personal team as owner
+    # (dont seed experiment as existing user may already have experiments from old workspace)
     if not user_teams:
         personal_team = await create_personal_team(session, user)
         user_team = UserTeam(user_id=str(user.id), team_id=personal_team.id, role=TeamRole.OWNER.value)
