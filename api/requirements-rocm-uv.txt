@@ -625,7 +625,7 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformerlab==0.0.46
+transformerlab==0.0.45
     # via
     #   -r requirements-rocm.in
     #   transformerlab-inference
