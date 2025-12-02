@@ -159,24 +159,56 @@ async def async_run_python_script_and_update_status(
 
     process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env)
 
-    # read stderr and print:
-    if process.stdout:
-        async for text in TextReceiveStream(process.stdout):
-            print(">> " + text)
-            if begin_string in text:
-                print(f"Job {job_id} now in progress!")
-                job = job_service.job_get(job_id)
-                experiment_id = job["experiment_id"]
-                await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+    # 1. Define the output reader task
+    async def read_stream_output():
+        if process.stdout:
+            async for text in TextReceiveStream(process.stdout):
+                print(">> " + text)
+                if begin_string in text:
+                    print(f"Job {job_id} now in progress!")
+                    # Note: We assume job_service and job_update_status are available in scope
+                    job = job_service.job_get(job_id)
+                    experiment_id = job["experiment_id"]
+                    await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
 
-            # Check the job_data column for the stop flag:
-            job_row = job_service.job_get(job_id)
-            job_data = job_row.get("job_data", None)
-            if job_data and job_data.get("stop", False):
-                print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
-                raise asyncio.CancelledError()
+    # 2. Define the supervisor task (checks DB every 1s)
+    async def monitor_stop_signal():
+        while True:
+            await asyncio.sleep(1.0)  # Check 1/sec instead of every line of output
+
+            # If process finished naturally, stop monitoring
+            if process.returncode is not None:
+                break
+
+            try:
+                # Check DB for stop flag
+                job_row = job_service.job_get(job_id)
+                job_data = job_row.get("job_data", None)
+                if job_data and job_data.get("stop", False):
+                    return True  # Signal that we found the stop flag
+            except Exception as e:
+                print(f"Error checking stop status for job {job_id}: {e}")
+                # Don't crash the monitor, just try again next second
+                continue
+
+    # 3. Create tasks and run them together
+    reader_task = asyncio.create_task(read_stream_output())
+    monitor_task = asyncio.create_task(monitor_stop_signal())
+
+    # Wait until EITHER the output finishes (script ends) OR the monitor signals stop
+    done, pending = await asyncio.wait([reader_task, monitor_task], return_when=asyncio.FIRST_COMPLETED)
+
+    # Clean up the pending task (if monitor triggered, kill reader; if reader finished, kill monitor)
+    for task in pending:
+        task.cancel()
 
     try:
+        # Check if we stopped because of the monitor (User pressed Stop)
+        if monitor_task in done and monitor_task.result() is True:
+            print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
+            raise asyncio.CancelledError()
+
+        # If we get here, the process finished normally (reader_task finished)
         await process.wait()
 
         if process.returncode == 0:
@@ -193,11 +225,19 @@ async def async_run_python_script_and_update_status(
         return process
 
     except asyncio.CancelledError:
-        process.kill()
-        await process.wait()
+        # This block handles the actual killing of the process
+        try:
+            process.terminate()  # Try nice kill first
+            try:
+                await asyncio.wait_for(process.wait(), timeout=5.0)
+            except asyncio.TimeoutError:
+                process.kill()  # Force kill if stubborn
+        except ProcessLookupError:
+            pass  # Process already dead
 
         print(f"Job {job_id} cancelled.")
 
+        # Propagate error so calling function handles status update
         raise asyncio.CancelledError()
 
 
