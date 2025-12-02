@@ -2,27 +2,26 @@ import asyncio
 import json
 import os
 import re
-import psutil
 import subprocess
 import sys
 import threading
 import time
 import unicodedata
-
-from anyio import open_process
-from anyio.streams.text import TextReceiveStream
-from werkzeug.utils import secure_filename
 from collections import deque
 
-from transformerlab.services.experiment_service import experiment_get
-from transformerlab.services.job_service import job_update_status_sync, job_update_status
+import psutil
+from anyio import open_process
+from anyio.streams.text import TextReceiveStream
+from lab import Experiment, Job, storage
+from lab import dirs as lab_dirs
+from lab.dirs import get_global_log_path, get_workspace_dir
+from werkzeug.utils import secure_filename
+
 import transformerlab.services.job_service as job_service
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
-from lab.dirs import get_global_log_path
-from lab import dirs as lab_dirs, Job, Experiment
-from lab import storage
-from lab.dirs import get_workspace_dir
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_update_status, job_update_status_sync
 from transformerlab.shared import dirs
 
 
@@ -1354,6 +1353,7 @@ def clear_vram_and_kill_sglang():
     """Clean up pipeline to free VRAM"""
     try:
         import gc
+
         import torch
 
         # Force garbage collection multiple times
