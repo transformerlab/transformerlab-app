@@ -28,44 +28,57 @@ from transformerlab.shared import dirs
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
     """
-    Runs a subprocess.Popen, and then calls the function onExit when the
-    subprocess completes.
-
-    Use it exactly the way you'd normally use subprocess.Popen, except include a
-    callable to execute as the first argument. onExit is a callable object, and
-    *popenArgs and **popenKWArgs are simply passed up to subprocess.Popen.
-
-    from https://stackoverflow.com/questions/2581817/python-subprocess-callback-when-cmd-exits
-
-    #TODO: There is an async IO way of doing this instead:
-    https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.create_subprocess_exec
-    If we use the above then we can probably make onExit a coroutine and await it
-    but when I tried to implement it as above, it would not work. The subprocess
-    wouldn't work concurrently as expected.
+    Runs a subprocess.Popen, then calls onExit when it completes.
     """
 
+    # -------- REMOVE EXISTING IO ARGS IMMEDIATELY --------
+    # Remove stdin/stdout/stderr BEFORE anything else
+    cleanedKW = dict(popenKWArgs)
+    for key in ["stdin", "stdout", "stderr"]:
+        cleanedKW.pop(key, None)
+
     def runInThread(onExit, popenArgs, popenKWArgs):
+        # -------- HANDLE ENV MERGE --------
+        if "env" in popenKWArgs and popenKWArgs["env"]:
+            additional_env = popenKWArgs["env"]
+            process_env = os.environ.copy()
+            process_env.update(additional_env)
+            popenKWArgs = {k: v for k, v in popenKWArgs.items() if k != "env"}
+            popenKWArgs["env"] = process_env
+        elif "env" in popenKWArgs:
+            popenKWArgs = {k: v for k, v in popenKWArgs.items() if k != "env"}
+
+        # -------- OUTPUT FILE SETUP --------
         if output_file is not None:
             log = storage.open(output_file, "a")
-            # get the current date and time as a string:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            print("Printing to file: " + output_file)
-            log.write(f"\n\n-- RUN {current_time}--\n")
+            log.write(f"\n\n-- RUN {current_time} --\n")
             log.flush()
         else:
-            print("No output file specified, printing to stdout")
             log = subprocess.PIPE
 
-        proc = subprocess.Popen(*popenArgs, **popenKWArgs, stdin=subprocess.PIPE, stdout=log, stderr=log)
+        # -------- REMOVE IO AGAIN (SAFETY) --------
+        for key in ["stdin", "stdout", "stderr"]:
+            popenKWArgs.pop(key, None)
+
+        # -------- SET OUR IO --------
+        popenKWArgs["stdin"] = subprocess.PIPE
+        popenKWArgs["stdout"] = log
+        popenKWArgs["stderr"] = log
+
+        print("FINAL popenKWArgs:", popenKWArgs)
+        print("FINAL popenArgs:", popenArgs)
+
+        proc = subprocess.Popen(popenArgs, **popenKWArgs)
         proc.communicate(input=input.encode("utf-8"))
         proc.wait()
+
         onExit()
-        return
 
-    thread = threading.Thread(target=runInThread, args=(onExit, popenArgs, popenKWArgs))
+    # Pass copies into thread
+    thread = threading.Thread(target=runInThread, args=(onExit, list(popenArgs), dict(cleanedKW)))
     thread.start()
-
-    return thread  # returns immediately after the thread starts
+    return thread
 
 
 def slugify(value, allow_unicode=False):
@@ -85,7 +98,9 @@ def slugify(value, allow_unicode=False):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
-async def async_run_python_script_and_update_status(python_script: list[str], job_id: str, begin_string: str):
+async def async_run_python_script_and_update_status(
+    python_script: list[str], job_id: str, begin_string: str, env: dict | None = None
+):
     """
     Use this script for one time, long running scripts that have a definite end. For example
     downloading a model.
@@ -93,7 +108,15 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     This function runs a python script and updates the status of the job in the database
     to RUNNING when the python script prints begin_string to stderr
 
-    The FastAPI worker uses stderr, not stdout"""
+    The FastAPI worker uses stderr, not stdout
+
+    Args:
+        python_script: List of command-line arguments for the Python script
+        job_id: Job ID for status updates
+        begin_string: String to look for in output to mark job as RUNNING
+        env: Optional dictionary of environment variables to pass to subprocess.
+             These are merged with the current environment and are process-local (won't leak to API).
+    """
 
     print(f"Job {job_id} Running async python script: " + str(python_script))
     # Extract plugin location from the python_script list
@@ -128,7 +151,13 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
         print(">Using system Python interpreter")
         command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
-    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    # Prepare environment variables for subprocess
+    # Start with current environment and merge any provided env vars
+    process_env = os.environ.copy()
+    if env:
+        process_env.update(env)
+
+    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env)
 
     # read stderr and print:
     if process.stdout:
@@ -208,7 +237,7 @@ async def read_process_output(process, job_id, log_handle=None):
 
 
 async def async_run_python_daemon_and_update_status(
-    python_script: list[str], job_id: str, begin_string: str, set_process_id_function=None
+    python_script: list[str], job_id: str, begin_string: str, set_process_id_function=None, env: dict | None = None
 ):
     """Use this function for daemon processes, for example setting up a model for inference.
     This function is helpful when the start of the daemon process takes a while. So you can
@@ -218,7 +247,16 @@ async def async_run_python_daemon_and_update_status(
     This function runs a python script and updates the status of the job in the database
     to RUNNING when the python script prints begin_string to stderr
 
-    The FastAPI worker uses stderr, not stdout"""
+    The FastAPI worker uses stderr, not stdout
+
+    Args:
+        python_script: List of command-line arguments for the Python script
+        job_id: Job ID for status updates
+        begin_string: String to look for in output to mark job as RUNNING
+        set_process_id_function: Optional function to set process ID
+        env: Optional dictionary of environment variables to pass to subprocess.
+             These are merged with the current environment and are process-local (won't leak to API).
+    """
 
     print("🏃‍♂️ Running python script: " + str(python_script))
 
@@ -260,8 +298,14 @@ async def async_run_python_daemon_and_update_status(
             print(">Using system Python interpreter")
             command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
+        # Prepare environment variables for subprocess
+        # Start with current environment and merge any provided env vars
+        process_env = os.environ.copy()
+        if env:
+            process_env.update(env)
+
         process = await asyncio.create_subprocess_exec(
-            *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE
+            *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env
         )
 
         pid = process.pid
@@ -365,6 +409,22 @@ async def async_run_python_daemon_and_update_status(
     return process
 
 
+def _get_org_id_for_subprocess():
+    """
+    Helper function to get organization_id from various contexts.
+    Tries request context first, then lab SDK context.
+    Returns None if not found in any context.
+    """
+    # get from lab dirs workspace path
+    from lab.dirs import get_workspace_dir
+
+    workspace_dir = get_workspace_dir()
+    if "/orgs/" in workspace_dir:
+        return workspace_dir.split("/orgs/")[-1].split("/")[0]
+
+    return None
+
+
 async def run_job(job_id: str, job_config, experiment_name: str = "default", job_details: dict = None):
     # This runs a specified job number defined
     # by template_id
@@ -374,6 +434,15 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     print("Job Details: " + str(job_details))
     master_job_type = job_details["type"]
     print(master_job_type)
+
+    # Get organization_id for passing to plugin subprocesses
+    org_id = _get_org_id_for_subprocess()
+    subprocess_env = {}
+    if org_id:
+        subprocess_env["_TFL_ORG_ID"] = org_id
+
+    # Only pass env if it has values (empty dict is falsy, so this works)
+    subprocess_env_or_none = subprocess_env if subprocess_env else None
 
     # Handle TASK jobs separately - they are simple and don't need the common setup
     if master_job_type == "TASK":
@@ -642,6 +711,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     stdout=f,
                     stderr=asyncio.subprocess.STDOUT,
                     cwd=plugin_dir,
+                    env={**os.environ, **subprocess_env} if subprocess_env_or_none else None,
                 )
 
                 await process.communicate()
@@ -851,8 +921,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     # Open file for writing
                     with storage.open(output_file, "a") as f:
                         # Create subprocess with piped stdout
+                        # Pass organization_id via environment variable
+                        process_env = {**os.environ, **subprocess_env} if subprocess_env_or_none else None
                         process = await asyncio.create_subprocess_exec(
-                            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
+                            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, env=process_env
                         )
 
                         # Process output in real-time
@@ -990,7 +1062,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     ]
 
                 # Run the final training synchronously
-                popen_and_call(on_train_complete, experiment_details_as_string, output_file, final_command)
+                # Pass organization_id via environment variable
+                popen_and_call(
+                    on_train_complete,
+                    experiment_details_as_string,
+                    output_file,
+                    *final_command,
+                    env=subprocess_env_or_none,
+                )
                 return
 
             return
@@ -1051,7 +1130,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     experiment_name,
                 ]
 
-        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+        # Pass organization_id via environment variable
+        popen_and_call(
+            on_train_complete,
+            experiment_details_as_string,
+            output_file,
+            *training_popen_command,
+            env=subprocess_env_or_none,
+        )
 
     elif job_type == "pretraining":
         template_config = job_config["config"]
@@ -1111,7 +1197,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 experiment_name,
             ]
 
-        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+        # Pass organization_id via environment variable
+        popen_and_call(
+            on_train_complete,
+            experiment_details_as_string,
+            output_file,
+            *training_popen_command,
+            env=subprocess_env_or_none,
+        )
 
     elif job_type == "embedding":
         template_config = job_config["config"]
@@ -1175,7 +1268,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 experiment_name,
             ]
 
-        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+        # Pass organization_id via environment variable
+        popen_and_call(
+            on_train_complete,
+            experiment_details_as_string,
+            output_file,
+            *training_popen_command,
+            env=subprocess_env_or_none,
+        )
 
     else:
         print("I don't know what to do with this job type: " + job_type)
