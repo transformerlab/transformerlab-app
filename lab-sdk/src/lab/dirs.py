@@ -39,7 +39,7 @@ def set_organization_id(organization_id: str | None) -> None:
         tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI")
         if tfl_api_storage_uri:
             # Use s3://workspace_<team_id> format
-            _current_tfl_storage_uri.set(f"s3://workspace_{organization_id}")
+            _current_tfl_storage_uri.set(f"s3://workspace-{organization_id}")
         else:
             _current_tfl_storage_uri.set(None)
     else:
