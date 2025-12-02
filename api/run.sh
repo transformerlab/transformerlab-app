@@ -18,14 +18,16 @@ HTTPS=false
 
 # Load environment variables from .env files
 load_env_files() {
-    # Look for .env files in current directory only
+    # Load .env files in order of priority (later files override earlier ones)
+    # First: base config from TLAB_DIR (lowest priority)
+    # Then: local .env files (higher priority, can override base)
     local env_files=(
+        "${TLAB_DIR}/.env"
         ".env"
         "../.env"
     )
 
     for env_file in "${env_files[@]}"; do
-        # Check in current directory only
         if [ -f "$env_file" ]; then
             echo "📄 Loading environment variables from $env_file"
             # Export variables from .env file, ignoring comments and empty lines

@@ -203,28 +203,21 @@ download_transformer_lab() {
 
 
   # Generate and save JWT secrets to .env file
-  ohai "Generating JWT secrets..."
-  ENV_FILE="${TLAB_CODE_DIR}/.env"
+  ENV_FILE="${TLAB_DIR}/.env"
 
-  # Keep fixed secrets since production users will be using it in single-user mode
-  JWT_SECRET=a7dddf56f109d80b574e4f2f67cf0a76946c526517d0bd9bd34d07dd233fe52fafc9dd9ccd8e84c2c0433c4e2688ce15e890f77fb09a30e49088792185995b2f
-  REFRESH_SECRET=15296c5f72f6bb067fa081d198b7273afd155df56fcd850dae68bac5aa1df3e69325a90c2bf40cfc55be81019d0cd074dfbafd7284b63795cf80dda3a8eb6ce5
+  # Only generate and save secrets if .env file doesn't exist
+  if [ ! -f "${ENV_FILE}" ]; then
+    ohai "Generating JWT secrets..."
+    # Generate random 64-byte secrets (128 hex characters) using /dev/urandom
+    JWT_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
+    REFRESH_SECRET=$(od -An -N 64 -tx1 /dev/urandom | tr -d ' \n')
 
-  # Create or update .env file
-  if [ -f "${ENV_FILE}" ]; then
-    # File exists, check if secrets are already present
-    if ! grep -q "^TRANSFORMERLAB_JWT_SECRET=" "${ENV_FILE}"; then
-      echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" >> "${ENV_FILE}"
-    fi
-    if ! grep -q "^TRANSFORMERLAB_REFRESH_SECRET=" "${ENV_FILE}"; then
-      echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
-    fi
-    ohai "✅ JWT secrets checked/added to existing ${ENV_FILE}"
-  else
-    # Create new .env file
+    # Create new .env file with generated secrets
     echo "TRANSFORMERLAB_JWT_SECRET=${JWT_SECRET}" > "${ENV_FILE}"
     echo "TRANSFORMERLAB_REFRESH_SECRET=${REFRESH_SECRET}" >> "${ENV_FILE}"
     ohai "✅ JWT secrets generated and saved to ${ENV_FILE}"
+  else
+    ohai "✅ ${ENV_FILE} already exists, skipping secret generation"
   fi
 
 
@@ -531,9 +524,9 @@ print_success_message() {
   echo
 }
 
-# Load .env configuration (prefer current dir, then fallback to app src dir)
+# Load .env configuration (base config first, then local override)
+load_env_from_file "${TLAB_DIR}/.env"
 load_env_from_file "${RUN_DIR}/.env"
-load_env_from_file "${TLAB_CODE_DIR}/.env"
 
 # Check if there are positional arguments; if not, perform full install
 if [[ "$#" -eq 0 ]]; then
