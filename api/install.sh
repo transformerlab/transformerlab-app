@@ -524,10 +524,6 @@ print_success_message() {
   echo
 }
 
-# Load .env configuration (base config first, then local override)
-load_env_from_file "${TLAB_DIR}/.env"
-load_env_from_file "${RUN_DIR}/.env"
-
 # Check if there are positional arguments; if not, perform full install
 if [[ "$#" -eq 0 ]]; then
   title "Performing a full installation of Transformer Lab."

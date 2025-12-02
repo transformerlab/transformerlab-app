@@ -23,7 +23,6 @@ load_env_files() {
     # Then: local .env files (higher priority, can override base)
     local env_files=(
         "${TLAB_DIR}/.env"
-        ".env"
         "../.env"
     )
 
