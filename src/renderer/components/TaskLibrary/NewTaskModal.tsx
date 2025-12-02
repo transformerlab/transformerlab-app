@@ -71,7 +71,6 @@ export default function NewTaskModal({
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: form.toString(),
-        credentials: 'include',
       });
 
       const result = await response.json();
