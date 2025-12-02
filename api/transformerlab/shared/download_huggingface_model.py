@@ -1,20 +1,18 @@
-import json
-import sqlite3
-import time
-from threading import Thread, Event
-from huggingface_hub import hf_hub_download, snapshot_download, HfFileSystem, list_repo_files
-from huggingface_hub.utils import GatedRepoError, EntryNotFoundError
 import argparse
+import json
 import os
+import sqlite3
 import sys
-from pathlib import Path
+import time
 from multiprocessing import Process, Queue
-from werkzeug.utils import secure_filename
+from pathlib import Path
+from threading import Event, Thread
 
-from lab import HOME_DIR, Job
-from lab import storage
+from huggingface_hub import HfFileSystem, hf_hub_download, list_repo_files, snapshot_download
+from huggingface_hub.utils import EntryNotFoundError, GatedRepoError
+from lab import HOME_DIR, Job, storage
 from lab.dirs import set_organization_id
-
+from werkzeug.utils import secure_filename
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 
@@ -399,7 +397,14 @@ def cancel_check(job_id, org_id):
             set_organization_id(org_id)
         try:
             job = Job.get(job_id)
-            return job.get_status() == "cancelled"
+
+            if job.get_status() == "cancelled":
+                return True
+
+            job_data = job.get_job_data()
+            if job_data.get("stop") is True:
+                return True
+
         finally:
             if org_id:
                 set_organization_id(None)
