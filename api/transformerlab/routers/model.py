@@ -51,12 +51,11 @@ def get_current_org_id() -> str | None:
     Returns None if multitenancy is disabled or org id cannot be determined.
     """
     try:
-        if os.getenv("TFL_MULTITENANT") == "true":
-            from lab.dirs import get_workspace_dir
+        from lab.dirs import get_workspace_dir
 
-            ws = get_workspace_dir()
-            if "/orgs/" in ws:
-                return ws.split("/orgs/")[-1].split("/")[0]
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            return ws.split("/orgs/")[-1].split("/")[0]
     except Exception:
         pass
     return None
@@ -517,20 +516,18 @@ async def download_huggingface_model(
 
     # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
     try:
-        if os.getenv("TFL_MULTITENANT") == "true" and organization_id:
+        if organization_id:
             # Construct org-specific workspace path manually
             from lab import HOME_DIR
 
             workspace_dir = storage.join(HOME_DIR, "orgs", organization_id, "workspace")
-            print(f"🔵 CONSTRUCTED ORG WORKSPACE: {workspace_dir}")
         else:
             # Use default workspace path
             workspace_dir = get_workspace_dir()
-            print(f"🔵 DEFAULT WORKSPACE: {workspace_dir}")
-        print(f"🔵 PASSING TO SUBPROCESS: --workspace_dir {workspace_dir}")
+
         args += ["--workspace_dir", workspace_dir]
     except Exception as e:
-        print(f"🔵 ERROR CONSTRUCTING WORKSPACE: {e}")
+        print(f"Error constructing workspace directory: {e}")
         pass
 
     if hugging_face_filename is not None:
@@ -541,8 +538,14 @@ async def download_huggingface_model(
         args += ["--allow_patterns", allow_patterns_json]
 
     try:
+        # Pass organization_id as environment variable to subprocess
+        # This allows the subprocess to set lab_set_org_id without leaking to the API
+        subprocess_env = {}
+        if organization_id:
+            subprocess_env["_TFL_ORG_ID"] = organization_id
+
         process = await shared.async_run_python_script_and_update_status(
-            python_script=args, job_id=job_id, begin_string="Fetching"
+            python_script=args, job_id=job_id, begin_string="Fetching", env=subprocess_env
         )
         exitcode = process.returncode
 
@@ -668,6 +671,7 @@ on the model's Huggingface page."
         model_details["allow_patterns"] = sd_patterns
 
     org_id = get_current_org_id()
+    print("🔵 CURRENT ORG ID: ", org_id)
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -763,6 +767,8 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
                 gallery_entry["pipeline_tag"] = "text-generation"
 
     org_id = get_current_org_id()
+    print("🔵 CURRENT ORG ID: ", org_id)
+
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
 
