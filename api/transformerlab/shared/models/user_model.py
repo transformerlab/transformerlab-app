@@ -49,7 +49,8 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
             .where(OAuthAccount.oauth_name == oauth, OAuthAccount.account_id == account_id)
         )
         result = await self.session.execute(statement)
-        user = result.scalar_one_or_none()
+        # The unique() is used to ensure that we only get one user back. The `lazy=joined` in the table definition makes sure it returns a collection and we need to pick a single user.
+        user = result.unique().scalar_one_or_none()
         return user
 
 

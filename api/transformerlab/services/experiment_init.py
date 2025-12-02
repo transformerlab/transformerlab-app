@@ -2,6 +2,7 @@ from lab import Experiment, Job
 from lab.dirs import get_jobs_dir
 from lab import storage
 from lab import HOME_DIR
+from lab import dirs as lab_dirs
 
 from sqlalchemy import select
 from transformerlab.shared.models.user_model import AsyncSessionLocal, create_personal_team
@@ -361,24 +362,45 @@ def seed_default_experiments():
 
 
 def cancel_in_progress_jobs():
-    """On startup, mark any RUNNING jobs as CANCELLED in the filesystem job store."""
-    jobs_dir = get_jobs_dir()
-    if not storage.exists(jobs_dir):
-        return
-
+    """On startup, mark any RUNNING jobs as CANCELLED in the filesystem job store across all organizations."""
+    # Get HOME_DIR
     try:
-        entries = storage.ls(jobs_dir, detail=False)
-        for entry_path in entries:
-            if storage.isdir(entry_path):
-                try:
-                    # Extract the job ID from the path
-                    job_id = entry_path.rstrip("/").split("/")[-1]
-                    job = Job.get(job_id)
-                    if job.get_status() == "RUNNING":
-                        job.update_status("CANCELLED")
-                        print(f"Cancelled running job: {job_id}")
-                except Exception:
-                    # If we can't access the job, continue to the next one
-                    pass
-    except Exception:
-        pass
+        home_dir = HOME_DIR
+    except AttributeError:
+        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+
+    # Check all org directories
+    orgs_dir = storage.join(home_dir, "orgs")
+    if storage.exists(orgs_dir) and storage.isdir(orgs_dir):
+        try:
+            org_entries = storage.ls(orgs_dir, detail=False)
+            for org_path in org_entries:
+                if storage.isdir(org_path):
+                    org_id = org_path.rstrip("/").split("/")[-1]
+
+                    # Set org context to check jobs for this org
+                    lab_dirs.set_organization_id(org_id)
+
+                    try:
+                        jobs_dir = get_jobs_dir()
+                        if storage.exists(jobs_dir):
+                            entries = storage.ls(jobs_dir, detail=False)
+                            for entry_path in entries:
+                                if storage.isdir(entry_path):
+                                    try:
+                                        # Extract the job ID from the path
+                                        job_id = entry_path.rstrip("/").split("/")[-1]
+                                        job = Job.get(job_id)
+                                        if job.get_status() == "RUNNING":
+                                            job.update_status("CANCELLED")
+                                            print(f"Cancelled running job: {job_id} (org: {org_id})")
+                                    except Exception:
+                                        # If we can't access the job, continue to the next one
+                                        pass
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+
+    # Clear org context
+    lab_dirs.set_organization_id(None)
