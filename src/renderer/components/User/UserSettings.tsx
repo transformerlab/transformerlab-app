@@ -270,8 +270,13 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
   const [expiresInDays, setExpiresInDays] = useState<number | null>(null);
   const [createdKey, setCreatedKey] = useState<any>(null);
   const [showKey, setShowKey] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleCreateKey = async () => {
+    setErrorMessage(null);
+    setIsCreating(true);
+
     try {
       const response = await fetchWithAuth(
         getAPIFullPath('auth', ['apiKeys', 'create'], {}) || '',
@@ -290,9 +295,10 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(
+        setErrorMessage(
           `Failed to create API key: ${error.detail || response.statusText}`,
         );
+        setIsCreating(false);
         return;
       }
 
@@ -301,10 +307,13 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
       setNewKeyName('');
       setSelectedTeamId(null);
       setExpiresInDays(null);
+      setIsCreateModalOpen(false); // Close modal on success
+      setIsCreating(false);
       mutateApiKeys();
     } catch (error) {
       console.error('Error creating API key:', error);
-      alert('Failed to create API key');
+      setErrorMessage('Failed to create API key. Please try again.');
+      setIsCreating(false);
     }
   };
 
@@ -391,7 +400,10 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
         <Typography level="title-lg">API Keys</Typography>
         <Button
           startDecorator={<PlusIcon size={16} />}
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={() => {
+            setIsCreateModalOpen(true);
+            setErrorMessage(null); // Clear any previous errors
+          }}
         >
           Create API Key
         </Button>
@@ -523,7 +535,13 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
 
       <Modal
         open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setErrorMessage(null);
+          setNewKeyName('');
+          setSelectedTeamId(null);
+          setExpiresInDays(null);
+        }}
       >
         <ModalDialog>
           <DialogTitle>Create API Key</DialogTitle>
@@ -573,11 +591,31 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
               />
             </FormControl>
           </DialogContent>
+          {errorMessage && (
+            <Alert color="danger" sx={{ mt: 2 }}>
+              <Typography level="body-sm">{errorMessage}</Typography>
+            </Alert>
+          )}
           <DialogActions>
-            <Button onClick={() => setIsCreateModalOpen(false)} variant="plain">
+            <Button
+              onClick={() => {
+                setIsCreateModalOpen(false);
+                setErrorMessage(null);
+                setNewKeyName('');
+                setSelectedTeamId(null);
+                setExpiresInDays(null);
+              }}
+              variant="plain"
+              disabled={isCreating}
+            >
               Cancel
             </Button>
-            <Button onClick={handleCreateKey} variant="solid">
+            <Button
+              onClick={handleCreateKey}
+              variant="solid"
+              loading={isCreating}
+              disabled={isCreating}
+            >
               Create
             </Button>
           </DialogActions>
