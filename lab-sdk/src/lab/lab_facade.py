@@ -406,12 +406,19 @@ class Lab:
                 )
             src = source_path
             # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-            if not src.startswith(
+            is_remote = src.startswith(
                 ("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")
-            ):
+            )
+            if not is_remote:
                 src = os.path.abspath(src)
-            if not storage.exists(src):
-                raise FileNotFoundError(f"Model source does not exist: {src}")
+
+            # Check source existence: use local filesystem for local paths, storage backend for remote
+            if is_remote:
+                if not storage.exists(src):
+                    raise FileNotFoundError(f"Model source does not exist: {src}")
+            else:
+                if not os.path.exists(src):
+                    raise FileNotFoundError(f"Model source does not exist: {src}")
 
             # Get model-specific parameters from config
             model_config = {}
@@ -450,8 +457,14 @@ class Lab:
             # Create parent directories
             storage.makedirs(models_dir, exist_ok=True)
 
-            # Copy file or directory using storage module
-            if storage.isdir(src):
+            # Copy file or directory
+            # Check if source is directory: use local filesystem for local paths, storage backend for remote
+            if is_remote:
+                src_is_dir = storage.isdir(src)
+            else:
+                src_is_dir = os.path.isdir(src)
+
+            if src_is_dir:
                 if storage.exists(dest):
                     storage.rm_tree(dest)
                 storage.copy_dir(src, dest)
@@ -558,12 +571,19 @@ class Lab:
             raise ValueError("source_path must be a non-empty string")
         src = source_path
         # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-        if not src.startswith(
+        is_remote = src.startswith(
             ("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")
-        ):
+        )
+        if not is_remote:
             src = os.path.abspath(src)
-        if not storage.exists(src):
-            raise FileNotFoundError(f"Artifact source does not exist: {src}")
+
+        # Check source existence: use local filesystem for local paths, storage backend for remote
+        if is_remote:
+            if not storage.exists(src):
+                raise FileNotFoundError(f"Artifact source does not exist: {src}")
+        else:
+            if not os.path.exists(src):
+                raise FileNotFoundError(f"Artifact source does not exist: {src}")
 
         # Determine destination directory based on type
         if type == "evals":
@@ -582,7 +602,13 @@ class Lab:
         storage.makedirs(dest_dir, exist_ok=True)
 
         # Copy file or directory
-        if storage.isdir(src):
+        # Check if source is directory: use local filesystem for local paths, storage backend for remote
+        if is_remote:
+            src_is_dir = storage.isdir(src)
+        else:
+            src_is_dir = os.path.isdir(src)
+
+        if src_is_dir:
             if storage.exists(dest):
                 storage.rm_tree(dest)
             storage.copy_dir(src, dest)
@@ -735,12 +761,19 @@ class Lab:
             raise ValueError("source_path must be a non-empty string")
         src = source_path
         # For local paths, resolve to absolute path; for remote paths (s3://, etc.), use as-is
-        if not src.startswith(
+        is_remote = src.startswith(
             ("s3://", "gs://", "abfs://", "gcs://", "http://", "https://")
-        ):
+        )
+        if not is_remote:
             src = os.path.abspath(src)
-        if not storage.exists(src):
-            raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
+
+        # Check source existence: use local filesystem for local paths, storage backend for remote
+        if is_remote:
+            if not storage.exists(src):
+                raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
+        else:
+            if not os.path.exists(src):
+                raise FileNotFoundError(f"Checkpoint source does not exist: {src}")
 
         job_id = self._job.id  # type: ignore[union-attr]
         ckpts_dir = dirs.get_job_checkpoints_dir(job_id)
@@ -755,7 +788,13 @@ class Lab:
         storage.makedirs(ckpts_dir, exist_ok=True)
 
         # Copy file or directory
-        if storage.isdir(src):
+        # Check if source is directory: use local filesystem for local paths, storage backend for remote
+        if is_remote:
+            src_is_dir = storage.isdir(src)
+        else:
+            src_is_dir = os.path.isdir(src)
+
+        if src_is_dir:
             if storage.exists(dest):
                 storage.rm_tree(dest)
             storage.copy_dir(src, dest)
