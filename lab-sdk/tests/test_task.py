@@ -251,15 +251,11 @@ def test_task_list_by_type_in_experiment(tmp_path, monkeypatch):
     # List tasks by type and experiment
     exp1_training = Task.list_by_type_in_experiment("training", 1)
     assert len(exp1_training) >= 1
-    assert all(
-        t["type"] == "training" and t["experiment_id"] == 1 for t in exp1_training
-    )
+    assert all(t["type"] == "training" and t["experiment_id"] == 1 for t in exp1_training)
 
     exp2_training = Task.list_by_type_in_experiment("training", 2)
     assert len(exp2_training) >= 1
-    assert all(
-        t["type"] == "training" and t["experiment_id"] == 2 for t in exp2_training
-    )
+    assert all(t["type"] == "training" and t["experiment_id"] == 2 for t in exp2_training)
 
 
 def test_task_get_by_id(tmp_path, monkeypatch):

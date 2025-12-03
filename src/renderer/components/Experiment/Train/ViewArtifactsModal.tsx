@@ -35,6 +35,9 @@ export default function ViewArtifactsModal({
     noArtifacts = true;
   }
 
+  const hasDate = !!data?.artifacts?.some((artifact) => artifact.date);
+  const hasSize = !!data?.artifacts?.some((artifact) => artifact.size);
+
   return (
     <Modal open={open} onClose={onClose}>
       <ModalDialog
@@ -81,8 +84,8 @@ export default function ViewArtifactsModal({
                     <tr>
                       <th style={{ width: '50px' }}>#</th>
                       <th>Artifact</th>
-                      <th>Date</th>
-                      <th style={{ width: '100px' }}>Size</th>
+                      {hasDate && <th>Date</th>}
+                      {hasSize && <th style={{ width: '100px' }}>Size</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -98,8 +101,18 @@ export default function ViewArtifactsModal({
                             {artifact.filename}
                           </Typography>
                         </td>
-                        <td>{new Date(artifact.date).toLocaleString()}</td>
-                        <td>{formatBytes(artifact.size)}</td>
+                        {hasDate && (
+                          <td>
+                            {artifact.date
+                              ? new Date(artifact.date).toLocaleString()
+                              : '-'}
+                          </td>
+                        )}
+                        {hasSize && (
+                          <td>
+                            {artifact.size ? formatBytes(artifact.size) : '-'}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
