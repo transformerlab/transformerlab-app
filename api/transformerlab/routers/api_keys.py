@@ -1,6 +1,6 @@
 """Router for managing API keys."""
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, update
 from typing import Optional, List
@@ -8,15 +8,12 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 
 from transformerlab.shared.models.user_model import get_async_session
-from transformerlab.shared.models.models import ApiKey, User, Team, UserTeam
+from transformerlab.shared.models.models import ApiKey, User, Team
 from transformerlab.models.users import current_active_user
-from transformerlab.routers.auth import get_user_and_team
 from transformerlab.utils.api_key_utils import (
     generate_api_key,
     hash_api_key,
     get_key_prefix,
-    validate_api_key_format,
-    is_key_expired,
 )
 from transformerlab.services.provider_service import (
     validate_team_exists,

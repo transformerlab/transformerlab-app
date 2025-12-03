@@ -1,16 +1,14 @@
 """API Key authentication helpers."""
 
-from fastapi import Request, HTTPException, Depends
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Request, HTTPException
+from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
 from datetime import datetime
 
-from transformerlab.shared.models.user_model import get_async_session
-from transformerlab.shared.models.models import ApiKey, User, UserTeam, Team
+from transformerlab.shared.models.models import ApiKey, User, UserTeam
 from transformerlab.utils.api_key_utils import hash_api_key, is_key_expired, validate_api_key_format
-from transformerlab.services.provider_service import validate_user_team_membership
 from transformerlab.shared.models.user_model import create_personal_team
 
 security = HTTPBearer(auto_error=False)

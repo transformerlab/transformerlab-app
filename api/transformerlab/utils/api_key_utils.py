@@ -2,7 +2,7 @@
 
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 
