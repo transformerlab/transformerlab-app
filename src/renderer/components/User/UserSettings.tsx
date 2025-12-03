@@ -25,7 +25,13 @@ import {
 } from '@mui/joy';
 import { useState } from 'react';
 import { useAPI, useAuth } from 'renderer/lib/authContext';
-import { CopyIcon, TrashIcon, EyeIcon, EyeOffIcon, PlusIcon } from 'lucide-react';
+import {
+  CopyIcon,
+  TrashIcon,
+  EyeIcon,
+  EyeOffIcon,
+  PlusIcon,
+} from 'lucide-react';
 import { getAPIFullPath } from 'renderer/lib/api-client/urls';
 
 function PasswordChangeForm({ open, onClose }) {
@@ -254,7 +260,10 @@ export default function UserLoginTest(): JSX.Element {
 
 function ApiKeysSection({ teams }: { teams: any[] }) {
   const { fetchWithAuth } = useAuth();
-  const { data: apiKeys, mutate: mutateApiKeys } = useAPI('auth', ['apiKeys', 'list']);
+  const { data: apiKeys, mutate: mutateApiKeys } = useAPI('auth', [
+    'apiKeys',
+    'list',
+  ]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
@@ -281,7 +290,9 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(`Failed to create API key: ${error.detail || response.statusText}`);
+        alert(
+          `Failed to create API key: ${error.detail || response.statusText}`,
+        );
         return;
       }
 
@@ -298,7 +309,11 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
   };
 
   const handleDeleteKey = async (keyId: string) => {
-    if (!confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
+    if (
+      !confirm(
+        'Are you sure you want to delete this API key? This action cannot be undone.',
+      )
+    ) {
       return;
     }
 
@@ -312,7 +327,9 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(`Failed to delete API key: ${error.detail || response.statusText}`);
+        alert(
+          `Failed to delete API key: ${error.detail || response.statusText}`,
+        );
         return;
       }
 
@@ -340,7 +357,9 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
 
       if (!response.ok) {
         const error = await response.json();
-        alert(`Failed to update API key: ${error.detail || response.statusText}`);
+        alert(
+          `Failed to update API key: ${error.detail || response.statusText}`,
+        );
         return;
       }
 
@@ -363,7 +382,12 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
 
   return (
     <Box mt={4}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
+      >
         <Typography level="title-lg">API Keys</Typography>
         <Button
           startDecorator={<PlusIcon size={16} />}
@@ -391,7 +415,8 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
             API Key Created Successfully!
           </Typography>
           <Typography level="body-sm" mb={2}>
-            <strong>Important:</strong> Copy this key now. You won't be able to see it again.
+            <strong>Important:</strong> Copy this key now. You won't be able to
+            see it again.
           </Typography>
           <Card variant="outlined" sx={{ bgcolor: 'background.level1', p: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center">
@@ -422,9 +447,18 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
           {apiKeys?.map((key: any) => (
             <ListItem key={key.id}>
               <Card variant="outlined" sx={{ width: '100%', p: 2 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                <Stack
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="flex-start"
+                >
                   <Box sx={{ flex: 1 }}>
-                    <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      mb={1}
+                    >
                       <Typography level="title-md">
                         {key.name || 'Unnamed Key'}
                       </Typography>
@@ -436,7 +470,11 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
                         {key.is_active ? 'Active' : 'Inactive'}
                       </Chip>
                     </Stack>
-                    <Typography level="body-sm" sx={{ fontFamily: 'monospace' }} mb={1}>
+                    <Typography
+                      level="body-sm"
+                      sx={{ fontFamily: 'monospace' }}
+                      mb={1}
+                    >
                       {key.key_prefix}
                     </Typography>
                     <Stack direction="row" spacing={2} mb={1}>
@@ -483,7 +521,10 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
         </List>
       )}
 
-      <Modal open={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)}>
+      <Modal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      >
         <ModalDialog>
           <DialogTitle>Create API Key</DialogTitle>
           <DialogContent>
@@ -500,7 +541,9 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
               <FormLabel>Team Scope (optional)</FormLabel>
               <Select
                 value={selectedTeamId || ''}
-                onChange={(_, value) => setSelectedTeamId(value as string | null)}
+                onChange={(_, value) =>
+                  setSelectedTeamId(value as string | null)
+                }
                 placeholder="All teams"
               >
                 <Option value="">All teams</Option>
@@ -511,7 +554,8 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
                 ))}
               </Select>
               <Typography level="body-xs" color="neutral" mt={0.5}>
-                If selected, this key will only work for the chosen team. If left empty, the key will work for all your teams.
+                If selected, this key will only work for the chosen team. If
+                left empty, the key will work for all your teams.
               </Typography>
             </FormControl>
             <FormControl sx={{ mt: 2 }}>
@@ -521,7 +565,9 @@ function ApiKeysSection({ teams }: { teams: any[] }) {
                 placeholder="e.g., 90 (leave empty for no expiration)"
                 value={expiresInDays || ''}
                 onChange={(e) =>
-                  setExpiresInDays(e.target.value ? parseInt(e.target.value) : null)
+                  setExpiresInDays(
+                    e.target.value ? parseInt(e.target.value) : null,
+                  )
                 }
                 fullWidth
               />
