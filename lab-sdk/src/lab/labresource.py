@@ -38,9 +38,7 @@ class BaseLabResource(ABC):
         newobj = cls(id)
         resource_dir = newobj.get_dir()
         if not storage.isdir(resource_dir):
-            raise FileNotFoundError(
-                f"Directory for {cls.__name__} with id '{id}' not found"
-            )
+            raise FileNotFoundError(f"Directory for {cls.__name__} with id '{id}' not found")
         json_file = newobj._get_json_file()
         if not storage.exists(json_file):
             with storage.open(json_file, "w", encoding="utf-8") as f:
@@ -66,9 +64,7 @@ class BaseLabResource(ABC):
         # Create a default json file. Throw an error if one already exists.
         json_file = self._get_json_file()
         if storage.exists(json_file):
-            raise FileExistsError(
-                f"{type(self).__name__} with id '{self.id}' already exists"
-            )
+            raise FileExistsError(f"{type(self).__name__} with id '{self.id}' already exists")
         with storage.open(json_file, "w", encoding="utf-8") as f:
             json.dump(self._default_json(), f)
 
