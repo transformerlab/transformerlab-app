@@ -682,10 +682,9 @@ class SkyPilotProvider(ComputeProvider):
 
         # Parse response content
         response_content = None
-        is_null_response = False
         if hasattr(response, "content"):
             if response.content == b"null" or response.content == b"":
-                is_null_response = True
+                response_content = None
             else:
                 try:
                     response_content = response.json() if hasattr(response, "json") else None
