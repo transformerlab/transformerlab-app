@@ -48,12 +48,14 @@ def upgrade() -> None:
         )
         op.create_index(op.f("ix_api_keys_user_id"), "api_keys", ["user_id"], unique=False)
         op.create_index(op.f("ix_api_keys_key_hash"), "api_keys", ["key_hash"], unique=True)
+        op.create_index(op.f("ix_api_keys_key_prefix"), "api_keys", ["key_prefix"], unique=False)
         op.create_index(op.f("ix_api_keys_team_id"), "api_keys", ["team_id"], unique=False)
 
 
 def downgrade() -> None:
     """Drop api_keys table."""
     op.drop_index(op.f("ix_api_keys_team_id"), table_name="api_keys")
+    op.drop_index(op.f("ix_api_keys_key_prefix"), table_name="api_keys")
     op.drop_index(op.f("ix_api_keys_key_hash"), table_name="api_keys")
     op.drop_index(op.f("ix_api_keys_user_id"), table_name="api_keys")
     op.drop_table("api_keys")

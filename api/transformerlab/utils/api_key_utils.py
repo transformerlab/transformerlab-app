@@ -4,6 +4,12 @@ import secrets
 import hashlib
 from datetime import datetime
 from typing import Optional
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
+
+# Use the same password hashing as FastAPI Users (Argon2 via pwdlib)
+# Initialize exactly as FastAPI Users does (see https://fastapi-users.github.io/fastapi-users/latest/configuration/password-hash/)
+_password_hash = PasswordHash((Argon2Hasher(),))
 
 
 def generate_api_key() -> str:
@@ -18,10 +24,35 @@ def generate_api_key() -> str:
 
 def hash_api_key(api_key: str) -> str:
     """
-    Hash an API key using SHA-256.
-    Returns the hex digest of the hash.
+    Hash an API key using Argon2 (same as FastAPI Users password hashing).
+    This is secure and computationally expensive, making brute force attacks impractical.
+    Returns the hashed string.
     """
-    return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+    return _password_hash.hash(api_key)
+
+
+def verify_api_key(api_key: str, hashed_key: str) -> bool:
+    """
+    Verify an API key against its hash.
+    Supports both Argon2 (new) and SHA-256 (legacy) formats for migration.
+    Returns True if the key matches, False otherwise.
+    """
+    # Try Argon2 verification first (for new keys)
+    try:
+        if _password_hash.verify(api_key, hashed_key):
+            return True
+    except Exception:
+        # Argon2 verification failed, might be legacy SHA-256 hash
+        pass
+
+    # Fallback: Check if this looks like a SHA-256 hash (64 hex characters)
+    # This supports keys created before we switched to Argon2
+    if len(hashed_key) == 64 and all(c in "0123456789abcdef" for c in hashed_key.lower()):
+        # Legacy SHA-256 hash - verify using SHA-256
+        key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+        return key_hash == hashed_key
+
+    return False
 
 
 def get_key_prefix(api_key: str) -> str:

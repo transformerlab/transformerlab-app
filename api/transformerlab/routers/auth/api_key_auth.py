@@ -8,7 +8,7 @@ from typing import Optional
 from datetime import datetime
 
 from transformerlab.shared.models.models import ApiKey, User, UserTeam
-from transformerlab.utils.api_key_utils import hash_api_key, is_key_expired, validate_api_key_format
+from transformerlab.utils.api_key_utils import verify_api_key, is_key_expired, validate_api_key_format
 from transformerlab.shared.models.user_model import create_personal_team
 
 security = HTTPBearer(auto_error=False)
@@ -42,16 +42,53 @@ async def validate_api_key_and_get_user(
     Returns:
         tuple: (user, team_id, role) where team_id and role may be None
     """
-    # Hash the provided key
-    key_hash = hash_api_key(api_key)
+    # Since Argon2 hashes are salted (non-deterministic), we can't do direct hash lookup
+    # We need to verify against stored hashes. Use key_prefix to narrow down candidates for performance.
+    from transformerlab.utils.api_key_utils import get_key_prefix
 
-    # Look up the API key
-    stmt = select(ApiKey).where(ApiKey.key_hash == key_hash)
+    print(f"[DEBUG] validate_api_key_and_get_user: Starting validation for key: {api_key[:20]}...")
+    key_prefix = get_key_prefix(api_key)
+    print(f"[DEBUG] validate_api_key_and_get_user: Extracted prefix: {key_prefix}")
+
+    # Get API keys matching the prefix (narrows down candidates significantly)
+    stmt = select(ApiKey).where(ApiKey.key_prefix == key_prefix)
     result = await session.execute(stmt)
-    api_key_obj = result.scalar_one_or_none()
+    candidate_keys = result.scalars().all()
+    print(f"[DEBUG] validate_api_key_and_get_user: Found {len(candidate_keys)} candidates by prefix")
+
+    # If no candidates found by prefix, try all active keys (fallback for keys created before prefix logic)
+    if not candidate_keys:
+        print(f"[DEBUG] validate_api_key_and_get_user: No prefix matches, checking all active keys...")
+        stmt = select(ApiKey).where(ApiKey.is_active)
+        result = await session.execute(stmt)
+        candidate_keys = result.scalars().all()
+        print(f"[DEBUG] validate_api_key_and_get_user: Found {len(candidate_keys)} total active keys")
+
+    # Find the matching API key by verifying against each candidate hash
+    api_key_obj = None
+    for idx, key_obj in enumerate(candidate_keys):
+        print(f"[DEBUG] validate_api_key_and_get_user: Checking candidate {idx + 1}/{len(candidate_keys)}")
+        print(f"[DEBUG] validate_api_key_and_get_user: Candidate key_id: {key_obj.id}")
+        print(f"[DEBUG] validate_api_key_and_get_user: Candidate prefix: {key_obj.key_prefix}")
+        print(f"[DEBUG] validate_api_key_and_get_user: Candidate hash length: {len(key_obj.key_hash)}")
+        print(f"[DEBUG] validate_api_key_and_get_user: Candidate hash starts with: {key_obj.key_hash[:50]}...")
+        try:
+            if verify_api_key(api_key, key_obj.key_hash):
+                print(f"[DEBUG] validate_api_key_and_get_user: ✓ Match found!")
+                api_key_obj = key_obj
+                break
+            else:
+                print(f"[DEBUG] validate_api_key_and_get_user: ✗ No match for this candidate")
+        except Exception as e:
+            print(f"[DEBUG] validate_api_key_and_get_user: Exception during verification: {type(e).__name__}: {e}")
+            # If verification fails (e.g., hash format mismatch), continue to next candidate
+            continue
 
     if not api_key_obj:
+        print(f"[DEBUG] validate_api_key_and_get_user: ✗ No matching API key found")
         raise HTTPException(status_code=401, detail="Invalid API key")
+
+    print(f"[DEBUG] validate_api_key_and_get_user: ✓ Validation successful")
 
     # Check if key is active
     if not api_key_obj.is_active:

@@ -8,7 +8,7 @@ from typing import Optional
 from datetime import datetime
 
 from transformerlab.shared.models.models import ApiKey, User, UserTeam
-from transformerlab.utils.api_key_utils import hash_api_key, is_key_expired, validate_api_key_format
+from transformerlab.utils.api_key_utils import verify_api_key, is_key_expired, validate_api_key_format
 from transformerlab.shared.models.user_model import create_personal_team
 
 security = HTTPBearer(auto_error=False)
@@ -42,13 +42,33 @@ async def validate_api_key_and_get_user(
     Returns:
         tuple: (user, team_id, role) where team_id and role may be None
     """
-    # Hash the provided key
-    key_hash = hash_api_key(api_key)
+    # Since Argon2 hashes are salted (non-deterministic), we can't do direct hash lookup
+    # We need to verify against stored hashes. Use key_prefix to narrow down candidates for performance.
+    from transformerlab.utils.api_key_utils import get_key_prefix
 
-    # Look up the API key
-    stmt = select(ApiKey).where(ApiKey.key_hash == key_hash)
+    key_prefix = get_key_prefix(api_key)
+
+    # Get API keys matching the prefix (narrows down candidates significantly)
+    stmt = select(ApiKey).where(ApiKey.key_prefix == key_prefix)
     result = await session.execute(stmt)
-    api_key_obj = result.scalar_one_or_none()
+    candidate_keys = result.scalars().all()
+
+    # If no candidates found by prefix, try all active keys (fallback for keys created before prefix logic)
+    if not candidate_keys:
+        stmt = select(ApiKey).where(ApiKey.is_active)
+        result = await session.execute(stmt)
+        candidate_keys = result.scalars().all()
+
+    # Find the matching API key by verifying against each candidate hash
+    api_key_obj = None
+    for key_obj in candidate_keys:
+        try:
+            if verify_api_key(api_key, key_obj.key_hash):
+                api_key_obj = key_obj
+                break
+        except Exception:
+            # If verification fails (e.g., hash format mismatch), continue to next candidate
+            continue
 
     if not api_key_obj:
         raise HTTPException(status_code=401, detail="Invalid API key")
