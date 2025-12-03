@@ -346,15 +346,18 @@ async def delete_provider(
     return {"message": "Provider deleted successfully"}
 
 
-@router.post("/{provider_id}/verify")
-async def verify_provider(
+@router.get("/{provider_id}/check")
+async def check_provider(
     provider_id: str,
     user_and_team=Depends(get_user_and_team),
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Verify that a provider is properly configured and accessible.
+    Check if a compute provider is active and accessible.
     Requires X-Team-Id header and team membership.
+
+    Returns:
+        {"status": True} if the provider is active, {"status": False} otherwise
     """
     team_id = user_and_team["team_id"]
 
@@ -366,32 +369,14 @@ async def verify_provider(
         # Try to instantiate the provider
         provider_instance = get_provider_instance(provider)
 
-        # Try to get cluster status (this will test connectivity)
-        # Use a dummy cluster name for testing
-        test_cluster_name = "__test_connection__"
-        try:
-            provider_instance.get_cluster_status(test_cluster_name)
-            # If we get here, the provider is at least configured correctly
-            # (even if the cluster doesn't exist, we got a response)
-            return {
-                "status": "success",
-                "message": "Provider is properly configured and accessible",
-                "provider_type": provider.type,
-            }
-        except Exception:
-            # Provider instantiated but connection test failed
-            return {
-                "status": "warning",
-                "message": "Provider is configured but connection test failed",
-                "provider_type": provider.type,
-            }
-    except Exception:
-        # Provider failed to instantiate
-        return {
-            "status": "error",
-            "message": "Provider configuration is invalid",
-            "provider_type": provider.type,
-        }
+        # Call the check method
+        is_active = provider_instance.check()
+
+        return {"status": is_active}
+    except Exception as e:
+        print(f"Failed to check provider: {e}")
+        # If instantiation or check fails, provider is not active
+        return {"status": False}
 
 
 # ============================================================================

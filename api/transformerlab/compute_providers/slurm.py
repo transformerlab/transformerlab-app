@@ -528,3 +528,17 @@ class SLURMProvider(ComputeProvider):
                     )
                 )
             return jobs
+
+    def check(self) -> bool:
+        """Check if the SLURM provider is active and accessible."""
+        try:
+            if self.mode == "ssh":
+                # Try to execute a simple command to check connectivity
+                self._ssh_execute("sinfo --version")
+                return True
+            else:
+                # REST API - try to make a simple request
+                self._rest_request("GET", "/slurm/v0.0.39/diag")
+                return True
+        except Exception:
+            return False
