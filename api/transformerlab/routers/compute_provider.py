@@ -1,10 +1,12 @@
 """Router for managing team-scoped compute providers."""
 
 import os
+import configparser
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 from pydantic import BaseModel, Field
 from transformerlab.shared.models.user_model import get_async_session
 from transformerlab.routers.auth import require_team_owner, get_user_and_team
@@ -425,6 +427,35 @@ async def launch_cluster(
         raise HTTPException(status_code=500, detail="Failed to launch cluster")
 
 
+def _get_aws_credentials_from_file(profile_name: str = "transformerlab-s3") -> Tuple[Optional[str], Optional[str]]:
+    """
+    Read AWS credentials from ~/.aws/credentials file for the specified profile.
+
+    Args:
+        profile_name: AWS profile name (default: "transformerlab-s3")
+
+    Returns:
+        Tuple of (aws_access_key_id, aws_secret_access_key) or (None, None) if not found
+    """
+    credentials_path = Path.home() / ".aws" / "credentials"
+
+    if not credentials_path.exists():
+        return None, None
+
+    try:
+        config = configparser.ConfigParser()
+        config.read(credentials_path)
+
+        if profile_name in config:
+            access_key = config[profile_name].get("aws_access_key_id")
+            secret_key = config[profile_name].get("aws_secret_access_key")
+            return access_key, secret_key
+    except Exception:
+        pass
+
+    return None, None
+
+
 def _generate_aws_credentials_setup(
     aws_access_key_id: str, aws_secret_access_key: str, aws_profile: Optional[str] = None
 ) -> str:
@@ -509,10 +540,12 @@ async def launch_task_on_provider(
     # Prepare environment variables - start with a copy of requested env_vars
     env_vars = request.env_vars.copy() if request.env_vars else {}
 
-    # Extract AWS credentials from env_vars if present (keep them in env_vars for setup script access)
-    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
-    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    aws_profile = os.getenv("AWS_PROFILE")
+    # Get AWS credentials from stored credentials file (transformerlab-s3 profile)
+    aws_profile = "transformerlab-s3"
+    if os.getenv("TFL_API_STORAGE_URI"):
+        aws_access_key_id, aws_secret_access_key = _get_aws_credentials_from_file(aws_profile)
+    else:
+        aws_access_key_id, aws_secret_access_key = None, None
 
     # Build setup script - prepend AWS credentials setup if credentials are provided
     setup_commands = []
@@ -529,20 +562,15 @@ async def launch_task_on_provider(
     # Add default environment variables
     env_vars["_TFL_JOB_ID"] = str(job_id)
 
-    # Get TFL_STORAGE_URI from environment or storage context
-    # Check environment variable first, then try to get from storage context
-    tfl_storage_uri = os.getenv("TFL_URI")
-    if not tfl_storage_uri:
-        # Try to get from storage root_uri if it's a remote URI (s3://, gs://, etc.)
-        try:
-            storage_root = storage.root_uri()
-            # Check if it's a remote URI (not a local path)
-            if storage_root and any(
-                storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")
-            ):
-                tfl_storage_uri = storage_root
-        except Exception:
-            pass
+    # Get TFL_STORAGE_URI from storage context
+    tfl_storage_uri = None
+    try:
+        storage_root = storage.root_uri()
+        # Check if it's a remote URI (not a local path)
+        if storage_root and any(storage_root.startswith(prefix) for prefix in ("s3://", "gs://", "gcs://", "abfs://")):
+            tfl_storage_uri = storage_root
+    except Exception:
+        pass
 
     if tfl_storage_uri:
         env_vars["TFL_STORAGE_URI"] = tfl_storage_uri

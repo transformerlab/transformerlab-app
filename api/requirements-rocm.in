@@ -1,6 +1,7 @@
 accelerate
 aiofiles
 aiosqlite
+boto3
 datasets==3.6.0
 einops
 evaluate
@@ -32,7 +33,7 @@ hf_xet
 macmon-python
 mcp[cli]
 transformerlab-inference==0.2.51
-transformerlab==0.0.45
+transformerlab==0.0.47
 diffusers==0.33.1
 pyrsmi
 controlnet_aux==0.0.10

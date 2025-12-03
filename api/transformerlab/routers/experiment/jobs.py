@@ -1018,7 +1018,12 @@ async def get_artifacts(job_id: str, request: Request):
                             filesize = None
 
                     filename = artifact_path.split("/")[-1] if "/" in artifact_path else artifact_path
-                    artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
+                    artifact_dict = {"filename": filename}
+                    if formatted_time is not None:
+                        artifact_dict["date"] = formatted_time
+                    if filesize is not None:
+                        artifact_dict["size"] = filesize
+                    artifacts.append(artifact_dict)
                 except Exception as e:
                     print(f"Error getting stat for artifact {artifact_path}: {e}")
                     continue
@@ -1081,7 +1086,12 @@ async def get_artifacts(job_id: str, request: Request):
                     print(f"Error getting stat for file {file_path}: {e}")
                     formatted_time = None
                     filesize = None
-                artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
+                artifact_dict = {"filename": filename}
+                if formatted_time is not None:
+                    artifact_dict["date"] = formatted_time
+                if filesize is not None:
+                    artifact_dict["size"] = filesize
+                artifacts.append(artifact_dict)
     except Exception as e:
         print(f"Error reading artifacts directory {artifacts_dir}: {e}")
 
