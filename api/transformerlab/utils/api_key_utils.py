@@ -1,7 +1,6 @@
 """Utilities for API key generation, hashing, and validation."""
 
 import secrets
-import hashlib
 from datetime import datetime
 from typing import Optional
 from pwdlib import PasswordHash
@@ -33,26 +32,10 @@ def hash_api_key(api_key: str) -> str:
 
 def verify_api_key(api_key: str, hashed_key: str) -> bool:
     """
-    Verify an API key against its hash.
-    Supports both Argon2 (new) and SHA-256 (legacy) formats for migration.
+    Verify an API key against its hash using Argon2.
     Returns True if the key matches, False otherwise.
     """
-    # Try Argon2 verification first (for new keys)
-    try:
-        if _password_hash.verify(api_key, hashed_key):
-            return True
-    except Exception:
-        # Argon2 verification failed, might be legacy SHA-256 hash
-        pass
-
-    # Fallback: Check if this looks like a SHA-256 hash (64 hex characters)
-    # This supports keys created before we switched to Argon2
-    if len(hashed_key) == 64 and all(c in "0123456789abcdef" for c in hashed_key.lower()):
-        # Legacy SHA-256 hash - verify using SHA-256
-        key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
-        return key_hash == hashed_key
-
-    return False
+    return _password_hash.verify(api_key, hashed_key)
 
 
 def get_key_prefix(api_key: str) -> str:
