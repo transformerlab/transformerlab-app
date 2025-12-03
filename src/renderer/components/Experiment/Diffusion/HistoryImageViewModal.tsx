@@ -90,10 +90,14 @@ export default function HistoryImageViewModal({
         // Append input and processed ControlNet images if present
         if (selectedImage.metadata.is_controlnet !== 'off') {
           if (selectedImage.metadata.input_image_path) {
-            const inputImageUrl = getAPIFullPath('diffusion', ['getInputImage'], {
-              imageId: selectedImage.id,
-              experimentId,
-            });
+            const inputImageUrl = getAPIFullPath(
+              'diffusion',
+              ['getInputImage'],
+              {
+                imageId: selectedImage.id,
+                experimentId,
+              },
+            );
             try {
               const response = await fetchWithAuth(inputImageUrl);
               if (response.ok) {
@@ -110,11 +114,15 @@ export default function HistoryImageViewModal({
           }
 
           if (selectedImage.metadata.processed_image) {
-            const processedImageUrl = getAPIFullPath('diffusion', ['getProcessedImage'], {
-              imageId: selectedImage.id,
-              processed: true,
-              experimentId,
-            });
+            const processedImageUrl = getAPIFullPath(
+              'diffusion',
+              ['getProcessedImage'],
+              {
+                imageId: selectedImage.id,
+                processed: true,
+                experimentId,
+              },
+            );
             try {
               const response = await fetchWithAuth(processedImageUrl);
               if (response.ok) {
@@ -161,12 +169,23 @@ export default function HistoryImageViewModal({
     if (!selectedImage?.id) return;
 
     try {
-      // Create a link to download all images as zip
-      const link = document.createElement('a');
-      link.href = getAPIFullPath('diffusion', ['getAllImages'], {
+      // Fetch the zip file with authentication
+      const zipUrl = getAPIFullPath('diffusion', ['getAllImages'], {
         imageId: selectedImage.id,
         experimentId,
       });
+
+      const response = await fetchWithAuth(zipUrl);
+      if (!response.ok) {
+        throw new Error('Failed to download images');
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create a link to download the blob
+      const link = document.createElement('a');
+      link.href = blobUrl;
 
       // Generate filename with timestamp
       const timestamp = new Date()
@@ -179,6 +198,11 @@ export default function HistoryImageViewModal({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      // Clean up blob URL after a short delay
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
     } catch (err) {
       console.error('Failed to download images:', err);
     }
