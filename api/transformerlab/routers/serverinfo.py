@@ -497,4 +497,3 @@ async def download_logs():
         if os.path.exists(temp_zip.name):
             os.unlink(temp_zip.name)
         raise HTTPException(status_code=500, detail=f"Failed to create zip file: {str(e)}")
-
