@@ -141,9 +141,7 @@ def walk(path: str, maxdepth=None, topdown=True, on_error="omit"):
     Yields:
         (root, dirs, files) tuples similar to os.walk()
     """
-    return filesystem().walk(
-        path, maxdepth=maxdepth, topdown=topdown, on_error=on_error
-    )
+    return filesystem().walk(path, maxdepth=maxdepth, topdown=topdown, on_error=on_error)
 
 
 def rm(path: str) -> None:

@@ -25,10 +25,7 @@ class Experiment(BaseLabResource):
     def __init__(self, experiment_id, create_new=False):
         self.id = experiment_id
         # Auto-initialize if create_new=True and experiment doesn't exist
-        if create_new and (
-            not storage.exists(self.get_dir())
-            or not storage.exists(self._get_json_file())
-        ):
+        if create_new and (not storage.exists(self.get_dir()) or not storage.exists(self._get_json_file())):
             self._initialize()
 
     def get_dir(self):
@@ -212,9 +209,7 @@ class Experiment(BaseLabResource):
         Path to jobs.json index file for this experiment.
         """
         if workspace_dir and experiment_id:
-            return storage.join(
-                workspace_dir, "experiments", experiment_id, "jobs.json"
-            )
+            return storage.join(workspace_dir, "experiments", experiment_id, "jobs.json")
 
         return storage.join(self.get_dir(), "jobs.json")
 
@@ -224,15 +219,11 @@ class Experiment(BaseLabResource):
 
         # Create filesystem override if workspace_dir is an S3 URI (for background threads)
         fs_override = None
-        if workspace_dir and workspace_dir.startswith(
-            ("s3://", "gs://", "abfs://", "gcs://")
-        ):
+        if workspace_dir and workspace_dir.startswith(("s3://", "gs://", "abfs://", "gcs://")):
             from .storage import _AWS_PROFILE
 
             storage_options = {"profile": _AWS_PROFILE} if _AWS_PROFILE else None
-            fs_override, _token, _paths = fsspec.get_fs_token_paths(
-                workspace_dir, storage_options=storage_options
-            )
+            fs_override, _token, _paths = fsspec.get_fs_token_paths(workspace_dir, storage_options=storage_options)
 
         try:
             # Use provided jobs_dir or get current one
@@ -244,9 +235,7 @@ class Experiment(BaseLabResource):
             # Iterate through jobs directories and check for index.json
             # Sort entries numerically since job IDs are numeric strings (descending order)
             try:
-                job_entries_full = storage.ls(
-                    jobs_directory, detail=False, fs=fs_override
-                )
+                job_entries_full = storage.ls(jobs_directory, detail=False, fs=fs_override)
             except Exception as e:
                 print(f"Error getting job entries full: {e}")
                 job_entries_full = []
@@ -270,9 +259,7 @@ class Experiment(BaseLabResource):
                 # Prefer the latest snapshot if available; fall back to index.json
                 index_file = storage.join(entry_path, "index.json")
                 try:
-                    with storage.open(
-                        index_file, "r", encoding="utf-8", fs=fs_override
-                    ) as lf:
+                    with storage.open(index_file, "r", encoding="utf-8", fs=fs_override) as lf:
                         content = lf.read().strip()
                         if not content:
                             # Skip empty files
@@ -303,9 +290,7 @@ class Experiment(BaseLabResource):
             if results:
                 try:
                     with storage.open(
-                        self._jobs_json_file(
-                            workspace_dir=workspace_dir, experiment_id=self.id
-                        ),
+                        self._jobs_json_file(workspace_dir=workspace_dir, experiment_id=self.id),
                         "w",
                         fs=fs_override,
                     ) as out:
@@ -453,13 +438,8 @@ class Experiment(BaseLabResource):
     def _start_background_cache_rebuild(cls):
         """Start the background cache rebuild thread if not already running."""
         with cls._cache_rebuild_lock:
-            if (
-                cls._cache_rebuild_thread is None
-                or not cls._cache_rebuild_thread.is_alive()
-            ):
-                cls._cache_rebuild_thread = threading.Thread(
-                    target=cls._background_cache_rebuild_worker, daemon=True
-                )
+            if cls._cache_rebuild_thread is None or not cls._cache_rebuild_thread.is_alive():
+                cls._cache_rebuild_thread = threading.Thread(target=cls._background_cache_rebuild_worker, daemon=True)
                 cls._cache_rebuild_thread.start()
 
     @classmethod
