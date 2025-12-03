@@ -17,9 +17,10 @@ import {
   ChevronRight,
   ArrowRight,
 } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getAPIFullPath } from 'renderer/lib/transformerlab-api-sdk';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import { fetchWithAuth } from 'renderer/lib/authContext';
 import { HistoryImage } from './types';
 
 export default function HistoryImageViewModal({
@@ -50,39 +51,102 @@ export default function HistoryImageViewModal({
       setNumImages(imageCount);
       setCurrentImageIndex(0);
 
-      const urls = Array.from({ length: imageCount }, (_, index) =>
-        getAPIFullPath('diffusion', ['getImage'], {
-          imageId: selectedImage.id,
-          index,
-          experimentId,
-        }),
-      );
+      // Cleanup previous blob URLs
+      blobUrlsRef.current.forEach((url) => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      blobUrlsRef.current = [];
 
-      // Append input and processed ControlNet images if present
-      if (selectedImage.metadata.is_controlnet !== 'off') {
-        if (selectedImage.metadata.input_image_path) {
-          urls.push(
-            getAPIFullPath('diffusion', ['getInputImage'], {
-              imageId: selectedImage.id,
-              experimentId,
-            }),
-          );
+      const fetchImages = async () => {
+        const blobUrls: string[] = [];
+
+        // Fetch generated images
+        for (let i = 0; i < imageCount; i++) {
+          const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
+            imageId: selectedImage.id,
+            index: i,
+            experimentId,
+          });
+          try {
+            const response = await fetchWithAuth(imageUrl);
+            if (response.ok) {
+              const blob = await response.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              blobUrls.push(blobUrl);
+              blobUrlsRef.current.push(blobUrl);
+            } else {
+              // Fallback to URL if fetch fails
+              blobUrls.push(imageUrl);
+            }
+          } catch (e) {
+            // Fallback to URL if fetch fails
+            blobUrls.push(imageUrl);
+          }
         }
 
-        if (selectedImage.metadata.processed_image) {
-          urls.push(
-            getAPIFullPath('diffusion', ['getProcessedImage'], {
+        // Append input and processed ControlNet images if present
+        if (selectedImage.metadata.is_controlnet !== 'off') {
+          if (selectedImage.metadata.input_image_path) {
+            const inputImageUrl = getAPIFullPath('diffusion', ['getInputImage'], {
+              imageId: selectedImage.id,
+              experimentId,
+            });
+            try {
+              const response = await fetchWithAuth(inputImageUrl);
+              if (response.ok) {
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                blobUrls.push(blobUrl);
+                blobUrlsRef.current.push(blobUrl);
+              } else {
+                blobUrls.push(inputImageUrl);
+              }
+            } catch (e) {
+              blobUrls.push(inputImageUrl);
+            }
+          }
+
+          if (selectedImage.metadata.processed_image) {
+            const processedImageUrl = getAPIFullPath('diffusion', ['getProcessedImage'], {
               imageId: selectedImage.id,
               processed: true,
               experimentId,
-            }),
-          );
+            });
+            try {
+              const response = await fetchWithAuth(processedImageUrl);
+              if (response.ok) {
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                blobUrls.push(blobUrl);
+                blobUrlsRef.current.push(blobUrl);
+              } else {
+                blobUrls.push(processedImageUrl);
+              }
+            } catch (e) {
+              blobUrls.push(processedImageUrl);
+            }
+          }
         }
-      }
-      console.log('URLs: ', urls);
-      setImageUrls(urls);
+
+        console.log('URLs: ', blobUrls);
+        setImageUrls(blobUrls);
+      };
+
+      fetchImages();
+
+      // Cleanup blob URLs on unmount or when modal closes
+      return () => {
+        blobUrlsRef.current.forEach((url) => {
+          if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        blobUrlsRef.current = [];
+      };
     }
-  }, [selectedImage, imageModalOpen]);
+  }, [selectedImage, imageModalOpen, experimentId]);
 
   const handlePreviousImage = () => {
     setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : numImages - 1));

@@ -667,10 +667,11 @@ export default function Diffusion() {
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
         Number(numSteps),
-        (data) => {
+        async (data) => {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
           } else {
+            // Fetch images with authentication and convert to blob URLs
             const imageUrls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
               const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
@@ -678,7 +679,20 @@ export default function Diffusion() {
                 imageId: data.id,
                 index: i,
               });
-              imageUrls.push(imageUrl);
+              try {
+                const response = await fetchWithAuth(imageUrl);
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  imageUrls.push(blobUrl);
+                } else {
+                  // Fallback to URL if fetch fails
+                  imageUrls.push(imageUrl);
+                }
+              } catch (e) {
+                // Fallback to URL if fetch fails
+                imageUrls.push(imageUrl);
+              }
             }
 
             setCurrentImages(imageUrls);
@@ -814,10 +828,11 @@ export default function Diffusion() {
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
         Number(numSteps),
-        (data) => {
+        async (data) => {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
           } else {
+            // Fetch images with authentication and convert to blob URLs
             const imageUrls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
               const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
@@ -825,7 +840,20 @@ export default function Diffusion() {
                 imageId: data.id,
                 index: i,
               });
-              imageUrls.push(imageUrl);
+              try {
+                const response = await fetchWithAuth(imageUrl);
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  imageUrls.push(blobUrl);
+                } else {
+                  // Fallback to URL if fetch fails
+                  imageUrls.push(imageUrl);
+                }
+              } catch (e) {
+                // Fallback to URL if fetch fails
+                imageUrls.push(imageUrl);
+              }
             }
 
             setInpaintingImages(imageUrls);
