@@ -40,6 +40,7 @@ export default function HistoryImageViewModal({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [numImages, setNumImages] = useState(1);
   const { experimentId } = useExperimentInfo();
+  const blobUrlsRef = useRef<string[]>([]);
   // const [hoveringMainImage, setHoveringMainImage] = useState(false);
 
   // Load all images for the selected item when modal opens
