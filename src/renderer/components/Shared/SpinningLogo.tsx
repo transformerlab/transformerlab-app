@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Box } from '@mui/joy';
+import { useColorScheme } from '@mui/joy/styles';
 import HexLogo from '../Shared/HexLogo';
 
 interface SpinningLogoProps {
@@ -11,7 +12,12 @@ export default function SpinningLogo({ size = 80 }: SpinningLogoProps) {
   const requestRef = useRef<number>();
   const rotationRef = useRef(0);
 
-  // Animation Configuration
+  const { mode } = useColorScheme();
+
+  const isDark = mode === 'dark';
+  const logoStroke = isDark ? '#fff' : '#000';
+  const logoFill = isDark ? 'transparent' : '#fff';
+
   const SLOW_SPEED = 0.4;
   const FAST_SPEED = 2.0;
   const ACCELERATION = 0.5;
@@ -31,6 +37,7 @@ export default function SpinningLogo({ size = 80 }: SpinningLogoProps) {
         targetSpeedRef.current
       );
     }
+
     rotationRef.current = (rotationRef.current + currentSpeedRef.current) % 360;
 
     if (containerRef.current) {
@@ -57,7 +64,6 @@ export default function SpinningLogo({ size = 80 }: SpinningLogoProps) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-
           cursor: 'pointer',
           transformOrigin: 'center center',
         }}
@@ -68,7 +74,12 @@ export default function SpinningLogo({ size = 80 }: SpinningLogoProps) {
           targetSpeedRef.current = SLOW_SPEED;
         }}
       >
-        <HexLogo width={size} height={size} />
+        <HexLogo
+          width={size}
+          height={size}
+          stroke={logoStroke}
+          fill={logoFill}
+        />
       </div>
     </Box>
   );
