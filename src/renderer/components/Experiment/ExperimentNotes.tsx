@@ -72,7 +72,6 @@ export default function ExperimentNotes({}) {
         headers: {
           'Content-Type': 'text/plain',
         },
-        credentials: 'include',
       },
     )
       .then((response) => {

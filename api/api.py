@@ -188,9 +188,8 @@ app = fastapi.FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    # Restrict origins so credentialed requests (cookies) are allowed
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -389,11 +388,20 @@ async def server_worker_start(
     with storage.open(get_global_log_path(), "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
+    # Pass organization_id as environment variable to subprocess
+    from transformerlab.shared.request_context import get_current_org_id
+
+    org_id = get_current_org_id()
+    subprocess_env = {}
+    if org_id:
+        subprocess_env["_TFL_ORG_ID"] = org_id
+
     process = await shared.async_run_python_daemon_and_update_status(
         python_script=params,
         job_id=job_id,
         begin_string="Application startup complete.",
         set_process_id_function=set_worker_process_id,
+        env=subprocess_env,
     )
     exitcode = process.returncode
     if exitcode == 99:
