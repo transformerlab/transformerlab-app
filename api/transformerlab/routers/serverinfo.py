@@ -5,14 +5,18 @@ import platform
 import asyncio
 import sys
 import subprocess
-from fastapi.responses import StreamingResponse
+import zipfile
+import tempfile
+from datetime import datetime
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi import APIRouter, HTTPException
 from typing import AsyncGenerator
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
 import torch
-from fastapi import APIRouter
 from lab.dirs import get_global_log_path
+from lab import HOME_DIR
 from lab import storage
 
 
@@ -402,6 +406,7 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
 @router.get("/stream_log")
 async def watch_log():
     global_log_path = get_global_log_path()
+
     if not storage.exists(global_log_path):
         # Create the file
         with storage.open(global_log_path, "w") as f:
@@ -431,3 +436,65 @@ async def watch_log():
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
         )
+
+
+@router.get("/download_logs")
+async def download_logs():
+    """
+    Download API logs as a zip file containing:
+    - local_server.log (from HOME_DIR)
+    - transformerlab.log (from workspace_dir)
+
+    Returns a zip file with available log files. If no files exist, returns an error.
+    """
+    log_files = []
+
+    # Path to local_server.log in HOME_DIR
+    local_server_log_path = storage.join(HOME_DIR, "local_server.log")
+
+    # Path to transformerlab.log in workspace_dir
+    transformerlab_log_path = get_global_log_path()
+
+    # Check which files exist and add them to the list
+    if storage.exists(local_server_log_path):
+        log_files.append(("local_server.log", local_server_log_path))
+
+    if storage.exists(transformerlab_log_path):
+        log_files.append(("transformerlab.log", transformerlab_log_path))
+
+    # If no files exist, return an error
+    if not log_files:
+        raise HTTPException(status_code=404, detail="No log files found. The log files may not have been created yet.")
+
+    # Create a temporary zip file
+    temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
+    temp_zip.close()
+
+    try:
+        with zipfile.ZipFile(temp_zip.name, "w", zipfile.ZIP_DEFLATED) as zipf:
+            for filename, file_path in log_files:
+                try:
+                    # Read file content (works with both local and remote storage)
+                    with storage.open(file_path, "rb") as log_file:
+                        content = log_file.read()
+                        zipf.writestr(filename, content)
+                except Exception as e:
+                    # If we can't read a file, log it but continue with others
+                    print(f"Warning: Could not read log file {file_path}: {e}")
+
+        # Generate a filename with timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        zip_filename = f"transformerlab_logs_{timestamp}.zip"
+
+        return FileResponse(
+            temp_zip.name,
+            media_type="application/zip",
+            filename=zip_filename,
+            headers={"Content-Disposition": f"attachment; filename={zip_filename}"},
+        )
+    except Exception as e:
+        # Clean up temp file on error
+        if os.path.exists(temp_zip.name):
+            os.unlink(temp_zip.name)
+        raise HTTPException(status_code=500, detail=f"Failed to create zip file: {str(e)}")
+
