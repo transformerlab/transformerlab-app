@@ -53,4 +53,3 @@ def is_key_expired(expires_at: Optional[datetime]) -> bool:
     if expires_at is None:
         return False
     return datetime.utcnow() > expires_at
-

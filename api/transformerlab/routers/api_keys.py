@@ -26,8 +26,12 @@ router = APIRouter(prefix="/auth/api-keys", tags=["api-keys"])
 
 class ApiKeyCreate(BaseModel):
     name: Optional[str] = Field(None, description="Optional name/description for the API key")
-    team_id: Optional[str] = Field(None, description="Team ID to scope the key to. If null, key works for all user's teams")
-    expires_in_days: Optional[int] = Field(None, description="Number of days until expiration. If null, key never expires")
+    team_id: Optional[str] = Field(
+        None, description="Team ID to scope the key to. If null, key works for all user's teams"
+    )
+    expires_in_days: Optional[int] = Field(
+        None, description="Number of days until expiration. If null, key never expires"
+    )
 
 
 class ApiKeyUpdate(BaseModel):
@@ -52,6 +56,7 @@ class ApiKeyResponse(BaseModel):
 
 class ApiKeyCreateResponse(BaseModel):
     """Response when creating an API key - includes the full key (only shown once)."""
+
     id: str
     api_key: str  # Full key - only shown on creation
     key_prefix: str
@@ -275,4 +280,3 @@ async def delete_api_key(
     await session.commit()
 
     return {"message": "API key deleted"}
-
