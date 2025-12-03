@@ -52,6 +52,8 @@ Endpoints.ComputeProvider = {
     `${API_URL()}compute_provider/${providerId}/clusters/${clusterName}/stop`,
   UploadTaskFile: (providerId: string, taskId: string | number) =>
     `${API_URL()}compute_provider/${providerId}/tasks/${taskId}/file-upload`,
+  Check: (providerId: string) =>
+    `${API_URL()}compute_provider/${providerId}/check`,
 };
 
 Endpoints.Workflows = {
