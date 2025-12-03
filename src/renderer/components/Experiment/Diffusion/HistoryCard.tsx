@@ -113,11 +113,14 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
           {Array.from({ length: maxDisplayImages }, (_, index) => (
             <img
               key={index}
-              src={imageBlobUrls[index] || getAPIFullPath('diffusion', ['getImage'], {
-                imageId: item.id,
-                index,
-                experimentId,
-              })}
+              src={
+                imageBlobUrls[index] ||
+                getAPIFullPath('diffusion', ['getImage'], {
+                  imageId: item.id,
+                  index,
+                  experimentId,
+                })
+              }
               alt={`Generated image ${index + 1}`}
               style={{
                 width: '100%',
@@ -152,11 +155,14 @@ const HistoryCard: React.FC<HistoryCardProps> = ({
       // Single image display
       return (
         <img
-          src={imageBlobUrls[0] || getAPIFullPath('diffusion', ['getImage'], {
-            imageId: item.id,
-            index: 0,
-            experimentId,
-          })}
+          src={
+            imageBlobUrls[0] ||
+            getAPIFullPath('diffusion', ['getImage'], {
+              imageId: item.id,
+              index: 0,
+              experimentId,
+            })
+          }
           alt="generated"
           style={{
             borderRadius: '6px',
