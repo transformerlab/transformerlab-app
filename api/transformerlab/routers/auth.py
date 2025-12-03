@@ -94,7 +94,7 @@ async def github_oauth_status():
 
 if GITHUB_OAUTH_ENABLED:
     router.include_router(
-        fastapi_users.get_oauth_router(github_oauth_client, oauth_backend, "YOUR_JWT_SECRET"),
+        fastapi_users.get_oauth_router(github_oauth_client, oauth_backend, SECRET),
         prefix="/auth/github",
         tags=["auth"],
     )
