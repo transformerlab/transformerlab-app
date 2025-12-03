@@ -12,11 +12,10 @@ import {
 import { getPath, API_URL } from 'renderer/lib/api-client/urls';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
-import HexLogo from '../Shared/HexLogo';
-
 import labImage from '../Welcome/img/lab.jpg';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterUser';
+import SpinningLogo from '../Shared/SpinningLogo';
 
 function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
   const { fetchWithAuth } = useAuth();
@@ -81,7 +80,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     const autoLogin = async () => {
-      // Only attempt auto-login if we have a valid API URL (connection is established)
       const apiUrl = API_URL();
       if (!apiUrl) {
         console.log(
@@ -101,7 +99,7 @@ export default function LoginPage() {
     if (process.env.MULTIUSER !== 'true') {
       autoLogin();
     }
-  }, [authContext]); // Include authContext in dependencies
+  }, [authContext]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -131,7 +129,6 @@ export default function LoginPage() {
     if (token) {
       const verifyEmail = async () => {
         try {
-          // Normalize TL_API_URL - ensure it's not "default" or empty
           const envUrl = process.env.TL_API_URL;
           let apiUrl =
             !envUrl || envUrl === 'default' || envUrl.trim() === ''
@@ -200,8 +197,9 @@ export default function LoginPage() {
             overflow: 'auto',
           }}
         >
-          <HexLogo width={32} height={32} />
-          <Typography level="h2" component="div" sx={{ mb: 1 }}>
+          <SpinningLogo size={80} />
+
+          <Typography level="h2" component="div" sx={{ mb: 1, textAlign: 'center' }}>
             Transformer Lab
           </Typography>
           {verifyMessage !== '' && (
