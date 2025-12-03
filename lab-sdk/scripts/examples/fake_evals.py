@@ -57,9 +57,7 @@ def run_evaluation():
 
         # Save evaluation results with default column names
         lab.log("Saving evaluation results (default columns)...")
-        saved_path_default = lab.save_artifact(
-            df_default, name="eval_results_default.csv", type="eval"
-        )
+        saved_path_default = lab.save_artifact(df_default, name="eval_results_default.csv", type="eval")
         lab.log(f"✅ Saved evaluation results: {saved_path_default}")
         lab.update_progress(50)
 
