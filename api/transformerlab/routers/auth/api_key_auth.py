@@ -68,6 +68,7 @@ async def validate_api_key_and_get_user(
                 break
 
         except Exception as e:
+            print(f"Exception during verification: {type(e).__name__}: {e}")
             # If verification fails (e.g., hash format mismatch), continue to next candidate
             continue
 
