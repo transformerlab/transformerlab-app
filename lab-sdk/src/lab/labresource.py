@@ -80,7 +80,7 @@ class BaseLabResource(ABC):
         """
         Return the JSON data that is stored for this resource in the filesystem.
         If the file doesn't exist then return an empty dict.
-        
+
         Args:
             uncached: If True, use an uncached filesystem to avoid Etag caching issues
         """
