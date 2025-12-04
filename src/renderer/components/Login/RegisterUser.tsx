@@ -6,7 +6,7 @@ import {
   FormControl,
   Input,
   Stack,
-  Typography
+  Typography,
 } from '@mui/joy';
 import { getPath } from 'renderer/lib/api-client/urls';
 import { FcGoogle } from 'react-icons/fc';
@@ -96,11 +96,11 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            email,
-            password,
-            confirm_password: confirmPassword,
-            first_name: firstName,
-            last_name: lastName
+          email,
+          password,
+          confirm_password: confirmPassword,
+          first_name: firstName,
+          last_name: lastName,
         }),
       });
       setShowConfirmation(true);
@@ -120,7 +120,12 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
         <Typography level="body-md">
           Please check your email to validate your account before logging in.
         </Typography>
-        <Button onClick={onClose} color="primary" variant="solid" sx={{ mt: 3 }}>
+        <Button
+          onClick={onClose}
+          color="primary"
+          variant="solid"
+          sx={{ mt: 3 }}
+        >
           Close
         </Button>
       </Box>
@@ -142,7 +147,10 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
               onClick={() => handleOAuthLogin('google')}
               loading={loadingState === 'google'}
               disabled={loadingState !== null && loadingState !== 'google'}
-              sx={{ borderColor: 'neutral.300', '&:hover': { bg: 'neutral.100' } }}
+              sx={{
+                borderColor: 'neutral.300',
+                '&:hover': { bg: 'neutral.100' },
+              }}
             >
               Register with Google
             </Button>
@@ -157,7 +165,10 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
               onClick={() => handleOAuthLogin('github')}
               loading={loadingState === 'github'}
               disabled={loadingState !== null && loadingState !== 'github'}
-              sx={{ borderColor: 'neutral.300', '&:hover': { bg: 'neutral.100' } }}
+              sx={{
+                borderColor: 'neutral.300',
+                '&:hover': { bg: 'neutral.100' },
+              }}
             >
               Register with GitHub
             </Button>
@@ -166,9 +177,9 @@ export default function RegisterForm({ onClose }: { onClose: () => void }) {
       )}
 
       {showDivider && (
-         <Divider sx={{ my: 1, color: 'neutral.500', fontSize: 'sm' }}>
-            Or register with email
-         </Divider>
+        <Divider sx={{ my: 1, color: 'neutral.500', fontSize: 'sm' }}>
+          Or register with email
+        </Divider>
       )}
 
       <form onSubmit={handleSubmit}>

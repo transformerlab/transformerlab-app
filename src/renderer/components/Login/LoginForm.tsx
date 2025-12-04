@@ -102,15 +102,21 @@ export default function LoginForm() {
       const result = await login(email, password);
       if (result instanceof Error) {
         if (result.info?.detail === 'LOGIN_USER_NOT_VERIFIED') {
-          setError('Email not verified. Please check your email for the verification link.');
+          setError(
+            'Email not verified. Please check your email for the verification link.',
+          );
           return;
         }
-        setError(result.info?.message ?? 'Login failed. Please check your credentials.');
+        setError(
+          result.info?.message ??
+            'Login failed. Please check your credentials.',
+        );
       } else {
         if (password === 'admin123') {
           addNotification({
             type: 'danger',
-            message: 'You are using a default insecure password. Please change it in User Settings.',
+            message:
+              'You are using a default insecure password. Please change it in User Settings.',
           });
         }
       }
@@ -128,20 +134,22 @@ export default function LoginForm() {
     emailAuthEnabled = true;
   }
 
-  const showDivider = (googleOAuthEnabled || githubOAuthEnabled) && emailAuthEnabled;
+  const showDivider =
+    (googleOAuthEnabled || githubOAuthEnabled) && emailAuthEnabled;
 
   return (
-    <Box sx={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      width: '100%',
-      maxWidth: '400px', // Optional: keeps it from getting too wide on large screens
-      margin: '0 auto',  // Helps center this component in its parent
-    }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        width: '100%',
+        maxWidth: '400px', // Optional: keeps it from getting too wide on large screens
+        margin: '0 auto', // Helps center this component in its parent
+      }}
+    >
       <form onSubmit={handleSubmit} style={{ width: '100%' }}>
         <Stack spacing={2} sx={{ width: '100%' }}>
-
           <Stack spacing={1.5} sx={{ mt: 1 }}>
             {googleOAuthEnabled && (
               <Button
@@ -155,7 +163,7 @@ export default function LoginForm() {
                 sx={{
                   // Slight bump in border boldness for better definition
                   borderColor: 'neutral.300',
-                  '&:hover': { bg: 'neutral.100', borderColor: 'neutral.400' }
+                  '&:hover': { bg: 'neutral.100', borderColor: 'neutral.400' },
                 }}
               >
                 Continue with Google
@@ -173,7 +181,7 @@ export default function LoginForm() {
                 disabled={loadingState !== null && loadingState !== 'github'}
                 sx={{
                   borderColor: 'neutral.300',
-                  '&:hover': { bg: 'neutral.100', borderColor: 'neutral.400' }
+                  '&:hover': { bg: 'neutral.100', borderColor: 'neutral.400' },
                 }}
               >
                 Continue with GitHub
@@ -212,7 +220,11 @@ export default function LoginForm() {
               </FormControl>
 
               {error && (
-                <Typography level="body-sm" color="danger" sx={{ textAlign: 'center' }}>
+                <Typography
+                  level="body-sm"
+                  color="danger"
+                  sx={{ textAlign: 'center' }}
+                >
                   {error}
                 </Typography>
               )}
@@ -229,12 +241,22 @@ export default function LoginForm() {
                 Sign In
               </Button>
 
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, px: 0.5 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  mt: 1,
+                  px: 0.5,
+                }}
+              >
                 <Typography
                   level="body-sm"
                   color="primary"
                   onClick={() => navigate('/register')}
-                  sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
                 >
                   Create account
                 </Typography>
@@ -242,7 +264,10 @@ export default function LoginForm() {
                   level="body-sm"
                   color="neutral"
                   onClick={() => navigate('/forgot-password')}
-                  sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover': { textDecoration: 'underline' },
+                  }}
                 >
                   Forgot Password?
                 </Typography>
