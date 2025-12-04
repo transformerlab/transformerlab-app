@@ -71,7 +71,7 @@ class SQLAlchemyUserDatabaseWithOAuth(SQLAlchemyUserDatabase):
             )
         )
         await self.session.execute(stmt)
-        
+
         # Refresh the user to include the updated oauth_accounts
         await self.session.refresh(user)
         return user
