@@ -24,6 +24,7 @@ import PluginDetails from './Plugins/PluginDetails';
 import TasksGallery from './TaskLibrary/TasksGallery';
 
 import Computer from './Computer';
+import Compute from './Compute/Compute';
 import Eval from './Experiment/Eval/Eval';
 import Generate from './Experiment/Generate/Generate';
 import Export from './Experiment/Export/Export';
@@ -487,6 +488,7 @@ export default function MainAppPanel({
         />
         <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
+        <Route path="/compute" element={<Compute />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />
         <Route path="/user" element={<UserSettings />} />

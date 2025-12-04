@@ -266,6 +266,8 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
 }
 
 function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
+  const [computeExpanded, setComputeExpanded] = useState(false);
+
   return (
     <List
       sx={{
@@ -292,6 +294,7 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
         icon={<PlugIcon />}
         counter={outdatedPluginsCount}
       />
+      <SubNavItem title="Compute" path="/compute" icon={<MonitorIcon />} />
       <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
     </List>
   );

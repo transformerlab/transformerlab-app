@@ -54,6 +54,17 @@ class ComputeProvider(ABC):
         """
         raise NotImplementedError
 
+    def list_clusters(self) -> List[ClusterStatus]:
+        """
+        List all clusters managed by this provider.
+
+        Returns:
+            List of ClusterStatus objects for all clusters
+        """
+        # Default implementation returns empty list
+        # Providers that support listing clusters should override this
+        return []
+
     @abstractmethod
     def get_cluster_resources(self, cluster_name: str) -> ResourceInfo:
         """
