@@ -25,16 +25,65 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 ###############
 
 
-async def config_get(key: str):
+async def config_get(key: str, user_id: str | None = None, team_id: str | None = None):
+    """
+    Get config value with priority: user-specific -> team-specific -> global.
+
+    Priority order:
+    1. User-specific (user_id set, team_id matches current team)
+    2. Team-specific (user_id IS NULL, team_id set)
+    3. Global (user_id IS NULL, team_id IS NULL)
+    """
     async with async_session() as session:
-        result = await session.execute(select(Config.value).where(Config.key == key))
+        # First try user-specific config (if user_id provided)
+        if user_id and team_id:
+            result = await session.execute(
+                select(Config.value).where(Config.key == key, Config.user_id == user_id, Config.team_id == team_id)
+            )
+            row = result.scalar_one_or_none()
+            if row is not None:
+                return row
+
+        # Then try team-specific config (user_id IS NULL, team_id set)
+        if team_id:
+            result = await session.execute(
+                select(Config.value).where(Config.key == key, Config.user_id.is_(None), Config.team_id == team_id)
+            )
+            row = result.scalar_one_or_none()
+            if row is not None:
+                return row
+
+        # Finally fallback to global config (user_id IS NULL, team_id IS NULL)
+        result = await session.execute(
+            select(Config.value).where(Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None))
+        )
         row = result.scalar_one_or_none()
         return row
 
 
-async def config_set(key: str, value: str):
-    stmt = insert(Config).values(key=key, value=value)
-    stmt = stmt.on_conflict_do_update(index_elements=["key"], set_={"value": value})
+async def config_set(
+    key: str, value: str, user_id: str | None = None, team_id: str | None = None, team_wide: bool = True
+):
+    """
+    Set config value.
+
+    Args:
+        key: Config key
+        value: Config value
+        user_id: User ID for user-specific config (if None and team_wide=False, will be set to None)
+        team_id: Team ID for team-specific config
+        team_wide: If True, sets team-wide config (user_id=None). If False, sets user-specific config.
+
+    If team_wide=True: Sets team-wide config (user_id=NULL, team_id=team_id)
+    If team_wide=False: Sets user-specific config (user_id=user_id, team_id=team_id)
+    If team_id=None: Sets global config (user_id=NULL, team_id=NULL)
+    """
+    # Determine user_id and team_id based on team_wide flag
+    final_user_id = None if team_wide else user_id
+    final_team_id = team_id
+
+    stmt = insert(Config).values(key=key, value=value, user_id=final_user_id, team_id=final_team_id)
+    stmt = stmt.on_conflict_do_update(index_elements=["user_id", "team_id", "key"], set_={"value": value})
     async with async_session() as session:
         await session.execute(stmt)
         await session.commit()

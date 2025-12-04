@@ -66,9 +66,6 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
         popenKWArgs["stdout"] = log
         popenKWArgs["stderr"] = log
 
-        print("FINAL popenKWArgs:", popenKWArgs)
-        print("FINAL popenArgs:", popenArgs)
-
         proc = subprocess.Popen(popenArgs, **popenKWArgs)
         proc.communicate(input=input.encode("utf-8"))
         proc.wait()
@@ -400,6 +397,37 @@ def _get_org_id_for_subprocess():
     return None
 
 
+def _get_user_id_for_subprocess(job_details: dict = None):
+    """
+    Helper function to get user_id from job_details if available.
+    Checks job_data for user_id or user_info.
+    Returns None if not found.
+    """
+    if not job_details:
+        return None
+
+    # Try to get user_id directly from job_data
+    job_data = job_details.get("job_data", {})
+    if isinstance(job_data, str):
+        try:
+            import json
+
+            job_data = json.loads(job_data)
+        except Exception:
+            job_data = {}
+
+    # Check for user_id in job_data
+    if isinstance(job_data, dict):
+        # Some jobs store user_id directly
+        if "user_id" in job_data:
+            return job_data["user_id"]
+        # Some jobs store user_info with email, we'd need to look up user_id
+        # For now, we'll just return None if user_id isn't directly available
+        # This can be enhanced later to look up user_id from email if needed
+
+    return None
+
+
 async def run_job(job_id: str, job_config, experiment_name: str = "default", job_details: dict = None):
     # This runs a specified job number defined
     # by template_id
@@ -410,11 +438,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     master_job_type = job_details["type"]
     print(master_job_type)
 
-    # Get organization_id for passing to plugin subprocesses
+    # Get organization_id and user_id for passing to plugin subprocesses
     org_id = _get_org_id_for_subprocess()
+    user_id = _get_user_id_for_subprocess(job_details)
     subprocess_env = {}
     if org_id:
         subprocess_env["_TFL_ORG_ID"] = org_id
+    if user_id:
+        subprocess_env["_TFL_USER_ID"] = user_id
 
     # Only pass env if it has values (empty dict is falsy, so this works)
     subprocess_env_or_none = subprocess_env if subprocess_env else None

@@ -199,7 +199,7 @@ export default function ModelGroups({ experimentInfo }) {
   const { data: canLogInToHuggingFace } = useAPI('models', [
     'loginToHuggingFace',
   ]);
-  const isHFAccessTokenSet = canLogInToHuggingFace?.message === 'OK';
+  const isHFAccessTokenSet = canLogInToHuggingFace?.message?.startsWith('OK') ?? false;
 
   useEffect(() => {
     chatAPI
