@@ -17,6 +17,7 @@ import HexLogo from '../Shared/HexLogo';
 import labImage from '../Welcome/img/lab.jpg';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterUser';
+import ThreeDLogo from '../Shared/ThreeDLogo';
 
 function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
   const { fetchWithAuth } = useAuth();
@@ -200,7 +201,11 @@ export default function LoginPage() {
             overflow: 'auto',
           }}
         >
-          <HexLogo width={32} height={32} />
+          <Box
+            sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}
+          >
+            <ThreeDLogo size={160} />
+          </Box>
           <Typography level="h2" component="div" sx={{ mb: 1 }}>
             Transformer Lab
           </Typography>
