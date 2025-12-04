@@ -28,7 +28,9 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
     try {
       await fetchWithAuth(getPath('auth', ['forgotPassword'], {}), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ email }),
       });
     } catch (error) {
@@ -42,7 +44,12 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
       <Typography level="h4" component="div" sx={{ mb: 2 }}>
         Forgot Password
       </Typography>
-      <form onSubmit={handleSubmit}>
+
+      <form
+        onSubmit={(e) => {
+          handleSubmit(e);
+        }}
+      >
         <FormControl required>
           <FormLabel>Email</FormLabel>
           <Input
@@ -67,50 +74,74 @@ function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
 export default function LoginPage() {
   const [verifyMessage, setVerifyMessage] = useState('');
   const [hash, setHash] = useState(window.location.hash);
+
   const authContext = useAuth();
+
   const navigate = useNavigate();
 
   useEffect(() => {
     const autoLogin = async () => {
       const apiUrl = API_URL();
-      if (!apiUrl) return;
+      if (!apiUrl) {
+        console.log(
+          'Skipping auto-login: no API URL available. Connection modal should show first.',
+        );
+        return;
+      }
+
       try {
+        console.log('Attempting auto-login for single user mode');
         await authContext.login('admin@example.com', 'admin123');
       } catch (error) {
         console.error('Auto-login failed:', error);
       }
     };
+
     if (process.env.MULTIUSER !== 'true') {
       autoLogin();
     }
   }, [authContext]);
 
   useEffect(() => {
-    const handleHashChange = () => setHash(window.location.hash);
+    const handleHashChange = () => {
+      setHash(window.location.hash);
+    };
+
     window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
 
   useEffect(() => {
     const hashWithoutSymbol = hash.substring(1);
     const queryIndex = hashWithoutSymbol.indexOf('?');
-    const queryString = queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
+    const queryString =
+      queryIndex !== -1 ? hashWithoutSymbol.substring(queryIndex + 1) : '';
     const params = new URLSearchParams(queryString);
     const token = params.get('token');
     const invitationToken = params.get('invitation_token');
 
-    if (invitationToken) localStorage.setItem('pending_invitation_token', invitationToken);
+    if (invitationToken) {
+      localStorage.setItem('pending_invitation_token', invitationToken);
+    }
 
     if (token) {
       const verifyEmail = async () => {
         try {
           const envUrl = process.env.TL_API_URL;
-          let apiUrl = !envUrl || envUrl === 'default' || envUrl.trim() === '' ? 'http://localhost:8338' : envUrl;
+          let apiUrl =
+            !envUrl || envUrl === 'default' || envUrl.trim() === ''
+              ? 'http://localhost:8338'
+              : envUrl;
           apiUrl = apiUrl.replace(/\/$/, '');
           const url = `${apiUrl}/auth/verify`;
           const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({ token }),
           });
 
@@ -123,13 +154,16 @@ export default function LoginPage() {
             if (data.detail === 'VERIFY_USER_ALREADY_VERIFIED') {
               setVerifyMessage('Email is already verified. You can log in.');
             } else {
-              setVerifyMessage(data.detail || 'Verification failed. Please try again.');
+              setVerifyMessage(
+                data.detail || 'Verification failed. Please try again.',
+              );
             }
           }
         } catch (err) {
           setVerifyMessage('Verification failed. Please try again.');
         }
       };
+
       verifyEmail();
     }
   }, [hash]);

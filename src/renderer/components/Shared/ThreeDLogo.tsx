@@ -4,32 +4,31 @@ import { useColorScheme } from '@mui/joy/styles';
 import * as THREE from 'three';
 
 // --- Configuration ---
-const CUBE_SIZE = 2.4;           // Outer bounding box
-const TUBE_RADIUS = 0.12;        // Pipe thickness
-const BORDER_THICKNESS = 0.12;   // Silhouette thickness
+const CUBE_SIZE = 2.4;
+const TUBE_RADIUS = 0.12;
+const BORDER_THICKNESS = 0.12;
 
-const ROTATION_DELAY = 2500;     // Pause time
-const ROTATION_SPEED = 3.2;      // Speed: Slightly adjusted for elegance
+const ROTATION_DELAY = 2500;
+const ROTATION_SPEED = 3.2;
 
 const INNER_SCALE = 0.5;
 
 // Extension distance to reach the outer wall
 const EXTENSION_LENGTH = 0.55 * (CUBE_SIZE / 2);
 
-// --- Geometry Helper ---
 function useDynamicGeometry() {
   return useMemo(() => {
     // 1. Define Vertices (Corners of the Inner Cube)
     const r = (CUBE_SIZE / 2) * INNER_SCALE;
     const vertices = [
-      new THREE.Vector3(r, r, r),   // 0
-      new THREE.Vector3(r, r, -r),  // 1
-      new THREE.Vector3(r, -r, r),  // 2
-      new THREE.Vector3(r, -r, -r), // 3
-      new THREE.Vector3(-r, r, r),  // 4
-      new THREE.Vector3(-r, r, -r), // 5
-      new THREE.Vector3(-r, -r, r), // 6
-      new THREE.Vector3(-r, -r, -r) // 7
+      new THREE.Vector3(r, r, r),
+      new THREE.Vector3(r, r, -r),
+      new THREE.Vector3(r, -r, r),
+      new THREE.Vector3(r, -r, -r),
+      new THREE.Vector3(-r, r, r),
+      new THREE.Vector3(-r, r, -r),
+      new THREE.Vector3(-r, -r, r),
+      new THREE.Vector3(-r, -r, -r),
     ];
 
     // 2. Define Edges
@@ -75,7 +74,11 @@ function LogoObject({ isDark }: { isDark: boolean }) {
     const now = state.clock.elapsedTime * 1000;
     if (now - lastTumbleRef.current > ROTATION_DELAY) {
       lastTumbleRef.current = now;
-      const axes = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
+      const axes = [
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 1, 0),
+        new THREE.Vector3(0, 0, 1),
+      ];
       const randomAxis = axes[Math.floor(Math.random() * axes.length)];
       const angle = (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 2);
       const step = new THREE.Quaternion().setFromAxisAngle(randomAxis, angle);
@@ -84,9 +87,7 @@ function LogoObject({ isDark }: { isDark: boolean }) {
     // Slerp towards target
     groupRef.current.quaternion.slerp(targetQuat, ROTATION_SPEED * delta);
 
-
     // --- 2. OPTIMIZED "BREATHING" LOGIC ---
-
     // Transform view direction into local space
     tempQuat.copy(groupRef.current.quaternion).invert();
     const localView = tempVec.copy(viewDir).applyQuaternion(tempQuat);
@@ -98,18 +99,13 @@ function LogoObject({ isDark }: { isDark: boolean }) {
       // Calculate alignment of both ends relative to the camera
       // High Dot (~1.0) = Pointing at camera (Center)
       // Low Dot (~0.33) = Perpendicular (Rim)
-      const dotA = Math.abs(vertices[edge.v[0]].clone().normalize().dot(localView));
-      const dotB = Math.abs(vertices[edge.v[1]].clone().normalize().dot(localView));
+      const dotA = Math.abs(
+        vertices[edge.v[0]].clone().normalize().dot(localView),
+      );
+      const dotB = Math.abs(
+        vertices[edge.v[1]].clone().normalize().dot(localView),
+      );
 
-      // --- PERCEPTUAL TUNING ---
-      // We shift the thresholds to [0.6, 0.9].
-      //
-      // Result:
-      // 1. As a bar leaves the Center (Dot drops below 0.9), it starts growing IMMEDIATELY.
-      // 2. By the time it reaches the "messy" middle of the rotation (Dot ~0.6), it is FULLY EXTENDED.
-      // 3. It stays fully extended as it settles into the Rim position (Dot ~0.33).
-      //
-      // This hides the growth during the fast movement phase and prevents "sliding" at the end.
       const factorA = 1.0 - THREE.MathUtils.smoothstep(dotA, 0.6, 0.9);
       const factorB = 1.0 - THREE.MathUtils.smoothstep(dotB, 0.6, 0.9);
 
@@ -137,9 +133,14 @@ function LogoObject({ isDark }: { isDark: boolean }) {
 
   return (
     <group ref={groupRef}>
-      {/* OUTER SILHOUETTE */}
       <mesh>
-        <boxGeometry args={[CUBE_SIZE * (1 + BORDER_THICKNESS), CUBE_SIZE * (1 + BORDER_THICKNESS), CUBE_SIZE * (1 + BORDER_THICKNESS)]} />
+        <boxGeometry
+          args={[
+            CUBE_SIZE * (1 + BORDER_THICKNESS),
+            CUBE_SIZE * (1 + BORDER_THICKNESS),
+            CUBE_SIZE * (1 + BORDER_THICKNESS),
+          ]}
+        />
         <meshBasicMaterial color={mainColor} side={THREE.BackSide} />
       </mesh>
 
