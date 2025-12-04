@@ -112,15 +112,27 @@ def experiment_save_file_contents(id: str, filename: str, file_contents: Annotat
     exp_obj = Experiment.get(id)
     experiment_dir = exp_obj.get_dir()
 
-    # Use Path for secure path construction and validation
-    try:
-        file_path = Path(experiment_dir).joinpath(f"{filename}{file_ext}").resolve()
-        # Ensure the resolved path is within the experiment directory
-        file_path.relative_to(Path(experiment_dir).resolve())
-    except ValueError:
-        return {"message": "Invalid file path - path traversal detected"}
+    # Check if experiment_dir is a remote path (s3://, gs://, etc.)
+    is_remote = experiment_dir.startswith(("s3://", "gs://", "abfs://", "gcs://"))
+
+    if is_remote:
+        # For remote paths, use storage.join which handles remote URIs properly
+        file_path = storage.join(experiment_dir, f"{filename}{file_ext}")
+        # Basic path traversal check: ensure filename doesn't contain path separators
+        if "/" in filename or "\\" in filename:
+            return {"message": "Invalid file path - path traversal detected"}
+    else:
+        # For local paths, use Path for secure path construction and validation
+        try:
+            file_path = Path(experiment_dir).joinpath(f"{filename}{file_ext}").resolve()
+            # Ensure the resolved path is within the experiment directory
+            file_path.relative_to(Path(experiment_dir).resolve())
+            file_path = str(file_path)
+        except ValueError:
+            return {"message": "Invalid file path - path traversal detected"}
+
     # Save the file contents securely
-    with storage.open(str(file_path), "w", encoding="utf-8") as f:
+    with storage.open(file_path, "w", encoding="utf-8") as f:
         f.write(file_contents)
 
     return {"message": f"{file_path} file contents saved"}
@@ -144,10 +156,25 @@ def experiment_get_file_contents(id: str, filename: str):
     # clean the file name:
     # filename = shared.slugify(filename)
 
-    # The following prevents path traversal attacks:
-    final_path = Path(experiment_dir).joinpath(filename + file_ext).resolve().relative_to(experiment_dir)
+    # Check if experiment_dir is a remote path (s3://, gs://, etc.)
+    is_remote = experiment_dir.startswith(("s3://", "gs://", "abfs://", "gcs://"))
 
-    final_path = experiment_dir + "/" + str(final_path)
+    if is_remote:
+        # For remote paths, use storage.join which handles remote URIs properly
+        # Basic path traversal check: ensure filename doesn't contain path separators
+        if "/" in filename or "\\" in filename:
+            return {"message": "Invalid file path - path traversal detected"}
+        final_path = storage.join(experiment_dir, filename + file_ext)
+    else:
+        # For local paths, use Path for secure path construction and validation
+        try:
+            final_path = Path(experiment_dir).joinpath(filename + file_ext).resolve()
+            # Ensure the resolved path is within the experiment directory
+            final_path.relative_to(Path(experiment_dir).resolve())
+            final_path = str(final_path)
+        except ValueError:
+            return {"message": "Invalid file path - path traversal detected"}
+
     print("Listing Contents of File: " + final_path)
 
     # now get the file contents
