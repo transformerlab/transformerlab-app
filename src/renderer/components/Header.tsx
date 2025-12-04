@@ -440,7 +440,11 @@ export default function Header({ connection, setConnection }) {
           '-webkit-app-region': 'drag',
         }}
       />
-      <StatsBar connection={connection} setConnection={setConnection} />
+      {isS3Mode ? (
+        <Box sx={{ mr: 2 }} />
+      ) : (
+        <StatsBar connection={connection} setConnection={setConnection} />
+      )}
     </Sheet>
   );
 }
