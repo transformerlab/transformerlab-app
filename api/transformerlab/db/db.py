@@ -86,9 +86,41 @@ async def config_set(
     final_user_id = None if team_wide else user_id
     final_team_id = team_id
 
-    stmt = insert(Config).values(key=key, value=value, user_id=final_user_id, team_id=final_team_id)
-    stmt = stmt.on_conflict_do_update(index_elements=["user_id", "team_id", "key"], set_={"value": value})
     async with async_session() as session:
-        await session.execute(stmt)
+        # Check if config already exists
+        if final_user_id is None and final_team_id is None:
+            # Global config: both user_id and team_id are NULL
+            result = await session.execute(
+                select(Config).where(
+                    Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None)
+                )
+            )
+        elif final_user_id is None:
+            # Team-wide config: user_id is NULL, team_id is set
+            result = await session.execute(
+                select(Config).where(
+                    Config.key == key, Config.user_id.is_(None), Config.team_id == final_team_id
+                )
+            )
+        else:
+            # User-specific config: both user_id and team_id are set
+            result = await session.execute(
+                select(Config).where(
+                    Config.key == key,
+                    Config.user_id == final_user_id,
+                    Config.team_id == final_team_id,
+                )
+            )
+
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            # Update existing config
+            existing.value = value
+        else:
+            # Insert new config
+            new_config = Config(key=key, value=value, user_id=final_user_id, team_id=final_team_id)
+            session.add(new_config)
+
         await session.commit()
     return
