@@ -244,19 +244,19 @@
     },
     "launchTask": {
       "method": "POST",
-      "path": "providers/{providerId}/tasks/launch"
+      "path": "compute_provider/{providerId}/tasks/launch"
     },
     "checkJobStatus": {
       "method": "GET",
-      "path": "providers/jobs/{jobId}/check-status"
+      "path": "compute_provider/jobs/{jobId}/check-status"
     },
     "stopCluster": {
       "method": "POST",
-      "path": "providers/{providerId}/clusters/{clusterName}/stop"
+      "path": "compute_provider/{providerId}/clusters/{clusterName}/stop"
     },
     "uploadTaskFile": {
       "method": "POST",
-      "path": "providers/{providerId}/tasks/{taskId}/file-upload"
+      "path": "compute_provider/{providerId}/tasks/{taskId}/file-upload"
     }
   },
   "auth": {
