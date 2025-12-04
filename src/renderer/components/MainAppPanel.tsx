@@ -85,7 +85,6 @@ export const PageTracker = () => {
 // On the leftmost panel.
 export default function MainAppPanel({
   setLogsDrawerOpen = null,
-  gpuOrchestrationServer = '',
 }) {
   const { experimentInfo, experimentInfoMutate, setExperimentId } =
     useExperimentInfo();
@@ -389,35 +388,17 @@ export default function MainAppPanel({
         <Route path="/experiment/tokenize" element={<Tokenize />} />
         <Route
           path="/experiment/training"
-          element={
-            gpuOrchestrationServer !== '' ? (
-              <Tasks subtype="Train" />
-            ) : (
-              <TrainLoRA />
-            )
-          }
+          element={<TrainLoRA />}
         />
         <Route path="/experiment/tasks" element={<Tasks />} />
 
         <Route
           path="/experiment/eval"
-          element={
-            gpuOrchestrationServer !== '' ? (
-              <Tasks subtype="Eval" />
-            ) : (
-              <Eval addEvaluation={experimentAddEvaluation} />
-            )
-          }
+          element={<Eval addEvaluation={experimentAddEvaluation} />}
         />
         <Route
           path="/experiment/generate"
-          element={
-            gpuOrchestrationServer !== '' ? (
-              <Tasks subtype="Generate" />
-            ) : (
-              <Generate addGeneration={experimentAddGeneration} />
-            )
-          }
+          element={<Generate addGeneration={experimentAddGeneration} />}
         />
         <Route path="/experiment/documents" element={<Documents />} />
         <Route
@@ -439,51 +420,30 @@ export default function MainAppPanel({
         <Route
           path="/zoo"
           element={
-            <ModelZoo
-              tab="groups"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
+            <ModelZoo tab="groups" />
           }
         />
         <Route
           path="/zoo/local"
-          element={
-            <ModelZoo
-              tab="local"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
-          }
+          element={<ModelZoo tab="local" />}
         />
         <Route
           path="/zoo/generated"
-          element={
-            <ModelZoo
-              tab="generated"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
-          }
+          element={<ModelZoo tab="generated" />}
         />
         <Route
           path="/zoo/store"
-          element={
-            <ModelZoo
-              tab="store"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
-          }
+          element={<ModelZoo tab="store" />}
         />
         <Route
           path="/zoo/groups"
           element={
-            <ModelZoo
-              tab="groups"
-              gpuOrchestrationServer={gpuOrchestrationServer}
-            />
+            <ModelZoo tab="groups" />
           }
         />
         <Route
           path="/data"
-          element={<Data gpuOrchestrationServer={gpuOrchestrationServer} />}
+          element={<Data />}
         />
         <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
