@@ -173,6 +173,6 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
     """
 
     __tablename__ = "oauth_account"
-    
+
     # Note: user_id is inherited from SQLAlchemyBaseOAuthAccountTableUUID and should not be overridden
     # The base class uses GUID type which is SQLite-compatible (CHAR(36))
