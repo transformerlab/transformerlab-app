@@ -280,6 +280,28 @@
       "method": "POST",
       "path": "auth/forgot_password"
     },
+    "apiKeys": {
+      "list": {
+        "method": "GET",
+        "path": "auth/api-keys"
+      },
+      "create": {
+        "method": "POST",
+        "path": "auth/api-keys"
+      },
+      "get": {
+        "method": "GET",
+        "path": "auth/api-keys/{key_id}"
+      },
+      "update": {
+        "method": "PATCH",
+        "path": "auth/api-keys/{key_id}"
+      },
+      "delete": {
+        "method": "DELETE",
+        "path": "auth/api-keys/{key_id}"
+      }
+    },
     "verify": {
       "method": "POST",
       "path": "auth/verify"
