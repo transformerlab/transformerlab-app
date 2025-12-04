@@ -169,8 +169,10 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
     """
     OAuth account model for linking OAuth providers to users.
     Stores OAuth provider info (Google, etc.) linked to our users.
+    Inherits user_id from SQLAlchemyBaseOAuthAccountTableUUID base class.
     """
 
     __tablename__ = "oauth_account"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    
+    # Note: user_id is inherited from SQLAlchemyBaseOAuthAccountTableUUID and should not be overridden
+    # The base class uses GUID type which is SQLite-compatible (CHAR(36))
