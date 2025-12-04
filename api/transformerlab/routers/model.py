@@ -15,7 +15,6 @@ from transformers import AutoTokenizer
 
 
 import os
-from pathlib import Path
 
 from transformerlab.shared import shared
 from transformerlab.shared import galleries

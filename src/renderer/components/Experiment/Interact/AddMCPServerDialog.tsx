@@ -121,9 +121,14 @@ export default function AddMCPServerDialog({ open, onClose, onInstalled }) {
               placeholder='{"KEY":"VALUE"}'
             />
           </FormControl>
-          <FormControl orientation="horizontal" sx={{ gap: 1, alignItems: 'center' }}>
+          <FormControl
+            orientation="horizontal"
+            sx={{ gap: 1, alignItems: 'center' }}
+          >
             <FormLabel sx={{ mr: 1 }}>
-              {teamWide ? "Team-wide (all members can use)" : "User-specific (only you)"}
+              {teamWide
+                ? 'Team-wide (all members can use)'
+                : 'User-specific (only you)'}
             </FormLabel>
             <Switch
               checked={teamWide}
