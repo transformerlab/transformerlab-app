@@ -188,7 +188,7 @@ export default function UserLoginTest(): JSX.Element {
     }
 
     try {
-      const res = await authContext.fetchWithAuth(`providers/${id}`, {
+      const res = await authContext.fetchWithAuth(`compute_provider/${id}`, {
         method: 'DELETE',
       });
 
