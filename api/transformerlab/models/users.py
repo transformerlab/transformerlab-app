@@ -6,6 +6,7 @@ from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, schemas, e
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy, Strategy
 from fastapi_users.db import SQLAlchemyUserDatabase
 from httpx_oauth.clients.google import GoogleOAuth2
+from httpx_oauth.clients.github import GitHubOAuth2
 from transformerlab.shared.models.user_model import get_async_session, create_personal_team, get_user_db
 from transformerlab.shared.models.models import User, UserTeam, TeamRole
 from transformerlab.utils.email import send_password_reset_email, send_email_verification_link
@@ -218,6 +219,25 @@ if not GOOGLE_OAUTH_ENABLED:
     )
 else:
     print("✅ Google OAuth configured and ready.")
+
+# --- GitHub OAuth Configuration ---
+github_oauth_client = GitHubOAuth2(
+    client_id=os.getenv("GITHUB_OAUTH_CLIENT_ID", ""),
+    client_secret=os.getenv("GITHUB_OAUTH_CLIENT_SECRET", ""),
+    scopes=["user:email"],
+)
+
+GITHUB_OAUTH_ENABLED = os.getenv("GITHUB_OAUTH_ENABLED", "false").lower() == "true" and bool(
+    os.getenv("GITHUB_OAUTH_CLIENT_ID") and os.getenv("GITHUB_OAUTH_CLIENT_SECRET")
+)
+
+if not GITHUB_OAUTH_ENABLED:
+    print(
+        "⚠️  GitHub OAuth not configured. Set GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET to enable GitHub login."
+    )
+else:
+    print("✅ GitHub OAuth configured and ready.")
+
 
 EMAIL_AUTH_ENABLED = os.getenv("EMAIL_AUTH_ENABLED", "true").lower() == "true"
 
