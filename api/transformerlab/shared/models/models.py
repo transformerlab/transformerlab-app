@@ -1,5 +1,5 @@
 from typing import Optional, List
-from sqlalchemy import String, JSON, DateTime, func, Integer, Index, UUID
+from sqlalchemy import String, JSON, DateTime, func, Integer, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyBaseOAuthAccountTableUUID
 import uuid
