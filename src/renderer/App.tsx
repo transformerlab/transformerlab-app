@@ -114,10 +114,7 @@ function AppContent({
         `,
       })}
     >
-      <Header
-        connection={connection}
-        setConnection={setConnection}
-      />
+      <Header connection={connection} setConnection={setConnection} />
       <Sidebar
         logsDrawerOpen={logsDrawerOpen}
         setLogsDrawerOpen={setLogsDrawerOpen as any}
@@ -140,9 +137,7 @@ function AppContent({
         }}
         id="main-app-panel"
       >
-        <MainAppPanel
-          setLogsDrawerOpen={setLogsDrawerOpen as any}
-        />
+        <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
       </Box>
       <Box
         sx={{

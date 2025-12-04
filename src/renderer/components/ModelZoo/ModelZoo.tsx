@@ -9,9 +9,7 @@ import LocalModels from './LocalModels';
 import ModelGroups from './ModelGroups';
 import { apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
 
-export default function ModelZoo({
-  tab = 'store',
-}) {
+export default function ModelZoo({ tab = 'store' }) {
   const navigate = useNavigate();
   const { experimentInfo } = useExperimentInfo();
   const [mode, setMode] = useState<string>('local');
@@ -37,9 +35,7 @@ export default function ModelZoo({
   // If we are in S3 Mode, even if the default tab is 'groups' or 'generated', we should
   // show the 'local' tab instead, since 'groups' and 'generated' don't work in this mode
   const filteredTab =
-    isS3Mode && (tab === 'groups' || tab === 'generated')
-      ? 'local'
-      : tab;
+    isS3Mode && (tab === 'groups' || tab === 'generated') ? 'local' : tab;
 
   // Redirect to local tab if in s3 mode and trying to access generated or groups
   useEffect(() => {

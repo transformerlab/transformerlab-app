@@ -83,9 +83,7 @@ export const PageTracker = () => {
 // This component renders the main content of the app that is shown
 // On the rightmost side, regardless of what menu items are selected
 // On the leftmost panel.
-export default function MainAppPanel({
-  setLogsDrawerOpen = null,
-}) {
+export default function MainAppPanel({ setLogsDrawerOpen = null }) {
   const { experimentInfo, experimentInfoMutate, setExperimentId } =
     useExperimentInfo();
   const location = useLocation();
@@ -386,10 +384,7 @@ export default function MainAppPanel({
         />
         <Route path="/experiment/embeddings" element={<Embeddings />} />
         <Route path="/experiment/tokenize" element={<Tokenize />} />
-        <Route
-          path="/experiment/training"
-          element={<TrainLoRA />}
-        />
+        <Route path="/experiment/training" element={<TrainLoRA />} />
         <Route path="/experiment/tasks" element={<Tasks />} />
 
         <Route
@@ -417,34 +412,12 @@ export default function MainAppPanel({
         <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/api" element={<Api />} />
         <Route path="/experiment/settings" element={<Settings />} />
-        <Route
-          path="/zoo"
-          element={
-            <ModelZoo tab="groups" />
-          }
-        />
-        <Route
-          path="/zoo/local"
-          element={<ModelZoo tab="local" />}
-        />
-        <Route
-          path="/zoo/generated"
-          element={<ModelZoo tab="generated" />}
-        />
-        <Route
-          path="/zoo/store"
-          element={<ModelZoo tab="store" />}
-        />
-        <Route
-          path="/zoo/groups"
-          element={
-            <ModelZoo tab="groups" />
-          }
-        />
-        <Route
-          path="/data"
-          element={<Data />}
-        />
+        <Route path="/zoo" element={<ModelZoo tab="groups" />} />
+        <Route path="/zoo/local" element={<ModelZoo tab="local" />} />
+        <Route path="/zoo/generated" element={<ModelZoo tab="generated" />} />
+        <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
+        <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
+        <Route path="/data" element={<Data />} />
         <Route path="/task_library" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />

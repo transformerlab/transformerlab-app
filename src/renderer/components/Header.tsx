@@ -9,7 +9,10 @@ import {
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { useServerStats, apiHealthz } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  useServerStats,
+  apiHealthz,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { useEffect, useState } from 'react';
 import { Link2Icon } from 'lucide-react';
 
@@ -362,10 +365,7 @@ function StatsBar({ connection, setConnection }) {
   );
 }
 
-export default function Header({
-  connection,
-  setConnection,
-}) {
+export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
   const [mode, setMode] = useState<string>('local');
 
@@ -441,9 +441,7 @@ export default function Header({
         }}
       />
       {isS3Mode ? (
-        <Box sx={{ mr: 2 }}>
-          REMOTE WORKSPACE MODE
-        </Box>
+        <Box sx={{ mr: 2 }}>REMOTE WORKSPACE MODE</Box>
       ) : (
         <StatsBar connection={connection} setConnection={setConnection} />
       )}
