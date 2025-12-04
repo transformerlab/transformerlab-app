@@ -440,11 +440,7 @@ export default function Header({ connection, setConnection }) {
           '-webkit-app-region': 'drag',
         }}
       />
-      {isS3Mode ? (
-        <Box sx={{ mr: 2 }}>REMOTE WORKSPACE MODE</Box>
-      ) : (
-        <StatsBar connection={connection} setConnection={setConnection} />
-      )}
+      <StatsBar connection={connection} setConnection={setConnection} />
     </Sheet>
   );
 }
