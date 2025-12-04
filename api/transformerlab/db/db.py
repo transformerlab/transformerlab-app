@@ -59,9 +59,7 @@ async def config_get(key: str, user_id: str | None = None, team_id: str | None =
 
         # Finally fallback to global config (user_id IS NULL, team_id IS NULL)
         result = await session.execute(
-            select(Config.value)
-            .where(Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None))
-            .limit(1)
+            select(Config.value).where(Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None)).limit(1)
         )
         row = result.scalar_one_or_none()
         return row
