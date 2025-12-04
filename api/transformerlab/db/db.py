@@ -1,5 +1,4 @@
 from sqlalchemy import select
-from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -91,16 +90,12 @@ async def config_set(
         if final_user_id is None and final_team_id is None:
             # Global config: both user_id and team_id are NULL
             result = await session.execute(
-                select(Config).where(
-                    Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None)
-                )
+                select(Config).where(Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None))
             )
         elif final_user_id is None:
             # Team-wide config: user_id is NULL, team_id is set
             result = await session.execute(
-                select(Config).where(
-                    Config.key == key, Config.user_id.is_(None), Config.team_id == final_team_id
-                )
+                select(Config).where(Config.key == key, Config.user_id.is_(None), Config.team_id == final_team_id)
             )
         else:
             # User-specific config: both user_id and team_id are set
