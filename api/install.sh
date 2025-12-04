@@ -454,6 +454,31 @@ install_dependencies() {
   echo "🌕 Step 4: COMPLETE"
 }
 
+##############################
+## Step 5: Install SkyPilot
+##############################
+
+install_skypilot() {
+  title "Step 5: Install SkyPilot"
+  echo "🌘 Step 5: START"
+
+  unset_conda_for_sure
+  eval "$(${CONDA_BIN} shell.bash hook)"
+  conda activate "$ENV_DIR"
+
+  check_python
+
+  # Install uv if not already installed
+  if ! command -v uv &> /dev/null; then
+    pip install uv
+  fi
+
+  echo "Installing SkyPilot with Kubernetes support..."
+  uv pip install "skypilot[kubernetes]==0.10.5"
+
+  echo "🌕 Step 5: COMPLETE"
+}
+
 list_installed_packages() {
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
@@ -531,6 +556,9 @@ else
       install_dependencies)
         install_dependencies
         ;;
+      install_skypilot)
+        install_skypilot
+        ;;
       doctor)
         doctor
         ;;
@@ -542,7 +570,7 @@ else
         ;;
       *)
         # Print allowed arguments
-        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies] or leave blank to perform a full installation."
+        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_skypilot] or leave blank to perform a full installation."
         abort "❌ Unknown argument: $arg"
         ;;
     esac
