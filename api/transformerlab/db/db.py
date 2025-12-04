@@ -38,7 +38,9 @@ async def config_get(key: str, user_id: str | None = None, team_id: str | None =
         # First try user-specific config (if user_id provided)
         if user_id and team_id:
             result = await session.execute(
-                select(Config.value).where(Config.key == key, Config.user_id == user_id, Config.team_id == team_id)
+                select(Config.value)
+                .where(Config.key == key, Config.user_id == user_id, Config.team_id == team_id)
+                .limit(1)
             )
             row = result.scalar_one_or_none()
             if row is not None:
@@ -47,7 +49,9 @@ async def config_get(key: str, user_id: str | None = None, team_id: str | None =
         # Then try team-specific config (user_id IS NULL, team_id set)
         if team_id:
             result = await session.execute(
-                select(Config.value).where(Config.key == key, Config.user_id.is_(None), Config.team_id == team_id)
+                select(Config.value)
+                .where(Config.key == key, Config.user_id.is_(None), Config.team_id == team_id)
+                .limit(1)
             )
             row = result.scalar_one_or_none()
             if row is not None:
@@ -55,7 +59,9 @@ async def config_get(key: str, user_id: str | None = None, team_id: str | None =
 
         # Finally fallback to global config (user_id IS NULL, team_id IS NULL)
         result = await session.execute(
-            select(Config.value).where(Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None))
+            select(Config.value)
+            .where(Config.key == key, Config.user_id.is_(None), Config.team_id.is_(None))
+            .limit(1)
         )
         row = result.scalar_one_or_none()
         return row
