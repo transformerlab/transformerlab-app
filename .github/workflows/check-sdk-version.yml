@@ -1,0 +1,41 @@
+# This workflow checks if changes to lab-sdk will trigger a new PyPI release
+# It fails if the current version in pyproject.toml already exists on PyPI
+
+name: Check SDK Version for Release
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "lab-sdk/**"
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: lab-sdk
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if version already exists on PyPI
+        run: |
+          PKG_NAME=$(grep -E '^name\s*=\s*' pyproject.toml | head -1 | sed 's/name\s*=\s*"\(.*\)"/\1/')
+          PKG_VERSION=$(grep -E '^version\s*=\s*' pyproject.toml | head -1 | sed 's/version\s*=\s*"\(.*\)"/\1/')
+          echo "Package name: $PKG_NAME"
+          echo "Package version: $PKG_VERSION"
+          echo "Checking if version exists on PyPI..."
+          EXISTS=$(curl -s https://pypi.org/pypi/$PKG_NAME/json | grep -F "\"$PKG_VERSION\"" || true)
+          if [ -n "$EXISTS" ]; then
+            echo "Error: Version $PKG_VERSION of $PKG_NAME already exists on PyPI." >&2
+            echo "This change will NOT trigger a new release. Please bump the version in pyproject.toml." >&2
+            sleep 1
+            exit 1
+          else
+            echo "Version $PKG_VERSION does not exist on PyPI. This change will trigger a new release."
+          fi
