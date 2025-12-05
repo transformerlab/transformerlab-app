@@ -72,15 +72,6 @@ export default function JobProgress({ job }: JobProps) {
           // eslint-disable-next-line no-console
           console.error('Failed to stop provider cluster:', error);
         }
-      } else if (clusterName && job?.id) {
-        // Fallback to legacy remote stop endpoint for jobs without provider_id
-        const formData = new FormData();
-        formData.append('job_id', job.id);
-        formData.append('cluster_name', clusterName);
-        await chatAPI.authenticatedFetch(chatAPI.Endpoints.Jobs.StopRemote(), {
-          method: 'POST',
-          body: formData,
-        });
       } else {
         // eslint-disable-next-line no-console
         console.error(
