@@ -4,11 +4,6 @@
 name: Check SDK Version for Release
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "lab-sdk/**"
   pull_request:
     branches:
       - main
