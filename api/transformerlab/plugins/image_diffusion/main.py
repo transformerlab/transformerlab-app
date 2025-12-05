@@ -34,10 +34,7 @@ from diffusers import (
     FluxControlNetImg2ImgPipeline,
     StableDiffusionControlNetInpaintPipeline,
     StableDiffusionXLControlNetInpaintPipeline,
-    WanPipeline,
-    AutoencoderKLWan,
 )
-from diffusers.utils import export_to_video  # added: helper to write mp4
 import os
 import sys
 import random
@@ -162,10 +159,6 @@ class DiffusionRequest(BaseModel):
     generation_id: str | None = None
     scheduler: str = "default"
     process_type: str | None = None
-    # Video-specific fields
-    is_video: bool = False
-    video_frames: int = 16
-    fps: int = 8
 
     @property
     def validated_num_images(self) -> int:
@@ -214,11 +207,6 @@ class ImageHistoryItem(BaseModel):
     width: int = 0
     generation_time: float = 0.0
     num_images: int = 1
-    # Video-specific fields
-    is_video: bool = False
-    video_path: str = ""
-    video_frames: int = 16
-    fps: int = 8
     # Image-to-image specific fields
     input_image_path: str = ""  # Path to input image (for img2img)
     processed_image: str | None = None  # the preprocessed image for ControlNets
@@ -322,7 +310,6 @@ def get_pipeline(
     is_img2img: bool = False,
     is_inpainting: bool = False,
     is_controlnet: bool = False,
-    is_video: bool = False,
     scheduler="default",
     controlnet_id="off",
 ):
@@ -378,38 +365,6 @@ def get_pipeline(
                 requires_safety_checker=False,
                 use_safetensors=True,
             )
-        if is_video:
-            try:
-                info = model_info(model)
-                config = getattr(info, "config", {})
-                diffusers_config = config.get("diffusers", {})
-                architecture = diffusers_config.get("_class_name", "")
-            except Exception as e:
-                raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
-            print(f"Loading video pipeline for model: {model}")
-            model_lower = model.lower()
-            if "wan" in model_lower or model.startswith("Wan-AI"):
-                try:
-                    vae_dtype = torch.float32
-                    pipe_dtype = torch.bfloat16 if device != "cpu" else torch.float32
-                    vae = AutoencoderKLWan.from_pretrained(model, subfolder="vae", torch_dtype=vae_dtype)
-                    pipe = WanPipeline.from_pretrained(
-                        model,
-                        vae=vae,
-                        torch_dtype=pipe_dtype,
-                        safety_checker=None,
-                        requires_safety_checker=False,
-                    )
-                    print("Loaded WanPipeline with AutoencoderKLWan VAE")
-                except Exception as e:
-                    print(f"Warning: Wan VAE load failed ({e}), falling back to standard WanPipeline")
-                    pipe = WanPipeline.from_pretrained(
-                        model,
-                        torch_dtype=torch.float16 if device != "cpu" else torch.float32,
-                        safety_checker=None,
-                        requires_safety_checker=False,
-                    )
-            print(f"Loaded video pipeline for model: {model}")
         elif is_inpainting:
             pipe = AutoPipelineForInpainting.from_pretrained(
                 model,
@@ -1021,9 +976,6 @@ async def diffusion_generate_job():
                 is_img2img=is_img2img,
                 is_inpainting=is_inpainting,
                 is_controlnet=is_controlnet,
-                is_video=request.is_video,
-                video_frames=request.video_frames,
-                fps=request.fps,
                 scheduler=request.scheduler,
                 controlnet_id=controlnet_id,
             )
@@ -1038,198 +990,172 @@ async def diffusion_generate_job():
 
             generator = torch.manual_seed(seed)
 
-            # Video generation branch
-            if request.is_video:
+            # Process input image and mask for single GPU path
+            input_image_obj = None
+            mask_image_obj = None
+            if is_inpainting or is_img2img or is_controlnet:
                 try:
-                    generation_start = time.time()
-                    print("Starting video generation...")
-                    # Build kwargs for video generation
-                    video_kwargs = {
-                        "prompt": request.prompt,
-                        "negative_prompt": request.negative_prompt or None,
-                        "height": request.height if request.height > 0 else None,
-                        "width": request.width if request.width > 0 else None,
-                        "num_frames": max(1, int(request.video_frames)),
-                        "guidance_scale": request.guidance_scale,
-                        "num_inference_steps": request.num_inference_steps,
-                        "generator": generator,
-                    }
-                    # Remove None values
-                    video_kwargs = {k: v for k, v in video_kwargs.items() if v is not None}
-
-                    result = pipe(**video_kwargs)
-                    # Prefer attribute 'frames' (list/ndarray) produced by WanPipeline
-                    frames = getattr(result, "frames", None)
-                    if frames is None:
-                        # try common alternatives
-                        frames = getattr(result, "frames_tensor", None) or getattr(result, "frame_tensor", None)
-
-                    if frames is None:
-                        raise RuntimeError("Wan pipeline did not return frames")
-
-                    video_path = os.path.join(images_folder, "video.mp4")
-                    try:
-                        export_to_video(frames, video_path, fps=max(1, int(request.fps)))
-                        print(f"Exported video to {video_path}")
-                    except Exception as e:
-                        print(f"Warning: Failed to export video with export_to_video: {e}")
-                        # Fallback: save frames individually
-                        video_path = ""
-                    # For compatibility with downstream code, set images to first frame as PIL list
-                    images = [Image.fromarray(frames[0]) if not isinstance(frames[0], Image.Image) else frames[0]]
-                    total_generation_time = time.time() - generation_start
-
+                    # Decode base64 input image
+                    image_data = base64.b64decode(request.input_image)
+                    input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
                 except Exception as e:
-                    print(f"Video generation failed: {e}")
-                    raise HTTPException(status_code=500, detail=f"Video generation failed: {str(e)}")
-            else:
-                # Run in thread to avoid blocking event loop
-                def run_pipe():
-                    try:
-                        generation_kwargs = {
-                            "prompt": request.prompt,
-                            "num_inference_steps": request.num_inference_steps,
-                            "guidance_scale": request.guidance_scale,
-                            "generator": generator,
-                            "num_images_per_prompt": request.num_images,
-                        }
+                    raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
 
-                        # Set scheduler
-                        if request.scheduler != "default":
-                            generation_kwargs["scheduler"] = request.scheduler
+            if is_inpainting:
+                try:
+                    # Decode base64 mask image
+                    mask_data = base64.b64decode(request.mask_image)
+                    mask_image_obj = Image.open(BytesIO(mask_data)).convert("L")  # Convert to grayscale
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
 
-                        # Add image and mask for inpainting
-                        if is_inpainting:
-                            generation_kwargs["image"] = input_image_obj
-                            generation_kwargs["mask_image"] = mask_image_obj
-                            generation_kwargs["strength"] = request.strength
-                        # Add image and strength for img2img
-                        elif is_img2img:
-                            generation_kwargs["image"] = input_image_obj
-                            generation_kwargs["strength"] = request.strength
-                        elif is_controlnet:
-                            generation_kwargs["image"] = input_image_obj
+            # Run in thread to avoid blocking event loop
+            def run_pipe():
+                try:
+                    generation_kwargs = {
+                        "prompt": request.prompt,
+                        "num_inference_steps": request.num_inference_steps,
+                        "guidance_scale": request.guidance_scale,
+                        "generator": generator,
+                        "num_images_per_prompt": request.num_images,  # Generate multiple images
+                    }
 
-                        # Add negative prompt if provided
-                        if request.negative_prompt:
-                            generation_kwargs["negative_prompt"] = request.negative_prompt
+                    # Set scheduler
+                    if request.scheduler != "default":
+                        generation_kwargs["scheduler"] = request.scheduler
 
-                        if request.eta > 0.0:
-                            generation_kwargs["eta"] = request.eta
+                    # Add image and mask for inpainting
+                    if is_inpainting:
+                        generation_kwargs["image"] = input_image_obj
+                        generation_kwargs["mask_image"] = mask_image_obj
+                        generation_kwargs["strength"] = request.strength
+                    # Add image and strength for img2img
+                    elif is_img2img:
+                        generation_kwargs["image"] = input_image_obj
+                        generation_kwargs["strength"] = request.strength
+                    elif is_controlnet:
+                        generation_kwargs["image"] = input_image_obj
 
-                        # Add guidance rescale if provided
-                        if request.guidance_rescale > 0.0:
-                            generation_kwargs["guidance_rescale"] = request.guidance_rescale
+                    # Add negative prompt if provided
+                    if request.negative_prompt:
+                        generation_kwargs["negative_prompt"] = request.negative_prompt
 
-                        # Add clip skip if provided (requires scheduler support)
-                        if request.clip_skip > 0:
-                            generation_kwargs["clip_skip"] = request.clip_skip
+                    if request.eta > 0.0:
+                        generation_kwargs["eta"] = request.eta
 
-                        # Set height and width if specified
-                        if request.height > 0 and request.width > 0:
-                            generation_kwargs["height"] = request.height
-                            generation_kwargs["width"] = request.width
+                    # Add guidance rescale if provided
+                    if request.guidance_rescale > 0.0:
+                        generation_kwargs["guidance_rescale"] = request.guidance_rescale
 
-                        # Add LoRA scale if adaptor is being used
-                        if request.adaptor and request.adaptor.strip():
-                            generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
+                    # Add clip skip if provided (requires scheduler support)
+                    if request.clip_skip > 0:
+                        generation_kwargs["clip_skip"] = request.clip_skip
 
-                        # Add intermediate image saving callback if enabled
-                        if request.save_intermediate_images:
-                            decode_callback = create_decode_callback(images_folder)
-                        else:
-                            # no-op callback to keep logic unified
-                            def decode_callback(pipe, step, timestep, callback_kwargs):
-                                return callback_kwargs
+                    # Set height and width if specified
+                    if request.height > 0 and request.width > 0:
+                        generation_kwargs["height"] = request.height
+                        generation_kwargs["width"] = request.width
 
-                        def unified_callback(pipe, step: int, timestep: int, callback_kwargs: dict):
-                            try:
-                                # Progress update
-                                progress = 30 + int((step / request.num_inference_steps) * 60)
-                                progress = min(progress, 70)
-                                # progress_queue.put(progress)
-                            except Exception as e:
-                                print(f"Failed to enqueue progress update: {e}")
+                    # Add LoRA scale if adaptor is being used
+                    if request.adaptor and request.adaptor.strip():
+                        generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
 
-                            # Always call decode_callback, it's a no-op if not needed
-                            try:
-                                return decode_callback(pipe, step, timestep, callback_kwargs)
-                            except Exception as e:
-                                print(f"Warning: decode_callback failed: {e}")
-                                return callback_kwargs
+                    # Add intermediate image saving callback if enabled
+                    if request.save_intermediate_images:
+                        decode_callback = create_decode_callback(images_folder)
+                    else:
+                        # no-op callback to keep logic unified
+                        def decode_callback(pipe, step, timestep, callback_kwargs):
+                            return callback_kwargs
 
-                        generation_kwargs["callback_on_step_end"] = unified_callback
-                        generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
+                    def unified_callback(pipe, step: int, timestep: int, callback_kwargs: dict):
+                        try:
+                            # Progress update
+                            progress = 30 + int((step / request.num_inference_steps) * 60)
+                            progress = min(progress, 70)
+                            # progress_queue.put(progress)
+                        except Exception as e:
+                            print(f"Failed to enqueue progress update: {e}")
 
-                        result = pipe(**generation_kwargs)
-                        images = result.images  # Get all images
+                        # Always call decode_callback, it's a no-op if not needed
+                        try:
+                            return decode_callback(pipe, step, timestep, callback_kwargs)
+                        except Exception as e:
+                            print(f"Warning: decode_callback failed: {e}")
+                            return callback_kwargs
 
-                        # Clean up result object to free references
-                        del result
-                        del generation_kwargs
+                    generation_kwargs["callback_on_step_end"] = unified_callback
+                    generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
 
-                        # Force cleanup within the executor thread
-                        import gc
+                    result = pipe(**generation_kwargs)
+                    images = result.images  # Get all images
 
-                        gc.collect()
-                        if torch.cuda.is_available():
-                            torch.cuda.empty_cache()
+                    # Clean up result object to free references
+                    del result
+                    del generation_kwargs
 
-                        return images
-                    except Exception as e:
-                        # Ensure cleanup even if generation fails
-                        print(f"Error during image generation: {str(e)}")
-                        import gc
+                    # Force cleanup within the executor thread
+                    import gc
 
-                        gc.collect()
-                        if torch.cuda.is_available():
-                            torch.cuda.empty_cache()
-                        raise e
-
-                # Time the main generation
-                generation_start = time.time()
-                print("Starting image generation...")
-
-                images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
-
-                generation_time = time.time() - generation_start
-
-                # Aggressive cleanup immediately after generation
-                print("Starting aggressive memory cleanup...")
-
-                # Clean up the main pipeline to free VRAM
-                cleanup_pipeline(pipe)
-
-                # Additional cleanup: clear any remaining references
-                pipe = None
-                input_image_obj = None
-                mask_image_obj = None
-                generator = None
-
-                # Force multiple garbage collection cycles
-                import gc
-
-                for _ in range(3):  # Multiple GC cycles can help
                     gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
 
-                # Additional CUDA cleanup
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                    torch.cuda.ipc_collect()
-                    torch.cuda.empty_cache()  # Second call
-                # MPS cleanup if available
-                if torch.backends.mps.is_available():
-                    torch.mps.empty_cache()
+                    return images
+                except Exception as e:
+                    # Ensure cleanup even if generation fails
+                    print(f"Error during image generation: {str(e)}")
+                    import gc
 
-                print("Memory cleanup completed")
-                tlab_diffusion.progress_update(75)
-                # Get dimensions from the first image
-                first_image = images[0]
-                actual_height = request.height if request.height > 0 else first_image.height
-                actual_width = request.width if request.width > 0 else first_image.width
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    raise e
 
-                total_generation_time = generation_time
-                tlab_diffusion.progress_update(80)
+            # Time the main generation
+            generation_start = time.time()
+            print("Starting image generation...")
+
+            images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
+
+            generation_time = time.time() - generation_start
+
+            # Aggressive cleanup immediately after generation
+            print("Starting aggressive memory cleanup...")
+
+            # Clean up the main pipeline to free VRAM
+            cleanup_pipeline(pipe)
+
+            # Additional cleanup: clear any remaining references
+            pipe = None
+            input_image_obj = None
+            mask_image_obj = None
+            generator = None
+
+            # Force multiple garbage collection cycles
+            import gc
+
+            for _ in range(3):  # Multiple GC cycles can help
+                gc.collect()
+
+            # Additional CUDA cleanup
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
+                torch.cuda.empty_cache()  # Second call
+            # MPS cleanup if available
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+
+            print("Memory cleanup completed")
+            tlab_diffusion.progress_update(75)
+            # Get dimensions from the first image
+            first_image = images[0]
+            actual_height = request.height if request.height > 0 else first_image.height
+            actual_width = request.width if request.width > 0 else first_image.width
+
+            total_generation_time = generation_time
+            tlab_diffusion.progress_update(80)
 
         # Apply upscaling if requested (for both paths)
         if request.upscale:
