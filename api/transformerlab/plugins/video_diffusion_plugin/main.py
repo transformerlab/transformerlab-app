@@ -9,7 +9,13 @@ import threading
 import gc
 from lab.dirs import get_workspace_dir
 from lab import storage
-from diffusers import StableVideoDiffusionPipeline, AutoPipelineForText2Image, AutoPipelineForImage2Image
+from diffusers import (
+    StableVideoDiffusionPipeline,
+    AutoPipelineForText2Image,
+    WanPipeline,
+    AutoencoderKL,
+    WanImageToVideoPipeline,
+)
 import os
 import sys
 import random
@@ -45,6 +51,9 @@ class VideoDiffusionRequest(BaseModel):
     is_img2video: bool = False
     motion_bucket_id: int = 127
     noise_aug_strength: float = 0.02
+    # Text-to-video specific fields
+    is_text2video: bool = False
+    guidance_scale: float = 5.0
 
 
 class VideoHistoryItem(BaseModel):
@@ -67,6 +76,9 @@ class VideoHistoryItem(BaseModel):
     is_img2video: bool = False
     motion_bucket_id: int = 127
     noise_aug_strength: float = 0.02
+    # Text-to-video specific fields
+    is_text2video: bool = False
+    guidance_scale: float = 5.0
 
 
 _PIPELINES_LOCK = threading.Lock()
@@ -106,17 +118,54 @@ def get_pipeline(
     model: str,
     device: str = "cuda",
     is_img2video: bool = False,
+    is_text2video: bool = False,
 ):
     with _PIPELINES_LOCK:
-        if is_img2video:
-            pipe = StableVideoDiffusionPipeline.from_pretrained(
-                model,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-                variant="fp16" if device == "cuda" else None,
-            )
-            print(f"Loaded image-to-video pipeline for model {model} on device {device}")
+        try:
+            info = model_info(model)
+            config = getattr(info, "config", {})
+            diffusers_config = config.get("diffusers", {})
+            architecture = diffusers_config.get("_class_name", "")
+        except Exception as e:
+            print(f"Could not get model info from hub, falling back to basic logic. Error: {e}")
+            architecture = ""
+
+        if is_text2video:
+            try:
+                # Specific VAE loading for WanPipeline as per documentation
+                vae = AutoencoderKL.from_pretrained(model, subfolder="vae", torch_dtype=torch.float32)
+                pipe = WanPipeline.from_pretrained(
+                    model,
+                    vae=vae,
+                    torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
+                )
+                print(f"Loaded text-to-video (WanPipeline) for model {model} on device {device}")
+            except Exception as e:
+                print(f"Failed to load WanPipeline, falling back to AutoPipeline. Error: {e}")
+                # Fallback for other potential text-to-video pipelines
+                pipe = AutoPipelineForText2Image.from_pretrained(
+                    model,
+                    torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                )
+                print(f"Loaded generic text-to-video pipeline for model {model} on device {device}")
+        elif is_img2video:
+            if architecture == "WanImageToVideoPipeline":
+                pipe = WanImageToVideoPipeline.from_pretrained(
+                    model,
+                    torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
+                )
+                print(f"Loaded image-to-video (WanImageToVideoPipeline) for model {model} on device {device}")
+            else:
+                # Default to StableVideoDiffusionPipeline for other img2video models
+                pipe = StableVideoDiffusionPipeline.from_pretrained(
+                    model,
+                    torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                    variant="fp16" if device == "cuda" else None,
+                )
+                print(f"Loaded image-to-video (StableVideoDiffusionPipeline) for model {model} on device {device}")
         else:
-            pass
+            # Default case or error
+            raise ValueError("Pipeline type could not be determined. Set 'is_text2video' or 'is_img2video'.")
 
         pipe.to(device)
         return pipe
@@ -225,7 +274,14 @@ async def video_diffusion_generate_job():
             raise HTTPException(status_code=400, detail="Invalid generation_id leading to unsafe path")
         os.makedirs(videos_folder, exist_ok=True)
 
-        is_img2video = request.is_img2video or bool(request.input_image.strip())
+        is_text2video = request.is_text2video
+        is_img2video = not is_text2video and (request.is_img2video or bool(request.input_image.strip()))
+
+        if not is_text2video and not is_img2video:
+            raise HTTPException(
+                status_code=400,
+                detail="An input image is required for video generation unless 'is_text2video' is enabled.",
+            )
 
         input_image_obj = None
         input_image_path = ""
@@ -254,6 +310,7 @@ async def video_diffusion_generate_job():
             model=request.model,
             device=device,
             is_img2video=is_img2video,
+            is_text2video=is_text2video,
         )
         tlab_diffusion.progress_update(30)
 
@@ -267,17 +324,28 @@ async def video_diffusion_generate_job():
         def run_pipe():
             try:
                 generation_kwargs = {
-                    "image": input_image_obj,
+                    "prompt": request.prompt,
+                    "negative_prompt": request.negative_prompt,
+                    "num_inference_steps": request.num_inference_steps,
                     "height": request.height,
                     "width": request.width,
-                    "num_inference_steps": request.num_inference_steps,
-                    "seed": seed,
                     "num_frames": request.num_frames,
-                    "motion_bucket_id": request.motion_bucket_id,
-                    "noise_aug_strength": request.noise_aug_strength,
-                    "decode_chunk_size": 8,
                     "generator": generator,
                 }
+
+                if is_text2video:
+                    generation_kwargs["guidance_scale"] = request.guidance_scale
+                elif is_img2video:
+                    generation_kwargs["image"] = input_image_obj
+                    # Pass different arguments based on pipeline type
+                    if isinstance(pipe, WanImageToVideoPipeline):
+                        generation_kwargs["guidance_scale"] = request.guidance_scale
+                    elif isinstance(pipe, StableVideoDiffusionPipeline):
+                        generation_kwargs["motion_bucket_id"] = request.motion_bucket_id
+                        generation_kwargs["noise_aug_strength"] = request.noise_aug_strength
+                        generation_kwargs["decode_chunk_size"] = 8
+                        # SVD does not use seed in the same way, but we pass it for consistency
+                        generation_kwargs["seed"] = seed
 
                 def progress_callback(step, timestep, latents):
                     progress = 30 + int(70 * (step / request.num_inference_steps))
@@ -342,6 +410,8 @@ async def video_diffusion_generate_job():
             is_img2video=is_img2video,
             motion_bucket_id=request.motion_bucket_id,
             noise_aug_strength=request.noise_aug_strength,
+            is_text2video=is_text2video,
+            guidance_scale=request.guidance_scale,
         )
         save_to_history(history_item, experiment_name)
 
