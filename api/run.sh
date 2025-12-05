@@ -26,7 +26,6 @@ load_env_files() {
         "../.env"
     )
 
-
     for env_file in "${env_files[@]}"; do
         if [ -f "$env_file" ]; then
             echo "📄 Loading environment variables from $env_file"
