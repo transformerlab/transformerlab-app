@@ -129,3 +129,13 @@ class ComputeProvider(ABC):
             List of JobInfo objects
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def check(self) -> bool:
+        """
+        Check if the compute provider is active and accessible.
+
+        Returns:
+            True if the provider is active and accessible, False otherwise
+        """
+        raise NotImplementedError
