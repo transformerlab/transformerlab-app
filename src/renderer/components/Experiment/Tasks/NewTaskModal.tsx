@@ -216,8 +216,10 @@ export default function NewTaskModal({
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
       github_enabled: githubEnabled || undefined,
-      github_repo_url: githubEnabled && githubRepoUrl ? githubRepoUrl : undefined,
-      github_directory: githubEnabled && githubDirectory ? githubDirectory : undefined,
+      github_repo_url:
+        githubEnabled && githubRepoUrl ? githubRepoUrl : undefined,
+      github_directory:
+        githubEnabled && githubDirectory ? githubDirectory : undefined,
     });
     // Reset all form fields
     setTitle('');
@@ -573,13 +575,16 @@ export default function NewTaskModal({
                       placeholder="path/to/directory"
                     />
                     <FormHelperText>
-                      Optional: Specific directory within the repo to clone. If empty, the entire repo will be cloned.
+                      Optional: Specific directory within the repo to clone. If
+                      empty, the entire repo will be cloned.
                     </FormHelperText>
                   </FormControl>
                 </Stack>
               )}
               <FormHelperText>
-                If enabled, the repository will be cloned during setup. A GitHub PAT (Personal Access Token) will be used for private repositories.
+                If enabled, the repository will be cloned during setup. A GitHub
+                PAT (Personal Access Token) will be used for private
+                repositories.
               </FormHelperText>
             </FormControl>
 

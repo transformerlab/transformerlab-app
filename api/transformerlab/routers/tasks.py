@@ -11,7 +11,6 @@ from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
 from transformerlab.routers.auth import get_user_and_team
-from transformerlab.routers.compute_provider import _read_github_pat_from_workspace
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 

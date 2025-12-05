@@ -7,7 +7,7 @@ from transformerlab.routers.auth import require_team_owner, get_user_and_team
 from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
