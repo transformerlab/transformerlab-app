@@ -161,9 +161,124 @@ def rm_tree(path: str) -> None:
                 filesystem().rm(file_path)
 
 
-def open(path: str, mode: str = "r", fs=None, **kwargs):
-    filesys = fs if fs is not None else filesystem()
+def open(path: str, mode: str = "r", fs=None, uncached: bool = False, **kwargs):
+    """
+    Open a file for reading or writing.
+
+    Args:
+        path: Path to the file
+        mode: File mode ('r', 'w', etc.)
+        fs: Optional filesystem instance to use
+        uncached: If True, use a filesystem instance without caching (useful for avoiding Etag issues)
+        **kwargs: Additional arguments passed to filesystem.open()
+
+    Returns:
+        File-like object
+    """
+    if uncached:
+        # Create an uncached filesystem instance
+        # If fs is provided, use it to infer protocol/storage options, otherwise infer from path
+        filesys = _get_uncached_filesystem(path, fs=fs)
+    else:
+        filesys = fs if fs is not None else filesystem()
     return filesys.open(path, mode=mode, **kwargs)
+
+
+def _get_uncached_filesystem(path: str, fs=None):
+    """
+    Get a filesystem instance without caching for reading files.
+    This prevents Etag caching issues when files are being modified concurrently.
+
+    Args:
+        path: Path to the file
+        fs: Optional existing filesystem instance to extract protocol/storage options from
+    """
+    # If fs is provided, try to extract protocol and storage options from it
+    if fs is not None:
+        try:
+            # Get the protocol from the filesystem type or class name
+            fs_type = type(fs).__name__.lower()
+            protocol = None
+            if "s3" in fs_type or "s3filesystem" in fs_type:
+                protocol = "s3"
+            elif "gcs" in fs_type or "google" in fs_type or "gcsfilesystem" in fs_type:
+                protocol = "gcs"
+            elif "abfs" in fs_type or "azure" in fs_type or "abfsfilesystem" in fs_type:
+                protocol = "abfs"
+
+            # Extract storage options from filesystem if possible
+            storage_options = {}
+            if protocol == "s3":
+                # For S3, try to get profile from filesystem config
+                if hasattr(fs, "config_kwargs") and fs.config_kwargs:
+                    config = fs.config_kwargs
+                    if "profile" in config:
+                        storage_options["profile"] = config["profile"]
+                    elif "aws_access_key_id" in config:
+                        # If explicit credentials, don't use profile
+                        pass
+                    elif _AWS_PROFILE:
+                        storage_options["profile"] = _AWS_PROFILE
+                elif hasattr(fs, "anon") and not fs.anon:
+                    # Non-anonymous S3, use default profile if available
+                    if _AWS_PROFILE:
+                        storage_options["profile"] = _AWS_PROFILE
+                elif _AWS_PROFILE:
+                    storage_options["profile"] = _AWS_PROFILE
+
+            if protocol:
+                # Create a new uncached filesystem with the same protocol and options
+                fs_uncached = fsspec.filesystem(
+                    protocol,
+                    skip_instance_cache=True,
+                    default_fill_cache=False,
+                    use_listings_cache=False,
+                    **storage_options,
+                )
+                return fs_uncached
+        except Exception:
+            # If extraction fails, fall through to path-based inference
+            pass
+
+    # Check if this is a remote path (full URI)
+    if path.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+        # Extract protocol from the path
+        protocol = path.split("://")[0]
+
+        # Build storage options
+        storage_options = {}
+        if _AWS_PROFILE:
+            storage_options["profile"] = _AWS_PROFILE
+
+        # Create a new filesystem instance with caching disabled
+        fs_uncached = fsspec.filesystem(
+            protocol,
+            skip_instance_cache=True,
+            default_fill_cache=False,
+            use_listings_cache=False,
+            **storage_options,
+        )
+        return fs_uncached
+    else:
+        # For local filesystems, check if we're using a remote workspace
+        tfl_uri = _current_tfl_storage_uri.get() or os.getenv("TFL_STORAGE_URI")
+        if tfl_uri and tfl_uri.startswith(("s3://", "gs://", "abfs://", "gcs://")):
+            # Path is relative but we're using remote storage
+            protocol = tfl_uri.split("://")[0]
+            storage_options = {}
+            if _AWS_PROFILE:
+                storage_options["profile"] = _AWS_PROFILE
+            fs_uncached = fsspec.filesystem(
+                protocol,
+                skip_instance_cache=True,
+                default_fill_cache=False,
+                use_listings_cache=False,
+                **storage_options,
+            )
+            return fs_uncached
+        else:
+            # For local filesystems, just use the default
+            return filesystem()
 
 
 def copy_file(src: str, dest: str) -> None:
