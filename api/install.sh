@@ -390,6 +390,10 @@ install_dependencies() {
   # install uv
   pip install uv
 
+  # Install the SDK in editable mode so it uses the version in this directory
+  echo "Installing Transformer Lab SDK"
+  uv pip install -e ../lab-sdk
+
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
   PIP_WHEEL_FLAGS="--upgrade"
 
