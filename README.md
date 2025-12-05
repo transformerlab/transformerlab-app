@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="https://transformerlab.ai"><picture>
+  <a href="https://lab.cloud"><picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo_Reverse.svg">
     <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg">
     <img alt="transformer lab logo" src="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg" style="max-width: 650px">
@@ -8,9 +8,9 @@
   <p align="center">
     100% Open Source Toolkit for Large Language Models: Train, Tune, Chat on your own Machine
     <br />
-    <a href="https://transformerlab.ai/docs/download/"><strong>Download</strong></a>
+    <a href="https://lab.cloud/docs/download/"><strong>Download</strong></a>
     ·
-    <a href="https://transformerlab.ai/docs/"><strong>Explore the docs »</strong></a>
+    <a href="https://lab.cloud/docs/"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://youtu.be/tY5TAvKviLo">View Demo</a>
@@ -44,7 +44,7 @@ Transformer Lab is an app that allows anyone to experiment with Large Language M
 Transformer Lab is proud to be supported by Mozilla through the <a href="https://future.mozilla.org/builders/">Mozilla Builders Program</a>
 
 <a href="https://future.mozilla.org/builders/">
-    <img src="https://transformerlab.ai/img/mozilla-builders-2024.png" alt="Mozilla Builders Logo" width=300>
+    <img src="https://lab.cloud/img/mozilla-builders-2024.png" alt="Mozilla Builders Logo" width=300>
 </a>
 
 ## Features
@@ -115,9 +115,9 @@ And you can do the above, all through a simple cross-platform GUI.
 
 ## Getting Started
 
-<a href="https://transformerlab.ai/docs/download">Click here</a> to download Transformer Lab.
+<a href="https://lab.cloud/docs/download">Click here</a> to download Transformer Lab.
 
-<a href="https://transformerlab.ai/docs/install">Read this page</a> to learn how to install and use.
+<a href="https://lab.cloud/docs/install">Read this page</a> to learn how to install and use.
 
 ### Requirements
 
@@ -127,9 +127,9 @@ And you can do the above, all through a simple cross-platform GUI.
 
 #### Windows Notes
 
-See https://transformerlab.ai/docs/install/#install-on-windows for GPU driver and WSL guidance.
+See https://lab.cloud/docs/install/#install-on-windows for GPU driver and WSL guidance.
 
-Need a fully manual install without the helper script? Follow https://transformerlab.ai/docs/install/advanced-install for step-by-step instructions.
+Need a fully manual install without the helper script? Follow https://lab.cloud/docs/install/advanced-install for step-by-step instructions.
 
 ### Built With
 
@@ -294,4 +294,4 @@ If you found Transformer Lab useful in your research or applications, please cit
 [HuggingFace]: https://img.shields.io/badge/🤗_HuggingFace-20232A?style=for-the-badge
 [HuggingFace-url]: https://huggingface.co/
 [Download Icon]: https://img.shields.io/badge/Download-EF2D5E?style=for-the-badge&logoColor=white&logo=DocuSign
-[Download URL]: https://transformerlab.ai/docs/download
+[Download URL]: https://lab.cloud/docs/download
