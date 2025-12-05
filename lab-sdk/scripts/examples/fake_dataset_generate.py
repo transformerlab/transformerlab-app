@@ -124,6 +124,5 @@ def generate_dataset():
         return {"status": "error", "job_id": lab.job.id, "error": error_msg}
 
 
-if __name__ == "__main__":
-    result = generate_dataset()
-    print(result)
+result = generate_dataset()
+print(result)
