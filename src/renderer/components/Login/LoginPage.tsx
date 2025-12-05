@@ -12,7 +12,7 @@ import {
 import { getPath, API_URL } from 'renderer/lib/api-client/urls';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
-import spinningGif from '../Shared/logo-128.gif'; 
+import spinningGif from '../Shared/logo-128.gif';
 import labImage from '../Welcome/img/lab.jpg';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterUser';
@@ -200,12 +200,7 @@ export default function LoginPage() {
           }}
         >
           <div style={{ textAlign: 'center' }}>
-            <img
-              src={spinningGif}
-              alt="Loading…"
-              width={128}
-              height={128}
-            />
+            <img src={spinningGif} alt="Loading…" width={128} height={128} />
           </div>
           <Typography level="h2" component="div" sx={{ mb: 1 }}>
             Transformer Lab
