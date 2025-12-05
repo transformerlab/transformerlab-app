@@ -109,23 +109,23 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     connection = op.get_bind()
-    
+
     # Check existing indexes
     index_result = connection.execute(
         sa.text("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='config'")
     )
     existing_index_names = [row[0] for row in index_result.fetchall()]
-    
+
     # Check existing columns
     column_result = connection.execute(sa.text("PRAGMA table_info(config)"))
     existing_columns = [row[1] for row in column_result.fetchall()]
-    
+
     # For SQLite, use batch mode to handle constraint/index/column changes
     with op.batch_alter_table("config", schema=None) as batch_op:
         # Drop unique constraint (stored as unique index in SQLite)
         if "uq_config_user_team_key" in existing_index_names:
             batch_op.drop_constraint("uq_config_user_team_key", type_="unique")
-        
+
         # Drop indexes
         if "ix_config_team_id" in existing_index_names:
             batch_op.drop_index("ix_config_team_id")
@@ -133,10 +133,10 @@ def downgrade() -> None:
             batch_op.drop_index("ix_config_user_id")
         if "ix_config_key" in existing_index_names:
             batch_op.drop_index("ix_config_key")
-        
+
         # Recreate the original unique index on key
         batch_op.create_index("ix_config_key", ["key"], unique=True)
-        
+
         # Drop columns (SQLite requires batch mode for dropping columns)
         if "team_id" in existing_columns:
             batch_op.drop_column("team_id")
