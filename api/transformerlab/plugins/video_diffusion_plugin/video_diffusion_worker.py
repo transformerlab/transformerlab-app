@@ -8,11 +8,17 @@ import base64
 from io import BytesIO
 from PIL import Image
 import imageio
-from diffusers import StableVideoDiffusionPipeline
+from diffusers import (
+    StableVideoDiffusionPipeline,
+    WanPipeline,
+    AutoencoderKL,
+    WanImageToVideoPipeline,
+    AutoPipelineForText2Image,
+)
 from pydantic import BaseModel, ValidationError
+from huggingface_hub import model_info
 
 
-# --- Pydantic Models (copied from main.py for validation) ---
 class VideoDiffusionRequest(BaseModel):
     plugin: str = "video_diffusion"
     model: str
@@ -27,14 +33,16 @@ class VideoDiffusionRequest(BaseModel):
     negative_prompt: str = ""
     height: int = 576
     width: int = 1024
+    # Image-to-video specific fields
     input_image: str = ""
     strength: float = 0.8
     is_img2video: bool = False
     motion_bucket_id: int = 127
     noise_aug_strength: float = 0.02
-
-
-# --- Helper Functions (adapted from main.py) ---
+    # Text-to-video specific fields
+    is_text2video: bool = False
+    guidance_scale: float = 5.0
+    guidance_scale_2: float = 3.0
 
 
 def cleanup_pipeline(pipe=None):
@@ -49,19 +57,61 @@ def cleanup_pipeline(pipe=None):
         print(f"Error during pipeline cleanup: {e}")
 
 
-def get_pipeline(model: str, device: str = "cuda"):
-    """Load the StableVideoDiffusionPipeline."""
+def get_pipeline(
+    model: str,
+    device: str = "cuda",
+    is_img2video: bool = False,
+    is_text2video: bool = False,
+):
+    """Load the appropriate video diffusion pipeline."""
     try:
-        pipe = StableVideoDiffusionPipeline.from_pretrained(
-            model,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            variant="fp16" if device == "cuda" else None,
-        )
-        pipe.to(device)
-        return pipe
+        info = model_info(model)
+        config = getattr(info, "config", {})
+        diffusers_config = config.get("diffusers", {})
+        architecture = diffusers_config.get("_class_name", "")
     except Exception as e:
-        print(f"Failed to load pipeline for model {model}: {e}")
-        raise
+        print(f"Could not get model info from hub, falling back to basic logic. Error: {e}")
+        architecture = ""
+
+    if is_text2video:
+        try:
+            # Specific VAE loading for WanPipeline as per documentation
+            vae = AutoencoderKL.from_pretrained(model, subfolder="vae", torch_dtype=torch.float32)
+            pipe = WanPipeline.from_pretrained(
+                model,
+                vae=vae,
+                torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
+            )
+            print(f"Loaded text-to-video (WanPipeline) for model {model} on device {device}")
+        except Exception as e:
+            print(f"Failed to load WanPipeline, falling back to AutoPipeline. Error: {e}")
+            # Fallback for other potential text-to-video pipelines
+            pipe = AutoPipelineForText2Image.from_pretrained(
+                model,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+            )
+            print(f"Loaded generic text-to-video pipeline for model {model} on device {device}")
+    elif is_img2video:
+        if architecture == "WanImageToVideoPipeline":
+            pipe = WanImageToVideoPipeline.from_pretrained(
+                model,
+                torch_dtype=torch.bfloat16 if device == "cuda" else torch.float32,
+            )
+            print(f"Loaded image-to-video (WanImageToVideoPipeline) for model {model} on device {device}")
+        else:
+            # Default to StableVideoDiffusionPipeline for other img2video models
+            pipe = StableVideoDiffusionPipeline.from_pretrained(
+                model,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                variant="fp16" if device == "cuda" else None,
+            )
+            print(f"Loaded image-to-video (StableVideoDiffusionPipeline) for model {model} on device {device}")
+    else:
+        # Default case or error
+        raise ValueError("Pipeline type could not be determined. Set 'is_text2video' or 'is_img2video'.")
+
+    pipe.to(device)
+    return pipe
 
 
 def write_result(output_dir, success, **kwargs):
@@ -98,13 +148,24 @@ def main():
         if device == "cpu":
             print("Warning: Running on CPU. This will be very slow.")
 
+        # Determine generation type
+        is_text2video = request.is_text2video
+        is_img2video = not is_text2video and (request.is_img2video or bool(request.input_image.strip()))
+
+        if not is_text2video and not is_img2video:
+            raise ValueError("An input image is required for video generation unless 'is_text2video' is enabled.")
+
         # Load pipeline
         print(f"Loading model: {request.model}")
-        pipe = get_pipeline(request.model, device)
+        pipe = get_pipeline(
+            request.model,
+            device,
+            is_img2video=is_img2video,
+            is_text2video=is_text2video,
+        )
 
         # Prepare input image if provided
         input_image_obj = None
-        is_img2video = request.is_img2video or bool(request.input_image.strip())
         if is_img2video:
             try:
                 image_data = base64.b64decode(request.input_image)
@@ -112,9 +173,9 @@ def main():
                 print("Input image loaded successfully.")
             except Exception as e:
                 raise ValueError(f"Failed to decode or open input image: {e}")
-        else:
+        elif not is_text2video:
             # SVD requires an input image
-            raise ValueError("Video generation requires an input image.")
+            raise ValueError("Image-to-video generation requires an input image.")
 
         # Set seed
         seed = request.seed
@@ -128,16 +189,27 @@ def main():
         print("Starting video generation...")
 
         generation_kwargs = {
-            "image": input_image_obj,
+            "prompt": request.prompt,
+            "negative_prompt": request.negative_prompt,
             "height": request.height,
             "width": request.width,
             "num_inference_steps": request.num_inference_steps,
             "num_frames": request.num_frames,
-            "motion_bucket_id": request.motion_bucket_id,
-            "noise_aug_strength": request.noise_aug_strength,
-            "decode_chunk_size": 8,
             "generator": generator,
         }
+
+        if is_text2video:
+            generation_kwargs["guidance_scale"] = request.guidance_scale
+            if isinstance(pipe, WanPipeline):
+                generation_kwargs["guidance_scale_2"] = request.guidance_scale_2
+        elif is_img2video:
+            generation_kwargs["image"] = input_image_obj
+            if isinstance(pipe, WanImageToVideoPipeline):
+                generation_kwargs["guidance_scale"] = request.guidance_scale
+            elif isinstance(pipe, StableVideoDiffusionPipeline):
+                generation_kwargs["motion_bucket_id"] = request.motion_bucket_id
+                generation_kwargs["noise_aug_strength"] = request.noise_aug_strength
+                generation_kwargs["decode_chunk_size"] = 8
 
         frames = pipe(**generation_kwargs).frames[0]
 
