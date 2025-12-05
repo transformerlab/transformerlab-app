@@ -80,7 +80,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     const autoLogin = async () => {
-      // Only attempt auto-login if we have a valid API URL (connection is established)
       const apiUrl = API_URL();
       if (!apiUrl) {
         console.log(
@@ -100,7 +99,7 @@ export default function LoginPage() {
     if (process.env.MULTIUSER !== 'true') {
       autoLogin();
     }
-  }, [authContext]); // Include authContext in dependencies
+  }, [authContext]);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -130,7 +129,6 @@ export default function LoginPage() {
     if (token) {
       const verifyEmail = async () => {
         try {
-          // Normalize TL_API_URL - ensure it's not "default" or empty
           const envUrl = process.env.TL_API_URL;
           let apiUrl =
             !envUrl || envUrl === 'default' || envUrl.trim() === ''

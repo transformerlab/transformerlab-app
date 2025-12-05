@@ -1,6 +1,18 @@
 import * as React from 'react';
 
-const HexLogo = ({ width = 128, height = 128 }) => (
+interface HexLogoProps {
+  width?: number;
+  height?: number;
+  stroke?: string;
+  fill?: string;
+}
+
+const HexLogo = ({
+  width = 128,
+  height = 128,
+  stroke = '#000', // Default black stroke
+  fill = '#fff',   // Default white fill
+}: HexLogoProps) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     id="svg1"
@@ -12,8 +24,8 @@ const HexLogo = ({ width = 128, height = 128 }) => (
     <g id="layer1" transform="translate(-91.546 -129.117)">
       <g
         id="g2"
-        fill="#fff"
-        stroke="#000"
+        fill={fill}
+        stroke={stroke}
         strokeDasharray="none"
         strokeDashoffset="0"
         strokeLinecap="round"
