@@ -6,12 +6,12 @@ import requests
 def wait_for_server_ready(base_url: str, timeout: int = 120, interval: float = 2.0):
     """
     Wait for the server to be ready by polling the /healthz endpoint.
-    
+
     Args:
         base_url: Base URL of the server
         timeout: Maximum time to wait in seconds
         interval: Time between retry attempts in seconds
-    
+
     Raises:
         Exception: If server doesn't become ready within timeout
     """
@@ -23,10 +23,7 @@ def wait_for_server_ready(base_url: str, timeout: int = 120, interval: float = 2
         elapsed = time.time() - start_time
 
         if elapsed >= timeout:
-            raise Exception(
-                f"Server at {base_url} did not become ready within {timeout}s. "
-                f"Last attempt: {attempt}"
-            )
+            raise Exception(f"Server at {base_url} did not become ready within {timeout}s. Last attempt: {attempt}")
 
         try:
             response = requests.get(healthz_url, timeout=5)
@@ -49,7 +46,7 @@ def wait_for_server_ready(base_url: str, timeout: int = 120, interval: float = 2
 def live_server():
     """
     Fixture that provides the base URL of a running server.
-    
+
     The server is expected to be started externally (e.g., by CI/CD workflow).
     This fixture waits for the server to be ready before yielding the URL.
     """
