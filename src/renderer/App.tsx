@@ -27,7 +27,6 @@ import {
   useExperimentInfo,
 } from './lib/ExperimentInfoContext';
 import * as chatAPI from './lib/transformerlab-api-sdk';
-import SidebarForGPUOrchestration from './components/Nav/SidebarForGPUOrchestration';
 import { AuthProvider, useAuth } from './lib/authContext';
 import LoginPage from './components/Login/LoginPage';
 
@@ -40,8 +39,6 @@ type AppContentProps = {
   themeSetter: (name: string) => void;
   setSSHConnection: (conn: any) => void;
   setConnection: (conn: string) => void;
-  gpuOrchestrationServer: string;
-  setGPUOrchestrationServer: (server: string) => void;
 };
 
 function AppContent({
@@ -53,8 +50,6 @@ function AppContent({
   themeSetter,
   setSSHConnection,
   setConnection,
-  gpuOrchestrationServer,
-  setGPUOrchestrationServer,
 }: AppContentProps) {
   const onOutputDrawerDrag = useCallback(
     (pos: { y: number }) => {
@@ -92,7 +87,6 @@ function AppContent({
           connection={connection}
           setTerminalDrawerOpen={setLogsDrawerOpen}
           setSSHConnection={setSSHConnection}
-          setGPUOrchestrationServer={setGPUOrchestrationServer}
         />
       );
     }
@@ -120,24 +114,12 @@ function AppContent({
         `,
       })}
     >
-      <Header
-        connection={connection}
-        setConnection={setConnection}
-        gpuOrchestrationServer={gpuOrchestrationServer}
+      <Header connection={connection} setConnection={setConnection} />
+      <Sidebar
+        logsDrawerOpen={logsDrawerOpen}
+        setLogsDrawerOpen={setLogsDrawerOpen as any}
+        themeSetter={themeSetter}
       />
-      {gpuOrchestrationServer !== '' ? (
-        <SidebarForGPUOrchestration
-          logsDrawerOpen={logsDrawerOpen}
-          setLogsDrawerOpen={setLogsDrawerOpen as any}
-          themeSetter={themeSetter}
-        />
-      ) : (
-        <Sidebar
-          logsDrawerOpen={logsDrawerOpen}
-          setLogsDrawerOpen={setLogsDrawerOpen as any}
-          themeSetter={themeSetter}
-        />
-      )}
       <Box
         sx={{
           px: {
@@ -155,10 +137,7 @@ function AppContent({
         }}
         id="main-app-panel"
       >
-        <MainAppPanel
-          setLogsDrawerOpen={setLogsDrawerOpen as any}
-          gpuOrchestrationServer={gpuOrchestrationServer}
-        />
+        <MainAppPanel setLogsDrawerOpen={setLogsDrawerOpen as any} />
       </Box>
       <Box
         sx={{
@@ -223,7 +202,6 @@ function AppContent({
           connection={connection}
           setTerminalDrawerOpen={setLogsDrawerOpen}
           setSSHConnection={setSSHConnection}
-          setGPUOrchestrationServer={setGPUOrchestrationServer}
         />
       )}
     </Box>
@@ -244,7 +222,6 @@ export default function App() {
   })();
 
   const [connection, setConnection] = useState(initialApiUrl);
-  const [gpuOrchestrationServer, setGPUOrchestrationServer] = useState('');
   const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [logsDrawerHeight, setLogsDrawerHeight] = useState(0);
   const [theme, setTheme] = useState(customTheme);
@@ -284,8 +261,6 @@ export default function App() {
               themeSetter={themeSetter}
               setSSHConnection={() => {}}
               setConnection={setConnection}
-              gpuOrchestrationServer={gpuOrchestrationServer}
-              setGPUOrchestrationServer={setGPUOrchestrationServer}
             />
           </ExperimentInfoProvider>
         </AuthProvider>
