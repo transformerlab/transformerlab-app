@@ -667,10 +667,11 @@ export default function Diffusion() {
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
         Number(numSteps),
-        (data) => {
+        async (data) => {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
           } else {
+            // Fetch images with authentication and convert to blob URLs
             const imageUrls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
               const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
@@ -678,7 +679,20 @@ export default function Diffusion() {
                 imageId: data.id,
                 index: i,
               });
-              imageUrls.push(imageUrl);
+              try {
+                const response = await fetchWithAuth(imageUrl);
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  imageUrls.push(blobUrl);
+                } else {
+                  // Fallback to URL if fetch fails
+                  imageUrls.push(imageUrl);
+                }
+              } catch (e) {
+                // Fallback to URL if fetch fails
+                imageUrls.push(imageUrl);
+              }
             }
 
             setCurrentImages(imageUrls);
@@ -814,10 +828,11 @@ export default function Diffusion() {
       pollingCleanupRef.current = startPollingForIntermediateImages(
         genId,
         Number(numSteps),
-        (data) => {
+        async (data) => {
           if (data.error_code !== 0) {
             setError(data.detail || 'Error in generation result.');
           } else {
+            // Fetch images with authentication and convert to blob URLs
             const imageUrls: string[] = [];
             for (let i = 0; i < data.num_images; i++) {
               const imageUrl = getAPIFullPath('diffusion', ['getImage'], {
@@ -825,7 +840,20 @@ export default function Diffusion() {
                 imageId: data.id,
                 index: i,
               });
-              imageUrls.push(imageUrl);
+              try {
+                const response = await fetchWithAuth(imageUrl);
+                if (response.ok) {
+                  const blob = await response.blob();
+                  const blobUrl = URL.createObjectURL(blob);
+                  imageUrls.push(blobUrl);
+                } else {
+                  // Fallback to URL if fetch fails
+                  imageUrls.push(imageUrl);
+                }
+              } catch (e) {
+                // Fallback to URL if fetch fails
+                imageUrls.push(imageUrl);
+              }
             }
 
             setInpaintingImages(imageUrls);
@@ -855,12 +883,23 @@ export default function Diffusion() {
     }
 
     try {
-      // Create a link to the new endpoint that returns a zip file
-      const link = document.createElement('a');
-      link.href = getAPIFullPath('diffusion', ['getAllImages'], {
+      // Fetch the zip file with authentication
+      const zipUrl = getAPIFullPath('diffusion', ['getAllImages'], {
         experimentId: experimentId,
         imageId: currentGenerationData.id,
       });
+
+      const response = await fetchWithAuth(zipUrl);
+      if (!response.ok) {
+        throw new Error('Failed to download images');
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      // Create a link to download the blob
+      const link = document.createElement('a');
+      link.href = blobUrl;
 
       // Generate filename with timestamp
       const timestamp = new Date()
@@ -873,6 +912,11 @@ export default function Diffusion() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      // Clean up blob URL after a short delay
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
     } catch (err) {
       setError('Failed to save images');
     }

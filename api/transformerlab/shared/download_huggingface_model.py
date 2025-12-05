@@ -15,7 +15,6 @@ from lab import HOME_DIR, Job
 from lab import storage
 from lab.dirs import set_organization_id
 
-
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 
 
@@ -399,7 +398,14 @@ def cancel_check(job_id, org_id):
             set_organization_id(org_id)
         try:
             job = Job.get(job_id)
-            return job.get_status() == "cancelled"
+
+            if job.get_status() == "cancelled":
+                return True
+
+            job_data = job.get_job_data()
+            if job_data.get("stop") is True:
+                return True
+
         finally:
             if org_id:
                 set_organization_id(None)

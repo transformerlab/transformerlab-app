@@ -39,6 +39,7 @@ import {
   useModelStatus,
   usePluginStatus,
   getAPIFullPath,
+  apiHealthz,
 } from 'renderer/lib/transformerlab-api-sdk';
 
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
@@ -49,9 +50,11 @@ import ColorSchemeToggle from './ColorSchemeToggle';
 import LoginChip from './UserWidget';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 
-function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
+function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const { team } = useAuth();
+
+  const isS3Mode = mode === 's3';
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
@@ -160,13 +163,16 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
       }}
     >
       <>
-        <SubNavItem
-          title="Foundation"
-          path="/experiment/model"
-          icon={<LayersIcon strokeWidth={1} />}
-          disabled={!experimentInfo?.name}
-        />
-        {(isValidDiffusionModel === false || isValidDiffusionModel === null) &&
+        {!isS3Mode && (
+          <SubNavItem
+            title="Foundation"
+            path="/experiment/model"
+            icon={<LayersIcon strokeWidth={1} />}
+            disabled={!experimentInfo?.name}
+          />
+        )}
+        {!isS3Mode &&
+          (isValidDiffusionModel === false || isValidDiffusionModel === null) &&
           pipelineTag !== 'text-to-speech' &&
           pipelineTag !== 'speech-to-text' && (
             <SubNavItem
@@ -179,7 +185,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
             />
           )}
         {/* Show Diffusion tab only if the model IS a diffusion model */}
-        {isValidDiffusionModel === true && (
+        {!isS3Mode && isValidDiffusionModel === true && (
           <SubNavItem
             title="Diffusion"
             path="/experiment/diffusion"
@@ -188,7 +194,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
           />
         )}
         {/* Show Audio tab only if pipelineTag is text-to-speech */}
-        {pipelineTag === 'text-to-speech' && (
+        {!isS3Mode && pipelineTag === 'text-to-speech' && (
           <SubNavItem
             title="Audio"
             path="/experiment/audio"
@@ -198,7 +204,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
             }
           />
         )}
-        {pipelineTag === 'speech-to-text' && (
+        {!isS3Mode && pipelineTag === 'speech-to-text' && (
           <SubNavItem
             title="Audio"
             path="/experiment/audio-stt"
@@ -214,12 +220,14 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
             icon={<WorkflowIcon />}
             disabled={!experimentInfo?.name}
           /> */}
-        <SubNavItem
-          title="Train"
-          path="/experiment/training"
-          icon={<GraduationCapIcon />}
-          disabled={!experimentInfo?.name}
-        />
+        {!isS3Mode && (
+          <SubNavItem
+            title="Train"
+            path="/experiment/training"
+            icon={<GraduationCapIcon />}
+            disabled={!experimentInfo?.name}
+          />
+        )}
         {hasProviders && (
           <SubNavItem
             title="Tasks"
@@ -228,32 +236,38 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
             disabled={!experimentInfo?.name}
           />
         )}
-        <SubNavItem
-          title="Generate"
-          path="/experiment/generate"
-          icon={<SquareStackIcon />}
-          disabled={!experimentInfo?.name}
-        />
-        <SubNavItem
-          title="Evaluate"
-          path="/experiment/eval"
-          icon={<ChartColumnIncreasingIcon />}
-          disabled={!experimentInfo?.name || isValidDiffusionModel === true}
-        />
+        {!isS3Mode && (
+          <SubNavItem
+            title="Generate"
+            path="/experiment/generate"
+            icon={<SquareStackIcon />}
+            disabled={!experimentInfo?.name}
+          />
+        )}
+        {!isS3Mode && (
+          <SubNavItem
+            title="Evaluate"
+            path="/experiment/eval"
+            icon={<ChartColumnIncreasingIcon />}
+            disabled={!experimentInfo?.name || isValidDiffusionModel === true}
+          />
+        )}
         <SubNavItem
           title="Documents"
           path="/experiment/documents"
           icon={<FileIcon />}
           disabled={!experimentInfo?.name}
         />
-        <SubNavItem
-          title="Export"
-          path="/experiment/export"
-          icon={<ArrowRightFromLineIcon />}
-          disabled={
-            !experimentInfo?.name || !experimentInfo?.config?.foundation
-          }
-        />
+        {!isS3Mode && (
+          <SubNavItem
+            title="Export"
+            path="/experiment/export"
+            icon={<ArrowRightFromLineIcon />}
+            disabled={
+              !experimentInfo?.name || !experimentInfo?.config?.foundation
+            }
+          />
+        )}
         <SubNavItem
           title="Notes"
           path="/experiment/notes"
@@ -265,7 +279,14 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models }) {
   );
 }
 
-function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
+function GlobalMenuItems({
+  DEV_MODE,
+  experimentInfo,
+  outdatedPluginsCount,
+  mode,
+}) {
+  const isS3Mode = mode === 's3';
+
   return (
     <List
       sx={{
@@ -279,20 +300,28 @@ function GlobalMenuItems({ DEV_MODE, experimentInfo, outdatedPluginsCount }) {
 
       <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
-      <SubNavItem
-        title="API"
-        path="/api"
-        icon={<CodeIcon />}
-        disabled={!experimentInfo?.name}
-      />
-      <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
-      <SubNavItem
-        title="Plugins"
-        path="/plugins"
-        icon={<PlugIcon />}
-        counter={outdatedPluginsCount}
-      />
-      <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
+      {!isS3Mode && (
+        <SubNavItem
+          title="API"
+          path="/api"
+          icon={<CodeIcon />}
+          disabled={!experimentInfo?.name}
+        />
+      )}
+      {!isS3Mode && (
+        <SubNavItem title="Logs" path="/logs" icon={<TextIcon />} />
+      )}
+      {!isS3Mode && (
+        <SubNavItem
+          title="Plugins"
+          path="/plugins"
+          icon={<PlugIcon />}
+          counter={outdatedPluginsCount}
+        />
+      )}
+      {!isS3Mode && (
+        <SubNavItem title="Computer" path="/computer" icon={<MonitorIcon />} />
+      )}
     </List>
   );
 }
@@ -349,10 +378,27 @@ export default function Sidebar({
   const { experimentInfo, setExperimentId } = useExperimentInfo();
   const { models, isError, isLoading } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
+  const [mode, setMode] = useState<string>('local');
 
   const navigate = useNavigate();
 
   const DEV_MODE = experimentInfo?.name === 'dev';
+
+  // Fetch healthz to get the mode
+  useEffect(() => {
+    const fetchHealthz = async () => {
+      try {
+        const data = await apiHealthz();
+        if (data?.mode) {
+          setMode(data.mode);
+        }
+      } catch (error) {
+        console.error('Failed to fetch healthz data:', error);
+      }
+    };
+
+    fetchHealthz();
+  }, []);
 
   return (
     <Sheet
@@ -403,11 +449,13 @@ export default function Sidebar({
         DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
         models={models}
+        mode={mode}
       />
       <GlobalMenuItems
         DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
+        mode={mode}
       />
       {process.env.MULTIUSER === 'true' && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />

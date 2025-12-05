@@ -18,14 +18,15 @@ HTTPS=false
 
 # Load environment variables from .env files
 load_env_files() {
-    # Look for .env files in current directory only
+    # Load .env files in order of priority (later files override earlier ones)
+    # First: base config from TLAB_DIR (lowest priority)
+    # Then: local .env files (higher priority, can override base)
     local env_files=(
-        ".env"
+        "${TLAB_DIR}/.env"
         "../.env"
     )
 
     for env_file in "${env_files[@]}"; do
-        # Check in current directory only
         if [ -f "$env_file" ]; then
             echo "📄 Loading environment variables from $env_file"
             # Export variables from .env file, ignoring comments and empty lines
@@ -108,14 +109,14 @@ echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
     if [ "$HTTPS" = true ]; then
-        uv run -v python api.py --https --reload --port ${PORT} --host ${TLABHOST}
+        python api.py --https --reload --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
+        uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
     fi
 else
     if [ "$HTTPS" = true ]; then
-        uv run -v python api.py --https --port ${PORT} --host ${TLABHOST}
+        python api.py --https --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
+        uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
     fi
 fi

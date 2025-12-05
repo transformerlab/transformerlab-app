@@ -1067,3 +1067,27 @@ class SkyPilotProvider(ComputeProvider):
             )
 
         return jobs
+
+    def check(self) -> bool:
+        """Check if the SkyPilot provider is active and accessible."""
+        try:
+            # Use the /api/health endpoint to check if the server is healthy
+            response = self._make_authenticated_request("GET", "/api/health", json_data=None, timeout=5)
+
+            # Parse the JSON response
+            if hasattr(response, "json"):
+                health_data = response.json()
+                # Check if the status is "healthy"
+                return health_data.get("status") == "healthy"
+            else:
+                # If response doesn't have json method, check status code
+                return hasattr(response, "status_code") and response.status_code == 200
+        except requests.exceptions.ConnectionError:
+            # Connection error means server is not accessible
+            return False
+        except requests.exceptions.Timeout:
+            # Timeout means server is not responding
+            return False
+        except Exception:
+            # For any other exceptions, assume provider is not active
+            return False
