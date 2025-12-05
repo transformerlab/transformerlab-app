@@ -6,4 +6,3 @@ The actual Transformer Lab code runs directly from the transformerlab/ directory
 """
 
 __version__ = "0.27.0"
-
