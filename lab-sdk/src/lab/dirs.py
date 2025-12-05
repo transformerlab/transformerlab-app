@@ -193,7 +193,8 @@ def get_batched_prompts_dir() -> str:
 
 def get_galleries_cache_dir() -> str:
     path = storage.join(HOME_DIR, "galleries")
-    storage.makedirs(path, exist_ok=True)
+    # Using os here since this would always be on local filesystem
+    os.makedirs(path, exist_ok=True)
     return path
 
 

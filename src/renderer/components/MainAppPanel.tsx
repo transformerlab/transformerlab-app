@@ -47,6 +47,7 @@ import { useAnalytics } from './Shared/analytics/AnalyticsContext';
 import SafeJSONParse from './Shared/SafeJSONParse';
 import Tasks from './Experiment/Tasks/Tasks';
 import Team from './Team/Team';
+import TasksGallery from './TasksGallery/TasksGallery';
 
 // // Define the app version
 // const APP_VERSION = '1.0.0';
@@ -416,6 +417,7 @@ export default function MainAppPanel({ setLogsDrawerOpen = null }) {
         <Route path="/zoo/store" element={<ModelZoo tab="store" />} />
         <Route path="/zoo/groups" element={<ModelZoo tab="groups" />} />
         <Route path="/data" element={<Data />} />
+        <Route path="/tasks-gallery" element={<TasksGallery />} />
         <Route path="/computer" element={<Computer />} />
         <Route path="/settings" element={<TransformerLabSettings />} />
         <Route path="/logs" element={<Logs />} />

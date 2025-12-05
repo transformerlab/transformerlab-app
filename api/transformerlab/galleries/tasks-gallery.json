@@ -1,0 +1,16 @@
+[
+  {
+    "title": "Sample Task Example",
+    "description": "A sample PyTorch training task that clones a repository and runs training script",
+    "github_repo_url": "https://github.com/transformerlab/transformerlab-app.git",
+    "github_repo_dir": "lab-sdk",
+    "config": {
+      "name": "sample-task",
+      "cluster_name": "sample-task",
+      "command": "echo hello",
+      "cpus": "2",
+      "memory": "4",
+      "setup": "uv pip install wandb"
+    }
+  }
+]

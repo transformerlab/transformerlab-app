@@ -402,6 +402,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         setup: data.setup || undefined,
         env_vars: data.env_vars || undefined,
         file_mounts: data.file_mounts || undefined,
+        github_enabled: data.github_enabled || undefined,
+        github_repo_url: data.github_repo_url || undefined,
+        github_directory: data.github_directory || undefined,
       };
 
       config.provider_id = providerMeta.id;
@@ -520,6 +523,9 @@ export default function Tasks({ subtype }: { subtype?: string }) {
         env_vars: cfg.env_vars || {},
         file_mounts: cfg.file_mounts,
         provider_name: providerMeta.name,
+        github_enabled: cfg.github_enabled,
+        github_repo_url: cfg.github_repo_url,
+        github_directory: cfg.github_directory,
       };
 
       const response = await fetchWithAuth(

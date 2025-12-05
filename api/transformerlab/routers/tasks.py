@@ -1,13 +1,17 @@
 import json
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Depends, HTTPException
 from typing import Optional
 from werkzeug.utils import secure_filename
+from pydantic import BaseModel
 
 from lab import Dataset
 from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
+from transformerlab.shared import galleries
+from transformerlab.routers.auth import get_user_and_team
+from transformerlab.routers.compute_provider import _read_github_pat_from_workspace
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -263,3 +267,110 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
         job_data=json.dumps(job_data),
     )
     return {"id": job_id}
+
+
+@router.get("/gallery", summary="List all tasks from the tasks gallery")
+async def tasks_gallery():
+    """Get the tasks gallery from the JSON file"""
+    gallery = galleries.get_tasks_gallery()
+    return {"status": "success", "data": gallery}
+
+
+class ImportTaskFromGalleryRequest(BaseModel):
+    gallery_id: str  # Index or identifier in the gallery array
+    experiment_id: str
+
+
+@router.post("/gallery/import", summary="Import a task from the tasks gallery")
+async def import_task_from_gallery(
+    request: ImportTaskFromGalleryRequest,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Import a task from the tasks gallery.
+    Creates a new task using the gallery entry's config and GitHub info.
+    Uses the team's GitHub PAT if available.
+    """
+    gallery = galleries.get_tasks_gallery()
+
+    # Find the gallery entry by index or ID
+    try:
+        gallery_index = int(request.gallery_id)
+        if gallery_index < 0 or gallery_index >= len(gallery):
+            raise HTTPException(status_code=404, detail="Gallery entry not found")
+        gallery_entry = gallery[gallery_index]
+    except (ValueError, IndexError):
+        # Try to find by title or other identifier
+        gallery_entry = None
+        for entry in gallery:
+            if entry.get("id") == request.gallery_id or entry.get("title") == request.gallery_id:
+                gallery_entry = entry
+                break
+        if not gallery_entry:
+            raise HTTPException(status_code=404, detail="Gallery entry not found")
+
+    # Extract gallery entry fields
+    title = gallery_entry.get("title", "Imported Task")
+    github_repo_url = gallery_entry.get("github_repo_url") or gallery_entry.get("github_url", "")
+    github_repo_dir = (
+        gallery_entry.get("github_repo_dir")
+        or gallery_entry.get("directory_path")
+        or gallery_entry.get("github_directory")
+    )
+    config = gallery_entry.get("config", {})
+
+    if not github_repo_url:
+        raise HTTPException(status_code=400, detail="Gallery entry missing github_repo_url")
+
+    if not isinstance(config, dict):
+        try:
+            config = json.loads(config) if isinstance(config, str) else {}
+        except Exception:
+            config = {}
+
+    # Get task name from config or use title
+    task_name = config.get("name") or config.get("cluster_name") or title
+
+    # Build the task config, merging gallery config with GitHub info
+    task_config = {
+        **config,  # Start with gallery config
+        "github_enabled": True,
+        "github_repo_url": github_repo_url,
+    }
+
+    if github_repo_dir:
+        task_config["github_directory"] = github_repo_dir
+
+    # Ensure required fields are set with defaults if not in config
+    if "cluster_name" not in task_config:
+        task_config["cluster_name"] = task_name
+    if "command" not in task_config:
+        task_config["command"] = config.get("command", "echo 'No command specified'")
+
+    # Create the task
+    new_task = {
+        "name": task_name,
+        "type": "REMOTE",
+        "inputs": {},
+        "config": task_config,
+        "plugin": "remote_orchestrator",
+        "outputs": {},
+        "experiment_id": request.experiment_id,
+        "remote_task": True,
+    }
+
+    # Perform secure_filename before adding the task
+    new_task["name"] = secure_filename(new_task["name"])
+
+    tasks_service.add_task(
+        new_task["name"],
+        new_task["type"],
+        new_task["inputs"],
+        new_task["config"],
+        new_task["plugin"],
+        new_task["outputs"],
+        new_task["experiment_id"],
+        remote_task=True,
+    )
+
+    return {"status": "success", "message": f"Task '{task_name}' imported successfully"}

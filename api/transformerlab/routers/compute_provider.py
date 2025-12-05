@@ -1,6 +1,7 @@
 """Router for managing team-scoped compute providers."""
 
 import os
+import uuid
 import configparser
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
@@ -62,6 +63,9 @@ class ProviderTaskLaunchRequest(BaseModel):
         description="File mounts in the form {<remote_path>: <local_path>}",
     )
     provider_name: Optional[str] = None
+    github_enabled: Optional[bool] = None
+    github_repo_url: Optional[str] = None
+    github_directory: Optional[str] = None
 
 
 class ProviderTaskFileUploadResponse(BaseModel):
@@ -497,6 +501,66 @@ def _generate_aws_credentials_setup(
     return setup_script
 
 
+def _read_github_pat_from_workspace(workspace_dir: str) -> Optional[str]:
+    """Read GitHub PAT from workspace/github_pat.txt file."""
+    try:
+        pat_path = storage.join(workspace_dir, "github_pat.txt")
+        if storage.exists(pat_path):
+            with storage.open(pat_path, "r") as f:
+                pat = f.read().strip()
+                if pat:
+                    return pat
+    except Exception as e:
+        print(f"Error reading GitHub PAT from workspace: {e}")
+    return None
+
+
+def _generate_github_clone_setup(
+    repo_url: str,
+    directory: Optional[str] = None,
+    github_pat: Optional[str] = None,
+) -> str:
+    """
+    Generate bash script to clone a GitHub repository.
+    Supports both public and private repos (with PAT).
+    Supports cloning entire repo or specific directory (sparse checkout).
+    """
+    clone_dir = f"~/tmp/git-clone-{uuid.uuid4().hex[:8]}"
+
+    if github_pat:
+        if repo_url.startswith("https://github.com/"):
+            repo_url_with_auth = repo_url.replace("https://github.com/", f"https://{github_pat}@github.com/")
+        elif repo_url.startswith("https://"):
+            repo_url_with_auth = repo_url.replace("https://", f"https://{github_pat}@")
+        else:
+            repo_url_with_auth = repo_url
+    else:
+        repo_url_with_auth = repo_url
+
+    def escape_bash(s: str) -> str:
+        return s.replace("'", "'\"'\"'").replace("\\", "\\\\").replace("$", "\\$")
+
+    escaped_directory = escape_bash(directory) if directory else None
+
+    if directory:
+        setup_script = (
+            f"TEMP_CLONE_DIR={clone_dir}; "
+            f"CURRENT_DIR=$HOME; "
+            f"mkdir -p $TEMP_CLONE_DIR; "
+            f"cd $TEMP_CLONE_DIR; "
+            f"git init; "
+            f"git remote add origin {repo_url_with_auth}; "
+            f"git config core.sparseCheckout true; "
+            f"echo '{escaped_directory}/' > .git/info/sparse-checkout; "
+            f"git pull origin main || git pull origin master || git pull origin HEAD; "
+            f"if [ -d '{escaped_directory}' ]; then cp -r {escaped_directory} $CURRENT_DIR/; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; else echo 'Warning: Directory {escaped_directory} not found in repository'; cd $CURRENT_DIR; rm -rf $TEMP_CLONE_DIR; fi"
+        )
+    else:
+        setup_script = f"git clone {repo_url_with_auth} {clone_dir}; cp -r {clone_dir}/* .; rm -rf {clone_dir}"
+
+    return setup_script
+
+
 @router.post("/{provider_id}/tasks/launch")
 async def launch_task_on_provider(
     provider_id: str,
@@ -552,6 +616,17 @@ async def launch_task_on_provider(
     if aws_access_key_id and aws_secret_access_key:
         aws_setup = _generate_aws_credentials_setup(aws_access_key_id, aws_secret_access_key, aws_profile)
         setup_commands.append(aws_setup)
+
+    # Add GitHub clone setup if enabled
+    if request.github_enabled and request.github_repo_url:
+        workspace_dir = get_workspace_dir()
+        github_pat = _read_github_pat_from_workspace(workspace_dir)
+        github_setup = _generate_github_clone_setup(
+            repo_url=request.github_repo_url,
+            directory=request.github_directory,
+            github_pat=github_pat,
+        )
+        setup_commands.append(github_setup)
 
     # Add user-provided setup if any
     if request.setup:
