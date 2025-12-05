@@ -12,11 +12,10 @@ import {
 import { getPath, API_URL } from 'renderer/lib/api-client/urls';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../lib/authContext';
-import HexLogo from '../Shared/HexLogo';
-
 import labImage from '../Welcome/img/lab.jpg';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterUser';
+import spinningGif from '../Shared/logo-128.gif'; 
 
 function ForgotPasswordForm({ onClose }: { onClose: () => void }) {
   const { fetchWithAuth } = useAuth();
@@ -200,7 +199,14 @@ export default function LoginPage() {
             overflow: 'auto',
           }}
         >
-          <HexLogo width={32} height={32} />
+          <div style={{ textAlign: 'center' }}>
+            <img
+              src={spinningGif}
+              alt="Loading…"
+              width={128}
+              height={128}
+            />
+          </div>
           <Typography level="h2" component="div" sx={{ mb: 1 }}>
             Transformer Lab
           </Typography>
