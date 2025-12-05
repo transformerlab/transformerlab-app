@@ -8,12 +8,14 @@ from transformerlab.utils.email import send_team_invitation_email
 from transformerlab.shared.s3_bucket import create_s3_bucket_for_team
 
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 from sqlalchemy import select, delete, update, func, and_
 from datetime import datetime, timedelta
 from os import getenv
 
 from lab import Experiment
-from lab.dirs import set_organization_id
+from lab.dirs import set_organization_id, get_workspace_dir
+from lab import storage
 
 
 class TeamCreate(BaseModel):
@@ -58,6 +60,10 @@ class InvitationResponse(BaseModel):
 
 class AcceptInvitationRequest(BaseModel):
     token: str
+
+
+class GitHubPATRequest(BaseModel):
+    pat: Optional[str] = None
 
 
 router = APIRouter(tags=["teams"])
@@ -727,3 +733,69 @@ async def cancel_invitation(
     await session.commit()
 
     return {"message": "Invitation cancelled successfully"}
+
+
+@router.get("/teams/{team_id}/github_pat")
+async def get_github_pat(
+    team_id: str,
+    user_and_team=Depends(get_user_and_team),
+):
+    """
+    Get GitHub PAT for the team's workspace.
+    Only team members can view (but it will be masked for security).
+    """
+    # Verify team_id matches the one in header
+    if team_id != user_and_team["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    pat_path = storage.join(workspace_dir, "github_pat.txt")
+
+    if storage.exists(pat_path):
+        try:
+            with storage.open(pat_path, "r") as f:
+                pat = f.read().strip()
+                if pat:
+                    # Return masked version for security (only show last 4 chars)
+                    masked_pat = "*" * (len(pat) - 4) + pat[-4:] if len(pat) > 4 else "*" * len(pat)
+                    return {"status": "success", "pat_exists": True, "masked_pat": masked_pat}
+        except Exception as e:
+            print(f"Error reading GitHub PAT: {e}")
+            return {"status": "error", "message": "Failed to read GitHub PAT"}
+
+    return {"status": "success", "pat_exists": False}
+
+
+@router.put("/teams/{team_id}/github_pat")
+async def set_github_pat(
+    team_id: str,
+    pat_data: GitHubPATRequest,
+    owner_info=Depends(require_team_owner),
+):
+    """
+    Set GitHub PAT for the team's workspace.
+    Only team owners can set/update the PAT.
+    Stored in workspace/github_pat.txt file.
+    """
+    # Verify team_id matches the one in header
+    if team_id != owner_info["team_id"]:
+        raise HTTPException(status_code=400, detail="Team ID mismatch")
+
+    workspace_dir = get_workspace_dir()
+    pat_path = storage.join(workspace_dir, "github_pat.txt")
+
+    try:
+        pat = pat_data.pat
+        if pat and pat.strip():
+            # Store the PAT
+            with storage.open(pat_path, "w") as f:
+                f.write(pat.strip())
+            return {"status": "success", "message": "GitHub PAT saved successfully"}
+        else:
+            # Remove the PAT if empty string is provided
+            if storage.exists(pat_path):
+                storage.rm(pat_path)
+            return {"status": "success", "message": "GitHub PAT removed successfully"}
+    except Exception as e:
+        print(f"Error saving GitHub PAT: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save GitHub PAT")

@@ -300,6 +300,13 @@ function GlobalMenuItems({
 
       <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
+      {isS3Mode && (
+        <SubNavItem
+          title="Tasks Gallery"
+          path="/tasks-gallery"
+          icon={<StretchHorizontalIcon />}
+        />
+      )}
       {!isS3Mode && (
         <SubNavItem
           title="API"

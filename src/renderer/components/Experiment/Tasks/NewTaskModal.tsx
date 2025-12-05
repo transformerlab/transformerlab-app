@@ -15,6 +15,8 @@ import {
   Option,
   IconButton,
   Stack,
+  Switch,
+  Checkbox,
 } from '@mui/joy';
 import { Editor } from '@monaco-editor/react';
 import fairyflossTheme from '../../Shared/fairyfloss.tmTheme.js';
@@ -54,6 +56,9 @@ type NewTaskModalProps = {
     env_vars?: Record<string, string>;
     provider_id?: string;
     file_mounts?: Record<string, string>;
+    github_enabled?: boolean;
+    github_repo_url?: string;
+    github_directory?: string;
   }) => void;
   isSubmitting?: boolean;
   providers: ProviderOption[];
@@ -91,6 +96,9 @@ export default function NewTaskModal({
     }>
   >([{ remotePath: '', file: null, uploading: false, storedPath: undefined }]);
   const [selectedProviderId, setSelectedProviderId] = useState('');
+  const [githubEnabled, setGithubEnabled] = useState(false);
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [githubDirectory, setGithubDirectory] = useState('');
   // keep separate refs for the two Monaco editors
   const setupEditorRef = useRef<any>(null);
   const commandEditorRef = useRef<any>(null);
@@ -207,6 +215,11 @@ export default function NewTaskModal({
       provider_id: selectedProviderId,
       file_mounts:
         Object.keys(fileMountsObj).length > 0 ? fileMountsObj : undefined,
+      github_enabled: githubEnabled || undefined,
+      github_repo_url:
+        githubEnabled && githubRepoUrl ? githubRepoUrl : undefined,
+      github_directory:
+        githubEnabled && githubDirectory ? githubDirectory : undefined,
     });
     // Reset all form fields
     setTitle('');
@@ -223,6 +236,9 @@ export default function NewTaskModal({
       { remotePath: '', file: null, uploading: false, storedPath: undefined },
     ]);
     setSelectedProviderId(providers[0]?.id || '');
+    setGithubEnabled(false);
+    setGithubRepoUrl('');
+    setGithubDirectory('');
     // clear editor contents if mounted
     try {
       setupEditorRef?.current?.setValue?.('');
@@ -528,6 +544,48 @@ export default function NewTaskModal({
                   Add File Mount
                 </Button>
               </Stack>
+            </FormControl>
+
+            <FormControl sx={{ mt: 2 }}>
+              <FormLabel>GitHub Repository (Optional)</FormLabel>
+              <Checkbox
+                label="Enable GitHub repository cloning"
+                checked={githubEnabled}
+                onChange={(e) => setGithubEnabled(e.target.checked)}
+                sx={{ mb: githubEnabled ? 2 : 0 }}
+              />
+              {githubEnabled && (
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  <FormControl>
+                    <FormLabel>GitHub Repository URL</FormLabel>
+                    <Input
+                      value={githubRepoUrl}
+                      onChange={(e) => setGithubRepoUrl(e.target.value)}
+                      placeholder="https://github.com/owner/repo.git"
+                    />
+                    <FormHelperText>
+                      The GitHub repository URL to clone from
+                    </FormHelperText>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Directory Path (Optional)</FormLabel>
+                    <Input
+                      value={githubDirectory}
+                      onChange={(e) => setGithubDirectory(e.target.value)}
+                      placeholder="path/to/directory"
+                    />
+                    <FormHelperText>
+                      Optional: Specific directory within the repo to clone. If
+                      empty, the entire repo will be cloned.
+                    </FormHelperText>
+                  </FormControl>
+                </Stack>
+              )}
+              <FormHelperText>
+                If enabled, the repository will be cloned during setup. A GitHub
+                PAT (Personal Access Token) will be used for private
+                repositories.
+              </FormHelperText>
             </FormControl>
 
             <FormControl required sx={{ mt: 2, mb: 2 }}>
