@@ -34,7 +34,7 @@ def wait_for_server_ready(base_url: str, timeout: int = 120, interval: float = 2
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
             # Server not yet accepting connections, continue retrying
             pass
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             # Other request errors, continue retrying
             pass
 
