@@ -1,10 +1,9 @@
 {
   "recommendations": [
-    "dbaeumer.vscode-eslint",
     "EditorConfig.EditorConfig",
-    "charliermarsh.ruff",
     "esbenp.prettier-vscode",
-    "ms-python.python"
-  ],
-  "unwantedRecommendations": []
+    "charliermarsh.ruff",
+    "ms-python.python",
+    "dbaeumer.vscode-eslint"
+  ]
 }

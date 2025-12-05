@@ -132,19 +132,14 @@ class Task(BaseLabResource):
     def list_by_experiment(experiment_id: int):
         """List all tasks for a specific experiment"""
         all_tasks = Task.list_all()
-        return [
-            task for task in all_tasks if task.get("experiment_id") == experiment_id
-        ]
+        return [task for task in all_tasks if task.get("experiment_id") == experiment_id]
 
     @staticmethod
     def list_by_type_in_experiment(task_type: str, experiment_id: int):
         """List all tasks of a specific type in a specific experiment"""
         all_tasks = Task.list_all()
         return [
-            task
-            for task in all_tasks
-            if task.get("type") == task_type
-            and task.get("experiment_id") == experiment_id
+            task for task in all_tasks if task.get("type") == task_type and task.get("experiment_id") == experiment_id
         ]
 
     @staticmethod

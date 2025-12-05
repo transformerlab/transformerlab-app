@@ -9,7 +9,10 @@ import {
   Tooltip,
   Typography,
 } from '@mui/joy';
-import { useServerStats } from 'renderer/lib/transformerlab-api-sdk';
+import {
+  useServerStats,
+  apiHealthz,
+} from 'renderer/lib/transformerlab-api-sdk';
 import { useEffect, useState } from 'react';
 import { Link2Icon } from 'lucide-react';
 
@@ -362,12 +365,27 @@ function StatsBar({ connection, setConnection }) {
   );
 }
 
-export default function Header({
-  connection,
-  setConnection,
-  gpuOrchestrationServer,
-}) {
+export default function Header({ connection, setConnection }) {
   const { experimentInfo } = useExperimentInfo();
+  const [mode, setMode] = useState<string>('local');
+
+  // Fetch healthz to get the mode
+  useEffect(() => {
+    const fetchHealthz = async () => {
+      try {
+        const data = await apiHealthz();
+        if (data?.mode) {
+          setMode(data.mode);
+        }
+      } catch (error) {
+        console.error('Failed to fetch healthz data:', error);
+      }
+    };
+
+    fetchHealthz();
+  }, []);
+
+  const isS3Mode = mode === 's3';
 
   return (
     <Sheet
@@ -395,7 +413,7 @@ export default function Header({
           '-webkit-app-region': 'drag',
         }}
       />
-      {!gpuOrchestrationServer && (
+      {!isS3Mode && (
         <div
           id="currently-playing"
           style={{
@@ -422,10 +440,8 @@ export default function Header({
           '-webkit-app-region': 'drag',
         }}
       />
-      {gpuOrchestrationServer ? (
-        <Box sx={{ mr: 2 }}>
-          GPU Orchestration Server: {gpuOrchestrationServer}
-        </Box>
+      {isS3Mode ? (
+        <Box sx={{ mr: 2 }} />
       ) : (
         <StatsBar connection={connection} setConnection={setConnection} />
       )}
