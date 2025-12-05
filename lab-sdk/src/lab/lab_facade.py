@@ -34,8 +34,17 @@ class Lab:
         """
         Initialize a job under the given experiment.
         If _TFL_JOB_ID environment variable is set, uses that existing job.
+        If _TFL_EXPERIMENT_ID environment variable is set and experiment_id is not specified (defaults to "alpha"),
+        uses the environment variable value as the experiment_id.
         Otherwise, creates the experiment structure if needed and creates a new job.
         """
+        # Check if we should use experiment_id from environment variable
+        # If experiment_id is the default "alpha" and _TFL_EXPERIMENT_ID is set, use the env var
+        if experiment_id == "alpha":
+            env_experiment_id = os.environ.get("_TFL_EXPERIMENT_ID")
+            if env_experiment_id:
+                experiment_id = env_experiment_id
+        
         # Check if we should use an existing job from environment variable
         existing_job_id = os.environ.get("_TFL_JOB_ID")
 
