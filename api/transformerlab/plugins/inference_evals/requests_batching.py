@@ -1,9 +1,9 @@
-import json
-import aiohttp
 import asyncio
+import json
 import time
-from aiohttp import ClientTimeout
 
+import aiohttp
+from aiohttp import ClientTimeout
 
 # Create a timeout object (values in seconds)
 timeout = ClientTimeout(total=420)
@@ -44,7 +44,9 @@ async def predict(
     )
 
     start_time = time.monotonic()
-    async with session.post(inference_url, headers=headers, data=payload, timeout=timeout) as response:
+    async with session.post(
+        inference_url, headers=headers, data=payload, timeout=timeout
+    ) as response:
         first_token_time = None
         content_bytes = bytearray()
         async for chunk in response.content.iter_chunked(max_tokens):
@@ -66,9 +68,11 @@ async def predict(
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
-            "tokens_per_second": total_tokens / (end_time - start_time)
-            if total_tokens and (end_time - start_time) > 0
-            else None,
+            "tokens_per_second": (
+                total_tokens / (end_time - start_time)
+                if total_tokens and (end_time - start_time) > 0
+                else None
+            ),
         }
         return output, metrics
 
@@ -170,11 +174,17 @@ async def process_dataset(
                 global_idx = start + idx
                 if START_FROM_SAMPLE_INDEX <= global_idx <= END_AT_SAMPLE_INDEX:
                     examples.loc[global_idx, output_col] = result[0]
-                    examples.loc[global_idx, "time_to_first_token"] = result[1].get("time_to_first_token", None)
+                    examples.loc[global_idx, "time_to_first_token"] = result[1].get(
+                        "time_to_first_token", None
+                    )
                     examples.loc[global_idx, "time_total"] = result[1].get("time_total", None)
                     examples.loc[global_idx, "prompt_tokens"] = result[1].get("prompt_tokens", None)
-                    examples.loc[global_idx, "completion_tokens"] = result[1].get("completion_tokens", None)
+                    examples.loc[global_idx, "completion_tokens"] = result[1].get(
+                        "completion_tokens", None
+                    )
                     examples.loc[global_idx, "total_tokens"] = result[1].get("total_tokens", None)
-                    examples.loc[global_idx, "tokens_per_second"] = result[1].get("tokens_per_second", None)
+                    examples.loc[global_idx, "tokens_per_second"] = result[1].get(
+                        "tokens_per_second", None
+                    )
 
     return examples

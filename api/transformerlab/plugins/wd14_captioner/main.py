@@ -1,16 +1,15 @@
 import os
-import sys
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pandas as pd
-from tqdm import tqdm
-
-from transformerlab.sdk.v1.generate import tlab_gen
 from huggingface_hub import snapshot_download
-from lab.dirs import get_workspace_dir
 from lab import storage
+from lab.dirs import get_workspace_dir
+from tqdm import tqdm
+from transformerlab.sdk.v1.generate import tlab_gen
 
 
 @tlab_gen.job_wrapper()
@@ -18,7 +17,9 @@ def run_generation():
     # ----- Constants -----
     workspace = get_workspace_dir()
 
-    REPO_ROOT = storage.join(workspace, "plugins", "wd14_captioner", "sd-caption-wd14", "sd-scripts")
+    REPO_ROOT = storage.join(
+        workspace, "plugins", "wd14_captioner", "sd-caption-wd14", "sd-scripts"
+    )
     SCRIPT_PATH = storage.join(
         workspace,
         "plugins",
@@ -46,7 +47,9 @@ def run_generation():
     )
 
     if not model_dir.exists():
-        snapshot_download(repo_id=repo_id, local_dir=model_dir, local_dir_use_symlinks=False, repo_type="model")
+        snapshot_download(
+            repo_id=repo_id, local_dir=model_dir, local_dir_use_symlinks=False, repo_type="model"
+        )
 
     tlab_gen.progress_update(0)
     datasets = tlab_gen.load_dataset(dataset_types=["train"])
@@ -122,7 +125,9 @@ def run_generation():
     for i, path in enumerate(local_paths):
         caption_path = path.with_suffix(".txt")
         if not caption_path.exists():
-            raise FileNotFoundError(f"❌ Missing caption file for {path.name}: expected at {caption_path}")
+            raise FileNotFoundError(
+                f"❌ Missing caption file for {path.name}: expected at {caption_path}"
+            )
         caption_text = caption_path.read_text().strip()
         captions.append(caption_text)
         tlab_gen.progress_update(25 + (i + 1) / len(local_paths) * 25)
@@ -139,7 +144,9 @@ def run_generation():
     # Save the results as a dataset
     dataset_id = tlab_gen.params.get("output_dataset_name")
     print(f"Saving generated dataset with ID: {dataset_id}")
-    output_path, dataset_name = tlab_gen.save_generated_dataset(df_output, is_image=True, dataset_id=dataset_id)
+    output_path, dataset_name = tlab_gen.save_generated_dataset(
+        df_output, is_image=True, dataset_id=dataset_id
+    )
 
     output_dir = storage.join(workspace, "datasets", dataset_id)
     for src, dst in zip(local_paths, df_output["file_name"]):

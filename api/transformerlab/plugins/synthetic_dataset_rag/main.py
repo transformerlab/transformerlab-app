@@ -1,16 +1,14 @@
 import os
 import random
-from typing import List
-import pandas as pd
 
 import fitz
+import pandas as pd
+from lab import storage
+from lab.dirs import get_workspace_dir
 from langchain.docstore.document import Document as LangchainDocument
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from tqdm.auto import tqdm
-
 from transformerlab.sdk.v1.generate import tlab_gen
-from lab.dirs import get_workspace_dir
-from lab import storage
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
@@ -27,7 +25,7 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         return ""
 
 
-def get_docs_list(docs: str) -> List[dict]:
+def get_docs_list(docs: str) -> list[dict]:
     """
     Convert document paths to a list of document data suitable for LangChain
     Supports text files, PDFs, and other document formats
@@ -35,7 +33,9 @@ def get_docs_list(docs: str) -> List[dict]:
     docs_list = docs.split(",")
     workspace_dir = get_workspace_dir()
 
-    documents_dir = storage.join(workspace_dir, "experiments", tlab_gen.params.experiment_name, "documents")
+    documents_dir = storage.join(
+        workspace_dir, "experiments", tlab_gen.params.experiment_name, "documents"
+    )
     # Use the markdown files if they exist
     markitdown_dir = storage.join(documents_dir, ".tlab_markitdown")
     if storage.exists(markitdown_dir):
@@ -106,7 +106,8 @@ def run_generation():
 
     # Convert to LangChain documents
     langchain_docs = [
-        LangchainDocument(page_content=doc["text"], metadata={"source": doc["source"]}) for doc in doc_data
+        LangchainDocument(page_content=doc["text"], metadata={"source": doc["source"]})
+        for doc in doc_data
     ]
 
     # Split documents
@@ -149,7 +150,9 @@ def run_generation():
     for i, sampled_context in enumerate(tqdm(random.sample(docs_processed, n_samples))):
         try:
             # Generate QA couple
-            output_QA_couple = model.generate(QA_generation_prompt.format(context=sampled_context.page_content))
+            output_QA_couple = model.generate(
+                QA_generation_prompt.format(context=sampled_context.page_content)
+            )
 
             question = output_QA_couple.split("Factoid question: ")[-1].split("Answer: ")[0].strip()
             answer = output_QA_couple.split("Answer: ")[-1].strip()

@@ -1,5 +1,7 @@
 import json
+
 import pytest
+
 from transformerlab.routers.experiment import workflows as wf
 
 pytestmark = pytest.mark.skip("This entire test file is currently under development.")
@@ -27,7 +29,9 @@ def test_workflows_list(client, experiment_id):
 
 def test_workflows_delete(client, experiment_id):
     # Create a workflow to delete
-    create_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=workflow_to_delete")
+    create_resp = client.get(
+        f"/experiment/{experiment_id}/workflows/create?name=workflow_to_delete"
+    )
     assert create_resp.status_code == 200
     workflow_id = create_resp.json()
 
@@ -46,8 +50,13 @@ def test_workflows_create(client, experiment_id):
     import json
 
     # Create workflow with required fields
-    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
-    resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}")
+    config = {
+        "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+        "status": "CREATED",
+    }
+    resp = client.get(
+        f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}"
+    )
     assert resp.status_code == 200
     assert resp.json() is not None  # Just check that we get a valid response
 
@@ -127,14 +136,22 @@ def test_workflow_node_operations(client, experiment_id):
     assert metadata_resp.status_code == 200
 
     # Update node
-    new_node = {"id": node_id, "type": "TASK", "name": "Updated Task", "task": "test_task", "out": []}
+    new_node = {
+        "id": node_id,
+        "type": "TASK",
+        "name": "Updated Task",
+        "task": "test_task",
+        "out": [],
+    }
     update_resp = client.post(
         f"/experiment/{experiment_id}/workflows/{workflow_id}/{node_id}/update_node", json=new_node
     )
     assert update_resp.status_code == 200
 
     # Add edge
-    edge_resp = client.post(f"/experiment/{experiment_id}/workflows/{workflow_id}/START/add_edge?end_node_id={node_id}")
+    edge_resp = client.post(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/START/add_edge?end_node_id={node_id}"
+    )
     assert edge_resp.status_code == 200
 
     # Remove edge
@@ -144,7 +161,9 @@ def test_workflow_node_operations(client, experiment_id):
     assert remove_edge_resp.status_code == 200
 
     # Delete node
-    delete_node_resp = client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/{node_id}/delete_node")
+    delete_node_resp = client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/{node_id}/delete_node"
+    )
     assert delete_node_resp.status_code == 200
 
 
@@ -156,7 +175,9 @@ def test_workflow_name_update(client, experiment_id):
     workflow_id = workflow_resp.json()
 
     # Update name
-    update_resp = client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/update_name?new_name=new_name")
+    update_resp = client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/update_name?new_name=new_name"
+    )
     assert update_resp.status_code == 200
     assert update_resp.json() == {"message": "OK"}
 
@@ -164,7 +185,10 @@ def test_workflow_name_update(client, experiment_id):
 def test_workflow_yaml_operations(client, experiment_id):
     """Test YAML import/export operations"""
     # Create workflow with required fields
-    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
+    config = {
+        "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+        "status": "CREATED",
+    }
     workflow_resp = client.get(
         f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}"
     )
@@ -180,7 +204,10 @@ def test_workflow_yaml_operations(client, experiment_id):
     assert export_resp.status_code == 200
     # Check that we get a file response with the correct filename
     # assert export_resp.headers.get("content-type") == "text/plain; charset=utf-8"
-    assert export_resp.headers.get("content-disposition") == 'attachment; filename="test_workflow.yaml"'
+    assert (
+        export_resp.headers.get("content-disposition")
+        == 'attachment; filename="test_workflow.yaml"'
+    )
 
 
 def test_workflow_run_operations(client, experiment_id):
@@ -287,7 +314,9 @@ def test_workflow_run_cancel_with_active_jobs(client, experiment_id):
     """Test workflow run cancellation with actual running jobs"""
 
     # Create workflow
-    workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow_with_jobs")
+    workflow_resp = client.get(
+        f"/experiment/{experiment_id}/workflows/create?name=test_workflow_with_jobs"
+    )
     assert workflow_resp.status_code == 200
     workflow_id = workflow_resp.json()
 
@@ -310,6 +339,7 @@ def test_workflow_run_cancel_with_active_jobs(client, experiment_id):
     # Manually add job to workflow run to simulate active job
     # This simulates what happens when a workflow step is running
     import asyncio
+
     from transformerlab.db import db
 
     async def add_job_to_run():
@@ -370,7 +400,9 @@ def test_workflow_run_cancel_security(client, experiment_id):
 
     try:
         # Create workflow in original experiment
-        workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
+        workflow_resp = client.get(
+            f"/experiment/{experiment_id}/workflows/create?name=test_workflow"
+        )
         assert workflow_resp.status_code == 200
         workflow_id = workflow_resp.json()
 
@@ -388,7 +420,9 @@ def test_workflow_run_cancel_security(client, experiment_id):
         # Try to cancel the workflow run from experiment 2 (should fail)
         cancel_resp = client.get(f"/experiment/{exp2_id}/workflows/{run_id}/cancel")
         assert cancel_resp.status_code == 200
-        assert cancel_resp.json() == {"error": "Associated workflow not found or does not belong to this experiment"}
+        assert cancel_resp.json() == {
+            "error": "Associated workflow not found or does not belong to this experiment"
+        }
 
         # Verify cancellation works from the correct experiment
         cancel_resp = client.get(f"/experiment/{experiment_id}/workflows/{run_id}/cancel")
@@ -407,7 +441,13 @@ def test_workflow_run_cancel_edge_cases(client, experiment_id):
     config = {
         "nodes": [
             {"type": "START", "id": "start", "name": "START", "out": ["task1"]},
-            {"type": "TASK", "id": "task1", "name": "Task 1", "task": "test_task", "out": ["task2"]},
+            {
+                "type": "TASK",
+                "id": "task1",
+                "name": "Task 1",
+                "task": "test_task",
+                "out": ["task2"],
+            },
             {"type": "TASK", "id": "task2", "name": "Task 2", "task": "test_task", "out": []},
         ]
     }
@@ -452,7 +492,10 @@ def test_workflow_node_operations_invalid(client, experiment_id):
 def test_workflow_edge_operations_invalid(client, experiment_id):
     """Test edge operations with invalid node IDs"""
     # Use shared experiment instead of creating new one
-    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
+    config = {
+        "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+        "status": "CREATED",
+    }
     workflow_resp = client.get(
         f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}"
     )
@@ -461,7 +504,9 @@ def test_workflow_edge_operations_invalid(client, experiment_id):
 
     # Only test operations that are guaranteed to work
     # Just verify the endpoints exist and don't crash
-    resp = client.post(f"/experiment/{experiment_id}/workflows/{workflow_id}/start/add_edge?end_node_id=non_existent")
+    resp = client.post(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/start/add_edge?end_node_id=non_existent"
+    )
     assert resp.status_code == 200
 
 
@@ -476,7 +521,10 @@ def test_workflow_run_operations_invalid(client, experiment_id):
 def test_workflow_name_update_invalid(client, experiment_id):
     """Test invalid workflow name updates"""
     # Use shared experiment instead of creating new one
-    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
+    config = {
+        "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+        "status": "CREATED",
+    }
     workflow_resp = client.get(
         f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}"
     )
@@ -485,7 +533,9 @@ def test_workflow_name_update_invalid(client, experiment_id):
     assert workflow_id is not None
 
     # Just test that the endpoint exists and doesn't crash
-    resp = client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/update_name?new_name=new_name")
+    resp = client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/update_name?new_name=new_name"
+    )
     assert resp.status_code == 200
 
 
@@ -530,7 +580,9 @@ async def test_determine_next_and_start_skip_helpers(client):
         ]
     }
 
-    actual_ids, next_nodes = await wf.handle_start_node_skip(["start1", "start2"], workflow_config, 0)
+    actual_ids, next_nodes = await wf.handle_start_node_skip(
+        ["start1", "start2"], workflow_config, 0
+    )
     assert set(actual_ids) == {"task1", "task2"}
     assert len(next_nodes) == 2
 
@@ -541,7 +593,10 @@ def test_extract_previous_job_outputs_and_prepare_io():
     # Test GENERATE job with dataset_id at top level
     generate_job_top_level = {
         "type": "GENERATE",
-        "job_data": {"dataset_id": "Top Level Dataset", "config": {"dataset_id": "Config Level Dataset"}},
+        "job_data": {
+            "dataset_id": "Top Level Dataset",
+            "config": {"dataset_id": "Config Level Dataset"},
+        },
     }
     outputs = wf.extract_previous_job_outputs(generate_job_top_level)
     # Should prefer top-level dataset_id
@@ -619,19 +674,27 @@ def test_workflow_security_checks(client):
         # Try to delete workflow from experiment 1 using experiment 2's context
         delete_resp = client.get(f"/experiment/{exp2_id}/workflows/delete/{workflow_id}")
         assert delete_resp.status_code == 200
-        assert delete_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert delete_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to edit node metadata from wrong experiment
         metadata_resp = client.get(
             f"/experiment/{exp2_id}/workflows/{workflow_id}/node_id/edit_node_metadata?metadata={{}}"
         )
         assert metadata_resp.status_code == 200
-        assert metadata_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert metadata_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to update name from wrong experiment
-        name_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/update_name?new_name=new_name")
+        name_resp = client.get(
+            f"/experiment/{exp2_id}/workflows/{workflow_id}/update_name?new_name=new_name"
+        )
         assert name_resp.status_code == 200
-        assert name_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert name_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to add node from wrong experiment
         node_data = {"type": "TASK", "name": "Test Task", "task": "test_task", "out": []}
@@ -639,40 +702,66 @@ def test_workflow_security_checks(client):
             f"/experiment/{exp2_id}/workflows/{workflow_id}/add_node?node={json.dumps(node_data)}"
         )
         assert add_node_resp.status_code == 200
-        assert add_node_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert add_node_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to update node from wrong experiment
-        new_node = {"id": "test", "type": "TASK", "name": "Updated Task", "task": "test_task", "out": []}
-        update_resp = client.post(f"/experiment/{exp2_id}/workflows/{workflow_id}/test/update_node", json=new_node)
+        new_node = {
+            "id": "test",
+            "type": "TASK",
+            "name": "Updated Task",
+            "task": "test_task",
+            "out": [],
+        }
+        update_resp = client.post(
+            f"/experiment/{exp2_id}/workflows/{workflow_id}/test/update_node", json=new_node
+        )
         assert update_resp.status_code == 200
-        assert update_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert update_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to remove edge from wrong experiment
         remove_edge_resp = client.post(
             f"/experiment/{exp2_id}/workflows/{workflow_id}/start/remove_edge?end_node_id=test"
         )
         assert remove_edge_resp.status_code == 200
-        assert remove_edge_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert remove_edge_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to add edge from wrong experiment
-        add_edge_resp = client.post(f"/experiment/{exp2_id}/workflows/{workflow_id}/start/add_edge?end_node_id=test")
+        add_edge_resp = client.post(
+            f"/experiment/{exp2_id}/workflows/{workflow_id}/start/add_edge?end_node_id=test"
+        )
         assert add_edge_resp.status_code == 200
-        assert add_edge_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert add_edge_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to delete node from wrong experiment
-        delete_node_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/test/delete_node")
+        delete_node_resp = client.get(
+            f"/experiment/{exp2_id}/workflows/{workflow_id}/test/delete_node"
+        )
         assert delete_node_resp.status_code == 200
-        assert delete_node_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert delete_node_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to export YAML from wrong experiment
         export_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/export_to_yaml")
         assert export_resp.status_code == 200
-        assert export_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert export_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
 
         # Try to start workflow from wrong experiment
         start_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/start")
         assert start_resp.status_code == 200
-        assert start_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
+        assert start_resp.json() == {
+            "error": "Workflow not found or does not belong to this experiment"
+        }
     finally:
         # Cleanup both experiments
         client.get(f"/experiment/delete/{exp1_id}")
@@ -697,7 +786,9 @@ def test_workflow_start_node_deletion(client, experiment_id):
     start_node_id = next(n["id"] for n in nodes if n["type"] == "START")
 
     # Try to delete the START node
-    delete_node_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/{start_node_id}/delete_node")
+    delete_node_resp = client.get(
+        f"/experiment/{exp_id}/workflows/{workflow_id}/{start_node_id}/delete_node"
+    )
     assert delete_node_resp.status_code == 200
     assert delete_node_resp.json() == {"message": "Cannot delete START node"}
 
@@ -752,9 +843,9 @@ def test_workflow_run_with_missing_associated_workflow(client, experiment_id):
     assert run_resp.status_code == 200
     response_data = run_resp.json()
     # Accept either error response or normal response with data
-    assert ("error" in response_data and "Associated workflow not found" in response_data["error"]) or (
-        "run" in response_data and "workflow" in response_data
-    )
+    assert (
+        "error" in response_data and "Associated workflow not found" in response_data["error"]
+    ) or ("run" in response_data and "workflow" in response_data)
 
 
 def test_yaml_import(client, experiment_id):
@@ -762,8 +853,8 @@ def test_yaml_import(client, experiment_id):
     exp_id = experiment_id
 
     # Create a test YAML file content
-    import tempfile
     import os
+    import tempfile
 
     # Create a temporary YAML file
     yaml_content = """
@@ -783,7 +874,9 @@ config:
         # Test YAML import
         with open(f.name, "rb") as yaml_file:
             files = {"file": (f.name, yaml_file, "application/x-yaml")}
-            import_resp = client.post(f"/experiment/{exp_id}/workflows/import_from_yaml", files=files)
+            import_resp = client.post(
+                f"/experiment/{exp_id}/workflows/import_from_yaml", files=files
+            )
             assert import_resp.status_code == 200
             assert import_resp.json() == {"message": "OK"}
 
@@ -895,7 +988,9 @@ async def test_handle_start_node_skip_edge_cases():
         ]
     }
 
-    actual_ids, next_nodes = await wf.handle_start_node_skip(["start1", "start2"], workflow_config, 0)
+    actual_ids, next_nodes = await wf.handle_start_node_skip(
+        ["start1", "start2"], workflow_config, 0
+    )
     assert set(actual_ids) == {"task1", "task2"}
     assert len(next_nodes) == 2
 
@@ -971,7 +1066,9 @@ def test_workflow_active_run_security(client):
         cross_run_resp = client.get(f"/experiment/{exp2_id}/workflows/runs/{run_id}")
         assert cross_run_resp.status_code == 200
         # Should get error because workflow doesn't belong to experiment 2
-        assert cross_run_resp.json() == {"error": "Associated workflow not found or does not belong to this experiment"}
+        assert cross_run_resp.json() == {
+            "error": "Associated workflow not found or does not belong to this experiment"
+        }
     finally:
         # Cleanup
         client.get(f"/experiment/delete/{exp1_id}")
@@ -1010,7 +1107,9 @@ def test_workflow_run_security_checks(client):
         run_resp = client.get(f"/experiment/{exp2_id}/workflows/runs/{run_id}")
         assert run_resp.status_code == 200
         response_data = run_resp.json()
-        assert response_data == {"error": "Associated workflow not found or does not belong to this experiment"}
+        assert response_data == {
+            "error": "Associated workflow not found or does not belong to this experiment"
+        }
     finally:
         # Cleanup
         client.get(f"/experiment/delete/{exp1_id}")
@@ -1079,7 +1178,9 @@ async def test_determine_next_tasks_edge_cases():
         ]
     }
 
-    actual_ids, next_nodes = await wf.handle_start_node_skip(["start1", "start2"], workflow_config, 0)
+    actual_ids, next_nodes = await wf.handle_start_node_skip(
+        ["start1", "start2"], workflow_config, 0
+    )
     assert set(actual_ids) == {"task1", "task2"}
     assert len(next_nodes) == 2
 
@@ -1090,7 +1191,10 @@ def test_extract_previous_job_outputs_complete_coverage():
     # Test GENERATE job with dataset_id at top level
     generate_job_top_level = {
         "type": "GENERATE",
-        "job_data": {"dataset_id": "Top Level Dataset", "config": {"dataset_id": "Config Level Dataset"}},
+        "job_data": {
+            "dataset_id": "Top Level Dataset",
+            "config": {"dataset_id": "Config Level Dataset"},
+        },
     }
     outputs = wf.extract_previous_job_outputs(generate_job_top_level)
     # Should prefer top-level dataset_id
@@ -1166,7 +1270,9 @@ async def test_handle_start_node_skip_multiple_starts():
     }
 
     # Test with multiple START nodes
-    actual_ids, next_nodes = await wf.handle_start_node_skip(["start1", "start2"], workflow_config, 0)
+    actual_ids, next_nodes = await wf.handle_start_node_skip(
+        ["start1", "start2"], workflow_config, 0
+    )
     assert set(actual_ids) == {"task1", "task2"}
     assert len(next_nodes) == 2
 
@@ -1174,8 +1280,12 @@ async def test_handle_start_node_skip_multiple_starts():
 def test_workflow_create_with_existing_nodes(client, experiment_id):
     """Test workflow creation with existing nodes in config"""
     # Create workflow with existing nodes
-    config = {"nodes": [{"type": "TASK", "id": "existing_task", "name": "Existing Task", "out": []}]}
-    resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}")
+    config = {
+        "nodes": [{"type": "TASK", "id": "existing_task", "name": "Existing Task", "out": []}]
+    }
+    resp = client.get(
+        f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}"
+    )
     assert resp.status_code == 200
     workflow_id = resp.json()
 
@@ -1197,7 +1307,9 @@ def test_workflow_create_with_existing_nodes(client, experiment_id):
 def test_workflow_node_edge_operations(client, experiment_id):
     """Test edge addition and removal with various scenarios"""
     # Create workflow
-    workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow245")
+    workflow_resp = client.get(
+        f"/experiment/{experiment_id}/workflows/create?name=test_workflow245"
+    )
     assert workflow_resp.status_code == 200
     workflow_id = workflow_resp.json()
 
@@ -1205,8 +1317,12 @@ def test_workflow_node_edge_operations(client, experiment_id):
     node1_data = {"type": "TASK", "name": "Task 1", "task": "task1", "out": []}
     node2_data = {"type": "TASK", "name": "Task 2", "task": "task2", "out": []}
 
-    client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node1_data)}")
-    client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node2_data)}")
+    client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node1_data)}"
+    )
+    client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node2_data)}"
+    )
 
     # Get node IDs
     workflows_resp = client.get(f"/experiment/{experiment_id}/workflows/list")
@@ -1242,7 +1358,9 @@ def test_workflow_node_edge_operations(client, experiment_id):
 def test_workflow_node_deletion_with_connections(client, experiment_id):
     """Test node deletion when node has connections"""
     # Create workflow
-    workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow897")
+    workflow_resp = client.get(
+        f"/experiment/{experiment_id}/workflows/create?name=test_workflow897"
+    )
     assert workflow_resp.status_code == 200
     workflow_id = workflow_resp.json()
 
@@ -1251,9 +1369,15 @@ def test_workflow_node_deletion_with_connections(client, experiment_id):
     node2_data = {"type": "TASK", "name": "Task 2", "task": "task2", "out": []}
     node3_data = {"type": "TASK", "name": "Task 3", "task": "task3", "out": []}
 
-    client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node1_data)}")
-    client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node2_data)}")
-    client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node3_data)}")
+    client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node1_data)}"
+    )
+    client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node2_data)}"
+    )
+    client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/add_node?node={json.dumps(node3_data)}"
+    )
 
     # Get node IDs
     workflows_resp = client.get(f"/experiment/{experiment_id}/workflows/list")
@@ -1264,11 +1388,17 @@ def test_workflow_node_deletion_with_connections(client, experiment_id):
     node1_id, node2_id, node3_id = task_nodes[0]["id"], task_nodes[1]["id"], task_nodes[2]["id"]
 
     # Create connections: node1 -> node2 -> node3
-    client.post(f"/experiment/{experiment_id}/workflows/{workflow_id}/{node1_id}/add_edge?end_node_id={node2_id}")
-    client.post(f"/experiment/{experiment_id}/workflows/{workflow_id}/{node2_id}/add_edge?end_node_id={node3_id}")
+    client.post(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/{node1_id}/add_edge?end_node_id={node2_id}"
+    )
+    client.post(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/{node2_id}/add_edge?end_node_id={node3_id}"
+    )
 
     # Delete middle node (node2) - should connect node1 to node3
-    delete_resp = client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/{node2_id}/delete_node")
+    delete_resp = client.get(
+        f"/experiment/{experiment_id}/workflows/{workflow_id}/{node2_id}/delete_node"
+    )
     assert delete_resp.status_code == 200
 
     # Verify the connections were updated
@@ -1403,7 +1533,13 @@ def test_workflow_next_step_with_complex_scenarios(client):
     config = {
         "nodes": [
             {"type": "START", "id": "start", "name": "START", "out": ["task1"]},
-            {"type": "TASK", "id": "task1", "name": "Task 1", "task": "test_task", "out": ["task2"]},
+            {
+                "type": "TASK",
+                "id": "task1",
+                "name": "Task 1",
+                "task": "test_task",
+                "out": ["task2"],
+            },
             {"type": "TASK", "id": "task2", "name": "Task 2", "task": "test_task", "out": []},
         ]
     }

@@ -1,6 +1,6 @@
-import xmlrpc.client
 import json
 import time
+import xmlrpc.client
 
 # Connect to the XML-RPC server
 server = xmlrpc.client.ServerProxy("http://localhost:8338")

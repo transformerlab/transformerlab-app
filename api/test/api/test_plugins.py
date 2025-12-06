@@ -1,6 +1,7 @@
 import os
 import tempfile
-from unittest.mock import patch, Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 
 
@@ -181,7 +182,9 @@ async def test_run_installer_for_plugin_with_missing_setup_script():
         with (
             patch.object(dirs, "PLUGIN_PRELOADED_GALLERY", gallery_dir),
             patch("lab.dirs.get_plugin_dir", return_value=plugin_dir),
-            patch("transformerlab.routers.plugins.delete_plugin_files_from_workspace") as mock_delete,
+            patch(
+                "transformerlab.routers.plugins.delete_plugin_files_from_workspace"
+            ) as mock_delete,
         ):
             mock_delete.return_value = None
 
@@ -215,7 +218,9 @@ async def test_run_installer_for_plugin_setup_script_failure():
         # Create index.json with a setup script
         index_file = os.path.join(source_plugin_path, "index.json")
         with open(index_file, "w") as f:
-            f.write('{"name": "Test Plugin", "version": "1.0", "setup-script": "nonexistent_script.sh"}')
+            f.write(
+                '{"name": "Test Plugin", "version": "1.0", "setup-script": "nonexistent_script.sh"}'
+            )
 
         # Create mock venv directory
         venv_path = os.path.join(dest_plugin_path, "venv")
@@ -229,7 +234,9 @@ async def test_run_installer_for_plugin_setup_script_failure():
             patch.object(dirs, "PLUGIN_PRELOADED_GALLERY", gallery_dir),
             patch("lab.dirs.get_plugin_dir", return_value=plugin_dir),
             patch("asyncio.create_subprocess_exec") as mock_subprocess,
-            patch("transformerlab.routers.plugins.delete_plugin_files_from_workspace") as mock_delete,
+            patch(
+                "transformerlab.routers.plugins.delete_plugin_files_from_workspace"
+            ) as mock_delete,
         ):
             # Mock subprocess to return failure
             mock_stdout = Mock()

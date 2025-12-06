@@ -1,24 +1,22 @@
-from watchfiles import awatch
+import asyncio
 import json
 import os
 import platform
-import asyncio
-import sys
 import subprocess
-import zipfile
+import sys
 import tempfile
+import zipfile
+from collections.abc import AsyncGenerator
 from datetime import datetime
-from fastapi.responses import StreamingResponse, FileResponse
-from fastapi import APIRouter, HTTPException
-from typing import AsyncGenerator
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
 import torch
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse
+from lab import HOME_DIR, storage
 from lab.dirs import get_global_log_path
-from lab import HOME_DIR
-from lab import storage
-
+from watchfiles import awatch
 
 try:
     from pynvml import (
@@ -238,7 +236,9 @@ async def get_computer_information():
             elif HAS_AMD and not IS_WSL_SYSTEM:
                 info["total_memory"] = rocml.smi_get_device_memory_total(i)
                 info["used_memory"] = rocml.smi_get_device_memory_used(i)
-                info["free_memory"] = rocml.smi_get_device_memory_total(i) - rocml.smi_get_device_memory_used(i)
+                info["free_memory"] = rocml.smi_get_device_memory_total(
+                    i
+                ) - rocml.smi_get_device_memory_used(i)
                 info["utilization"] = rocml.smi_get_device_utilization(i)
             elif HAS_AMD and IS_WSL_SYSTEM:
                 free_memory, total_memory = torch.cuda.mem_get_info(i)
@@ -279,7 +279,11 @@ async def get_python_library_versions():
 
         dists = []
         for dist in metadata.distributions():
-            name = dist.metadata.get("Name") or dist.metadata.get("Summary") or dist.metadata.get("name")
+            name = (
+                dist.metadata.get("Name")
+                or dist.metadata.get("Summary")
+                or dist.metadata.get("name")
+            )
             version = dist.version if hasattr(dist, "version") else dist.metadata.get("Version", "")
             if name and version:
                 dists.append({"name": name, "version": version})
@@ -371,7 +375,9 @@ async def watch_s3_file(
             await asyncio.sleep(poll_interval_ms / 1000.0)
 
 
-async def watch_file(filename: str, start_from_beginning=False, force_polling=True) -> AsyncGenerator[str, None]:
+async def watch_file(
+    filename: str, start_from_beginning=False, force_polling=True
+) -> AsyncGenerator[str, None]:
     print(f"👀 Watching file: {filename}")
 
     # create the file if it doesn't already exist:
@@ -420,21 +426,33 @@ async def watch_log():
             return StreamingResponse(
                 watch_s3_file(global_log_path),
                 media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Access-Control-Allow-Origin": "*",
+                },
             )
         else:
             # Use local file watcher for local filesystems
             return StreamingResponse(
                 watch_file(global_log_path),
                 media_type="text/event-stream",
-                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "Access-Control-Allow-Origin": "*",
+                },
             )
     except Exception as e:
         print(f"Error streaming log: {e}")
         return StreamingResponse(
             iter(["data: Error: An internal error has occurred!\n\n"]),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            },
         )
 
 
@@ -464,7 +482,10 @@ async def download_logs():
 
     # If no files exist, return an error
     if not log_files:
-        raise HTTPException(status_code=404, detail="No log files found. The log files may not have been created yet.")
+        raise HTTPException(
+            status_code=404,
+            detail="No log files found. The log files may not have been created yet.",
+        )
 
     # Create a temporary zip file
     temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
@@ -496,4 +517,4 @@ async def download_logs():
         # Clean up temp file on error
         if os.path.exists(temp_zip.name):
             os.unlink(temp_zip.name)
-        raise HTTPException(status_code=500, detail=f"Failed to create zip file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create zip file: {e!s}")

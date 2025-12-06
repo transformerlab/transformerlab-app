@@ -8,17 +8,18 @@ The generate function probably needs work.
 """
 
 import argparse
-import os
-import subprocess
 import json
+import os
+import posixpath
+import subprocess
+import sys
+import time
 import uuid
 from hashlib import sha256
 from pathlib import Path
-import sys
+
 import ollama
-import time
 import requests
-import posixpath
 from lab import storage
 
 worker_id = str(uuid.uuid4())[:8]
@@ -28,7 +29,10 @@ OLLAMA_STARTUP_TIMEOUT = 180  # seconds
 try:
     from transformerlab.plugin import get_python_executable, register_process
 except ImportError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
+    from transformerlab.plugin_sdk.transformerlab.plugin import (
+        get_python_executable,
+        register_process,
+    )
 
 
 parser = argparse.ArgumentParser()

@@ -1,5 +1,5 @@
-import xmlrpc.client
 import json  # For pretty-printing the results
+import xmlrpc.client
 
 # Connect to the XML-RPC server
 server = xmlrpc.client.ServerProxy("http://localhost:8338/job_sdk")
@@ -38,4 +38,6 @@ else:
 if "tasks" in project:
     complete_tasks = sum(1 for task in project["tasks"] if task["complete"])
     total_tasks = len(project["tasks"])
-    print(f"\nProject task completion: {complete_tasks}/{total_tasks} ({complete_tasks / total_tasks * 100:.0f}%)")
+    print(
+        f"\nProject task completion: {complete_tasks}/{total_tasks} ({complete_tasks / total_tasks * 100:.0f}%)"
+    )

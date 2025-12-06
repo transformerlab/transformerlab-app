@@ -5,11 +5,12 @@
 
 import json
 import posixpath
-import urllib.request
 import time
+import urllib.request
+
+from lab import storage
 
 from transformerlab.shared import dirs
-from lab import storage
 
 # This is the list of galleries that are updated remotely
 MODEL_GALLERY_FILE = "model-gallery.json"

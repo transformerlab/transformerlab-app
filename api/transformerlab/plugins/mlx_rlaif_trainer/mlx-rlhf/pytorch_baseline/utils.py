@@ -1,10 +1,10 @@
 # Copyright © 2023 Apple Inc.
 
-from typing import Generator, Dict, Mapping, List
 import random
+from collections.abc import Generator, Mapping
 
-import torch
 import numpy as np
+import torch
 
 
 class RunningMoments:
@@ -98,7 +98,9 @@ def set_seed(seed: int) -> None:
     torch.random.manual_seed(seed)
 
 
-def logprobs_from_logits(logits: torch.Tensor, labels: torch.Tensor, gather: bool = True) -> torch.Tensor:
+def logprobs_from_logits(
+    logits: torch.Tensor, labels: torch.Tensor, gather: bool = True
+) -> torch.Tensor:
     """
     Turn raw logit values into log probs with softmax + log -- make sure axis is correct
     """
@@ -156,7 +158,9 @@ def masked_var(values: torch.Tensor, mask: torch.Tensor, unbiased: bool = True) 
     return variance
 
 
-def masked_whiten(values: torch.Tensor, mask: torch.Tensor, shift_mean: bool = True) -> torch.Tensor:
+def masked_whiten(
+    values: torch.Tensor, mask: torch.Tensor, shift_mean: bool = True
+) -> torch.Tensor:
     """Whiten values with masked values."""
     mean, var = masked_mean(values, mask), masked_var(values, mask)
     whitened = (values - mean) * torch.rsqrt(var + 1e-8)
@@ -190,7 +194,7 @@ def entropy_from_logits(logits: torch.Tensor) -> torch.Tensor:
     return entropy
 
 
-def stats_to_np(stats_dict: Dict) -> Dict:
+def stats_to_np(stats_dict: dict) -> dict:
     """Cast all mx.arrays in dict to numpy arrays."""
     new_dict = dict()
     for k, v in stats_dict.items():
@@ -206,10 +210,10 @@ def stats_to_np(stats_dict: Dict) -> Dict:
     return new_dict
 
 
-def flatten_dict(nested: Dict, sep: str = "/") -> Dict:
+def flatten_dict(nested: dict, sep: str = "/") -> dict:
     """Flatten dictionary and concatenate nested keys with separator."""
 
-    def recurse(nest: Dict, prefix: str, into: Dict) -> None:
+    def recurse(nest: dict, prefix: str, into: dict) -> None:
         for k, v in nest.items():
             if sep in k:
                 raise ValueError(f"separator '{sep}' not allowed to be in key '{k}'")
@@ -257,7 +261,7 @@ def replace_nans_get_means(logs):
     return logs
 
 
-def stack_dicts(stats_dicts: List[Dict]) -> Dict:
+def stack_dicts(stats_dicts: list[dict]) -> dict:
     """Stack the values of a dict."""
     results = dict()
     for k in stats_dicts[0]:
@@ -273,7 +277,7 @@ def stack_dicts(stats_dicts: List[Dict]) -> Dict:
     return results
 
 
-def convert_to_scalar(stats: Dict) -> Dict:
+def convert_to_scalar(stats: dict) -> dict:
     """
     Converts the stats from a flattened dict to single scalar dicts
     """
@@ -313,7 +317,9 @@ def disable_dropout_in_model(model: torch.nn.Module) -> None:
 def exact_div(a, b, a_str, b_str, custom_error_message=""):
     q = a // b
     if a != q * b:
-        raise ValueError(f"{custom_error_message}, {a_str}={a}, {b_str}={b}, inexact division: {a} / {b} = {a / b}")
+        raise ValueError(
+            f"{custom_error_message}, {a_str}={a}, {b_str}={b}, inexact division: {a} / {b} = {a / b}"
+        )
     return q
 
 

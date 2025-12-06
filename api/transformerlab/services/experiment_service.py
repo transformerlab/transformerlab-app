@@ -1,8 +1,7 @@
 import json
 
-from lab import Experiment
+from lab import Experiment, storage
 from lab import dirs as lab_dirs
-from lab import storage
 
 
 def experiment_get_all():

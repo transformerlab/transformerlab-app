@@ -1,18 +1,15 @@
+# Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
+# described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
+from collections.abc import AsyncGenerator
+
 from sqlalchemy import select
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-# Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
-# described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
-
-from typing import AsyncGenerator
-
-from transformerlab.shared.models.models import Config
-
 from transformerlab.db.session import async_session
+from transformerlab.shared.models.models import Config
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:

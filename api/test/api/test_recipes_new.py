@@ -1,5 +1,6 @@
-import pytest
 import os
+
+import pytest
 
 # skip all tests in this file
 pytestmark = pytest.mark.skip("skipping these as they need to be fixed")
@@ -10,7 +11,10 @@ TEST_EXP_RECIPES = [
         "title": "Test Recipe - With Notes",
         "description": "A test recipe with notes to test notes creation",
         "notes": "# Test Recipe Notes\n\nThis is a test recipe for unit testing.\n\n## Features\n- Notes creation\n- Task generation\n\n## Usage\nThis should create a readme.md file in the experiment.",
-        "dependencies": [{"type": "model", "name": "test-model"}, {"type": "dataset", "name": "test-dataset"}],
+        "dependencies": [
+            {"type": "model", "name": "test-model"},
+            {"type": "dataset", "name": "test-dataset"},
+        ],
     },
     {
         "id": "2",
@@ -36,7 +40,10 @@ TEST_EXP_RECIPES = [
         "id": "3",
         "title": "Test Recipe - Tasks Only",
         "description": "A test recipe with only tasks, no notes",
-        "dependencies": [{"type": "model", "name": "test-model-3"}, {"type": "dataset", "name": "test-dataset-3"}],
+        "dependencies": [
+            {"type": "model", "name": "test-model-3"},
+            {"type": "dataset", "name": "test-dataset-3"},
+        ],
         "tasks": [
             {
                 "name": "single_train_task",
@@ -52,7 +59,10 @@ TEST_EXP_RECIPES = [
         "id": "4",
         "title": "Test Recipe - With Adaptor Name",
         "description": "A test recipe that includes adaptor_name in config to test line 281",
-        "dependencies": [{"type": "model", "name": "test-model-4"}, {"type": "dataset", "name": "test-dataset-4"}],
+        "dependencies": [
+            {"type": "model", "name": "test-model-4"},
+            {"type": "dataset", "name": "test-dataset-4"},
+        ],
         "tasks": [
             {
                 "name": "adaptor_train_task",
@@ -68,7 +78,10 @@ TEST_EXP_RECIPES = [
         "id": "5",
         "title": "Test Recipe - Invalid JSON Config",
         "description": "A test recipe with invalid JSON to test exception handling",
-        "dependencies": [{"type": "model", "name": "test-model-5"}, {"type": "dataset", "name": "test-dataset-5"}],
+        "dependencies": [
+            {"type": "model", "name": "test-model-5"},
+            {"type": "dataset", "name": "test-dataset-5"},
+        ],
         "tasks": [
             {
                 "name": "invalid_json_task",
@@ -84,7 +97,10 @@ TEST_EXP_RECIPES = [
         "id": "6",
         "title": "Test Recipe - With Multiple Task Types",
         "description": "A test recipe that includes training, evaluation and generation tasks",
-        "dependencies": [{"type": "model", "name": "test-model-6"}, {"type": "dataset", "name": "test-dataset-6"}],
+        "dependencies": [
+            {"type": "model", "name": "test-model-6"},
+            {"type": "dataset", "name": "test-dataset-6"},
+        ],
         "tasks": [
             {
                 "name": "multi_train_task",
@@ -112,7 +128,10 @@ TEST_EXP_RECIPES = [
         "id": "7",
         "title": "Test Recipe - With Multiple Workflows",
         "description": "A test recipe that includes multiple workflows",
-        "dependencies": [{"type": "model", "name": "test-model-8"}, {"type": "dataset", "name": "test-dataset-8"}],
+        "dependencies": [
+            {"type": "model", "name": "test-model-8"},
+            {"type": "dataset", "name": "test-dataset-8"},
+        ],
         "tasks": [
             {
                 "name": "workflow_train_task",
@@ -171,7 +190,10 @@ TEST_EXP_RECIPES = [
         "id": "8",
         "title": "Test Recipe - With Invalid Workflow Config",
         "description": "A test recipe with invalid workflow config to test error handling",
-        "dependencies": [{"type": "model", "name": "test-model-9"}, {"type": "dataset", "name": "test-dataset-9"}],
+        "dependencies": [
+            {"type": "model", "name": "test-model-9"},
+            {"type": "dataset", "name": "test-dataset-9"},
+        ],
         "tasks": [
             {
                 "name": "invalid_workflow_train_task",
@@ -188,7 +210,10 @@ TEST_EXP_RECIPES = [
         "id": "9",
         "title": "Test Recipe - With Named Tasks",
         "description": "A test recipe with explicitly named tasks",
-        "dependencies": [{"type": "model", "name": "test-model-10"}, {"type": "dataset", "name": "test-dataset-10"}],
+        "dependencies": [
+            {"type": "model", "name": "test-model-10"},
+            {"type": "dataset", "name": "test-dataset-10"},
+        ],
         "tasks": [
             {
                 "name": "custom_train_task",

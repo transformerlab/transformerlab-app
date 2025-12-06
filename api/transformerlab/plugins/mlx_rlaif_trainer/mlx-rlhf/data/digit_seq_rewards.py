@@ -54,10 +54,16 @@ class RewardFunction:
             for word in words:
                 try:
                     num = int(word)
-                    if self.check_positive(num) and self.check_negative(num) and self.check_multiple_of(num):
+                    if (
+                        self.check_positive(num)
+                        and self.check_negative(num)
+                        and self.check_multiple_of(num)
+                    ):
                         if current_pattern:
                             prev_num = current_pattern[-1]
-                            if (self.is_increasing and num > prev_num) or (self.is_decreasing and num < prev_num):
+                            if (self.is_increasing and num > prev_num) or (
+                                self.is_decreasing and num < prev_num
+                            ):
                                 current_pattern.append(num)
                                 count_matches += 1
                             else:
@@ -77,7 +83,9 @@ class RewardFunction:
         return scores
 
 
-def generate_synthetic_data(reward_function, num_samples=100, sequence_length_range=(5, 15), percent_noise=0.2):
+def generate_synthetic_data(
+    reward_function, num_samples=100, sequence_length_range=(5, 15), percent_noise=0.2
+):
     """
     Generates synthetic data according to the provided reward function.
     *** NOTE *** This currently ignores positive/negative.
@@ -158,6 +166,8 @@ if __name__ == "__main__":
     input_string = "4 -90 -90 -90 8 12 22 28 99"
     percent_matching = reward_fn(input_string)
     print(f"String: {input_string} reward: {percent_matching}")
-    gen_data = generate_synthetic_data(reward_function=reward_fn, num_samples=10, sequence_length_range=(5, 10))
+    gen_data = generate_synthetic_data(
+        reward_function=reward_fn, num_samples=10, sequence_length_range=(5, 10)
+    )
     for seq in gen_data:
         print(f"String: {seq} reward: {reward_fn(seq)}")

@@ -60,7 +60,9 @@ def test_job_output_endpoints(client):
 def test_job_detailed_reports(client):
     """Test detailed job reporting endpoints"""
     # Test detailed JSON report
-    resp = client.get("/experiment/alpha/jobs/1/stream_detailed_json_report?file_name=/tmp/test.json")
+    resp = client.get(
+        "/experiment/alpha/jobs/1/stream_detailed_json_report?file_name=/tmp/test.json"
+    )
     assert resp.status_code in (200, 404)
 
     # Test additional details - this will fail if job_data doesn't have additional_output_path

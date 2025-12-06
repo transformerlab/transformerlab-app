@@ -1,4 +1,5 @@
 import json
+
 import pytest
 
 pytestmark = pytest.mark.skip("Skipping all workflow tests due to database index conflicts")
@@ -40,7 +41,9 @@ def test_delete_workflow(client):
 def test_workflow_update_name(client):
     create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "updatename"})
     workflow_id = create_resp.json()
-    resp = client.get(f"/experiment/1/workflows/{workflow_id}/update_name", params={"new_name": "updatedname"})
+    resp = client.get(
+        f"/experiment/1/workflows/{workflow_id}/update_name", params={"new_name": "updatedname"}
+    )
     assert resp.status_code == 200
     assert resp.json().get("message") == "OK"
     # Cleanup
@@ -51,7 +54,9 @@ def test_workflow_add_and_delete_node(client):
     create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "addnode"})
     workflow_id = create_resp.json()
     node = {"type": "TASK", "name": "Test Task", "task": "test_task", "out": []}
-    add_node_resp = client.get(f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(node)})
+    add_node_resp = client.get(
+        f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(node)}
+    )
     assert add_node_resp.status_code == 200
     # Get workflow config to find node id
     wf_resp = client.get("/experiment/1/workflows/list")
@@ -82,7 +87,8 @@ def test_workflow_edit_node_metadata(client):
     node_id = task_node["id"]
     meta = {"desc": "testdesc"}
     edit_resp = client.get(
-        f"/experiment/1/workflows/{workflow_id}/{node_id}/edit_node_metadata", params={"metadata": json.dumps(meta)}
+        f"/experiment/1/workflows/{workflow_id}/{node_id}/edit_node_metadata",
+        params={"metadata": json.dumps(meta)},
     )
     assert edit_resp.status_code == 200
     # Cleanup
@@ -94,8 +100,12 @@ def test_workflow_add_and_remove_edge(client):
     workflow_id = create_resp.json()
     node1 = {"type": "TASK", "name": "Task1", "task": "task1", "out": []}
     node2 = {"type": "TASK", "name": "Task2", "task": "task2", "out": []}
-    client.get(f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(node1)})
-    client.get(f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(node2)})
+    client.get(
+        f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(node1)}
+    )
+    client.get(
+        f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(node2)}
+    )
     wf_resp = client.get("/experiment/1/workflows/list")
     workflow = next(w for w in wf_resp.json() if w["id"] == workflow_id)
     config = workflow["config"]
@@ -104,11 +114,13 @@ def test_workflow_add_and_remove_edge(client):
     task_nodes = [n for n in config["nodes"] if n["type"] == "TASK"]
     node1_id, node2_id = task_nodes[0]["id"], task_nodes[1]["id"]
     add_edge_resp = client.post(
-        f"/experiment/1/workflows/{workflow_id}/{node1_id}/add_edge", params={"end_node_id": node2_id}
+        f"/experiment/1/workflows/{workflow_id}/{node1_id}/add_edge",
+        params={"end_node_id": node2_id},
     )
     assert add_edge_resp.status_code == 200
     remove_edge_resp = client.post(
-        f"/experiment/1/workflows/{workflow_id}/{node1_id}/remove_edge", params={"end_node_id": node2_id}
+        f"/experiment/1/workflows/{workflow_id}/{node1_id}/remove_edge",
+        params={"end_node_id": node2_id},
     )
     assert remove_edge_resp.status_code == 200
     # Cleanup
@@ -129,7 +141,9 @@ def test_workflow_add_eval_node_and_metadata(client):
     workflow_id = create_resp.json()
     # Add EVAL node with realistic structure
     node = {"name": "hello", "task": "WarmPanda", "type": "EVAL", "metadata": {}, "out": []}
-    add_node_resp = client.get(f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(node)})
+    add_node_resp = client.get(
+        f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(node)}
+    )
     assert add_node_resp.status_code == 200
     # Get workflow config to find node id
     wf_resp = client.get("/experiment/1/workflows/list")
@@ -142,7 +156,8 @@ def test_workflow_add_eval_node_and_metadata(client):
     # Edit metadata
     meta = {"desc": "eval node test"}
     edit_resp = client.get(
-        f"/experiment/1/workflows/{workflow_id}/{node_id}/edit_node_metadata", params={"metadata": json.dumps(meta)}
+        f"/experiment/1/workflows/{workflow_id}/{node_id}/edit_node_metadata",
+        params={"metadata": json.dumps(meta)},
     )
     assert edit_resp.status_code == 200
     # Cleanup
@@ -151,7 +166,9 @@ def test_workflow_add_eval_node_and_metadata(client):
 
 def test_workflow_update_config(client):
     # Create a workflow to update config
-    create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "updateconfig"})
+    create_resp = client.get(
+        "/experiment/1/workflows/create_empty", params={"name": "updateconfig"}
+    )
     workflow_id = create_resp.json()
 
     # Test config with a custom structure
@@ -208,12 +225,19 @@ def test_workflow_task_isolation_success(client):
     task_id = test_task["id"]
 
     # Create a workflow that references this task
-    create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "isolation_test_workflow"})
+    create_resp = client.get(
+        "/experiment/1/workflows/create_empty", params={"name": "isolation_test_workflow"}
+    )
     assert create_resp.status_code == 200
     workflow_id = create_resp.json()
 
     # Add TRAIN node
-    train_node = {"type": "TRAIN", "name": "Training Node", "task": "isolation_test_task", "out": []}
+    train_node = {
+        "type": "TRAIN",
+        "name": "Training Node",
+        "task": "isolation_test_task",
+        "out": [],
+    }
     add_node_resp = client.get(
         f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(train_node)}
     )
@@ -225,8 +249,9 @@ def test_workflow_task_isolation_success(client):
     assert start_resp.json().get("message") == "OK"
 
     # Test the task isolation by triggering workflow execution
-    from transformerlab.routers.experiment import workflows
     import asyncio
+
+    from transformerlab.routers.experiment import workflows
 
     async def trigger_workflow_execution():
         return await workflows.start_next_step_in_workflow()
@@ -271,12 +296,19 @@ def test_workflow_task_isolation_cross_experiment_failure(client):
     task_id = test_task["id"]
 
     # Create a workflow in experiment 1 that tries to reference the task from experiment 2
-    create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "cross_exp_workflow"})
+    create_resp = client.get(
+        "/experiment/1/workflows/create_empty", params={"name": "cross_exp_workflow"}
+    )
     assert create_resp.status_code == 200
     workflow_id = create_resp.json()
 
     # Add a node that references the task from experiment 2
-    train_node = {"type": "TRAIN", "name": "Cross Exp Node", "task": "cross_experiment_task", "out": []}
+    train_node = {
+        "type": "TRAIN",
+        "name": "Cross Exp Node",
+        "task": "cross_experiment_task",
+        "out": [],
+    }
     add_node_resp = client.get(
         f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(train_node)}
     )
@@ -287,8 +319,9 @@ def test_workflow_task_isolation_cross_experiment_failure(client):
     assert start_resp.status_code == 200
 
     # Trigger workflow execution
-    from transformerlab.routers.experiment import workflows
     import asyncio
+
+    from transformerlab.routers.experiment import workflows
 
     async def trigger_workflow_execution():
         return await workflows.start_next_step_in_workflow()

@@ -8,7 +8,7 @@ Command:
 import json
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 import torch
 from convert_weights import get_config_mapping, get_weight_mapping, load_nanotron_model
@@ -61,7 +61,9 @@ def _handle_gate_up_proj(gate_up_proj: torch.Tensor, gate: bool) -> torch.Tensor
         return gate_up_proj[weight_size:]
 
 
-def convert_nt_to_hf(nanotron_model: LlamaForTraining, hf_model: LlamaForCausalLM, model_config: NanotronLlamaConfig):
+def convert_nt_to_hf(
+    nanotron_model: LlamaForTraining, hf_model: LlamaForCausalLM, model_config: NanotronLlamaConfig
+):
     """Converts the weights from the nanotron_model to hf_model, making modifications
     in-place."""
 
@@ -94,17 +96,21 @@ def convert_nt_to_hf(nanotron_model: LlamaForTraining, hf_model: LlamaForCausalL
 
 def get_hf_config(config: NanotronLlamaConfig) -> HFLlamaConfig:
     """Converts a nanotron configuration to huggingface configuration."""
-    attrs = {key: getattr(config, value) for key, value in get_config_mapping(nt_to_hf=False).items()}
+    attrs = {
+        key: getattr(config, value) for key, value in get_config_mapping(nt_to_hf=False).items()
+    }
     return HFLlamaConfig(**attrs)
 
 
-def convert_checkpoint_and_save(checkpoint_path: Path, save_path: Path, tokenizer_name: Optional[str] = None):
+def convert_checkpoint_and_save(
+    checkpoint_path: Path, save_path: Path, tokenizer_name: str | None = None
+):
     """Loads the nanotron checkpoint in `checkpoint_path`, creates
     a new huggingface instance, copies the weights from the nanotron checkpoint
     and saves the transformed huggingface to `save_path`."""
 
     # Init nanotron model.
-    with open(checkpoint_path / "model_config.json", "r") as f:
+    with open(checkpoint_path / "model_config.json") as f:
         attrs = json.load(f)
         model_config = NanotronLlamaConfig(**attrs)
     nanotron_model = load_nanotron_model(
@@ -140,14 +146,20 @@ def check_converted_model_generation(save_path: Path):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Convert Nanotron weights to HF format")
-    parser.add_argument("--checkpoint_path", type=Path, default="llama-7b", help="Path to the checkpoint")
-    parser.add_argument("--save_path", type=Path, default="llama-7b-hf", help="Path to save the HF model")
+    parser.add_argument(
+        "--checkpoint_path", type=Path, default="llama-7b", help="Path to the checkpoint"
+    )
+    parser.add_argument(
+        "--save_path", type=Path, default="llama-7b-hf", help="Path to save the HF model"
+    )
     parser.add_argument("--tokenizer_name", type=str, default="meta-llama/Llama-2-7b-chat-hf")
     args = parser.parse_args()
 
     # Convert Nanotron model to HF format.
     convert_checkpoint_and_save(
-        checkpoint_path=args.checkpoint_path, save_path=args.save_path, tokenizer_name=args.tokenizer_name
+        checkpoint_path=args.checkpoint_path,
+        save_path=args.save_path,
+        tokenizer_name=args.tokenizer_name,
     )
 
     # Check if the conversion was successful by generating some text.

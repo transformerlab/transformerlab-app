@@ -1,16 +1,18 @@
 import os
-import time
 import re
 import subprocess
+import time
 
-from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import get_python_executable
-from lab.dirs import get_workspace_dir
 from lab import storage
+from lab.dirs import get_workspace_dir
+from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.train import tlab_trainer
 
 # Add custom arguments
 tlab_trainer.add_argument(
-    "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
+    "--launched_with_accelerate",
+    action="store_true",
+    help="Flag to prevent recursive subprocess launching",
 )
 
 
@@ -46,7 +48,9 @@ def extract_answer(text: str, start_answer_string, end_answer_string) -> str:
     return answer.strip()
 
 
-def count_xml(text, start_thinking_string, end_thinking_string, start_answer_string, end_answer_string) -> float:
+def count_xml(
+    text, start_thinking_string, end_thinking_string, start_answer_string, end_answer_string
+) -> float:
     """Count XML tags in the response"""
     count = 0.0
     if text.count(f"{start_thinking_string}\n") == 1:
@@ -110,10 +114,10 @@ def train_model():
 
     # Import dependencies after the subprocess check
     import torch
+    from accelerate import Accelerator
     from jinja2 import Environment
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from trl import GRPOConfig, GRPOTrainer
-    from accelerate import Accelerator
 
     # Initialize Accelerator
     accelerator = Accelerator()
@@ -152,7 +156,10 @@ def train_model():
     end_answer_string = tlab_trainer.params.get("end_answer_string", "</answer>")
 
     # Determine if the instruction template is missing the necessary strings
-    if start_thinking_string not in instruction_template or start_answer_string not in instruction_template:
+    if (
+        start_thinking_string not in instruction_template
+        or start_answer_string not in instruction_template
+    ):
         system_prompt = f"""
         Respond in the following format:
             {start_thinking_string}
@@ -186,13 +193,21 @@ def train_model():
     # Define reward functions with closure to capture config variables
     def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
         responses = [completion[0]["content"] for completion in completions]
-        extracted_responses = [extract_answer(r, start_answer_string, end_answer_string) for r in responses]
+        extracted_responses = [
+            extract_answer(r, start_answer_string, end_answer_string) for r in responses
+        ]
         return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
 
     def xmlcount_reward_func(completions, **kwargs) -> list[float]:
         contents = [completion[0]["content"] for completion in completions]
         return [
-            count_xml(c, start_thinking_string, end_thinking_string, start_answer_string, end_answer_string)
+            count_xml(
+                c,
+                start_thinking_string,
+                end_thinking_string,
+                start_answer_string,
+                end_answer_string,
+            )
             for c in contents
         ]
 
@@ -207,9 +222,7 @@ def train_model():
 
     def strict_format_reward_func(completions, **kwargs) -> list[float]:
         """Reward function that checks strictly if the completion has a specific format."""
-        pattern = (
-            rf"^{start_thinking_string}\n.*?\n{end_thinking_string}\n{start_answer_string}\n.*?\n{end_answer_string}\n$"
-        )
+        pattern = rf"^{start_thinking_string}\n.*?\n{end_thinking_string}\n{start_answer_string}\n.*?\n{end_answer_string}\n$"
         responses = [completion[0]["content"] for completion in completions]
         matches = [re.match(pattern, r) for r in responses]
         return [0.5 if match else 0.0 for match in matches]
@@ -227,9 +240,11 @@ def train_model():
 
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         tokenizer.padding_side = "right"
-        model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.bfloat16, device_map=device_map)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id, torch_dtype=torch.bfloat16, device_map=device_map
+        )
     except Exception as e:
-        return f"Failed to load model: {str(e)}"
+        return f"Failed to load model: {e!s}"
 
     # Training run name
     today = time.strftime("%Y%m%d-%H%M%S")
@@ -290,7 +305,7 @@ def train_model():
     try:
         trainer.save_model(output_dir=tlab_trainer.params.adaptor_output_dir)
     except Exception as e:
-        return f"Failed to save model: {str(e)}"
+        return f"Failed to save model: {e!s}"
 
     # Return success message
     return True

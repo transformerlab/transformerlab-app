@@ -7,11 +7,9 @@ Most parts of the API will just use this helper and probably
 don't have to interact directly with the source and model classes.
 """
 
-from transformerlab.models import ollamamodel
-from transformerlab.models import huggingfacemodel
-from transformerlab.models import localmodel
-
 import traceback
+
+from transformerlab.models import huggingfacemodel, localmodel, ollamamodel
 
 
 async def list_installed_models(embedding=False):

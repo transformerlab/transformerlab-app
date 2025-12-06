@@ -17,37 +17,34 @@ import math
 import time
 import typing
 import warnings
+from collections.abc import Callable
 from contextlib import nullcontext
-from typing import Callable, List, Optional, Union
-import wandb
 
 import mlx.core
-import numpy as np
 import mlx.core as mx
 import mlx.nn as nn
 import mlx.optimizers as optim
-
+import numpy as np
+import wandb
 from models.base import create_reference_model
-
+from models.config import PPOConfig
 from transformers import (
     DataCollatorForLanguageModeling,
 )
-
 from utils import (
-    RunningMoments,
-    stats_to_np,
-    set_seed,
-    generate_ids,
-    masked_whiten,
-    masked_mean,
-    logprobs_from_logits,
-    flatten_dict,
-    convert_to_scalar,
-    stack_dicts,
     AdaptiveKLController,
     FixedKLController,
+    RunningMoments,
+    convert_to_scalar,
+    flatten_dict,
+    generate_ids,
+    logprobs_from_logits,
+    masked_mean,
+    masked_whiten,
+    set_seed,
+    stack_dicts,
+    stats_to_np,
 )
-from models.config import PPOConfig
 
 EPS = 1e-6
 
@@ -95,9 +92,9 @@ class PPOTrainer:
         model=None,
         ref_model=None,
         tokenizer=None,
-        optimizer: Optional[optim.Optimizer] = None,
-        data_collator: Optional[typing.Callable] = None,
-        num_shared_layers: Optional[int] = None,
+        optimizer: optim.Optimizer | None = None,
+        data_collator: typing.Callable | None = None,
+        num_shared_layers: int | None = None,
     ):
         """
         Initialize PPOTrainer.
@@ -149,7 +146,9 @@ class PPOTrainer:
         elif self.is_peft_model:
             self.ref_model = None
 
-        self.optional_peft_ctx = self.model.pretrained_model.disable_adapter if self.is_peft_model else nullcontext
+        self.optional_peft_ctx = (
+            self.model.pretrained_model.disable_adapter if self.is_peft_model else nullcontext
+        )
 
         self.tokenizer = tokenizer
 
@@ -168,7 +167,9 @@ class PPOTrainer:
             self.optimizer = optimizer
 
         if self.config.adap_kl_ctrl:
-            self.kl_ctl = AdaptiveKLController(self.config.init_kl_coef, self.config.target, self.config.horizon)
+            self.kl_ctl = AdaptiveKLController(
+                self.config.init_kl_coef, self.config.target, self.config.horizon
+            )
         else:
             self.kl_ctl = FixedKLController(self.config.init_kl_coef)
 
@@ -185,7 +186,7 @@ class PPOTrainer:
 
     def generate(
         self,
-        query_tensor: Union[mx.array, List[mx.array]],
+        query_tensor: mx.array | list[mx.array],
         length_sampler: Callable = None,
         batch_size: int = 8,
         return_prompt: bool = True,
@@ -219,7 +220,7 @@ class PPOTrainer:
         """
         if generate_ref_response:
             ref_model = self.model if self.is_peft_model else self.ref_model
-        if isinstance(query_tensor, List):
+        if isinstance(query_tensor, list):
             response = self._generate_batched(
                 self.model,
                 query_tensor,
@@ -246,12 +247,18 @@ class PPOTrainer:
             if length_sampler is not None:
                 generation_kwargs["max_tokens"] = length_sampler()
             response = generate_ids(
-                model=self.model, input_ids=query_tensor, temperature=temperature, max_tokens=max_tokens
+                model=self.model,
+                input_ids=query_tensor,
+                temperature=temperature,
+                max_tokens=max_tokens,
             )
             if generate_ref_response:
                 with self.optional_peft_ctx():
                     ref_response = generate_ids(
-                        model=ref_model, input_ids=query_tensor, temperature=temperature, max_tokens=max_tokens
+                        model=ref_model,
+                        input_ids=query_tensor,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
                     )
 
             # if not return_prompt and not self.is_encoder_decoder:
@@ -266,7 +273,7 @@ class PPOTrainer:
     def _generate_batched(
         self,
         model,
-        query_tensors: List[mx.array],
+        query_tensors: list[mx.array],
         length_sampler: Callable = None,
         batch_size: int = 4,
         return_prompt: bool = True,
@@ -319,10 +326,10 @@ class PPOTrainer:
     def _step_safety_checker(
         self,
         batch_size: int,
-        queries: List[mx.array],
-        responses: List[mx.array],
-        scores: List[mx.array],
-        masks: Optional[List[mx.array]] = None,
+        queries: list[mx.array],
+        responses: list[mx.array],
+        scores: list[mx.array],
+        masks: list[mx.array] | None = None,
     ):
         """
         Check if the input data is valid for training.
@@ -341,11 +348,15 @@ class PPOTrainer:
         Returns:
             `tuple`: The input processed data.
         """
-        for name, tensor_list in zip(["queries", "responses", "scores"], [queries, responses, scores]):
+        for name, tensor_list in zip(
+            ["queries", "responses", "scores"], [queries, responses, scores]
+        ):
             # if not isinstance(tensor_list, list):
             #     raise ValueError(f"{name} must be a list of mx.array s - got {type(tensor_list)}")
             if not isinstance(tensor_list[0], mx.array):
-                raise ValueError(f"Elements in {name} must be mx.array - got {type(tensor_list[0])}")
+                raise ValueError(
+                    f"Elements in {name} must be mx.array - got {type(tensor_list[0])}"
+                )
             if batch_size is not None and len(tensor_list) != batch_size:
                 raise ValueError(
                     f"Batch size ({batch_size}) does not match number of examples - but got {len(tensor_list)} for: {name}"
@@ -354,7 +365,9 @@ class PPOTrainer:
         # squeeze scores if needed
         for i, score in enumerate(scores):
             if len(score.shape) > 1:
-                raise ValueError(f"Scores must be 1-dimensional - got {len(score.shape)} for {score}")
+                raise ValueError(
+                    f"Scores must be 1-dimensional - got {len(score.shape)} for {score}"
+                )
             elif len(score.shape) == 1:
                 scores[i] = score.squeeze()
 
@@ -362,10 +375,10 @@ class PPOTrainer:
 
     def step(
         self,
-        queries: List[mx.array],
-        responses: List[mx.array],
-        scores: List[mx.array],
-        response_masks: Optional[List[mx.array]] = None,
+        queries: list[mx.array],
+        responses: list[mx.array],
+        scores: list[mx.array],
+        response_masks: list[mx.array] | None = None,
     ):
         """
         Run a PPO optimisation step given a list of queries, model responses, and rewards.
@@ -449,7 +462,9 @@ class PPOTrainer:
         all_logprobs = mx.stop_gradient(all_logprobs)
         logits_or_none = mx.stop_gradient(logits_or_none) if logits_or_none is not None else None
         ref_logprobs = mx.stop_gradient(ref_logprobs)
-        ref_logits_or_none = mx.stop_gradient(ref_logits_or_none) if ref_logits_or_none is not None else None
+        ref_logits_or_none = (
+            mx.stop_gradient(ref_logits_or_none) if ref_logits_or_none is not None else None
+        )
 
         timing["time/ppo/forward_pass"] = time.time() - t
 
@@ -463,7 +478,9 @@ class PPOTrainer:
                 scores, active_full_logprobs, ref_full_logprobs, masks
             )
         else:
-            rewards, non_score_reward, kls = self.compute_rewards(scores, all_logprobs, ref_logprobs, masks)
+            rewards, non_score_reward, kls = self.compute_rewards(
+                scores, all_logprobs, ref_logprobs, masks
+            )
         timing["time/ppo/compute_rewards"] = time.time() - t
 
         rewards = mx.stop_gradient(rewards)
@@ -495,7 +512,9 @@ class PPOTrainer:
                 backward_batch_end = backward_batch_start + self.config.backward_batch_size
                 backward_batch_inds = b_inds[backward_batch_start:backward_batch_end]
 
-                for mini_batch_start in range(0, self.config.backward_batch_size, self.config.mini_batch_size):
+                for mini_batch_start in range(
+                    0, self.config.backward_batch_size, self.config.mini_batch_size
+                ):
                     mini_batch_end = mini_batch_start + self.config.mini_batch_size
                     mini_batch_inds = mx.array(backward_batch_inds[mini_batch_start:mini_batch_end])
                     mini_batch_dict = {
@@ -538,7 +557,9 @@ class PPOTrainer:
 
         # reshape advantages/ratios such that they are not averaged.
         train_stats["policy/advantages"] = mx.flatten(train_stats["policy/advantages"])
-        train_stats["policy/advantages"] = mx.array(np.nan_to_num(train_stats["policy/advantages"], nan=-1))
+        train_stats["policy/advantages"] = mx.array(
+            np.nan_to_num(train_stats["policy/advantages"], nan=-1)
+        )
         train_stats["policy/advantages"] = train_stats["policy/advantages"][None, :]
         # train_stats["policy/advantages"] = torch.nan_to_num(train_stats["policy/advantages"], WANDB_PADDING)
         train_stats["policy/ratio"] = mx.flatten(train_stats["policy/ratio"])[None, :]
@@ -603,7 +624,9 @@ class PPOTrainer:
 
     def prepare_model_inputs(self, queries: mx.array, responses: mx.array):
         if self.is_encoder_decoder:
-            input_data = self.data_collator([{"input_ids": q, "attention_mask": mx.ones_like(q)} for q in queries])
+            input_data = self.data_collator(
+                [{"input_ids": q, "attention_mask": mx.ones_like(q)} for q in queries]
+            )
 
             decoder_inputs = self.data_collator(
                 [{"input_ids": r, "attention_mask": mx.ones_like(r)} for r in responses]
@@ -627,7 +650,7 @@ class PPOTrainer:
         responses: mx.array,
         model_inputs: dict,
         return_logits: bool = False,
-        response_masks: Optional[mx.array] = None,
+        response_masks: mx.array | None = None,
     ):
         """
         Calculate model outputs in multiple batches.
@@ -655,14 +678,18 @@ class PPOTrainer:
         all_values = []
 
         for i in range(math.ceil(bs / fbs)):
-            input_kwargs = {k: mx.array(v[i * fbs : (i + 1) * fbs]) for k, v in model_inputs.items()}
+            input_kwargs = {
+                k: mx.array(v[i * fbs : (i + 1) * fbs]) for k, v in model_inputs.items()
+            }
             query_batch = queries[i * fbs : (i + 1) * fbs]
             response_batch = responses[i * fbs : (i + 1) * fbs]
             if response_masks is not None:
                 response_masks_batch = response_masks[i * fbs : (i + 1) * fbs]
 
             # logits, _, values = model(**input_kwargs)
-            logits, _, values = model(input_kwargs["input_ids"])  # Remove attention mask for shape issue.
+            logits, _, values = model(
+                input_kwargs["input_ids"]
+            )  # Remove attention mask for shape issue.
             input_ids = mx.array(input_kwargs["input_ids"])
             attention_mask = mx.array(input_kwargs["attention_mask"])
             logprobs = logprobs_from_logits(logits[:, :-1, :], input_ids[:, 1:])
@@ -886,7 +913,9 @@ class PPOTrainer:
 
         # Policy loss
         pg_loss1 = -advantages * ratio
-        pg_loss2 = -advantages * mx.clip(ratio, 1 - self.config.cliprange, 1 + self.config.cliprange)
+        pg_loss2 = -advantages * mx.clip(
+            ratio, 1 - self.config.cliprange, 1 + self.config.cliprange
+        )
 
         pg_loss = masked_mean(mx.max(mx.stack([pg_loss1, pg_loss2]), axis=0), mask)
         # Value Loss
@@ -1006,8 +1035,8 @@ class PPOTrainer:
         self,
         stats: dict,
         batch: dict,
-        rewards: List[mx.array],
-        columns_to_log: List[str] = ["query", "response"],
+        rewards: list[mx.array],
+        columns_to_log: list[str] = ["query", "response"],
     ):
         """
         A function that logs all the training stats. Call it at the end of each epoch.
@@ -1027,7 +1056,9 @@ class PPOTrainer:
         rewards = rewards.flatten()
 
         if any([column_to_log not in batch.keys() for column_to_log in columns_to_log]):
-            raise ValueError(f"Columns to log {columns_to_log} are not present in the batch {batch.keys()}.")
+            raise ValueError(
+                f"Columns to log {columns_to_log} are not present in the batch {batch.keys()}."
+            )
 
         batch_list = [batch[column_to_log] for column_to_log in columns_to_log]
         logs = {}

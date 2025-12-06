@@ -1,11 +1,12 @@
 """Abstract base class for provider implementations."""
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
+from typing import Any
+
 from .models import (
     ClusterConfig,
-    JobConfig,
     ClusterStatus,
+    JobConfig,
     JobInfo,
     ResourceInfo,
 )
@@ -15,7 +16,7 @@ class ComputeProvider(ABC):
     """Abstract base class for all compute provider implementations."""
 
     @abstractmethod
-    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
+    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> dict[str, Any]:
         """
         Launch/provision a new cluster.
 
@@ -29,7 +30,7 @@ class ComputeProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
+    def stop_cluster(self, cluster_name: str) -> dict[str, Any]:
         """
         Stop a running cluster (but don't tear it down).
 
@@ -68,7 +69,7 @@ class ComputeProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
+    def submit_job(self, cluster_name: str, job_config: JobConfig) -> dict[str, Any]:
         """
         Submit a job to an existing cluster.
 
@@ -85,10 +86,10 @@ class ComputeProvider(ABC):
     def get_job_logs(
         self,
         cluster_name: str,
-        job_id: Union[str, int],
-        tail_lines: Optional[int] = None,
+        job_id: str | int,
+        tail_lines: int | None = None,
         follow: bool = False,
-    ) -> Union[str, Any]:
+    ) -> str | Any:
         """
         Get logs for a job.
 
@@ -104,7 +105,7 @@ class ComputeProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
+    def cancel_job(self, cluster_name: str, job_id: str | int) -> dict[str, Any]:
         """
         Cancel a running or queued job.
 
@@ -118,7 +119,7 @@ class ComputeProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_jobs(self, cluster_name: str) -> List[JobInfo]:
+    def list_jobs(self, cluster_name: str) -> list[JobInfo]:
         """
         List all jobs for a cluster.
 

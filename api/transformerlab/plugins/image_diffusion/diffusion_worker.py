@@ -5,52 +5,53 @@ that cause CUDA OOM on single GPU.
 """
 
 import argparse
-from fastapi import HTTPException
+import base64
+import gc
 import json
 import os
+import random
 import sys
 import time
-import gc
-from PIL import Image
-import torch
-import random
-import base64
-from huggingface_hub import model_info
 from io import BytesIO
+
+import torch
 from diffusers import (
-    StableDiffusionUpscalePipeline,
-    StableDiffusionLatentUpscalePipeline,
-    AutoPipelineForText2Image,
+    AutoencoderKL,
     AutoPipelineForImage2Image,
     AutoPipelineForInpainting,
-    EulerDiscreteScheduler,
-    LMSDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler,
+    AutoPipelineForText2Image,
     ControlNetModel,
-    StableDiffusionControlNetPAGPipeline,
-    StableDiffusionXLControlNetPAGPipeline,
-    FluxControlNetPipeline,
-    StableDiffusionControlNetPipeline,
-    StableDiffusionXLControlNetPipeline,
-    StableDiffusionXLControlNetUnionPipeline,
-    StableDiffusion3ControlNetPipeline,
-    StableDiffusionControlNetImg2ImgPipeline,
-    StableDiffusionXLControlNetImg2ImgPipeline,
-    StableDiffusionXLControlNetUnionImg2ImgPipeline,
-    StableDiffusionXLControlNetPAGImg2ImgPipeline,
+    DPMSolverMultistepScheduler,
+    EulerAncestralDiscreteScheduler,
+    EulerDiscreteScheduler,
     FluxControlNetImg2ImgPipeline,
-    StableDiffusionControlNetInpaintPipeline,
-    StableDiffusionXLControlNetInpaintPipeline,
-    StableDiffusionXLPipeline,
+    FluxControlNetPipeline,
     FluxPipeline,
     FluxTransformer2DModel,
-    AutoencoderKL,
+    LMSDiscreteScheduler,
+    StableDiffusion3ControlNetPipeline,
+    StableDiffusionControlNetImg2ImgPipeline,
+    StableDiffusionControlNetInpaintPipeline,
+    StableDiffusionControlNetPAGPipeline,
+    StableDiffusionControlNetPipeline,
+    StableDiffusionLatentUpscalePipeline,
+    StableDiffusionUpscalePipeline,
+    StableDiffusionXLControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetInpaintPipeline,
+    StableDiffusionXLControlNetPAGImg2ImgPipeline,
+    StableDiffusionXLControlNetPAGPipeline,
+    StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLControlNetUnionImg2ImgPipeline,
+    StableDiffusionXLControlNetUnionPipeline,
+    StableDiffusionXLPipeline,
 )
 from diffusers.models.controlnets.controlnet_flux import (
     FluxControlNetModel,
     FluxMultiControlNetModel,
 )
+from fastapi import HTTPException
+from huggingface_hub import model_info
+from PIL import Image
 
 # Add the API directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -88,9 +89,9 @@ def latents_to_rgb(latents):
 
     weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
     biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
-    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
-        -1
-    )
+    rgb_tensor = torch.einsum(
+        "...lxy,lr -> ...rxy", latents, weights_tensor
+    ) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
     image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
     return Image.fromarray(image_array)
@@ -108,7 +109,7 @@ def create_decode_callback(output_dir):
             image.save(step_image_path)
             print(f"Saved intermediate image for step {step}")
         except Exception as e:
-            print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
+            print(f"Warning: Failed to save intermediate image for step {step}: {e!s}")
 
         return callback_kwargs
 
@@ -236,7 +237,13 @@ def load_pipeline_with_sharding(
     if not use_sharding:
         print("Using standard pipeline loading (sharding disabled or not applicable)")
         return load_pipeline_with_device_map(
-            model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
+            model_path,
+            adaptor_path,
+            is_img2img,
+            is_inpainting,
+            device,
+            is_controlnet,
+            controlnet_id,
         )
 
     print("Using FLUX model sharding for memory efficiency")
@@ -317,10 +324,12 @@ def load_pipeline_with_sharding(
         negative_pooled_prompt_embeds = None
         if negative_prompt:
             try:
-                negative_prompt_embeds, negative_pooled_prompt_embeds, _ = text_encoder_pipeline.encode_prompt(
-                    prompt=negative_prompt,
-                    prompt_2=None,
-                    max_sequence_length=max_sequence_length,
+                negative_prompt_embeds, negative_pooled_prompt_embeds, _ = (
+                    text_encoder_pipeline.encode_prompt(
+                        prompt=negative_prompt,
+                        prompt_2=None,
+                        max_sequence_length=max_sequence_length,
+                    )
                 )
                 print("Encoded negative prompts for FLUX")
             except Exception as e:
@@ -365,7 +374,7 @@ def load_pipeline_with_sharding(
             diffusers_config = config.get("diffusers", {})
             architecture = diffusers_config.get("_class_name", "")
         except Exception as e:
-            raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+            raise HTTPException(status_code=404, detail=f"Model not found or error: {e!s}")
 
         # Choose the right class
         controlnet_class = FLUX_CONTROLNET_CLASS_MAP.get(architecture)
@@ -475,7 +484,11 @@ def load_pipeline_with_sharding(
     ).to(vae_device)
 
     # Setup image processor
-    vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1) if hasattr(vae.config, "block_out_channels") else 8
+    vae_scale_factor = (
+        2 ** (len(vae.config.block_out_channels) - 1)
+        if hasattr(vae.config, "block_out_channels")
+        else 8
+    )
 
     if VaeImageProcessor:
         image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
@@ -523,7 +536,13 @@ def load_pipeline_with_sharding(
 
 
 def load_pipeline_with_device_map(
-    model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_id="off"
+    model_path,
+    adaptor_path,
+    is_img2img,
+    is_inpainting,
+    device,
+    is_controlnet=False,
+    controlnet_id="off",
 ):
     """Load pipeline with proper device mapping for multi-GPU"""
 
@@ -558,7 +577,9 @@ def load_pipeline_with_device_map(
 
         for i in range(num_gpus):
             torch.cuda.set_device(i)
-            total_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)  # Convert to GB
+            total_memory = torch.cuda.get_device_properties(i).total_memory / (
+                1024**3
+            )  # Convert to GB
             reserved_memory = torch.cuda.memory_reserved(i) / (1024**3)  # GB
             free_memory = total_memory - reserved_memory
 
@@ -568,11 +589,15 @@ def load_pipeline_with_device_map(
                 usable_memory = max(1, int(free_memory * 0.7))
                 memory_per_gpu[i] = f"{usable_memory}GiB"
                 total_available_memory += usable_memory
-                print(f"GPU {i}: Total {total_memory:.1f}GB, Free {free_memory:.1f}GB, Allocating {usable_memory}GB")
+                print(
+                    f"GPU {i}: Total {total_memory:.1f}GB, Free {free_memory:.1f}GB, Allocating {usable_memory}GB"
+                )
             else:
                 # Allocate minimal memory for GPUs with limited space
                 memory_per_gpu[i] = "1GiB"
-                print(f"GPU {i}: Total {total_memory:.1f}GB, Free {free_memory:.1f}GB, Allocating 1GB (limited)")
+                print(
+                    f"GPU {i}: Total {total_memory:.1f}GB, Free {free_memory:.1f}GB, Allocating 1GB (limited)"
+                )
 
         print(f"Total memory allocated across GPUs: {total_available_memory}GB")
         pipeline_kwargs["max_memory"] = memory_per_gpu
@@ -593,7 +618,9 @@ def load_pipeline_with_device_map(
         print(f"Single GPU {gpu_id}: Total {total_memory:.1f}GB, Free {free_memory:.1f}GB")
 
         if free_memory < 8:
-            print(f"Warning: GPU {gpu_id} only has {free_memory:.1f}GB free. FLUX models typically need 12-24GB.")
+            print(
+                f"Warning: GPU {gpu_id} only has {free_memory:.1f}GB free. FLUX models typically need 12-24GB."
+            )
             # Try to clear any cached memory
             torch.cuda.empty_cache()
 
@@ -622,7 +649,7 @@ def load_pipeline_with_device_map(
             diffusers_config = config.get("diffusers", {})
             architecture = diffusers_config.get("_class_name", "")
         except Exception as e:
-            raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+            raise HTTPException(status_code=404, detail=f"Model not found or error: {e!s}")
 
         controlnet_model = load_controlnet_model(controlnet_id, device)
         if controlnet_model is None:
@@ -666,7 +693,7 @@ def load_pipeline_with_device_map(
                 pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
 
         except Exception as e:
-            print(f"Warning: Failed to load LoRA adaptor '{adaptor_path}': {str(e)}")
+            print(f"Warning: Failed to load LoRA adaptor '{adaptor_path}': {e!s}")
 
     return pipe
 
@@ -728,7 +755,7 @@ def main():
     args = parser.parse_args()
 
     # Load configuration
-    with open(args.config, "r") as f:
+    with open(args.config) as f:
         config = json.load(f)
 
     print(f"Worker {args.worker_id} starting generation...")
@@ -824,7 +851,13 @@ def main():
         else:
             # Default to device map loading
             pipe = load_pipeline_with_device_map(
-                model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
+                model_path,
+                adaptor_path,
+                is_img2img,
+                is_inpainting,
+                device,
+                is_controlnet,
+                controlnet_id,
             )
 
             scheduler_name = config.get("scheduler", "default")
@@ -980,7 +1013,7 @@ def main():
 
                 # Re-raise the error with additional context
                 raise RuntimeError(
-                    f"CUDA illegal memory access: {str(e)}. "
+                    f"CUDA illegal memory access: {e!s}. "
                     f"This may indicate GPU hardware issues, driver problems, "
                     f"or memory corruption. Try: 1) Restart the process, "
                     f"2) Reduce model size/batch size, 3) Check GPU health, "
@@ -1051,7 +1084,7 @@ def main():
 
     except RuntimeError as e:
         if "illegal memory access" in str(e) or "CUDA error" in str(e):
-            print(f"Worker {args.worker_id} failed with CUDA hardware error: {str(e)}")
+            print(f"Worker {args.worker_id} failed with CUDA hardware error: {e!s}")
 
             # Provide detailed debugging information
             print("\n=== CUDA ERROR DEBUGGING INFO ===")
@@ -1100,7 +1133,7 @@ def main():
             # Save error result with specific CUDA error info
             result_data = {
                 "success": False,
-                "error": f"CUDA Hardware Error: {str(e)}",
+                "error": f"CUDA Hardware Error: {e!s}",
                 "error_type": "CUDA_ILLEGAL_MEMORY_ACCESS",
                 "worker_id": args.worker_id,
                 "recommendations": [
@@ -1122,7 +1155,7 @@ def main():
             sys.exit(2)  # Different exit code for hardware errors
         else:
             # Handle other RuntimeErrors
-            print(f"Worker {args.worker_id} failed with runtime error: {str(e)}")
+            print(f"Worker {args.worker_id} failed with runtime error: {e!s}")
             import traceback
 
             traceback.print_exc()
@@ -1142,7 +1175,7 @@ def main():
             sys.exit(1)
 
     except torch.cuda.OutOfMemoryError as e:
-        print(f"Worker {args.worker_id} failed with CUDA OOM: {str(e)}")
+        print(f"Worker {args.worker_id} failed with CUDA OOM: {e!s}")
 
         # Provide detailed memory information
         if torch.cuda.is_available():
@@ -1170,7 +1203,7 @@ def main():
         # Save error result
         result_data = {
             "success": False,
-            "error": f"CUDA Out of Memory: {str(e)}",
+            "error": f"CUDA Out of Memory: {e!s}",
             "error_type": "OOM",
             "worker_id": args.worker_id,
             "suggestions": [
@@ -1188,7 +1221,7 @@ def main():
         sys.exit(1)
 
     except Exception as e:
-        print(f"Worker {args.worker_id} failed: {str(e)}")
+        print(f"Worker {args.worker_id} failed: {e!s}")
         import traceback
 
         traceback.print_exc()

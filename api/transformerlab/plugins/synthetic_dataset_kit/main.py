@@ -13,19 +13,19 @@ Main steps:
 - Export into desired format and return final dataset
 """
 
-import os
-import sys
-import subprocess
-import uuid
-import yaml
 import json
+import os
 import shutil
-import pandas as pd
+import subprocess
+import sys
+import uuid
 from pathlib import Path
 
-from transformerlab.sdk.v1.generate import tlab_gen
-from lab.dirs import get_workspace_dir
+import pandas as pd
+import yaml
 from lab import storage
+from lab.dirs import get_workspace_dir
+from transformerlab.sdk.v1.generate import tlab_gen
 
 
 def get_synthetic_kit_cli_path():
@@ -178,19 +178,48 @@ def run_generation():
     sub_folder = str(uuid.uuid4().hex)
     paths = {
         "input": {
-            "pdf": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "pdf") + "/",
-            "html": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "html") + "/",
-            "youtube": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "youtube") + "/",
-            "docx": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "docx") + "/",
-            "ppt": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "ppt") + "/",
-            "txt": storage.join(workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "txt") + "/",
+            "pdf": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "pdf"
+            )
+            + "/",
+            "html": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "html"
+            )
+            + "/",
+            "youtube": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "youtube"
+            )
+            + "/",
+            "docx": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "docx"
+            )
+            + "/",
+            "ppt": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "ppt"
+            )
+            + "/",
+            "txt": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", sub_folder, "data", "txt"
+            )
+            + "/",
         },
         "output": {
-            "parsed": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output") + "/",
-            "generated": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated")
+            "parsed": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output"
+            )
             + "/",
-            "cleaned": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "cleaned") + "/",
-            "final": storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "final") + "/",
+            "generated": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated"
+            )
+            + "/",
+            "cleaned": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "cleaned"
+            )
+            + "/",
+            "final": storage.join(
+                workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "final"
+            )
+            + "/",
         },
     }
 
@@ -240,7 +269,13 @@ def run_generation():
         # Construct output filenames based on document basename and generation type
         base = Path(path).stem
         output_txt = storage.join(
-            workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output", f"{base}.txt"
+            workspace,
+            "plugins",
+            "synthetic_dataset_kit",
+            "data",
+            sub_folder,
+            "output",
+            f"{base}.txt",
         )
         gen_json = storage.join(
             workspace,
@@ -280,7 +315,10 @@ def run_generation():
                     "ingest",
                     path,
                     "-o",
-                    storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output") + "/",
+                    storage.join(
+                        workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "output"
+                    )
+                    + "/",
                 ],
                 check=True,
             )
@@ -299,7 +337,15 @@ def run_generation():
                     "--model",
                     model_name,
                     "-o",
-                    storage.join(workspace, "plugins", "synthetic_dataset_kit", "data", sub_folder, "generated") + "/",
+                    storage.join(
+                        workspace,
+                        "plugins",
+                        "synthetic_dataset_kit",
+                        "data",
+                        sub_folder,
+                        "generated",
+                    )
+                    + "/",
                 ],
                 check=True,
             )

@@ -15,18 +15,18 @@
 # limitations under the License.
 import os
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
-from typing import Dict, Mapping
 from utils import exact_div
 
 
-def flatten_dict(nested: Dict, sep: str = "/") -> Dict:
+def flatten_dict(nested: dict, sep: str = "/") -> dict:
     """Flatten dictionary and concatenate nested keys with separator."""
 
-    def recurse(nest: Dict, prefix: str, into: Dict) -> None:
+    def recurse(nest: dict, prefix: str, into: dict) -> None:
         for k, v in nest.items():
             if sep in k:
                 raise ValueError(f"separator '{sep}' not allowed to be in key '{k}'")
@@ -51,15 +51,15 @@ class PPOConfig:
     """the name of this experiment (by default is the file name without the extension name)"""
     seed: int = 0
     """Seed value for random generations"""
-    log_with: Optional[Literal["wandb", "tensorboard"]] = None
+    log_with: Literal["wandb", "tensorboard"] | None = None
     """Log with either 'wandb' or 'tensorboard', check  https://huggingface.co/docs/accelerate/usage_guides/tracking for more details"""
-    task_name: Optional[str] = None
+    task_name: str | None = None
     """Name of task to use - used only for tracking purposes"""
-    model_name: Optional[str] = None
+    model_name: str | None = None
     """Name of model to use - used only for tracking purposes"""
-    query_dataset: Optional[str] = None
+    query_dataset: str | None = None
     """Name of dataset to query - used only for tracking purposes"""
-    reward_model: Optional[str] = None
+    reward_model: str | None = None
     """The reward model to use - used only for tracking purposes"""
     remove_unused_columns: bool = True
     """Remove unused columns from the dataset if `datasets.Dataset` is used"""
@@ -73,13 +73,13 @@ class PPOConfig:
     """Adam learning rate"""
     adap_kl_ctrl: bool = True
     """Use adaptive KL control, otherwise linear"""
-    init_kl_coef: Optional[float] = 0.2
+    init_kl_coef: float | None = 0.2
     """Initial KL penalty coefficient (used for adaptive and linear control)"""
     kl_penalty: Literal["kl", "abs", "mse", "full"] = "kl"
     """kl penalty options: 'kl': model_logp - ref_logp,  'abs': abs(kl),  'mse': mean squared error mse(kl) and 'full': the actual kl for all tokens in the distribution"""
-    target: Optional[float] = 6
+    target: float | None = 6
     """Target KL value for adaptive KL control"""
-    horizon: Optional[float] = 10000
+    horizon: float | None = 10000
     """Horizon for adaptive KL control"""
     gamma: float = 1
     """Gamma parameter for advantage calculation"""
@@ -103,7 +103,7 @@ class PPOConfig:
     """The number of gradient accumulation steps"""
     ppo_epochs: int = 4
     """Number of optimisation epochs per batch of samples"""
-    max_grad_norm: Optional[float] = None
+    max_grad_norm: float | None = None
     """Maximum gradient norm for gradient clipping"""
     early_stopping: bool = False
     """Whether to stop the PPO optimization loop early is the KL too high"""
@@ -117,15 +117,15 @@ class PPOConfig:
     """Use score scaling"""
     use_score_norm: bool = False
     """Use score normalization. Only applicable if use_score_scaling is True"""
-    score_clip: Optional[float] = None
+    score_clip: float | None = None
     """Score clipping"""
     whiten_rewards: bool = False
     """Whiten the rewards before compute advantages"""
 
     # computed hyperparameters at runtime; we use `tyro.conf.Suppress` to hide them from the help text
-    is_encoder_decoder: Optional[bool] = None
+    is_encoder_decoder: bool | None = None
     """TO BE FILLED In RUNTIME: Whether the model is an encoder-decoder model"""
-    is_peft_model: Optional[bool] = None
+    is_peft_model: bool | None = None
     """TO BE FILLED In RUNTIME: Whether the model is a PEFT model"""
     backward_batch_size: int = None
     """TO BE FILLED In RUNTIME: Number of samples optimized in an `optimizer.step()` call"""

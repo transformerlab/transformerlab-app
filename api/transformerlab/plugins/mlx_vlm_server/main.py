@@ -15,16 +15,14 @@ import uuid
 from collections import namedtuple
 from contextlib import asynccontextmanager
 from io import BytesIO
-from typing import List
 
 import requests
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastchat.utils import get_context_length
 from fastchat.serve.model_worker import logger
-
+from fastchat.utils import get_context_length
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -51,7 +49,7 @@ class MLXWorker(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         limit_worker_concurrency: int,
         no_register: bool,
         llm_engine: str,
@@ -67,7 +65,9 @@ class MLXWorker(BaseModelWorker):
             conv_template,
         )
 
-        logger.info(f"Loading the model {self.model_names} on worker {worker_id}, worker type: MLX worker...")
+        logger.info(
+            f"Loading the model {self.model_names} on worker {worker_id}, worker type: MLX worker..."
+        )
 
         self.model_name = model_path
         # second argument is the tokenizer config
@@ -112,7 +112,12 @@ class MLXWorker(BaseModelWorker):
         input_ids, pixel_values = prepare_inputs(processor, image, prompt)
         # generate_text is an async generator
         iterator = generate_text(
-            input_ids, pixel_values, model, processor, params["max_new_tokens"], params["temperature"]
+            input_ids,
+            pixel_values,
+            model,
+            processor,
+            params["max_new_tokens"],
+            params["temperature"],
         )
         # reply = generate_text(input_ids, pixel_values,model, processor, params["temperature"])
         max_tokens = params["max_new_tokens"]
@@ -275,7 +280,9 @@ def main():
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
+    parser.add_argument(
+        "--conv-template", type=str, default=None, help="Conversation prompt template."
+    )
     parser.add_argument(
         "--trust_remote_code",
         action="store_false",

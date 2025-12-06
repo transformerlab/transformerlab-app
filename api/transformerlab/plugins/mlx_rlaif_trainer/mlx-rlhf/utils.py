@@ -3,28 +3,25 @@
 import glob
 import json
 import logging
-from pathlib import Path
-from typing import Dict, Mapping, List
 import random
+from collections.abc import Mapping
+from pathlib import Path
 
 import mlx.core as mx
 import mlx.nn as nn
-from mlx.utils import tree_unflatten, tree_flatten
-
-from mlx_lm.tuner.dora import DoRALinear
-from mlx_lm.tuner.lora import LoRALinear, LoRASwitchLinear
-from mlx_lm.models.switch_layers import QuantizedSwitchLinear, SwitchLinear
-from mlx_lm.tuner.utils import linear_to_lora_layers as mlx_lm_linear_to_lora
-from mlx_lm.utils import load as mlx_lm_load_model
-from mlx_lm.utils import quantize_model
-
-from models.prompt_tuning import PromptTuning
 import models.llama as llama
 import models.mixtral as mixtral
-
 import numpy as np
 import transformers
 from huggingface_hub import snapshot_download
+from mlx.utils import tree_flatten, tree_unflatten
+from mlx_lm.models.switch_layers import QuantizedSwitchLinear, SwitchLinear
+from mlx_lm.tuner.dora import DoRALinear
+from mlx_lm.tuner.lora import LoRALinear, LoRASwitchLinear
+from mlx_lm.tuner.utils import linear_to_lora_layers as mlx_lm_linear_to_lora
+from mlx_lm.utils import load as mlx_lm_load_model
+from mlx_lm.utils import quantize_model
+from models.prompt_tuning import PromptTuning
 
 # Constants
 MODEL_MAPPING = {
@@ -217,7 +214,7 @@ def entropy_from_logits(logits: mx.array) -> mx.array:
     return entropy
 
 
-def stats_to_np(stats_dict: Dict) -> Dict:
+def stats_to_np(stats_dict: dict) -> dict:
     """Cast all mx.arrays in dict to numpy arrays."""
     new_dict = dict()
     for k, v in stats_dict.items():
@@ -233,10 +230,10 @@ def stats_to_np(stats_dict: Dict) -> Dict:
     return new_dict
 
 
-def flatten_dict(nested: Dict, sep: str = "/") -> Dict:
+def flatten_dict(nested: dict, sep: str = "/") -> dict:
     """Flatten dictionary and concatenate nested keys with separator."""
 
-    def recurse(nest: Dict, prefix: str, into: Dict) -> None:
+    def recurse(nest: dict, prefix: str, into: dict) -> None:
         for k, v in nest.items():
             if sep in k:
                 raise ValueError(f"separator '{sep}' not allowed to be in key '{k}'")
@@ -284,7 +281,7 @@ def replace_nans_get_means(logs):
     return logs
 
 
-def stack_dicts(stats_dicts: List[Dict]) -> Dict:
+def stack_dicts(stats_dicts: list[dict]) -> dict:
     """Stack the values of a dict."""
     results = dict()
     for k in stats_dicts[0]:
@@ -300,7 +297,7 @@ def stack_dicts(stats_dicts: List[Dict]) -> Dict:
     return results
 
 
-def convert_to_scalar(stats: Dict) -> Dict:
+def convert_to_scalar(stats: dict) -> dict:
     """
     Converts the stats from a flattened dict to single scalar dicts
     """
@@ -340,7 +337,9 @@ def disable_dropout_in_model(model: nn.Module) -> None:
 def exact_div(a, b, a_str, b_str, custom_error_message=""):
     q = a // b
     if a != q * b:
-        raise ValueError(f"{custom_error_message}, {a_str}={a}, {b_str}={b}, inexact division: {a} / {b} = {a / b}")
+        raise ValueError(
+            f"{custom_error_message}, {a_str}={a}, {b_str}={b}, inexact division: {a} / {b} = {a / b}"
+        )
     return q
 
 
@@ -371,7 +370,7 @@ def fetch_from_hub(hf_path: str):
     )
     weight_files = glob.glob(f"{model_path}/*.safetensors")
     if len(weight_files) == 0:
-        raise FileNotFoundError("No safetensors found in {}".format(model_path))
+        raise FileNotFoundError(f"No safetensors found in {model_path}")
 
     weights = {}
     for wf in weight_files:
@@ -438,7 +437,9 @@ def save_model(save_dir: str, weights, tokenizer, config):
 
     shards = make_shards(weights, max_file_size_gibibyte=5)
     shards_count = len(shards)
-    shard_file_format = "model-{:05d}-of-{:05d}.safetensors" if shards_count > 1 else "model.safetensors"
+    shard_file_format = (
+        "model-{:05d}-of-{:05d}.safetensors" if shards_count > 1 else "model.safetensors"
+    )
 
     for i, shard in enumerate(shards):
         shard_name = shard_file_format.format(i + 1, shards_count)
@@ -462,13 +463,13 @@ def load(path_or_hf_repo: str):
             )
         )
 
-    with open(model_path / "config.json", "r") as f:
+    with open(model_path / "config.json") as f:
         config = json.loads(f.read())
         quantization = config.get("quantization", None)
 
     weight_files = glob.glob(str(model_path / "*.safetensors"))
     if len(weight_files) == 0:
-        raise FileNotFoundError("No safetensors found in {}".format(model_path))
+        raise FileNotFoundError(f"No safetensors found in {model_path}")
 
     weights = {}
     for wf in weight_files:
@@ -525,7 +526,7 @@ def generate_ids(model, input_ids, eos_token_id=100_000, temperature=0.0, max_to
 def linear_to_lora_layers(
     model: nn.Module,
     num_lora_layers: int,
-    config: Dict,
+    config: dict,
     use_dora: bool = False,
 ):
     """
@@ -547,7 +548,9 @@ def linear_to_lora_layers(
         num_lora_layers = num_layers
 
     if num_lora_layers > num_layers:
-        raise ValueError(f"Requested {num_lora_layers} LoRA layers but the model only has {num_layers} layers.")
+        raise ValueError(
+            f"Requested {num_lora_layers} LoRA layers but the model only has {num_layers} layers."
+        )
 
     def to_lora(layer):
         if isinstance(layer, (nn.Linear, nn.QuantizedLinear)):

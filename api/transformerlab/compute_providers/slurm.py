@@ -1,18 +1,20 @@
 """SLURM provider implementation."""
 
-import requests
 import os
-from typing import Dict, Any, Optional, Union, List
+from typing import Any
+
+import requests
 from lab import storage
+
 from .base import ComputeProvider
 from .models import (
     ClusterConfig,
-    JobConfig,
-    ClusterStatus,
-    JobInfo,
-    ResourceInfo,
     ClusterState,
+    ClusterStatus,
+    JobConfig,
+    JobInfo,
     JobState,
+    ResourceInfo,
 )
 
 
@@ -36,13 +38,13 @@ class SLURMProvider(ComputeProvider):
     def __init__(
         self,
         mode: str = "ssh",  # "rest" or "ssh"
-        rest_url: Optional[str] = None,
-        ssh_host: Optional[str] = None,
-        ssh_user: Optional[str] = None,
-        ssh_key_path: Optional[str] = None,
+        rest_url: str | None = None,
+        ssh_host: str | None = None,
+        ssh_user: str | None = None,
+        ssh_key_path: str | None = None,
         ssh_port: int = 22,
-        api_token: Optional[str] = None,
-        extra_config: Optional[Dict[str, Any]] = None,
+        api_token: str | None = None,
+        extra_config: dict[str, Any] | None = None,
     ):
         """
         Initialize SLURM provider.
@@ -76,7 +78,9 @@ class SLURMProvider(ComputeProvider):
         try:
             import paramiko
         except ImportError:
-            raise ImportError("paramiko is required for SSH mode. Install with: pip install paramiko")
+            raise ImportError(
+                "paramiko is required for SSH mode. Install with: pip install paramiko"
+            )
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(get_add_if_verified_policy())
@@ -123,7 +127,9 @@ class SLURMProvider(ComputeProvider):
         try:
             import paramiko
         except ImportError:
-            raise ImportError("paramiko is required for SSH mode. Install with: pip install paramiko")
+            raise ImportError(
+                "paramiko is required for SSH mode. Install with: pip install paramiko"
+            )
 
         # Normalize local path (may be a workspace path created via lab.storage)
         local_path = os.path.expanduser(local_path)
@@ -169,10 +175,10 @@ class SLURMProvider(ComputeProvider):
                     path = f"{path}/{part}"
                     try:
                         sftp.stat(path)
-                    except IOError:
+                    except OSError:
                         try:
                             sftp.mkdir(path)
-                        except IOError:
+                        except OSError:
                             # If directory creation fails, let upload attempt fail later
                             pass
 
@@ -208,7 +214,9 @@ class SLURMProvider(ComputeProvider):
                 pass
             ssh.close()
 
-    def _rest_request(self, method: str, endpoint: str, data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _rest_request(
+        self, method: str, endpoint: str, data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Make HTTP request to SLURM REST API."""
         url = f"{self.rest_url.rstrip('/')}{endpoint}"
         headers = {"Content-Type": "application/json"}
@@ -220,7 +228,7 @@ class SLURMProvider(ComputeProvider):
         response.raise_for_status()
         return response.json() if response.content else {}
 
-    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> Dict[str, Any]:
+    def launch_cluster(self, cluster_name: str, config: ClusterConfig) -> dict[str, Any]:
         """
         Launch a cluster by submitting a job (similar to submit_job).
 
@@ -282,7 +290,7 @@ class SLURMProvider(ComputeProvider):
             "status": "submitted",
         }
 
-    def stop_cluster(self, cluster_name: str) -> Dict[str, Any]:
+    def stop_cluster(self, cluster_name: str) -> dict[str, Any]:
         """
         Stop a cluster.
 
@@ -399,7 +407,7 @@ class SLURMProvider(ComputeProvider):
             num_nodes=num_nodes,
         )
 
-    def submit_job(self, cluster_name: str, job_config: JobConfig) -> Dict[str, Any]:
+    def submit_job(self, cluster_name: str, job_config: JobConfig) -> dict[str, Any]:
         """Submit a job using sbatch."""
         # Create a temporary SLURM script
         script_content = "#!/bin/bash\n"
@@ -444,10 +452,10 @@ class SLURMProvider(ComputeProvider):
     def get_job_logs(
         self,
         cluster_name: str,
-        job_id: Union[str, int],
-        tail_lines: Optional[int] = None,
+        job_id: str | int,
+        tail_lines: int | None = None,
         follow: bool = False,
-    ) -> Union[str, Any]:
+    ) -> str | Any:
         """Get job logs using sacct or squeue."""
         if self.mode == "ssh":
             # Use sacct to get job logs
@@ -463,7 +471,7 @@ class SLURMProvider(ComputeProvider):
             result = self._rest_request("GET", f"/slurm/v0.0.39/job/{job_id}")
             return result.get("logs", str(result))
 
-    def cancel_job(self, cluster_name: str, job_id: Union[str, int]) -> Dict[str, Any]:
+    def cancel_job(self, cluster_name: str, job_id: str | int) -> dict[str, Any]:
         """Cancel a job using scancel."""
         if self.mode == "ssh":
             command = f"scancel {job_id}"
@@ -474,7 +482,7 @@ class SLURMProvider(ComputeProvider):
             result = self._rest_request("DELETE", f"/slurm/v0.0.39/job/{job_id}")
             return result
 
-    def list_jobs(self, cluster_name: str) -> List[JobInfo]:
+    def list_jobs(self, cluster_name: str) -> list[JobInfo]:
         """List jobs using squeue."""
         if self.mode == "ssh":
             # Use squeue to list jobs

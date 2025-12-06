@@ -1,16 +1,14 @@
-import os
 import json
+import os
 import sqlite3
 import sys
 from pathlib import Path
 
 from jinja2 import Environment
-from transformers import AutoTokenizer
-
-from lab import HOME_DIR, Experiment
-from lab import storage
-from lab.dirs import get_workspace_dir
+from lab import HOME_DIR, Experiment, storage
 from lab.dataset import Dataset as dataset_service
+from lab.dirs import get_workspace_dir
+from transformers import AutoTokenizer
 
 # useful constants
 # Use shared constant as sole source of truth
@@ -36,7 +34,7 @@ def register_process(pid_or_pids):
         pids = list(pid_or_pids)
     root_dir = os.getenv("LLM_LAB_ROOT_PATH")
     if not root_dir:
-        raise EnvironmentError("LLM_LAB_ROOT_PATH is not set")
+        raise OSError("LLM_LAB_ROOT_PATH is not set")
     pid_file = os.path.join(root_dir, "worker.pid")
     with open(pid_file, "w") as f:
         for pid in pids:
@@ -262,9 +260,14 @@ def format_template(
     """Formats a single example using either a Jinja2 template or a chat template."""
     if chat_template and tokenizer:
         if tokenizer.chat_template is None:
-            raise ValueError("Tokenizer lacks a default chat template. Ensure model is instruction-tuned for chat.")
+            raise ValueError(
+                "Tokenizer lacks a default chat template. Ensure model is instruction-tuned for chat."
+            )
         return tokenizer.apply_chat_template(
-            example[chat_column], tokenize=False, add_generation_prompt=False, chat_template=chat_template
+            example[chat_column],
+            tokenize=False,
+            add_generation_prompt=False,
+            chat_template=chat_template,
         )
 
     if formatting_template:

@@ -1,15 +1,21 @@
 import json
+import traceback
+from typing import Any
+
 import pandas as pd
 import requests
-import traceback
-from typing import Dict, Any, List
-
 from transformerlab.sdk.v1.generate import tlab_gen
 
 # Add custom arguments
-tlab_gen.add_argument("--input_field", default="input", type=str, help="Field in dataset containing queries")
-tlab_gen.add_argument("--response_mode", default="compact", type=str, help="Response mode for RAG output")
-tlab_gen.add_argument("--number_of_search_results", default="2", type=str, help="Number of search results to return")
+tlab_gen.add_argument(
+    "--input_field", default="input", type=str, help="Field in dataset containing queries"
+)
+tlab_gen.add_argument(
+    "--response_mode", default="compact", type=str, help="Response mode for RAG output"
+)
+tlab_gen.add_argument(
+    "--number_of_search_results", default="2", type=str, help="Number of search results to return"
+)
 tlab_gen.add_argument("--temperature", default="0.7", type=str, help="Temperature for sampling")
 tlab_gen.add_argument("--context_window", default="4096", type=str, help="Context window size")
 tlab_gen.add_argument("--num_output", default="256", type=str, help="Output Length")
@@ -17,12 +23,15 @@ tlab_gen.add_argument("--chunk_size", default="512", type=str, help="Chunk size"
 tlab_gen.add_argument("--chunk_overlap", default="100", type=str, help="Chunk overlap")
 tlab_gen.add_argument("--use_reranker", default=False, type=bool, help="Use reranker")
 tlab_gen.add_argument(
-    "--reranker_model", default="cross-encoder/ms-marco-MiniLM-L-6-v2", type=str, help="Reranker model"
+    "--reranker_model",
+    default="cross-encoder/ms-marco-MiniLM-L-6-v2",
+    type=str,
+    help="Reranker model",
 )
 tlab_gen.add_argument("--reranker_top_n", default="20", type=str, help="Reranker top n")
 
 
-async def run_rag_query(experiment_id, rag_settings, query: str) -> Dict[str, Any]:
+async def run_rag_query(experiment_id, rag_settings, query: str) -> dict[str, Any]:
     """Run a RAG query using the configured RAG engine"""
     try:
         # Construct the API URL
@@ -47,7 +56,11 @@ async def run_rag_query(experiment_id, rag_settings, query: str) -> Dict[str, An
 
         # Parse the response
         try:
-            result = response.json() if response.headers.get("content-type") == "application/json" else response.text
+            result = (
+                response.json()
+                if response.headers.get("content-type") == "application/json"
+                else response.text
+            )
         except Exception:
             result = response.text
 
@@ -67,21 +80,39 @@ async def run_rag_query(experiment_id, rag_settings, query: str) -> Dict[str, An
                 "prompt": result.get("template", ""),
             }
         else:
-            return {"query": query, "answer": result, "context": [], "sources": [], "raw_response": result}
+            return {
+                "query": query,
+                "answer": result,
+                "context": [],
+                "sources": [],
+                "raw_response": result,
+            }
 
     except Exception as e:
-        print(f"Error running RAG query: {str(e)}")
-        return {"query": query, "answer": f"Error: {str(e)}", "context": [], "sources": [], "error": str(e)}
+        print(f"Error running RAG query: {e!s}")
+        return {
+            "query": query,
+            "answer": f"Error: {e!s}",
+            "context": [],
+            "sources": [],
+            "error": str(e),
+        }
 
 
 def check_local_server():
     """Check if the local model server is running"""
     response = requests.get("http://localhost:8338/server/worker_healthz")
-    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-        raise RuntimeError("Local Model Server is not running. Please start it before running the evaluation.")
+    if (
+        response.status_code != 200
+        or not isinstance(response.json(), list)
+        or len(response.json()) == 0
+    ):
+        raise RuntimeError(
+            "Local Model Server is not running. Please start it before running the evaluation."
+        )
 
 
-async def process_dataset(experiment_id, rag_settings, dataset_df) -> List[Dict[str, Any]]:
+async def process_dataset(experiment_id, rag_settings, dataset_df) -> list[dict[str, Any]]:
     """Process each item in the dataset with RAG"""
     results = []
 
@@ -95,7 +126,9 @@ async def process_dataset(experiment_id, rag_settings, dataset_df) -> List[Dict[
         # Extract the query from the specified field
         query = row[tlab_gen.params.input_field]
         if not query:
-            print(f"Warning: No query found in item {i} using field '{tlab_gen.params.input_field}'")
+            print(
+                f"Warning: No query found in item {i} using field '{tlab_gen.params.input_field}'"
+            )
             query = ""
             continue
 
@@ -131,7 +164,9 @@ async def run_evaluation():
             raise ValueError("Dataset name is required")
 
         # Configure experiment with the specified RAG engine
-        experiment_config, experiment_id = tlab_gen.get_experiment_config(tlab_gen.params.experiment_name)
+        experiment_config, experiment_id = tlab_gen.get_experiment_config(
+            tlab_gen.params.experiment_name
+        )
 
         if experiment_config:
             plugin = experiment_config.get("rag_engine")
@@ -189,7 +224,7 @@ async def run_evaluation():
 
     except Exception as e:
         traceback.print_exc()
-        raise RuntimeError(f"An error occurred during evaluation: {str(e)}")
+        raise RuntimeError(f"An error occurred during evaluation: {e!s}")
 
 
 print("Running RAG evaluation...")

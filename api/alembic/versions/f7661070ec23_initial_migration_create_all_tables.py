@@ -6,16 +6,17 @@ Create Date: 2025-11-21 15:04:59.420186
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+
+import sqlalchemy as sa
 
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "f7661070ec23"
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -25,7 +26,8 @@ def upgrade() -> None:
     # Helper function to check if table exists
     def table_exists(table_name: str) -> bool:
         result = connection.execute(
-            sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"), {"name": table_name}
+            sa.text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
+            {"name": table_name},
         )
         return result.fetchone() is not None
 
@@ -97,12 +99,24 @@ def upgrade() -> None:
             sa.Column("config", sa.JSON(), nullable=True),
             sa.Column("status", sa.String(), nullable=True),
             sa.Column("experiment_id", sa.Integer(), nullable=True),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(),
+                server_default=sa.text("(CURRENT_TIMESTAMP)"),
+                nullable=False,
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(),
+                server_default=sa.text("(CURRENT_TIMESTAMP)"),
+                nullable=False,
+            ),
             sa.PrimaryKeyConstraint("id"),
         )
         op.create_index(op.f("ix_workflows_status"), "workflows", ["status"], unique=False)
-        op.create_index("idx_workflow_id_experiment", "workflows", ["id", "experiment_id"], unique=False)
+        op.create_index(
+            "idx_workflow_id_experiment", "workflows", ["id", "experiment_id"], unique=False
+        )
 
     # WorkflowRun table
     if not table_exists("workflow_runs"):
@@ -117,8 +131,18 @@ def upgrade() -> None:
             sa.Column("current_tasks", sa.JSON(), nullable=True),
             sa.Column("current_job_ids", sa.JSON(), nullable=True),
             sa.Column("experiment_id", sa.Integer(), nullable=True),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(),
+                server_default=sa.text("(CURRENT_TIMESTAMP)"),
+                nullable=False,
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(),
+                server_default=sa.text("(CURRENT_TIMESTAMP)"),
+                nullable=False,
+            ),
             sa.PrimaryKeyConstraint("id"),
         )
         op.create_index(op.f("ix_workflow_runs_status"), "workflow_runs", ["status"], unique=False)
@@ -154,15 +178,33 @@ def upgrade() -> None:
             sa.Column("role", sa.String(), nullable=False),
             sa.Column("status", sa.String(), nullable=False),
             sa.Column("expires_at", sa.DateTime(), nullable=False),
-            sa.Column("created_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
-            sa.Column("updated_at", sa.DateTime(), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(),
+                server_default=sa.text("(CURRENT_TIMESTAMP)"),
+                nullable=False,
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(),
+                server_default=sa.text("(CURRENT_TIMESTAMP)"),
+                nullable=False,
+            ),
             sa.PrimaryKeyConstraint("id"),
             sa.UniqueConstraint("token"),
         )
-        op.create_index(op.f("ix_team_invitations_email"), "team_invitations", ["email"], unique=False)
-        op.create_index(op.f("ix_team_invitations_status"), "team_invitations", ["status"], unique=False)
-        op.create_index(op.f("ix_team_invitations_team_id"), "team_invitations", ["team_id"], unique=False)
-        op.create_index(op.f("ix_team_invitations_token"), "team_invitations", ["token"], unique=True)
+        op.create_index(
+            op.f("ix_team_invitations_email"), "team_invitations", ["email"], unique=False
+        )
+        op.create_index(
+            op.f("ix_team_invitations_status"), "team_invitations", ["status"], unique=False
+        )
+        op.create_index(
+            op.f("ix_team_invitations_team_id"), "team_invitations", ["team_id"], unique=False
+        )
+        op.create_index(
+            op.f("ix_team_invitations_token"), "team_invitations", ["token"], unique=True
+        )
 
     # User table (from fastapi-users)
     # Check if table exists first to avoid errors on existing databases
@@ -204,7 +246,9 @@ def upgrade() -> None:
                 sa.Column("email", sa.String(length=320), nullable=False),
                 sa.Column("hashed_password", sa.String(length=1024), nullable=False),
                 sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("1")),
-                sa.Column("is_superuser", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+                sa.Column(
+                    "is_superuser", sa.Boolean(), nullable=False, server_default=sa.text("0")
+                ),
                 sa.Column("is_verified", sa.Boolean(), nullable=False, server_default=sa.text("0")),
                 sa.Column("first_name", sa.String(length=100), nullable=True),
                 sa.Column("last_name", sa.String(length=100), nullable=True),

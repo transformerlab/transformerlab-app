@@ -1,15 +1,14 @@
+import json
 import os
 import re
 import subprocess
-import json
-from lab import storage
 
 import pandas as pd
 import torch
-from werkzeug.utils import secure_filename
-
-from transformerlab.sdk.v1.evals import tlab_evals
+from lab import storage
 from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.evals import tlab_evals
+from werkzeug.utils import secure_filename
 
 
 def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"):
@@ -82,7 +81,9 @@ def run_evaluation():
 
     # Determine which model backend to use based on CUDA availability
     if not torch.cuda.is_available():
-        print("CUDA is not available. Please use the `eleuther-ai-lm-evaluation-harness-mlx-plugin` if using a Mac.")
+        print(
+            "CUDA is not available. Please use the `eleuther-ai-lm-evaluation-harness-mlx-plugin` if using a Mac."
+        )
 
         # Build model args for CPU-based evaluation
         model_args = f"model={model_name},trust_remote_code=True"

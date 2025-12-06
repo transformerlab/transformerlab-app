@@ -3,15 +3,15 @@ import json
 import os
 import subprocess
 import sys
-from transformerlab.services.experiment_service import experiment_get
+
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from lab import Experiment, storage
 from pydantic import BaseModel
-from transformerlab.shared import dirs
-from lab import Experiment
-from lab import storage
-
 from werkzeug.utils import secure_filename
+
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.shared import dirs
 
 
 class EmbedRequest(BaseModel):
@@ -31,7 +31,10 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
     documents_dir = storage.join(experiment_dir, "documents")
     documents_dir = storage.join(documents_dir, rag_folder)
     # Basic traversal protection for posix paths
-    if not documents_dir.startswith(experiment_dir.rstrip("/") + "/") and documents_dir != experiment_dir:
+    if (
+        not documents_dir.startswith(experiment_dir.rstrip("/") + "/")
+        and documents_dir != experiment_dir
+    ):
         return "Error: Invalid RAG folder path"
     if not storage.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"

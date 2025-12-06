@@ -1,7 +1,8 @@
+import asyncio
+import os
+
 import pytest
 from fastapi.testclient import TestClient
-import os
-import asyncio
 
 # Create test directories before setting environment variables
 os.makedirs("test/tmp/", exist_ok=True)
@@ -49,7 +50,9 @@ class AuthenticatedTestClient(TestClient):
             self._token = login_response.json()["access_token"]
 
             # Get user's teams
-            teams_response = super().get("/users/me/teams", headers={"Authorization": f"Bearer {self._token}"})
+            teams_response = super().get(
+                "/users/me/teams", headers={"Authorization": f"Bearer {self._token}"}
+            )
             if teams_response.status_code == 200:
                 teams = teams_response.json()["teams"]
                 if teams:
@@ -75,8 +78,8 @@ class AuthenticatedTestClient(TestClient):
 @pytest.fixture(scope="session")
 def client():
     # Initialize database tables for tests
-    from transformerlab.shared.models.user_model import create_db_and_tables  # noqa: E402
-    from transformerlab.services.experiment_init import seed_default_admin_user  # noqa: E402
+    from transformerlab.services.experiment_init import seed_default_admin_user
+    from transformerlab.shared.models.user_model import create_db_and_tables
 
     asyncio.run(create_db_and_tables())
     asyncio.run(seed_default_admin_user())

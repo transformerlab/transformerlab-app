@@ -7,10 +7,12 @@ There are functions in model_helper to make it easier to work with.
 
 import json
 import posixpath
+
 from huggingface_hub import hf_hub_download
-from transformerlab.models import modelstore
-from werkzeug.utils import secure_filename
 from lab import storage
+from werkzeug.utils import secure_filename
+
+from transformerlab.models import modelstore
 
 
 def is_sentence_transformer_model(
@@ -158,7 +160,9 @@ class LocalModelStore(modelstore.ModelStore):
             # Check if local path exists
             if not storage.exists(potential_path):
                 # Remove the Starting TransformerLab/ prefix to handle the save_transformerlab_model function
-                potential_path = storage.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
+                potential_path = storage.join(
+                    models_dir, secure_filename("/".join(model_id.split("/")[1:]))
+                )
 
             # Check if model should be considered local:
             # 1. If it has a model_filename set (and is not a HuggingFace model, OR is a HuggingFace model stored locally), OR
@@ -175,7 +179,11 @@ class LocalModelStore(modelstore.ModelStore):
                         # Extract basenames from full paths returned by storage.ls()
                         file_basenames = [posixpath.basename(f.rstrip("/")) for f in files]
                         # Filter out index.json and other metadata files
-                        model_files = [f for f in file_basenames if f not in ["index.json", "_tlab_provenance.json"]]
+                        model_files = [
+                            f
+                            for f in file_basenames
+                            if f not in ["index.json", "_tlab_provenance.json"]
+                        ]
                         if model_files:
                             is_local_model = True
                     except (OSError, PermissionError):
@@ -279,7 +287,7 @@ class LocalModelStore(modelstore.ModelStore):
                     print(f"Error loading {complete_provenance_file}: Invalid JSON format.")
                     provenance = {}
                 except Exception as e:
-                    print(f"Error loading {complete_provenance_file}: {str(e)}")
+                    print(f"Error loading {complete_provenance_file}: {e!s}")
                     provenance = {}
             # Check if the provenance for any local models was missed
             provenance, local_added_count = await self.check_provenance_for_local_models(provenance)
@@ -312,11 +320,17 @@ class LocalModelStore(modelstore.ModelStore):
                             with storage.open(provenance_file, "r") as f:
                                 prov_data = json.load(f)
                                 if "md5_checksums" in prov_data:
-                                    prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
+                                    prov_data["parameters"]["md5_checksums"] = prov_data[
+                                        "md5_checksums"
+                                    ]
 
                                 # Compute output model name if needed
                                 output_model = prov_data.get("model_name")
-                                if not output_model and prov_data.get("input_model") and prov_data.get("adaptor_name"):
+                                if (
+                                    not output_model
+                                    and prov_data.get("input_model")
+                                    and prov_data.get("adaptor_name")
+                                ):
                                     output_model = self.compute_output_model(
                                         prov_data["input_model"], prov_data["adaptor_name"]
                                     )
@@ -326,7 +340,7 @@ class LocalModelStore(modelstore.ModelStore):
                                 provenance[output_model] = prov_data
 
                     except Exception as e:
-                        print(f"Error loading provenance for {entry_name}: {str(e)}")
+                        print(f"Error loading provenance for {entry_name}: {e!s}")
         except Exception:
             pass
 
@@ -349,7 +363,9 @@ class LocalModelStore(modelstore.ModelStore):
             ):
                 # Check if the model_source is local
                 source_path = model_dict.get("json_data", {}).get("source_id_or_path", "")
-                if model_dict.get("json_data", {}).get("source", "") == "local" and storage.exists(source_path):
+                if model_dict.get("json_data", {}).get("source", "") == "local" and storage.exists(
+                    source_path
+                ):
                     # Check if the model has a _tlab_provenance.json file
                     provenance_file = storage.join(source_path, "_tlab_provenance.json")
                     if storage.exists(provenance_file):
@@ -357,11 +373,17 @@ class LocalModelStore(modelstore.ModelStore):
                         with storage.open(provenance_file, "r") as f:
                             prov_data = json.load(f)
                             if "md5_checksums" in prov_data:
-                                prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
+                                prov_data["parameters"]["md5_checksums"] = prov_data[
+                                    "md5_checksums"
+                                ]
 
                             # Compute output model name if needed
                             output_model = prov_data.get("model_name")
-                            if not output_model and prov_data.get("input_model") and prov_data.get("adaptor_name"):
+                            if (
+                                not output_model
+                                and prov_data.get("input_model")
+                                and prov_data.get("adaptor_name")
+                            ):
                                 output_model = self.compute_output_model(
                                     prov_data["input_model"], prov_data["adaptor_name"]
                                 )
@@ -465,7 +487,7 @@ class LocalModelStore(modelstore.ModelStore):
                         evaluations_by_model[model_name] = converted_evaluations
 
                 except Exception as e:
-                    print(f"Error loading provenance for {model_id}: {str(e)}")
+                    print(f"Error loading provenance for {model_id}: {e!s}")
 
         return evaluations_by_model
 

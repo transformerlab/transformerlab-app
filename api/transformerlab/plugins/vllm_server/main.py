@@ -1,23 +1,25 @@
 import argparse
 import json
 import os
+import shutil
+import site
 import subprocess
 import sys
-import time
-import torch
 import threading
-import site
-import shutil
+import time
 
+import torch
 from fastchat.constants import TEMP_IMAGE_DIR
-
 from lab import storage
 from lab.dirs import get_workspace_dir
 
 try:
     from transformerlab.plugin import get_python_executable, register_process
 except ImportError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
+    from transformerlab.plugin_sdk.transformerlab.plugin import (
+        get_python_executable,
+        register_process,
+    )
 
 
 def inject_ninja_into_path():
@@ -128,7 +130,12 @@ else:
 # Add tensor parallel size if multiple GPUs are available
 if num_gpus > 1:
     vllm_args.extend(
-        ["--tensor-parallel-size", str(tensor_parallel_size), "--pipeline-parallel-size", str(pipeline_parallel_size)]
+        [
+            "--tensor-parallel-size",
+            str(tensor_parallel_size),
+            "--pipeline-parallel-size",
+            str(pipeline_parallel_size),
+        ]
     )
 
 # We need to read both STDOUT (to determine when the server is up)

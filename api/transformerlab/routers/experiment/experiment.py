@@ -1,29 +1,27 @@
 import json
 import os
-
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Request
 from fastapi.responses import FileResponse
+from lab import Dataset, Experiment, storage
+from lab.dirs import get_workspace_dir
+from werkzeug.utils import secure_filename
 
 import transformerlab.services.experiment_service as experiment_service
-from lab import Dataset, Experiment, storage
-from transformerlab.shared import shared
 from transformerlab.routers.experiment import (
-    rag,
-    documents,
-    plugins,
     conversations,
-    export,
-    evals,
-    generations,
-    workflows,
     diffusion,
+    documents,
+    evals,
+    export,
+    generations,
     jobs,
+    plugins,
+    rag,
+    workflows,
 )
-from lab.dirs import get_workspace_dir
-
-from werkzeug.utils import secure_filename
+from transformerlab.shared import shared
 
 router = APIRouter(prefix="/experiment")
 
@@ -160,7 +158,9 @@ def experiment_get_file_contents(id: str, filename: str):
     return file_contents
 
 
-@router.get("/{id}/export_to_recipe", summary="Export experiment to recipe format", tags=["experiment"])
+@router.get(
+    "/{id}/export_to_recipe", summary="Export experiment to recipe format", tags=["experiment"]
+)
 def export_experiment_to_recipe(id: str, request: Request):
     """Export an experiment to JSON format that matches the recipe gallery structure."""
 

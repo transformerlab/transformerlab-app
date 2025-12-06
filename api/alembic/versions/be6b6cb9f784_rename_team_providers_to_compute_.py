@@ -6,16 +6,15 @@ Create Date: 2025-11-26 14:47:16.424026
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision: str = "be6b6cb9f784"
-down_revision: Union[str, Sequence[str], None] = "63ca6eebc24c"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "63ca6eebc24c"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -25,7 +24,9 @@ def upgrade() -> None:
 
     # Rename the index
     op.drop_index("idx_team_provider_name", table_name="compute_providers")
-    op.create_index("idx_compute_provider_name", "compute_providers", ["team_id", "name"], unique=False)
+    op.create_index(
+        "idx_compute_provider_name", "compute_providers", ["team_id", "name"], unique=False
+    )
 
     # Update index names that use the table name pattern
     # The ix_team_providers_* indexes will be automatically handled by SQLAlchemy/Alembic
@@ -40,7 +41,9 @@ def upgrade() -> None:
         pass  # Index might not exist or already dropped
 
     # Create new indexes with correct names (Alembic will auto-generate these on next autogenerate)
-    op.create_index(op.f("ix_compute_providers_team_id"), "compute_providers", ["team_id"], unique=False)
+    op.create_index(
+        op.f("ix_compute_providers_team_id"), "compute_providers", ["team_id"], unique=False
+    )
     op.create_index(op.f("ix_compute_providers_type"), "compute_providers", ["type"], unique=False)
 
 
