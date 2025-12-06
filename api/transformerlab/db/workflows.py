@@ -2,10 +2,12 @@
 # WORKFLOWS MODEL
 #################
 import json
-from sqlalchemy import select, delete, text, update
+
+from sqlalchemy import delete, select, text, update
+
 from transformerlab.db.session import async_session
+from transformerlab.db.utils import sqlalchemy_list_to_dict, sqlalchemy_to_dict
 from transformerlab.shared.models import models
-from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
 
 async def workflows_get_all():
@@ -90,7 +92,9 @@ async def workflow_delete_by_id(workflow_id: str, experiment_id):
     async with async_session() as session:
         result = await session.execute(
             update(models.Workflow)
-            .where(models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id)
+            .where(
+                models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id
+            )
             .values(status="DELETED", updated_at=text("CURRENT_TIMESTAMP"))
         )
         await session.commit()
@@ -111,14 +115,18 @@ async def workflow_delete_by_name(workflow_name):
 
 async def workflow_count_running():
     async with async_session() as session:
-        result = await session.execute(select(models.WorkflowRun).where(models.WorkflowRun.status == "RUNNING"))
+        result = await session.execute(
+            select(models.WorkflowRun).where(models.WorkflowRun.status == "RUNNING")
+        )
         count = len(result.scalars().all())
         return count
 
 
 async def workflow_count_queued():
     async with async_session() as session:
-        result = await session.execute(select(models.WorkflowRun).where(models.WorkflowRun.status == "QUEUED"))
+        result = await session.execute(
+            select(models.WorkflowRun).where(models.WorkflowRun.status == "QUEUED")
+        )
         count = len(result.scalars().all())
         return count
 
@@ -169,7 +177,9 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
     """
     async with async_session() as session:
         # Fetch the workflow run
-        result = await session.execute(select(models.WorkflowRun).where(models.WorkflowRun.id == workflow_run_id))
+        result = await session.execute(
+            select(models.WorkflowRun).where(models.WorkflowRun.id == workflow_run_id)
+        )
         workflow_run = result.scalar_one_or_none()
         if workflow_run is None:
             return
@@ -212,7 +222,9 @@ async def workflow_update_config(workflow_id, config, experiment_id):
     async with async_session() as session:
         result = await session.execute(
             update(models.Workflow)
-            .where(models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id)
+            .where(
+                models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id
+            )
             .values(config=config, updated_at=text("CURRENT_TIMESTAMP"))
         )
         await session.commit()
@@ -223,7 +235,9 @@ async def workflow_update_name(workflow_id, name, experiment_id):
     async with async_session() as session:
         result = await session.execute(
             update(models.Workflow)
-            .where(models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id)
+            .where(
+                models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id
+            )
             .values(name=name, updated_at=text("CURRENT_TIMESTAMP"))
         )
         await session.commit()
@@ -290,7 +304,9 @@ async def workflow_run_delete(workflow_run_id):
     """Soft delete a workflow run by setting status to DELETED"""
     async with async_session() as session:
         await session.execute(
-            update(models.WorkflowRun).where(models.WorkflowRun.id == workflow_run_id).values(status="DELETED")
+            update(models.WorkflowRun)
+            .where(models.WorkflowRun.id == workflow_run_id)
+            .values(status="DELETED")
         )
         await session.commit()
     return

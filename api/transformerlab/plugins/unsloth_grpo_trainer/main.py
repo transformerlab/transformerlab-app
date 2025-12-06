@@ -1,13 +1,13 @@
-from unsloth import FastLanguageModel, PatchFastRL
-import time
 import re
+import time
+
 import torch
 from jinja2 import Environment
+from lab import storage
+from transformerlab.sdk.v1.train import tlab_trainer
 from transformers import BitsAndBytesConfig
 from trl import GRPOConfig, GRPOTrainer
-
-from transformerlab.sdk.v1.train import tlab_trainer
-from lab import storage
+from unsloth import FastLanguageModel, PatchFastRL
 
 # Set up environment
 jinja_environment = Environment()
@@ -24,7 +24,9 @@ def extract_answer(text: str, start_answer_string, end_answer_string) -> str:
     return answer.strip()
 
 
-def count_xml(text, start_thinking_string, end_thinking_string, start_answer_string, end_answer_string) -> float:
+def count_xml(
+    text, start_thinking_string, end_thinking_string, start_answer_string, end_answer_string
+) -> float:
     """Count XML tags in the response"""
     count = 0.0
     if text.count(f"{start_thinking_string}\n") == 1:
@@ -96,13 +98,21 @@ def train_model():
     # Reward functions
     def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
         responses = [completion[0]["content"] for completion in completions]
-        extracted_responses = [extract_answer(r, start_answer_string, end_answer_string) for r in responses]
+        extracted_responses = [
+            extract_answer(r, start_answer_string, end_answer_string) for r in responses
+        ]
         return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
 
     def xmlcount_reward_func(completions, **kwargs) -> list[float]:
         contents = [completion[0]["content"] for completion in completions]
         return [
-            count_xml(c, start_thinking_string, end_thinking_string, start_answer_string, end_answer_string)
+            count_xml(
+                c,
+                start_thinking_string,
+                end_thinking_string,
+                start_answer_string,
+                end_answer_string,
+            )
             for c in contents
         ]
 
@@ -117,9 +127,7 @@ def train_model():
 
     def strict_format_reward_func(completions, **kwargs) -> list[float]:
         """Reward function that checks strictly if the completion has a specific format."""
-        pattern = (
-            rf"^{start_thinking_string}\n.*?\n{end_thinking_string}\n{start_answer_string}\n.*?\n{end_answer_string}\n$"
-        )
+        pattern = rf"^{start_thinking_string}\n.*?\n{end_thinking_string}\n{start_answer_string}\n.*?\n{end_answer_string}\n$"
         responses = [completion[0]["content"] for completion in completions]
         matches = [re.match(pattern, r) for r in responses]
         return [0.5 if match else 0.0 for match in matches]
@@ -151,7 +159,7 @@ def train_model():
         )
         model.config.pretraining_tp = 1
     except Exception as e:
-        return f"Failed to load model: {str(e)}"
+        return f"Failed to load model: {e!s}"
     # Apply LoRA
     model = FastLanguageModel.get_peft_model(
         model,

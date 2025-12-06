@@ -1,25 +1,24 @@
 import json
+import json as json_lib
+import os
+import posixpath
+import shutil
+import subprocess
+import tempfile
 import time
 
-from fastapi import APIRouter, Body, Request, Form
-from typing import Optional
-import os
-import tempfile
-import shutil
-import json as json_lib
-import subprocess
 import httpx
+from fastapi import APIRouter, Body, Form, Request
+from lab import Dataset, storage
+from lab.dirs import get_workspace_dir
 from werkzeug.utils import secure_filename
 
-from lab import Dataset, storage
-import posixpath
-from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
+from transformerlab.services.job_service import job_create
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
 from transformerlab.shared.galleries import TASKS_GALLERY_FILE, update_cache_from_remote_if_stale
 from transformerlab.shared.shared import slugify
-from lab.dirs import get_workspace_dir
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -45,7 +44,8 @@ async def tasks_get_by_type(type: str):
 
 
 @router.get(
-    "/list_by_type_in_experiment", summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN"
+    "/list_by_type_in_experiment",
+    summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN",
 )
 async def tasks_get_by_type_in_experiment(type: str, experiment_id: str):
     tasks = tasks_service.tasks_get_by_type_in_experiment(type, experiment_id)
@@ -59,7 +59,7 @@ async def tasks_get_by_type_in_experiment(type: str, experiment_id: str):
 async def tasks_get_by_subtype_in_experiment(
     experiment_id: str,
     subtype: str,
-    remote_task: Optional[bool] = None,
+    remote_task: bool | None = None,
 ):
     tasks = tasks_service.tasks_get_by_experiment(experiment_id)
     filtered = []
@@ -180,7 +180,9 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
 
     # Skip remote tasks - they are handled by the launch_remote route, not the job queue
     if task_to_queue.get("remote_task", False):
-        return {"message": "REMOTE TASK - Cannot queue remote tasks, use launch_remote endpoint instead"}
+        return {
+            "message": "REMOTE TASK - Cannot queue remote tasks, use launch_remote endpoint instead"
+        }
 
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
@@ -327,7 +329,10 @@ async def tasks_local_gallery_list():
         return {"status": "success", "data": local_tasks}
     except Exception as e:
         print(f"Error fetching local task gallery: {e}")
-        return {"status": "error", "message": "An error occurred while fetching the local task gallery"}
+        return {
+            "status": "error",
+            "message": "An error occurred while fetching the local task gallery",
+        }
 
 
 @router.delete("/local_gallery/{task_dir}", summary="Delete a task from local tasks-gallery")
@@ -367,7 +372,9 @@ async def delete_task_from_local_gallery(task_dir: str):
         return {"status": "error", "message": "An error occurred while deleting the task"}
 
 
-@router.get("/local_gallery/{task_dir}/files", summary="Get files for a task in local tasks-gallery")
+@router.get(
+    "/local_gallery/{task_dir}/files", summary="Get files for a task in local tasks-gallery"
+)
 async def get_task_files(task_dir: str):
     """
     Get the list of files in the src/ directory of a task in the local tasks-gallery.
@@ -411,7 +418,10 @@ async def get_task_files(task_dir: str):
         return {"status": "error", "message": "An error occurred while getting task files"}
 
 
-@router.get("/local_gallery/{task_dir}/files/{file_path:path}", summary="Get content of a specific file in a task")
+@router.get(
+    "/local_gallery/{task_dir}/files/{file_path:path}",
+    summary="Get content of a specific file in a task",
+)
 async def get_task_file_content(task_dir: str, file_path: str):
     """
     Get the content of a specific file in the src/ directory of a task in the local tasks-gallery.
@@ -483,10 +493,13 @@ async def get_task_file_content(task_dir: str, file_path: str):
         return {"status": "error", "message": "An error occurred while getting task file content"}
 
 
-@router.post("/install_from_gallery", summary="Install a task from transformerlab/galleries to local tasks-gallery")
+@router.post(
+    "/install_from_gallery",
+    summary="Install a task from transformerlab/galleries to local tasks-gallery",
+)
 async def install_task_from_gallery(
     id: str = Form(...),
-    repo_url: Optional[str] = Form(None),
+    repo_url: str | None = Form(None),
 ):
     """
     Clone the specific tasks/<id> from transformerlab/galleries and store it in workspace/tasks-gallery/.
@@ -534,7 +547,10 @@ async def install_task_from_gallery(
 
         # Check if task already exists locally
         if storage.exists(local_task_dir):
-            return {"status": "error", "message": f"Task '{task_name}' is already installed locally"}
+            return {
+                "status": "error",
+                "message": f"Task '{task_name}' is already installed locally",
+            }
 
         storage.makedirs(local_task_dir, exist_ok=True)
 
@@ -559,21 +575,33 @@ async def install_task_from_gallery(
         metadata = {
             "installed_from": "gallery",
             "gallery_id": id,
-            "install_date": json_lib.dumps({"$date": {"$numberLong": str(int(time.time() * 1000))}}),
+            "install_date": json_lib.dumps(
+                {"$date": {"$numberLong": str(int(time.time() * 1000))}}
+            ),
             "version": task_def.get("version", "1.0.0"),
         }
         metadata_path = storage.join(local_task_dir, "metadata.json")
         with storage.open(metadata_path, "w") as f:
             json_lib.dump(metadata, f, indent=2)
 
-        return {"status": "success", "task_dir": task_dir_name, "message": f"Task '{task_name}' installed successfully"}
+        return {
+            "status": "success",
+            "task_dir": task_dir_name,
+            "message": f"Task '{task_name}' installed successfully",
+        }
 
     except subprocess.CalledProcessError as e:
         print(f"Git error: {e}")
-        return {"status": "error", "message": "An error occurred while installing the task from the gallery"}
+        return {
+            "status": "error",
+            "message": "An error occurred while installing the task from the gallery",
+        }
     except Exception as e:
         print(f"Error installing task from gallery: {e}")
-        return {"status": "error", "message": "An error occurred while installing the task from the gallery"}
+        return {
+            "status": "error",
+            "message": "An error occurred while installing the task from the gallery",
+        }
     finally:
         try:
             shutil.rmtree(tmp_dir)
@@ -588,7 +616,7 @@ async def export_task_to_local_gallery(
     description: str = Form(...),
     source_task_id: str = Form(...),
     tag: str = Form("OTHER"),
-    experiment_id: Optional[str] = Form(None),
+    experiment_id: str | None = Form(None),
 ):
     """
     Import an existing REMOTE task to the local tasks-gallery directory.
@@ -684,15 +712,18 @@ async def export_task_to_local_gallery(
         return {"status": "success", "task_dir": task_dir_name}
     except Exception as e:
         print(f"Error exporting task to local gallery: {e}")
-        return {"status": "error", "message": "An error occurred while exporting the task to the local gallery"}
+        return {
+            "status": "error",
+            "message": "An error occurred while exporting the task to the local gallery",
+        }
 
 
 @router.post("/import_from_local_gallery", summary="Import a task from local tasks-gallery")
 async def import_task_from_local_gallery(
     request: Request,
     task_dir: str = Form(...),
-    experiment_id: Optional[str] = Form(None),
-    upload: Optional[bool] = Form(True),
+    experiment_id: str | None = Form(None),
+    upload: bool | None = Form(True),
 ):
     """
     Import a task from the local tasks-gallery directory.
@@ -705,7 +736,10 @@ async def import_task_from_local_gallery(
         task_json_path = storage.join(task_path, "task.json")
 
         if not storage.isfile(task_json_path):
-            return {"status": "error", "message": f"task.json not found in local gallery: {task_dir}"}
+            return {
+                "status": "error",
+                "message": f"task.json not found in local gallery: {task_dir}",
+            }
 
         with storage.open(task_json_path) as f:
             task_def = json_lib.load(f)
@@ -730,7 +764,14 @@ async def import_task_from_local_gallery(
             # Update existing task
             task_id = existing_task["id"]
             tasks_service.update_task(
-                task_id, {"name": task_name, "inputs": inputs, "config": config, "outputs": outputs, "plugin": plugin}
+                task_id,
+                {
+                    "name": task_name,
+                    "inputs": inputs,
+                    "config": config,
+                    "outputs": outputs,
+                    "plugin": plugin,
+                },
             )
         else:
             # Create new task
@@ -764,7 +805,9 @@ async def import_task_from_local_gallery(
                         try:
                             task_obj = tasks_service.tasks_get_by_id(task_id)
                             if isinstance(task_obj.get("config"), str):
-                                task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                                task_obj["config"] = (
+                                    json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                                )
                             task_obj["config"]["local_upload_staged_dir"] = src_dir
                             tasks_service.update_task(task_id, {"config": task_obj["config"]})
                         except Exception:
@@ -783,7 +826,10 @@ async def import_task_from_local_gallery(
                                 upload_name = f"src/{rel_path}"
                                 with storage.open(full_path, "rb") as f:
                                     files_form.append(
-                                        ("dir_files", (upload_name, f.read(), "application/octet-stream"))
+                                        (
+                                            "dir_files",
+                                            (upload_name, f.read(), "application/octet-stream"),
+                                        )
                                     )
 
                         form_data = {"dir_name": slugify(task_name)}
@@ -804,24 +850,35 @@ async def import_task_from_local_gallery(
                                 remote_info = resp.json()
                                 # Extract uploaded_dir path from response
                                 uploaded_dir = (
-                                    remote_info.get("uploaded_files", {}).get("dir_files", {}).get("uploaded_dir")
+                                    remote_info.get("uploaded_files", {})
+                                    .get("dir_files", {})
+                                    .get("uploaded_dir")
                                 )
                                 if uploaded_dir:
                                     try:
                                         task_obj = tasks_service.tasks_get_by_id(task_id)
                                         if isinstance(task_obj.get("config"), str):
                                             task_obj["config"] = (
-                                                json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                                                json_lib.loads(task_obj["config"])
+                                                if task_obj["config"]
+                                                else {}
                                             )
                                         task_obj["config"]["uploaded_dir_path"] = uploaded_dir
-                                        tasks_service.update_task(task_id, {"config": task_obj["config"]})
+                                        tasks_service.update_task(
+                                            task_id, {"config": task_obj["config"]}
+                                        )
                                     except Exception as e:
                                         print(f"Error updating task config: {e}")
                                         pass
                                 else:
-                                    print(f"Warning: Could not extract uploaded_dir from response: {remote_info}")
+                                    print(
+                                        f"Warning: Could not extract uploaded_dir from response: {remote_info}"
+                                    )
                             else:
-                                return {"status": "error", "message": f"Upload failed: {resp.status_code} {resp.text}"}
+                                return {
+                                    "status": "error",
+                                    "message": f"Upload failed: {resp.status_code} {resp.text}",
+                                }
 
             except Exception as e:
                 print(f"Upload exception: {e}")

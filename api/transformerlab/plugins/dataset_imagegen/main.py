@@ -1,7 +1,8 @@
 import os
 import shutil
-import requests
+
 import pandas as pd
+import requests
 from tqdm import tqdm
 from transformerlab.sdk.v1.generate import tlab_gen
 
@@ -35,9 +36,15 @@ def run_generation():
     total = len(dataset_df) * images_per_prompt
     counter = 0
 
-    for i, (_, row) in enumerate(tqdm(dataset_df.iterrows(), total=len(dataset_df), desc="Generating images")):
+    for i, (_, row) in enumerate(
+        tqdm(dataset_df.iterrows(), total=len(dataset_df), desc="Generating images")
+    ):
         prompt = str(row[prompt_column]).strip() + " " + prompt_postfix
-        negative_prompt = str(row[negative_column]).strip() if negative_column and negative_column in row else None
+        negative_prompt = (
+            str(row[negative_column]).strip()
+            if negative_column and negative_column in row
+            else None
+        )
 
         payload = {
             "prompt": prompt,
@@ -66,7 +73,9 @@ def run_generation():
             print(f"Image folder not found: {image_folder}")
             continue
 
-        image_files = sorted(f for f in os.listdir(image_folder) if f.lower().endswith((".jpg", ".jpeg", ".png")))
+        image_files = sorted(
+            f for f in os.listdir(image_folder) if f.lower().endswith((".jpg", ".jpeg", ".png"))
+        )
 
         for j, image_file in enumerate(image_files):
             src_path = os.path.join(image_folder, image_file)
@@ -85,7 +94,9 @@ def run_generation():
 
     # Save full metadata
     df = pd.DataFrame(final_outputs)
-    output_path, dataset_name = tlab_gen.save_generated_dataset(df, is_image=True, dataset_id=dataset_id)
+    output_path, dataset_name = tlab_gen.save_generated_dataset(
+        df, is_image=True, dataset_id=dataset_id
+    )
     print(f"Dataset saved to {output_path} as '{dataset_name}'")
 
     return True

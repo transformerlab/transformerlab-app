@@ -1,6 +1,7 @@
-from digit_seq_rewards import RewardFunction, generate_synthetic_data
 import argparse
 import random
+
+from digit_seq_rewards import RewardFunction, generate_synthetic_data
 
 """
 python generate_digit_data.py --increasing --multiple-of 2 --num-samples 150
@@ -30,7 +31,10 @@ def build_data_gen_parser():
         help="What should be the maximum sequence length?",
     )
     parser.add_argument(
-        "--noise", type=float, default=0.2, help="How much noise should be inherent in the sequence generation?"
+        "--noise",
+        type=float,
+        default=0.2,
+        help="How much noise should be inherent in the sequence generation?",
     )
     parser.add_argument(
         "--increasing",

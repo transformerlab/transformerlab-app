@@ -2,27 +2,22 @@
 A model worker using Apple MLX Audio
 """
 
-import sys
 import argparse
 import asyncio
+import json
+import sys
 import uuid
 from contextlib import asynccontextmanager
-from typing import List
-import json
+from datetime import datetime
 
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
-
 from fastchat.serve.model_worker import logger
-from lab.dirs import get_workspace_dir
 from lab import storage
-
-from mlx_audio.tts.generate import generate_audio
+from lab.dirs import get_experiments_dir, get_workspace_dir
 from mlx_audio.stt.generate import generate
-from datetime import datetime
-
-from lab.dirs import get_experiments_dir
+from mlx_audio.tts.generate import generate_audio
 from werkzeug.utils import secure_filename
 
 worker_id = str(uuid.uuid4())[:8]
@@ -47,7 +42,7 @@ class MLXAudioWorker(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
@@ -62,7 +57,8 @@ class MLXAudioWorker(BaseModelWorker):
         )
 
         logger.info(
-            f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX Audio worker..."
+            f"Loading the model {self.model_names} on worker"
+            + f"{worker_id}, worker type: MLX Audio worker..."
         )
         logger.info(f"Model architecture: {model_architecture}")
 
@@ -132,7 +128,9 @@ class MLXAudioWorker(BaseModelWorker):
                 with storage.open(metadata_file, "w") as f:
                     json.dump(metadata, f)
 
-                logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+                logger.info(
+                    f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}"
+                )
 
                 return {
                     "status": "success",
@@ -179,14 +177,18 @@ class MLXAudioWorker(BaseModelWorker):
                 with open(metadata_file, "w") as f:
                     json.dump(metadata, f)
 
-                logger.info(f"Transcription successfully generated: {transcriptions_dir}/{file_prefix}.{format}")
+                logger.info(
+                    f"Transcription successfully generated: {transcriptions_dir}/{file_prefix}.{format}"
+                )
 
                 return {
                     "status": "success",
                     "message": f"{transcriptions_dir}/{file_prefix}.{format}",
                 }
             except Exception:
-                logger.error(f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}")
+                logger.error(
+                    f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}"
+                )
                 return {
                     "status": "error",
                     "message": f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}",

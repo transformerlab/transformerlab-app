@@ -1,13 +1,15 @@
+import json
+
 from fastapi import APIRouter, BackgroundTasks
 from lab import Dataset
-from transformerlab.shared import galleries
+
+import transformerlab.services.experiment_service as experiment_service
 import transformerlab.services.job_service as job_service
-from transformerlab.services.tasks_service import tasks_service
 from transformerlab.models import model_helper
-import json
 from transformerlab.routers.experiment import workflows
 from transformerlab.services.job_service import job_update_status
-import transformerlab.services.experiment_service as experiment_service
+from transformerlab.services.tasks_service import tasks_service
+from transformerlab.shared import galleries
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -84,12 +86,17 @@ async def _install_recipe_dependencies_job(job_id, id):
         recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
         if not recipe:
             await job_update_status(
-                job_id, "FAILED", experiment_id=experiment_id, error_msg=f"Recipe with id {id} not found."
+                job_id,
+                "FAILED",
+                experiment_id=experiment_id,
+                error_msg=f"Recipe with id {id} not found.",
             )
             return
 
         # Filter out model dependencies since they're handled separately
-        non_model_deps = [dep for dep in recipe.get("dependencies", []) if dep.get("type") != "model"]
+        non_model_deps = [
+            dep for dep in recipe.get("dependencies", []) if dep.get("type") != "model"
+        ]
 
         if len(non_model_deps) == 0:
             await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
@@ -127,7 +134,9 @@ async def _install_recipe_dependencies_job(job_id, id):
             results.append(result)
             progress += 1
             job_service.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
-            job_service.job_update_job_data_insert_key_value(job_id, "results", results, experiment_id)
+            job_service.job_update_job_data_insert_key_value(
+                job_id, "results", results, experiment_id
+            )
         await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
     except Exception as e:
         await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
@@ -136,8 +145,9 @@ async def _install_recipe_dependencies_job(job_id, id):
 @router.get("/{id}/install_model_dependencies")
 async def install_recipe_model_dependencies(id: str):
     """Install model dependencies for a recipe as separate jobs and return job IDs."""
-    from transformerlab.routers import model as model_router
     import asyncio
+
+    from transformerlab.routers import model as model_router
 
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -162,7 +172,9 @@ async def install_recipe_model_dependencies(id: str):
                     experiment_id="",
                 )
                 # Start the download as a background task without waiting
-                asyncio.create_task(model_router.download_model_by_huggingface_id(model=dep_name, job_id=job_id))
+                asyncio.create_task(
+                    model_router.download_model_by_huggingface_id(model=dep_name, job_id=job_id)
+                )
                 model_jobs.append(
                     {
                         "model_name": dep_name,
@@ -252,7 +264,11 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     # Check if experiment already exists
     existing = experiment_service.experiment_get(experiment_name)
     if existing:
-        return {"status": "error", "message": f"Experiment '{experiment_name}' already exists.", "data": {}}
+        return {
+            "status": "error",
+            "message": f"Experiment '{experiment_name}' already exists.",
+            "data": {},
+        }
     # Create experiment with blank config
     experiment_id = experiment_service.experiment_create(name=experiment_name, config={})
 
@@ -295,8 +311,12 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
 
             # Update experiment config fields using the experiment update_config route
             experiment_service.experiment_update_config(experiment_id, "foundation", model_name)
-            experiment_service.experiment_update_config(experiment_id, "foundation_model_architecture", architecture)
-            experiment_service.experiment_update_config(experiment_id, "foundation_filename", model_filename)
+            experiment_service.experiment_update_config(
+                experiment_id, "foundation_model_architecture", architecture
+            )
+            experiment_service.experiment_update_config(
+                experiment_id, "foundation_filename", model_filename
+            )
             model_set_result = {
                 "foundation": model_name,
                 "foundation_model_architecture": architecture,
@@ -352,7 +372,9 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                         parsed_config[key] = json.dumps(value)
 
                 # Convert list/dict values inside script_parameters to strings
-                if "script_parameters" in parsed_config and isinstance(parsed_config["script_parameters"], dict):
+                if "script_parameters" in parsed_config and isinstance(
+                    parsed_config["script_parameters"], dict
+                ):
                     for param_key, param_value in parsed_config["script_parameters"].items():
                         if isinstance(param_value, (list, dict)):
                             parsed_config["script_parameters"][param_key] = json.dumps(param_value)
@@ -363,7 +385,9 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                         try:
                             parsed_config["params"] = json.loads(parsed_config["params"])
                         except json.JSONDecodeError:
-                            print(f"Invalid JSON for params in EXPORT task: {parsed_config['params']}")
+                            print(
+                                f"Invalid JSON for params in EXPORT task: {parsed_config['params']}"
+                            )
 
                 # Extract task name from recipe
                 task_name = task.get("name")
@@ -409,9 +433,13 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                             {
                                 "input_model_id": parsed_config.get("input_model_id", ""),
                                 "input_model_path": parsed_config.get("input_model_path", ""),
-                                "input_model_architecture": parsed_config.get("input_model_architecture", ""),
+                                "input_model_architecture": parsed_config.get(
+                                    "input_model_architecture", ""
+                                ),
                                 "output_model_id": parsed_config.get("output_model_id", ""),
-                                "output_model_architecture": parsed_config.get("output_model_architecture", ""),
+                                "output_model_architecture": parsed_config.get(
+                                    "output_model_architecture", ""
+                                ),
                                 "output_model_name": parsed_config.get("output_model_name", ""),
                                 "output_model_path": parsed_config.get("output_model_path", ""),
                                 "output_filename": parsed_config.get("output_filename", ""),

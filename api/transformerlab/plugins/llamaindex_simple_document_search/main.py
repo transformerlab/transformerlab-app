@@ -1,16 +1,20 @@
 import argparse
 import json
 import sys
-from llama_index.llms.openai_like import OpenAILike
-from llama_index.core.callbacks import CallbackManager, LlamaDebugHandler, CBEventType
-from llama_index.core import VectorStoreIndex
-from llama_index.embeddings.huggingface import HuggingFaceEmbedding
-from llama_index.core import Settings
-from llama_index.core import SimpleDirectoryReader, StorageContext, load_index_from_storage
-from llama_index.core.postprocessor import SentenceTransformerRerank
 import time
 
 from lab import storage
+from llama_index.core import (
+    Settings,
+    SimpleDirectoryReader,
+    StorageContext,
+    VectorStoreIndex,
+    load_index_from_storage,
+)
+from llama_index.core.callbacks import CallbackManager, CBEventType, LlamaDebugHandler
+from llama_index.core.postprocessor import SentenceTransformerRerank
+from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+from llama_index.llms.openai_like import OpenAILike
 
 
 # Context manager to redirect all stdout to stderr to prevent interference with JSON output
@@ -35,7 +39,9 @@ def index_documents(documents_dir, persistency_dir, embedding_model="BAAI/bge-sm
         documents = reader.load_data()
         sys.stderr.write(f"Loaded {len(documents)} docs")
 
-        Settings.embed_model = HuggingFaceEmbedding(model_name=embedding_model, trust_remote_code=True)
+        Settings.embed_model = HuggingFaceEmbedding(
+            model_name=embedding_model, trust_remote_code=True
+        )
 
         vector_index = VectorStoreIndex.from_documents(
             documents,
@@ -62,7 +68,9 @@ def main():
     with RedirectStdoutToStderr():
         parser = argparse.ArgumentParser()
         parser.add_argument("--model_name", type=str, required=True)
-        parser.add_argument("--embedding_model", default="BAAI/bge-small-en-v1.5", type=str, required=False)
+        parser.add_argument(
+            "--embedding_model", default="BAAI/bge-small-en-v1.5", type=str, required=False
+        )
         parser.add_argument("--documents_dir", default="", type=str, required=True)
         parser.add_argument("--settings", default="", type=str, required=False)
 
@@ -163,7 +171,9 @@ def main():
 
         Settings.llm = llm
 
-        Settings.embed_model = HuggingFaceEmbedding(model_name=args.embedding_model, trust_remote_code=True)
+        Settings.embed_model = HuggingFaceEmbedding(
+            model_name=args.embedding_model, trust_remote_code=True
+        )
         Settings.callback_manager = callback_manager
 
         storage_context = StorageContext.from_defaults(persist_dir=persistency_dir)

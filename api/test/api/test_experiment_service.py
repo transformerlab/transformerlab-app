@@ -1,9 +1,10 @@
 import json
 import uuid
+
+import lab.dirs as lab_dirs
 import pytest
 
 from transformerlab.services import experiment_service
-import lab.dirs as lab_dirs
 
 
 @pytest.fixture(autouse=True)

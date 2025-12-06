@@ -3,8 +3,6 @@ import sys
 
 from deepeval.synthesizer import Evolution, Synthesizer
 from deepeval.synthesizer.config import EvolutionConfig, StylingConfig
-
-
 from transformerlab.sdk.v1.generate import tlab_gen
 
 tlab_gen.add_argument("--num_goldens", default=5, type=int)
@@ -13,7 +11,10 @@ tlab_gen.add_argument("--num_goldens", default=5, type=int)
 def scratch_generation(model, styling_config: dict, evolution_config: dict = None):
     """Generate synthetic data from scratch"""
     # Validate configs
-    if not all(key in styling_config for key in ["input_format", "expected_output_format", "task", "scenario"]):
+    if not all(
+        key in styling_config
+        for key in ["input_format", "expected_output_format", "task", "scenario"]
+    ):
         raise ValueError(
             "Styling config dictionary must have the keys `input_format`, `expected_output_format`, `task`, `scenario`"
         )
@@ -21,7 +22,9 @@ def scratch_generation(model, styling_config: dict, evolution_config: dict = Non
     if evolution_config is not None and not all(
         key in evolution_config for key in ["REASONING", "CONCRETIZING", "CONSTRAINED"]
     ):
-        raise ValueError("Evolution config dictionary must have the keys `REASONING`, `CONCRETIZING`, `CONSTRAINED`")
+        raise ValueError(
+            "Evolution config dictionary must have the keys `REASONING`, `CONCRETIZING`, `CONSTRAINED`"
+        )
 
     print("Generating data from scratch...")
     tlab_gen.progress_update(35)
@@ -33,7 +36,11 @@ def scratch_generation(model, styling_config: dict, evolution_config: dict = Non
         # Create EvolutionConfig
         if not evolution_config:
             evolution_config = EvolutionConfig(
-                evolutions={Evolution.REASONING: 1 / 3, Evolution.CONCRETIZING: 1 / 3, Evolution.CONSTRAINED: 1 / 3},
+                evolutions={
+                    Evolution.REASONING: 1 / 3,
+                    Evolution.CONCRETIZING: 1 / 3,
+                    Evolution.CONSTRAINED: 1 / 3,
+                },
                 num_evolutions=3,
             )
         else:
@@ -51,7 +58,10 @@ def scratch_generation(model, styling_config: dict, evolution_config: dict = Non
         if "local" in tlab_gen.params.get("generation_model", "").lower():
             async_mode = sys.platform != "darwin"
         synthesizer = Synthesizer(
-            styling_config=styling_config, model=model, evolution_config=evolution_config, async_mode=async_mode
+            styling_config=styling_config,
+            model=model,
+            evolution_config=evolution_config,
+            async_mode=async_mode,
         )
         tlab_gen.progress_update(45)
         print("Synthesizer initialized successfully")
@@ -91,7 +101,9 @@ def run_generation():
         or not tlab_gen.params.task
         or not tlab_gen.params.scenario
     ):
-        raise ValueError("Input format, expected output format, task and scenario must be provided for generation.")
+        raise ValueError(
+            "Input format, expected output format, task and scenario must be provided for generation."
+        )
 
     # Create styling config
     styling_config = {
@@ -136,7 +148,9 @@ def run_generation():
     # Save the generated outputs as a dataset
     custom_name = tlab_gen.params.get("output_dataset_name")
     additional_metadata = {"styling_config": styling_config, "evolution_config": evolution_config}
-    output_file, dataset_name = tlab_gen.save_generated_dataset(df, additional_metadata, dataset_id=custom_name)
+    output_file, dataset_name = tlab_gen.save_generated_dataset(
+        df, additional_metadata, dataset_id=custom_name
+    )
 
     tlab_gen.progress_update(100)
     print(f"Data generated successfully as dataset {dataset_name}")

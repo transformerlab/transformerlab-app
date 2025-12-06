@@ -2,9 +2,10 @@
 Created by Andrew Silva on 5/11/2024
 """
 
+import argparse
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
-import argparse
 
 if __name__ == "__main__":
     arg_parse = argparse.ArgumentParser(description="Talk to a trained model.")

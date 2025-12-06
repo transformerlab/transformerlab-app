@@ -1,21 +1,18 @@
 import asyncio
-from distutils.dir_util import copy_tree, remove_tree
 import json
 import os
-import sys
 import platform
+import shutil
+import subprocess
+import sys
+from distutils.dir_util import copy_tree, remove_tree
 
 import aiofiles
-import subprocess
-import shutil
-
+from fastapi import APIRouter
 from lab import dirs as lab_dirs
-from transformerlab.shared import dirs
-
 from werkzeug.utils import secure_filename
 
-from fastapi import APIRouter
-
+from transformerlab.shared import dirs
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 
@@ -26,7 +23,9 @@ async def plugin_gallery():
 
     local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
     # today the remote gallery is a local file, we will move it remote later
-    remote_gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
+    remote_gallery_file = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json"
+    )
 
     # first get the remote gallery from the remote gallery file:
     with open(remote_gallery_file) as f:
@@ -38,7 +37,9 @@ async def plugin_gallery():
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
                 try:
-                    info = json.load(open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
+                    info = json.load(
+                        open(os.path.join(local_workspace_gallery_directory, plugin, "index.json"))
+                    )
                 except Exception as e:
                     print(f"Error loading {plugin} index.json: {e}")
 
@@ -125,7 +126,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
         return {"status": "error", "message": "Plugin not found in gallery."}
 
     # Open the Plugin index.json:
-    plugin_index_json = open(f"{plugin_path}/index.json", "r")
+    plugin_index_json = open(f"{plugin_path}/index.json")
     plugin_index = json.load(plugin_index_json)
     plugin_index_json.close()
 
@@ -156,7 +157,9 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
                     await log_file.write(f"## Normalized line endings for {setup_script_name}\n")
         except Exception as e:
             print(f"Failed to normalize line endings for {setup_script_name}: {e}")
-            await log_file.write(f"## Failed to normalize line endings for {setup_script_name}: {e}\n")
+            await log_file.write(
+                f"## Failed to normalize line endings for {setup_script_name}: {e}\n"
+            )
 
         # Use bash -c to properly source the activation script before running setup script
         proc = await asyncio.create_subprocess_exec(
@@ -297,7 +300,9 @@ async def install_plugin(plugin_id: str):
             # If we don't have a GPU, use the cpu extra
             print("No GPU detected, using cpu extra.")
             extra = "[cpu]"
-            additional_flags = "--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
+            additional_flags = (
+                "--index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
+            )
 
         print(f"Installing from pyproject.toml with extra: {extra}")
         proc = await asyncio.create_subprocess_exec(
@@ -362,7 +367,7 @@ async def list_plugins() -> list[object]:
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
                 index_file = os.path.join(local_workspace_gallery_directory, plugin, "index.json")
                 if os.path.isfile(index_file):
-                    with open(index_file, "r") as f:
+                    with open(index_file) as f:
                         info = json.load(f)
                     workspace_gallery.append(info)
 
@@ -396,7 +401,9 @@ def check_nvidia_gpu() -> bool:
             if gpu_info:
                 has_gpu = True
             else:
-                print("Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers.")
+                print(
+                    "Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers."
+                )
         except subprocess.SubprocessError:
             print("Issue with NVIDIA SMI")
 
@@ -427,7 +434,9 @@ def check_amd_gpu() -> bool:
             if gpu_info:
                 has_gpu = True
             else:
-                print("ROCm exists, No AMD GPU detected. Perhaps you need to re-install AMD drivers.")
+                print(
+                    "ROCm exists, No AMD GPU detected. Perhaps you need to re-install AMD drivers."
+                )
         except subprocess.SubprocessError:
             print("Issue with ROCm")
 
@@ -525,7 +534,9 @@ async def list_missing_plugins_for_current_platform():
     return missing_plugins
 
 
-@router.get("/install_missing_plugins_for_current_platform", summary="Install the default platform plugins.")
+@router.get(
+    "/install_missing_plugins_for_current_platform", summary="Install the default platform plugins."
+)
 async def install_missing_plugins_for_current_platform():
     missing_plugins = await missing_platform_plugins()
 

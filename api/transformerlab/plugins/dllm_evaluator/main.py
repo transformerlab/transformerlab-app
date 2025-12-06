@@ -1,13 +1,12 @@
+import json
 import os
 import re
 import subprocess
-import json
-from lab import storage
 
 import pandas as pd
-
-from transformerlab.sdk.v1.evals import tlab_evals
+from lab import storage
 from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.evals import tlab_evals
 
 
 def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"):
@@ -150,7 +149,9 @@ def run_evaluation():
 
     full_eval_script_path = os.path.join(dllm_dir, "dllm", "pipelines", model_type, "eval.py")
     if not os.path.exists(full_eval_script_path):
-        raise RuntimeError(f"Eval script not found at {full_eval_script_path}. Make sure dllm is properly installed.")
+        raise RuntimeError(
+            f"Eval script not found at {full_eval_script_path}. Make sure dllm is properly installed."
+        )
 
     # Use accelerate launch to run the eval script (same as dllm_trainer_multi_gpu)
     command = [

@@ -1,26 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, Header
-from transformerlab.shared.models.user_model import get_async_session, create_personal_team
-from transformerlab.shared.models.models import User, Team, UserTeam, TeamRole
-from transformerlab.models.users import (
-    fastapi_users,
-    auth_backend,
-    oauth_backend,
-    current_active_user,
-    UserRead,
-    UserCreate,
-    UserUpdate,
-    get_user_manager,
-    get_refresh_strategy,
-    google_oauth_client,
-    GOOGLE_OAUTH_ENABLED,
-    github_oauth_client,
-    GITHUB_OAUTH_ENABLED,
-    EMAIL_AUTH_ENABLED,
-    SECRET,
-)
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from transformerlab.models.users import (
+    EMAIL_AUTH_ENABLED,
+    GITHUB_OAUTH_ENABLED,
+    GOOGLE_OAUTH_ENABLED,
+    SECRET,
+    UserCreate,
+    UserRead,
+    UserUpdate,
+    auth_backend,
+    current_active_user,
+    fastapi_users,
+    get_refresh_strategy,
+    get_user_manager,
+    github_oauth_client,
+    google_oauth_client,
+    oauth_backend,
+)
+from transformerlab.shared.models.models import Team, TeamRole, User, UserTeam
+from transformerlab.shared.models.user_model import create_personal_team, get_async_session
 
 router = APIRouter(tags=["users"])
 
@@ -215,7 +216,9 @@ async def refresh_access_token(
 
 
 @router.get("/users/me/teams")
-async def get_user_teams(user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)):
+async def get_user_teams(
+    user: User = Depends(current_active_user), session: AsyncSession = Depends(get_async_session)
+):
     # Check if user has any team associations
     stmt = select(UserTeam).where(UserTeam.user_id == str(user.id))
     result = await session.execute(stmt)
@@ -225,14 +228,18 @@ async def get_user_teams(user: User = Depends(current_active_user), session: Asy
     # (dont seed experiment as existing user may already have experiments from old workspace)
     if not user_teams:
         personal_team = await create_personal_team(session, user)
-        user_team = UserTeam(user_id=str(user.id), team_id=personal_team.id, role=TeamRole.OWNER.value)
+        user_team = UserTeam(
+            user_id=str(user.id), team_id=personal_team.id, role=TeamRole.OWNER.value
+        )
         session.add(user_team)
         await session.commit()
         await session.refresh(user_team)
         print(f"Created personal team '{personal_team.name}' for existing user {user.email}")
         return {
             "user_id": str(user.id),
-            "teams": [{"id": personal_team.id, "name": personal_team.name, "role": TeamRole.OWNER.value}],
+            "teams": [
+                {"id": personal_team.id, "name": personal_team.name, "role": TeamRole.OWNER.value}
+            ],
         }
 
     # User has team associations, get the actual team objects

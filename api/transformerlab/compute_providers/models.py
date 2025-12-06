@@ -1,8 +1,9 @@
 """Pydantic models for provider bridge system."""
 
-from pydantic import BaseModel, Field
-from typing import Dict, List, Optional, Any, Union
 from enum import Enum
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class ClusterState(str, Enum):
@@ -30,49 +31,49 @@ class JobState(str, Enum):
 class ClusterConfig(BaseModel):
     """Configuration for launching a cluster."""
 
-    cluster_name: Optional[str] = None
-    provider_name: Optional[str] = None
-    provider_id: Optional[str] = None
+    cluster_name: str | None = None
+    provider_name: str | None = None
+    provider_id: str | None = None
     # Resource specifications
-    instance_type: Optional[str] = None
-    cpus: Optional[Union[int, str]] = None
-    memory: Optional[Union[int, str]] = None
-    accelerators: Optional[str] = None  # e.g., "A100:1", "V100:2"
-    disk_size: Optional[int] = None  # in GB
-    num_nodes: Optional[int] = 1
+    instance_type: str | None = None
+    cpus: int | str | None = None
+    memory: int | str | None = None
+    accelerators: str | None = None  # e.g., "A100:1", "V100:2"
+    disk_size: int | None = None  # in GB
+    num_nodes: int | None = 1
 
     # Cloud/region settings
-    cloud: Optional[str] = None
-    region: Optional[str] = None
-    zone: Optional[str] = None
+    cloud: str | None = None
+    region: str | None = None
+    zone: str | None = None
     use_spot: bool = False
 
     # Cluster settings
-    idle_minutes_to_autostop: Optional[int] = None
-    command: Optional[str] = None  # Initial command to run
-    setup: Optional[str] = None  # Setup script
-    env_vars: Dict[str, str] = Field(default_factory=dict)  # Environment variables
+    idle_minutes_to_autostop: int | None = None
+    command: str | None = None  # Initial command to run
+    setup: str | None = None  # Setup script
+    env_vars: dict[str, str] = Field(default_factory=dict)  # Environment variables
 
     # File mounts: mapping of remote path -> local path
     # For SkyPilot, this is passed directly to task.set_file_mounts().
     # For SLURM, this is interpreted as SFTP/SCP upload instructions when using SSH mode.
-    file_mounts: Dict[str, str] = Field(default_factory=dict)
+    file_mounts: dict[str, str] = Field(default_factory=dict)
 
     # Additional provider-specific config
-    provider_config: Dict[str, Any] = Field(default_factory=dict)
+    provider_config: dict[str, Any] = Field(default_factory=dict)
 
 
 class JobConfig(BaseModel):
     """Configuration for submitting a job."""
 
     command: str  # Command to execute
-    job_name: Optional[str] = None
-    env_vars: Dict[str, str] = Field(default_factory=dict)
-    num_nodes: Optional[int] = None
-    timeout: Optional[int] = None  # Timeout in seconds
+    job_name: str | None = None
+    env_vars: dict[str, str] = Field(default_factory=dict)
+    num_nodes: int | None = None
+    timeout: int | None = None  # Timeout in seconds
 
     # Additional provider-specific config
-    provider_config: Dict[str, Any] = Field(default_factory=dict)
+    provider_config: dict[str, Any] = Field(default_factory=dict)
 
 
 class ClusterStatus(BaseModel):
@@ -80,44 +81,44 @@ class ClusterStatus(BaseModel):
 
     cluster_name: str
     state: ClusterState
-    status_message: Optional[str] = None
-    launched_at: Optional[str] = None
-    last_use: Optional[str] = None
-    autostop: Optional[int] = None  # Minutes until autostop
-    num_nodes: Optional[int] = None
-    resources_str: Optional[str] = None  # Human-readable resource description
+    status_message: str | None = None
+    launched_at: str | None = None
+    last_use: str | None = None
+    autostop: int | None = None  # Minutes until autostop
+    num_nodes: int | None = None
+    resources_str: str | None = None  # Human-readable resource description
 
     # Additional provider-specific data
-    provider_data: Dict[str, Any] = Field(default_factory=dict)
+    provider_data: dict[str, Any] = Field(default_factory=dict)
 
 
 class JobInfo(BaseModel):
     """Normalized job information."""
 
-    job_id: Union[str, int]
-    job_name: Optional[str] = None
+    job_id: str | int
+    job_name: str | None = None
     state: JobState
     cluster_name: str
-    command: Optional[str] = None
-    submitted_at: Optional[str] = None
-    started_at: Optional[str] = None
-    finished_at: Optional[str] = None
-    exit_code: Optional[int] = None
-    error_message: Optional[str] = None
+    command: str | None = None
+    submitted_at: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    exit_code: int | None = None
+    error_message: str | None = None
 
     # Additional provider-specific data
-    provider_data: Dict[str, Any] = Field(default_factory=dict)
+    provider_data: dict[str, Any] = Field(default_factory=dict)
 
 
 class ResourceInfo(BaseModel):
     """Normalized resource information for a cluster."""
 
     cluster_name: str
-    gpus: List[Dict[str, Any]] = Field(default_factory=list)
-    cpus: Optional[int] = None
-    memory_gb: Optional[float] = None
-    disk_gb: Optional[int] = None
-    num_nodes: Optional[int] = None
+    gpus: list[dict[str, Any]] = Field(default_factory=list)
+    cpus: int | None = None
+    memory_gb: float | None = None
+    disk_gb: int | None = None
+    num_nodes: int | None = None
 
     # Additional provider-specific data
-    provider_data: Dict[str, Any] = Field(default_factory=dict)
+    provider_data: dict[str, Any] = Field(default_factory=dict)

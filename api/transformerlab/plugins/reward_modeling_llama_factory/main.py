@@ -7,18 +7,17 @@ Standard command:
 CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/train_lora/llama3_lora_reward.yaml
 """
 
+import json
 import os
+import re
 import subprocess
 import time
-import json
+
 import yaml
-import re
-
-from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import get_python_executable
-from lab.dirs import get_workspace_dir
 from lab import storage
-
+from lab.dirs import get_workspace_dir
+from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.train import tlab_trainer
 
 # Get environment variables
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
@@ -83,7 +82,9 @@ def run_reward_modeling():
     output_dir = storage.join(config["output_dir"], today)
 
     # Copy template file and modify it
-    os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_reward.yaml {yaml_config_path}")
+    os.system(
+        f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_reward.yaml {yaml_config_path}"
+    )
 
     with storage.open(yaml_config_path, "r") as file:
         yml = yaml.safe_load(file)
@@ -116,7 +117,9 @@ def run_reward_modeling():
     env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     if "venv" in python_executable:
-        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+        python_executable = python_executable.replace(
+            "venv/bin/python", "venv/bin/llamafactory-cli"
+        )
 
     # Set up environment and run training
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -181,7 +184,9 @@ def run_reward_modeling():
 
     # Create config for model fusion
     yaml_config_path = storage.join(data_directory, "merge_llama3_lora_sft.yaml")
-    os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
+    os.system(
+        f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}"
+    )
 
     with storage.open(yaml_config_path, "r") as file:
         yml = yaml.safe_load(file)
@@ -225,7 +230,9 @@ def run_reward_modeling():
             }
 
             tlab_trainer.create_transformerlab_model(
-                fused_model_name=fused_model_name, model_architecture=config["model_architecture"], json_data=json_data
+                fused_model_name=fused_model_name,
+                model_architecture=config["model_architecture"],
+                json_data=json_data,
             )
 
             print("Finished fusing the adaptor with the model.")

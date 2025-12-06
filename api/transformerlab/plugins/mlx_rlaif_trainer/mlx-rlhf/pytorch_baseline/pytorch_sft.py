@@ -3,15 +3,14 @@
 # Copyright © 2023 Apple Inc.
 import os
 import time
-from data.data_utils import load_datasets, build_parser
 
 import matplotlib.pyplot as plt
-
-import torch.optim as optim
 import numpy as np
 import torch
+import torch.optim as optim
+from data.data_utils import build_parser, load_datasets
 from peft import LoraConfig, get_peft_model
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 """
 Example command for supervised fine-tuning with LoRA on generated data with a HF tiny llama
@@ -48,11 +47,11 @@ def reward_loss(mdl, better_inputs, worse_inputs):
     return diff_val
 
 
-def iterate_batches(dset, tok, batch_size, train_mode=False, reward_modeling=False, chat_data=False):
+def iterate_batches(
+    dset, tok, batch_size, train_mode=False, reward_modeling=False, chat_data=False
+):
     # Shuffle indices
-    len_warning_message = (
-        "[WARNING] Some sequences are longer than 2048 tokens. Consider pre-splitting your data to save memory."
-    )
+    len_warning_message = "[WARNING] Some sequences are longer than 2048 tokens. Consider pre-splitting your data to save memory."
     while True:
         indices = np.arange(len(dset))
         if train_mode:
@@ -199,14 +198,18 @@ def train(mdl, train_ds, val_set, optimizer, tok, train_args, device="mps"):
         if ((it + 1) % train_args.steps_per_eval == 0) and val_set is not None:
             stop = time.perf_counter()
             val_loss = evaluate(mdl, val_set, tok, train_args, device)
-            print(f"Iter {it + 1}: Val loss {val_loss:.3f}, Val took {(time.perf_counter() - stop):.3f}s")
+            print(
+                f"Iter {it + 1}: Val loss {val_loss:.3f}, Val took {(time.perf_counter() - stop):.3f}s"
+            )
             val_losses.append(val_loss)
 
             start = time.perf_counter()
 
         if (it + 1) % train_args.save_every == 0:
             os.makedirs(args.save_file, exist_ok=True)
-            torch.save({"value_head": mdl.value_head.state_dict()}, train_args.save_file + "/value_head.pt")
+            torch.save(
+                {"value_head": mdl.value_head.state_dict()}, train_args.save_file + "/value_head.pt"
+            )
             mdl.save_pretrained(args.save_file)
 
     fn = ""
@@ -229,7 +232,9 @@ if __name__ == "__main__":
     DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
     print("Loading pretrained model")
-    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer if args.tokenizer is not None else args.model)
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.tokenizer if args.tokenizer is not None else args.model
+    )
     model = AutoModelForCausalLM.from_pretrained(args.model)
 
     if tokenizer.pad_token_id is None:

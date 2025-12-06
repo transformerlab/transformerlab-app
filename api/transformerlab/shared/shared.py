@@ -2,27 +2,26 @@ import asyncio
 import json
 import os
 import re
-import psutil
 import subprocess
 import sys
 import threading
 import time
 import unicodedata
-
-from anyio import open_process
-from anyio.streams.text import TextReceiveStream
-from werkzeug.utils import secure_filename
 from collections import deque
 
-from transformerlab.services.experiment_service import experiment_get
-from transformerlab.services.job_service import job_update_status_sync, job_update_status
+import psutil
+from anyio import open_process
+from anyio.streams.text import TextReceiveStream
+from lab import Experiment, Job, storage
+from lab import dirs as lab_dirs
+from lab.dirs import get_global_log_path, get_workspace_dir
+from werkzeug.utils import secure_filename
+
 import transformerlab.services.job_service as job_service
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
-from lab.dirs import get_global_log_path
-from lab import dirs as lab_dirs, Job, Experiment
-from lab import storage
-from lab.dirs import get_workspace_dir
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_update_status, job_update_status_sync
 from transformerlab.shared import dirs
 
 
@@ -39,7 +38,7 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
 
     def runInThread(onExit, popenArgs, popenKWArgs):
         # -------- HANDLE ENV MERGE --------
-        if "env" in popenKWArgs and popenKWArgs["env"]:
+        if popenKWArgs.get("env"):
             additional_env = popenKWArgs["env"]
             process_env = os.environ.copy()
             process_env.update(additional_env)
@@ -157,7 +156,9 @@ async def async_run_python_script_and_update_status(
     if env:
         process_env.update(env)
 
-    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env)
+    process = await open_process(
+        command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=process_env
+    )
 
     # read stderr and print:
     if process.stdout:
@@ -167,7 +168,9 @@ async def async_run_python_script_and_update_status(
                 print(f"Job {job_id} now in progress!")
                 job = job_service.job_get(job_id)
                 experiment_id = job["experiment_id"]
-                await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+                await job_update_status(
+                    job_id=job_id, status="RUNNING", experiment_id=experiment_id
+                )
 
             # Check the job_data column for the stop flag:
             job_row = job_service.job_get(job_id)
@@ -237,7 +240,11 @@ async def read_process_output(process, job_id, log_handle=None):
 
 
 async def async_run_python_daemon_and_update_status(
-    python_script: list[str], job_id: str, begin_string: str, set_process_id_function=None, env: dict | None = None
+    python_script: list[str],
+    job_id: str,
+    begin_string: str,
+    set_process_id_function=None,
+    env: dict | None = None,
 ):
     """Use this function for daemon processes, for example setting up a model for inference.
     This function is helpful when the start of the daemon process takes a while. So you can
@@ -332,7 +339,9 @@ async def async_run_python_daemon_and_update_status(
                 print(f"Worker job {job_id} started successfully")
                 job = job_service.job_get(job_id)
                 experiment_id = job["experiment_id"]
-                await job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
+                await job_update_status(
+                    job_id=job_id, status="COMPLETE", experiment_id=experiment_id
+                )
 
                 # Schedule the read_process_output coroutine in the current event
                 # so we can keep watching this process, but return back to the caller
@@ -380,7 +389,9 @@ async def async_run_python_daemon_and_update_status(
     print(error_msg)
     job = job_service.job_get(job_id)
     experiment_id = job["experiment_id"]
-    await job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg, experiment_id=experiment_id)
+    await job_update_status(
+        job_id=job_id, status="FAILED", error_msg=error_msg, experiment_id=experiment_id
+    )
     return process
 
 
@@ -400,7 +411,9 @@ def _get_org_id_for_subprocess():
     return None
 
 
-async def run_job(job_id: str, job_config, experiment_name: str = "default", job_details: dict = None):
+async def run_job(
+    job_id: str, job_config, experiment_name: str = "default", job_details: dict = None
+):
     # This runs a specified job number defined
     # by template_id
     print("Running job: " + str(job_id))
@@ -428,7 +441,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # update task to be marked as COMPLETE:
         await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
         # implement rest later
-        return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
+        return {
+            "status": "complete",
+            "job_id": job_id,
+            "message": "Task job completed successfully",
+        }
 
     # Common setup using SDK classes
     job_obj = Job.get(job_id)
@@ -471,18 +488,30 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         job_data = job_row.get("job_data", None)
         if job_data is None:
             await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
-            return {"status": "error", "job_id": job_id, "message": "Evaluation job failed: No job data found"}
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Evaluation job failed: No job data found",
+            }
 
         if job_data.get("stop", False):
             await job_update_status(job_id, "STOPPED", experiment_id=experiment_name)
-            return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
+            return {
+                "status": "stopped",
+                "job_id": job_id,
+                "message": "Evaluation job was stopped by user",
+            }
         else:
             # Only set to COMPLETE if not already FAILED
             job = job_service.job_get(job_id)
             current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
-            return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
+            return {
+                "status": "complete",
+                "job_id": job_id,
+                "message": "Evaluation job completed successfully",
+            }
 
     elif master_job_type == "GENERATE":
         plugin_name = job_config["plugin"]
@@ -504,18 +533,30 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         job_data = job_row.get("job_data", None)
         if job_data is None:
             await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
-            return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": "Generation job failed: No job data found",
+            }
 
         if job_data.get("stop", False):
             await job_update_status(job_id, "STOPPED", experiment_id=experiment_name)
-            return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
+            return {
+                "status": "stopped",
+                "job_id": job_id,
+                "message": "Generation job was stopped by user",
+            }
         else:
             # Only set to COMPLETE if not already FAILED
             job = job_service.job_get(job_id)
             current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
-            return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
+            return {
+                "status": "complete",
+                "job_id": job_id,
+                "message": "Generation job completed successfully",
+            }
 
     elif master_job_type == "EXPORT":
         plugin_name = job_config["plugin"]
@@ -561,12 +602,20 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
                 print(f"Export job {job_id} completed successfully")
-            return {"status": "complete", "job_id": job_id, "message": "Export job completed successfully"}
+            return {
+                "status": "complete",
+                "job_id": job_id,
+                "message": "Export job completed successfully",
+            }
 
         else:
             await job_update_status(job_id, "FAILED", experiment_id=experiment_name)
             print(f"Export job {job_id} failed")
-            return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
+            return {
+                "status": "error",
+                "job_id": job_id,
+                "message": result.get("message", "Export job failed"),
+            }
 
     elif master_job_type == "DIFFUSION":
         plugin_name = job_config["plugin"]
@@ -589,7 +638,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # Track which base64 fields were removed
         removed_base64_keys = []
         for base64_key, file_arg in base64_fields.items():
-            if base64_key in config and config[base64_key]:
+            if config.get(base64_key):
                 try:
                     import base64
 
@@ -692,7 +741,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 await process.communicate()
 
             if process.returncode == 0:
-                await job_service.job_update_status(job_id, "COMPLETE", experiment_id=experiment_name)
+                await job_service.job_update_status(
+                    job_id, "COMPLETE", experiment_id=experiment_name
+                )
                 print(f"[DIFFUSION] Job {job_id} completed successfully")
                 return {
                     "status": "complete",
@@ -739,7 +790,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         template_config["job_id"] = job_id
         # Resolve org-aware workspace dir if multitenant via job_data (org_id may be persisted by caller)
         workspace_dir = get_workspace_dir()
-        template_config["adaptor_output_dir"] = storage.join(workspace_dir, "adaptors", model_name, adaptor_name)
+        template_config["adaptor_output_dir"] = storage.join(
+            workspace_dir, "adaptors", model_name, adaptor_name
+        )
         template_config["output_dir"] = storage.join(
             experiment_dir,
             "tensorboards",
@@ -767,7 +820,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 try:
                     sweep_config = json.loads(sweep_config)
                 except json.JSONDecodeError:
-                    print(f"Error decoding sweep config JSON: {sweep_config}. Using default sweep configuration.")
+                    print(
+                        f"Error decoding sweep config JSON: {sweep_config}. Using default sweep configuration."
+                    )
                     sweep_config = {
                         "learning_rate": ["1e-5", "3e-5", "5e-5"],
                         "lora_rank": ["8", "16", "32"],
@@ -807,12 +862,20 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             print(f"Generated {total_configs} configurations for sweep")
 
             # Initialize sweep tracking
-            job_service.job_update_job_data_insert_key_value(job_id, "sweep_total", str(total_configs), experiment_name)
-            job_service.job_update_job_data_insert_key_value(job_id, "sweep_current", "0", experiment_name)
+            job_service.job_update_job_data_insert_key_value(
+                job_id, "sweep_total", str(total_configs), experiment_name
+            )
+            job_service.job_update_job_data_insert_key_value(
+                job_id, "sweep_current", "0", experiment_name
+            )
 
             # Get metrics configuration
             metric_name = template_config.get("sweep_metric", "eval/loss")
-            lower_is_better = template_config.get("lower_is_better", "true").lower() in ["true", "yes", "on"]
+            lower_is_better = template_config.get("lower_is_better", "true").lower() in [
+                "true",
+                "yes",
+                "on",
+            ]
             best_metric = float("inf") if lower_is_better else float("-inf")
             best_config = None
 
@@ -830,7 +893,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                 # Create a unique adaptor directory for this run
                 run_adaptor_dir = storage.join(
-                    workspace_dir, "adaptors", secure_filename(model_name), f"{adaptor_name}_sweep_{i + 1}"
+                    workspace_dir,
+                    "adaptors",
+                    secure_filename(model_name),
+                    f"{adaptor_name}_sweep_{i + 1}",
                 )
                 storage.makedirs(run_adaptor_dir, exist_ok=True)
 
@@ -852,8 +918,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     json.dump(run_input_contents, outfile, indent=4)
 
                 # Update job progress
-                job_service.job_update_sweep_progress(job_id, int((i / total_configs) * 100), experiment_name)
-                job_service.job_update_job_data_insert_key_value(job_id, "sweep_current", str(i + 1), experiment_name)
+                job_service.job_update_sweep_progress(
+                    job_id, int((i / total_configs) * 100), experiment_name
+                )
+                job_service.job_update_job_data_insert_key_value(
+                    job_id, "sweep_current", str(i + 1), experiment_name
+                )
                 job_service.job_update_job_data_insert_key_value(
                     job_id, "sweep_running_config", json.dumps(config_params), experiment_name
                 )
@@ -861,7 +931,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Run the training job with this configuration
                 run_output_file = storage.join(sweep_dir, f"output_sweep_{job_id}.txt")
                 job_service.job_update_job_data_insert_key_value(
-                    job_id, "sweep_output_file", storage.join(sweep_dir, f"output_sweep_{job_id}.txt"), experiment_name
+                    job_id,
+                    "sweep_output_file",
+                    storage.join(sweep_dir, f"output_sweep_{job_id}.txt"),
+                    experiment_name,
                 )
 
                 # Create command for this run
@@ -897,9 +970,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     with storage.open(output_file, "a") as f:
                         # Create subprocess with piped stdout
                         # Pass organization_id via environment variable
-                        process_env = {**os.environ, **subprocess_env} if subprocess_env_or_none else None
+                        process_env = (
+                            {**os.environ, **subprocess_env} if subprocess_env_or_none else None
+                        )
                         process = await asyncio.create_subprocess_exec(
-                            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, env=process_env
+                            *cmd,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.STDOUT,
+                            env=process_env,
                         )
 
                         # Process output in real-time
@@ -959,15 +1037,26 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                             # Update job data with current best
                             job_service.job_update_job_data_insert_key_value(
-                                job_id, "sweep_best_config", json.dumps(best_config), experiment_name
+                                job_id,
+                                "sweep_best_config",
+                                json.dumps(best_config),
+                                experiment_name,
                             )
                             job_service.job_update_job_data_insert_key_value(
-                                job_id, "sweep_best_metric", json.dumps({metric_name: best_metric}), experiment_name
+                                job_id,
+                                "sweep_best_metric",
+                                json.dumps({metric_name: best_metric}),
+                                experiment_name,
                             )
                 except Exception as e:
-                    print(f"Error processing metrics for run {i + 1}: {str(e)}")
+                    print(f"Error processing metrics for run {i + 1}: {e!s}")
                     results.append(
-                        {"config": config_params, "error": str(e), "run_dir": run_dir, "adaptor_dir": run_adaptor_dir}
+                        {
+                            "config": config_params,
+                            "error": str(e),
+                            "run_dir": run_dir,
+                            "adaptor_dir": run_adaptor_dir,
+                        }
                     )
 
             # Save all results
@@ -1072,7 +1161,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 json.dump(input_contents, outfile, indent=4)
 
             start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
+            job_service.job_update_job_data_insert_key_value(
+                job_id, "start_time", start_time, experiment_name
+            )
 
             # Check if plugin has a venv directory
             venv_path = os.path.join(plugin_location, "venv")
@@ -1141,7 +1232,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             json.dump(input_contents, outfile, indent=4)
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
+        job_service.job_update_job_data_insert_key_value(
+            job_id, "start_time", start_time, experiment_name
+        )
 
         # Check if plugin has a venv directory
         venv_path = os.path.join(plugin_location, "venv")
@@ -1212,7 +1305,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             json.dump(input_contents, outfile, indent=4)
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        job_service.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_name)
+        job_service.job_update_job_data_insert_key_value(
+            job_id, "start_time", start_time, experiment_name
+        )
 
         # Check if plugin has a venv directory
         venv_path = os.path.join(plugin_location, "venv")
@@ -1260,7 +1355,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     return
 
 
-async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
+async def get_job_output_file_name(
+    job_id: str, plugin_name: str = None, experiment_name: str = None
+):
     try:
         job_obj = Job(job_id)
         output_file = job_obj.get_log_path()
@@ -1314,6 +1411,7 @@ def clear_vram_and_kill_sglang():
     """Clean up pipeline to free VRAM"""
     try:
         import gc
+
         import torch
 
         # Force garbage collection multiple times

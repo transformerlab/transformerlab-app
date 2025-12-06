@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+
 import pytest
 
 
@@ -48,8 +49,8 @@ def test_certificate_subject_cn_is_expected(ssl_utils):
 
 
 def test_private_key_matches_cert(ssl_utils):
-    from cryptography.hazmat.primitives import serialization
     from cryptography import x509
+    from cryptography.hazmat.primitives import serialization
 
     cert_path, key_path = ssl_utils.ensure_persistent_self_signed_cert()
     cert = x509.load_pem_x509_certificate(Path(cert_path).read_bytes())
@@ -71,8 +72,8 @@ def test_certificate_sans(ssl_utils):
 
 
 def test_lock_guards_concurrent_writes(ssl_utils, tmp_path):
-    from threading import Thread
     from queue import Queue
+    from threading import Thread
 
     results = []
     q = Queue()

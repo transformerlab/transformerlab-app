@@ -1,4 +1,4 @@
-from unittest.mock import patch, AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 RECIPES = [
     {
@@ -42,7 +42,10 @@ def test_check_dependencies_all_installed(client):
                 }
             ],
         ),
-        patch("transformerlab.models.model_helper.list_installed_models", AsyncMock(return_value=models)),
+        patch(
+            "transformerlab.models.model_helper.list_installed_models",
+            AsyncMock(return_value=models),
+        ),
         patch("transformerlab.routers.recipes.Dataset.list_all", Mock(return_value=datasets)),
         patch("transformerlab.routers.plugins.plugin_gallery", AsyncMock(return_value=plugins)),
     ):
@@ -81,7 +84,10 @@ def test_check_dependencies_some_missing(client):
                 }
             ],
         ),
-        patch("transformerlab.models.model_helper.list_installed_models", AsyncMock(return_value=models)),
+        patch(
+            "transformerlab.models.model_helper.list_installed_models",
+            AsyncMock(return_value=models),
+        ),
         patch("transformerlab.routers.recipes.Dataset.list_all", Mock(return_value=datasets)),
         patch("transformerlab.routers.plugins.plugin_gallery", AsyncMock(return_value=plugins)),
     ):
@@ -99,7 +105,8 @@ def test_check_dependencies_some_missing(client):
 
 def test_check_dependencies_no_deps(client):
     with patch(
-        "transformerlab.shared.galleries.get_exp_recipe_gallery", return_value=[{"id": "2", "dependencies": []}]
+        "transformerlab.shared.galleries.get_exp_recipe_gallery",
+        return_value=[{"id": "2", "dependencies": []}],
     ):
         resp = client.get("/recipes/2/check_dependencies")
         assert resp.status_code == 200

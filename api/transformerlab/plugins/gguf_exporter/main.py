@@ -1,24 +1,26 @@
 # This plugin exports a model to GGUF format so you can interact and train on a MBP with Apple Silicon
-import os
-import subprocess
 import contextlib
 import io
+import os
+import subprocess
 
 from huggingface_hub import snapshot_download
 
 try:
-    from transformerlab.sdk.v1.export import tlab_exporter
     from transformerlab.plugin import get_python_executable
+    from transformerlab.sdk.v1.export import tlab_exporter
 except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
 from lab import storage
 
-
 tlab_exporter.add_argument("--output_model_id", type=str, help="Filename for the GGUF model.")
 tlab_exporter.add_argument(
-    "--outtype", default="q8_0", type=str, help="GGUF output format. q8_0 quantizes the model to 8 bits."
+    "--outtype",
+    default="q8_0",
+    type=str,
+    help="GGUF output format. q8_0 quantizes the model to 8 bits.",
 )
 
 
@@ -97,9 +99,13 @@ def gguf_export():
                     match = re.search(r"(\d+)%\|", line)
                     if match:
                         writing_percent = int(match.group(1))
-                        progress_value = 10 + int(writing_percent * 0.89)  # 0→100 writing becomes 10→99
+                        progress_value = 10 + int(
+                            writing_percent * 0.89
+                        )  # 0→100 writing becomes 10→99
                         tlab_exporter.progress_update(progress_value)
-                        tlab_exporter.add_job_data("status", f"Writing GGUF file ({writing_percent}%)")
+                        tlab_exporter.add_job_data(
+                            "status", f"Writing GGUF file ({writing_percent}%)"
+                        )
                     continue
 
             return_code = process.wait()
@@ -112,7 +118,7 @@ def gguf_export():
                 raise RuntimeError(error_msg)
 
     except Exception as e:
-        error_msg = f"GGUF conversion failed with exception: {str(e)}"
+        error_msg = f"GGUF conversion failed with exception: {e!s}"
         print(error_msg)
         tlab_exporter.add_job_data("status", error_msg)
         raise

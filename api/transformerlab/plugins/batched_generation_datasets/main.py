@@ -1,6 +1,5 @@
 import pandas as pd
 from requests_batching import process_dataset
-
 from transformerlab.sdk.v1.generate import tlab_gen
 
 
@@ -67,7 +66,9 @@ async def run_generation():
     }
 
     custom_name = tlab_gen.params.get("output_dataset_name")
-    output_file, dataset_name = tlab_gen.save_generated_dataset(updated_df, metadata, dataset_id=custom_name)
+    output_file, dataset_name = tlab_gen.save_generated_dataset(
+        updated_df, metadata, dataset_id=custom_name
+    )
     tlab_gen.progress_update(100)
 
     print(f"Dataset processed successfully as {dataset_name}")

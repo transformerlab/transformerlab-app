@@ -1,35 +1,30 @@
-import contextlib
-import json
-from PIL import Image as PILImage
-from datasets import load_dataset, load_dataset_builder
-from fastapi import APIRouter, HTTPException, UploadFile, Query
-import csv
-from pydantic import BaseModel
-from typing import Dict, Any
-from io import BytesIO
 import base64
-from pathlib import Path
-from lab import dirs
-from lab import storage
-from lab.dataset import Dataset as dataset_service
-from datasets.data_files import EmptyDatasetError
-from transformerlab.shared.shared import slugify
-from transformerlab.shared import galleries
-from datasets.exceptions import DatasetNotFoundError
-import numpy as np
+import contextlib
+import csv
+import json
 import wave
-from lab.dirs import get_global_log_path
+from io import BytesIO
+from pathlib import Path
+from typing import Any
 
-
-from transformers import AutoTokenizer
-
-
-from werkzeug.utils import secure_filename
-
+import numpy as np
+from datasets import load_dataset, load_dataset_builder
+from datasets.data_files import EmptyDatasetError
+from datasets.exceptions import DatasetNotFoundError
+from fastapi import APIRouter, HTTPException, Query, UploadFile
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
-from transformerlab.services import dataset_service as dataset_service_module
+from lab import dirs, storage
+from lab.dataset import Dataset as dataset_service
+from lab.dirs import get_global_log_path
+from PIL import Image as PILImage
+from pydantic import BaseModel
+from transformers import AutoTokenizer
+from werkzeug.utils import secure_filename
 
+from transformerlab.services import dataset_service as dataset_service_module
+from transformerlab.shared import galleries
+from transformerlab.shared.shared import slugify
 
 jinja_environment = Environment()
 sandboxed_jinja2_environment = SandboxedEnvironment()
@@ -48,7 +43,7 @@ router = APIRouter(prefix="/data", tags=["datasets"])
 
 class SuccessResponse(BaseModel):
     status: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
 
 class ErrorResponse(BaseModel):
@@ -109,7 +104,11 @@ async def dataset_info(dataset_id: str):
         # Determine if the dataset is image-like
         is_image = any(
             getattr(f, "_type", "").lower() == "image"
-            or (col in sample and isinstance(sample[col], str) and sample[col].startswith("data:image/"))
+            or (
+                col in sample
+                and isinstance(sample[col], str)
+                and sample[col].startswith("data:image/")
+            )
             or (col in sample and getattr(type(sample[col]), "__name__", "").lower() == "image")
             for col, f in dataset[split].features.items()
         )
@@ -122,7 +121,9 @@ async def dataset_info(dataset_id: str):
         if dataset_config is not None:
             ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
         elif config_name is not None:
-            ds_builder = load_dataset_builder(path=dataset_id, name=config_name, trust_remote_code=True)
+            ds_builder = load_dataset_builder(
+                path=dataset_id, name=config_name, trust_remote_code=True
+            )
         else:
             ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
         r = {
@@ -156,7 +157,9 @@ async def dataset_preview(
         description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."
     ),
     offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
-    split: str = Query(None, description="The split to preview. This can be train, test, or validation."),
+    split: str = Query(
+        None, description="The split to preview. This can be train, test, or validation."
+    ),
     limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
     streaming: bool = False,
 ) -> Any:
@@ -170,14 +173,20 @@ async def dataset_preview(
 
     try:
         if d.get("location") == "local":
-            dataset = dataset_service_module.load_local_dataset(dirs.dataset_dir_by_id(dataset_id), streaming=streaming)
+            dataset = dataset_service_module.load_local_dataset(
+                dirs.dataset_dir_by_id(dataset_id), streaming=streaming
+            )
         else:
             dataset_config = (d.get("json_data") or {}).get("dataset_config", None)
             config_name = (d.get("json_data") or {}).get("config_name", None)
             if dataset_config is not None:
-                dataset = load_dataset(dataset_id, dataset_config, trust_remote_code=True, streaming=streaming)
+                dataset = load_dataset(
+                    dataset_id, dataset_config, trust_remote_code=True, streaming=streaming
+                )
             elif config_name is not None:
-                dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True, streaming=streaming)
+                dataset = load_dataset(
+                    path=dataset_id, name=config_name, trust_remote_code=True, streaming=streaming
+                )
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True, streaming=streaming)
     except Exception as e:
@@ -382,7 +391,13 @@ async def dataset_preview_with_template(
 
     return {
         "status": "success",
-        "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit},
+        "data": {
+            "columns": column_names,
+            "rows": rows,
+            "len": dataset_len,
+            "offset": offset,
+            "limit": limit,
+        },
     }
 
 
@@ -439,7 +454,13 @@ async def dataset_preview_with_chat_template(
 
     return {
         "status": "success",
-        "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit},
+        "data": {
+            "columns": column_names,
+            "rows": rows,
+            "len": dataset_len,
+            "offset": offset,
+            "limit": limit,
+        },
     }
 
 
@@ -490,7 +511,11 @@ async def dataset_edit_with_template(
                         # Parse path parts from storage URI
                         path_parts = storage.join(root, "").rstrip("/").split("/")
                         split = next(
-                            (part for part in reversed(path_parts) if part.lower() in ("train", "test", "valid")),
+                            (
+                                part
+                                for part in reversed(path_parts)
+                                if part.lower() in ("train", "test", "valid")
+                            ),
                             "train",
                         )
 
@@ -613,7 +638,12 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                         if not split:
                             path_parts = storage.join(root, "").rstrip("/").split("/")
                             split = next(
-                                (p for p in reversed(path_parts) if p.lower() in ("train", "test", "valid")), "train"
+                                (
+                                    p
+                                    for p in reversed(path_parts)
+                                    if p.lower() in ("train", "test", "valid")
+                                ),
+                                "train",
                             )
                         label = entry.get("label", "")
                         key = file_name
@@ -700,12 +730,17 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
     }
 
 
-@router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
+@router.get(
+    "/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server."
+)
 async def dataset_download(dataset_id: str, config_name: str = None):
     # Ensure we don't already have this dataset in filesystem store
     try:
         _ = dataset_service.get(dataset_id)
-        return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
+        return {
+            "status": "error",
+            "message": f"A dataset with the name {dataset_id} already exists",
+        }
     except FileNotFoundError:
         pass
 
@@ -723,7 +758,9 @@ async def dataset_download(dataset_id: str, config_name: str = None):
         if dataset_config is not None:
             ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
         elif config_name is not None:
-            ds_builder = load_dataset_builder(path=dataset_id, name=config_name, trust_remote_code=True)
+            ds_builder = load_dataset_builder(
+                path=dataset_id, name=config_name, trust_remote_code=True
+            )
         else:
             ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
         log(f"Dataset builder loaded for dataset_id: {dataset_id}")
@@ -731,7 +768,10 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     except ValueError as e:
         log(f"ValueError occurred: {type(e).__name__}: {e}")
         if "Config name is missing" in str(e):
-            return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
+            return {
+                "status": "error",
+                "message": "Please enter the folder_name of the dataset from huggingface",
+            }
         else:
             return {"status": "error", "message": "An internal error has occurred!"}
 
@@ -787,7 +827,9 @@ async def dataset_download(dataset_id: str, config_name: str = None):
         with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
             try:
                 if config_name is not None:
-                    dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True)
+                    dataset = load_dataset(
+                        path=dataset_id, name=config_name, trust_remote_code=True
+                    )
                 else:
                     dataset = load_dataset(dataset_id, trust_remote_code=True)
                 print(f"Dataset downloaded for dataset_id: {dataset_id}")
@@ -809,7 +851,10 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     except ValueError as e:
         log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
         if "Config name is missing" in str(e):
-            return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
+            return {
+                "status": "error",
+                "message": "Please enter the folder_name of the dataset from huggingface",
+            }
         else:
             return {"status": "error", "message": "An internal error has occurred!"}
 
@@ -873,7 +918,10 @@ async def dataset_new(dataset_id: str, generated: bool = False):
     # Check to make sure we don't have a dataset with this name (filesystem)
     try:
         _ = dataset_service.get(dataset_id)
-        return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
+        return {
+            "status": "error",
+            "message": f"A dataset with the name {dataset_id} already exists",
+        }
     except FileNotFoundError:
         pass
 

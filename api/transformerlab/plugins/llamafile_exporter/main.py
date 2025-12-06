@@ -1,6 +1,6 @@
 import os
-import subprocess
 import shutil
+import subprocess
 
 try:
     from transformerlab.sdk.v1.export import tlab_exporter
@@ -9,9 +9,11 @@ except ImportError or ModuleNotFoundError:
 
 from lab import storage
 
-
 tlab_exporter.add_argument(
-    "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model."
+    "--model_path",
+    default="gpt-j-6b",
+    type=str,
+    help="Path to directory or file containing the model.",
 )
 
 

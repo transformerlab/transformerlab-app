@@ -1,21 +1,25 @@
 import argparse
 import json
 import os
+import shutil
+import signal
+import site
 import subprocess
 import sys
-import signal
+import threading
+
 import psutil
 import torch
-import threading
-import shutil
-import site
 
 shutdown_event = threading.Event()
 
 try:
     from transformerlab.plugin import get_python_executable, register_process
 except ImportError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
+    from transformerlab.plugin_sdk.transformerlab.plugin import (
+        get_python_executable,
+        register_process,
+    )
 
 
 def kill_sglang_subprocesses():
@@ -146,7 +150,15 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Get Python executable (from venv if available)
 python_executable = get_python_executable(real_plugin_dir)
 
-popen_args = [python_executable, "-m", "fastchat.serve.sglang_worker", "--model-path", model, "--device", device]
+popen_args = [
+    python_executable,
+    "-m",
+    "fastchat.serve.sglang_worker",
+    "--model-path",
+    model,
+    "--device",
+    device,
+]
 
 model_dtype = parameters.get("model_dtype")
 # Set model dtype if provided

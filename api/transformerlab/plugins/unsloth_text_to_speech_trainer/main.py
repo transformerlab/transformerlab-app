@@ -1,14 +1,12 @@
-from unsloth import is_bfloat16_supported
 import time
+
 import torch
-
-from transformers import TrainingArguments, Trainer
 from datasets import Audio
-
-from trainer import CsmAudioTrainer, OrpheusAudioTrainer
-
-from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 from lab import storage
+from trainer import CsmAudioTrainer, OrpheusAudioTrainer
+from transformerlab.sdk.v1.train import tlab_trainer
+from transformers import Trainer, TrainingArguments
+from unsloth import is_bfloat16_supported
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
@@ -21,7 +19,10 @@ def train_model():
     audio_column_name = tlab_trainer.params.get("audio_column_name", "audio")
     text_column_name = tlab_trainer.params.get("text_column_name", "text")
 
-    if audio_column_name not in dataset.column_names or text_column_name not in dataset.column_names:
+    if (
+        audio_column_name not in dataset.column_names
+        or text_column_name not in dataset.column_names
+    ):
         raise ValueError(
             f"Missing required columns: '{audio_column_name}' and '{text_column_name}'. "
             "Please update the column names in the Plugin Config."
@@ -91,7 +92,9 @@ def train_model():
             text_column_name=text_column_name,
         )
     else:
-        raise ValueError(f"Model architecture {model_architecture} is not supported for audio training.")
+        raise ValueError(
+            f"Model architecture {model_architecture} is not supported for audio training."
+        )
 
     processed_ds = dataset.map(
         model_trainer.preprocess_dataset,

@@ -1,8 +1,8 @@
-import json
-import aiohttp
 import asyncio
-from aiohttp import ClientTimeout
+import json
 
+import aiohttp
+from aiohttp import ClientTimeout
 
 # Create a timeout object (values in seconds)
 timeout = ClientTimeout(total=420)
@@ -43,7 +43,9 @@ async def predict(
         }
     )
 
-    async with session.post(inference_url, headers=headers, data=payload, timeout=timeout) as response:
+    async with session.post(
+        inference_url, headers=headers, data=payload, timeout=timeout
+    ) as response:
         try:
             # response_obj = await response
             response_json = await response.json()

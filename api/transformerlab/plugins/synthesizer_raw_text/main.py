@@ -1,20 +1,23 @@
+import sys
 import traceback
 
-import sys
 from deepeval.synthesizer import Synthesizer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-
 from transformerlab.sdk.v1.generate import tlab_gen
 
 # Add custom arguments specific to the synthesizer plugin
-tlab_gen.add_argument("--num_goldens", default=5, type=int, help="Number of golden examples to generate")
+tlab_gen.add_argument(
+    "--num_goldens", default=5, type=int, help="Number of golden examples to generate"
+)
 
 
 def context_generation(context: str, model, num_goldens: int):
     """Generate data from context using the Synthesizer"""
     print("Splitting context into sentences...")
     # Break the context into sentences
-    splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", ". ", " ", ""], chunk_size=256, chunk_overlap=0)
+    splitter = RecursiveCharacterTextSplitter(
+        separators=["\n\n", "\n", ". ", " ", ""], chunk_size=256, chunk_overlap=0
+    )
     sentences = splitter.split_text(context)
     sentences = [[sentence] for sentence in sentences]
     print(f"Number of sentences in the context: {len(sentences)}")
@@ -33,7 +36,9 @@ def context_generation(context: str, model, num_goldens: int):
 
         max_goldens_per_context = num_goldens // max(len(sentences), 1)
         synthesizer.generate_goldens_from_contexts(
-            contexts=sentences, max_goldens_per_context=max(max_goldens_per_context, 2), include_expected_output=True
+            contexts=sentences,
+            max_goldens_per_context=max(max_goldens_per_context, 2),
+            include_expected_output=True,
         )
         tlab_gen.progress_update(80)
 
@@ -70,7 +75,9 @@ def run_generation():
     tlab_gen.progress_update(10)
 
     # Generate data from context
-    df = context_generation(tlab_gen.params.context, trlab_model, tlab_gen.params.get("num_goldens", 5))
+    df = context_generation(
+        tlab_gen.params.context, trlab_model, tlab_gen.params.get("num_goldens", 5)
+    )
 
     # Save the generated outputs as a dataset
     custom_name = tlab_gen.params.get("output_dataset_name")

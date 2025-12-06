@@ -1,14 +1,15 @@
-import os
 import json
+import os
+
 import pytest
-from jsonschema import validate, ValidationError
+from jsonschema import ValidationError, validate
 
 # Get the directory of the current script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Load the schema using a relative path
 SCHEMA_PATH = os.path.join(BASE_DIR, "plugin.schema.json")
-with open(SCHEMA_PATH, "r") as schema_file:
+with open(SCHEMA_PATH) as schema_file:
     SCHEMA = json.load(schema_file)
 
 # Define the base directory for plugins using a relative path
@@ -27,7 +28,7 @@ def find_index_json_files(base_dir):
 @pytest.mark.parametrize("index_json_path", find_index_json_files(PLUGINS_DIR))
 def test_validate_index_json(index_json_path):
     """Validate each index.json file against the schema."""
-    with open(index_json_path, "r") as json_file:
+    with open(index_json_path) as json_file:
         try:
             data = json.load(json_file)
             validate(instance=data, schema=SCHEMA)

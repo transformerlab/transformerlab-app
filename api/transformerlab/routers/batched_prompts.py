@@ -1,14 +1,13 @@
 import json
 import os
-from typing import Annotated, Optional, Union
+from typing import Annotated
 
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
-
-from transformerlab.shared.batched_requests import process_dataset, process_audio_dataset
-from transformerlab.shared.shared import slugify
-
 from werkzeug.utils import secure_filename
+
+from transformerlab.shared.batched_requests import process_audio_dataset, process_dataset
+from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/batch", tags=["batched_prompts"])
 
@@ -16,8 +15,8 @@ router = APIRouter(prefix="/batch", tags=["batched_prompts"])
 # Pydantic model for batch_predict request
 class BatchChatCompletionRequest(BaseModel):
     model: str
-    adaptor: Optional[str] = None
-    api_key: Optional[str] = "dummy"
+    adaptor: str | None = None
+    api_key: str | None = "dummy"
     temperature: float = 0.01
     max_tokens: int = 1024
     top_p: float = 1.0
@@ -29,7 +28,7 @@ class BatchChatCompletionRequest(BaseModel):
 
 class BatchAudioRequest(BaseModel):
     model: str
-    adaptor: Optional[str] = None
+    adaptor: str | None = None
     experiment_id: str
     texts: list[str]
     file_prefix: str = "audio"
@@ -37,8 +36,8 @@ class BatchAudioRequest(BaseModel):
     temperature: float = 0.7
     speed: float = 1.0
     top_p: float = 1.0
-    voice: Optional[str] = None
-    audio_path: Optional[str] = None
+    voice: str | None = None
+    audio_path: str | None = None
     batch_size: int = 64
     inference_url: str = "http://localhost:8338/v1/audio/speech"
 
@@ -53,7 +52,7 @@ async def list_prompts():
     batched_prompts_dir = get_batched_prompts_dir()
     for file in os.listdir(batched_prompts_dir):
         if file.endswith(".json"):
-            with open(os.path.join(batched_prompts_dir, file), "r") as f:
+            with open(os.path.join(batched_prompts_dir, file)) as f:
                 try:
                     p = json.load(f)
                     name = file.split(".")[0]
@@ -67,7 +66,9 @@ async def list_prompts():
 # The prompt can either be a list of lists of dics (for conversations)
 # or a list of strings (for completions)
 @router.post("/new")
-async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list[list[dict]], list[str]], Body()]):
+async def new_prompt(
+    name: Annotated[str, Body()], prompts: Annotated[list[list[dict]] | list[str], Body()]
+):
     """Create a new batched prompt"""
 
     name = secure_filename(name)

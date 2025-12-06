@@ -1,4 +1,3 @@
-# coding=utf-8
 # Modified by Andrew Silva from https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama/scripts/rl_training.py
 #
 # Copyright 2023 The HuggingFace Inc. team. All rights reserved.
@@ -22,21 +21,18 @@ python ppo_training.py --model ./even_digit_fine_tune/ --batch_size 32 --mini_ba
 
 """
 
-from dataclasses import dataclass, field
-from typing import Optional
 import random
+from dataclasses import dataclass, field
 
-import torch
 import numpy as np
-from tqdm import tqdm
-from transformers import HfArgumentParser, AutoModel, AutoTokenizer, AutoModelForCausalLM
-
-from pytorch_ppo_trainer import PPOTrainer
-from data.digit_seq_rewards import RewardFunction
+import torch
 from data.data_utils import get_all_txts
-
+from data.digit_seq_rewards import RewardFunction
 from models.config import PPOConfig
 from peft import LoraConfig, get_peft_model
+from pytorch_ppo_trainer import PPOTrainer
+from tqdm import tqdm
+from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer, HfArgumentParser
 
 
 def collator(data):
@@ -67,7 +63,9 @@ def main(args_in, ppo_config_in):
         model = AutoModelForCausalLM.from_pretrained(args_in.model)
 
     # tokenizer = AutoTokenizer.from_pretrained('TinyLlama/TinyLlama-1.1B-Chat-v1.0')
-    tokenizer = AutoTokenizer.from_pretrained(args_in.tokenizer if args_in.tokenizer is not None else args_in.model)
+    tokenizer = AutoTokenizer.from_pretrained(
+        args_in.tokenizer if args_in.tokenizer is not None else args_in.model
+    )
     tokenizer.padding_side = "left"
 
     config = LoraConfig(
@@ -90,7 +88,9 @@ def main(args_in, ppo_config_in):
     ref_model = ref_model.to(DEVICE)
 
     # We then build the PPOTrainer, passing the model, the reference model, the tokenizer
-    ppo_trainer = PPOTrainer(ppo_config_in, model, ref_model, tokenizer, data_collator=collator, device=DEVICE)
+    ppo_trainer = PPOTrainer(
+        ppo_config_in, model, ref_model, tokenizer, data_collator=collator, device=DEVICE
+    )
 
     if args_in.ground_truth_reward:
         # TODO: Ground-truth reward values are hard-coded here, maybe use a config to set dynamically
@@ -143,21 +143,35 @@ def main(args_in, ppo_config_in):
             query_tensors, return_prompt=False, generate_ref_response=True, **generation_kwargs
         )
 
-        response_tensors = torch.stack([x[len(y) :] for x, y in zip(response_tensors, query_tensors)])
-        ref_response_tensors = torch.stack([x[len(y) :] for x, y in zip(ref_response_tensors, query_tensors)])
+        response_tensors = torch.stack(
+            [x[len(y) :] for x, y in zip(response_tensors, query_tensors)]
+        )
+        ref_response_tensors = torch.stack(
+            [x[len(y) :] for x, y in zip(ref_response_tensors, query_tensors)]
+        )
         batch["response"] = tokenizer.batch_decode(np.array(response_tensors.cpu()))
         batch["ref_response"] = tokenizer.batch_decode(np.array(ref_response_tensors.cpu()))
 
         if args_in.ground_truth_reward:
-            scores = torch.tensor(reward_function(batch["response"], query=batch["query"], negated=False))
-            ref_scores = torch.tensor(reward_function(batch["ref_response"], query=batch["query"], negated=False))
+            scores = torch.tensor(
+                reward_function(batch["response"], query=batch["query"], negated=False)
+            )
+            ref_scores = torch.tensor(
+                reward_function(batch["ref_response"], query=batch["query"], negated=False)
+            )
             # scores = [x + np.random.randn() * 0.05 for x in scores]  # Noisify the ground truth reward signal
         else:
             with torch.no_grad():
-                output = reward_function(torch.tensor(response_tensors, device=DEVICE), output_hidden_states=True)
+                output = reward_function(
+                    torch.tensor(response_tensors, device=DEVICE), output_hidden_states=True
+                )
                 scores = reward_function.value_head(output.hidden_states[-1][:, :, :]).squeeze(-1)
-                output = reward_function(torch.tensor(ref_response_tensors, device=DEVICE), output_hidden_states=True)
-                ref_scores = reward_function.value_head(output.hidden_states[-1][:, :, :]).squeeze(-1)
+                output = reward_function(
+                    torch.tensor(ref_response_tensors, device=DEVICE), output_hidden_states=True
+                )
+                ref_scores = reward_function.value_head(output.hidden_states[-1][:, :, :]).squeeze(
+                    -1
+                )
             scores = scores[:, -1]
             ref_scores = ref_scores[:, -1]
 
@@ -189,7 +203,10 @@ def main(args_in, ppo_config_in):
             ppo_trainer.config.batch_size = rewards.size(0)
             stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
             ppo_trainer.log_stats(
-                stats, batch, rewards, columns_to_log=["query", "response", "ref_response", "ref_rewards"]
+                stats,
+                batch,
+                rewards,
+                columns_to_log=["query", "response", "ref_response", "ref_rewards"],
             )
 
             # logs = {}
@@ -208,24 +225,41 @@ if __name__ == "__main__":
     class ScriptArguments:
         # LoraConfig
         use_peft: bool = field(default=False, metadata={"help": "whether to use peft"})
-        ground_truth_reward: bool = field(default=False, metadata={"help": "whether to use ground truth reward or not"})
-        lora_layers: Optional[int] = field(default=16, metadata={"help": "the number of lora layers"})
-        num_prompt_tokens: Optional[int] = field(default=10, metadata={"help": "the number of prompt tokens"})
-        model: Optional[str] = field(
-            default=None, metadata={"help": "The path to the local model directory or Hugging Face repo"}
+        ground_truth_reward: bool = field(
+            default=False, metadata={"help": "whether to use ground truth reward or not"}
         )
-        tokenizer: Optional[str] = field(
-            default=None, metadata={"help": "Path to the hugging face tokenizer that accompanies the given model"}
+        lora_layers: int | None = field(default=16, metadata={"help": "the number of lora layers"})
+        num_prompt_tokens: int | None = field(
+            default=10, metadata={"help": "the number of prompt tokens"}
         )
-        reward_model_dir: Optional[str] = field(
-            default=None, metadata={"help": "The path to the local model directory or Hugging Face repo"}
+        model: str | None = field(
+            default=None,
+            metadata={"help": "The path to the local model directory or Hugging Face repo"},
+        )
+        tokenizer: str | None = field(
+            default=None,
+            metadata={
+                "help": "Path to the hugging face tokenizer that accompanies the given model"
+            },
+        )
+        reward_model_dir: str | None = field(
+            default=None,
+            metadata={"help": "The path to the local model directory or Hugging Face repo"},
         )
 
-        save_file: str = field(default="rl_tuned_model", metadata={"help": "Save path for the trained PEFT weights."})
-        resume_file: Optional[str] = field(default=None, metadata={"help": "Load path for the trained PEFT weights."})
-        prompt_tuning: bool = field(default=False, metadata={"help": "whether to use prompt-tuning or LoRA"})
-        me_chatbot: bool = field(default=False, metadata={"help": "Set prompts as samples from my imessage history?"})
-        num_steps: Optional[int] = field(
+        save_file: str = field(
+            default="rl_tuned_model", metadata={"help": "Save path for the trained PEFT weights."}
+        )
+        resume_file: str | None = field(
+            default=None, metadata={"help": "Load path for the trained PEFT weights."}
+        )
+        prompt_tuning: bool = field(
+            default=False, metadata={"help": "whether to use prompt-tuning or LoRA"}
+        )
+        me_chatbot: bool = field(
+            default=False, metadata={"help": "Set prompts as samples from my imessage history?"}
+        )
+        num_steps: int | None = field(
             default=5550, metadata={"help": "How many PPO training iterations should we use?"}
         )
 

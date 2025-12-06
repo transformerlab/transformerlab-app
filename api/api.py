@@ -2,33 +2,32 @@
 The Entrypoint File for Transformer Lab's API Server.
 """
 
-import os
 import argparse
 import asyncio
-
 import json
+import os
 import signal
 import subprocess
-from contextlib import asynccontextmanager
 import sys
-from werkzeug.utils import secure_filename
+from contextlib import asynccontextmanager
 
 import fastapi
 import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request, Depends
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-
-from dotenv import load_dotenv
+from fastapi.staticfiles import StaticFiles
+from werkzeug.utils import secure_filename
 
 load_dotenv()
 
 
+import torch  # noqa: E402
 from fastchat.constants import (  # noqa: E402
     ErrorCode,
 )
@@ -36,63 +35,65 @@ from fastchat.protocol.openai_api_protocol import (  # noqa: E402
     ErrorResponse,
 )
 
-from transformerlab.services.experiment_service import experiment_get  # noqa: E402
-from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
-from transformerlab.services.experiment_init import (  # noqa: E402
-    seed_default_experiments,
-    cancel_in_progress_jobs,
-    seed_default_admin_user,
-)
 import transformerlab.db.session as db  # noqa: E402
-
-from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
 from transformerlab.routers import (  # noqa: E402
-    data,
-    model,
-    serverinfo,
-    train,
-    plugins,
-    evals,
-    config,
-    tasks,
-    prompts,
-    tools,
-    batched_prompts,
-    recipes,
-    teams,
-    compute_provider,
     auth,
+    batched_prompts,
+    compute_provider,
+    config,
+    data,
+    evals,
+    model,
+    plugins,
+    prompts,
+    recipes,
+    serverinfo,
+    tasks,
+    teams,
+    tools,
+    train,
 )
 from transformerlab.routers.auth import get_user_and_team  # noqa: E402
-import torch  # noqa: E402
+from transformerlab.services.experiment_init import (  # noqa: E402
+    cancel_in_progress_jobs,
+    seed_default_admin_user,
+    seed_default_experiments,
+)
+from transformerlab.services.experiment_service import experiment_get  # noqa: E402
+from transformerlab.services.job_service import job_create, job_get, job_update_status  # noqa: E402
+from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
 
 try:
-    from pynvml import nvmlShutdown  # noqa: E402
+    from pynvml import nvmlShutdown
 
     HAS_AMD = False
 except Exception:
-    from pyrsmi import rocml  # noqa: E402
+    from pyrsmi import rocml
 
     HAS_AMD = True
-from transformerlab import fastchat_openai_api  # noqa: E402
-from transformerlab.routers.experiment import experiment  # noqa: E402
-from transformerlab.routers.experiment import workflows  # noqa: E402
-from transformerlab.routers.experiment import jobs  # noqa: E402
-from transformerlab.shared import shared  # noqa: E402
-from transformerlab.shared import galleries  # noqa: E402
-from lab.dirs import get_workspace_dir  # noqa: E402
 from lab import dirs as lab_dirs  # noqa: E402
-from transformerlab.shared import dirs  # noqa: E402
+from lab import storage  # noqa: E402
+from lab.dirs import get_workspace_dir  # noqa: E402
+from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
+
+from transformerlab import fastchat_openai_api  # noqa: E402
 from transformerlab.db.filesystem_migrations import (  # noqa: E402
-    migrate_datasets_table_to_filesystem,  # noqa: E402
-    migrate_models_table_to_filesystem,  # noqa: E402
-    migrate_tasks_table_to_filesystem,  # noqa: E402
-    migrate_job_and_experiment_to_filesystem,  # noqa: E402
+    migrate_datasets_table_to_filesystem,
+    migrate_job_and_experiment_to_filesystem,
+    migrate_models_table_to_filesystem,
+    migrate_tasks_table_to_filesystem,
+)
+from transformerlab.routers.experiment import (
+    experiment,
+    jobs,
+    workflows,
+)
+from transformerlab.shared import (
+    dirs,
+    galleries,
+    shared,
 )
 from transformerlab.shared.request_context import set_current_org_id  # noqa: E402
-from lab.dirs import set_organization_id as lab_set_org_id  # noqa: E402
-from lab import storage  # noqa: E402
-
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
@@ -373,7 +374,9 @@ async def server_worker_start(
         json.dumps(inference_params),
     ]
 
-    job_id = job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
+    job_id = job_create(
+        type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id
+    )
 
     print("Loading plugin loader instead of default worker")
 
@@ -442,7 +445,7 @@ async def server_worker_stop():
             print(f"Error stopping worker process: {e}")
     # check if there is a file called worker.pid, if so kill the related process:
     if os.path.isfile("worker.pid"):
-        with open("worker.pid", "r") as f:
+        with open("worker.pid") as f:
             pids = [line.strip() for line in f if line.strip()]
             for pid in pids:
                 print(f"Killing worker process with PID: {pid}")
@@ -461,7 +464,9 @@ async def server_worker_stop():
     # Refresh the controller to remove the stopped worker immediately
     try:
         async with httpx.AsyncClient() as client:
-            await client.post(fastchat_openai_api.app_settings.controller_address + "/refresh_all_workers")
+            await client.post(
+                fastchat_openai_api.app_settings.controller_address + "/refresh_all_workers"
+            )
     except Exception as e:
         print(f"Error refreshing controller after stopping worker: {e}")
 
@@ -523,7 +528,7 @@ def cleanup_at_exit():
         except ProcessLookupError:
             print(f"Process {worker_process.pid} doesn't exist so nothing to kill")
     if os.path.isfile("worker.pid"):
-        with open("worker.pid", "r") as f:
+        with open("worker.pid") as f:
             pids = [line.strip() for line in f if line.strip()]
             for pid in pids:
                 try:
@@ -554,15 +559,21 @@ def parse_args():
     parser.add_argument("--allowed-origins", type=json.loads, default=["*"], help="allowed origins")
     parser.add_argument("--allowed-methods", type=json.loads, default=["*"], help="allowed methods")
     parser.add_argument("--allowed-headers", type=json.loads, default=["*"], help="allowed headers")
-    parser.add_argument("--auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins")
-    parser.add_argument("--https", action="store_true", help="Serve the API over HTTPS with a self-signed cert.")
+    parser.add_argument(
+        "--auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins"
+    )
+    parser.add_argument(
+        "--https", action="store_true", help="Serve the API over HTTPS with a self-signed cert."
+    )
 
     return parser.parse_args()
 
 
 def print_launch_message():
     # Print the welcome message to the CLI
-    with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
+    with open(
+        os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt")
+    ) as f:
         text = f.read()
         shared.print_in_rainbow(text)
     print("http://www.transformerlab.ai\nhttps://github.com/transformerlab/transformerlab-api\n")
@@ -586,7 +597,12 @@ def run():
     if args.https:
         cert_path, key_path = ensure_persistent_self_signed_cert()
         uvicorn.run(
-            "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
+            "api:app",
+            host=args.host,
+            port=args.port,
+            log_level="warning",
+            ssl_certfile=cert_path,
+            ssl_keyfile=key_path,
         )
     else:
         uvicorn.run("api:app", host=args.host, port=args.port, log_level="warning")

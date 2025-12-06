@@ -12,22 +12,20 @@ pip install llama-cpp-python
 Right now only generate_stream works -- need to do work to make generate work
 """
 
-import torch
-
 import argparse
 import asyncio
 import json
 import uuid
 from contextlib import asynccontextmanager
-from typing import List
 
 import llama_cpp
+import torch
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastchat.utils import is_partial_stop
 from fastchat.serve.model_worker import logger
+from fastchat.utils import is_partial_stop
 from transformers.tokenization_utils_base import BatchEncoding
 
 worker_id = str(uuid.uuid4())[:8]
@@ -72,7 +70,7 @@ class LlamaCppServer(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         limit_worker_concurrency: int,
         no_register: bool,
         llm_engine: str,
@@ -89,7 +87,9 @@ class LlamaCppServer(BaseModelWorker):
             conv_template,
         )
 
-        logger.info(f"Loading the model {self.model_names} on worker {worker_id}, worker type: llama-cpp-python...")
+        logger.info(
+            f"Loading the model {self.model_names} on worker {worker_id}, worker type: llama-cpp-python..."
+        )
 
         self.model_name = model_path
         print("Loading model: ", self.model_name)
@@ -322,7 +322,9 @@ def main():
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
+    parser.add_argument(
+        "--conv-template", type=str, default=None, help="Conversation prompt template."
+    )
     parser.add_argument(
         "--trust_remote_code",
         action="store_false",

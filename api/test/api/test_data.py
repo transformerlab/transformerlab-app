@@ -1,17 +1,21 @@
-import pytest
-import os
 import json
+import os
 from io import BytesIO
-from PIL import Image
 from pathlib import Path
+
+import pytest
 from lab import dirs
+from PIL import Image
+
 from transformerlab.shared.shared import slugify
 
 
 def cleanup_dataset(dataset_id, client):
-    from lab import dirs
-    from transformerlab.shared.shared import slugify
     import shutil
+
+    from lab import dirs
+
+    from transformerlab.shared.shared import slugify
 
     dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
     shutil.rmtree(dataset_dir, ignore_errors=True)
@@ -36,7 +40,9 @@ def test_data_preview(client):
 
 
 def test_data_preview_trelis_touch_rugby_rules(client):
-    resp = client.get("/data/preview", params={"dataset_id": "Trelis/touch-rugby-rules", "limit": 2})
+    resp = client.get(
+        "/data/preview", params={"dataset_id": "Trelis/touch-rugby-rules", "limit": 2}
+    )
     assert resp.status_code in (200, 400, 404)
     if resp.status_code == 200 and resp.json().get("status") == "success":
         data = resp.json()["data"]
@@ -114,7 +120,10 @@ def test_edit_with_template(client):
     image.save(image_path, "JPEG")
 
     metadata_content = (
-        json.dumps({"file_name": "image.jpg", "text": "sample caption", "label": "cat", "split": "train"}) + "\n"
+        json.dumps(
+            {"file_name": "image.jpg", "text": "sample caption", "label": "cat", "split": "train"}
+        )
+        + "\n"
     )
     metadata_filename = "metadata.jsonl"
 

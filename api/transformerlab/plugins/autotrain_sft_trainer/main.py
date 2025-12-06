@@ -4,10 +4,10 @@ import re
 import subprocess
 
 from jinja2 import Environment
+from transformerlab.plugin import get_python_executable
 
 # Import the TrainerTLabPlugin
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import get_python_executable
 
 # Setup Jinja environment
 jinja_environment = Environment()
@@ -109,7 +109,11 @@ def train_model():
 
     # Run the subprocess with output monitoring
     with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+        popen_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
     ) as process:
         iteration = 0
         it_per_sec = 0

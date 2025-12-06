@@ -1,11 +1,8 @@
 import json
 import os
-from typing import Optional, Tuple
 
-from lab import Experiment, Job
+from lab import Experiment, Job, storage
 from lab import dirs as lab_dirs
-from lab import storage
-
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
@@ -23,7 +20,14 @@ ALLOWED_JOB_TYPES = [
 ]
 
 # Centralized set of job types that can trigger workflows on completion
-SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
+SUPPORTED_WORKFLOW_TRIGGERS = [
+    "TRAIN",
+    "LOAD_MODEL",
+    "EXPORT",
+    "EVAL",
+    "GENERATE",
+    "DOWNLOAD_MODEL",
+]
 
 
 def job_create(type, status, experiment_id, job_data="{}"):
@@ -84,7 +88,7 @@ def job_count_running():
     return Job.count_running_jobs()
 
 
-def _find_org_id_for_job(job_id: str) -> Optional[str]:
+def _find_org_id_for_job(job_id: str) -> str | None:
     """
     Find which organization a job belongs to by searching all org directories.
     Returns the org_id if found, None otherwise.
@@ -93,7 +97,9 @@ def _find_org_id_for_job(job_id: str) -> Optional[str]:
     try:
         home_dir = lab_dirs.HOME_DIR
     except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+        home_dir = os.environ.get(
+            "TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab")
+        )
 
     # Check if context is set correctly already
     from lab.dirs import get_workspace_dir
@@ -141,7 +147,9 @@ def job_count_running_across_all_orgs() -> int:
     try:
         home_dir = lab_dirs.HOME_DIR
     except AttributeError:
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+        home_dir = os.environ.get(
+            "TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab")
+        )
 
     # Check all org directories
     orgs_dir = storage.join(home_dir, "orgs")
@@ -169,7 +177,7 @@ def jobs_get_next_queued_job():
     return Job.get_next_queued_job()
 
 
-def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional[str]]:
+def jobs_get_next_queued_job_across_all_orgs() -> tuple[dict | None, str | None]:
     """
     Get the next queued job across all organizations.
     Returns a tuple of (job_data_dict, organization_id) or (None, None) if no queued jobs found.
@@ -184,7 +192,9 @@ def jobs_get_next_queued_job_across_all_orgs() -> Tuple[Optional[dict], Optional
         home_dir = lab_dirs.HOME_DIR
     except AttributeError:
         # Fallback to environment variable or default
-        home_dir = os.environ.get("TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab"))
+        home_dir = os.environ.get(
+            "TFL_HOME_DIR", os.path.join(os.path.expanduser("~"), ".transformerlab")
+        )
 
     # List all organization directories
     orgs_dir = storage.join(home_dir, "orgs")
@@ -335,7 +345,7 @@ async def _trigger_workflows_on_job_completion(job_id: str):
 
 
 async def job_update_status(
-    job_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
+    job_id: str, status: str, experiment_id: str | None = None, error_msg: str | None = None
 ):
     """
     Update job status and trigger workflows if job is completed.
@@ -364,7 +374,7 @@ async def job_update_status(
     #     await _trigger_workflows_on_job_completion(job_id)
 
 
-async def job_update(job_id: str, type: str, status: str, experiment_id: Optional[str] = None):
+async def job_update(job_id: str, type: str, status: str, experiment_id: str | None = None):
     """
     Update job type and status and trigger workflows if job is completed.
 
@@ -391,7 +401,7 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
 
 
 def job_update_status_sync(
-    job_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
+    job_id: str, status: str, experiment_id: str | None = None, error_msg: str | None = None
 ):
     """
     Synchronous version of job status update.
@@ -436,7 +446,7 @@ def job_update_status_sync(
     #     _trigger_workflows_on_job_completion_sync(job_id)
 
 
-def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = None):
+def job_update_sync(job_id: str, status: str, experiment_id: str | None = None):
     """
     Synchronous version of job update.
 
@@ -460,7 +470,9 @@ def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = Non
     #     _trigger_workflows_on_job_completion_sync(job_id)
 
 
-def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, experiment_id: Optional[str] = None):
+def job_update_type_and_status_sync(
+    job_id: str, job_type: str, status: str, experiment_id: str | None = None
+):
     """
     Synchronous version of job update for both type and status.
 

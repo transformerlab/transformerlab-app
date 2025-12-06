@@ -39,7 +39,7 @@ def process_plugin_index(plugin_path):
         return False
 
     try:
-        with open(index_path, "r", encoding="utf-8") as f:
+        with open(index_path, encoding="utf-8") as f:
             data = json.load(f)
 
         if "version" not in data:

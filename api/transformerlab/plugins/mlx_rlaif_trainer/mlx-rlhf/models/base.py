@@ -1,6 +1,6 @@
 import inspect
-from dataclasses import dataclass
 from copy import deepcopy
+from dataclasses import dataclass
 
 LAYER_PATTERNS = [
     "transformer.h.{layer}",
@@ -72,7 +72,7 @@ def create_reference_model(model, num_shared_layers: int = None, pattern: str = 
         param = model.get_parameter(param_name)
         param.requires_grad = False
 
-        ref_param = ref_model.get_parameter(param_name)  # noqa
+        ref_param = ref_model.get_parameter(param_name)
         ref_param = param  # noqa
 
     # for all other parameters just make sure they don't use gradients

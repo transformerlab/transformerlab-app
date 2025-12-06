@@ -5,11 +5,90 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["transformerlab"]
 
+[tool.pyright]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUnusedImport = true
+reportUnusedParameter = "warning"
+exclude = ["alembic", "tests/fixtures"]
+
+[tool.ruff]
+line-length = 100
+select = [
+    "E",   # Errors
+    "F",   # Pyflakes
+    "I",   # Import sorting
+    "W",   # Warnings
+    "B",   # Bugbear
+    "UP",  # pyupgrade
+    "RUF", # Ruff-specific rules
+]
+ignore = [
+    "B008",   # FastAPI dependency injection triggers this; safe to ignore
+    "E501",   # Line length enforced by black, not ruff
+]
+fix = true
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.hatch]
+allow-direct-references = true
+
+[tool.hatch.envs.dev]
+dependencies = [
+    "ipython",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "ruff",
+    "black",
+    "pyright",
+]
+commands.pre = [
+    "ruff check --fix .",
+    "black .",
+]
+
+[tool.hatch.envs.test]
+dependencies = [
+    "ruff",
+    "black",
+    "pyright",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+]
+commands.pre = [
+    "ruff check --fix .",
+    "black .",
+]
+
+[tool.hatch.envs.prod]
+dependencies = ["uvicorn[standard]"]
+
+[tool.hatch.envs.lint]
+dependencies = [ "ruff", "black", "pyright" ]
+commands = [
+    "ruff check .",
+    "black --check .",
+    "pyright",
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+asyncio_mode = "strict"
+pythonpath = ["."]
+
 [project]
 name = "transformerlab-api"
 version = "0.27.0"
 description = "Transformer Lab API"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 dependencies = [
   # Common dependencies with same versions across all platforms
   "aiofiles==24.1.0",
@@ -32,7 +111,7 @@ dependencies = [
   "soundfile==0.13.1",
   "tensorboardX==2.6.2.2",
   "timm==1.0.15",
-  "transformerlab==0.0.48",
+  "transformerlab==0.0.47",
   "transformerlab-inference==0.2.51",
   "transformers==4.57.1",
   "wandb==0.19.10",

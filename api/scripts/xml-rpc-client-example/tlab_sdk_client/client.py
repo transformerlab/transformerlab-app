@@ -11,7 +11,12 @@ from logging.handlers import RotatingFileHandler
 class TransformerLabClient:
     """Client for reporting training progress to TransformerLab via XML-RPC"""
 
-    def __init__(self, server_url: str = "http://localhost:8338", sdk_version: str = "v1", log_file: str = None):
+    def __init__(
+        self,
+        server_url: str = "http://localhost:8338",
+        sdk_version: str = "v1",
+        log_file: str = None,
+    ):
         """Initialize the XML-RPC client"""
         server_url = server_url.rstrip("/") + f"/client/{sdk_version}/jobs"
         if not server_url.startswith("http") and not server_url.startswith("https"):
@@ -120,7 +125,7 @@ class TransformerLabClient:
             else:
                 print("There was an issue with updating output.txt within Transformer Lab app.")
         except Exception as e:
-            print(f"There was an issue with updating output.txt within Transformer Lab app: {str(e)}")
+            print(f"There was an issue with updating output.txt within Transformer Lab app: {e!s}")
             raise e
 
     def create_logger(self, log_file=None, level=logging.INFO):

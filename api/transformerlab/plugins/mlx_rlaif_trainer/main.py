@@ -5,14 +5,15 @@ This plugin runs PPO training for MLX models, using a custom dataset provided by
 
 """
 
+import json
 import os
 import re
-import json
 import subprocess
-from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import get_python_executable
-from lab.dirs import get_workspace_dir
+
 from lab import storage
+from lab.dirs import get_workspace_dir
+from transformerlab.plugin import get_python_executable
+from transformerlab.sdk.v1.train import tlab_trainer
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_RLAIF", manual_logging=True)
@@ -95,7 +96,12 @@ def train_mlx_rlaif():
     current_step = 0
 
     with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
+        popen_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
+        env=env,
     ) as process:
         for line in process.stdout:
             print(line, end="", flush=True)
@@ -113,12 +119,16 @@ def train_mlx_rlaif():
                 try:
                     reward_str = reward_match.group(1).replace("...", "0, 0, 0")
                     reward_values = [
-                        float(x) for x in reward_str.replace("[", "").replace("]", "").split(",") if x.strip()
+                        float(x)
+                        for x in reward_str.replace("[", "").replace("]", "").split(",")
+                        if x.strip()
                     ]
                     if reward_values:
                         mean_reward = sum(reward_values) / len(reward_values)
                         tlab_trainer.log_metric("train/mean_reward", mean_reward, current_step)
-                        tlab_trainer.log_metric("train/reward_batch_size", len(reward_values), current_step)
+                        tlab_trainer.log_metric(
+                            "train/reward_batch_size", len(reward_values), current_step
+                        )
                 except Exception as e:
                     print(f"Error parsing rewards: {e}")
             # Other metrics
@@ -137,7 +147,9 @@ def train_mlx_rlaif():
     # Register the model with TransformerLab
     model_name_base = model_name.split("/")[-1]
     final_model_name = f"{model_name_base}_{adaptor_name}_ppo"
-    json_data = {"description": f"An MLX model trained with PPO by Transformer Lab based on {model_name}"}
+    json_data = {
+        "description": f"An MLX model trained with PPO by Transformer Lab based on {model_name}"
+    }
     tlab_trainer.create_transformerlab_model(
         fused_model_name=final_model_name, model_architecture="MLX", json_data=json_data
     )

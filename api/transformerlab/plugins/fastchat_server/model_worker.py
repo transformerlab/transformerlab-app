@@ -14,7 +14,6 @@ import os
 import re
 import traceback
 import uuid
-from typing import List, Optional
 
 import numpy as np
 import torch
@@ -28,12 +27,9 @@ from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
 from fastchat.modules.gptq import GptqConfig
 from fastchat.modules.xfastertransformer import XftConfig
-from fastchat.utils import get_context_length, str_to_torch_dtype
 from fastchat.serve.model_worker import logger
-
-
+from fastchat.utils import get_context_length, str_to_torch_dtype
 from transformers import set_seed
-
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -47,25 +43,25 @@ class ModelWorker(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: List[str],
+        model_names: list[str],
         limit_worker_concurrency: int,
         no_register: bool,
         device: str,
         num_gpus: int,
         max_gpu_memory: str,
         revision: str = None,
-        dtype: Optional[torch.dtype] = None,
+        dtype: torch.dtype | None = None,
         load_8bit: bool = False,
         load_4bit: bool = False,
         cpu_offloading: bool = False,
-        gptq_config: Optional[GptqConfig] = None,
-        awq_config: Optional[AWQConfig] = None,
-        exllama_config: Optional[ExllamaConfig] = None,
-        xft_config: Optional[XftConfig] = None,
+        gptq_config: GptqConfig | None = None,
+        awq_config: AWQConfig | None = None,
+        exllama_config: ExllamaConfig | None = None,
+        xft_config: XftConfig | None = None,
         stream_interval: int = 2,
-        conv_template: Optional[str] = None,
+        conv_template: str | None = None,
         embed_in_truncate: bool = False,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         debug: bool = False,
         **kwargs,
     ):
@@ -186,7 +182,7 @@ class ModelWorker(BaseModelWorker):
 
         return sum_embeddings, token_num
 
-    def __encode_base64(self, embeddings: torch.Tensor) -> List[str]:
+    def __encode_base64(self, embeddings: torch.Tensor) -> list[str]:
         embeddings = embeddings.cpu()
         return [base64.b64encode(e.numpy().tobytes()).decode("utf-8") for e in embeddings]
 
@@ -215,14 +211,18 @@ class ModelWorker(BaseModelWorker):
                     max_length=self.context_len,
                 )
             else:
-                encoding = tokenizer.batch_encode_plus(params["input"], padding=True, return_tensors="pt")
+                encoding = tokenizer.batch_encode_plus(
+                    params["input"], padding=True, return_tensors="pt"
+                )
             input_ids = encoding["input_ids"].to(self.device)
             attention_mask = input_ids != tokenizer.pad_token_id
 
             base64_encode = params.get("encoding_format", None)
 
             if self.embed_in_truncate:
-                embedding, token_num = self.__process_embed_chunk(input_ids, attention_mask, **model_type_dict)
+                embedding, token_num = self.__process_embed_chunk(
+                    input_ids, attention_mask, **model_type_dict
+                )
                 if not hasattr(self.model, "use_cls_pooling") or not self.model.use_cls_pooling:
                     embedding = embedding / token_num
                 normalized_embeddings = F.normalize(embedding, p=2, dim=1)
@@ -304,7 +304,9 @@ def create_model_worker():
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
+    parser.add_argument(
+        "--conv-template", type=str, default=None, help="Conversation prompt template."
+    )
     parser.add_argument("--embed-in-truncate", action="store_true")
     parser.add_argument(
         "--limit-worker-concurrency",
@@ -461,7 +463,9 @@ async def api_generate_with_visualization(request: Request):
                             attentions = outputs.attentions
 
                             if torch.isnan(logits).all():
-                                print("All logits are still NaN after conversion, stopping generation here")
+                                print(
+                                    "All logits are still NaN after conversion, stopping generation here"
+                                )
                                 break
 
                         except Exception as e:
@@ -475,10 +479,14 @@ async def api_generate_with_visualization(request: Request):
 
                     # Apply top_p sampling
                     if top_p < 1.0:
-                        sorted_logits, sorted_indices = torch.sort(next_token_logits, descending=True)
+                        sorted_logits, sorted_indices = torch.sort(
+                            next_token_logits, descending=True
+                        )
                         cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
                         sorted_indices_to_remove = cumulative_probs > top_p
-                        sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                        sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[
+                            ..., :-1
+                        ].clone()
                         sorted_indices_to_remove[..., 0] = 0
                         indices_to_remove = sorted_indices[sorted_indices_to_remove]
                         next_token_logits[0, indices_to_remove] = -float("Inf")
@@ -552,13 +560,19 @@ async def api_generate_with_visualization(request: Request):
 
         except torch.cuda.OutOfMemoryError as e:
             print("CUDA out of memory error:", e)
-            error_response = {"text": "CUDA out of memory", "error_code": ErrorCode.CUDA_OUT_OF_MEMORY}
+            error_response = {
+                "text": "CUDA out of memory",
+                "error_code": ErrorCode.CUDA_OUT_OF_MEMORY,
+            }
             yield json.dumps(error_response).encode() + b"\0"
 
         except Exception as e:
             print("Error during visualization:", e)
             traceback.print_exc()
-            error_response = {"text": "Error during visualization", "error_code": ErrorCode.INTERNAL_ERROR}
+            error_response = {
+                "text": "Error during visualization",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
             yield json.dumps(error_response).encode() + b"\0"
 
     # Return a StreamingResponse that uses our generator
@@ -638,7 +652,10 @@ async def api_generate_layers_visualization(request: Request):
             # Log scale for better visualization
             size = float(
                 min_size
-                + ((np.log(param_size) - np.log(min_param_size)) / (np.log(max_param_size) - np.log(min_param_size)))
+                + (
+                    (np.log(param_size) - np.log(min_param_size))
+                    / (np.log(max_param_size) - np.log(min_param_size))
+                )
                 * (max_size - min_size)
             )
             clean_name = clean_layer_name(layer)

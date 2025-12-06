@@ -1,6 +1,6 @@
+import asyncio
 import json
 import os
-import asyncio
 
 # Create test directories before setting environment variables
 os.makedirs("./test/tmp/", exist_ok=True)
@@ -10,18 +10,12 @@ os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 # workspace directory (./test/tmp/orgs/<team-id>/workspace) after migration
 
 
+import pytest  # noqa: E402
+
+import transformerlab.db.session as db  # noqa: E402
 from transformerlab.db.db import (  # noqa: E402
     config_get,
     config_set,
-)
-
-from transformerlab.services import experiment_service  # noqa: E402
-from transformerlab.services.job_service import (  # noqa: E402
-    job_create,
-    job_update_status as service_job_update_status,
-    job_update_status_sync as service_job_update_status_sync,
-    job_update_sync as service_job_update_sync,
-    job_mark_as_complete_if_running as service_job_mark_as_complete_if_running,
 )
 from transformerlab.db.workflows import (  # noqa: E402
     workflow_count_queued,
@@ -39,14 +33,25 @@ from transformerlab.db.workflows import (  # noqa: E402
     workflow_update_config,
     workflow_update_name,
     workflows_get_all,
-    workflows_get_from_experiment,
     workflows_get_by_id,
+    workflows_get_from_experiment,
 )
-
-import transformerlab.db.session as db  # noqa: E402
-
-
-import pytest  # noqa: E402
+from transformerlab.services import experiment_service  # noqa: E402
+from transformerlab.services.job_service import (  # noqa: E402
+    job_create,
+)
+from transformerlab.services.job_service import (
+    job_mark_as_complete_if_running as service_job_mark_as_complete_if_running,
+)
+from transformerlab.services.job_service import (
+    job_update_status as service_job_update_status,
+)
+from transformerlab.services.job_service import (
+    job_update_status_sync as service_job_update_status_sync,
+)
+from transformerlab.services.job_service import (
+    job_update_sync as service_job_update_sync,
+)
 
 
 @pytest.mark.asyncio
@@ -179,7 +184,7 @@ class TestWorkflows:
     @pytest.mark.asyncio
     async def test_workflow_delete_by_name(self, test_experiment):
         workflow_id = await workflow_create("test_workflow_delete_name", "{}", test_experiment)
-        await workflow_delete_by_name("test_workflow_delete_name")  # noqa: F821
+        await workflow_delete_by_name("test_workflow_delete_name")
         workflow = await workflows_get_by_id(workflow_id, test_experiment)
         assert workflow is None  # Should return None since workflow is deleted
 
@@ -248,7 +253,9 @@ class TestWorkflows:
             "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
             "triggers": ["TRAIN"],
         }
-        workflow_id = await workflow_create("test_trigger_workflow", json.dumps(workflow_config), test_experiment)
+        workflow_id = await workflow_create(
+            "test_trigger_workflow", json.dumps(workflow_config), test_experiment
+        )
 
         # Create a TRAIN job
         job_id = job_create("TRAIN", "RUNNING", test_experiment, "{}")
@@ -288,7 +295,9 @@ class TestWorkflows:
             "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
             "triggers": ["TRAIN"],
         }
-        workflow_id = await workflow_create("test_sync_trigger", json.dumps(workflow_config), test_experiment)
+        workflow_id = await workflow_create(
+            "test_sync_trigger", json.dumps(workflow_config), test_experiment
+        )
 
         # Test job_update_status_sync
         job_id1 = job_create("TRAIN", "RUNNING", test_experiment, "{}")
