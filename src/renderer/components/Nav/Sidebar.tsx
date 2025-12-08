@@ -50,17 +50,16 @@ import ColorSchemeToggle from './ColorSchemeToggle';
 import LoginChip from './UserWidget';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 
-function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
-  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
+function ExperimentMenuItems({ experimentInfo, models, mode }) {
   const { team } = useAuth();
-
   const isS3Mode = mode === 's3';
-
+  const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
   >(null);
+  const experimentReady = Boolean(experimentInfo?.name);
+  const hasFoundation = Boolean(experimentInfo?.config?.foundation);
 
-  // Fetch compute_provider to determine if Tasks tab should be visible
   const { data: providerListData } = useAPI('compute_provider', ['list'], {
     teamId: team?.id ?? null,
   });
@@ -69,67 +68,75 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
     () => (Array.isArray(providerListData) ? providerListData : []),
     [providerListData],
   );
-
   const hasProviders = providers.length > 0;
 
-  function activeModelIsNotSameAsFoundation() {
-    if (models === null) {
-      return true;
-    }
+  const pipelineIsTTS = pipelineTag === 'text-to-speech';
+  const pipelineIsSTT = pipelineTag === 'speech-to-text';
+  const isDiffusionModel = isValidDiffusionModel === true;
+  const showInteractTab =
+    !isS3Mode && !isDiffusionModel && !pipelineIsTTS && !pipelineIsSTT;
+  const showDiffusionTab = !isS3Mode && isDiffusionModel;
+  const showAudioTTSTab = !isS3Mode && pipelineIsTTS;
+  const showAudioSTTTab = !isS3Mode && pipelineIsSTT;
 
-    if (!experimentInfo?.name) {
-      return true;
-    }
+  const isActiveModelDifferent = useMemo(() => {
+    if (!models || !experimentReady) return true;
 
-    // The API may respond with the ID of the model, or the model filename or the adaptor
+    const activeModelId = models[0]?.id;
+    const normalize = (value?: string | null) =>
+      value?.split?.('/')?.slice(-1)?.[0] ?? value;
+    const config = experimentInfo?.config;
+
     return (
-      models?.[0]?.id !==
-        experimentInfo?.config?.foundation?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !==
-        experimentInfo?.config?.foundation_filename?.split('/').slice(-1)[0] &&
-      models?.[0]?.id !== experimentInfo?.config.adaptor
+      activeModelId !== normalize(config?.foundation) &&
+      activeModelId !== normalize(config?.foundation_filename) &&
+      activeModelId !== config?.adaptor
     );
-  }
+  }, [
+    models,
+    experimentReady,
+    experimentInfo?.config?.foundation,
+    experimentInfo?.config?.foundation_filename,
+    experimentInfo?.config?.adaptor,
+  ]);
 
-  // Check if the current foundation model is a diffusion model and fetch pipeline_tag in the same effect
+  const disableInteract = !experimentReady || isActiveModelDifferent;
+  const disableEval = !experimentReady || isDiffusionModel;
+  const disableExport = !experimentReady || !hasFoundation;
+
   useEffect(() => {
+    if (!experimentInfo?.id || !hasFoundation) {
+      setIsValidDiffusionModel(false);
+      setPipelineTag(null);
+      return;
+    }
+
+    let isMounted = true;
+    setIsValidDiffusionModel(null);
+
     const checkValidDiffusionAndPipelineTag = async () => {
-      if (!experimentInfo?.config?.foundation) {
-        setIsValidDiffusionModel(false);
-        setPipelineTag(null);
-        return;
-      }
-
-      let pipelineTagResult = null;
-
-      // Check pipeline_tag first
       try {
-        const url = getAPIFullPath('models', ['pipeline_tag'], {
-          modelName: experimentInfo.config.foundation,
-        });
-        const response = await fetchWithAuth(url, { method: 'GET' });
-        if (!response.ok) {
-          setPipelineTag(null);
-        } else {
-          const data = await response.json();
-          console.log('Pipeline tag data:', data);
-          pipelineTagResult = data?.data || null;
-          setPipelineTag(pipelineTagResult);
+        const pipelineResponse = await fetchWithAuth(
+          getAPIFullPath('models', ['pipeline_tag'], {
+            modelName: experimentInfo.config.foundation,
+          }),
+          { method: 'GET' },
+        );
+
+        if (!isMounted) return;
+
+        const pipelineData = pipelineResponse.ok
+          ? ((await pipelineResponse.json())?.data ?? null)
+          : null;
+
+        setPipelineTag(pipelineData);
+
+        if (pipelineData === 'text-to-speech') {
+          setIsValidDiffusionModel(false);
+          return;
         }
-      } catch (e) {
-        setPipelineTag(null);
-        console.error('Error fetching pipeline tag:', e);
-      }
 
-      // If pipelineTag is text-to-speech, never show diffusion tab
-      if (pipelineTagResult === 'text-to-speech') {
-        setIsValidDiffusionModel(false);
-        return;
-      }
-
-      // Otherwise, check diffusion
-      try {
-        const response = await fetchWithAuth(
+        const diffusionResponse = await fetchWithAuth(
           getAPIFullPath('diffusion', ['checkValidDiffusion'], {
             experimentId: experimentInfo.id,
           }),
@@ -140,18 +147,31 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
           },
         );
 
-        if (!response.ok) {
+        if (!isMounted) return;
+
+        if (!diffusionResponse.ok) {
           setIsValidDiffusionModel(false);
-        } else {
-          const data = await response.json();
-          setIsValidDiffusionModel(data.is_valid_diffusion_model ?? false);
+          return;
         }
-      } catch (e) {
-        setIsValidDiffusionModel(false);
+
+        const diffusionData = await diffusionResponse.json();
+        setIsValidDiffusionModel(
+          diffusionData?.is_valid_diffusion_model ?? false,
+        );
+      } catch {
+        if (isMounted) {
+          setPipelineTag(null);
+          setIsValidDiffusionModel(false);
+        }
       }
     };
+
     checkValidDiffusionAndPipelineTag();
-  }, [experimentInfo?.config?.foundation]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [experimentInfo?.id, experimentInfo?.config?.foundation, hasFoundation]);
 
   return (
     <List
@@ -168,64 +188,47 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
             title="Foundation"
             path="/experiment/model"
             icon={<LayersIcon strokeWidth={1} />}
-            disabled={!experimentInfo?.name}
+            disabled={!experimentReady}
           />
         )}
-        {!isS3Mode &&
-          (isValidDiffusionModel === false || isValidDiffusionModel === null) &&
-          pipelineTag !== 'text-to-speech' &&
-          pipelineTag !== 'speech-to-text' && (
-            <SubNavItem
-              title="Interact"
-              path="/experiment/chat"
-              icon={<MessageCircleIcon strokeWidth={9} />}
-              disabled={
-                !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-              }
-            />
-          )}
-        {/* Show Diffusion tab only if the model IS a diffusion model */}
-        {!isS3Mode && isValidDiffusionModel === true && (
+        {showInteractTab && (
+          <SubNavItem
+            title="Interact"
+            path="/experiment/chat"
+            icon={<MessageCircleIcon strokeWidth={9} />}
+            disabled={disableInteract}
+          />
+        )}
+        {showDiffusionTab && (
           <SubNavItem
             title="Diffusion"
             path="/experiment/diffusion"
             icon={<RiImageAiLine />}
-            disabled={!experimentInfo?.name}
+            disabled={!experimentReady}
           />
         )}
-        {/* Show Audio tab only if pipelineTag is text-to-speech */}
-        {!isS3Mode && pipelineTag === 'text-to-speech' && (
+        {showAudioTTSTab && (
           <SubNavItem
             title="Audio"
             path="/experiment/audio"
             icon={<AudioLinesIcon />}
-            disabled={
-              !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-            }
+            disabled={disableInteract}
           />
         )}
-        {!isS3Mode && pipelineTag === 'speech-to-text' && (
+        {showAudioSTTTab && (
           <SubNavItem
             title="Audio"
             path="/experiment/audio-stt"
             icon={<AudioLinesIcon />}
-            disabled={
-              !experimentInfo?.name || activeModelIsNotSameAsFoundation()
-            }
+            disabled={disableInteract}
           />
         )}
-        {/* <SubNavItem
-            title="Workflows"
-            path="/experiment/workflows"
-            icon={<WorkflowIcon />}
-            disabled={!experimentInfo?.name}
-          /> */}
         {!isS3Mode && (
           <SubNavItem
             title="Train"
             path="/experiment/training"
             icon={<GraduationCapIcon />}
-            disabled={!experimentInfo?.name}
+            disabled={!experimentReady}
           />
         )}
         {hasProviders && (
@@ -233,7 +236,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
             title="Tasks"
             path="/experiment/tasks"
             icon={<StretchHorizontalIcon />}
-            disabled={!experimentInfo?.name}
+            disabled={!experimentReady}
           />
         )}
         {!isS3Mode && (
@@ -241,7 +244,7 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
             title="Generate"
             path="/experiment/generate"
             icon={<SquareStackIcon />}
-            disabled={!experimentInfo?.name}
+            disabled={!experimentReady}
           />
         )}
         {!isS3Mode && (
@@ -249,44 +252,36 @@ function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
             title="Evaluate"
             path="/experiment/eval"
             icon={<ChartColumnIncreasingIcon />}
-            disabled={!experimentInfo?.name || isValidDiffusionModel === true}
+            disabled={disableEval}
           />
         )}
         <SubNavItem
           title="Documents"
           path="/experiment/documents"
           icon={<FileIcon />}
-          disabled={!experimentInfo?.name}
+          disabled={!experimentReady}
         />
         {!isS3Mode && (
           <SubNavItem
             title="Export"
             path="/experiment/export"
             icon={<ArrowRightFromLineIcon />}
-            disabled={
-              !experimentInfo?.name || !experimentInfo?.config?.foundation
-            }
+            disabled={disableExport}
           />
         )}
         <SubNavItem
           title="Notes"
           path="/experiment/notes"
           icon={<FlaskConicalIcon />}
-          disabled={!experimentInfo?.name}
+          disabled={!experimentReady}
         />
       </>
     </List>
   );
 }
 
-function GlobalMenuItems({
-  DEV_MODE,
-  experimentInfo,
-  outdatedPluginsCount,
-  mode,
-}) {
+function GlobalMenuItems({ experimentInfo, outdatedPluginsCount, mode }) {
   const isS3Mode = mode === 's3';
-
   return (
     <List
       sx={{
@@ -371,18 +366,17 @@ function BottomMenuItems({ navigate, themeSetter }) {
 }
 
 export default function Sidebar({
-  logsDrawerOpen,
-  setLogsDrawerOpen,
+  logsDrawerOpen: _logsDrawerOpen,
+  setLogsDrawerOpen: _setLogsDrawerOpen,
   themeSetter,
 }) {
-  const { experimentInfo, setExperimentId } = useExperimentInfo();
-  const { models, isError, isLoading } = useModelStatus();
+  const { experimentInfo } = useExperimentInfo();
+  const { models } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
   const [mode, setMode] = useState<string>('local');
 
   const navigate = useNavigate();
-
-  const DEV_MODE = experimentInfo?.name === 'dev';
+  const isDevExperiment = experimentInfo?.name === 'dev';
 
   // Fetch healthz to get the mode
   useEffect(() => {
@@ -442,17 +436,15 @@ export default function Sidebar({
           color: 'var(--joy-palette-neutral-plainDisabledColor)',
         }}
       >
-        {DEV_MODE && <>v{window.platform?.version}</>}
+        {isDevExperiment && <>v{window.platform?.version}</>}
       </div>
       <SelectExperimentMenu models={models} />
       <ExperimentMenuItems
-        DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
         models={models}
         mode={mode}
       />
       <GlobalMenuItems
-        DEV_MODE={DEV_MODE}
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
         mode={mode}
