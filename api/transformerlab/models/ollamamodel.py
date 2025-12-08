@@ -106,7 +106,15 @@ class OllamaModel(basemodel.BaseModel):
         # It is stored in a file with the variant name
         # in a directory named after the model
         model_name, variant = self.source_id_or_path.split(":", 1)
-        manifestfile = os.path.join(library_dir, model_name, variant)
+        manifestfile_candidate = os.path.join(library_dir, model_name, variant)
+        manifestfile = os.path.normpath(manifestfile_candidate)
+        # Ensure manifestfile is a descendant of library_dir
+        abs_library_dir = os.path.abspath(library_dir)
+        abs_manifestfile = os.path.abspath(manifestfile)
+        if not abs_manifestfile.startswith(abs_library_dir + os.sep):
+            print(f"Path traversal or invalid model_name/variant: {model_name}:{variant}")
+            self.status = "illegal manifest file path"
+            return None
         try:
             with open(manifestfile) as f:
                 filedata = json.load(f)
