@@ -20,6 +20,7 @@ import {
   ChartColumnIncreasingIcon,
   AudioLinesIcon,
   StretchHorizontalIcon,
+  LibraryBigIcon,
 } from 'lucide-react';
 
 import { RiImageAiLine } from 'react-icons/ri';
@@ -50,8 +51,7 @@ import ColorSchemeToggle from './ColorSchemeToggle';
 import LoginChip from './UserWidget';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 
-function ExperimentMenuItems({ experimentInfo, models, mode }) {
-  const { team } = useAuth();
+function ExperimentMenuItems({ experimentInfo, models, mode, hasProviders }) {
   const isS3Mode = mode === 's3';
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
@@ -59,16 +59,6 @@ function ExperimentMenuItems({ experimentInfo, models, mode }) {
   >(null);
   const experimentReady = Boolean(experimentInfo?.name);
   const hasFoundation = Boolean(experimentInfo?.config?.foundation);
-
-  const { data: providerListData } = useAPI('compute_provider', ['list'], {
-    teamId: team?.id ?? null,
-  });
-
-  const providers = useMemo(
-    () => (Array.isArray(providerListData) ? providerListData : []),
-    [providerListData],
-  );
-  const hasProviders = providers.length > 0;
 
   const pipelineIsTTS = pipelineTag === 'text-to-speech';
   const pipelineIsSTT = pipelineTag === 'speech-to-text';
@@ -280,7 +270,12 @@ function ExperimentMenuItems({ experimentInfo, models, mode }) {
   );
 }
 
-function GlobalMenuItems({ experimentInfo, outdatedPluginsCount, mode }) {
+function GlobalMenuItems({
+  experimentInfo,
+  outdatedPluginsCount,
+  mode,
+  hasProviders,
+}) {
   const isS3Mode = mode === 's3';
   return (
     <List
@@ -295,6 +290,14 @@ function GlobalMenuItems({ experimentInfo, outdatedPluginsCount, mode }) {
 
       <SubNavItem title="Model Zoo" path="/zoo" icon={<BoxesIcon />} />
       <SubNavItem title="Datasets" path="/data" icon={<FileTextIcon />} />
+      {hasProviders && (
+        <SubNavItem
+          title="Task Library"
+          path="/task_library"
+          icon={<LibraryBigIcon />}
+        />
+      )}
+
       {!isS3Mode && (
         <SubNavItem
           title="API"
@@ -370,6 +373,8 @@ export default function Sidebar({
   setLogsDrawerOpen: _setLogsDrawerOpen,
   themeSetter,
 }) {
+  const { team } = useAuth();
+
   const { experimentInfo } = useExperimentInfo();
   const { models } = useModelStatus();
   const { data: outdatedPlugins } = usePluginStatus(experimentInfo);
@@ -393,6 +398,16 @@ export default function Sidebar({
 
     fetchHealthz();
   }, []);
+
+  const { data: providerListData } = useAPI('compute_provider', ['list'], {
+    teamId: team?.id ?? null,
+  });
+
+  const providers = useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+  const hasProviders = providers.length > 0;
 
   return (
     <Sheet
@@ -443,11 +458,13 @@ export default function Sidebar({
         experimentInfo={experimentInfo}
         models={models}
         mode={mode}
+        hasProviders={hasProviders}
       />
       <GlobalMenuItems
         experimentInfo={experimentInfo}
         outdatedPluginsCount={outdatedPlugins?.length}
         mode={mode}
+        hasProviders={hasProviders}
       />
       {process.env.MULTIUSER === 'true' && <LoginChip />}
       <BottomMenuItems navigate={navigate} themeSetter={themeSetter} />
