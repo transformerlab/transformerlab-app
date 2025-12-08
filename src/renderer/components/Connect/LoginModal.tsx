@@ -38,7 +38,6 @@ export default function LoginModal({
   connection,
   setTerminalDrawerOpen,
   setSSHConnection,
-  setGPUOrchestrationServer,
 }) {
   const [checking, setChecking] = React.useState<boolean>(false);
   const [failed, setFailed] = React.useState<boolean>(false);
@@ -92,9 +91,6 @@ export default function LoginModal({
           window.TransformerLab.API_URL,
           ...recentConnections,
         ]);
-      }
-      if (response?.gpu_orchestration_server) {
-        setGPUOrchestrationServer(response.gpu_orchestration_server);
       }
       setServer(window.TransformerLab.API_URL);
 

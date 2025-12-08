@@ -105,12 +105,6 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 temp_image_dir = storage.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
-# Check if anything is stored in GPU_ORCHESTRATION_SERVER, and if so, print a message
-if os.getenv("GPU_ORCHESTRATION_SERVER"):
-    print(
-        f"🚀 GPU Orchestration Server mode enabled. Using server: {os.getenv('GPU_ORCHESTRATION_SERVER')}:{os.getenv('GPU_ORCHESTRATION_SERVER_PORT', '80')}"
-    )
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -500,17 +494,17 @@ async def healthz():
     """
     Health check endpoint to verify server status and mode.
     """
-    gpu_orchestration_server = os.getenv("GPU_ORCHESTRATION_SERVER", "")
-    mode = "gpu_orchestration" if gpu_orchestration_server else "local"
+    tfl_api_storage_uri = os.getenv("TFL_API_STORAGE_URI", "")
 
-    # Get the port from the environment or use default
-    port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT", "")
+    # Determine mode: s3 or local
+    if tfl_api_storage_uri:
+        mode = "s3"
+    else:
+        mode = "local"
 
     return {
         "message": "OK",
         "mode": mode,
-        "gpu_orchestration_server": gpu_orchestration_server,
-        "gpu_orchestration_server_port": port,
     }
 
 
