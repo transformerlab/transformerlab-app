@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 // Custom filter function for tasks gallery (uses 'title' instead of 'name')
 function filterTasksGallery(data: any[], searchText: string = '') {
-  if (!searchText) return Array(20).fill(data[0]);
   const lowerSearch = searchText.toLowerCase();
   const filteredData = data.filter((task) => {
     const title = task.title || '';
@@ -37,7 +36,7 @@ function filterTasksGallery(data: any[], searchText: string = '') {
       (task.github_repo_url || '').toLowerCase().includes(lowerSearch)
     );
   });
-  return Array(20).fill(filteredData[0]);
+  return filteredData;
 }
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
