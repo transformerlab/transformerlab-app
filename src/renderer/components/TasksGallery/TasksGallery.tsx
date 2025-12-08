@@ -15,13 +15,20 @@ import {
   Typography,
   Stack,
   Chip,
+  CardActions,
 } from '@mui/joy';
-import { SearchIcon, GithubIcon, FolderIcon, DownloadIcon } from 'lucide-react';
+import {
+  SearchIcon,
+  GithubIcon,
+  FolderIcon,
+  DownloadIcon,
+  ScanTextIcon,
+} from 'lucide-react';
 // Custom filter function for tasks gallery (uses 'title' instead of 'name')
 function filterTasksGallery(data: any[], searchText: string = '') {
-  if (!searchText) return data;
+  if (!searchText) return Array(20).fill(data[0]);
   const lowerSearch = searchText.toLowerCase();
-  return data.filter((task) => {
+  const filteredData = data.filter((task) => {
     const title = task.title || '';
     const description = task.description || '';
     return (
@@ -30,12 +37,39 @@ function filterTasksGallery(data: any[], searchText: string = '') {
       (task.github_repo_url || '').toLowerCase().includes(lowerSearch)
     );
   });
+  return Array(20).fill(filteredData[0]);
 }
 
 import * as chatAPI from '../../lib/transformerlab-api-sdk';
 import { fetcher } from '../../lib/transformerlab-api-sdk';
 import { useNotification } from '../Shared/NotificationSystem';
 import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+
+function formatGithubPath(repoUrl?: string, repoDir?: string) {
+  if (!repoUrl) return '';
+  // remove https:// in front of repoUrl if it exists
+  const cleanedRepoUrl = repoUrl.replace(/^https?:\/\//, '');
+  // remove .git from end of url if it exists:
+  const finalRepoUrl = cleanedRepoUrl.replace(/\.git$/, '');
+  return repoDir ? `${finalRepoUrl}/${repoDir}` : finalRepoUrl;
+}
+
+function TaskIcon({ icon, color }: { icon: React.ReactNode; color?: string }) {
+  return (
+    <Box
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 24,
+        height: 24,
+        color: color || 'inherit',
+      }}
+    >
+      {icon}
+    </Box>
+  );
+}
 
 export default function TasksGallery() {
   const [searchText, setSearchText] = useState('');
@@ -152,15 +186,13 @@ export default function TasksGallery() {
       </Box>
       <Sheet
         className="OrderTableContainer"
-        variant="outlined"
         sx={{
           width: '100%',
           height: '100%',
-          borderRadius: 'md',
           flex: 1,
           overflow: 'auto',
           minHeight: 0,
-          padding: 2,
+          paddingRight: 2,
         }}
       >
         {gallery.length === 0 ? (
@@ -173,10 +205,11 @@ export default function TasksGallery() {
           <Grid container spacing={2} sx={{ flexGrow: 1 }}>
             {filterTasksGallery(gallery, searchText).map(
               (task: any, index: number) => (
-                <Grid xs={12} md={6} lg={4} key={index}>
+                <Grid xs={12} sm={12} md={6} lg={4} xl={3} key={index}>
                   <Card variant="outlined" sx={{ height: '100%' }}>
                     <CardContent>
                       <Stack spacing={2}>
+                        <TaskIcon icon={<ScanTextIcon />} color="#1976d2" />
                         <Box>
                           <Typography level="title-lg">
                             {task.title || 'Untitled Task'}
@@ -188,40 +221,29 @@ export default function TasksGallery() {
                           )}
                         </Box>
 
-                        <Stack spacing={1}>
-                          {task.github_repo_url && (
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              alignItems="center"
+                        {/* <Stack spacing={1}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                          >
+                            <GithubIcon size={16} />
+                            <Typography
+                              level="body-xs"
+                              sx={{ wordBreak: 'break-all' }}
                             >
-                              <GithubIcon size={16} />
-                              <Typography
-                                level="body-xs"
-                                sx={{ wordBreak: 'break-all' }}
-                              >
-                                {task.github_repo_url}
-                              </Typography>
-                            </Stack>
-                          )}
-                          {task.github_repo_dir && (
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              alignItems="center"
-                            >
-                              <FolderIcon size={16} />
-                              <Typography level="body-xs">
-                                Directory: {task.github_repo_dir}
-                              </Typography>
-                            </Stack>
-                          )}
-                        </Stack>
+                              {formatGithubPath(
+                                task?.github_repo_url,
+                                task?.github_repo_dir,
+                              )}
+                            </Typography>
+                          </Stack>
+                        </Stack> */}
 
                         {task.config && (
                           <Stack spacing={0.5}>
                             <Typography level="body-xs" fontWeight="bold">
-                              Configuration:
+                              Compute:
                             </Typography>
                             <Stack direction="row" spacing={1} flexWrap="wrap">
                               {task.config.cpus && (
@@ -242,20 +264,21 @@ export default function TasksGallery() {
                             </Stack>
                           </Stack>
                         )}
-
+                      </Stack>
+                      <CardActions>
                         <Button
-                          variant="solid"
-                          startDecorator={<DownloadIcon size={16} />}
+                          variant="soft"
+                          color="success"
+                          endDecorator={<DownloadIcon size={16} />}
                           onClick={() => handleImport(index)}
                           loading={importingIndex === index}
                           disabled={
                             !experimentInfo?.id || importingIndex !== null
                           }
-                          fullWidth
                         >
-                          Import Task
+                          Import
                         </Button>
-                      </Stack>
+                      </CardActions>
                     </CardContent>
                   </Card>
                 </Grid>
