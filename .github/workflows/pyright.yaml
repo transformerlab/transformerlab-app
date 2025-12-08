@@ -1,6 +1,6 @@
 pyright:
   runs-on: ubuntu-latest
-  continue-on-error: true # <-- THIS makes Pyright non-blocking
+  continue-on-error: true # non-blocking
   steps:
     - uses: actions/checkout@v4
 
@@ -12,5 +12,9 @@ pyright:
     - name: Install Pyright
       run: npm install -g pyright
 
-    - name: Run Pyright
-      run: pyright ./api ./lab-sdk
+    - name: Run Pyright with GitHub annotations
+      uses: jakebailey/pyright-action@v2
+      with:
+        project: ''
+        no-fail-on-warnings: true
+      continue-on-error: true
