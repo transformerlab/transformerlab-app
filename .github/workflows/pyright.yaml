@@ -17,10 +17,12 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install lightweight dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ./api
+          # Manually install ONLY the libraries needed for basic type checking.
+          # DO NOT run 'pip install ./api' or 'pip install -r requirements.txt'
+          pip install fastapi uvicorn sqlalchemy pydantic httpx python-dotenv
 
       - name: Set up Node
         uses: actions/setup-node@v4
