@@ -24,6 +24,12 @@ import {
   DownloadIcon,
   ScanTextIcon,
 } from 'lucide-react';
+
+import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
+import * as chatAPI from '../../lib/transformerlab-api-sdk';
+import { fetcher } from '../../lib/transformerlab-api-sdk';
+import { useNotification } from '../Shared/NotificationSystem';
+
 // Custom filter function for tasks gallery (uses 'title' instead of 'name')
 function filterTasksGallery(data: any[], searchText: string = '') {
   const lowerSearch = searchText.toLowerCase();
@@ -38,11 +44,6 @@ function filterTasksGallery(data: any[], searchText: string = '') {
   });
   return filteredData;
 }
-
-import * as chatAPI from '../../lib/transformerlab-api-sdk';
-import { fetcher } from '../../lib/transformerlab-api-sdk';
-import { useNotification } from '../Shared/NotificationSystem';
-import { useExperimentInfo } from 'renderer/lib/ExperimentInfoContext';
 
 function formatGithubPath(repoUrl?: string, repoDir?: string) {
   if (!repoUrl) return '';
