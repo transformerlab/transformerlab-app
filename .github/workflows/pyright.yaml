@@ -8,21 +8,26 @@ on:
 jobs:
   pyright:
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Adjust the path to your requirements.txt if it is in api/
+          pip install -r api/requirements.txt
+          # Or if you use poetry/uv, install those instead
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install Pyright
-        run: npm install -g pyright
-
-      - name: Run Pyright with GitHub annotations
+      - name: Run Pyright
         uses: jakebailey/pyright-action@v2
-        with:
-          project: ''
-          no-fail-on-warnings: true
-        continue-on-error: true
