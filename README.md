@@ -189,30 +189,33 @@ cd api
 
 #### Updating API Python Requirements
 
-Python dependencies (used by the API) are managed with `uv pip compile`. To add/change a dependency, update `requirements.in` and then refresh the platform specific files:
+Python dependencies (used by the API) are managed with `pyproject.toml`. To add/change a dependency, update `pyproject.toml` directly:
+
+- Base dependencies go in `[project.dependencies]`
+- Platform-specific dependencies go in `[project.optional-dependencies]`:
+  - `nvidia` - For NVIDIA GPU support (includes `nvidia-ml-py`, PyTorch with `+cu128` suffix)
+  - `rocm` - For AMD ROCm GPU support (includes `pyrsmi`, and PyTorch with `+rocm6.4` suffix)
+  - `cpu` - For CPU-only installations
+
+To install with a specific platform:
 
 ```bash
 cd api
 
-# CUDA (default)
-uv pip compile requirements.in -o requirements-uv.txt
+# NVIDIA GPU (default)
+uv pip install .[nvidia]
 
 # AMD ROCm
-uv pip compile requirements-rocm.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match
-sed -i 's/\+rocm6\.4//g' requirements-rocm-uv.txt
+uv pip install .[rocm] --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match
 
 # CPU-only (Linux/Windows)
-uv pip compile requirements.in -o requirements-no-gpu-uv.txt --index=https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
-sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
+uv pip install .[cpu] --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
 
 # macOS (Apple Silicon)
-uv pip compile requirements.in -o requirements-no-gpu-uv.txt
+uv pip install .[cpu]
 ```
 
-Notes:
-
-1. Remove `nvidia-ml-py` if it appears in the ROCm lockfile.
-2. The `sed` commands strip suffixes from PyTorch wheels that otherwise break installs using uv pip sync.
+The `install.sh` script automatically detects the platform and installs the appropriate extra.
 
 ### Lab SDK Development
 

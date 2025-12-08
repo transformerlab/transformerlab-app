@@ -311,6 +311,66 @@ async def get_pytorch_collect_env():
     return output.decode("utf-8")
 
 
+async def watch_s3_file(
+    filename: str, start_from_beginning=False, poll_interval_ms: int = 500
+) -> AsyncGenerator[str, None]:
+    """
+    Watch an S3 file by polling it periodically.
+    This is used for remote filesystems like S3 that don't support file watching.
+    """
+    print(f"👀 Watching S3 file: {filename}")
+
+    # create the file if it doesn't already exist:
+    if not storage.exists(filename):
+        with storage.open(filename, "w") as f:
+            f.write("")
+
+    last_content = ""
+    if start_from_beginning:
+        try:
+            with storage.open(filename, "r") as f:
+                last_content = f.read()
+                if last_content:
+                    lines = last_content.splitlines(keepends=True)
+                    yield (f"data: {json.dumps(lines)}\n\n")
+        except Exception as e:
+            print(f"Error reading S3 file from beginning: {e}")
+            last_content = ""
+    else:
+        # Start from current end of file
+        try:
+            with storage.open(filename, "r") as f:
+                last_content = f.read()
+        except Exception as e:
+            print(f"Error reading S3 file: {e}")
+            last_content = ""
+
+    # Poll the file periodically
+    while True:
+        await asyncio.sleep(poll_interval_ms / 1000.0)
+        try:
+            with storage.open(filename, "r") as f:
+                current_content = f.read()
+
+            # Check if file has grown
+            if len(current_content) > len(last_content):
+                # Extract new content
+                new_content = current_content[len(last_content) :]
+                new_lines = new_content.splitlines(keepends=True)
+                if new_lines:
+                    yield (f"data: {json.dumps(new_lines)}\n\n")
+                last_content = current_content
+            elif len(current_content) < len(last_content):
+                # File was truncated or rewritten, send all current content
+                if current_content:
+                    lines = current_content.splitlines(keepends=True)
+                    yield (f"data: {json.dumps(lines)}\n\n")
+                last_content = current_content
+        except Exception as e:
+            print(f"Error polling S3 file: {e}")
+            await asyncio.sleep(poll_interval_ms / 1000.0)
+
+
 async def watch_file(filename: str, start_from_beginning=False, force_polling=True) -> AsyncGenerator[str, None]:
     print(f"👀 Watching file: {filename}")
 
@@ -346,11 +406,36 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
 @router.get("/stream_log")
 async def watch_log():
     global_log_path = get_global_log_path()
-    return StreamingResponse(
-        watch_file(global_log_path),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-    )
+
+    if not storage.exists(global_log_path):
+        # Create the file
+        with storage.open(global_log_path, "w") as f:
+            f.write("")
+    try:
+        # Check if the path is an S3 or other remote filesystem path
+        is_remote_path = global_log_path.startswith(("s3://", "gs://", "abfs://", "gcs://"))
+
+        if is_remote_path:
+            # Use S3 polling watcher for remote filesystems
+            return StreamingResponse(
+                watch_s3_file(global_log_path),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+            )
+        else:
+            # Use local file watcher for local filesystems
+            return StreamingResponse(
+                watch_file(global_log_path),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+            )
+    except Exception as e:
+        print(f"Error streaming log: {e}")
+        return StreamingResponse(
+            iter(["data: Error: An internal error has occurred!\n\n"]),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
 
 
 @router.get("/download_logs")

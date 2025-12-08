@@ -13,6 +13,8 @@ from transformerlab.models.users import (
     get_refresh_strategy,
     google_oauth_client,
     GOOGLE_OAUTH_ENABLED,
+    github_oauth_client,
+    GITHUB_OAUTH_ENABLED,
     EMAIL_AUTH_ENABLED,
     SECRET,
 )
@@ -146,6 +148,18 @@ async def _get_user_from_jwt_or_api_key(
 
     # If we get here, neither API key nor JWT worked
     raise HTTPException(status_code=401, detail="Authentication required")
+    
+@router.get("/auth/github/status")
+async def github_oauth_status():
+    return {"enabled": GITHUB_OAUTH_ENABLED}
+
+
+if GITHUB_OAUTH_ENABLED:
+    router.include_router(
+        fastapi_users.get_oauth_router(github_oauth_client, oauth_backend, SECRET),
+        prefix="/auth/github",
+        tags=["auth"],
+    )
 
 
 async def get_user_and_team(

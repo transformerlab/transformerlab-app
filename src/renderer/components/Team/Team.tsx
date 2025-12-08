@@ -188,9 +188,14 @@ export default function UserLoginTest(): JSX.Element {
     }
 
     try {
-      const res = await authContext.fetchWithAuth(`providers/${id}`, {
-        method: 'DELETE',
-      });
+      const res = await authContext.fetchWithAuth(
+        chatAPI.getAPIFullPath('compute_provider', ['delete'], {
+          providerId: id,
+        }),
+        {
+          method: 'DELETE',
+        },
+      );
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({

@@ -393,36 +393,29 @@ install_dependencies() {
   echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
   PIP_WHEEL_FLAGS="--upgrade"
 
+  # Determine the directory containing pyproject.toml
+  if [ -e "$RUN_DIR/pyproject.toml" ]; then
+    PROJECT_DIR="$RUN_DIR"
+  elif [ -e "$TLAB_CODE_DIR/pyproject.toml" ]; then
+    PROJECT_DIR="$TLAB_CODE_DIR"
+  else
+    echo "Error: pyproject.toml not found in run directory or src location."
+    exit 1
+  fi
+
   if [ "$HAS_NVIDIA" = true ]; then
       echo "Your computer has a GPU; installing cuda:"
       conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
 
-      echo "Installing requirements:"
-      # Install the python requirements
-      if [ -e "$RUN_DIR/requirements-uv.txt" ]; then
-        REQS_PATH="$RUN_DIR/requirements-uv.txt"
-      elif [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
-        REQS_PATH="$TLAB_CODE_DIR/requirements-uv.txt"
-      else
-        echo "Error: requirements-uv.txt not found in run directory or src location."
-        exit 1
-      fi
-
-      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
+      echo "Installing requirements with NVIDIA support:"
+      cd "$PROJECT_DIR"
+      uv pip install ${PIP_WHEEL_FLAGS} .[nvidia]
 
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"
-      if [ -e "$RUN_DIR/requirements-rocm-uv.txt" ]; then
-        REQS_PATH="$RUN_DIR/requirements-rocm-uv.txt"
-      elif [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
-        REQS_PATH="$TLAB_CODE_DIR/requirements-rocm-uv.txt"
-      else
-        echo "Error: requirements-rocm-uv.txt not found in run directory or src location."
-        exit 1
-      fi
-
+      cd "$PROJECT_DIR"
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
-      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
+      uv pip install ${PIP_WHEEL_FLAGS} .[rocm]
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
         location=$(pip show torch | grep Location | awk -F ": " '{print $2}')
@@ -436,25 +429,16 @@ install_dependencies() {
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
-      echo "Installing Tranformer Lab requirements without GPU support"
+      echo "Installing Transformer Lab requirements without GPU support"
 
-      if [ -e "$RUN_DIR/requirements-no-gpu-uv.txt" ]; then
-        REQS_PATH="$RUN_DIR/requirements-no-gpu-uv.txt"
-      elif [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
-        REQS_PATH="$TLAB_CODE_DIR/requirements-no-gpu-uv.txt"
-      else
-        echo "Error: requirements-no-gpu-uv.txt not found in run directory or src location."
-        exit 1
-      fi
-
+      cd "$PROJECT_DIR"
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
           PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
       fi
 
-      echo "Using requirements from ${REQS_PATH}"
-      # Run the installation with dynamic flags
-      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
+      echo "Installing with CPU support"
+      uv pip install ${PIP_WHEEL_FLAGS} .[cpu]
   fi
 
   # Check if the uvicorn command works:
