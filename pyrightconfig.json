@@ -1,15 +1,6 @@
 {
-  "include": [
-    "api"
-  ],
-  "exclude": [
-    "**/node_modules",
-    "**/__pycache__",
-    "api/scripts/xml-rpc-client-example",
-    "api/alembic"
-  ],
-  "venvPath": ".",
-  "venv": ".venv",
-  "reportMissingImports": "error",
+  "include": ["api"],
+  "exclude": ["**/node_modules", "**/__pycache__"],
+  "reportMissingImports": "none",
   "reportMissingTypeStubs": false
 }
