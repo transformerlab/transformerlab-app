@@ -576,7 +576,7 @@ def print_launch_message():
     ) as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print("http://www.transformerlab.ai\nhttps://github.com/transformerlab/transformerlab-api\n")
+    print("https://www.lab.cloud\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
 def run():
