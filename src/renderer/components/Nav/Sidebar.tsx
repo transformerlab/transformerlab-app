@@ -48,27 +48,20 @@ import ColorSchemeToggle from './ColorSchemeToggle';
 import LoginChip from './UserWidget';
 import { fetchWithAuth, useAPI, useAuth } from 'renderer/lib/authContext';
 
-function ExperimentMenuItems({ DEV_MODE, experimentInfo, models, mode }) {
+function ExperimentMenuItems({
+  DEV_MODE,
+  experimentInfo,
+  models,
+  mode,
+  hasProviders,
+}) {
   const [pipelineTag, setPipelineTag] = useState<string | null>(null);
-  const { team } = useAuth();
 
   const isS3Mode = mode === 's3';
 
   const [isValidDiffusionModel, setIsValidDiffusionModel] = useState<
     boolean | null
   >(null);
-
-  // Fetch compute_provider to determine if Tasks tab should be visible
-  const { data: providerListData } = useAPI('compute_provider', ['list'], {
-    teamId: team?.id ?? null,
-  });
-
-  const providers = useMemo(
-    () => (Array.isArray(providerListData) ? providerListData : []),
-    [providerListData],
-  );
-
-  const hasProviders = providers.length > 0;
 
   function activeModelIsNotSameAsFoundation() {
     if (models === null) {
@@ -389,6 +382,20 @@ export default function Sidebar({
 
   const DEV_MODE = experimentInfo?.name === 'dev';
 
+  const { team } = useAuth();
+
+  // Fetch compute_provider to determine if Tasks tab should be visible
+  const { data: providerListData } = useAPI('compute_provider', ['list'], {
+    teamId: team?.id ?? null,
+  });
+
+  const providers = useMemo(
+    () => (Array.isArray(providerListData) ? providerListData : []),
+    [providerListData],
+  );
+
+  const hasProviders = providers.length > 0;
+
   // Fetch healthz to get the mode
   useEffect(() => {
     const fetchHealthz = async () => {
@@ -455,6 +462,7 @@ export default function Sidebar({
         experimentInfo={experimentInfo}
         models={models}
         mode={mode}
+        hasProviders={hasProviders}
       />
       <GlobalMenuItems
         DEV_MODE={DEV_MODE}
