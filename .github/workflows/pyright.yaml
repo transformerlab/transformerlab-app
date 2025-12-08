@@ -1,20 +1,28 @@
-pyright:
-  runs-on: ubuntu-latest
-  continue-on-error: true # non-blocking
-  steps:
-    - uses: actions/checkout@v4
+name: Pyright Check
 
-    - name: Set up Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: 22
+on:
+  push:
+    branches: [main]
+  pull_request:
 
-    - name: Install Pyright
-      run: npm install -g pyright
+jobs:
+  pyright:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Run Pyright with GitHub annotations
-      uses: jakebailey/pyright-action@v2
-      with:
-        project: ''
-        no-fail-on-warnings: true
-      continue-on-error: true
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Pyright
+        run: npm install -g pyright
+
+      - name: Run Pyright with GitHub annotations
+        uses: jakebailey/pyright-action@v2
+        with:
+          project: ''
+          no-fail-on-warnings: true
+        continue-on-error: true
